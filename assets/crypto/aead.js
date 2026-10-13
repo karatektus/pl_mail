@@ -25,6 +25,9 @@ export const PURPOSE = Object.freeze({
     phrase: "plmail/user-key/phrase",
     device: "plmail/user-key/device",
     session: "plmail/session-unlock",
+    // The keyring for a device being paired, sealed under the transfer key in
+    // the QR code (crypto/pairing.js). App\Service\User\DevicePairingService::TRANSFER_PURPOSE.
+    pairing: "plmail/pairing-transfer",
 });
 
 const IV_BYTES = 12;

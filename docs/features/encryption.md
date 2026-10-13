@@ -170,6 +170,14 @@ an invisible `Autocrypt` header carries your public key, so Thunderbird, Delta C
 programs can answer encrypted. **Attach your public key** adds it as a file as well, for programs
 that do not read Autocrypt.
 
+## On your phone
+
+Pairing the plMail app (Settings → App passwords → **Pair a device**) brings your keys along when
+this browser has them open — the line under the QR code says so. They travel sealed: the key that
+opens them is in the QR code itself, which is drawn by your browser and never sent to the server.
+Encrypted mail then opens in the app without a password. A device paired without them can be given
+your keys once with your plMail password.
+
 ## Keeping decrypted mail on this server
 
 Encrypted mail is not searched, and parcels, dates and rules do not see it — the server never holds

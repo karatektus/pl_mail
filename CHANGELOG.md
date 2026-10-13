@@ -8,6 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The plMail app can read and send encrypted mail — the server side, phase 6a of end-to-end
+encryption.** Pairing a device now brings your keys along when your browser has them open: they
+travel sealed, and the key that opens them is only in the QR code, which your browser draws itself.
+JMAP gains a capability for encryption (`urn:plmail:params:jmap:keys`) with the wrapped keyring,
+contacts' keys and the key lookup, the hand-over of decrypted mail, and encryption fields on Email;
+and `Email/import`, through which the app sends a message it built and encrypted itself, byte for
+byte. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Encrypted mail can be kept readable on your own server, if you choose — the optional step towards
 end-to-end encryption.** Under Settings → Encryption → *Decrypted mail on this server*, per account
 and off by default: your browser then decrypts that account's encrypted mail in the background and

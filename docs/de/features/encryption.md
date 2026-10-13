@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:e019825172f06e03d6c415f82e7e0e457041144c -->
+<!-- translated-from: features/encryption.md sha1:986a7affe7bfdc8497c03b39cd875e1b9be7b15e -->
 
 # Verschlüsselung
 
@@ -186,6 +186,14 @@ teilen**, standardmäßig an: Ein unsichtbarer `Autocrypt`-Header trägt deinen 
 damit Thunderbird, Delta Chat und andere Programme verschlüsselt antworten können.
 **Öffentlichen Schlüssel anhängen** hängt ihn zusätzlich als Datei an, für Programme, die Autocrypt
 nicht lesen.
+
+## Auf dem Handy
+
+Wenn du die plMail-App koppelst (Einstellungen → App-Passwörter → **Gerät koppeln**), kommen deine
+Schlüssel mit, sofern sie in diesem Browser offen sind — die Zeile unter dem QR-Code sagt es. Sie
+reisen versiegelt: Der Schlüssel, der sie öffnet, steckt im QR-Code selbst, den dein Browser zeichnet
+und nie an den Server schickt. Verschlüsselte Mails öffnen sich dann in der App ohne Passwort. Ein
+Gerät, das ohne sie gekoppelt wurde, bekommt deine Schlüssel einmal mit deinem plMail-Passwort.
 
 ## Entschlüsselte Mails auf diesem Server behalten
 

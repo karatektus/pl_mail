@@ -443,6 +443,19 @@ export class Keyring {
         return keys.filter((key) => null !== key);
     }
 
+    /**
+     * The opened user keys, as base64 — for a device being paired, which
+     * gets them sealed under a key only its QR code carries (crypto/pairing.js).
+     * Nothing else may ask for them.
+     *
+     * @returns {Array<{id: number, key: string}>}
+     */
+    userKeysForPairing() {
+        this.#assertOpen();
+
+        return [...this.#userKeys].map(([id, bytes]) => ({ id, key: toBase64(bytes) }));
+    }
+
     /** Lower-case primary fingerprints of the person's own keys. */
     ownFingerprints() {
         return (this.state?.addressKeys ?? []).map((entry) => String(entry.fingerprint).toLowerCase());

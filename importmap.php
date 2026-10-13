@@ -63,4 +63,5 @@ return [
     '@scure/base' => ['version' => '1.2.5'],
     'postal-mime' => ['version' => '2.7.6'],
     'dompurify' => ['version' => '3.4.16'],
+    'uqr' => ['version' => '0.1.2'],
 ];

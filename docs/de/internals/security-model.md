@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:94ca447904c2849bf5b87a40eacb60d81b5a0fcc -->
+<!-- translated-from: internals/security-model.md sha1:955680432cc41ebb60403d9302dc04dc5c3b9c09 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -401,6 +401,27 @@ oder Loopback-Bereiche auflöst oder dem Host entspricht, dem die Person namentl
 Ausschalten reiht `ForgetDecryptedMailMessage` auf `bulk` ein: Bodys, Anhänge, die entschlüsselte
 Kopie, Embeddings, Thread-Zusammenfassungen, Insights und Vorschläge aller solcher Nachrichten
 werden gelöscht. Schon angelegte Kalendertermine bleiben.
+
+## Native Clients und der Schlüsselbund
+
+Phase 6 von Issue #28: `urn:plmail:params:jmap:keys` gibt einem App-Passwort, was die Browser-Sitzung
+hat — den Schlüsselbund weiterhin verpackt (`Keyring/get`, ohne die Recovery-Kopien), Kontaktschlüssel
+und die Suche des Schreibfensters (`RecipientKeys`, mit dem Web geteilt), die Übergabe entschlüsselter
+Mails (`DecryptedMail`, dieselben Regeln) —, und Email bekommt ihre Krypto-Felder. Nichts Lesbares
+kommt dazu.
+
+**Die Kopplung übergibt die User-Keys, ohne dass der Server sie sieht.** Der Browser versiegelt sie
+unter einem frischen 32-Byte-Übertragungsschlüssel (AES-GCM, Zweck `plmail/pairing-transfer`),
+schickt nur die versiegelte Kopie und setzt den Übertragungsschlüssel ins Fragment der
+Kopplungs-URI; diesen QR-Code zeichnet der Browser selbst, weil ein vom Server gezeichneter den
+Schlüssel bräuchte. Die versiegelte Kopie liegt seine zwei Minuten lang neben dem Code im Cache und
+geht beim Einlösen mit dem App-Passwort hinaus. Wer den QR-Code fotografiert, kann ohnehin koppeln;
+die Schlüssel geben nichts, was eine Kopplung nicht schon gab.
+
+**`Email/import` ist der Weg, eine im Client gebaute Nachricht zu senden.** Ein Import als `$draft`
+behält seine Content-*-Header und seinen Body als ausgehende Entität — der Weg des Web-Schreibfensters
+aus Phase 5 —, und ein verschlüsselter nennt die Fingerprints, an die er verschlüsselt ist, geprüft
+von `SealGuard` beim Import und beim Senden.
 
 ## Firewalls
 

@@ -7,23 +7,21 @@ namespace App\Service\Crypto;
 use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Entity\Mail\MessagePart;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
 use App\Service\Mail\DraftAttachmentService;
-use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\ParsedAttachmentWriter;
 use App\Service\Rule\MailRuleEngine;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -56,8 +54,8 @@ final readonly class DecryptedMail
     public function __construct(
         private EntityManagerInterface   $entityManager,
         private SealedMessageStorage     $storage,
-        private AttachmentStorageHelper  $attachments,
-        private InlineAttachmentDetector $inline,
+        private ParsedAttachmentWriter   $attachments,
+        private AttachmentStorageHelper  $files,
         private MailBodySanitizer        $sanitizer,
         private DraftAttachmentService   $parts,
         private MailChangeRecorder       $changes,
@@ -113,7 +111,7 @@ final readonly class DecryptedMail
                 continue;
             }
 
-            $this->attach($message, $attachment);
+            $this->attachments->write($message, $attachment);
         }
 
         $message->plaintextSource = PlaintextSource::Client;
@@ -148,7 +146,7 @@ final readonly class DecryptedMail
 
         foreach ($message->messageParts->toArray() as $part) {
             if (false === $part->sealed) {
-                $this->attachments->delete($part->storagePath);
+                $this->files->delete($part->storagePath);
                 $message->removeMessagePart($part);
                 $this->entityManager->remove($part);
             }
@@ -218,36 +216,5 @@ final readonly class DecryptedMail
             $this->rules->applyToBatch([$message], $message->account);
             $this->entityManager->flush();
         }
-    }
-
-    private function attach(Message $message, mixed $attachment): void
-    {
-        $raw      = $attachment->getFilename();
-        $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
-        $content  = (string) $attachment->getContent();
-
-        // Keyed by the message id, as a draft's uploads are: Gmail and Graph
-        // messages have no IMAP uid to key them by.
-        $part = new MessagePart();
-        $part->message     = $message;
-        $part->contentType = $attachment->getContentType() ?? 'application/octet-stream';
-        $part->filename    = $filename;
-        $part->size        = strlen($content);
-        $part->storagePath = $this->attachments->store(
-            (int) $message->account->id,
-            (int) ($message->mailbox->id ?? 0),
-            (int) $message->id,
-            $filename,
-            $content,
-        );
-
-        $contentId       = $this->inline->normalizeContentId((string) $attachment->getId());
-        $isInline        = $this->inline->isInline($attachment->getDisposition(), $contentId, $message->bodyHtml);
-        $part->contentId   = '' !== $contentId ? $contentId : null;
-        $part->disposition = $isInline ? 'inline' : 'attachment';
-        $part->isInline    = $isInline;
-
-        $message->addMessagePart($part);
-        $this->entityManager->persist($part);
     }
 }

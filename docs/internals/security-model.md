@@ -364,6 +364,24 @@ Switching off queues `ForgetDecryptedMailMessage` on `bulk`: bodies, attachments
 embeddings, thread summaries, insights and proposals of every such message go. Calendar events
 already created stay.
 
+## Native clients and the keyring
+
+Phase 6 of issue #28: `urn:plmail:params:jmap:keys` gives an app password what the browser session
+has — the keyring still wrapped (`Keyring/get`, without the recovery copies), contacts' keys and the
+composer's lookup (`RecipientKeys`, shared with the web), the decrypted-mail hand-over
+(`DecryptedMail`, same rules) — and Email gets its crypto fields. Nothing readable is added.
+
+**Pairing hands over the user keys without the server seeing them.** The browser seals them under a
+fresh 32-byte transfer key (AES-GCM, purpose `plmail/pairing-transfer`), posts only the sealed copy,
+and puts the transfer key in the pairing URI's fragment; the browser draws that QR code itself,
+because a server-drawn one would need the key. The sealed copy lives beside the code in the cache for
+its two minutes and goes out with the app password on redemption. Whoever photographs the QR code
+can pair anyway; the keys add nothing a pairing did not already give.
+
+**`Email/import` is how a client-built message is sent.** A `$draft` import keeps its Content-*
+headers and body as the outgoing entity — the web composer's path from phase 5 — and an encrypted
+one names the fingerprints it was encrypted to, checked by `SealGuard` at import and at sending.
+
 ## Firewalls
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
