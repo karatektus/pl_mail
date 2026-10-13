@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**An invoice card could be numbered "TIFICATIONS", and two bills from one sender became one
+card.** A billing mail whose footer says "Manage invoice notifications" had that line read as an
+invoice number: "invoice no" matched the start of "notifications" and the rest of the word became
+the number. Every bill that sender sent got the same number and so the same card, and each
+overwrote the last. "Invoice no" and "invoice number" now have to be whole words. No migration.
+
 **Signing out holds.** A page's background requests that were still on their way when you pressed
 Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
 the server, one per device, and signing out deletes this device's; other devices stay signed in.

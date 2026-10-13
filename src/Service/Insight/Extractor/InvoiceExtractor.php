@@ -345,10 +345,18 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
      * The invoice number, only where a word announces one. Letters, digits,
      * dashes and slashes, because "RE-2026/0042" is as common a shape as a
      * plain run of digits.
+     *
+     * The English announcing words end at a word boundary. Without it "invoice
+     * no" matched the start of "Manage invoice notifications", a line in the
+     * footer of a great many billing mails, and the number came out as
+     * "TIFICATIONS" — the same for every bill that sender ever sent, so each
+     * overwrote the last on the radar. A mail whose footer is not in the text
+     * never showed it, which is why it surfaced only once Outlook mail was read
+     * in full.
      */
     private function invoiceNumberIn(string $whole): ?string
     {
-        $pattern = '~(?:rechnungsnummer|rechnungs-?nr\.?|rechnung\s+nr\.?|invoice\s*(?:number|no\.?|#)|belegnummer)\s*[:#]?\s*([A-Z0-9][A-Z0-9/\-]{2,29})~iu';
+        $pattern = '~(?:rechnungsnummer|rechnungs-?nr\.?|rechnung\s+nr\.?|invoice\s*(?:number\b|no\b\.?|#)|belegnummer)\s*[:#]?\s*([A-Z0-9][A-Z0-9/\-]{2,29})~iu';
 
         if (1 !== preg_match($pattern, $whole, $match)) {
             return null;

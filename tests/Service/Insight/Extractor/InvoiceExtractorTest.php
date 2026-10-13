@@ -127,6 +127,104 @@ final class InvoiceExtractorTest extends TestCase
                 ]],
             ],
 
+            // The companions of the two rows below: the words still announce a
+            // number when they stand alone. The subject says nothing here, so
+            // the body's own "no." and "number:" are the only way to the number.
+            'an invoice no. in the body, and nothing in the subject, is read' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice from Acme',
+                    'body'     => "Invoice no. 4711\nAmount due: \$16.00",
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => '4711',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => '4711',
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'an invoice number: in the body, and nothing in the subject, is read' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice from Acme',
+                    'body'     => "Invoice number: inv-2026-001\nAmount due: \$16.00",
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'INV-2026-001',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => 'INV-2026-001',
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // "invoice no" and "invoice number" are announcing words only as
+            // WORDS. A footer line like "Manage invoice notifications" begins
+            // with "invoice no", and read as a prefix it handed the rest of the
+            // word to the number: "tifications". It sits in every such mail's
+            // footer, so every bill of a sender got the same identity and the
+            // second of them overwrote the first. No number is the right
+            // answer, and the card then keys on sender, sum and deadline.
+            'a footer about "invoice notifications" is not an invoice number' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice is available',
+                    'body'     => "Your invoice for November is available.\n"
+                        . "Amount due: \$16.00\n"
+                        . 'Manage invoice notifications in your account settings.',
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'acme-beispiel.com|16.00 USD|-',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => null,
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'a footer about "invoice numbering" is not an invoice number either' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice is available',
+                    'body'     => "Your invoice for November is available.\n"
+                        . "Amount due: \$16.00\n"
+                        . 'Invoice numbering follows your account settings.',
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'acme-beispiel.com|16.00 USD|-',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => null,
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
             // Talks like a bill, names no money: the sum is behind a login,
             // and "you owe something" is not a fact worth a card.
             'an invoice notification with the amount behind a login' => [
