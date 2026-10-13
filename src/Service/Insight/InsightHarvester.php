@@ -20,7 +20,9 @@ use Psr\Log\LoggerInterface;
  * and one parcel. A later draft OVERWRITES title, payload and happensAt —
  * carriers revise their estimates and the newest statement is the card worth
  * showing — but never clears dismissedAt: the user's "stop showing me this"
- * outranks the carrier's enthusiasm (see MailInsight's class doc).
+ * outranks the carrier's enthusiasm (see MailInsight's class doc). Later by
+ * the MAIL's date, not by the order of harvesting: see
+ * isOlderThanTheMailBehind().
  *
  * The dedupe key is prefixed with the extractor's key here rather than by
  * each extractor, so two extractors reading the same number cannot collide
@@ -57,8 +59,9 @@ final readonly class InsightHarvester
                 }
 
                 foreach ($extractor->extract($message) as $draft) {
-                    $this->land($message, $extractor::key(), $draft);
-                    $written++;
+                    if (true === $this->land($message, $extractor::key(), $draft)) {
+                        $written++;
+                    }
                 }
             } catch (\Throwable $e) {
                 $this->logger->warning('Insight extractor failed on a message', [
@@ -73,7 +76,8 @@ final readonly class InsightHarvester
         return $written;
     }
 
-    private function land(Message $message, string $extractorKey, InsightDraft $draft): void
+    /** @return bool whether the draft was written; false when an older mail left the card as it was */
+    private function land(Message $message, string $extractorKey, InsightDraft $draft): bool
     {
         $dedupeKey = mb_substr($extractorKey . ':' . $draft->dedupeKey, 0, 160);
 
@@ -86,6 +90,8 @@ final readonly class InsightHarvester
             $insight->dedupeKey = $dedupeKey;
 
             $this->em->persist($insight);
+        } elseif (true === $this->isOlderThanTheMailBehind($insight, $message)) {
+            return false;
         }
 
         $insight->kind = $draft->kind;
@@ -96,5 +102,31 @@ final readonly class InsightHarvester
         // land on "delivered", not on "shipped".
         $insight->message = $message;
         $insight->thread = $message->thread;
+
+        return true;
+    }
+
+    /**
+     * Whether this mail is strictly older than the one the card already stands
+     * on — in which case it has nothing newer to say and the card stays.
+     *
+     * "The newest mail wins" was written for a sync, where mail arrives in
+     * date order and the last one harvested IS the newest. A backfill breaks
+     * that: it walks by id, and ids follow the order mail was STORED, which for
+     * a Graph import is newest-first. Read that way, a parcel's "out for
+     * delivery" mail is harvested before the "announced" one and the older
+     * statement overwrites it — every card ends on the first status of its
+     * series. A late-arriving old mail in a live sync does the same.
+     *
+     * Strictly older, and only when both dates are known: two mails of the same
+     * instant leave the last read as the winner, as before, and a card whose
+     * mail was deleted (MailInsight::$message is SET NULL) has nothing to be
+     * older than, so the draft in hand is the only statement left.
+     */
+    private function isOlderThanTheMailBehind(MailInsight $insight, Message $message): bool
+    {
+        $kept = $insight->message?->receivedAt;
+
+        return null !== $kept && null !== $message->receivedAt && $message->receivedAt < $kept;
     }
 }

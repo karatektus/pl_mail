@@ -141,6 +141,13 @@ import line in the background-work indicator now shows the quota, roughly how mu
 use, how many messages a minute are coming in, how long the rest of the import takes, and says
 so when Google has paused it. No
 migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+**Reading old mail again could turn a parcel's card back to its first status.** A card keeps the
+newest statement of its series, but "newest" meant the last mail read, not the latest dated.
+`app:backfill insights` reads by the order mail was stored, which for an Outlook import is
+newest-first, so a parcel's "out for delivery" mail was read before its "announced" one and the
+older statement overwrote it. A mail older than the one a card already stands on now leaves the
+card alone; mail of the same instant, or a card whose mail was deleted, behave as before. No
+migration.
 
 **The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
 icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a
