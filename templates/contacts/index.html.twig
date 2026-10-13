@@ -1,0 +1,110 @@
+{#
+contacts/index.html.twig — every contact in every mirrored CardDAV address book.
+
+The settings page's shell — drawer, topbar, sidebar, one pane — because this is
+a destination of the same kind: a page you open on purpose, not a mail view.
+
+The search is a GET form that targets the `contacts-list` frame, so it works
+without JavaScript as a plain page load and with Turbo as a frame swap, and the
+URL carries the query either way.
+
+With no address book mirrored there is nothing to list and nothing to create
+in, and the page says where to fix that rather than showing an empty list.
+
+Variables:
+  query      string
+  cards      ContactCard[]
+  books      AddressBook[]   every mirrored book
+  canCreate  bool            at least one book accepts writes
+  pageLimit  int
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'contacts.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="h-full overflow-hidden app-bg"
+         data-controller="ui--sidebar-drawer">
+
+        <div data-ui--sidebar-drawer-target="backdrop" data-action="click->ui--sidebar-drawer#backdropClick"
+             class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"
+             aria-hidden="true"></div>
+
+        <div data-ui--sidebar-drawer-target="drawer" id="sidebar-drawer" inert
+             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3 -translate-x-full transition-transform duration-200 ease-out">
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+        </div>
+
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter">
+
+            {% include '_partials/_topbar.html.twig' %}
+
+            <div class="flex flex-1 gap-gutter overflow-hidden">
+
+                <div class="hidden md:flex">
+                    {% include '_partials/_sidebar.html.twig' %}
+                </div>
+
+                <div class="flex flex-1 overflow-hidden main-pane">
+                    <div class="flex flex-col flex-1 overflow-hidden">
+
+                        <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
+                            <i class="fa-solid fa-address-book text-ink-faint" aria-hidden="true"></i>
+                            <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
+
+                            {% if canCreate %}
+                                <button
+                                    type="button"
+                                    data-controller="ui--modal"
+                                    data-action="click->ui--modal#open"
+                                    data-ui--modal-title-value="{{ 'contacts.new.title'|trans }}"
+                                    data-ui--modal-src-value="{{ path('app_contacts_new') }}"
+                                    class="ml-auto inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-accent-ink
+                                           bg-accent hover:bg-accent-strong transition-colors cursor-pointer"
+                                >
+                                    <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                                    {{ 'contacts.new.button'|trans }}
+                                </button>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto">
+                            {% if books is empty %}
+                                <div class="max-w-md mx-auto px-6 py-16 text-center space-y-3">
+                                    <i class="fa-solid fa-address-book text-3xl text-ink-faint" aria-hidden="true"></i>
+                                    <p class="text-sm text-ink-muted">{{ 'contacts.no_books'|trans }}</p>
+                                    <a href="{{ path('app_settings_index', { section: 'contacts' }) }}"
+                                       class="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
+                                        {{ 'contacts.no_books_link'|trans }}
+                                        <i class="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i>
+                                    </a>
+                                </div>
+                            {% else %}
+                                <form method="get"
+                                      action="{{ path('app_contacts_index') }}"
+                                      data-turbo-frame="contacts-list"
+                                      data-turbo-action="replace"
+                                      role="search"
+                                      class="px-4 py-3 border-b border-line">
+                                    <label for="contacts-search" class="sr-only">{{ 'contacts.search'|trans }}</label>
+                                    <input type="search"
+                                           id="contacts-search"
+                                           name="q"
+                                           value="{{ query }}"
+                                           placeholder="{{ 'contacts.search'|trans }}"
+                                           autocomplete="off"
+                                           class="w-full px-3 h-9 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint
+                                                  focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                                </form>
+
+                                <turbo-frame id="contacts-list">
+                                    {% include 'contacts/_list.html.twig' with { cards: cards, query: query, pageLimit: pageLimit } only %}
+                                </turbo-frame>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

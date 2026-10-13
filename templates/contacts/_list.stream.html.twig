@@ -1,0 +1,22 @@
+{#
+contacts/_list.stream.html.twig — the answer to every create, edit and delete
+on the contacts page: a toast, and the list redrawn.
+
+The replacement re-emits the frame with its id, or the second stream would
+find nothing to replace — the rule calendar/_lists.stream.html.twig spells out.
+
+Variables:
+  cards         ContactCard[]
+  query         string
+  pageLimit     int
+  toastMessage  translation key
+#}
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
+
+<turbo-stream action="replace" target="contacts-list">
+    <template>
+        <turbo-frame id="contacts-list">
+            {% include 'contacts/_list.html.twig' with { cards: cards, query: query, pageLimit: pageLimit } only %}
+        </turbo-frame>
+    </template>
+</turbo-stream>

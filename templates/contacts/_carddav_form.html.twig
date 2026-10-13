@@ -1,0 +1,43 @@
+{#
+contacts/_carddav_form.html.twig — connect a CardDAV server, inside the modal.
+
+calendar/_caldav_form.html.twig with the contacts words: the same form type
+(CalDavConnectType, protocol carddav), the same order of questions, and the same
+keep-open attribute, because a successful connect answers with the address
+books to tick rather than closing the dialog.
+
+Variables:
+  form   FormView
+  error  string|null  what the server said when the credentials were tried
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: 'settings.contacts.carddav.title'|trans,
+        submit_label: 'settings.contacts.carddav.submit'|trans,
+        form_attr: { 'data-ui--modal-keep-open': '' },
+        error: error,
+    } only %}
+        {% block before_fields %}
+            <p class="text-xs text-ink-muted leading-relaxed">
+                {{ 'settings.contacts.carddav.intro'|trans }}
+            </p>
+
+            {% if error is not null %}
+                <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+        {% endblock %}
+
+        {% block after_fields %}
+            <p class="text-xs text-ink-faint">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'settings.integrations.save_tests'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

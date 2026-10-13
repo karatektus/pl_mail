@@ -149,6 +149,7 @@
                                     { label: 'settings.nav.group.mail', items: [
                                         { section: 'accounts',      icon: 'fa-solid fa-at',    label: 'settings.nav.accounts' },
                                         { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
+                                        { section: 'contacts',      icon: 'fa-solid fa-address-book' },
                                         { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'templates',     icon: 'fa-regular fa-file-lines' },
@@ -734,6 +735,23 @@
                                                         bookingPages: bookingPages|default([]),
                                                         mintedLinkUrl: null,
                                                         mintedBookingUrl: null,
+                                                    } only %}
+                                                </div>
+                                            {% endblock %}
+                                        {% endembed %}
+
+                                    {% elseif section == 'contacts' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.contacts.heading'|trans,
+                                            subheading: 'settings.contacts.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {# The stream's target, re-emitted inside each
+                                                   replacement — see the calendars block below. #}
+                                                <div id="settings-contacts-list">
+                                                    {% include 'settings/_contacts.html.twig' with {
+                                                        contactConnections: contactConnections|default([]),
+                                                        addressBooks: addressBooks|default({}),
                                                     } only %}
                                                 </div>
                                             {% endblock %}
