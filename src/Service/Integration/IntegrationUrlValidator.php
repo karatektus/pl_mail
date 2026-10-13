@@ -12,6 +12,7 @@ use App\Infrastructure\Http\PrivateNetwork;
 use App\Infrastructure\Http\TrustedHosts;
 use App\Infrastructure\Http\UserUrlHttpClient;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Service\Calendar\Subscription\NextcloudPreset;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -42,7 +43,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * error. It is not what stops DNS rebinding or a redirect into the network:
  * the requests themselves go through {@see UserUrlHttpClient}, which resolves
  * and re-checks on every hop and consults isTrusted() below for the same
- * exemptions — the allow-list, and any server address an admin pinned.
+ * exemptions — the allow-list, any server address an admin pinned, and the
+ * install's Nextcloud (NEXTCLOUD_URL).
  */
 final readonly class IntegrationUrlValidator implements TrustedHosts
 {
@@ -57,6 +59,9 @@ final readonly class IntegrationUrlValidator implements TrustedHosts
         // Optional so the unit tests can build a validator bare; the container
         // always supplies it. Without it only the allow-list exempts a host.
         private ?IntegrationProviderConfigRepository $configs = null,
+        // Optional for the same reason. NEXTCLOUD_URL names a server an
+        // administrator vouched for, exactly as a pin does.
+        private ?NextcloudPreset $nextcloud = null,
     ) {
         $this->allowedHosts = array_values(array_filter(array_map(
             static fn (string $host): string => strtolower(trim($host)),
@@ -136,7 +141,7 @@ final readonly class IntegrationUrlValidator implements TrustedHosts
 
         $host = strtolower((string) $parts['host']);
 
-        if (true === in_array($host, $this->allowedHosts, true)) {
+        if (true === in_array($host, $this->allowedHosts, true) || $host === $this->nextcloud?->host()) {
             return;
         }
 
@@ -151,12 +156,18 @@ final readonly class IntegrationUrlValidator implements TrustedHosts
      * the documented way to say "our Nextcloud is the container next door", and
      * before the HTTP client checked addresses itself that simply worked —
      * resolve() never validated a pinned value, because an admin wrote it.
+     *
+     * NEXTCLOUD_URL counts for the same reason: the administrator wrote it,
+     * and "Connect my Nextcloud" pointing at a server it then refuses would
+     * be a button that cannot work on the very install it was set up for.
+     * Only the host is exempted, not the scheme — plain http still needs
+     * INTEGRATIONS_ALLOW_HTTP, as for every other address.
      */
     public function isTrusted(string $host): bool
     {
         $host = strtolower(trim($host, '[]'));
 
-        if (true === in_array($host, $this->allowedHosts, true)) {
+        if (true === in_array($host, $this->allowedHosts, true) || $host === $this->nextcloud?->host()) {
             return true;
         }
 

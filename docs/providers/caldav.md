@@ -51,6 +51,18 @@ assumption. Most servers want an app-specific password anyway.
 Saving connects immediately and then offers the calendars it found, so a wrong address or a rejected
 password is reported on the form rather than discovered later.
 
+### The install's own Nextcloud
+
+When the administrator has set `NEXTCLOUD_URL`, a second button sits beside the first:
+**Connect my Nextcloud**. It opens the same form without the server address — that is already
+decided — so you give a username and an app password and nothing else. What happens next is
+identical: the same discovery from `.well-known/caldav`, the same list of calendars to tick, the
+same connection in your settings and the same sync every 15 minutes. It is a CalDAV connection
+like any other, called "Nextcloud" until you rename it.
+
+**Connect a CalDAV server** stays beside it and works exactly as before, including for a Nextcloud
+that is not the install's. Without `NEXTCLOUD_URL` the shortcut is simply not there.
+
 ## Discovery, and the `.well-known` dance
 
 plMail finds your calendars the way RFC 6764 says to, with one deliberate deviation.
@@ -104,6 +116,10 @@ something: the private-range block is what stops a user pointing plMail at its o
 container or at a cloud metadata endpoint, and allowing plain http means an app password crossing
 your network in the clear. Naming one host in `INTEGRATIONS_ALLOWED_HOSTS` is much narrower than
 turning the block off, which is why it is a list rather than a switch.
+
+The host in `NEXTCLOUD_URL` is exempt from the private-range block without being listed: the
+administrator named it, which is the same statement. The scheme rule still applies to it — a
+`http://` Nextcloud needs `INTEGRATIONS_ALLOW_HTTP` too.
 
 ## Sync, and what has actually been tested
 

@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Connect my Nextcloud, in one step, when the install has one.** An administrator who sets
+`NEXTCLOUD_URL` gets a **Connect my Nextcloud** button in Settings → Calendars, beside **Connect a
+CalDAV server**. It opens the same connect form with the address filled in and not editable, so a
+user types only a username and an app password; discovery, the calendar list and sync are the CalDAV
+ones, and the connection made is an ordinary CalDAV one. The manual form is unchanged and still
+reaches any Nextcloud. That host is also exempt from the private-range block, as a pinned address
+is. No migration. See [CalDAV](docs/providers/caldav.md).
+
 **Happening soon is wider, with Also spotted beside the list.** The panel opened at the narrowest
 dialog width, so a fortnight of bookings pushed the undated cards under "Also spotted" far down the
 scroll. It now opens wide, and on a screen wide enough for it the list and "On your radar" stay on

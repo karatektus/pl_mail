@@ -3470,6 +3470,10 @@ settings:
         mirrored: Kept in step
         mirrored_hint: Kept in step with %name%.
         never_synced: Not hauled yet
+        nextcloud:
+            connect: Make fast to me Nextcloud
+            intro: Th' cap'n has charted this ship's Nextcloud. Give yer Nextcloud name an' an app password — Personal settings → Security → Devices & sessions — an' yer almanacs be listed next.
+            title: Make fast to me Nextcloud
         read_only: Look, don't touch
         read_only_hint: This almanac takes no amendin' from this here deck.
         show: Bring this almanac on deck

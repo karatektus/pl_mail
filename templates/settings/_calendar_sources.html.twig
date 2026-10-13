@@ -46,6 +46,26 @@ Variables:
                 {{ 'calendar.ics.subscribe.connect'|trans }}
             </button>
 
+            {# The install's own Nextcloud, when NEXTCLOUD_URL names one. The
+               same connect form with the address already filled in — the
+               manual button beside it stays, for calendars on any other
+               server. See NextcloudPreset. #}
+            {% if nextcloud.isConfigured %}
+                <button
+                    type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-title-value="{{ 'settings.calendars.nextcloud.title'|trans }}"
+                    data-ui--modal-src-value="{{ path('app_settings_calendar_caldav_connect', { preset: 'nextcloud' }) }}"
+                    data-connect-nextcloud
+                    class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+                >
+                    <i class="fa-solid fa-cloud text-[10px]" aria-hidden="true"></i>
+                    {{ 'settings.calendars.nextcloud.connect'|trans }}
+                </button>
+            {% endif %}
+
             <button
                 type="button"
                 data-controller="ui--modal"

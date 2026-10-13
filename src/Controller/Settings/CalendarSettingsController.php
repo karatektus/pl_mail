@@ -23,6 +23,7 @@ use App\Service\Calendar\Subscription\CalDavConnector;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
+use App\Service\Calendar\Subscription\NextcloudPreset;
 use App\Service\Push\PushTeardown;
 use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -88,6 +89,7 @@ final class CalendarSettingsController extends AbstractController
         private readonly CalendarSubscriber     $subscriber,
         private readonly CalendarSourceLister   $sources,
         private readonly CalDavConnector        $caldav,
+        private readonly NextcloudPreset        $nextcloud,
         private readonly UserTimezoneResolver   $timezones,
         private readonly MessageBusInterface    $bus,
         private readonly EntityManagerInterface $em,
@@ -266,18 +268,39 @@ final class CalendarSettingsController extends AbstractController
      * submit — connecting a server nobody can list calendars from is half a
      * feature, and making the user find the new connection in the list behind
      * the modal to press a second button is the other half done badly.
+     *
+     * `?preset=nextcloud` is the "Connect my Nextcloud" shortcut, and it is
+     * this same action on purpose: the only difference is that the address
+     * comes from NEXTCLOUD_URL instead of from the person, and the form has no
+     * field to override it with. Connecting, probing, listing and syncing are
+     * the lines below either way — see NextcloudPreset. Asked for on an
+     * install with no NEXTCLOUD_URL, it is a 404, like any page that is not
+     * there.
      */
     #[Route('/caldav/connect', name: 'caldav_connect', methods: ['GET', 'POST'])]
     public function connectCalDav(Request $request): Response
     {
-        $user = $this->currentUser();
+        $user   = $this->currentUser();
+        $preset = 'nextcloud' === $request->query->get('preset');
 
-        $integration = new Integration($user, Provider::CalDav, Provider::CalDav->label());
-        $integration->baseUrl = $this->caldav->suggestedAddress($user);
+        if (true === $preset && false === $this->nextcloud->isConfigured()) {
+            throw $this->createNotFoundException();
+        }
+
+        $integration = new Integration(
+            $user,
+            Provider::CalDav,
+            true === $preset ? NextcloudPreset::NAME : Provider::CalDav->label(),
+        );
+        $integration->baseUrl = true === $preset ? $this->nextcloud->url : $this->caldav->suggestedAddress($user);
 
         $form = $this->createForm(CalDavConnectType::class, $integration, [
-            'action'           => $this->generateUrl('app_settings_calendar_caldav_connect'),
+            'action'           => $this->generateUrl(
+                'app_settings_calendar_caldav_connect',
+                true === $preset ? ['preset' => 'nextcloud'] : [],
+            ),
             'lending_accounts' => $this->caldav->lendingAccounts($user),
+            'fixed_address'    => $preset,
         ]);
 
         $form->handleRequest($request);

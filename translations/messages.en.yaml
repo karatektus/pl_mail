@@ -3654,6 +3654,10 @@ settings:
         mirrored: Mirrored
         mirrored_hint: Kept in step with %name%.
         never_synced: Not synced yet
+        nextcloud:
+            connect: Connect my Nextcloud
+            intro: Your administrator has set up this install's Nextcloud. Enter your Nextcloud username and an app password — in Nextcloud, Personal settings → Security → Devices & sessions — and your calendars are listed next.
+            title: Connect my Nextcloud
         read_only: Read-only
         read_only_hint: This calendar does not accept changes from here.
         show: Show calendar

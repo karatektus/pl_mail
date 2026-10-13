@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:71e9bc427171913eea3f957a3abc1d2b01c32940 -->
+<!-- translated-from: install/configuration.md sha1:4e0e1fac4d01bd9196da698e7d8909d7bca3cbd1 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -83,6 +83,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `PUSH_ALLOWED_HOSTS` | Kommagetrennte Hosts, auf die ein Push-Endpunkt zeigen darf, obwohl sie auf eine private Adresse auflösen. | leer | Nur für ein ntfy im LAN | Jeder andere private, Loopback- oder Link-Local-Endpunkt wird bei der Registrierung und beim Senden abgewiesen. Läuft das mitgelieferte ntfy auf einer LAN- oder Tailscale-Adresse, setz hier deinen `SERVER_NAME`, sonst bekommen die Telefone keine Pushes mehr. Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOW_HTTP` | Ob jemand für eine selbst gehostete Integration einen `http://`-Server angeben darf. | `false` | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Kommagetrennte Hosts, die von der Sperre privater Adressbereiche ausgenommen sind. | leer | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
+| `NEXTCLOUD_URL` | Das Nextcloud dieser Installation, z. B. `https://cloud.example.com`. Gesetzt, bietet Einstellungen → Kalender **Mein Nextcloud verbinden** an: das gewöhnliche CalDAV-Formular mit dieser Adresse vorausgefüllt und nicht änderbar, man gibt also nur Benutzernamen und App-Passwort an. Suche, Kalenderliste und Synchronisation sind die von CalDAV, unverändert. Das manuelle Formular bleibt verfügbar. | leer | Nein | Leer, und es gibt nur das manuelle CalDAV-Formular — sonst ändert sich nichts. Eine falsche Adresse lässt die Verbindung über den Button am Formular mit dem CalDAV-Fehler scheitern, wie eine vertippte manuelle Adresse. Ihr Host ist von der Sperre privater Bereiche ausgenommen (siehe [den SSRF-Schutz](#der-ssrf-schutz)); `http://` braucht weiterhin `INTEGRATIONS_ALLOW_HTTP`. Siehe [CalDAV](../providers/caldav.md). |
 
 **Der typische Fehlerfall bei dieser Tabelle ist, ein Leerfeld für einen fehlenden Wert zu halten.**
 Vier der obigen Leerfelder sind tragend: Sie sind leer, damit die Erzeugung beim ersten Start
@@ -164,7 +165,7 @@ eine Hälfte nicht lesen, was die andere schreibt.
 
 ## Der SSRF-Schutz
 
-Drei Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
+Vier Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
 
 Selbst gehostete Integrationen — Nextcloud, Immich, Paperless-ngx — lassen eine angemeldete Person ihre eigene
 Serveradresse eintippen. Das richtet plMails ausgehenden HTTP-Client dorthin, wohin diese Person
@@ -187,6 +188,9 @@ Derselbe Client trägt CalDAV, ICS-Feeds und Push-Zustellungen.
   privater Adressbereiche aus. Jeder Name, den du hinzufügst, ist ein Name, auf den jemand plMail
   richten kann — einen ganzen Bereich einzutragen oder den Host, auf dem die Datenbank läuft, gibt
   einer authentifizierten Person eine Anfrage aus dem Inneren deines Netzes.
+- **`NEXTCLOUD_URL=https://nextcloud.lan`** nimmt diesen einen Host auf dieselbe Weise aus, denn
+  das Nextcloud der Installation zu benennen sagt dasselbe wie es einzutragen. Einfaches `http://`
+  braucht dort weiterhin `INTEGRATIONS_ALLOW_HTTP`.
 
 - **`PUSH_ALLOWED_HOSTS=192.168.1.10`** macht dasselbe für Push-Endpunkte, die auf einer privaten
   Adresse sonst ausnahmslos abgewiesen werden. Es gibt die Variable für das mitgelieferte ntfy, dessen

@@ -14,6 +14,11 @@ server and then closing the dialog would leave the user to find the new
 connection in the list behind it and press a second button for the thing they
 came to do.
 
+The "Connect my Nextcloud" shortcut renders this same form without the
+address field (CalDavConnectType's `fixed_address`), and the address the
+administrator set is shown as a line of text instead — read off the connection
+the form is bound to, because that is the value that will be used.
+
 Variables:
   form   FormView
   error  string|null  what the server said when the credentials were tried
@@ -21,17 +26,30 @@ Variables:
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
+    {% set fixed_address = form.baseUrl is defined ? null : form.vars.value.baseUrl %}
+
     {% embed '_partials/_modal_form.html.twig' with {
         form: form,
-        title: 'settings.calendars.caldav.title'|trans,
+        title: (fixed_address is null ? 'settings.calendars.caldav.title' : 'settings.calendars.nextcloud.title')|trans,
         submit_label: 'settings.calendars.caldav.submit'|trans,
         form_attr: { 'data-ui--modal-keep-open': '' },
         error: error,
+        fixed_address: fixed_address,
     } only %}
         {% block before_fields %}
-            <p class="text-xs text-ink-muted leading-relaxed">
-                {{ 'settings.calendars.caldav.intro'|trans }}
-            </p>
+            {% if fixed_address is null %}
+                <p class="text-xs text-ink-muted leading-relaxed">
+                    {{ 'settings.calendars.caldav.intro'|trans }}
+                </p>
+            {% else %}
+                <p class="text-xs text-ink-muted leading-relaxed">
+                    {{ 'settings.calendars.nextcloud.intro'|trans }}
+                </p>
+                <p class="flex items-center gap-2 text-xs text-ink-soft" data-nextcloud-address>
+                    <i class="fa-solid fa-server text-ink-faint" aria-hidden="true"></i>
+                    <span class="font-mono truncate">{{ fixed_address }}</span>
+                </p>
+            {% endif %}
 
             {# The verification failure, not a validation one. The form was
                filled in correctly and the server refused it, which is a

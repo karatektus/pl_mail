@@ -41,6 +41,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * rather than assumed. Most servers want an app-specific password anyway, and
  * iCloud and Fastmail refuse anything else.
  *
+ * With `fixed_address` the address field is not there at all. That is the
+ * "Connect my Nextcloud" shortcut (NextcloudPreset): the controller has
+ * already put the administrator's address on the connection, and a field that
+ * was merely hidden or read-only would still be one the browser could post a
+ * different value through. Everything after the address is the same form.
+ *
  * The two-ways-to-fill-one-field rule is the one thing a constraint cannot
  * express, so it is a POST_SUBMIT check: neither supplied is an error on the
  * password field, which is where a person is looking when they have not filled
@@ -58,13 +64,16 @@ final class CalDavConnectType extends AbstractType
         $integration = $options['data'];
         $isNew       = false === $integration instanceof Integration || null === $integration->id;
 
-        $builder
-            ->add('baseUrl', UrlType::class, [
+        if (false === $options['fixed_address']) {
+            $builder->add('baseUrl', UrlType::class, [
                 'label'       => 'settings.calendars.caldav.field.address',
                 'help'        => 'settings.calendars.caldav.field.address_help',
                 'attr'        => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
                 'constraints' => [new NotBlank(message: 'caldav.address_required')],
-            ])
+            ]);
+        }
+
+        $builder
             ->add('name', TextType::class, [
                 'label'       => 'settings.calendars.caldav.field.name',
                 'help'        => 'settings.calendars.caldav.field.name_help',
@@ -119,8 +128,10 @@ final class CalDavConnectType extends AbstractType
             ->setDefaults([
                 'data_class'       => Integration::class,
                 'lending_accounts' => [],
+                'fixed_address'    => false,
             ])
-            ->setAllowedTypes('lending_accounts', 'array');
+            ->setAllowedTypes('lending_accounts', 'array')
+            ->setAllowedTypes('fixed_address', 'bool');
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

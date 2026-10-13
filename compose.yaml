@@ -43,6 +43,9 @@ x-app-env: &app-env
   # https, a name without the prefix otherwise (a browser drops a `__Secure-`
   # cookie over HTTP). Set it only to use a name of your own.
   MERCURE_COOKIE_NAME: ${MERCURE_COOKIE_NAME:-}
+  # This install's Nextcloud, offered as a one-click calendar connection.
+  # Blank is off; see docs/install/configuration.md.
+  NEXTCLOUD_URL: ${NEXTCLOUD_URL:-}
 
 # The state that must outlive a container and be shared between them.
 #

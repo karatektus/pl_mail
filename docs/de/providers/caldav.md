@@ -1,4 +1,4 @@
-<!-- translated-from: providers/caldav.md sha1:ccfc56f41acd4b8b77775fff1716870993c07d8e -->
+<!-- translated-from: providers/caldav.md sha1:891e35ea734ce7c1a33673b9c694f4bc6a2717b2 -->
 
 # CalDAV
 
@@ -58,6 +58,18 @@ anwendungsspezifisches Passwort.
 
 Das Speichern verbindet sofort und bietet dann die gefundenen Kalender an, eine falsche Adresse oder
 ein abgelehntes Passwort wird also am Formular gemeldet statt später entdeckt.
+
+### Das Nextcloud der Installation
+
+Hat die Administration `NEXTCLOUD_URL` gesetzt, steht neben dem ersten ein zweiter Button:
+**Mein Nextcloud verbinden**. Er öffnet dasselbe Formular ohne die Serveradresse — die steht schon
+fest —, du gibst also nur Benutzernamen und App-Passwort an. Alles danach ist identisch: dieselbe
+Suche ab `.well-known/caldav`, dieselbe Liste zum Ankreuzen, dieselbe Verbindung in deinen
+Einstellungen und dieselbe Synchronisation alle 15 Minuten. Es ist eine CalDAV-Verbindung wie jede
+andere und heißt "Nextcloud", bis du sie umbenennst.
+
+**CalDAV-Server verbinden** bleibt daneben und funktioniert genau wie vorher, auch für ein Nextcloud,
+das nicht das der Installation ist. Ohne `NEXTCLOUD_URL` gibt es die Abkürzung einfach nicht.
 
 ## Die Suche, und der `.well-known`-Tanz
 
@@ -119,6 +131,10 @@ einen Cloud-Metadaten-Endpunkt zu richten, und einfaches HTTP zu erlauben heißt
 App-Passwort im Klartext durch dein Netz geht. Einen einzelnen Host in `INTEGRATIONS_ALLOWED_HOSTS`
 zu benennen ist sehr viel enger, als die Sperre abzuschalten, und deshalb ist es eine Liste und kein
 Schalter.
+
+Der Host aus `NEXTCLOUD_URL` ist von der Sperre privater Bereiche ausgenommen, ohne in der Liste zu
+stehen: Die Administration hat ihn benannt, und das sagt dasselbe. Die Regel zum Schema gilt
+weiterhin — ein Nextcloud unter `http://` braucht auch `INTEGRATIONS_ALLOW_HTTP`.
 
 ## Synchronisation, und was tatsächlich getestet ist
 

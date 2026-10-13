@@ -79,6 +79,7 @@ These are the variables in `.env`, in the order they appear there.
 | `PUSH_ALLOWED_HOSTS` | Comma-separated hosts a push endpoint may point at although they resolve to a private address. | blank | Only for a LAN ntfy | Every other private, loopback or link-local push endpoint is refused at registration and at send. Running the bundled ntfy on a LAN or Tailscale address, set it to your `SERVER_NAME` or phones stop receiving pushes. See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOW_HTTP` | Whether a user may name a `http://` server for a self-hosted integration. | `false` | No | See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Comma-separated hosts exempt from the private-range block. | blank | No | See [the SSRF guard](#the-ssrf-guard) below. |
+| `NEXTCLOUD_URL` | This install's own Nextcloud, e.g. `https://cloud.example.com`. When set, Settings → Calendars offers **Connect my Nextcloud**: the ordinary CalDAV connect form with this address filled in and not editable, so a user gives only a username and an app password. Discovery, the calendar list and sync are the CalDAV ones, unchanged. The manual form stays available. | blank | No | Blank and only the manual CalDAV form exists — nothing else changes. A wrong address makes the button's connection fail on the form with the CalDAV error, as a mistyped manual address would. Its host is exempt from the private-range block (see [the SSRF guard](#the-ssrf-guard)); `http://` still needs `INTEGRATIONS_ALLOW_HTTP`. See [CalDAV](../providers/caldav.md). |
 
 **The failure mode of this table is treating a blank as a missing value.** Four of the blanks
 above are load-bearing: they are blank so that first-run generation happens, and filling one in
@@ -157,7 +158,7 @@ writes.
 
 ## The SSRF guard
 
-Three variables relax one check, and it is worth being exact about what the check is for.
+Four variables relax one check, and it is worth being exact about what the check is for.
 
 Self-hosted integrations — Nextcloud, Immich, Paperless-ngx — let a signed-in user type their own
 server address.
@@ -179,6 +180,9 @@ client carries CalDAV, ICS feeds and push deliveries.
 - **`INTEGRATIONS_ALLOWED_HOSTS=nextcloud.lan,10.0.0.5`** exempts named hosts from the private-range
   block. Every name you add is a name a user can point plMail at — so listing a whole range, or the
   host the database is on, hands an authenticated user a request from inside your network.
+- **`NEXTCLOUD_URL=https://nextcloud.lan`** exempts that one host the same way, because naming
+  the install's Nextcloud is the same statement as listing it. Plain `http://` there still needs
+  `INTEGRATIONS_ALLOW_HTTP`.
 
 - **`PUSH_ALLOWED_HOSTS=192.168.1.10`** does the same for push endpoints, which are otherwise
   refused on a private address unconditionally. It exists for the bundled ntfy, whose endpoints are

@@ -3666,6 +3666,10 @@ settings:
         mirrored: Gespiegelt
         mirrored_hint: Wird mit %name% abgeglichen.
         never_synced: Noch nicht abgeglichen
+        nextcloud:
+            connect: Mein Nextcloud verbinden
+            intro: Deine Administration hat das Nextcloud dieser Installation eingerichtet. Gib deinen Nextcloud-Benutzernamen und ein App-Passwort ein — in Nextcloud unter Persönliche Einstellungen → Sicherheit → Geräte & Sitzungen —, danach werden deine Kalender aufgelistet.
+            title: Mein Nextcloud verbinden
         read_only: Nur lesen
         read_only_hint: Dieser Kalender nimmt von hier aus keine Änderungen an.
         show: Kalender einblenden
