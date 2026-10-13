@@ -29,6 +29,18 @@ namespace App\Service\Calendar\Sync\CalDav;
 final readonly class DavResource
 {
     /**
+     * Privileges any one of which means "we may write here".
+     *
+     * write-content is the one that matters — it is what permits a PUT of an
+     * event or a vCard body — but a server that grants the coarser `write` or
+     * `all` without enumerating the finer ones is not read-only, and treating
+     * it as such would silently strand every edit a user makes.
+     *
+     * @var list<string>
+     */
+    private const array WRITE_PRIVILEGES = ['write-content', 'write', 'all'];
+
+    /**
      * @param string                    $href     as the server wrote it —
      *                                            usually root-relative, legally
      *                                            absolute; resolved against the
@@ -127,5 +139,34 @@ final readonly class DavResource
     public function isAddressBookCollection(): bool
     {
         return $this->contains('resourcetype', 'addressbook');
+    }
+
+    /**
+     * Read-only when the server enumerated our privileges and none of them
+     * permits a write.
+     *
+     * A collection whose privilege set is absent is treated as writable. The
+     * property is a SHOULD, several servers omit it, and defaulting to
+     * read-only there would make every collection on such a server refuse
+     * edits with no way for the user to tell why — where defaulting to
+     * writable costs, at worst, a 403 on the first push, which is reported as
+     * itself.
+     *
+     * Here rather than in each driver because it is a policy, and calendars
+     * and address books on the same server must not disagree about it.
+     */
+    public function isReadOnly(): bool
+    {
+        if (false === $this->hasProp('current-user-privilege-set')) {
+            return false;
+        }
+
+        foreach (self::WRITE_PRIVILEGES as $privilege) {
+            if (true === $this->contains('current-user-privilege-set', $privilege)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

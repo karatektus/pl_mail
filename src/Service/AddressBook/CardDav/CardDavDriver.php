@@ -71,9 +71,6 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
     /** See CalDavCalendarDriver::MAX_SYNC_PAGES. */
     private const int MAX_SYNC_PAGES = 20;
 
-    /** See CalDavCalendarDriver::WRITE_PRIVILEGES. */
-    private const array WRITE_PRIVILEGES = ['write-content', 'write', 'all'];
-
     public function __construct(
         private CalDavClient      $client,
         private CalDavDiscovery   $discovery,
@@ -133,7 +130,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
             $books[] = new RemoteAddressBook(
                 remoteId:   $href,
                 name:       $this->nameOf($resource, $href),
-                isReadOnly: $this->isReadOnly($resource),
+                isReadOnly: $resource->isReadOnly(),
             );
         }
 
@@ -187,7 +184,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
             );
         }
 
-        return ['href' => $href, 'etag' => $this->etagAfterWrite($book->integration, $href, $response['headers'])];
+        return ['href' => $href, 'etag' => $this->client->etagAfterWrite($book->integration, $href, $response['headers'])];
     }
 
     /**
@@ -457,22 +454,6 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
         return '' === $segment ? 'Contacts' : rawurldecode($segment);
     }
 
-    /** See CalDavCalendarDriver::isReadOnly(): an absent privilege set is writable. */
-    private function isReadOnly(DavResource $resource): bool
-    {
-        if (false === $resource->hasProp('current-user-privilege-set')) {
-            return false;
-        }
-
-        foreach (self::WRITE_PRIVILEGES as $privilege) {
-            if (true === $resource->contains('current-user-privilege-set', $privilege)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     // ── Plumbing ──────────────────────────────────────────────────────────────
 
     /**
@@ -482,36 +463,5 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
     private function mintHref(AddressBook $book, ContactCard $card): string
     {
         return sprintf('%s/%s.vcf', rtrim($book->remoteId, '/'), rawurlencode($card->uid));
-    }
-
-    /**
-     * See CalDavCalendarDriver::etagAfterWrite() — servers may omit the ETag on
-     * a PUT, and the follow-up GET is what RFC 6352 suggests.
-     *
-     * @param array<string,list<string>> $headers
-     */
-    private function etagAfterWrite(Integration $integration, string $href, array $headers): ?string
-    {
-        $etag = trim($headers['etag'][0] ?? '');
-
-        if ('' !== $etag) {
-            return $etag;
-        }
-
-        try {
-            $response = $this->client->request($integration, 'GET', $href, [], [404, 410]);
-        } catch (CalendarSyncException $e) {
-            $this->logger->info('CardDav: could not read back the etag after a write', [
-                'href'      => $href,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
-            ]);
-
-            return null;
-        }
-
-        $etag = trim($response['headers']['etag'][0] ?? '');
-
-        return '' === $etag ? null : $etag;
     }
 }

@@ -131,7 +131,7 @@ final readonly class AddressBookSync
             } catch (CalendarSyncPermanentException $e) {
                 // A 403 on one card is the server refusing *this* write — most
                 // often a book whose privilege set was absent, so it was taken
-                // as writable (see CardDavDriver::isReadOnly()). Left pending,
+                // as writable (see DavResource::isReadOnly()). Left pending,
                 // the same PUT would be refused on every run and the pull
                 // behind it would never happen again: one card would stop the
                 // whole book syncing. CalendarPusher::abandon() makes the same

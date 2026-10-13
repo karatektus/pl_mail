@@ -13,6 +13,8 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -79,6 +81,7 @@ final readonly class CalDavClient
         private IntegrationUrlValidator             $urlValidator,
         private IntegrationProviderConfigRepository $configs,
         private MultiStatusParser                   $parser,
+        private LoggerInterface                     $logger = new NullLogger(),
     ) {
     }
 
@@ -250,6 +253,51 @@ final readonly class CalDavClient
         } catch (IntegrationException $e) {
             throw new CalendarSyncPermanentException($e->getMessage(), $e->getStatus(), $e);
         }
+    }
+
+    /**
+     * The etag the server assigned, asking for it again when the PUT did not
+     * say.
+     *
+     * Servers are not required to answer a PUT with an ETag, and a good many do
+     * not — RFC 4791 §5.3.4 and RFC 6352 §6.3.2.3 anticipate exactly this and
+     * say the client may GET the resource to learn it. Without that follow-up
+     * the local row stores a null etag, which makes the next pull treat the
+     * event or card as changed and write it again: correct, but a wasted write
+     * per push forever.
+     *
+     * Here rather than in each driver because it is the same request and the
+     * same tolerance for a calendar event and a vCard.
+     *
+     * A failure to read it back is not a failure of the push, which has already
+     * succeeded — the null is stored and the next pull repairs it.
+     *
+     * @param array<string,list<string>> $headers
+     */
+    public function etagAfterWrite(Integration $integration, string $href, array $headers): ?string
+    {
+        $etag = trim($headers['etag'][0] ?? '');
+
+        if ('' !== $etag) {
+            return $etag;
+        }
+
+        try {
+            $response = $this->request($integration, 'GET', $href, [], [404, 410]);
+        } catch (CalendarSyncException $e) {
+            $this->logger->info('CalDav: could not read back the etag after a write', [
+                'provider'  => $integration->provider->value,
+                'href'      => $href,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return null;
+        }
+
+        $etag = trim($response['headers']['etag'][0] ?? '');
+
+        return '' === $etag ? null : $etag;
     }
 
     /**
