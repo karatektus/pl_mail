@@ -2,8 +2,8 @@
 
 plMail is building end-to-end encryption with OpenPGP: mail that only you and the people you write
 to can read — not the plMail server, not your mail provider. This page covers what is there today:
-your keys, how they are kept and how you get them back, reading encrypted and signed mail, and the
-keys of the people you write to. Sending encrypted mail follows in a later release.
+your keys, how they are kept and how you get them back, reading encrypted and signed mail, the
+keys of the people you write to, and writing encrypted mail.
 
 Everything here lives under **Settings → Encryption**.
 
@@ -141,8 +141,34 @@ signatures from *intact, but nothing confirms who signed it* into *the signature
 it shows a checkmark. Nobody else's word counts: there is no web of trust.
 
 Keys that are revoked or expired, or that do not name the address, are not kept. Each key also has
-**Preferences for this recipient** — encrypt, sign, PGP/MIME or inline — which take effect once
-plMail sends encrypted mail.
+**Preferences for this recipient** — encrypt, sign, PGP/MIME or inline — which the compose window
+follows.
+
+## Writing encrypted mail
+
+You do not switch anything on. As you type the recipients, each one plMail has a key for gets a
+small lock, looked up on their domain if plMail did not know it yet. When **every** recipient has
+one, the message is encrypted: the header says *Encrypted* and the lock in the toolbar is green.
+When only some have one, a note under the recipients says who cannot be reached encrypted, and the
+message goes to everybody unencrypted — unless you turned on **Refuse to send when not everybody
+can be reached encrypted** under *Sending*. A reply to an encrypted message is encrypted from the
+start, with the original quoted as you read it.
+
+The lock in the toolbar, and **Encrypt** and **Sign** under *More options*, decide for this one
+message instead.
+
+An encrypted message never reaches the server readable, not even as a draft: your browser encrypts
+the draft to your own key before every save, encrypts attachments before they are uploaded, and
+builds and encrypts the whole message — to every recipient and to you, so the copy in *Sent* stays
+readable — when you press Send. Undo, *Send later* and *Sent* work as they always have.
+
+**Signing.** Encrypted mail is always signed. Unencrypted mail is signed when it goes to somebody
+whose key plMail knows, or always if you turn on **Sign unencrypted mail**.
+
+**Sending** (Settings → Encryption) also has **Share your key with every message**, on by default:
+an invisible `Autocrypt` header carries your public key, so Thunderbird, Delta Chat and other
+programs can answer encrypted. **Attach your public key** adds it as a file as well, for programs
+that do not read Autocrypt.
 
 ## Things that bite
 
@@ -192,6 +218,39 @@ comes from the plMail server. Answers are remembered for a day (an hour when the
 each person may make thirty lookups in ten minutes.
 
 **keys.openpgp.org is not asked.** Only the contact's own domain is, through WKD.
+
+**A draft is sealed from the moment it is going to be encrypted, not before.** Whatever was saved
+before that — text typed before the last recipient with a key was added — was kept as typed until
+the next save replaced it. Add the recipients first, or press the lock before you write.
+
+**While your keys are locked in this browser, a message that is to be encrypted is neither saved nor
+sent.** Saving it would leave it readable on the server. The compose window says so; open your keys
+in Settings → Encryption, or switch encryption off for that message.
+
+**The subject is not encrypted.** Neither are the sender, the recipients or the date: mail needs
+them on the outside to be delivered.
+
+**An encrypted draft opens only in a browser with your keys.** The Android app and other mail
+programs see it without a body.
+
+**Forwarding an encrypted message carries its text, not its attachments.** Attach them again if
+they should go along.
+
+**The writing assistant is not offered for encrypted drafts.** It would read the draft on the
+server.
+
+**A scheduled encrypted message is checked again when it leaves.** If a recipient's key was
+replaced or revoked in the meantime, or the recipients changed, it is not sent and you are told;
+open it and send it again.
+
+**Microsoft accounts send at most 4 MB, encryption included.** Encryption makes a message about a
+third larger.
+
+**With Bcc recipients, nobody's key is named on the outside.** Otherwise everybody could see who
+else was sent the message. Some older mail programs cannot decrypt such a message.
+
+**The names and sizes of attachments in an encrypted draft are visible to the server** until the
+message is sent; their contents are not.
 
 **Changing your password in Settings carries your keys over.** Changing it any other way — an
 administrator, `app:user:password` — locks them, and the recovery phrase or a known device opens

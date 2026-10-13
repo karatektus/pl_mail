@@ -134,6 +134,13 @@ final readonly class ConfigBackupUsers
         // switched it back on would have `e` archiving mail for a person who
         // had said no.
         User::SETTING_KEYBOARD_SHORTCUTS,
+        // How mail goes out once it can be encrypted. Choices about one's own
+        // mail like the rest, and a restore that quietly turned Autocrypt
+        // back on — or blocking off — would be sending mail differently.
+        User::SETTING_CRYPTO_AUTOCRYPT,
+        User::SETTING_CRYPTO_ATTACH_KEY,
+        User::SETTING_CRYPTO_SIGN_PLAIN,
+        User::SETTING_CRYPTO_BLOCK_PARTIAL,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
         // Travels, unlike its `sidebar.expanded_account` neighbour, and the
         // difference is what these hold: this is section names and label FULL

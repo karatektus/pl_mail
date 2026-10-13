@@ -8,6 +8,22 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**plMail writes encrypted mail — the fifth step towards end-to-end encryption.** When everybody you
+write to has a key, the message is encrypted by itself: a lock on each recipient, *Encrypted* in the
+header, and a green lock in the toolbar that also switches it on or off for one message. The draft
+is encrypted in your browser before it is ever saved, attachments before they are uploaded, and the
+message is built and encrypted to every recipient and to you when you press Send — undo, *Send
+later* and *Sent* work as before. When only some recipients have a key, a note says so and the mail
+goes out unencrypted, unless you choose under Settings → Encryption → *Sending* to refuse instead.
+A reply to encrypted mail is encrypted, with the original quoted decrypted. Mail to somebody whose
+key plMail knows is signed. Every message now carries your public key in an invisible Autocrypt
+header, so other mail programs can answer encrypted; this can be switched off, and the key can be
+attached as a file as well. A scheduled encrypted message is checked again when it leaves and is
+not sent if a recipient's key has been replaced or revoked since. The subject is not encrypted. The
+writing assistant is not offered for encrypted drafts. Three columns are added to the message and
+attachment tables; the migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **plMail keeps your contacts' keys, and tells you when one changes — the fourth step towards
 end-to-end encryption.** Signed mail used to end at *signed with a key plMail does not know yet*.
 Now the key comes from the mail itself (an Autocrypt header or an attached key, for the sender

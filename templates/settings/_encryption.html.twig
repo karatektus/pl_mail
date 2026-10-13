@@ -222,4 +222,15 @@ Accepts nothing: what it needs is the signed-in user and the routes.
             </turbo-frame>
         {% endblock %}
     {% endembed %}
+
+    {# ── Sending ─────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.sending.heading'|trans,
+        subheading: 'encryption.sending.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            {{ include('settings/_encryption_sending.html.twig', { user: app.user }) }}
+        {% endblock %}
+    {% endembed %}
 </div>

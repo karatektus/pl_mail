@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\RawMessageStorage;
+use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -67,6 +68,7 @@ final readonly class MessagePurger
         private MailChangeRecorder      $changes,
         private AttachmentStorageHelper $attachments,
         private RawMessageStorage       $raw,
+        private SealedMessageStorage    $sealed,
         private LoggerInterface         $logger,
     ) {
     }
@@ -227,6 +229,11 @@ final readonly class MessagePurger
 
         try {
             $this->raw->delete($message->rawPath);
+
+            if (null !== $message->id) {
+                $this->sealed->delete($message->id, SealedMessageStorage::DRAFT);
+                $this->sealed->delete($message->id, SealedMessageStorage::OUTGOING);
+            }
         } catch (\Throwable $e) {
             $this->logger->warning('MessagePurger: could not delete a raw source', [
                 'message'   => $message->id,

@@ -255,6 +255,33 @@ class Message extends MessageModel
     public ?string $signer = null;
 
     /**
+     * A draft written to be encrypted keeps no body here: the browser seals
+     * what was typed to the person's own key, and the sealed copy is kept in
+     * SealedMessageStorage. bodyText and bodyHtml stay empty, so nothing the
+     * server indexes, summarises or hands a JMAP client ever held it. See
+     * App\Service\Crypto\SealedDrafts.
+     */
+    #[ORM\Column(name: 'sealed_draft', options: ['default' => false])]
+    public bool $sealedDraft = false;
+
+    /**
+     * The message the browser built to be sent, when it built one — encrypted,
+     * signed, or plain mail from a sealed draft — and what it was built for:
+     *
+     *   kind         encrypted | signed | plain
+     *   recipients   every To, Cc and Bcc address, lower-cased and sorted
+     *   fingerprints the recipients' keys it was encrypted to (encrypted only)
+     *
+     * The bytes themselves are in SealedMessageStorage. Null for mail the
+     * server builds itself, which is still most of it. Checked once more by
+     * App\Service\Crypto\SealGuard before anything goes out.
+     *
+     * @var array{kind: string, recipients: list<string>, fingerprints: list<string>}|null
+     */
+    #[ORM\Column(name: 'outgoing_seal', type: Types::JSON, nullable: true)]
+    public ?array $outgoingSeal = null;
+
+    /**
      * @var Collection<int, MessagePart>
      */
     #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message')]

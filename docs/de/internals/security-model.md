@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:f2c6b65938befe724c194cff7575fd5c317e1934 -->
+<!-- translated-from: internals/security-model.md sha1:b0defa41c37bacd07181735b3e1a3037b3b71e26 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -339,6 +339,42 @@ Das ist ein Endpunkt, der URLs abruft, die aus Benutzereingaben abgeleitet sind,
 
 keys.openpgp.org (VKS) wird nicht gefragt; das Konzept lässt das als optionale Instanz-Einstellung
 offen.
+
+## Verschlüsselte Mails schreiben und senden
+
+Phase 5 von Issue #28. Der Server baut, signiert und verschlüsselt nichts: Er hat keinen privaten
+Schlüssel. Das Schreibfenster entscheidet (`assets/controllers/compose/encryption_controller.js`,
+nach den Schlüsseln, die `POST /contact-keys/recipients` nennt), und sobald ein Entwurf verschlüsselt
+werden soll, wird er **versiegelt**:
+
+- jedes automatische Speichern verschlüsselt das Getippte an die aktiven eigenen Schlüssel und
+  schickt es als `sealed[draft]`, die Body-Felder leer. `SealedDrafts` legt es auf der Platte ab
+  (`SealedMessageStorage`, `<storage>/sealed/`), setzt `Message::$sealedDraft` und leert ab dann den
+  Body jedes Speicherns dieser Zeile, egal was es mitbringt — einmal versiegelt, immer versiegelt;
+- Anhänge werden vor dem Hochladen im Browser verschlüsselt (`MessagePart::$sealed`): kein
+  Vorschaubild, keine Vorschau, ausgeliefert nur als `application/octet-stream`;
+- eingebettete Bilder bleiben als `data:`-URIs im versiegelten Entwurf;
+- eine Antwort zitiert verschlüsselte Mails als Markierung `data-quote-sealed`, die der Browser aus
+  der Rohquelle füllt.
+
+Beim Senden baut der Browser die ganze MIME-Entität (`assets/crypto/mime.js`) und verschlüsselt sie
+(PGP/MIME, innen signiert, an alle Empfänger und den Absender) oder signiert sie (multipart/signed)
+oder lässt sie für einen versiegelten Entwurf, der unverschlüsselt rausgeht, unverändert, und schickt
+sie als `sealed[entity]` mit Art, den Fingerprints, an die verschlüsselt wurde, und dem Signierenden.
+`MessageSendService` legt sie über `SealedEntityPart` Byte für Byte auf die Leitung; die äußeren
+Header — From, To, Subject, Date, Message-ID, Autocrypt — schreibt `Email` wie bei jeder Mail, also
+funktionieren alle drei Sender, Rückgängig und geplanter Versand unverändert. Danach werden die
+gesendeten Bytes zur Rohquelle der Zeile, die der Lesebereich wie jede verschlüsselte Mail
+entschlüsselt, und die versiegelten Dateien werden gelöscht.
+
+`SealGuard` wird gefragt, wenn die Entität ankommt, und noch einmal, wenn der Versandjob läuft: Die
+Empfänger müssen noch dieselben sein, für die sie gebaut wurde, und jeder muss noch einen brauchbaren
+Schlüssel haben (`PublicKeyReader`: nicht widerrufen, nicht abgelaufen, zum Verschlüsseln geeignet),
+der unter den Fingerprints ist. Sonst scheitert der Versand, und die Person erfährt es; auf dem
+Server wird nichts neu gebaut.
+
+`Autocrypt:` steht auf jeder ausgehenden Nachricht, mit dem aktiven Schlüssel des Absenders für die
+From-Adresse (`AutocryptHeader`), außer die Person hat es ausgeschaltet.
 
 ## Firewalls
 
@@ -902,6 +938,23 @@ ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon ind
 **Wer `_frame_document.html.twig` ändert, ändert beide Wege, und genau so soll es sein.** Das
 Frame-Skript ist über den Hash seines genauen Texts erlaubt; eine zweite Kopie des Dokuments in
 JavaScript liefe nicht mehr, sobald sich eine der beiden ändert.
+
+**Nichts darf die Entität einer im Browser gebauten Nachricht neu kodieren.** Eine Signatur deckt
+ihre genauen Bytes ab, und nichts auf dem Server könnte sie neu verschlüsseln. Sie bleibt in
+`SealedEntityPart`; ein auf anderem Weg gesetzter Body ist eine Nachricht, die der Server neu gebaut
+hat.
+
+**Ein versiegelter Entwurf hat keinen Body, also sieht jede Server-Funktion, die Entwürfe liest,
+keinen.** Genau darum geht es, und es hält nur, solange nichts einen Body zurückschreibt:
+`SealedDrafts::accept()` leert ihn bei jedem Speichern einer versiegelten Zeile, nicht nur bei
+denen, die `sealed[draft]` mitbrachten.
+
+**`SealGuard` läuft zweimal, weil ein geplanter Versand Tage warten kann.** Nur beim Eintreffen der
+Entität zu prüfen, schickte eine Nachricht, die an einen inzwischen ersetzten oder widerrufenen
+Schlüssel verschlüsselt ist.
+
+**Verschlüsseln an Bcc-Empfänger nutzt Platzhalter-Key-IDs.** Ein PKESK pro Empfänger nennt dessen
+Schlüssel außen, und dann wüsste jeder, wer die Nachricht noch bekommen hat.
 
 **Ein geänderter Schlüssel, der auf einem anderen Weg als `ContactKeys::accept()` zu `current` wird,
 hebelt TOFU aus.** Der partielle Index verhindert zwei `current`-Zeilen, nicht einen Schreibvorgang,

@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Helper;
+
+/**
+ * Where the browser's sealed copies of a message live: the draft it sealed to
+ * the person's own key, and the finished message it built to be sent.
+ *
+ * Files rather than columns, for the reason RawMessageStorage keeps raw mail
+ * on disk: a message row is hydrated by every list in the app, and a column
+ * holding a few megabytes of armored attachments would ride along with each
+ * of them. One file per kind per message, named after the message's id alone
+ * — a draft can move between accounts, its id never changes.
+ *
+ * Neither file is readable by the server in any useful sense: the draft is an
+ * OpenPGP message to the person's own key, and the outgoing message is either
+ * the same or mail that is about to go out in the clear anyway.
+ */
+readonly class SealedMessageStorage
+{
+    private const int FANOUT = 1000;
+
+    public const string DRAFT    = 'draft.asc';
+    public const string OUTGOING = 'eml';
+
+    public function __construct(
+        private string $projectDir,
+        private string $storageDir,
+    ) {
+    }
+
+    public function write(int $messageId, string $kind, string $content): void
+    {
+        $path = $this->path($messageId, $kind);
+
+        if (false === is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+
+        file_put_contents($path, $content);
+    }
+
+    public function read(int $messageId, string $kind): ?string
+    {
+        $path = $this->path($messageId, $kind);
+
+        if (false === is_file($path)) {
+            return null;
+        }
+
+        $content = file_get_contents($path);
+
+        return false === $content ? null : $content;
+    }
+
+    public function delete(int $messageId, string $kind): void
+    {
+        $path = $this->path($messageId, $kind);
+
+        if (true === is_file($path)) {
+            unlink($path);
+        }
+    }
+
+    private function path(int $messageId, string $kind): string
+    {
+        return sprintf(
+            '%s/%s/sealed/%d/%d.%s',
+            $this->projectDir,
+            $this->storageDir,
+            intdiv($messageId, self::FANOUT),
+            $messageId,
+            self::OUTGOING === $kind ? self::OUTGOING : self::DRAFT,
+        );
+    }
+}

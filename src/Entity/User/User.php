@@ -1085,6 +1085,63 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * How mail goes out once plMail can encrypt it — Settings → Encryption →
+     * Sending. Four switches in the settings bag, each stored only when it
+     * differs from its default, like the two above.
+     *
+     *   autocrypt      ON:  every message carries an Autocrypt header with
+     *                       the sender's public key, so Thunderbird, Delta Chat
+     *                       and the like can answer encrypted. Invisible to the
+     *                       people who read the mail.
+     *   attach key     OFF: the public key as a file on every message, for
+     *                       recipients whose program does not read Autocrypt.
+     *   sign plain     OFF: sign mail that goes out unencrypted. A
+     *                       signature.asc confuses people without PGP, which is
+     *                       why it is off; mail to somebody whose key plMail
+     *                       knows is signed whatever this says.
+     *   block partial  OFF: when some recipients can be reached encrypted and
+     *                       others cannot, refuse to send rather than send the
+     *                       mail unencrypted to all of them, which is the
+     *                       default and what Proton does.
+     */
+    public const string SETTING_CRYPTO_AUTOCRYPT     = 'crypto.autocrypt';
+    public const string SETTING_CRYPTO_ATTACH_KEY    = 'crypto.attach_key';
+    public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';
+    public const string SETTING_CRYPTO_BLOCK_PARTIAL = 'crypto.block_partial';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $autocryptHeader {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_AUTOCRYPT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_AUTOCRYPT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $attachPublicKey {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_ATTACH_KEY, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_ATTACH_KEY, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $signPlainMail {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_SIGN_PLAIN, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_SIGN_PLAIN, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $blockPartialEncryption {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, $on ? true : null);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

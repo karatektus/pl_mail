@@ -28,7 +28,10 @@ Variables:
   message  Message
 #}
 {% set render = message_render(message) %}
-{% set encryptedPgp = message.crypto is not null and message.crypto.encrypted and message.crypto.pgp %}
+{# A draft sealed in the browser has no raw source to decrypt: it is opened in
+   the composer, never here. See App\Service\Crypto\SealedDrafts. #}
+{% set sealedDraft = message.sealedDraft %}
+{% set encryptedPgp = not sealedDraft and message.crypto is not null and message.crypto.encrypted and message.crypto.pgp %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -119,7 +122,12 @@ Variables:
        frame the branch below would have (mail--encrypted-message). The frame
        document is rendered here with a placeholder for the body, so both
        paths show a message in exactly the same document. #}
-    {% if encryptedPgp %}
+    {% if sealedDraft %}
+        <p class="flex items-center gap-2 text-sm text-ink-muted" data-testid="sealed-draft-note">
+            <i class="fa-solid fa-lock text-success text-xs" aria-hidden="true"></i>
+            {{ 'message.crypto.sealed_draft'|trans }}
+        </p>
+    {% elseif encryptedPgp %}
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: '<!--plmail:body-->' } only %}{% endset %}
         <div data-controller="mail--encrypted-message"
              data-mail--encrypted-message-raw-url-value="{{ path('app_mail_message_raw', { id: message.id }) }}"
@@ -187,8 +195,8 @@ Variables:
     {% endif %}
 
     {# ── The reading frame ──────────────────────────────────────────────── #}
-    {% if encryptedPgp %}
-        {# Drawn above, by the browser. #}
+    {% if encryptedPgp or sealedDraft %}
+        {# Drawn above, by the browser — or, for a sealed draft, not at all. #}
     {% elseif render.content.html is not empty %}
 
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: render.content.html } only %}{% endset %}

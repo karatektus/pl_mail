@@ -1704,6 +1704,7 @@ compose:
         save_failed: Could not stow the scroll
         saved: Scroll stowed
         saving: "Stowin'…"
+        sealing: "Lockin' it in cipher…"
         uploading: "Haulin' aboard…"
     upload:
         failed: The haulin' aboard went awry
@@ -1725,7 +1726,27 @@ compose:
     discard: Burn this scroll
     empty_draft: (blank scroll)
     encrypt: Seal it in cipher
-    encrypt_unavailable: "No cipher aboard yet — this seal be locked."
+    crypto:
+        encrypt: Cipher it
+        sign: Put yer mark on it
+        encrypted: Under lock
+        encrypted_hint: "This letter sails locked in cipher: none but ye and its crew can read it."
+        has_key: "plMail holds a key fer this port, so letters to it can be ciphered."
+        key_changed: "A new key fer this port awaits yer nod in Settings → Encryption. Till then the old one serves."
+        partial: "%emails% can't be reached in cipher, so this letter sails open to all hands."
+        partial_blocked: "%emails% can't be reached in cipher. Strike 'em off, or sail this one without cipher."
+        missing: "No key aboard fer %emails%. Strike 'em off, or sail this one without cipher."
+        locked: "Yer keys be chained up in this browser. Free 'em in Settings → Encryption, or sail this one without cipher."
+        locked_not_saved: "Not stowed: this draft be ciphered, and yer keys be chained up in this browser."
+        locked_draft: "This draft be ciphered, and yer keys be chained up in this browser. Free 'em in Settings → Encryption to keep scribblin'."
+        failed_draft: "This ciphered draft wouldn't open."
+        no_own_key: "Ye hold no key fer this From port, so nothin' can be marked or ciphered from it."
+        failed: "The letter couldn't be ciphered. Nothin' set sail."
+        sealed_attachment: "Ciphered: till the letter sails, only ye can open it."
+    seal:
+        refused: "The ciphered letter came aboard damaged. Nothin' set sail; try again."
+        keys_changed: "A shipmate's key changed while ye were scribblin'. Nothin' set sail; send it again."
+        unbuilt: "This draft be ciphered, so it sails only from a browser where yer keys be free."
     expand: Throw open the hatches
     formatting: Fancy lettering
     forward: Pass it along
@@ -1962,6 +1983,23 @@ drafts:
     heading: Scrolls in the works
 
 encryption:
+    sending:
+        heading: Settin' sail
+        subheading: "How letters sail now that plMail can cipher 'em. Letters to hands whose keys plMail holds get ciphered on their own."
+        on: "Aye"
+        off: "Nay"
+        autocrypt:
+            label: Share yer key with every letter
+            hint: "A hidden Autocrypt flag carries yer public key, so Thunderbird, Delta Chat an' the like can answer in cipher."
+        attach_key:
+            label: Lash yer public key to the letter
+            hint: "As a scroll on every letter, fer crews whose post office can't read Autocrypt. Landlubbers without PGP get a scroll they don't need."
+        sign_plain:
+            label: Put yer mark on open letters
+            hint: "Landlubbers without PGP see a signature.asc scroll. Letters to hands whose key plMail holds get yer mark either way."
+        block_partial:
+            label: Hold the letter when not all hands can be reached in cipher
+            hint: "Nay: such a letter sails open to all, with a note in the writin' window. Aye: it stays in port till ye strike those hands or sail it without cipher."
     devices:
         empty: "No spyglasses yet."
         heading: "Known spyglasses"
@@ -2310,6 +2348,7 @@ message:
         failed_for: "Ne'er made port at %recipient%."
         reported_at: "Word came back %datetime%"
     crypto:
+        sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
         action:
             accept: "Use th' new key"
             lookup: "Seek th' key"

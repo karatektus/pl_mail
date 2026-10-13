@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\RawMessageStorage;
+use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -58,6 +59,7 @@ readonly class MessageEraser
         private ThreadLabelSynchronizer $threadLabels,
         private AttachmentStorageHelper $attachments,
         private RawMessageStorage       $rawMessages,
+        private SealedMessageStorage    $sealed,
     ) {
     }
 
@@ -75,6 +77,11 @@ readonly class MessageEraser
         }
 
         $this->rawMessages->delete($message->rawPath);
+
+        if (null !== $message->id) {
+            $this->sealed->delete($message->id, SealedMessageStorage::DRAFT);
+            $this->sealed->delete($message->id, SealedMessageStorage::OUTGOING);
+        }
 
         // Ahead of the removal: a destroy names an id, and the id is gone the
         // moment Doctrine flushes the delete.

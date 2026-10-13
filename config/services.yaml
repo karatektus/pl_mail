@@ -151,6 +151,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
+    App\Domain\Helper\SealedMessageStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\UploadStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'

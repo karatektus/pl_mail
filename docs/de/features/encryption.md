@@ -1,12 +1,12 @@
-<!-- translated-from: features/encryption.md sha1:f08060f82996e652cb66bddd57dc5d10f46d9b99 -->
+<!-- translated-from: features/encryption.md sha1:72a8424c25980941840792dea25a4aa5ffe42d92 -->
 
 # Verschlüsselung
 
 plMail baut Ende-zu-Ende-Verschlüsselung mit OpenPGP: Mails, die nur du und die Menschen lesen
 können, denen du schreibst — nicht der plMail-Server und nicht dein Mail-Anbieter. Diese Seite
 beschreibt, was es heute schon gibt: deine Schlüssel, wie sie aufbewahrt werden und wie du sie
-zurückbekommst, das Lesen verschlüsselter und signierter Mails und die Schlüssel der Menschen, denen
-du schreibst. Verschlüsselt senden folgt in einer späteren Version.
+zurückbekommst, das Lesen verschlüsselter und signierter Mails, die Schlüssel der Menschen, denen du
+schreibst, und das verschlüsselte Schreiben.
 
 Alles hier liegt unter **Einstellungen → Verschlüsselung**.
 
@@ -155,7 +155,37 @@ Trust.
 
 Widerrufene oder abgelaufene Schlüssel und solche, die die Adresse nicht nennen, werden nicht
 gespeichert. Jeder Schlüssel hat außerdem **Einstellungen für diesen Empfänger** — verschlüsseln,
-signieren, PGP/MIME oder Inline —, die gelten, sobald plMail verschlüsselt sendet.
+signieren, PGP/MIME oder Inline —, nach denen sich das Schreibfenster richtet.
+
+## Verschlüsselt schreiben
+
+Du musst nichts einschalten. Während du die Empfänger eintippst, bekommt jeder, für den plMail einen
+Schlüssel hat, ein kleines Schloss — nachgeschlagen bei seiner Domain, falls plMail ihn noch nicht
+kannte. Haben **alle** Empfänger einen, wird die Nachricht verschlüsselt: Im Kopf steht
+*Verschlüsselt*, und das Schloss in der Werkzeugleiste ist grün. Haben nur manche einen, sagt ein
+Hinweis unter den Empfängern, wer nicht verschlüsselt erreichbar ist, und die Nachricht geht
+unverschlüsselt an alle — außer du hast unter *Versand* **Nicht senden, wenn nicht alle
+verschlüsselt erreichbar sind** eingeschaltet. Eine Antwort auf eine verschlüsselte Nachricht ist
+von Anfang an verschlüsselt, mit dem Original so zitiert, wie du es gelesen hast.
+
+Das Schloss in der Werkzeugleiste und **Verschlüsseln** und **Signieren** unter *Weitere Optionen*
+entscheiden stattdessen für diese eine Nachricht.
+
+Eine verschlüsselte Nachricht kommt nie lesbar beim Server an, auch nicht als Entwurf: Dein Browser
+verschlüsselt den Entwurf vor jedem Speichern mit deinem eigenen Schlüssel, verschlüsselt Anhänge,
+bevor sie hochgeladen werden, und baut und verschlüsselt die ganze Nachricht — an alle Empfänger
+und an dich, damit die Kopie in *Gesendet* lesbar bleibt —, wenn du auf Senden drückst. Rückgängig,
+*Später senden* und *Gesendet* funktionieren wie immer.
+
+**Signieren.** Verschlüsselte Mails werden immer signiert. Unverschlüsselte Mails werden signiert,
+wenn sie an jemanden gehen, dessen Schlüssel plMail kennt, oder immer, wenn du **Unverschlüsselte
+Mails signieren** einschaltest.
+
+**Versand** (Einstellungen → Verschlüsselung) hat außerdem **Deinen Schlüssel mit jeder Mail
+teilen**, standardmäßig an: Ein unsichtbarer `Autocrypt`-Header trägt deinen öffentlichen Schlüssel,
+damit Thunderbird, Delta Chat und andere Programme verschlüsselt antworten können.
+**Öffentlichen Schlüssel anhängen** hängt ihn zusätzlich als Datei an, für Programme, die Autocrypt
+nicht lesen.
 
 ## Fallstricke
 
@@ -212,6 +242,41 @@ vom plMail-Server. Antworten werden einen Tag lang gemerkt (eine Stunde, wenn es
 Person kann dreißig Suchen in zehn Minuten stellen.
 
 **keys.openpgp.org wird nicht gefragt.** Nur die eigene Domain des Kontakts, über WKD.
+
+**Ein Entwurf wird versiegelt, sobald er verschlüsselt werden soll, nicht vorher.** Was davor
+gespeichert wurde — Text, getippt bevor der letzte Empfänger mit Schlüssel dazukam —, lag so vor, wie
+du ihn getippt hast, bis das nächste Speichern ihn ersetzte. Trag zuerst die Empfänger ein oder drück
+das Schloss, bevor du schreibst.
+
+**Solange deine Schlüssel in diesem Browser gesperrt sind, wird eine Nachricht, die verschlüsselt
+werden soll, weder gespeichert noch gesendet.** Gespeichert läge sie lesbar auf dem Server. Das
+Schreibfenster sagt es dir; öffne deine Schlüssel unter Einstellungen → Verschlüsselung oder schalte
+die Verschlüsselung für diese Nachricht aus.
+
+**Der Betreff wird nicht verschlüsselt.** Absender, Empfänger und Datum auch nicht: Eine Mail braucht
+sie außen, um zugestellt zu werden.
+
+**Ein verschlüsselter Entwurf öffnet sich nur in einem Browser mit deinen Schlüsseln.** Die
+Android-App und andere Mailprogramme sehen ihn ohne Text.
+
+**Wer eine verschlüsselte Nachricht weiterleitet, schickt ihren Text mit, nicht ihre Anhänge.** Häng
+sie noch einmal an, wenn sie mitgehen sollen.
+
+**Die Schreibhilfe wird für verschlüsselte Entwürfe nicht angeboten.** Sie würde den Entwurf auf dem
+Server lesen.
+
+**Eine geplante verschlüsselte Nachricht wird beim Versand noch einmal geprüft.** Wurde der Schlüssel
+eines Empfängers inzwischen ersetzt oder widerrufen, oder haben sich die Empfänger geändert, wird sie
+nicht gesendet, und du erfährst es; öffne sie und sende sie noch einmal.
+
+**Microsoft-Konten senden höchstens 4 MB, Verschlüsselung eingerechnet.** Verschlüsselung macht eine
+Nachricht etwa ein Drittel größer.
+
+**Mit Bcc-Empfängern wird außen kein Schlüssel genannt.** Sonst könnte jeder sehen, wer die Nachricht
+noch bekommen hat. Manche älteren Mailprogramme können eine solche Nachricht nicht entschlüsseln.
+
+**Namen und Größen der Anhänge eines verschlüsselten Entwurfs sieht der Server,** bis die Nachricht
+gesendet ist; ihren Inhalt nicht.
 
 **Dein Passwort in den Einstellungen zu ändern, nimmt deine Schlüssel mit.** Jede andere Änderung —
 durch eine Administratorin, mit `app:user:password` — sperrt sie, und die Recovery-Phrase oder ein

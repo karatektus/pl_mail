@@ -307,7 +307,39 @@ an endpoint that fetches URLs derived from user input, so:
 
 keys.openpgp.org (VKS) is not asked; the concept leaves it as an optional instance setting.
 
-## Firewalls
+## Writing and sending encrypted mail
+
+Phase 5 of issue #28. The server never builds, signs or encrypts anything: it holds no private key.
+The compose window decides (`assets/controllers/compose/encryption_controller.js`, from the keys
+`POST /contact-keys/recipients` names), and once a draft is to be encrypted it is **sealed**:
+
+- every autosave encrypts what was typed to the person's own active keys and posts it as
+  `sealed[draft]`, with the body fields empty. `SealedDrafts` keeps it on disk
+  (`SealedMessageStorage`, `<storage>/sealed/`), sets `Message::$sealedDraft`, and from then on
+  blanks the body of every save of that row whatever it carries — once sealed, always sealed;
+- attachments are encrypted in the browser before upload (`MessagePart::$sealed`): no thumbnail,
+  no preview, served only as `application/octet-stream`;
+- inline images stay inside the sealed draft as `data:` URIs;
+- a reply quotes encrypted mail as a `data-quote-sealed` marker, which the browser fills from the
+  raw source.
+
+On Send the browser builds the whole MIME entity (`assets/crypto/mime.js`) and encrypts it
+(PGP/MIME, signed inside, to every recipient and the sender) or signs it (multipart/signed), or
+leaves it plain for a sealed draft going out unencrypted, and posts it as `sealed[entity]` with its
+kind, the fingerprints it was encrypted to and the signer. `MessageSendService` puts it on the wire
+through `SealedEntityPart` byte for byte, with the outer headers — From, To, Subject, Date,
+Message-ID, Autocrypt — written by `Email` as for any mail, so all three senders, undo and scheduled
+send work unchanged. Afterwards the bytes that went out become the row's raw source, which the
+reading pane decrypts like any encrypted mail, and the sealed files go.
+
+`SealGuard` is asked when the entity arrives and again when the send job runs: the recipients must
+still be the ones it was built for, and each must still have a usable key (`PublicKeyReader`: not
+revoked, not expired, encryption-capable) that is among the fingerprints. Otherwise the send fails
+and the person is told; nothing is rebuilt on the server.
+
+`Autocrypt:` goes on every outgoing message with the sender's active key for the From address
+(`AutocryptHeader`), unless the person switched it off.
+
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
 
@@ -817,6 +849,20 @@ builders, before `persist()`.
 **Editing `_frame_document.html.twig` changes both paths, and that is the point.** The frame script
 is allowed by the hash of its exact text; a second copy of the document in JavaScript would stop
 running the day either changed.
+
+**Nothing may re-encode the entity of a message built in the browser.** A signature covers its exact
+bytes, and nothing on the server could encrypt it again. Keep it in `SealedEntityPart`; a body set
+any other way is a message the server rebuilt.
+
+**A sealed draft has no body, so every server feature that reads drafts sees none.** That is the
+point, and it holds only while nothing writes a body back: `SealedDrafts::accept()` blanks it on
+every save of a sealed row, not only on the ones that carried `sealed[draft]`.
+
+**`SealGuard` runs twice because a scheduled send can wait days.** Checking only when the entity
+arrives would send a message encrypted to a key replaced or revoked in between.
+
+**Encrypting to Bcc recipients uses wildcard key ids.** A PKESK per recipient names their key on the
+outside, which would tell everybody who else got the message.
 
 **A changed key that becomes `current` by any path but `ContactKeys::accept()` undoes TOFU.** The
 partial index stops two `current` rows, not a write that demotes the known key first. Every writer

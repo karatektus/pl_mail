@@ -1806,6 +1806,7 @@ compose:
         save_failed: Could not save the draft
         saved: Draft saved
         saving: "Saving…"
+        sealing: "Encrypting…"
         uploading: "Uploading…"
     # Why an upload was refused. The compose window prints these as-is on its
     # status line, so they are the whole of the explanation the user gets.
@@ -1829,9 +1830,27 @@ compose:
     discard: Delete draft
     empty_draft: (empty draft)
     encrypt: Encrypt message
-    # The whole of what the disabled encrypt button says for itself. It has to
-    # be a complete sentence: it is the only explanation anyone gets.
-    encrypt_unavailable: Encryption is not available yet.
+    crypto:
+        encrypt: Encrypt
+        sign: Sign
+        encrypted: Encrypted
+        encrypted_hint: "This message will be end-to-end encrypted: only you and the people it goes to can read it."
+        has_key: "plMail has a key for this address, so mail to it can be encrypted."
+        key_changed: "A new key for this address is waiting to be accepted in Settings → Encryption. The known key is used until then."
+        partial: "%emails% cannot be reached encrypted, so this message goes out unencrypted to everybody."
+        partial_blocked: "%emails% cannot be reached encrypted. Remove them, or switch encryption off for this message."
+        missing: "There is no key for %emails%. Remove them, or switch encryption off for this message."
+        locked: "Your keys are locked in this browser. Open them in Settings → Encryption, or switch encryption off for this message."
+        locked_not_saved: "Not saved: this draft is encrypted, and your keys are locked in this browser."
+        locked_draft: "This draft is encrypted, and your keys are locked in this browser. Open them in Settings → Encryption to keep writing."
+        failed_draft: "This encrypted draft could not be opened."
+        no_own_key: "You have no key for this From address, so nothing can be signed or encrypted from it."
+        failed: "The message could not be encrypted. Nothing was sent."
+        sealed_attachment: "Encrypted: until the message is sent, only you can open it."
+    seal:
+        refused: "The encrypted message did not arrive intact. Nothing was sent; try again."
+        keys_changed: "A recipient's key changed while you were writing. Nothing was sent; send it again."
+        unbuilt: "This draft is encrypted, so it can only be sent from a browser where your keys are open."
     expand: Expand
     formatting: Formatting options
     forward: Forward
@@ -2080,6 +2099,23 @@ drafts:
     heading: Drafts
 
 encryption:
+    sending:
+        heading: Sending
+        subheading: "How mail goes out now that plMail can encrypt it. Mail to people whose keys plMail knows is encrypted by itself."
+        on: "On"
+        off: "Off"
+        autocrypt:
+            label: Share your key with every message
+            hint: "An invisible Autocrypt header carries your public key, so Thunderbird, Delta Chat and others can answer encrypted."
+        attach_key:
+            label: Attach your public key
+            hint: "As a file on every message, for recipients whose mail program does not read Autocrypt. People without PGP see an attachment they do not need."
+        sign_plain:
+            label: Sign unencrypted mail
+            hint: "People without PGP see a signature.asc attachment. Mail to somebody whose key plMail knows is signed either way."
+        block_partial:
+            label: Refuse to send when not everybody can be reached encrypted
+            hint: "Off: such a message goes out unencrypted to everybody, with a note in the compose window. On: it is not sent until you remove those recipients or switch encryption off for it."
     devices:
         empty: "No devices yet."
         heading: "Known devices"
@@ -2430,6 +2466,7 @@ message:
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
     crypto:
+        sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
         action:
             accept: "Use the new key"
             lookup: "Look up the key"

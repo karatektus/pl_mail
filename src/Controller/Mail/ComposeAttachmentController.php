@@ -81,7 +81,9 @@ final class ComposeAttachmentController extends AbstractController
             return $this->uploadError($this->translator->trans('compose.upload.post_too_large'));
         }
 
-        $refusal = $this->attachments->attach($message, $files);
+        // Encrypted in the browser to the person's own key, for a draft that
+        // is sealed (assets/controllers/compose/encryption_controller.js).
+        $refusal = $this->attachments->attach($message, $files, '1' === $request->request->get('sealed'));
 
         if (null !== $refusal) {
             return $this->uploadError($refusal);

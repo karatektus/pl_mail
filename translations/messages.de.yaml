@@ -1818,6 +1818,7 @@ compose:
         save_failed: Entwurf konnte nicht gespeichert werden
         saved: Entwurf gespeichert
         saving: "Wird gespeichert…"
+        sealing: "Wird verschlüsselt…"
         uploading: "Wird hochgeladen…"
     upload:
         failed: Hochladen fehlgeschlagen
@@ -1839,7 +1840,27 @@ compose:
     discard: Entwurf löschen
     empty_draft: (leerer Entwurf)
     encrypt: Nachricht verschlüsseln
-    encrypt_unavailable: Verschlüsselung ist noch nicht verfügbar.
+    crypto:
+        encrypt: Verschlüsseln
+        sign: Signieren
+        encrypted: Verschlüsselt
+        encrypted_hint: "Diese Nachricht wird Ende-zu-Ende verschlüsselt: Nur du und die Empfänger können sie lesen."
+        has_key: "plMail kennt einen Schlüssel für diese Adresse, Mails an sie lassen sich also verschlüsseln."
+        key_changed: "Für diese Adresse wartet ein neuer Schlüssel unter Einstellungen → Verschlüsselung darauf, angenommen zu werden. Bis dahin wird der bekannte verwendet."
+        partial: "%emails% ist nicht verschlüsselt erreichbar, deshalb geht diese Nachricht unverschlüsselt an alle."
+        partial_blocked: "%emails% ist nicht verschlüsselt erreichbar. Entferne die Adresse oder schalte die Verschlüsselung für diese Nachricht aus."
+        missing: "Für %emails% gibt es keinen Schlüssel. Entferne die Adresse oder schalte die Verschlüsselung für diese Nachricht aus."
+        locked: "Deine Schlüssel sind in diesem Browser gesperrt. Öffne sie unter Einstellungen → Verschlüsselung oder schalte die Verschlüsselung für diese Nachricht aus."
+        locked_not_saved: "Nicht gespeichert: Dieser Entwurf ist verschlüsselt, und deine Schlüssel sind in diesem Browser gesperrt."
+        locked_draft: "Dieser Entwurf ist verschlüsselt, und deine Schlüssel sind in diesem Browser gesperrt. Öffne sie unter Einstellungen → Verschlüsselung, um weiterzuschreiben."
+        failed_draft: "Dieser verschlüsselte Entwurf ließ sich nicht öffnen."
+        no_own_key: "Für diese Absenderadresse hast du keinen Schlüssel, also lässt sich von ihr aus nichts signieren oder verschlüsseln."
+        failed: "Die Nachricht ließ sich nicht verschlüsseln. Es wurde nichts gesendet."
+        sealed_attachment: "Verschlüsselt: Bis die Nachricht gesendet ist, kannst nur du sie öffnen."
+    seal:
+        refused: "Die verschlüsselte Nachricht kam nicht vollständig an. Es wurde nichts gesendet; versuch es noch einmal."
+        keys_changed: "Der Schlüssel eines Empfängers hat sich beim Schreiben geändert. Es wurde nichts gesendet; sende sie noch einmal."
+        unbuilt: "Dieser Entwurf ist verschlüsselt und lässt sich nur aus einem Browser senden, in dem deine Schlüssel offen sind."
     expand: Fenster vergrößern
     formatting: Formatierung
     forward: Weiterleiten
@@ -2083,6 +2104,23 @@ drafts:
     heading: Entwürfe
 
 encryption:
+    sending:
+        heading: Versand
+        subheading: "Wie Mails rausgehen, seit plMail verschlüsseln kann. Mails an Menschen, deren Schlüssel plMail kennt, werden von selbst verschlüsselt."
+        on: "An"
+        off: "Aus"
+        autocrypt:
+            label: Deinen Schlüssel mit jeder Mail teilen
+            hint: "Ein unsichtbarer Autocrypt-Header trägt deinen öffentlichen Schlüssel, damit Thunderbird, Delta Chat und andere verschlüsselt antworten können."
+        attach_key:
+            label: Öffentlichen Schlüssel anhängen
+            hint: "Als Datei an jeder Mail, für Empfänger, deren Mailprogramm Autocrypt nicht liest. Wer kein PGP nutzt, sieht einen Anhang, den er nicht braucht."
+        sign_plain:
+            label: Unverschlüsselte Mails signieren
+            hint: "Wer kein PGP nutzt, sieht einen Anhang signature.asc. Mails an jemanden, dessen Schlüssel plMail kennt, werden ohnehin signiert."
+        block_partial:
+            label: Nicht senden, wenn nicht alle verschlüsselt erreichbar sind
+            hint: "Aus: Eine solche Mail geht unverschlüsselt an alle, mit einem Hinweis im Schreibfenster. An: Sie wird erst gesendet, wenn du diese Empfänger entfernst oder die Verschlüsselung für sie ausschaltest."
     devices:
         empty: "Noch keine Geräte."
         heading: "Bekannte Geräte"
@@ -2431,6 +2469,7 @@ message:
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
     crypto:
+        sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."
         action:
             accept: "Neuen Schlüssel verwenden"
             lookup: "Schlüssel suchen"

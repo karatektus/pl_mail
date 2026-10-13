@@ -18,8 +18,10 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\ContactKeys;
 use App\Service\Crypto\PublicKeyReader;
+use App\Service\Crypto\SendingKey;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Demo\DemoMode;
+use App\Service\Mail\SenderResolver;
 use Closure;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -60,6 +62,9 @@ final class ContactKeyController extends AbstractController
 
     private const string FLASH = 'contact_keys';
 
+    /** More than any mail has To, Cc and Bcc for; a lookup each at most. */
+    private const int MAX_RECIPIENTS = 50;
+
     public function __construct(
         private readonly ContactKeys            $contactKeys,
         private readonly ContactKeyRepository   $repository,
@@ -67,7 +72,62 @@ final class ContactKeyController extends AbstractController
         private readonly SignatureVerifier      $verifier,
         private readonly EntityManagerInterface $entityManager,
         private readonly DemoMode               $demoMode,
+        private readonly SendingKey             $sendingKeys,
+        private readonly SenderResolver         $senders,
     ) {
+    }
+
+    /**
+     * What the composer needs to know about the people a message is going to:
+     * for each address, the key plMail would encrypt to and what the person
+     * set for that recipient (Settings → Encryption → Contacts' keys).
+     *
+     * Asked while the recipients are being typed
+     * (assets/controllers/compose/encryption_controller.js). With `lookup`,
+     * an address with no key is looked up on its domain's Web Key Directory
+     * first, so the lock can appear before the mail is sent — throttled by
+     * WkdLookup like any other lookup, and a lookup that fails is an address
+     * without a key, not an error. The person's own addresses answer with
+     * their own key.
+     *
+     * With `from` — the composer's From token — it also names the person's
+     * own key for that address: the one the browser signs with, and the one
+     * the Autocrypt header will carry (SendingKey).
+     *
+     * POST, because a lookup can record a key; the shared `ajax` token, like
+     * every other write the composer makes.
+     */
+    #[Route('/recipients', name: 'recipients', methods: ['POST'])]
+    public function recipients(Request $request, #[CurrentUser] User $user): JsonResponse
+    {
+        $this->assertCsrf($request, 'ajax');
+
+        $body   = json_decode($request->getContent(), true);
+        $emails = is_array($body['emails'] ?? null) ? $body['emails'] : [];
+        $lookup = true === ($body['lookup'] ?? false) && false === $this->demoMode->isEnabled();
+        $result = [];
+
+        foreach (array_slice(array_values(array_unique(array_map(
+            static fn (mixed $email): string => strtolower(trim((string) $email)),
+            $emails,
+        ))), 0, self::MAX_RECIPIENTS) as $email) {
+            if (false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            $result[] = $this->recipient($user, $email, $lookup);
+        }
+
+        $sender  = null;
+        $account = $this->senders->accountFor($body['from'] ?? null, $user);
+
+        if (null !== $account) {
+            $address = $this->senders->addressFor($body['from'] ?? null, $account, $user);
+            $own     = $this->sendingKeys->forAccount($user, $account, $address);
+            $sender  = ['email' => strtolower($address), 'fingerprint' => $own?->fingerprint];
+        }
+
+        return new JsonResponse(['recipients' => $result, 'sender' => $sender], headers: ['Cache-Control' => 'private, no-store']);
     }
 
     #[Route('', name: 'index', methods: ['GET'])]
@@ -230,6 +290,54 @@ final class ContactKeyController extends AbstractController
     /**
      * @param Closure(): void $write
      */
+    /**
+     * @return array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string}
+     */
+    private function recipient(User $user, string $email, bool $lookup): array
+    {
+        $own = $this->sendingKeys->for($user, $email);
+
+        if (null !== $own) {
+            return [
+                'email'   => $email,
+                'own'     => true,
+                'key'     => ['fingerprint' => $own->fingerprint, 'publicKey' => $own->publicKey, 'pinned' => true],
+                'changed' => false,
+                'encrypt' => RecipientPolicy::Auto->value,
+                'sign'    => RecipientPolicy::Auto->value,
+                'scheme'  => PgpScheme::Mime->value,
+            ];
+        }
+
+        $current = $this->repository->findCurrent($user, $email);
+
+        if (null === $current && true === $lookup) {
+            try {
+                $this->contactKeys->lookUp($user, $email);
+                $current = $this->repository->findCurrent($user, $email);
+            } catch (\Throwable) {
+                // Throttled, unreachable, refused: no key, which the composer
+                // already knows how to say.
+            }
+        }
+
+        $changed = false;
+
+        foreach ($this->repository->findForAddress($user, $email) as $key) {
+            $changed = $changed || false === $key->isCurrent();
+        }
+
+        return [
+            'email'   => $email,
+            'own'     => false,
+            'key'     => null === $current ? null : ['fingerprint' => $current->fingerprint, 'publicKey' => $current->publicKey, 'pinned' => $current->pinned],
+            'changed' => $changed,
+            'encrypt' => $current?->encrypt->value ?? RecipientPolicy::Auto->value,
+            'sign'    => $current?->sign->value ?? RecipientPolicy::Auto->value,
+            'scheme'  => $current?->scheme->value ?? PgpScheme::Mime->value,
+        ];
+    }
+
     private function write(Request $request, string $csrfId, Closure $write): Response
     {
         $this->assertCsrf($request, $csrfId);
