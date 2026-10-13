@@ -55,9 +55,12 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'gls-pakete.de'   => 'gls',
         // France. Colissimo mails come from a notification domain of their
         // own, so that one is listed whole rather than laposte.fr, which also
-        // sends login codes. GLS France and the Pickup relay network are left
-        // out: neither states a number this extractor can read yet.
+        // sends login codes. GLS France is listed for its match code, which
+        // only that sender's label gives meaning to (see trackingNumbersIn).
+        // The Pickup relay network is left out: it forwards parcels of several
+        // carriers, so its sender says nothing about whose parcel a mail is.
         'notif-colissimo-laposte.info' => 'colissimo',
+        'gls-france.com'               => 'gls',
         'colissimo.fr'                 => 'colissimo',
         'chronopost.fr'                => 'chronopost',
         'mondialrelay.fr'              => 'mondial-relay',
@@ -541,6 +544,21 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             }
         }
 
+        // GLS France's "match code": eight capital letters and digits, printed
+        // under the label "Numéro de colis" — Q7XK2M4P, 00AB1C2D. Nothing about
+        // the shape is distinctive, so it is read only from GLS France, only
+        // behind that label, and only with a letter in it: eight bare digits
+        // are Mondial Relay's shape and an order number's. The code itself is
+        // matched case-sensitively; only the label is not, or the next word
+        // ("livraison") would pass for one.
+        if ('gls' === $senderCarrier) {
+            preg_match_all('~(?i:num[ée]ro de colis)\s*:?\s+((?=[A-Z0-9]*[A-Z])[A-Z0-9]{8})\b~u', $text, $matches);
+
+            foreach ($matches[1] as $number) {
+                $found = $this->remember($found, $number, 'gls');
+            }
+        }
+
         foreach ($this->allMatches('~\b\d{12,20}\b~', $text) as $number) {
             // A mail that literally says "fedex" outranks DHL's generic
             // context words for the 12-digit shape — "tracking" appears in
@@ -964,7 +982,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             'ups'    => 'https://www.ups.com/track?tracknum=' . $number,
             'fedex'  => 'https://www.fedex.com/fedextrack/?trknbr=' . $number,
             'dpd'    => 'https://tracking.dpd.de/status/de_DE/parcel/' . $number,
-            'gls'    => 'https://gls-group.eu/track/' . $number,
+            // GLS has two systems. The eight-character match code is GLS
+            // France's own and is followed on GLS France's own tracking page.
+            'gls'    => 1 === preg_match('~^[A-Z0-9]{8}$~', $number)
+                ? 'https://moncolis.gls-france.com/fr/' . $number
+                : 'https://gls-group.eu/track/' . $number,
             'hermes' => 'https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsinformation#' . $number,
             // La Poste's own tracking page, which Colissimo parcels and the
             // S10 numbers it issues both resolve on. Chronopost has its own.

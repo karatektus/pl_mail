@@ -239,12 +239,14 @@ delivery day promised in words rather than digits ("arriving today", "Arriving M
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did.
 
-The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France
-and Cainiao, with Amazon.fr treated like the other Amazon shops. A parcel waiting at a relay point
-or a locker is its own stage, **Ready for pickup**, neither on its way nor delivered. Not read yet:
-GLS France and the Pickup relay network, whose mail states no number the radar can recognise, and
-the "returned to sender" and "delivery attempt failed" stages. The satisfaction survey a carrier
-sends after delivery is ignored, so it cannot turn a **Delivered** card back into something else.
+The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
+GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
+like the other Amazon shops. A parcel waiting at a relay point or a locker is its own stage, **Ready
+for pickup**, neither on its way nor delivered. Not read properly yet: the Pickup relay network,
+which forwards the parcels of several carriers, so a card made from its mail can name the wrong
+carrier, and the "returned to sender" and "delivery attempt failed" stages. The satisfaction survey
+a carrier sends after delivery is ignored, so it cannot turn a **Delivered** card back into
+something else.
 
 ### The strip above the mail list
 

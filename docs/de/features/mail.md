@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:74ff626a6379dafc150e11f5b19e81b76abfc40d -->
+<!-- translated-from: features/mail.md sha1:67b571d4a50a1049c41b7464aed9dc9cc8a1c874 -->
 
 # Mail
 
@@ -264,12 +264,14 @@ gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail 
 landet auf demselben Tag wie beim ersten Mal.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
-DPD France und Cainiao, und Amazon.fr wie die anderen Amazon-Shops. Ein Paket, das in einem
-Paketshop oder Locker auf dich wartet, hat eine eigene Stufe, **Abholbereit**, weder unterwegs noch
-zugestellt. Noch nicht gelesen werden GLS France und das Pickup-Relaisnetz, deren Mails keine Nummer
-nennen, die das Radar erkennen kann, sowie die Stufen "an den Absender zurück" und "Zustellversuch
-gescheitert". Die Zufriedenheitsumfrage, die ein Zusteller nach der Zustellung schickt, wird
-ignoriert, damit sie eine Karte **Zugestellt** nicht in etwas anderes zurückverwandelt.
+DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr
+wie die anderen Amazon-Shops. Ein Paket, das in einem Paketshop oder Locker auf dich wartet, hat
+eine eigene Stufe, **Abholbereit**, weder unterwegs noch zugestellt. Noch nicht richtig gelesen
+werden das Pickup-Relaisnetz, das die Pakete mehrerer Zusteller weiterleitet, sodass eine Karte aus
+seiner Mail den falschen Zusteller nennen kann, sowie die Stufen "an den Absender zurück" und
+"Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die ein Zusteller nach der Zustellung
+schickt, wird ignoriert, damit sie eine Karte **Zugestellt** nicht in etwas anderes
+zurückverwandelt.
 
 ### Die Leiste über der Mailliste
 
