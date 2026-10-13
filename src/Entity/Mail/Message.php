@@ -3,6 +3,7 @@
 namespace App\Entity\Mail;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -263,6 +264,15 @@ class Message extends MessageModel
      */
     #[ORM\Column(name: 'sealed_draft', options: ['default' => false])]
     public bool $sealedDraft = false;
+
+    /**
+     * Where the readable body of an encrypted message came from, if it has
+     * one: a browser that decrypted it, for an account that keeps decrypted
+     * mail on the server (App\Service\Crypto\DecryptedMail). None for every
+     * other message, encrypted or not.
+     */
+    #[ORM\Column(name: 'plaintext_source', length: 8, enumType: PlaintextSource::class, options: ['default' => 'none'])]
+    public PlaintextSource $plaintextSource = PlaintextSource::None;
 
     /**
      * The message the browser built to be sent, when it built one — encrypted,

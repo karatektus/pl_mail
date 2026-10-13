@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { csrfToken } from "../../csrf.js";
 import { keyring } from "../../crypto/keyring.js";
 import { openEncrypted } from "../../crypto/message.js";
 
@@ -42,6 +43,10 @@ export default class extends Controller {
         keyring: Object,
         settingsUrl: String,
         messages: Object,
+        // Set when the account keeps decrypted mail on the server: where the
+        // decrypted message goes once it has been opened here. See
+        // App\Controller\Mail\DecryptedMailController::upload().
+        uploadUrl: { type: String, default: "" },
     };
 
     #observer = null;
@@ -142,6 +147,7 @@ export default class extends Controller {
         }
 
         this.statusTarget.hidden = true;
+        this.#keep(opened.mime);
         this.#showSignature(opened.signature);
         this.#showAttachments(opened.attachments);
 
@@ -167,6 +173,23 @@ export default class extends Controller {
         const response = await fetch(this.senderKeysUrlValue, { headers: { Accept: "application/json" }, cache: "no-store" }).catch(() => null);
 
         return null === response || false === response.ok ? [] : response.json().catch(() => []);
+    }
+
+    /**
+     * Hand the decrypted message to the server, for an account that keeps
+     * decrypted mail. Best effort and out of the way: the background
+     * decrypter (crypto--decrypted-mail) picks up anything this misses.
+     */
+    #keep(mime) {
+        if ("" === this.uploadUrlValue || undefined === mime) {
+            return;
+        }
+
+        fetch(this.uploadUrlValue, {
+            method: "POST",
+            body: mime,
+            headers: { "Content-Type": "application/octet-stream", "X-CSRF-Token": csrfToken(), "X-Requested-With": "XMLHttpRequest" },
+        }).catch(() => undefined);
     }
 
     #say(message, isProblem, link = null) {

@@ -170,6 +170,31 @@ an invisible `Autocrypt` header carries your public key, so Thunderbird, Delta C
 programs can answer encrypted. **Attach your public key** adds it as a file as well, for programs
 that do not read Autocrypt.
 
+## Keeping decrypted mail on this server
+
+Encrypted mail is not searched, and parcels, dates and rules do not see it — the server never holds
+its text. If what you want to keep out is your **mail provider** rather than your own server — a
+Gmail or Outlook address, say, on a plMail you host yourself — you can choose otherwise, per
+account, under **Settings → Encryption → Decrypted mail on this server**.
+
+With it on, any browser of yours with your keys open decrypts that account's encrypted mail in the
+background and hands it to the server, which then treats it like any other mail: search, parcels,
+invoices, dates, `.ics` invitations, and your rules while the message is still unread. Messages you
+open are handed over straight away. The banner says *Encrypted on arrival · stored readable on this
+server*. Your provider still sees only ciphertext.
+
+**Letting the models read it** — sorting into categories, search by meaning, summaries, the writing
+assistant — is a second switch under it. If the model host is on the installation's own network
+(an Ollama beside it), that is all; if it is somewhere else, you are asked to agree to that host by
+name, and a different host later needs your agreement again.
+
+**Switching it off deletes the decrypted copies**: the text, the attachments that came out of it,
+the search index, what the models made of it, parcels and dates found in it. The encrypted
+originals stay, and so do events already in your calendar. Switching only the models off deletes
+what they made of it.
+
+An administrator can forbid the whole option for the installation (`APP_E2E_SERVER_PLAINTEXT`).
+
 ## Things that bite
 
 **Without the recovery phrase or a known device, a forgotten password loses your keys.** Nobody can
@@ -251,6 +276,18 @@ else was sent the message. Some older mail programs cannot decrypt such a messag
 
 **The names and sizes of attachments in an encrypted draft are visible to the server** until the
 message is sent; their contents are not.
+
+**Decrypted mail kept on the server is in its backups.** Switching the option off deletes it from the
+server, not from backups taken while it was on.
+
+**Rules only see a decrypted message while it is unread.** One you have read by the time a browser
+decrypts it is not moved by a rule any more: that would be moving it out from under you.
+
+**With *Decrypted mail on this server* on, drafts are not encrypted on the server either,** and
+encrypted mail you send keeps its text there. That is what the option is for.
+
+**Nothing is decrypted while no browser with your keys is open.** The background decrypting starts
+again the next time one is.
 
 **Changing your password in Settings carries your keys over.** Changing it any other way — an
 administrator, `app:user:password` — locks them, and the recovery phrase or a known device opens

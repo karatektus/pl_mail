@@ -4,6 +4,7 @@ namespace App\Service\Imap;
 
 use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
@@ -441,7 +442,10 @@ class MessageSendService
      */
     private function keepWhatWasSent(Message $message, Email $email): void
     {
-        $encrypted = SealGuard::KIND_ENCRYPTED === ($message->outgoingSeal['kind'] ?? null);
+        // Encrypted mail drops every attachment — they are inside it — unless
+        // its account keeps decrypted mail, which keeps the readable ones.
+        $encrypted = SealGuard::KIND_ENCRYPTED === ($message->outgoingSeal['kind'] ?? null)
+            && PlaintextSource::Client !== $message->plaintextSource;
 
         $this->rawMessages->store($message, $email->toString());
 

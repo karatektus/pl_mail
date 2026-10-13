@@ -26,4 +26,21 @@ replaced: a keyring hung off that password would be one the chooser could open.
              recovered:     'encryption.nag.recovered'|trans,
              action:        'encryption.nag.action'|trans,
          }|json_encode }}"></div>
+
+    {# For a person with an account that keeps decrypted mail on the server:
+       decrypts that account's encrypted mail in the background and hands it
+       over. See crypto--decrypted-mail and DecryptedMail. #}
+    {% if keeps_decrypted_mail() %}
+        <div hidden
+             data-controller="crypto--decrypted-mail"
+             data-crypto--decrypted-mail-pending-url-value="{{ path('app_mail_decrypted_pending') }}"
+             data-crypto--decrypted-mail-keyring-value="{{ {
+                 stateUrl:    path('app_keyring_state'),
+                 unlockUrl:   path('app_keyring_unlock_current'),
+                 preloginUrl: path('app_login_prelogin'),
+                 csrf:        csrf_token('keyring'),
+                 userId:      app.user.id,
+                 email:       app.user.email,
+             }|json_encode }}"></div>
+    {% endif %}
 {% endif %}

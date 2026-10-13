@@ -61,7 +61,9 @@ export async function openEncrypted(raw, ring, contactKeys = []) {
     const signature = await signatureOf(decrypted.signatures, verificationKeys, ring.ownFingerprints(), contactKeys);
 
     if (true === inline) {
-        return { html: null, text: decoder.decode(decrypted.data), attachments: [], signature };
+        const text = decoder.decode(decrypted.data);
+
+        return { html: null, text, attachments: [], signature, mime: inlineEntity(text) };
     }
 
     const inner = await PostalMime.parse(decrypted.data);
@@ -77,7 +79,18 @@ export async function openEncrypted(raw, ring, contactKeys = []) {
         // than as an OpenPGP packet. Said as unchecked for now rather than
         // checked badly: the bytes it covers are not what postal-mime returns.
         signature: signature ?? ((inner.attachments ?? []).some(isSignaturePart) ? { state: "unchecked", signer: null } : null),
+        // The decrypted inner message, whole: what an account that keeps
+        // decrypted mail on the server is handed (App\Service\Crypto\DecryptedMail).
+        mime: decrypted.data,
     };
+}
+
+/**
+ * Inline PGP decrypts to text, not to a message; for the server it is wrapped
+ * in the smallest message that says what it is.
+ */
+function inlineEntity(text) {
+    return new TextEncoder().encode(`Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${text.replace(/\r\n|\r|\n/g, "\r\n")}`);
 }
 
 // ── Private ─────────────────────────────────────────────────────────────────

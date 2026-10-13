@@ -31,7 +31,10 @@ Variables:
 {# A draft sealed in the browser has no raw source to decrypt: it is opened in
    the composer, never here. See App\Service\Crypto\SealedDrafts. #}
 {% set sealedDraft = message.sealedDraft %}
-{% set encryptedPgp = not sealedDraft and message.crypto is not null and message.crypto.encrypted and message.crypto.pgp %}
+{# A decrypted body a browser handed over (DecryptedMail) is shown like any
+   body the server holds; only the banner says where it came from. #}
+{% set decryptedKept = message.plaintextSource.value == 'client' %}
+{% set encryptedPgp = not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted and message.crypto.pgp %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -131,6 +134,7 @@ Variables:
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: '<!--plmail:body-->' } only %}{% endset %}
         <div data-controller="mail--encrypted-message"
              data-mail--encrypted-message-raw-url-value="{{ path('app_mail_message_raw', { id: message.id }) }}"
+             data-mail--encrypted-message-upload-url-value="{{ keeps_decrypted(message.account) ? path('app_mail_decrypted_upload', { id: message.id }) : '' }}"
              data-mail--encrypted-message-sender-keys-url-value="{{ path('app_contact_keys_sender', { email: message.fromAddress }) }}"
              data-mail--encrypted-message-document-value="{{ frameDocument|e('html') }}"
              data-mail--encrypted-message-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
@@ -187,7 +191,7 @@ Variables:
     {% elseif message.crypto is not null %}
         {% include 'mail/_crypto_banner.html.twig' with { message: message } only %}
 
-        {% if message.crypto.encrypted %}
+        {% if message.crypto.encrypted and not message.crypto.pgp %}
             {# S/MIME: reading it needs an S/MIME key of the person's own,
                which plMail does not hold yet (phase 6 of issue #28). #}
             <p class="text-sm text-ink-muted" data-testid="smime-unreadable">{{ 'message.crypto.smime_unreadable'|trans }}</p>

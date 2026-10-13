@@ -1105,6 +1105,14 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      *                       mail unencrypted to all of them, which is the
      *                       default and what Proton does.
      */
+    /**
+     * Whether any of this person's accounts keeps decrypted mail on the
+     * server (Account::SETTING_KEEP_DECRYPTED) — kept here, by the settings
+     * page that switches those, so the layout can decide whether to mount the
+     * background decrypter without a query of its own on every page.
+     */
+    public const string SETTING_KEEPS_DECRYPTED_ANY = 'crypto.keeps_decrypted_any';
+
     public const string SETTING_CRYPTO_AUTOCRYPT     = 'crypto.autocrypt';
     public const string SETTING_CRYPTO_ATTACH_KEY    = 'crypto.attach_key';
     public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';

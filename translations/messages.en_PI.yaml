@@ -1983,6 +1983,25 @@ drafts:
     heading: Scrolls in the works
 
 encryption:
+    decrypted:
+        heading: Deciphered letters aboard this ship
+        subheading: "Off unless ye choose it, fer each account. Yer post office still can't read yer ciphered letters either way."
+        forbidden: "This ship keeps no deciphered letters. Yer ciphered letters stay ciphered aboard."
+        state_on: "Ciphered letters get deciphered in yer browser an' kept readable here, so searchin', parcels, dates an' rules work on 'em."
+        state_off: "Ciphered letters stay ciphered here: only sender an' subject can be searched."
+        confirm: "Ciphered letters of this account get stowed on this plMail ship once deciphered. Searchin', parcels an' dates then work on 'em. Any hand with access to the ship can read 'em. Yer post office still can't."
+        confirm_needed: "Tick the box to say ye want deciphered letters kept aboard."
+        turn_on: Keep deciphered letters aboard
+        turn_off: Stop, an' scuttle the deciphered copies
+        ai:
+            label: Let the oracles read 'em too
+            local: "Sortin', searchin' by meanin' an' summaries, with the oracle %host%, which sails in this ship's own waters."
+            external: "The oracle %host% sails outside this ship's waters: deciphered letters would be sent to it."
+            no_model: "No oracle be set up aboard this ship."
+            consent: "I agree that deciphered letters of this account be sent to %host%."
+            consent_needed: "Tick the box to agree that deciphered letters go to the oracle."
+            turn_on: Let the oracles read 'em
+            turn_off: Stop, an' scuttle what they made of 'em
     sending:
         heading: Settin' sail
         subheading: "How letters sail now that plMail can cipher 'em. Letters to hands whose keys plMail holds get ciphered on their own."
@@ -2348,6 +2367,7 @@ message:
         failed_for: "Ne'er made port at %recipient%."
         reported_at: "Word came back %datetime%"
     crypto:
+        encrypted_kept: "Came aboard in cipher · kept readable on this ship"
         sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
         action:
             accept: "Use th' new key"

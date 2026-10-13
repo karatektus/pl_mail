@@ -14,16 +14,22 @@ namespace App\Domain\Helper;
  * of them. One file per kind per message, named after the message's id alone
  * — a draft can move between accounts, its id never changes.
  *
- * Neither file is readable by the server in any useful sense: the draft is an
- * OpenPGP message to the person's own key, and the outgoing message is either
- * the same or mail that is about to go out in the clear anyway.
+ * Neither of those is readable by the server in any useful sense: the draft is
+ * an OpenPGP message to the person's own key, and the outgoing message is
+ * either the same or mail that is about to go out in the clear anyway.
+ *
+ * The third kind is the exception, and only by the person's choice: the
+ * decrypted inner message a browser handed over for an account that keeps
+ * decrypted mail (App\Service\Crypto\DecryptedMail). Kept apart from the raw
+ * source, which stays the ciphertext that arrived.
  */
 readonly class SealedMessageStorage
 {
     private const int FANOUT = 1000;
 
-    public const string DRAFT    = 'draft.asc';
-    public const string OUTGOING = 'eml';
+    public const string DRAFT     = 'draft.asc';
+    public const string OUTGOING  = 'eml';
+    public const string DECRYPTED = 'decrypted.eml';
 
     public function __construct(
         private string $projectDir,
@@ -72,7 +78,7 @@ readonly class SealedMessageStorage
             $this->storageDir,
             intdiv($messageId, self::FANOUT),
             $messageId,
-            self::OUTGOING === $kind ? self::OUTGOING : self::DRAFT,
+            true === in_array($kind, [self::OUTGOING, self::DECRYPTED], true) ? $kind : self::DRAFT,
         );
     }
 }

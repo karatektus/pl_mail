@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:72a8424c25980941840792dea25a4aa5ffe42d92 -->
+<!-- translated-from: features/encryption.md sha1:e019825172f06e03d6c415f82e7e0e457041144c -->
 
 # Verschlüsselung
 
@@ -187,6 +187,34 @@ damit Thunderbird, Delta Chat und andere Programme verschlüsselt antworten kön
 **Öffentlichen Schlüssel anhängen** hängt ihn zusätzlich als Datei an, für Programme, die Autocrypt
 nicht lesen.
 
+## Entschlüsselte Mails auf diesem Server behalten
+
+Verschlüsselte Mails werden nicht durchsucht, und Pakete, Termine und Regeln sehen sie nicht — der
+Server hat ihren Text nie. Wenn du vor allem deinen **Mail-Anbieter** heraushalten willst und nicht
+deinen eigenen Server — eine Gmail- oder Outlook-Adresse etwa, auf einem plMail, das du selbst
+betreibst —, kannst du dich pro Konto anders entscheiden, unter **Einstellungen → Verschlüsselung →
+Entschlüsselte Mails auf diesem Server**.
+
+Ist es an, entschlüsselt jeder Browser von dir, in dem deine Schlüssel offen sind, die
+verschlüsselten Mails dieses Kontos im Hintergrund und gibt sie an den Server, der sie dann wie jede
+andere Mail behandelt: Suche, Pakete, Rechnungen, Termine, `.ics`-Einladungen und deine Regeln,
+solange die Nachricht noch ungelesen ist. Nachrichten, die du öffnest, werden sofort übergeben. Der
+Banner sagt *Verschlüsselt empfangen · auf diesem Server lesbar gespeichert*. Dein Anbieter sieht
+weiterhin nur Chiffrat.
+
+**Auch die Modelle lesen lassen** — Einordnen in Kategorien, Suche nach Bedeutung, Zusammenfassungen,
+der Schreibassistent — ist ein zweiter Schalter darunter. Steht der Modell-Host im eigenen Netz der
+Installation (ein Ollama daneben), ist das alles; steht er woanders, wirst du gebeten, diesem Host
+namentlich zuzustimmen, und ein anderer Host braucht später erneut deine Zustimmung.
+
+**Ausschalten löscht die entschlüsselten Kopien**: den Text, die Anhänge, die daraus kamen, den
+Suchindex, was die Modelle daraus gemacht haben, gefundene Pakete und Termine. Die verschlüsselten
+Originale bleiben, ebenso Termine, die schon in deinem Kalender stehen. Nur die Modelle
+auszuschalten löscht, was sie daraus gemacht haben.
+
+Eine Administratorin kann die ganze Option für die Installation verbieten
+(`APP_E2E_SERVER_PLAINTEXT`).
+
 ## Fallstricke
 
 **Ohne Recovery-Phrase oder bekanntes Gerät verliert ein vergessenes Passwort deine Schlüssel.**
@@ -277,6 +305,20 @@ noch bekommen hat. Manche älteren Mailprogramme können eine solche Nachricht n
 
 **Namen und Größen der Anhänge eines verschlüsselten Entwurfs sieht der Server,** bis die Nachricht
 gesendet ist; ihren Inhalt nicht.
+
+**Entschlüsselte Mails auf dem Server stehen in dessen Backups.** Die Option auszuschalten löscht sie
+vom Server, nicht aus Backups, die gemacht wurden, solange sie an war.
+
+**Regeln sehen eine entschlüsselte Nachricht nur, solange sie ungelesen ist.** Eine, die du gelesen
+hast, bevor ein Browser sie entschlüsselt, verschiebt keine Regel mehr: Das hieße, sie dir unter der
+Hand wegzuziehen.
+
+**Mit *Entschlüsselte Mails auf diesem Server* werden auch Entwürfe auf dem Server nicht
+verschlüsselt,** und verschlüsselt gesendete Mails behalten dort ihren Text. Genau dafür ist die
+Option da.
+
+**Solange kein Browser mit deinen Schlüsseln offen ist, wird nichts entschlüsselt.** Das Entschlüsseln
+im Hintergrund geht weiter, sobald wieder einer offen ist.
 
 **Dein Passwort in den Einstellungen zu ändern, nimmt deine Schlüssel mit.** Jede andere Änderung —
 durch eine Administratorin, mit `app:user:password` — sperrt sie, und die Recovery-Phrase oder ein

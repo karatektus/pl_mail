@@ -598,6 +598,45 @@ class Account extends AccountModel
         ++$this->syncFailureCount;
     }
 
+    /**
+     * Whether this account keeps the decrypted text of its end-to-end
+     * encrypted mail on the server, so that search, parcels, dates and rules
+     * work on it (Settings → Encryption → Decrypted mail on this server).
+     *
+     * OFF unless the person switches it on, and only honoured while the
+     * installation allows it (DecryptedMailPolicy). Per account because the
+     * reason to want it is per provider: somebody with a Gmail address may be
+     * encrypting against Google, and have no quarrel with their own server.
+     */
+    public const string SETTING_KEEP_DECRYPTED = 'crypto.keep_decrypted';
+
+    /**
+     * Whether the model features — classification, embeddings, summaries, the
+     * writing assistant's context — may read that decrypted text too. A
+     * separate switch, off by default, and for a model host outside the
+     * installation's own network only with a consent of its own, recorded for
+     * that host (SETTING_KEEP_DECRYPTED_AI_HOST): a host changed later is a
+     * host nobody agreed to.
+     */
+    public const string SETTING_KEEP_DECRYPTED_AI      = 'crypto.keep_decrypted_ai';
+    public const string SETTING_KEEP_DECRYPTED_AI_HOST = 'crypto.keep_decrypted_ai_host';
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED. */
+    public bool $keepDecrypted {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED_AI. */
+    public bool $keepDecryptedAi {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED_AI, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED_AI, $on ? true : null);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

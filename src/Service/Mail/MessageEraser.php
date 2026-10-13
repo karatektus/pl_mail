@@ -81,6 +81,7 @@ readonly class MessageEraser
         if (null !== $message->id) {
             $this->sealed->delete($message->id, SealedMessageStorage::DRAFT);
             $this->sealed->delete($message->id, SealedMessageStorage::OUTGOING);
+            $this->sealed->delete($message->id, SealedMessageStorage::DECRYPTED);
         }
 
         // Ahead of the removal: a destroy names an id, and the id is gone the

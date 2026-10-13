@@ -17,6 +17,7 @@ use App\Repository\Crypto\ContactKeyRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\ContactKeys;
+use App\Service\Crypto\DecryptedMailPolicy;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\SendingKey;
 use App\Service\Crypto\SignatureVerifier;
@@ -74,6 +75,7 @@ final class ContactKeyController extends AbstractController
         private readonly DemoMode               $demoMode,
         private readonly SendingKey             $sendingKeys,
         private readonly SenderResolver         $senders,
+        private readonly DecryptedMailPolicy    $decryptedMail,
     ) {
     }
 
@@ -124,7 +126,13 @@ final class ContactKeyController extends AbstractController
         if (null !== $account) {
             $address = $this->senders->addressFor($body['from'] ?? null, $account, $user);
             $own     = $this->sendingKeys->forAccount($user, $account, $address);
-            $sender  = ['email' => strtolower($address), 'fingerprint' => $own?->fingerprint];
+            $sender  = [
+                'email'          => strtolower($address),
+                'fingerprint'    => $own?->fingerprint,
+                // The account keeps decrypted mail: its drafts need no sealing,
+                // and its encrypted mail keeps its text. See DecryptedMail.
+                'keepsDecrypted' => $this->decryptedMail->keeps($account),
+            ];
         }
 
         return new JsonResponse(['recipients' => $result, 'sender' => $sender], headers: ['Cache-Control' => 'private, no-store']);

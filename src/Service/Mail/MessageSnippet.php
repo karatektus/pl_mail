@@ -95,10 +95,12 @@ final class MessageSnippet
      */
     public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText, ?MessageCrypto $crypto = null): string
     {
-        // An encrypted message has no body here to preview — the server never
-        // keeps one — and an empty line in the list reads as a broken row. Said
-        // in words instead, which is also what a reader needs to know about it.
-        if (null !== $crypto && true === $crypto->isEncrypted()) {
+        // An encrypted message has no body here to preview — the server keeps
+        // none, unless the account keeps decrypted mail and a browser has
+        // handed it over (DecryptedMail) — and an empty line in the list reads
+        // as a broken row. Said in words instead, which is also what a reader
+        // needs to know about it.
+        if (null !== $crypto && true === $crypto->isEncrypted() && '' === trim((string) $bodyHtmlSafe) && '' === trim((string) $bodyText)) {
             return $this->translator->trans('message.crypto.snippet');
         }
 

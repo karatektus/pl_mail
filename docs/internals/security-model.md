@@ -340,6 +340,31 @@ and the person is told; nothing is rebuilt on the server.
 `Autocrypt:` goes on every outgoing message with the sender's active key for the From address
 (`AutocryptHeader`), unless the person switched it off.
 
+## Decrypted mail kept on the server
+
+Phase 3b of issue #28, off unless a person chooses it for an account (`Account::$keepDecrypted`),
+and refused for the whole installation by `APP_E2E_SERVER_PLAINTEXT=forbid` (`DecryptedMailPolicy`).
+
+A browser with the keyring open decrypts and posts the **inner MIME message whole** to
+`POST /mail/message/{id}/plaintext` — in the background (`crypto--decrypted-mail`, which works
+through `GET /mail/decrypted/pending`) and on reading (`mail--encrypted-message`). `DecryptedMail`
+trusts none of it: it parses the MIME with the parser sync uses, sanitises the HTML itself, stores
+attachments as sync does, keeps the decrypted message beside the raw source
+(`SealedMessageStorage::DECRYPTED`; the raw source stays the ciphertext) and marks the row
+`plaintext_source = client`. Then what ingest would have done: the search vector (generated from
+`body_text`), insights, date proposals, events from `.ics` parts, and the rules — only while unread.
+
+The models are a separate consent (`Account::$keepDecryptedAi`). `DecryptedMailPolicy::allowsAi()` is
+asked by the four places that hand mail text to a model — `MessageEmbedder`, `ClassifyMailHandler`,
+`ThreadTranscript` (summaries), `ReplyContextReader` (the writing assistant) — and says yes for a
+client-supplied body only when the feature's model host resolves entirely into private or loopback
+ranges, or equals the host the person consented to by name.
+
+Switching off queues `ForgetDecryptedMailMessage` on `bulk`: bodies, attachments, the decrypted copy,
+embeddings, thread summaries, insights and proposals of every such message go. Calendar events
+already created stay.
+
+## Firewalls
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
 
@@ -863,6 +888,12 @@ arrives would send a message encrypted to a key replaced or revoked in between.
 
 **Encrypting to Bcc recipients uses wildcard key ids.** A PKESK per recipient names their key on the
 outside, which would tell everybody who else got the message.
+
+**A new place that hands mail text to a model must ask `DecryptedMailPolicy::allowsAi()`.** Nothing
+else stops decrypted mail reaching it: to every other reader a client-supplied body is a body.
+
+**Locality is decided by DNS when asked.** A model host that resolves privately today and publicly
+tomorrow is external tomorrow; a consent is stored for a host name, not an address.
 
 **A changed key that becomes `current` by any path but `ContactKeys::accept()` undoes TOFU.** The
 partial index stops two `current` rows, not a write that demotes the known key first. Every writer

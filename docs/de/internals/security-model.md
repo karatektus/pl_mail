@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:b0defa41c37bacd07181735b3e1a3037b3b71e26 -->
+<!-- translated-from: internals/security-model.md sha1:94ca447904c2849bf5b87a40eacb60d81b5a0fcc -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -375,6 +375,32 @@ Server wird nichts neu gebaut.
 
 `Autocrypt:` steht auf jeder ausgehenden Nachricht, mit dem aktiven Schlüssel des Absenders für die
 From-Adresse (`AutocryptHeader`), außer die Person hat es ausgeschaltet.
+
+## Entschlüsselte Mails auf dem Server behalten
+
+Phase 3b von Issue #28, aus, solange eine Person es nicht für ein Konto wählt
+(`Account::$keepDecrypted`), und für die ganze Installation abgelehnt mit
+`APP_E2E_SERVER_PLAINTEXT=forbid` (`DecryptedMailPolicy`).
+
+Ein Browser mit offenem Schlüsselbund entschlüsselt und schickt die **innere MIME-Nachricht als
+Ganzes** an `POST /mail/message/{id}/plaintext` — im Hintergrund (`crypto--decrypted-mail`, das
+`GET /mail/decrypted/pending` abarbeitet) und beim Lesen (`mail--encrypted-message`). `DecryptedMail`
+vertraut nichts davon: Es zerlegt die MIME mit dem Parser des Syncs, bereinigt das HTML selbst,
+speichert Anhänge wie der Sync, legt die entschlüsselte Nachricht neben der Rohquelle ab
+(`SealedMessageStorage::DECRYPTED`; die Rohquelle bleibt das Chiffrat) und markiert die Zeile mit
+`plaintext_source = client`. Danach, was der Ingest getan hätte: der Suchvektor (aus `body_text`
+erzeugt), Insights, Terminvorschläge, Termine aus `.ics`-Teilen und die Regeln — nur solange
+ungelesen.
+
+Die Modelle sind eine eigene Zustimmung (`Account::$keepDecryptedAi`). `DecryptedMailPolicy::allowsAi()`
+fragen die vier Stellen, die Mailtext an ein Modell geben — `MessageEmbedder`, `ClassifyMailHandler`,
+`ThreadTranscript` (Zusammenfassungen), `ReplyContextReader` (der Schreibassistent) —, und sagt für
+einen vom Client gelieferten Body nur Ja, wenn der Modell-Host der Funktion vollständig in private
+oder Loopback-Bereiche auflöst oder dem Host entspricht, dem die Person namentlich zugestimmt hat.
+
+Ausschalten reiht `ForgetDecryptedMailMessage` auf `bulk` ein: Bodys, Anhänge, die entschlüsselte
+Kopie, Embeddings, Thread-Zusammenfassungen, Insights und Vorschläge aller solcher Nachrichten
+werden gelöscht. Schon angelegte Kalendertermine bleiben.
 
 ## Firewalls
 
@@ -955,6 +981,14 @@ Schlüssel verschlüsselt ist.
 
 **Verschlüsseln an Bcc-Empfänger nutzt Platzhalter-Key-IDs.** Ein PKESK pro Empfänger nennt dessen
 Schlüssel außen, und dann wüsste jeder, wer die Nachricht noch bekommen hat.
+
+**Eine neue Stelle, die Mailtext an ein Modell gibt, muss `DecryptedMailPolicy::allowsAi()` fragen.**
+Sonst hält nichts entschlüsselte Mails von ihr fern: Für jeden anderen Leser ist ein vom Client
+gelieferter Body ein Body.
+
+**Ob ein Host lokal ist, entscheidet DNS im Moment der Frage.** Ein Modell-Host, der heute privat und
+morgen öffentlich auflöst, ist morgen extern; eine Zustimmung gilt einem Hostnamen, nicht einer
+Adresse.
 
 **Ein geänderter Schlüssel, der auf einem anderen Weg als `ContactKeys::accept()` zu `current` wird,
 hebelt TOFU aus.** Der partielle Index verhindert zwei `current`-Zeilen, nicht einen Schreibvorgang,

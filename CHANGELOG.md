@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Encrypted mail can be kept readable on your own server, if you choose — the optional step towards
+end-to-end encryption.** Under Settings → Encryption → *Decrypted mail on this server*, per account
+and off by default: your browser then decrypts that account's encrypted mail in the background and
+hands it to the server, so search, parcels, invoices, dates, invitations and your rules work on it
+like on any other mail, while your mail provider still sees only ciphertext. The banner says
+*Encrypted on arrival · stored readable on this server*. The models — categories, search by
+meaning, summaries, the writing assistant — are a second switch; a model host outside the
+installation's own network needs your agreement by name. Switching off deletes the decrypted
+copies, but not from backups taken meanwhile. Administrators can forbid the option for the whole
+installation with `APP_E2E_SERVER_PLAINTEXT=forbid`. One column is added to the message table; the
+migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **plMail writes encrypted mail — the fifth step towards end-to-end encryption.** When everybody you
 write to has a key, the message is encrypted by itself: a lock on each recipient, *Encrypted* in the
 header, and a green lock in the toolbar that also switches it on or off for one message. The draft

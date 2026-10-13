@@ -21,6 +21,14 @@ parameters:
     # reverse. See App\Service\Demo\DemoMode.
     app.demo_mode_default: false
 
+    # Whether people on this install may keep the decrypted text of their
+    # end-to-end encrypted mail on the server (`allow`, the default) or not
+    # (`forbid`). For an organisation that must not hold such text for
+    # compliance: a setting in the deployment, not a switch in the admin
+    # panel, so it cannot be flipped in passing. See DecryptedMailPolicy.
+    app.e2e_server_plaintext_default: 'allow'
+    app.e2e_server_plaintext: '%env(default:app.e2e_server_plaintext_default:APP_E2E_SERVER_PLAINTEXT)%'
+
     # The subscriber cookie's name when nothing says otherwise: no prefix.
     #
     # The Mercure 1.0 default is `__Secure-` prefixed, and a browser refuses a

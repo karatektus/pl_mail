@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Crypto;
 
 use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Exception\SealRefused;
 use App\Domain\Helper\SealedMessageStorage;
@@ -44,6 +45,7 @@ final readonly class SealedDrafts
     public function __construct(
         private SealedMessageStorage $storage,
         private SealGuard            $guard,
+        private DecryptedMailPolicy  $decryptedMail,
     ) {
     }
 
@@ -172,7 +174,13 @@ final readonly class SealedDrafts
                 throw new SealRefused('compose.seal.keys_changed');
             }
 
-            $this->blankBody($message);
+            // An account that keeps decrypted mail keeps its own encrypted
+            // mail readable too: the composer sent the text along for it.
+            if (true === $this->decryptedMail->keeps($message->account)) {
+                $message->plaintextSource = PlaintextSource::Client;
+            } else {
+                $this->blankBody($message);
+            }
         } elseif (true === $message->sealedDraft) {
             // Signed or plain mail from a sealed draft goes out readable, and
             // the composer sent its text with it so the Sent copy has a body

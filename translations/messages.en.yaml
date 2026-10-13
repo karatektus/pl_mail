@@ -2099,6 +2099,25 @@ drafts:
     heading: Drafts
 
 encryption:
+    decrypted:
+        heading: Decrypted mail on this server
+        subheading: "Off unless you choose it, per account. Your mail provider still cannot read your encrypted mail either way."
+        forbidden: "This installation does not keep decrypted mail. Your encrypted mail stays encrypted on the server."
+        state_on: "Encrypted mail is decrypted in your browser and kept readable here, so search, parcels, dates and rules work on it."
+        state_off: "Encrypted mail stays encrypted here: only sender and subject are searchable."
+        confirm: "Encrypted mail of this account will be stored on this plMail server after it is decrypted. Search, parcels and dates then work on it. Anybody with access to the server can read it. Your mail provider still cannot."
+        confirm_needed: "Tick the box to say you want decrypted mail kept on this server."
+        turn_on: Keep decrypted mail here
+        turn_off: Stop, and delete the decrypted copies
+        ai:
+            label: Let the models read it too
+            local: "Classification, search by meaning and summaries, with the model host %host%, which is on this installation's own network."
+            external: "The model host %host% is outside this installation's network: decrypted mail would be sent to it."
+            no_model: "No model host is set up on this installation."
+            consent: "I agree that decrypted mail of this account is sent to %host%."
+            consent_needed: "Tick the box to agree that decrypted mail is sent to the model host."
+            turn_on: Let the models read it
+            turn_off: Stop, and delete what they made of it
     sending:
         heading: Sending
         subheading: "How mail goes out now that plMail can encrypt it. Mail to people whose keys plMail knows is encrypted by itself."
@@ -2466,6 +2485,7 @@ message:
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
     crypto:
+        encrypted_kept: "Encrypted on arrival · stored readable on this server"
         sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
         action:
             accept: "Use the new key"

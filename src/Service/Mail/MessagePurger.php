@@ -233,6 +233,7 @@ final readonly class MessagePurger
             if (null !== $message->id) {
                 $this->sealed->delete($message->id, SealedMessageStorage::DRAFT);
                 $this->sealed->delete($message->id, SealedMessageStorage::OUTGOING);
+                $this->sealed->delete($message->id, SealedMessageStorage::DECRYPTED);
             }
         } catch (\Throwable $e) {
             $this->logger->warning('MessagePurger: could not delete a raw source', [

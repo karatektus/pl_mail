@@ -2104,6 +2104,25 @@ drafts:
     heading: Entwürfe
 
 encryption:
+    decrypted:
+        heading: Entschlüsselte Mails auf diesem Server
+        subheading: "Aus, solange du es nicht wählst, pro Konto. Dein Mail-Anbieter kann deine verschlüsselten Mails so oder so nicht lesen."
+        forbidden: "Diese Installation bewahrt keine entschlüsselten Mails auf. Deine verschlüsselten Mails bleiben auf dem Server verschlüsselt."
+        state_on: "Verschlüsselte Mails werden in deinem Browser entschlüsselt und hier lesbar aufbewahrt, damit Suche, Pakete, Termine und Regeln mit ihnen funktionieren."
+        state_off: "Verschlüsselte Mails bleiben hier verschlüsselt: Durchsuchbar sind nur Absender und Betreff."
+        confirm: "Verschlüsselte Mails dieses Kontos werden nach dem Entschlüsseln auf diesem plMail-Server gespeichert. Dadurch funktionieren Suche, Pakete und Termine. Wer Zugriff auf den Server hat, kann sie lesen. Dein Mail-Anbieter kann sie weiterhin nicht lesen."
+        confirm_needed: "Setz das Häkchen, um zu bestätigen, dass entschlüsselte Mails auf diesem Server bleiben sollen."
+        turn_on: Entschlüsselte Mails hier aufbewahren
+        turn_off: Beenden und entschlüsselte Kopien löschen
+        ai:
+            label: Auch die Modelle lesen lassen
+            local: "Einordnen, Suche nach Bedeutung und Zusammenfassungen, mit dem Modell-Host %host%, der im eigenen Netz dieser Installation steht."
+            external: "Der Modell-Host %host% steht außerhalb des Netzes dieser Installation: Entschlüsselte Mails würden an ihn geschickt."
+            no_model: "Auf dieser Installation ist kein Modell-Host eingerichtet."
+            consent: "Ich bin einverstanden, dass entschlüsselte Mails dieses Kontos an %host% geschickt werden."
+            consent_needed: "Setz das Häkchen, um zuzustimmen, dass entschlüsselte Mails an den Modell-Host gehen."
+            turn_on: Die Modelle lesen lassen
+            turn_off: Beenden und löschen, was sie daraus gemacht haben
     sending:
         heading: Versand
         subheading: "Wie Mails rausgehen, seit plMail verschlüsseln kann. Mails an Menschen, deren Schlüssel plMail kennt, werden von selbst verschlüsselt."
@@ -2469,6 +2488,7 @@ message:
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
     crypto:
+        encrypted_kept: "Verschlüsselt empfangen · auf diesem Server lesbar gespeichert"
         sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."
         action:
             accept: "Neuen Schlüssel verwenden"

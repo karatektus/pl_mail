@@ -141,6 +141,9 @@ final readonly class ConfigBackupUsers
         User::SETTING_CRYPTO_ATTACH_KEY,
         User::SETTING_CRYPTO_SIGN_PLAIN,
         User::SETTING_CRYPTO_BLOCK_PARTIAL,
+        // Whether any of the person's accounts keeps decrypted mail: carried
+        // with the accounts' own switches above, which it summarises.
+        User::SETTING_KEEPS_DECRYPTED_ANY,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
         // Travels, unlike its `sidebar.expanded_account` neighbour, and the
         // difference is what these hold: this is section names and label FULL
@@ -205,6 +208,14 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // Whether this account keeps decrypted mail, and lets the models read
+        // it. The person's choice, carried like any other; the decrypted text
+        // itself is not in the backup, and a browser decrypts it anew on the
+        // target. The consent travels with the host it named, so a target
+        // whose model host is another one asks again (DecryptedMailPolicy).
+        Account::SETTING_KEEP_DECRYPTED,
+        Account::SETTING_KEEP_DECRYPTED_AI,
+        Account::SETTING_KEEP_DECRYPTED_AI_HOST,
     ];
 
     /**

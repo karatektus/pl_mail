@@ -193,7 +193,7 @@ export default class extends Controller {
         // Encrypted mail leaves no readable body behind. Signed and plain mail
         // keep theirs: it is going out readable, and the Sent copy should be
         // searchable like any other.
-        if ("encrypted" === plan.kind) {
+        if ("encrypted" === plan.kind && true !== this.#sender?.keepsDecrypted) {
             this.#htmlInput().value = "";
             this.#textInput().value = "";
         }
@@ -237,8 +237,15 @@ export default class extends Controller {
         return text;
     }
 
-    /** Whether what is typed here is kept sealed. */
+    /**
+     * Whether what is typed here is kept sealed. Not for an account that keeps
+     * decrypted mail on the server: its person chose to have the text there.
+     */
     isSealing() {
+        if (true === this.#sender?.keepsDecrypted && false === this.#sealed) {
+            return false;
+        }
+
         return true === this.#sealed || true === this.#plan().encrypt;
     }
 

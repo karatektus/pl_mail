@@ -51,7 +51,7 @@ Variables:
     <div class="min-w-0">
         <p class="text-sm font-semibold {{ tone == 'danger' ? 'text-danger' : 'text-ink' }}">
             {% if encrypted %}
-                {{ (crypto.pgp ? 'message.crypto.encrypted' : 'message.crypto.encrypted_smime')|trans }}
+                {{ (message.plaintextSource.value == 'client' ? 'message.crypto.encrypted_kept' : (crypto.pgp ? 'message.crypto.encrypted' : 'message.crypto.encrypted_smime'))|trans }}
             {% else %}
                 {{ ('message.crypto.signed.' ~ (state ?? 'pending'))|trans }}
             {% endif %}
