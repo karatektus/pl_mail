@@ -96,6 +96,20 @@ security:
                 lifetime: 5184000 # 60 days
                 secure: auto
                 samesite: lax
+                # Kept on the server, one row per device (`rememberme_token`),
+                # rather than a cookie that only carries its own signature.
+                #
+                # A signed cookie is valid until it expires, whatever happened
+                # since, and signing out only asks the browser to delete it. Any
+                # request already on its way with it — the page's own background
+                # fetches, which are many — reached the server after the sign-out
+                # and signed the person straight back in. With the token stored,
+                # signing out deletes this device's row, and a cookie that names
+                # it opens nothing. Other devices stay signed in. Parallel
+                # requests that rotate the token are reconciled by Symfony's
+                # CacheTokenVerifier, so they are not mistaken for theft.
+                token_provider:
+                    doctrine: true
             # Password first, then TOTP if the account has it switched on. The
             # RememberMeToken is listed in scheb_2fa.yaml's security_tokens, so
             # a remember-me cookie is challenged too — see the note there.

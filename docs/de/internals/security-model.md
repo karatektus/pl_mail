@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:955680432cc41ebb60403d9302dc04dc5c3b9c09 -->
+<!-- translated-from: internals/security-model.md sha1:ee81d6cab97db49452b3802a9bf24b69687cacd6 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -454,8 +454,12 @@ JMAP-Aufruf löste sonst einen Schreibvorgang aus.
 der ein Passwort über viele Konten streut, lockerer, damit ein Haushalt hinter einer NAT-Adresse
 sich nicht selbst aussperrt; und 20 je Benutzername, egal von welcher Adresse, damit auch über
 viele Adressen verteilte Versuche an eine Decke stoßen. Symfonys Vorgabe kennt nur die ersten
-beiden — diese Seite nannte das früher „je Benutzername“, was es nicht ist. Remember-me arbeitet signaturbasiert mit 60 Tagen
-Lebensdauer: keine Speicherung, und ein Passwortwechsel entwertet jedes dafür ausgegebene Cookie.
+beiden — diese Seite nannte das früher „je Benutzername“, was es nicht ist. Remember-me hält seine
+Tokens auf dem Server (`rememberme_token`, Symfonys DoctrineTokenProvider), eine Zeile pro Gerät, mit
+60 Tagen Lebensdauer. Abmelden löscht die Zeile dieses Geräts, also öffnet ein Cookie auf einer
+Anfrage, die vor dem Abmelden losging und danach ankommt, nichts mehr — mit einem rein signierten
+Cookie haben die eigenen Hintergrund-Anfragen der Seite die Person sofort wieder angemeldet. Ein
+Passwortwechsel beendet weiterhin alle.
 
 ### Zugriffssteuerung, und die Endpunkte, die keine Session halten können
 

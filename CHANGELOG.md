@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Signing out holds.** A page's background requests that were still on their way when you pressed
+Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
+the server, one per device, and signing out deletes this device's; other devices stay signed in.
+Everybody who relied on "Keep me signed in" is asked to sign in once more after the update. One
+table is added; the migration is reversible.
+[#104](https://github.com/karatektus/pl_mail/pull/104), by @pmdevelopment.
+
 **The PHP `gnupg` extension is now required.** plMail checks PGP signatures with it; the Docker
 image has carried it since the encryption work began, and `composer install` now insists on it, so
 an installation outside Docker needs it too (PECL `gnupg`, with `libgpgme`).
