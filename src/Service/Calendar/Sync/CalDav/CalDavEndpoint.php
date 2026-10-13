@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Sync\CalDav;
 
 /**
- * Where a connection's calendars were found, and how.
+ * Where a connection's calendars — or address books — were found, and how.
  *
  * Two outcomes, because the two ways a person configures CalDAV are genuinely
  * different questions and collapsing them loses the difference:
@@ -29,27 +29,29 @@ namespace App\Service\Calendar\Sync\CalDav;
 final readonly class CalDavEndpoint
 {
     /**
-     * @param string|null $calendarHome absolute URL of the collection whose
-     *                                  children are calendars, null when a
-     *                                  single collection was named outright
-     * @param string|null $collection   absolute URL of the one calendar, null
-     *                                  when there is a home to list
-     * @param string|null $principal    absolute URL of the current user's
-     *                                  principal, kept for the error messages
-     *                                  and for anything later that needs a
-     *                                  calendar-user-address; never null when
-     *                                  bootstrapping found one
+     * @param string|null $home       absolute URL of the collection whose
+     *                                children are calendars (or address
+     *                                books), null when a single collection
+     *                                was named outright
+     * @param string|null $collection absolute URL of the one calendar or
+     *                                address book, null when there is a home
+     *                                to list
+     * @param string|null $principal  absolute URL of the current user's
+     *                                principal, kept for the error messages
+     *                                and for anything later that needs a
+     *                                calendar-user-address; never null when
+     *                                bootstrapping found one
      */
     private function __construct(
-        public ?string $calendarHome,
+        public ?string $home,
         public ?string $collection,
         public ?string $principal,
     ) {
     }
 
-    public static function home(string $calendarHome, ?string $principal = null): self
+    public static function home(string $home, ?string $principal = null): self
     {
-        return new self($calendarHome, null, $principal);
+        return new self($home, null, $principal);
     }
 
     public static function collection(string $collection): self

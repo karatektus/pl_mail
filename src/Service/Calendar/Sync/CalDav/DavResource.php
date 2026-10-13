@@ -122,4 +122,10 @@ final readonly class DavResource
     {
         return $this->contains('resourcetype', 'calendar');
     }
+
+    /** A CardDAV collection of vCards (RFC 6352 §5.2). */
+    public function isAddressBookCollection(): bool
+    {
+        return $this->contains('resourcetype', 'addressbook');
+    }
 }

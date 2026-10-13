@@ -203,7 +203,7 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
         }
 
         $endpoint = $this->discovery->endpointFor($integration);
-        $url      = $endpoint->collection ?? (string) $endpoint->calendarHome;
+        $url      = $endpoint->collection ?? (string) $endpoint->home;
 
         // Depth 1 on a home lists its children; Depth 0 on a single pasted
         // collection asks about that collection alone. Same body, same parse.

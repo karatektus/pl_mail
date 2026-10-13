@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sync\CalDav;
 
-use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
@@ -80,6 +79,11 @@ final readonly class CalDavClient
     /**
      * The connection's server address, admin pin winning, SSRF-checked.
      *
+     * The pin is looked up for the connection's own provider rather than for
+     * CalDAV by name: this client also carries CardDAV, and an address an
+     * administrator pinned for calendars says nothing about where contacts
+     * live.
+     *
      * The IntegrationException the validator raises is already phrased for a
      * person — "Server address must not point at a private network" — so it is
      * carried across into the calendar hierarchy verbatim rather than being
@@ -91,7 +95,7 @@ final readonly class CalDavClient
     public function baseUrl(Integration $integration): string
     {
         try {
-            return $this->urlValidator->resolve($integration, $this->configs->findOneByProvider(Provider::CalDav));
+            return $this->urlValidator->resolve($integration, $this->configs->findOneByProvider($integration->provider));
         } catch (IntegrationException $e) {
             throw new CalendarSyncPermanentException($e->getMessage(), $e->getStatus(), $e);
         }
