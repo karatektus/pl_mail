@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1f3b51a6f659a64adbc57fb6125f4885ce518f82 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:c51b2fe57829cba3fad6d6c2d3e4c8287e300e05 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -779,8 +779,10 @@ konstruieren** (siehe [§0](#0-lies-das-zuerst-der-server-wird-aktiv-weiterentwi
   fehlend, während `SearchSnippetGetMethod` bereits im Baum lag.
 - **Kontakte sind nur Autovervollständigung.** `Contact/autocomplete`, unter
   `urn:plmail:params:jmap:contacts`, liefert gereihte Empfängervorschläge; es gibt kein
-  `Contact/get`, `/query` oder `/set` — das Adressbuch wird aus Mail-Headern geerntet und ist nicht
-  beschreibbar. Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
+  `Contact/get`, `/query` oder `/set`. Die Vorschläge kommen aus Adressen, die aus Mail-Headern
+  geerntet werden, und aus den CardDAV-Adressbüchern des Nutzers (`inAddressBook: true`); diese
+  Bücher werden in der Web-App bearbeitet und mit ihrem Server synchronisiert, nicht über JMAP.
+  Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
   gibt kein `Calendar/set` und kein `/changes` auf beiden Typen, weil Kalender keine Änderungen
   berechnen können — siehe [JMAP](internals/jmap.md).
 
@@ -1592,10 +1594,12 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Schreiben**
 - Verfassen, antworten, allen antworten, weiterleiten. Formatierter Text.
-- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet; frag
-  `Contact/autocomplete` unter `urn:plmail:params:jmap:contacts` — der Server reiht über das ganze
-  Adressbuch und schlägt damit jeden lokalen Cache. Das Adressbuch des Betriebssystems bleibt eine
-  sinnvolle *Ergänzung* für Menschen, denen der Nutzer noch nie geschrieben hat).
+- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet, dazu jedes
+  CardDAV-Adressbuch, das der Nutzer spiegelt; frag `Contact/autocomplete` unter
+  `urn:plmail:params:jmap:contacts` — der Server reiht über das ganze Adressbuch und schlägt damit
+  jeden lokalen Cache. Das Adressbuch des Betriebssystems bleibt eine sinnvolle *Ergänzung* für
+  Menschen, denen der Nutzer noch nie geschrieben und die er in kein gespiegeltes Buch eingetragen
+  hat).
 - Senden aus jedem Konto **und jedem sendefähigen Alias** — zeig immer die Von-Auswahl.
 - Automatisches Speichern von Entwürfen.
 - Senden rückgängig machen (bei JMAP clientseitig; siehe oben).

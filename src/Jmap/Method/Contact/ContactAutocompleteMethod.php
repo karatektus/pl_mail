@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Contact;
 
-use App\Entity\Mail\Contact;
+use App\Domain\DTO\AddressBook\ContactSuggestion;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
-use App\Repository\Mail\ContactRepository;
+use App\Service\AddressBook\ContactSuggester;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -21,10 +21,10 @@ use DateTimeZone;
  * ranked over the *whole* address book — a correspondent written to twice a
  * year outranks a mailing list seen once — and a phone that had just been set
  * up would otherwise offer nothing until it had synced enough mail to build a
- * local one. So the ranking is the server's, and this is the same address book
- * and the same query the web composer's autocomplete already runs
- * (ContactRepository::findForAutocomplete), because two rankings would make the
- * suggestion order depend on which device you were composing from.
+ * local one. So the ranking is the server's, and this is the same list the web
+ * composer's autocomplete reads (ContactSuggester: the harvest and the CardDAV
+ * address books together), because two rankings would make the suggestion
+ * order depend on which device you were composing from.
  *
  * **Not RFC 8621, and not the JMAP Contacts draft**, which is why the method is
  * `autocomplete` rather than `query` and why Capability::CONTACTS is a vendor
@@ -89,7 +89,7 @@ final class ContactAutocompleteMethod implements JmapMethod
 
     public function __construct(
         private readonly AccountResolver $accountResolver,
-        private readonly ContactRepository $contacts,
+        private readonly ContactSuggester $suggester,
     ) {
     }
 
@@ -109,8 +109,8 @@ final class ContactAutocompleteMethod implements JmapMethod
 
         $suggestions = [];
 
-        foreach ($this->contacts->findForAutocomplete($context->user, $query, $limit) as $contact) {
-            $suggestions[] = $this->toSuggestion($contact);
+        foreach ($this->suggester->suggest($context->user, $query, $limit) as $suggestion) {
+            $suggestions[] = $this->toSuggestion($suggestion);
         }
 
         return [
@@ -134,22 +134,27 @@ final class ContactAutocompleteMethod implements JmapMethod
      *
      * @return array<string,mixed>
      */
-    private function toSuggestion(Contact $contact): array
+    private function toSuggestion(ContactSuggestion $suggestion): array
     {
         return [
-            'name' => '' === (string) $contact->displayName ? null : $contact->displayName,
-            'email' => (string) $contact->email,
+            'name' => $suggestion->name,
+            'email' => $suggestion->email,
             // The two sort keys, in order: how many times this address has been
             // seen in a header (in either direction), and when it was last
             // seen. Returned as well as applied so a client can show or explain
             // the order it was given rather than having to trust it.
-            'frequency' => $contact->frequency,
-            'lastSeenAt' => $this->utcOrNull($contact->lastSeenAt),
+            'frequency' => $suggestion->frequency,
+            'lastSeenAt' => $this->utcOrNull($suggestion->lastSeenAt),
             // Not a sort key. Whether the user has ever *written* to this
             // address rather than merely heard from it — the same signal
             // MessageCategorizer uses to pull somebody out of Promotions, and
             // enough for a client to mark a real correspondent in the list.
-            'isCorrespondent' => $contact->isCorrespondent,
+            'isCorrespondent' => $suggestion->isCorrespondent,
+            // The third sort key, and the one fact the harvest cannot know:
+            // the person put this address in a CardDAV address book. An
+            // address-book contact never mailed has frequency 0 and a null
+            // lastSeenAt, and this is what says why it was offered at all.
+            'inAddressBook' => $suggestion->inAddressBook,
         ];
     }
 

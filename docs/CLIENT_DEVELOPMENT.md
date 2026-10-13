@@ -711,7 +711,9 @@ your client wants one, **ask for it rather than engineering around it** (see [§
   here as missing while `SearchSnippetGetMethod` was in the tree.
 - **Contacts are autocomplete only.** `Contact/autocomplete`, under
   `urn:plmail:params:jmap:contacts`, returns ranked recipient suggestions; there is no
-  `Contact/get`, `/query` or `/set` — the address book is harvested from mail headers, not writable.
+  `Contact/get`, `/query` or `/set`. Suggestions come from addresses harvested from mail headers and
+  from the user's CardDAV address books (`inAddressBook: true`); those books are edited in the web
+  app and synced with their server, not through JMAP.
   Calendars are served, under `urn:plmail:params:jmap:calendars`; there is no
   `Calendar/set` and no `/changes` on either type, because calendars cannot calculate changes — see
   [JMAP](internals/jmap.md).
@@ -1448,10 +1450,10 @@ Ordered roughly by how much users will miss them.
 
 **Writing**
 - Compose, reply, reply-all, forward. Rich text.
-- Contact autocomplete (harvested from synced mail server-side; ask `Contact/autocomplete` under
-  `urn:plmail:params:jmap:contacts` — the server ranks over the whole address book, so it beats a
-  local cache. The OS address book remains a sensible *supplement* for people the user has never
-  mailed).
+- Contact autocomplete (harvested from synced mail server-side, plus any CardDAV address book the
+  user mirrors; ask `Contact/autocomplete` under `urn:plmail:params:jmap:contacts` — the server ranks
+  over the whole address book, so it beats a local cache. The OS address book remains a sensible
+  *supplement* for people the user has never mailed and has not added to a mirrored book).
 - Send from any account **and any sendable alias** — always show the From picker.
 - Draft autosave.
 - Undo send (client-side for JMAP; see above).
