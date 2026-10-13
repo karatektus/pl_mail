@@ -66,6 +66,20 @@ framework:
         # NOT applied to the GET. Reading a booking page is what it is for, and
         # a limit there would let one stranger take somebody's published page
         # off the internet by refreshing it.
+        # Password guesses on one Drive share link, per caller address. The
+        # token already has 256 bits; this stops the password being the weak
+        # half. See App\Controller\Drive\ShareController.
+        drive_share_password:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '15 minutes'
+
+        # "Report this link" on public Drive share pages, per caller address.
+        drive_share_report:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '1 hour'
+
         booking_attempt:
             policy: 'fixed_window'
             limit: 6

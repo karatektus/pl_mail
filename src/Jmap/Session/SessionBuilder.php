@@ -23,6 +23,7 @@ use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Mapper\AppearanceMapper;
 use App\Jmap\Method\Contact\ContactAutocompleteMethod;
 use App\Jmap\Protocol\Capability;
+use App\Service\Drive\DrivePolicy;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
@@ -58,6 +59,7 @@ final class SessionBuilder
         private readonly FcmSettings $fcmSettings,
         private readonly AccountHealthInspector $health,
         private readonly string $vapidPublicKey,
+        private readonly ?DrivePolicy $drivePolicy = null,
     ) {
     }
 
@@ -145,7 +147,14 @@ final class SessionBuilder
                 Capability::SYNC => new \stdClass(),
                 Capability::CONTACTS => $this->contactsCapabilities(),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
-            ],
+            ] + (true === $this->drivePolicy?->isDisabled($user) ? [] : [
+                // Absent for a user whose Drive an admin switched off, so a
+                // client hides Drive instead of showing errors.
+                Capability::DRIVE => [
+                    'apiUrl'        => $base.'/jmap/drive',
+                    'maxSizeUpload' => $this->drivePolicy?->maxFileBytes() ?? 50_000_000,
+                ],
+            ]),
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
             'username' => $user->getUserIdentifier(),

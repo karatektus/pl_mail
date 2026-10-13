@@ -106,6 +106,13 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
          data-compose--compose-collapse-forward-quote-value="{{ app.user and false == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED'), true) ? 'false' : 'true' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeAttachmentController::MAX_ATTACHMENT_BYTES') }}"
+         {# Files over the attachment limit go to Drive and are linked instead. #}
+         {% if drive_enabled() %}
+         data-drive-upload-url="{{ path('app_drive_upload') }}"
+         data-drive-link-url="{{ path('app_drive_link_json', {id: 0}) }}"
+         data-drive-too-large-note="{{ 'compose.too_large_drive.note'|trans }}"
+         data-drive-too-large-status="{{ 'compose.too_large_drive.status'|trans }}"
+         {% endif %}
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}
         {# The schedule URL rides along with the other two because all three go
            stale together. A window opens with no id, the first autosave mints
@@ -845,6 +852,26 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             title="{{ 'compose.attach'|trans }}"
                             aria-label="{{ 'compose.attach'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-paperclip" aria-hidden="true"></i></button>
+                    {# Drive: insert a share link to one of your files. #}
+                    {% if drive_enabled() %}
+                    <button type="button"
+                            data-controller="compose--drive-picker"
+                            data-compose--drive-picker-list-url-value="{{ path('app_drive_files_json') }}"
+                            data-compose--drive-picker-link-url-value="{{ path('app_drive_link_json', {id: 0}) }}"
+                            data-compose--drive-picker-i18n-value="{{ {
+                                title:  'compose.drive_picker.title'|trans,
+                                search: 'compose.drive_picker.search'|trans,
+                                empty:  'compose.drive_picker.empty'|trans,
+                                open:   'compose.drive_picker.open'|trans,
+                                cancel: 'form.cancel'|trans,
+                                failed: 'compose.drive_picker.failed'|trans,
+                                copied: 'compose.drive_picker.copied'|trans,
+                            }|json_encode }}"
+                            data-action="click->compose--drive-picker#open"
+                            title="{{ 'compose.insert_drive_file'|trans }}"
+                            aria-label="{{ 'compose.insert_drive_file'|trans }}"
+                            class="{{ ic }}"><i class="fa-solid fa-hard-drive" aria-hidden="true"></i></button>
+                    {% endif %}
                     {# No name: never submitted with the form, only read by the
                        controller and POSTed to the attachment endpoint. #}
                     <input type="file" multiple class="hidden"

@@ -186,7 +186,7 @@ final class BackupCommand extends Command
     {
         $source = $this->projectDir.'/'.trim($this->storageDir, '/');
 
-        foreach (['attachments', 'raw', 'uploads'] as $subdirectory) {
+        foreach (['attachments', 'raw', 'uploads', 'drive'] as $subdirectory) {
             $from = $source.'/'.$subdirectory;
 
             if (false === is_dir($from)) {

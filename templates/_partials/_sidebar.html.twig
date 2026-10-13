@@ -577,6 +577,22 @@ controller instead — the scroll position and which trees are open.
                 </span>
             </a>
         {% endif %}
+        {# Drive: personal file storage. Hidden when an admin switched it off. #}
+        {% if drive_enabled() %}
+        {% set _href = path('app_drive_list') %}
+        <a href="{{ _href }}"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.drive'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-hard-drive w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'sidebar.nav.drive'|trans }}</span>
+            </span>
+        </a>
+        {% endif %}
         {# Snoozed and Archive live behind a disclosure: both are real
            destinations, and neither is somewhere you go often enough to
            spend a permanent row on. Archive in particular had no entry at

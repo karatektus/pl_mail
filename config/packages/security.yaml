@@ -209,6 +209,11 @@ security:
         # App\Controller\Sharing\BookingController, which also says why there is
         # no CSRF token on a page that deliberately starts no session.
         - { path: ^/book/, roles: PUBLIC_ACCESS }
+        # A Drive share link (/s/<token>, its /download and /report). Same
+        # reasoning as /share/ above: the recipient has no account, the token
+        # (32 bytes of CSPRNG) is the gate, an optional password is a second
+        # one and is rate-limited — see App\Controller\Drive\ShareController.
+        - { path: '^/s/[a-f0-9]{64}(/download|/report)?$', roles: PUBLIC_ACCESS }
         # The code form sits between the two factors: the password is in, the
         # second factor is not, and ROLE_USER has not been granted yet. It must
         # be reachable in exactly that state and in no other, which is what

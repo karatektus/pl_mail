@@ -64,6 +64,7 @@ x-app-storage: &app-storage
   - app_attachments:/app/var/attachments
   - app_raw:/app/var/raw
   - app_uploads:/app/var/uploads
+  - app_drive:/app/var/drive
 
 services:
   # Mints APP_SECRET, APP_ENCRYPTION_KEY, POSTGRES_PASSWORD and
@@ -108,6 +109,9 @@ services:
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
       - app_uploads:/app/var/uploads
+      # Drive files. Their own volume, not app_uploads: app:prune-blobs sweeps
+      # app_uploads for files no row references and would delete them.
+      - app_drive:/app/var/drive
     ports:
       - target: 80
         published: ${HTTP_PORT:-80}
@@ -165,6 +169,9 @@ services:
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
       - app_uploads:/app/var/uploads
+      # Drive files. Their own volume, not app_uploads: app:prune-blobs sweeps
+      # app_uploads for files no row references and would delete them.
+      - app_drive:/app/var/drive
     healthcheck:
       disable: true
     depends_on:
@@ -282,6 +289,7 @@ services:
 
 volumes:
   app_secrets:
+  app_drive:
   app_attachments:
   app_raw:
   app_uploads:

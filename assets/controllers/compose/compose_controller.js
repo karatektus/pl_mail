@@ -3479,6 +3479,21 @@ export default class extends Controller {
         // again after a removal.
         input.value = '';
 
+        // Too big to attach → upload to Drive and put a link in
+        // the message instead, with a line saying why.
+        const oversized = files.filter((file) => file.size > this.maxAttachmentBytesValue);
+        if (oversized.length > 0 && this.element.dataset.driveUploadUrl) {
+            const linked = await this._linkThroughDrive(oversized);
+            if (linked) {
+                const rest = files.filter((file) => file.size <= this.maxAttachmentBytesValue);
+                files.length = 0;
+                files.push(...rest);
+                if (0 === files.length) {
+                    return;
+                }
+            }
+        }
+
         const tooBig = files.find((file) => file.size > this.maxAttachmentBytesValue);
 
         if (undefined !== tooBig) {
@@ -3516,6 +3531,67 @@ export default class extends Controller {
             }),
             this._t('attachFailed', 'Could not attach'),
         );
+    }
+
+    /**
+     * Uploads files that are over the attachment limit to Drive,
+     * one request each, makes a share link for each and writes them into the
+     * message under a short note. True when every file made it.
+     */
+    async _linkThroughDrive(files) {
+        const data = this.element.dataset;
+        this._setStatus(data.driveTooLargeStatus || 'Uploading to Drive…', 'text-ink-faint');
+
+        const links = [];
+        for (const file of files) {
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                const upload = await fetch(data.driveUploadUrl, {
+                    method: 'POST',
+                    body: form,
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
+                });
+                const stored = await upload.json();
+                const id = stored?.files?.[0]?.id;
+                if (!upload.ok || !id) {
+                    throw new Error(stored?.error || String(upload.status));
+                }
+                const share = await fetch(data.driveLinkUrl.replace(/\/0\//, `/${id}/`), {
+                    method: 'POST',
+                    headers: { Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+                });
+                const link = await share.json();
+                if (!share.ok || !link.url) {
+                    throw new Error(String(share.status));
+                }
+                links.push({ name: file.name, size: file.size, url: link.url });
+            } catch (e) {
+                this._setStatus(`${file.name}: ${e.message || e}`, 'text-danger');
+                return false;
+            }
+        }
+
+        const block = document.createElement('p');
+        const note = document.createElement('em');
+        note.textContent = data.driveTooLargeNote || 'Too large to attach — download here:';
+        block.appendChild(note);
+        links.forEach(({ name, size, url }) => {
+            block.appendChild(document.createElement('br'));
+            const a = document.createElement('a');
+            a.href = url;
+            a.textContent = `📎 ${name}`;
+            block.appendChild(a);
+            block.appendChild(document.createTextNode(` (${(size / (1024 * 1024)).toFixed(1)} MB)`));
+        });
+
+        if (true === this.hasBodyTarget) {
+            this.bodyTarget.appendChild(block);
+            this.bodyTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        this._setStatus(this._t('saved', 'Draft saved'), 'text-success');
+
+        return true;
     }
 
     async removeAttachment(event) {

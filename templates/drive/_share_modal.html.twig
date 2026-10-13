@@ -1,0 +1,114 @@
+{#
+drive/_share_modal.html.twig — the share dialog for one file.
+
+Top: the link just made (when there is one), with Copy. Middle: every link on
+the file that still works, each revocable. Bottom: a form for a new one, with
+an optional password and expiry date.
+
+Both forms post back into this frame and carry data-ui--modal-keep-open, so
+creating or revoking a link updates the dialog instead of closing it.
+
+Variables: file, links (list<DriveShare>), created (DriveShare|null), error (string|null)
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% set field = 'block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint shadow-sm shadow-zinc-950/5 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'drive.share_title'|trans({'%name%': file.filename}) }}</template>
+
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-6">
+
+        {% if created %}
+            <div class="rounded-xl border border-accent/30 bg-accent-soft/50 p-4"
+                 data-controller="ui--clipboard"
+                 data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+                 data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+                <p class="text-sm font-semibold text-ink mb-1">
+                    <i class="fa-solid fa-circle-check text-success mr-1" aria-hidden="true"></i>{{ 'drive.share_created'|trans }}
+                </p>
+                <p class="text-xs text-ink-muted mb-3">
+                    {{ created.passwordHash ? 'drive.share_created_protected'|trans : 'drive.share_created_hint'|trans }}
+                </p>
+                <div class="flex items-center gap-2">
+                    <code data-ui--clipboard-target="source"
+                          class="flex-1 min-w-0 truncate rounded-lg bg-field border border-field px-3 py-2 text-xs font-mono text-ink select-all">{{ url('app_share_access', {token: created.token}) }}</code>
+                    <button type="button" data-action="click->ui--clipboard#copy"
+                            class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+                        <i class="fa-solid fa-copy text-[11px]" aria-hidden="true"></i>
+                        <span data-ui--clipboard-target="label">{{ 'drive.copy_link'|trans }}</span>
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+
+        <section>
+            <h3 class="text-[11px] font-semibold uppercase tracking-wide text-ink-faint mb-2">{{ 'drive.active_links'|trans }}</h3>
+            {% if links is empty %}
+                <p class="text-sm text-ink-faint">{{ 'drive.no_links'|trans }}</p>
+            {% else %}
+                <ul class="divide-y divide-line rounded-xl border border-line">
+                    {% for link in links %}
+                        <li class="flex items-center gap-3 px-3 py-2.5"
+                            data-controller="ui--clipboard"
+                            data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+                            data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+                            <i class="fa-solid {{ link.passwordHash ? 'fa-lock' : 'fa-link' }} text-xs text-ink-faint w-4 text-center" aria-hidden="true"></i>
+                            <div class="flex-1 min-w-0">
+                                <code data-ui--clipboard-target="source" class="sr-only">{{ url('app_share_access', {token: link.token}) }}</code>
+                                <p class="text-sm text-ink truncate font-mono">…/s/{{ link.token|slice(0, 10) }}…</p>
+                                <p class="text-[11px] text-ink-faint">
+                                    {{ 'drive.link_meta'|trans({'%date%': link.createdAt|date('d M Y'), '%count%': link.downloadCount}) }}
+                                    {% if link.expiresAt %} · {{ 'drive.link_expires'|trans({'%date%': link.expiresAt|date('d M Y')}) }}{% endif %}
+                                    {% if link.passwordHash %} · {{ 'drive.link_protected'|trans }}{% endif %}
+                                </p>
+                            </div>
+                            <button type="button" data-action="click->ui--clipboard#copy"
+                                    class="shrink-0 text-xs font-medium text-accent hover:underline cursor-pointer">
+                                <span data-ui--clipboard-target="label">{{ 'drive.copy'|trans }}</span>
+                            </button>
+                            <form method="post" action="{{ path('app_drive_share_revoke', {id: link.id}) }}"
+                                  data-turbo-frame="modal" data-ui--modal-keep-open
+                                  data-turbo-confirm="{{ 'drive.revoke_confirm'|trans }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('drive_share_revoke_' ~ link.id) }}">
+                                <button type="submit" class="shrink-0 text-xs text-ink-faint hover:text-danger cursor-pointer">{{ 'drive.revoke'|trans }}</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+
+        <form method="post" action="{{ path('app_drive_share', {id: file.id}) }}"
+              data-turbo-frame="modal" data-ui--modal-keep-open
+              class="rounded-xl border border-line p-4 space-y-4">
+            <h3 class="text-sm font-semibold text-ink">{{ 'drive.new_link'|trans }}</h3>
+            <input type="hidden" name="_token" value="{{ csrf_token('drive_share_' ~ file.id) }}">
+
+            {% if error %}
+                <p role="alert" class="rounded-lg alert-danger px-3 py-2 text-sm text-danger">{{ error|trans }}</p>
+            {% endif %}
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label for="drive-share-password" class="block text-[13px] font-medium text-ink-soft mb-1.5">{{ 'drive.share_password'|trans }}</label>
+                    <input id="drive-share-password" type="password" name="password" autocomplete="new-password" class="{{ field }}">
+                </div>
+                <div>
+                    <label for="drive-share-expires" class="block text-[13px] font-medium text-ink-soft mb-1.5">{{ 'drive.share_expires'|trans }}</label>
+                    <input id="drive-share-expires" type="date" name="expires" min="{{ 'now'|date('Y-m-d') }}" class="{{ field }}">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-xs text-ink-faint">{{ 'drive.share_hint'|trans }}</p>
+                <button type="submit"
+                        class="shrink-0 inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+                    <i class="fa-solid fa-link text-xs" aria-hidden="true"></i>{{ 'drive.create_link'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+</turbo-frame>
+{% endblock %}

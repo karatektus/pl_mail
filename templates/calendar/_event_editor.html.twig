@@ -374,9 +374,34 @@ on an empty string, and clearing the location is a thing a user may mean.
         </div>
 
         <div>
-            <label for="event-description" class="block text-xs text-ink-muted mb-1">
-                {{ 'calendar.event.description'|trans }}
-            </label>
+            <div class="flex items-center justify-between mb-1">
+                <label for="event-description" class="block text-xs text-ink-muted">
+                    {{ 'calendar.event.description'|trans }}
+                </label>
+                {# Put a Drive share link into the description, so everyone
+                   invited can open the file. Same picker as compose. #}
+                {% if drive_enabled() %}
+                <button type="button"
+                        data-controller="compose--drive-picker"
+                        data-compose--drive-picker-list-url-value="{{ path('app_drive_files_json') }}"
+                        data-compose--drive-picker-link-url-value="{{ path('app_drive_link_json', {id: 0}) }}"
+                        data-compose--drive-picker-text-target-value="event-description"
+                        data-compose--drive-picker-i18n-value="{{ {
+                            title:  'compose.drive_picker.title'|trans,
+                            search: 'compose.drive_picker.search'|trans,
+                            empty:  'compose.drive_picker.empty'|trans,
+                            open:   'compose.drive_picker.open'|trans,
+                            cancel: 'form.cancel'|trans,
+                            failed: 'compose.drive_picker.failed'|trans,
+                            copied: 'compose.drive_picker.copied'|trans,
+                        }|json_encode }}"
+                        data-action="click->compose--drive-picker#open"
+                        class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink cursor-pointer">
+                    <i class="fa-solid fa-hard-drive text-[11px]" aria-hidden="true"></i>
+                    {{ 'calendar.event.add_from_drive'|trans }}
+                </button>
+                {% endif %}
+            </div>
             <textarea id="event-description" name="description" rows="3"
                       class="w-full rounded-lg border border-line bg-sunken px-3 py-2 text-sm text-ink
                              focus:outline-none focus:ring-2 focus:ring-accent"

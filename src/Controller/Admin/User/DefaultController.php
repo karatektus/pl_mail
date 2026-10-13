@@ -8,6 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Form\Admin\UserFormType;
 use App\Repository\User\UserRepository;
+use App\Service\Drive\DrivePolicy;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Knp\Component\Pager\PaginatorInterface;
@@ -69,6 +70,7 @@ final class DefaultController extends AbstractController
         private readonly PaginatorInterface          $paginator,
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly DrivePolicy                 $drivePolicy,
     ) {}
 
     /**
@@ -114,9 +116,22 @@ final class DefaultController extends AbstractController
                 ? $this->generateUrl('app_admin_user_default_form_create')
                 : $this->generateUrl('app_admin_user_default_form_edit', ['id' => $user->id]),
         ]);
+        if (false === $isNew) {
+            $form->get('driveQuotaMb')->setData($this->drivePolicy->quotaOverrideMb($user));
+            $form->get('driveDisabled')->setData($this->drivePolicy->isDisabled($user));
+        }
+
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
+            // Drive quota (blank = the default) and the off switch.
+            $quota = $form->get('driveQuotaMb')->getData();
+            $this->drivePolicy->applyToUser(
+                $user,
+                null === $quota ? null : (int) $quota,
+                true === $form->get('driveDisabled')->getData(),
+            );
+
             if (true === $isNew) {
                 $user->password = $this->passwordHasher->hashPassword(
                     $user,

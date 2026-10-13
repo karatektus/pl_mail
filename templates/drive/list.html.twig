@@ -1,0 +1,325 @@
+{#
+drive/list.html.twig — Drive, inside the app shell.
+
+Drawn the way Settings is: topbar, the mail sidebar, and one main pane. The
+first version was a bare page outside the shell (no sidebar, no topbar, no way
+back to the inbox but the browser's back button), and every control on it was
+an inline onclick= or <script>, which the enforced CSP refuses — so "New
+folder", "Share", "Copy link", the search box and even the upload input's
+auto-submit were all dead. Behaviour now lives in drive--explorer.
+
+Variables:
+  files, folders   the contents of the current folder
+  currentFolder    DriveFolder|null (null = root)
+  breadcrumbs      list<DriveFolder>, root first
+  usedBytes        int
+  quotaBytes       int|null (null = unlimited)
+  shareCounts      array<int fileId, int working links>
+  maxUpload        int bytes, the server's per-request limit (0 = unknown)
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ currentFolder ? currentFolder.name ~ ' — ' : '' }}{{ 'drive.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% set btnGhost = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover hover:text-ink border border-line transition-colors cursor-pointer' %}
+{% set btnPrimary = 'inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer' %}
+{% set iconBtn = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer' %}
+{% set menuItem = 'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors text-left cursor-pointer' %}
+{% set folderId = currentFolder ? currentFolder.id : '' %}
+
+{% block body %}
+    <div class="h-full overflow-hidden app-bg" data-controller="ui--sidebar-drawer">
+
+        <div data-ui--sidebar-drawer-target="backdrop" data-action="click->ui--sidebar-drawer#backdropClick"
+             class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"
+             aria-hidden="true"></div>
+        <div data-ui--sidebar-drawer-target="drawer" id="sidebar-drawer" inert
+             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3 -translate-x-full transition-transform duration-200 ease-out">
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+        </div>
+
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter">
+            {% include '_partials/_topbar.html.twig' %}
+
+            <div class="flex flex-1 gap-gutter overflow-hidden">
+                <div class="hidden md:flex">
+                    {% include '_partials/_sidebar.html.twig' %}
+                </div>
+
+                <div class="flex flex-1 overflow-hidden main-pane">
+                    <div class="relative flex flex-col flex-1 min-w-0 overflow-hidden"
+                         data-controller="drive--explorer"
+                         data-drive--explorer-upload-url-value="{{ path('app_drive_upload') }}"
+                         data-drive--explorer-folder-id-value="{{ folderId }}"
+                         data-drive--explorer-max-upload-value="{{ maxUpload }}"
+                         data-drive--explorer-i18n-value="{{ {
+                             uploading:  'drive.uploading'|trans,
+                             done:       'drive.upload_done'|trans,
+                             failed:     'drive.upload_failed'|trans,
+                             tooLarge:   'drive.upload_too_large'|trans,
+                         }|json_encode }}"
+                         data-action="dragenter->drive--explorer#dragEnter dragover->drive--explorer#dragOver dragleave->drive--explorer#dragLeave drop->drive--explorer#drop">
+
+                        {# ── Header: where you are, and what you can do here ── #}
+                        <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+                            <nav class="flex items-center gap-1 min-w-0 flex-1 text-sm" aria-label="{{ 'drive.breadcrumbs'|trans }}">
+                                <i class="fa-solid fa-hard-drive text-ink-faint mr-1.5" aria-hidden="true"></i>
+                                {% if currentFolder %}
+                                    <a href="{{ path('app_drive_list') }}" class="shrink-0 text-ink-muted hover:text-ink font-medium">{{ 'drive.title'|trans }}</a>
+                                    {% for crumb in breadcrumbs %}
+                                        <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint mx-1 shrink-0" aria-hidden="true"></i>
+                                        {% if loop.last %}
+                                            <h1 class="text-base font-semibold text-ink truncate" aria-current="page">{{ crumb.name }}</h1>
+                                        {% else %}
+                                            <a href="{{ path('app_drive_folder', {id: crumb.id}) }}" class="text-ink-muted hover:text-ink truncate max-w-[10rem]">{{ crumb.name }}</a>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <h1 class="text-base font-semibold text-ink">{{ 'drive.title'|trans }}</h1>
+                                {% endif %}
+                            </nav>
+
+                            <label class="relative hidden sm:block">
+                                <span class="sr-only">{{ 'drive.search'|trans }}</span>
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
+                                <input type="search" placeholder="{{ 'drive.search'|trans }}"
+                                       data-action="input->drive--explorer#filter"
+                                       class="h-8 w-44 lg:w-56 rounded-lg border border-field bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            </label>
+
+                            <div class="hidden sm:flex items-center rounded-lg border border-line p-0.5" role="group" aria-label="{{ 'drive.view'|trans }}">
+                                <button type="button" data-drive--explorer-target="viewButton" data-view="list"
+                                        data-action="drive--explorer#setView"
+                                        class="inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-faint hover:text-ink aria-pressed:bg-raised aria-pressed:text-ink cursor-pointer"
+                                        aria-pressed="true" title="{{ 'drive.list_view'|trans }}">
+                                    <i class="fa-solid fa-list text-xs" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" data-drive--explorer-target="viewButton" data-view="grid"
+                                        data-action="drive--explorer#setView"
+                                        class="inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-faint hover:text-ink aria-pressed:bg-raised aria-pressed:text-ink cursor-pointer"
+                                        aria-pressed="false" title="{{ 'drive.grid_view'|trans }}">
+                                    <i class="fa-solid fa-table-cells-large text-xs" aria-hidden="true"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" class="{{ btnGhost }}"
+                                    data-controller="ui--modal"
+                                    data-ui--modal-src-value="{{ path('app_drive_folder_new', currentFolder ? {parent: currentFolder.id} : {}) }}"
+                                    data-ui--modal-title-value="{{ 'drive.new_folder'|trans }}"
+                                    data-action="click->ui--modal#open"
+                                    title="{{ 'drive.new_folder'|trans }}">
+                                <i class="fa-solid fa-folder-plus text-xs" aria-hidden="true"></i>
+                                <span class="hidden lg:inline">{{ 'drive.new_folder'|trans }}</span>
+                            </button>
+
+                            {# A real form with a real file input: works without
+                               JavaScript, and the controller takes it over for
+                               progress and multiple files when it is there. #}
+                            <form method="post" action="{{ path('app_drive_upload') }}" enctype="multipart/form-data"
+                                  data-drive--explorer-target="form" data-turbo="false">
+                                <input type="hidden" name="_token" value="{{ csrf_token('drive_upload') }}">
+                                {% if currentFolder %}<input type="hidden" name="folder_id" value="{{ currentFolder.id }}">{% endif %}
+                                <label class="{{ btnPrimary }}">
+                                    <i class="fa-solid fa-arrow-up-from-bracket text-xs" aria-hidden="true"></i>
+                                    <span class="hidden sm:inline">{{ 'drive.upload'|trans }}</span>
+                                    <input type="file" name="files[]" multiple class="sr-only"
+                                           data-drive--explorer-target="input"
+                                           data-action="change->drive--explorer#pick">
+                                </label>
+                                <noscript><button type="submit" class="{{ btnGhost }}">{{ 'drive.upload'|trans }}</button></noscript>
+                            </form>
+                        </div>
+
+                        {# ── Body ── #}
+                        <div class="flex-1 overflow-y-auto">
+                            <div class="px-4 md:px-6 py-5 space-y-6">
+
+                                {# Upload progress, filled by the controller. #}
+                                <ul data-drive--explorer-target="progress" class="space-y-2 empty:hidden" aria-live="polite"></ul>
+
+                                {% if folders is empty and files is empty %}
+                                    <div class="flex flex-col items-center justify-center text-center py-20 px-6 rounded-2xl border-2 border-dashed border-line">
+                                        <div class="w-14 h-14 rounded-2xl bg-accent-soft text-accent flex items-center justify-center mb-4">
+                                            <i class="fa-solid fa-cloud-arrow-up text-2xl" aria-hidden="true"></i>
+                                        </div>
+                                        <p class="text-base font-semibold text-ink">{{ (currentFolder ? 'drive.empty_folder' : 'drive.empty')|trans }}</p>
+                                        <p class="text-sm text-ink-muted mt-1 max-w-sm">{{ 'drive.empty_hint'|trans }}</p>
+                                        <button type="button" class="{{ btnPrimary }} mt-5" data-action="drive--explorer#browse">
+                                            <i class="fa-solid fa-arrow-up-from-bracket text-xs" aria-hidden="true"></i>
+                                            {{ 'drive.upload_files'|trans }}
+                                        </button>
+                                    </div>
+                                {% endif %}
+
+                                {# ── Folders ── #}
+                                {% if folders is not empty %}
+                                    <section aria-labelledby="drive-folders-heading">
+                                        <h2 id="drive-folders-heading" class="text-[11px] font-semibold uppercase tracking-wide text-ink-faint mb-2">{{ 'drive.folders'|trans }}</h2>
+                                        <ul class="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2">
+                                            {% for folder in folders %}
+                                                <li class="drive-item group relative flex items-center rounded-xl border border-line bg-raised/60 hover:bg-hover hover:border-accent/40 transition-colors"
+                                                    data-drive--explorer-target="item" data-name="{{ folder.name|lower }}">
+                                                    <a href="{{ path('app_drive_folder', {id: folder.id}) }}" class="flex items-center gap-3 min-w-0 flex-1 pl-3 py-2.5">
+                                                        <i class="fa-solid fa-folder text-lg text-amber-500" aria-hidden="true"></i>
+                                                        <span class="text-sm font-medium text-ink truncate">{{ folder.name }}</span>
+                                                    </a>
+                                                    {{ _self.folderMenu(folder, iconBtn, menuItem) }}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </section>
+                                {% endif %}
+
+                                {# ── Files ── #}
+                                {% if files is not empty %}
+                                    <section aria-labelledby="drive-files-heading">
+                                        <h2 id="drive-files-heading" class="text-[11px] font-semibold uppercase tracking-wide text-ink-faint mb-2">{{ 'drive.files'|trans }}</h2>
+
+                                        <div data-drive--explorer-target="files" data-view="list" class="drive-files group/files">
+                                            {# Column heads — list view only. #}
+                                            <div class="hidden md:grid group-data-[view=grid]/files:!hidden grid-cols-[minmax(0,1fr)_6rem_9rem_7rem] gap-3 px-3 pb-2 text-[11px] font-medium text-ink-faint border-b border-line">
+                                                <span>{{ 'drive.name'|trans }}</span>
+                                                <span class="text-right">{{ 'drive.size'|trans }}</span>
+                                                <span>{{ 'drive.modified'|trans }}</span>
+                                                <span class="sr-only">{{ 'drive.actions'|trans }}</span>
+                                            </div>
+
+                                            <ul class="divide-y divide-line group-data-[view=grid]/files:divide-y-0 group-data-[view=grid]/files:grid group-data-[view=grid]/files:grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] group-data-[view=grid]/files:gap-3">
+                                                {% for file in files %}
+                                                    {% set kind = drive_icon(file.filename) %}
+                                                    {% set links = shareCounts[file.id] ?? 0 %}
+                                                    <li class="drive-item group relative
+                                                               grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_6rem_9rem_7rem] items-center gap-3 px-3 py-2 hover:bg-hover rounded-lg transition-colors
+                                                               group-data-[view=grid]/files:flex group-data-[view=grid]/files:flex-col group-data-[view=grid]/files:items-stretch group-data-[view=grid]/files:gap-0 group-data-[view=grid]/files:p-0 group-data-[view=grid]/files:rounded-xl group-data-[view=grid]/files:border group-data-[view=grid]/files:border-line group-data-[view=grid]/files:bg-raised/60 group-data-[view=grid]/files:overflow-hidden"
+                                                        data-drive--explorer-target="item" data-name="{{ file.filename|lower }}">
+
+                                                        <a href="{{ path('app_drive_download', {id: file.id}) }}" data-turbo="false"
+                                                           class="flex items-center gap-3 min-w-0
+                                                                  group-data-[view=grid]/files:flex-col group-data-[view=grid]/files:items-stretch group-data-[view=grid]/files:gap-0"
+                                                           title="{{ 'drive.download'|trans }} — {{ file.filename }}">
+                                                            <span class="shrink-0 w-8 h-8 rounded-lg bg-sunken/60 flex items-center justify-center
+                                                                         group-data-[view=grid]/files:w-auto group-data-[view=grid]/files:h-24 group-data-[view=grid]/files:rounded-none">
+                                                                <i class="fa-solid {{ kind.icon }} {{ kind.tint }} group-data-[view=grid]/files:text-4xl" aria-hidden="true"></i>
+                                                            </span>
+                                                            <span class="min-w-0 group-data-[view=grid]/files:px-3 group-data-[view=grid]/files:pt-2.5">
+                                                                <span class="flex items-center gap-1.5 min-w-0">
+                                                                    <span class="text-sm text-ink truncate">{{ file.filename }}</span>
+                                                                    {% if links > 0 %}
+                                                                        <i class="fa-solid fa-link text-[10px] text-accent shrink-0" title="{{ 'drive.shared_count'|trans({'%count%': links}) }}" aria-label="{{ 'drive.shared_count'|trans({'%count%': links}) }}"></i>
+                                                                    {% endif %}
+                                                                </span>
+                                                                <span class="block md:hidden group-data-[view=grid]/files:!block text-[11px] text-ink-faint">
+                                                                    {{ file.sizeBytes|drive_size }} · {{ file.updatedAt|date('d M Y') }}
+                                                                </span>
+                                                            </span>
+                                                        </a>
+
+                                                        <span class="hidden md:block group-data-[view=grid]/files:!hidden text-right text-xs text-ink-muted tabular-nums">{{ file.sizeBytes|drive_size }}</span>
+                                                        <span class="hidden md:block group-data-[view=grid]/files:!hidden text-xs text-ink-muted">{{ file.updatedAt|date('d M Y, H:i') }}</span>
+
+                                                        <div class="flex items-center justify-end gap-0.5 group-data-[view=grid]/files:px-1.5 group-data-[view=grid]/files:pb-1.5">
+                                                            <button type="button" class="{{ iconBtn }}"
+                                                                    data-controller="ui--modal"
+                                                                    data-ui--modal-src-value="{{ path('app_drive_share', {id: file.id}) }}"
+                                                                    data-ui--modal-title-value="{{ 'drive.share_title'|trans({'%name%': file.filename}) }}"
+                                                                    data-action="click->ui--modal#open"
+                                                                    title="{{ 'drive.share'|trans }}" aria-label="{{ 'drive.share'|trans }}">
+                                                                <i class="fa-solid fa-share-nodes text-xs" aria-hidden="true"></i>
+                                                            </button>
+                                                            <a href="{{ path('app_drive_download', {id: file.id}) }}" data-turbo="false" class="{{ iconBtn }} max-sm:!hidden"
+                                                               title="{{ 'drive.download'|trans }}" aria-label="{{ 'drive.download'|trans }}">
+                                                                <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+                                                            </a>
+                                                            <div class="relative" data-controller="ui--dropdown">
+                                                                <button type="button" class="{{ iconBtn }}" data-action="click->ui--dropdown#toggle"
+                                                                        title="{{ 'drive.more'|trans }}" aria-label="{{ 'drive.more'|trans }}" aria-haspopup="menu">
+                                                                    <i class="fa-solid fa-ellipsis-vertical text-xs" aria-hidden="true"></i>
+                                                                </button>
+                                                                <div data-ui--dropdown-target="menu" hidden role="menu"
+                                                                     class="absolute right-0 top-full mt-1 w-48 z-30 popover py-1">
+                                                                    <a href="{{ path('app_drive_download', {id: file.id}) }}" data-turbo="false" class="{{ menuItem }}" role="menuitem">
+                                                                        <i class="fa-solid fa-download w-4 text-center text-xs" aria-hidden="true"></i>{{ 'drive.download'|trans }}
+                                                                    </a>
+                                                                    <button type="button" class="{{ menuItem }}" role="menuitem"
+                                                                            data-controller="ui--modal"
+                                                                            data-ui--modal-src-value="{{ path('app_drive_rename', {id: file.id}) }}"
+                                                                            data-ui--modal-title-value="{{ 'drive.rename_file'|trans }}"
+                                                                            data-action="click->ui--modal#open click->ui--dropdown#close">
+                                                                        <i class="fa-solid fa-pen w-4 text-center text-xs" aria-hidden="true"></i>{{ 'drive.rename'|trans }}
+                                                                    </button>
+                                                                    <form method="post" action="{{ path('app_drive_delete', {id: file.id}) }}"
+                                                                          data-turbo-confirm="{{ 'drive.delete_confirm'|trans({'%name%': file.filename}) }}">
+                                                                        <input type="hidden" name="_token" value="{{ csrf_token('drive_delete_' ~ file.id) }}">
+                                                                        <button type="submit" class="{{ menuItem }} hover:!text-danger" role="menuitem">
+                                                                            <i class="fa-solid fa-trash w-4 text-center text-xs" aria-hidden="true"></i>{{ 'drive.delete'|trans }}
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </section>
+                                {% endif %}
+
+                                <p data-drive--explorer-target="noMatch" hidden class="py-10 text-center text-sm text-ink-faint">{{ 'drive.no_match'|trans }}</p>
+                            </div>
+                        </div>
+
+                        {# ── Footer: storage ── #}
+                        <div class="flex items-center gap-3 px-4 md:px-6 h-11 border-t border-line shrink-0 text-xs text-ink-muted">
+                            <i class="fa-solid fa-database text-ink-faint" aria-hidden="true"></i>
+                            {% if quotaBytes %}
+                                {% set pct = min(100, (usedBytes / quotaBytes * 100)|round(0, 'ceil')) %}
+                                <div class="w-32 sm:w-48 h-1.5 rounded-full bg-sunken overflow-hidden" role="progressbar"
+                                     aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct }}" aria-label="{{ 'drive.storage'|trans }}">
+                                    <div class="h-full rounded-full {{ pct >= 90 ? 'bg-danger' : 'bg-accent' }}" style="width: {{ pct }}%"></div>
+                                </div>
+                                <span>{{ 'drive.usage'|trans({'%used%': usedBytes|drive_size, '%quota%': quotaBytes|drive_size}) }}</span>
+                            {% else %}
+                                <span>{{ 'drive.usage_unlimited'|trans({'%used%': usedBytes|drive_size}) }}</span>
+                            {% endif %}
+                            {% if maxUpload > 0 %}
+                                <span class="ml-auto hidden sm:inline text-ink-faint">{{ 'drive.max_upload'|trans({'%size%': maxUpload|drive_size}) }}</span>
+                            {% endif %}
+                        </div>
+
+                        {# ── Drop overlay ── #}
+                        <div data-drive--explorer-target="overlay" hidden
+                             class="absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-accent bg-accent-soft/80 backdrop-blur-sm pointer-events-none">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-accent" aria-hidden="true"></i>
+                            <p class="text-sm font-semibold text-ink">{{ 'drive.drop_here'|trans({'%folder%': currentFolder ? currentFolder.name : 'drive.title'|trans}) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% macro folderMenu(folder, iconBtn, menuItem) %}
+    <div class="relative pr-1" data-controller="ui--dropdown">
+        <button type="button" class="{{ iconBtn }} opacity-60 group-hover:opacity-100 focus:opacity-100" data-action="click->ui--dropdown#toggle"
+                title="{{ 'drive.more'|trans }}" aria-label="{{ 'drive.more'|trans }}" aria-haspopup="menu">
+            <i class="fa-solid fa-ellipsis-vertical text-xs" aria-hidden="true"></i>
+        </button>
+        <div data-ui--dropdown-target="menu" hidden role="menu" class="absolute right-0 top-full mt-1 w-48 z-30 popover py-1">
+            <button type="button" class="{{ menuItem }}" role="menuitem"
+                    data-controller="ui--modal"
+                    data-ui--modal-src-value="{{ path('app_drive_folder_rename', {id: folder.id}) }}"
+                    data-ui--modal-title-value="{{ 'drive.rename_folder'|trans }}"
+                    data-action="click->ui--modal#open click->ui--dropdown#close">
+                <i class="fa-solid fa-pen w-4 text-center text-xs" aria-hidden="true"></i>{{ 'drive.rename'|trans }}
+            </button>
+            <form method="post" action="{{ path('app_drive_folder_delete', {id: folder.id}) }}"
+                  data-turbo-confirm="{{ 'drive.folder_delete_confirm'|trans({'%name%': folder.name}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('drive_folder_delete_' ~ folder.id) }}">
+                <button type="submit" class="{{ menuItem }} hover:!text-danger" role="menuitem">
+                    <i class="fa-solid fa-trash w-4 text-center text-xs" aria-hidden="true"></i>{{ 'drive.delete'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+{% endmacro %}

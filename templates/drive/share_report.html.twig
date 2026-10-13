@@ -1,0 +1,66 @@
+{#
+drive/share_report.html.twig — Someone who was sent a Drive link
+reports it to the admin (spam, malware, something illegal…).
+
+Through sharing/_layout like the share page itself: no session, no CSRF. A
+per-address rate limit and a hidden "website" field keep it from being abused.
+
+Variables: share, file, sent, error (translation key|null), reasons, appearance
+#}
+{% extends 'sharing/_layout.html.twig' %}
+
+{% block title %}{{ 'drive.report.title'|trans }}{% endblock %}
+{% block container_class %}max-w-md{% endblock %}
+
+{% block body %}
+    <div class="rounded-pane border border-line bg-surface px-6 py-8">
+        <h1 class="text-lg font-semibold text-ink flex items-center gap-2">
+            <i class="fa-solid fa-flag text-danger text-base" aria-hidden="true"></i>{{ 'drive.report.title'|trans }}
+        </h1>
+        <p class="mt-1 text-sm text-ink-muted break-words">{{ file.filename }}</p>
+
+        {% if sent %}
+            <p class="mt-6 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-3 py-3 text-sm">
+                {{ 'drive.report.thanks'|trans }}
+            </p>
+        {% else %}
+            <form method="post" class="mt-6 space-y-4">
+                <div>
+                    <label for="report-reason" class="block text-[13px] font-medium text-ink-soft">{{ 'drive.report.reason'|trans }}</label>
+                    <select id="report-reason" name="reason" required
+                            class="mt-1 block w-full h-10 rounded-lg border border-field bg-field px-3 text-sm text-ink">
+                        {% for reason in reasons %}
+                            <option value="{{ reason }}">{{ ('drive.report.reasons.' ~ reason)|trans }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="report-details" class="block text-[13px] font-medium text-ink-soft">{{ 'drive.report.details'|trans }}</label>
+                    <textarea id="report-details" name="details" rows="3" maxlength="2000"
+                              class="mt-1 block w-full rounded-lg border border-field bg-field px-3 py-2 text-sm text-ink"></textarea>
+                </div>
+                <div>
+                    <label for="report-email" class="block text-[13px] font-medium text-ink-soft">{{ 'drive.report.email'|trans }}</label>
+                    <input id="report-email" type="email" name="email" maxlength="255" autocomplete="email"
+                           class="mt-1 block w-full h-10 rounded-lg border border-field bg-field px-3 text-sm text-ink">
+                </div>
+                {# Hidden from people, filled in by simple bots. #}
+                <div class="hidden" aria-hidden="true">
+                    <label for="report-website">Website</label>
+                    <input id="report-website" type="text" name="website" tabindex="-1" autocomplete="off">
+                </div>
+                {% if error %}
+                    <p role="alert" class="text-sm text-danger">{{ error|trans }}</p>
+                {% endif %}
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium bg-danger text-white hover:brightness-110 transition">
+                    <i class="fa-solid fa-flag text-xs" aria-hidden="true"></i>{{ 'drive.report.submit'|trans }}
+                </button>
+            </form>
+        {% endif %}
+
+        <a href="{{ path('app_share_access', {token: share.token}) }}" class="mt-4 inline-block text-xs text-ink-faint hover:underline">
+            ← {{ 'drive.report.back'|trans }}
+        </a>
+    </div>
+{% endblock %}

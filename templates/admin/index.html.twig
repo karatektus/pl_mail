@@ -158,6 +158,12 @@
                                         <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.push'|trans }}
                                     </a>
+                                    {# Drive: limits, per-person storage, reported links. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'drive' }) }}"
+                                       class="{{ section == 'drive' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-hard-drive w-4 {{ section == 'drive' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.drive'|trans }}
+                                    </a>
                                     {# After push and before users: it configures
                                        an outside service the way push does, and
                                        everything below this point is about people
@@ -300,6 +306,17 @@
                                         <turbo-frame id="admin-integrations"
                                                      class="block space-y-3"
                                                      src="{{ path('app_admin_integrations_list') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'drive' %}
+
+                                        <turbo-frame id="admin-drive"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_drive_index') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

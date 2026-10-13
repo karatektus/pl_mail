@@ -93,6 +93,14 @@ final class Capability
     public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
 
     /**
+     * The user's Drive, over plain REST beside JMAP
+     * (App\Controller\Drive\DriveApiController). Its presence tells a client
+     * the server has Drive and the user may use it; `apiUrl` is where it lives
+     * and `maxSizeUpload` the largest single file.
+     */
+    public const string DRIVE = 'urn:plmail:params:jmap:drive';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *

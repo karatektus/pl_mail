@@ -106,6 +106,10 @@ parameters:
     app.enrich_recent_days_default: 30
     app.enrich_recent_days: '%env(default:app.enrich_recent_days_default:int:ENRICH_RECENT_DAYS)%'
 
+    # Drive storage per user in MB; 0 means unlimited. DRIVE_QUOTA_MB overrides,
+    # and Admin → Drive overrides both.
+    drive.quota_mb_default: 5120
+
 services:
     # default configuration for services in *this* file
     _defaults:

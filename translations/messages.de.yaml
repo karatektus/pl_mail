@@ -56,6 +56,35 @@ account:
     updated: Konto aktualisiert
 
 admin:
+    drive:
+        saved:
+            settings: 'Drive-Limits gespeichert.'
+            user: 'Gespeichert.'
+            report: 'Meldung bearbeitet.'
+        limits:
+            default_quota: Speicher pro Person (MB)
+            default_quota_help: Für alle ohne eigenes Limit. 0 = kein Limit.
+            heading: Drive-Limits
+            max_file: Größte einzelne Datei (MB)
+            max_file_help: Größere Uploads werden abgelehnt. Der Server selbst nimmt bis zu %php% an.
+        people:
+            default: Standard
+            disabled: Drive aus
+            files: '{1}1 Datei|]1,Inf[%count% Dateien'
+            heading: Speicher pro Person
+            help: Limit leer lassen für den Standard. Drive abschalten stoppt auch alle geteilten Links dieser Person.
+            of: von
+            quota: Eigenes Limit (MB)
+        reports:
+            revoke: 'Link widerrufen'
+            disable: 'Drive des Eigentümers abschalten'
+            dismiss: 'Verwerfen'
+            heading: Gemeldete Links
+            none: Niemand hat einen Link gemeldet.
+            open: Link öffnen
+            owner: Eigentümer
+            reporter: Gemeldet von
+        save: Speichern
     accounts:
         account: 'Konto'
         heading: 'Konten'
@@ -738,6 +767,7 @@ admin:
         page: 'Seite'
         refresh: 'Aktualisieren'
     nav:
+        drive: Drive
         address: Adresse
         ai: KI
         backup: Sicherung
@@ -1125,6 +1155,11 @@ admin:
         delete_confirm: '%name% entfernen? Die Mails bleiben in der Datenbank, eine Anmeldung ist aber nicht mehr möglich.'
         edit: Benutzer bearbeiten
         field:
+            drive_disabled: Drive abschalten
+            drive_disabled_help: Sperrt Uploads und stoppt alle Links, die diese Person geteilt hat.
+            drive_quota: Drive-Speicher (MB)
+            drive_quota_default: Standard
+            drive_quota_help: Leer = Standard aus Admin → Drive. 0 = kein Limit.
             email: E-Mail-Adresse
             is_admin: Administrator
             is_admin_help: 'Erreicht diesen Bereich, verwaltet Benutzer und konfiguriert Anbieter. Kann keine fremden Mails lesen.'
@@ -1326,6 +1361,7 @@ calendar:
             Dieser Termin steht nur in Kalendern, die keine Änderungen annehmen —
             er bleibt, wo er war.
     event:
+        add_from_drive: Aus Drive einfügen
         alert:
             action:
                 display: Benachrichtigung
@@ -1693,6 +1729,17 @@ clipboard:
     copy_failed: Kopieren fehlgeschlagen
 
 compose:
+    drive_picker:
+        copied: Link kopiert – füge ihn in deine Nachricht ein.
+        empty: Noch nichts in deinem Drive. Lade dort zuerst Dateien hoch.
+        failed: Dein Drive ist gerade nicht erreichbar. Versuch es noch einmal.
+        open: Drive öffnen
+        search: Deine Dateien durchsuchen…
+        title: Aus Drive einfügen
+    insert_drive_file: Datei aus Drive einfügen
+    too_large_drive:
+        note: 'Zu groß als Anhang, daher liegt es in meinem Drive. Hier herunterladen:'
+        status: Zu groß als Anhang – wird in dein Drive hochgeladen…
     # Wird im Dock gezeigt, wenn ein Klick auf „Schreiben“ kein Fenster
     # hervorbringt — ein 5xx, eine abgelaufene Sitzung, eine tote Verbindung.
     ai:
@@ -4128,6 +4175,7 @@ sidebar:
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
+        drive: Drive
         archive: Archiv
         calendar: Kalender
         drafts: Entwürfe
@@ -4338,3 +4386,94 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+drive:
+    actions: Aktionen
+    active_links: Aktive Links
+    breadcrumbs: Ordnerpfad
+    copy: Kopieren
+    copy_link: Link kopieren
+    create: Erstellen
+    create_link: Link erstellen
+    delete: Löschen
+    delete_confirm: „%name%“ löschen? Alle Links darauf funktionieren dann nicht mehr. Das lässt sich nicht rückgängig machen.
+    deleted: Datei gelöscht.
+    disabled_notice: Drive wurde für dein Konto abgeschaltet. Wende dich an deine Administration.
+    disabled_title: Drive ist abgeschaltet
+    download: Herunterladen
+    drop_here: Loslassen zum Hochladen nach %folder%
+    empty: Dein Drive ist leer
+    empty_folder: Dieser Ordner ist leer
+    empty_hint: Lade Dateien über den Button hoch oder zieh sie einfach auf diese Seite.
+    files: Dateien
+    folder_created: Ordner erstellt.
+    folder_delete_confirm: Den Ordner „%name%“ mit allem Inhalt löschen? Das lässt sich nicht rückgängig machen.
+    folder_deleted: Ordner gelöscht.
+    folder_name: Ordnername
+    folders: Ordner
+    grid_view: Rasteransicht
+    link_expires: Läuft ab am %date%
+    link_meta: '{0}Erstellt %date% · noch nicht heruntergeladen|{1}Erstellt %date% · 1 Download|]1,Inf[Erstellt %date% · %count% Downloads'
+    link_protected: Passwort
+    list_view: Listenansicht
+    max_upload: Bis zu %size% pro Datei
+    modified: Geändert
+    more: Weitere Aktionen
+    name: Name
+    new_folder: Neuer Ordner
+    new_link: Neuer Link
+    no_links: Noch keine Links. Wer den Link hat, kann die Datei herunterladen – teile ihn also nur mit Leuten, denen du vertraust.
+    no_match: Keine passenden Dateien oder Ordner.
+    protected_hint: Diese Datei ist geschützt. Gib das Passwort ein, um sie herunterzuladen.
+    public:
+        too_many: Zu viele Versuche. Warte ein paar Minuten und versuch es dann noch einmal.
+    quota_exceeded: In deinem Drive ist nicht mehr genug Platz für diese Datei.
+    rename: Umbenennen
+    rename_file: Datei umbenennen
+    rename_folder: Ordner umbenennen
+    report:
+        back: Zurück zur Datei
+        details: Sonst noch etwas, das wir wissen sollten? (optional)
+        email: Deine E-Mail-Adresse, falls du eine Antwort möchtest (optional)
+        link: Diesen Link melden
+        reason: Was stimmt damit nicht?
+        reasons:
+            copyright: Urheberrechtsverletzung
+            illegal: Illegale Inhalte
+            malware: Virus oder Schadsoftware
+            other: Etwas anderes
+            phishing: Phishing oder Betrug
+            spam: Spam oder unerwünscht
+        submit: Meldung senden
+        thanks: Danke – wir haben deine Meldung erhalten und sehen sie uns schnell an. Wenn du deine E-Mail-Adresse angegeben hast, ist eine Bestätigung unterwegs.
+        title: Diesen Link melden
+        too_many: Zu viele Meldungen aus deinem Netzwerk. Bitte versuch es später noch einmal.
+    revoke: Widerrufen
+    revoke_confirm: Diesen Link widerrufen? Wer ihn hat, kann die Datei dann nicht mehr herunterladen.
+    search: Diesen Ordner durchsuchen
+    share: Teilen
+    share_bad_date: Wähle ein Ablaufdatum in der Zukunft.
+    share_created: Link erstellt
+    share_created_hint: Kopier ihn jetzt und schick ihn an alle, die die Datei brauchen.
+    share_created_protected: Kopier ihn jetzt. Schick das Passwort getrennt – nicht in derselben Nachricht.
+    share_expires: Läuft ab am (optional)
+    share_hint: Wer den Link hat, kann die Datei herunterladen.
+    share_password: Passwort (optional)
+    share_title: „%name%“ teilen
+    shared_count: '{1}Mit 1 Link geteilt|]1,Inf[Mit %count% Links geteilt'
+    size: Größe
+    storage: Belegter Speicher
+    title: Drive
+    upload: Hochladen
+    upload_done: Hochgeladen
+    upload_failed: Hochladen fehlgeschlagen.
+    upload_files: Dateien hochladen
+    upload_invalid: Wähle zuerst eine Datei aus.
+    upload_too_large: Diese Datei ist größer, als der Server annimmt.
+    uploaded: Datei hochgeladen.
+    uploaded_many: Dateien hochgeladen.
+    uploading: Wird hochgeladen…
+    usage: '%used% von %quota% belegt'
+    usage_unlimited: '%used% belegt'
+    view: Ansehen
+    wrong_password: Das Passwort stimmt nicht.

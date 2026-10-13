@@ -1,0 +1,57 @@
+{#
+drive/share_public.html.twig — what someone who was sent a Drive link sees.
+
+Through sharing/_layout, so no session starts and the page wears the owner's
+theme without naming them. A password-protected link asks for the password in
+the same card; the download itself is the response to that POST. An open link
+downloads with a plain GET to /download.
+
+Variables: share, file, error (translation key|null), appearance
+#}
+{% extends 'sharing/_layout.html.twig' %}
+
+{% block title %}{{ file.filename }}{% endblock %}
+{% block container_class %}max-w-md{% endblock %}
+
+{% block body %}
+    {% set kind = drive_icon(file.filename) %}
+    <div class="rounded-pane border border-line bg-surface px-6 py-8 text-center">
+        <span class="mx-auto w-16 h-16 flex items-center justify-center rounded-2xl bg-sunken" aria-hidden="true">
+            <i class="fa-solid {{ kind.icon }} {{ kind.tint }} text-3xl"></i>
+        </span>
+
+        <h1 class="mt-4 text-lg font-semibold text-ink break-words">{{ file.filename }}</h1>
+        <p class="mt-1 text-sm text-ink-muted">
+            {{ file.sizeBytes|drive_size }}
+            {% if share.expiresAt %} · {{ 'drive.link_expires'|trans({'%date%': share.expiresAt|date('d M Y')}) }}{% endif %}
+        </p>
+
+        {% if share.passwordHash %}
+            <form method="post" class="mt-6 space-y-3 text-left">
+                <label for="share-password" class="block text-[13px] font-medium text-ink-soft">
+                    <i class="fa-solid fa-lock text-[11px] mr-1 text-ink-faint" aria-hidden="true"></i>{{ 'drive.protected_hint'|trans }}
+                </label>
+                <input id="share-password" type="password" name="password" required autofocus autocomplete="current-password"
+                       class="block w-full h-10 rounded-lg border border-field bg-field px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                {% if error %}
+                    <p role="alert" class="text-sm text-danger">{{ error|trans }}</p>
+                {% endif %}
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
+                    <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>{{ 'drive.download'|trans }}
+                </button>
+            </form>
+        {% else %}
+            <a href="{{ path('app_share_download', {token: share.token}) }}"
+               class="mt-6 w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
+                <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>{{ 'drive.download'|trans }}
+            </a>
+        {% endif %}
+
+        {# A recipient can flag a link to the admin. #}
+        <a href="{{ path('app_share_report', {token: share.token}) }}"
+           class="mt-5 inline-flex items-center gap-1.5 text-xs text-ink-faint hover:text-danger hover:underline">
+            <i class="fa-regular fa-flag text-[10px]" aria-hidden="true"></i>{{ 'drive.report.link'|trans }}
+        </a>
+    </div>
+{% endblock %}

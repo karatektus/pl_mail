@@ -56,6 +56,35 @@ account:
     updated: Account updated
 
 admin:
+    drive:
+        saved:
+            settings: 'Drive limits saved.'
+            user: 'Saved.'
+            report: 'Report handled.'
+        limits:
+            default_quota: Storage per person (MB)
+            default_quota_help: For everyone without their own limit. 0 = no limit.
+            heading: Drive limits
+            max_file: Largest single file (MB)
+            max_file_help: Uploads above this are refused. The server itself accepts up to %php%.
+        people:
+            default: default
+            disabled: Drive off
+            files: '{1}1 file|]1,Inf[%count% files'
+            heading: Storage by person
+            help: Leave the limit empty to use the default. Switching Drive off also stops every link that person has shared.
+            of: of
+            quota: Own limit (MB)
+        reports:
+            revoke: 'Revoke link'
+            disable: 'Switch off owner''s Drive'
+            dismiss: 'Dismiss'
+            heading: Reported links
+            none: Nobody has reported a link.
+            open: Open link
+            owner: Owner
+            reporter: Reported by
+        save: Save
     accounts:
         account: 'Account'
         heading: 'Accounts'
@@ -727,6 +756,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        drive: Drive
         address: Address
         ai: AI
         backup: Backup
@@ -1111,6 +1141,11 @@ admin:
         delete_confirm: 'Remove %name%? Their mail stays in the database but they can no longer sign in.'
         edit: Edit user
         field:
+            drive_disabled: Switch off Drive
+            drive_disabled_help: Blocks uploads and stops every link this person has shared.
+            drive_quota: Drive storage (MB)
+            drive_quota_default: default
+            drive_quota_help: Empty = the default from Admin → Drive. 0 = no limit.
             email: Email address
             is_admin: Administrator
             is_admin_help: 'Can reach this panel, manage users and configure providers. Cannot read anyone else''s mail.'
@@ -1309,6 +1344,7 @@ calendar:
         no_copies: 'Nothing was chosen, so nothing was changed. Tick at least one calendar.'
         read_only: 'This event is only on calendars that do not accept changes, so it was left where it was.'
     event:
+        add_from_drive: Add from Drive
         alert:
             action:
                 display: Notification
@@ -1665,6 +1701,17 @@ clipboard:
     copy_failed: Copy failed
 
 compose:
+    drive_picker:
+        copied: Link copied — paste it into your message.
+        empty: Nothing in your Drive yet. Upload files there first.
+        failed: Couldn't reach your Drive. Try again.
+        open: Open Drive
+        search: Search your files…
+        title: Insert from Drive
+    insert_drive_file: Insert file from Drive
+    too_large_drive:
+        note: 'Too large to attach, so it is in my Drive. Download it here:'
+        status: Too large to attach — uploading to your Drive…
     # Shown in the dock when clicking Compose does not produce a window —
     # a 5xx, an expired session, a dead connection. Turbo's own answer to all
     # three is four words of untranslated English in the corner.
@@ -4109,6 +4156,7 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
+        drive: Drive
         archive: Archive
         calendar: Calendar
         drafts: Drafts
@@ -4343,3 +4391,94 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+drive:
+    actions: Actions
+    active_links: Active links
+    breadcrumbs: Folder path
+    copy: Copy
+    copy_link: Copy link
+    create: Create
+    create_link: Create link
+    delete: Delete
+    delete_confirm: Delete “%name%”? Any share links to it stop working. This cannot be undone.
+    deleted: File deleted.
+    disabled_notice: Drive has been switched off for your account. Contact your administrator.
+    disabled_title: Drive is switched off
+    download: Download
+    drop_here: Drop to upload to %folder%
+    empty: Your Drive is empty
+    empty_folder: This folder is empty
+    empty_hint: Upload files with the button, or drag them anywhere onto this page.
+    files: Files
+    folder_created: Folder created.
+    folder_delete_confirm: Delete the folder “%name%” and everything in it? This cannot be undone.
+    folder_deleted: Folder deleted.
+    folder_name: Folder name
+    folders: Folders
+    grid_view: Grid view
+    link_expires: Expires %date%
+    link_meta: '{0}Created %date% · not downloaded yet|{1}Created %date% · 1 download|]1,Inf[Created %date% · %count% downloads'
+    link_protected: Password
+    list_view: List view
+    max_upload: Up to %size% per file
+    modified: Modified
+    more: More actions
+    name: Name
+    new_folder: New folder
+    new_link: New link
+    no_links: No links yet. Anyone with a link can download the file, so only share it with people you trust.
+    no_match: No files or folders match.
+    protected_hint: This file is protected. Enter the password to download it.
+    public:
+        too_many: Too many attempts. Wait a few minutes and try again.
+    quota_exceeded: Not enough space left in your Drive for that file.
+    rename: Rename
+    rename_file: Rename file
+    rename_folder: Rename folder
+    report:
+        back: Back to the file
+        details: Anything else they should know? (optional)
+        email: Your email, if you would like a reply (optional)
+        link: Report this link
+        reason: What is wrong with it?
+        reasons:
+            copyright: Copyright infringement
+            illegal: Illegal content
+            malware: Virus or malware
+            other: Something else
+            phishing: Phishing or a scam
+            spam: Spam or unwanted
+        submit: Send report
+        thanks: Thank you — we have received your report and will investigate it quickly. If you left your email, a confirmation is on its way.
+        title: Report this link
+        too_many: Too many reports from your network. Please try again later.
+    revoke: Revoke
+    revoke_confirm: Revoke this link? Anyone who has it can no longer download the file.
+    search: Search this folder
+    share: Share
+    share_bad_date: Pick an expiry date in the future.
+    share_created: Link created
+    share_created_hint: Copy it now and send it to whoever needs the file.
+    share_created_protected: Copy it now. Send the password separately — not in the same message.
+    share_expires: Expires on (optional)
+    share_hint: Anyone with the link can download the file.
+    share_password: Password (optional)
+    share_title: Share “%name%”
+    shared_count: '{1}Shared with 1 link|]1,Inf[Shared with %count% links'
+    size: Size
+    storage: Storage used
+    title: Drive
+    upload: Upload
+    upload_done: Uploaded
+    upload_failed: Upload failed.
+    upload_files: Upload files
+    upload_invalid: Choose a file first.
+    upload_too_large: That file is larger than the server accepts.
+    uploaded: File uploaded.
+    uploaded_many: Files uploaded.
+    uploading: Uploading…
+    usage: '%used% of %quota% used'
+    usage_unlimited: '%used% used'
+    view: View
+    wrong_password: That password is not right.

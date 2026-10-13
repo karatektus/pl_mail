@@ -1,0 +1,43 @@
+{#
+drive/_name_modal.html.twig — one text field in the app modal: new folder,
+rename folder, rename file.
+
+The form targets _top: on success the controller redirects back to the folder
+and the whole Drive page re-renders with the change, which also closes the
+modal (it lives in the replaced body).
+
+Variables: title, action, tokenId, value, hidden (name => value), submit, label
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ title|trans }}</template>
+
+    <form method="post" action="{{ action }}" data-turbo-frame="_top" class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
+        {% for name, val in hidden %}
+            <input type="hidden" name="{{ name }}" value="{{ val }}">
+        {% endfor %}
+
+        <div class="flex-1 min-h-0 px-6 pb-6">
+            <label for="drive-name-field" class="block text-[13px] font-medium leading-none text-ink-soft mb-2">{{ label|trans }}</label>
+            <input id="drive-name-field" type="text" name="name" value="{{ value }}" required maxlength="255" autofocus
+                   autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-bwignore="true"
+                   class="block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint
+                          shadow-sm shadow-zinc-950/5 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button" data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                {{ 'form.cancel'|trans }}
+            </button>
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink bg-accent hover:bg-accent-strong transition-colors">
+                {{ submit|trans }}
+            </button>
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

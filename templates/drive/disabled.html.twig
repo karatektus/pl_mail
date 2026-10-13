@@ -1,0 +1,15 @@
+{#
+drive/disabled.html.twig — Shown instead of Drive to a user whose
+Drive an administrator has switched off.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'drive.title'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="mx-auto max-w-md px-4 py-16 text-center">
+        <i class="fa-solid fa-hard-drive text-4xl text-ink-faint" aria-hidden="true"></i>
+        <h1 class="mt-4 text-lg font-semibold text-ink">{{ 'drive.disabled_title'|trans }}</h1>
+        <p class="mt-2 text-sm text-ink-muted">{{ 'drive.disabled_notice'|trans }}</p>
+    </div>
+{% endblock %}

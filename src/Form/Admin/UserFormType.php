@@ -9,6 +9,7 @@ use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -16,6 +17,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\PositiveOrZero;
 
 /**
  * Creating and editing a user, as an administrator.
@@ -91,6 +93,23 @@ final class UserFormType extends AbstractType
             'mapped'   => false,
             'required' => false,
             'data'     => in_array(User::ROLE_ADMIN, $options['data']?->getRoles() ?? [], true),
+        ]);
+
+        // Drive storage for this person. Unmapped — kept in the
+        // user's settings by DrivePolicy; the controller fills and saves them.
+        $builder->add('driveQuotaMb', IntegerType::class, [
+            'label'       => 'admin.users.field.drive_quota',
+            'help'        => 'admin.users.field.drive_quota_help',
+            'mapped'      => false,
+            'required'    => false,
+            'constraints' => [new PositiveOrZero()],
+            'attr'        => ['min' => 0, 'step' => 1, 'placeholder' => 'admin.users.field.drive_quota_default'],
+        ]);
+        $builder->add('driveDisabled', CheckboxType::class, [
+            'label'    => 'admin.users.field.drive_disabled',
+            'help'     => 'admin.users.field.drive_disabled_help',
+            'mapped'   => false,
+            'required' => false,
         ]);
     }
 

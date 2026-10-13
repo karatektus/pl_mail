@@ -1,0 +1,138 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/drive/_frame.html.twig — Admin → Drive.
+
+Accepts:
+  settings  {defaultQuotaMb, maxFileMb}  (0 quota = unlimited)
+  phpLimit  bytes PHP itself accepts per upload
+  people    list of {user, used, files, override, quota, disabled}
+  reports   open DriveShareReport rows, newest first
+  owners    owner id => User (for the reports)
+  saved     '' | settings | user | report
+#}
+{% set input = 'mt-1 block w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink' %}
+{% set btn = 'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-colors cursor-pointer' %}
+
+<turbo-frame id="admin-drive">
+<div class="space-y-3">
+
+    {% if saved %}
+        <div class="px-3 py-2 rounded-lg bg-emerald-500/10 text-emerald-600 text-[13px]">{{ ('admin.drive.saved.' ~ saved)|trans }}</div>
+    {% endif %}
+
+    {# ── Limits ─────────────────────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-hard-drive text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.drive.limits.heading'|trans }}</h2>
+        </div>
+        <form method="post" action="{{ path('app_admin_drive_settings') }}" class="px-4 py-4 grid gap-4 sm:grid-cols-2">
+            <input type="hidden" name="_token" value="{{ csrf_token('admin_drive_settings') }}">
+            <div>
+                <label for="drive-default-quota" class="text-[13px] font-medium text-ink-soft">{{ 'admin.drive.limits.default_quota'|trans }}</label>
+                <input id="drive-default-quota" type="number" min="0" step="1" name="defaultQuotaMb" value="{{ settings.defaultQuotaMb }}" class="{{ input }}">
+                <p class="mt-1 text-xs text-ink-faint">{{ 'admin.drive.limits.default_quota_help'|trans }}</p>
+            </div>
+            <div>
+                <label for="drive-max-file" class="text-[13px] font-medium text-ink-soft">{{ 'admin.drive.limits.max_file'|trans }}</label>
+                <input id="drive-max-file" type="number" min="1" step="1" name="maxFileMb" value="{{ settings.maxFileMb }}" class="{{ input }}">
+                <p class="mt-1 text-xs text-ink-faint">
+                    {{ 'admin.drive.limits.max_file_help'|trans({'%php%': phpLimit > 0 ? phpLimit|drive_size : '∞'}) }}
+                </p>
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" class="{{ btn }} bg-accent text-accent-ink hover:bg-accent-strong">
+                    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>{{ 'admin.drive.save'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# ── Reported links ─────────────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-flag text-xs text-danger" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.drive.reports.heading'|trans }}</h2>
+            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full {{ reports is empty ? 'bg-raised text-ink-muted' : 'bg-danger/15 text-danger' }}">{{ reports|length }}</span>
+        </div>
+        {% if reports is empty %}
+            <p class="px-4 py-5 text-[13px] text-ink-muted">{{ 'admin.drive.reports.none'|trans }}</p>
+        {% else %}
+            <ul class="divide-y divide-line">
+                {% for report in reports %}
+                    {% set owner = owners[report.ownerId] ?? null %}
+                    <li class="px-4 py-3 space-y-2">
+                        <div class="flex flex-wrap items-center gap-2 text-sm">
+                            <span class="font-medium text-ink break-all">{{ report.fileName }}</span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-danger/10 text-danger">{{ ('drive.report.reasons.' ~ report.reason)|trans }}</span>
+                            <span class="text-xs text-ink-faint">{{ report.createdAt|date('Y-m-d H:i') }}</span>
+                        </div>
+                        <p class="text-xs text-ink-muted">
+                            {{ 'admin.drive.reports.owner'|trans }}: {{ owner ? owner.userIdentifier : '—' }}
+                            {% if report.reporterEmail %} · {{ 'admin.drive.reports.reporter'|trans }}: {{ report.reporterEmail }}{% endif %}
+                            {% if report.reporterIp %} · {{ report.reporterIp }}{% endif %}
+                        </p>
+                        {% if report.details %}
+                            <p class="text-[13px] text-ink-soft whitespace-pre-line">{{ report.details }}</p>
+                        {% endif %}
+                        <div class="flex flex-wrap gap-2">
+                            {% if report.share %}
+                                <a href="{{ path('app_share_access', {token: report.share.token}) }}" target="_blank" rel="noopener noreferrer"
+                                   class="{{ btn }} bg-field border border-field text-ink-soft hover:bg-hover">
+                                    <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i>{{ 'admin.drive.reports.open'|trans }}
+                                </a>
+                            {% endif %}
+                            {% for action, icon in {revoke: 'fa-link-slash', disable: 'fa-ban', dismiss: 'fa-check'} %}
+                                <form method="post" action="{{ path('app_admin_drive_report', {id: report.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('admin_drive_report_' ~ report.id) }}">
+                                    <input type="hidden" name="action" value="{{ action }}">
+                                    <button type="submit"
+                                            class="{{ btn }} {{ action == 'dismiss' ? 'bg-field border border-field text-ink-soft hover:bg-hover' : 'bg-danger/10 text-danger hover:bg-danger/20' }}">
+                                        <i class="fa-solid {{ icon }}" aria-hidden="true"></i>{{ ('admin.drive.reports.' ~ action)|trans }}
+                                    </button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    {# ── People ─────────────────────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-users text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.drive.people.heading'|trans }}</h2>
+        </div>
+        <p class="px-4 pt-3 text-xs text-ink-faint">{{ 'admin.drive.people.help'|trans }}</p>
+        <ul class="divide-y divide-line">
+            {% for row in people %}
+                <li class="px-4 py-3">
+                    <form method="post" action="{{ path('app_admin_drive_user', {id: row.user.id}) }}" class="flex flex-wrap items-end gap-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_drive_user_' ~ row.user.id) }}">
+                        <div class="min-w-0 flex-1 basis-48">
+                            <p class="text-sm font-medium text-ink truncate">{{ row.user.userIdentifier }}</p>
+                            <p class="text-xs text-ink-faint">
+                                {{ row.used|drive_size }} {{ 'admin.drive.people.of'|trans }} {{ row.quota is null ? '∞' : row.quota|drive_size }}
+                                · {{ 'admin.drive.people.files'|trans({'%count%': row.files}) }}
+                            </p>
+                        </div>
+                        <label class="text-xs text-ink-soft">
+                            {{ 'admin.drive.people.quota'|trans }}
+                            <input type="number" min="0" step="1" name="quotaMb" value="{{ row.override ?? '' }}"
+                                   placeholder="{{ 'admin.drive.people.default'|trans }}"
+                                   class="mt-1 block w-32 rounded-lg border border-line bg-raised px-2 py-1.5 text-sm text-ink">
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-xs text-ink-soft h-9">
+                            <input type="checkbox" name="disabled" value="1" {{ row.disabled ? 'checked' }}>
+                            {{ 'admin.drive.people.disabled'|trans }}
+                        </label>
+                        <button type="submit" class="{{ btn }} bg-field border border-field text-ink-soft hover:bg-hover">{{ 'admin.drive.save'|trans }}</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+</turbo-frame>
