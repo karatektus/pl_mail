@@ -107,6 +107,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
          data-compose--encryption-attachment-url-value="{{ path('app_mail_attachment', { id: 0 })|replace({ '/0': '/__ID__' }) }}?download=1"
          data-compose--encryption-sign-plain-value="{{ app.user.signPlainMail ? 'true' : 'false' }}"
          data-compose--encryption-block-partial-value="{{ app.user.blockPartialEncryption ? 'true' : 'false' }}"
+         data-compose--encryption-protect-subject-value="{{ app.user.protectSubject ? 'true' : 'false' }}"
          data-compose--encryption-attach-key-value="{{ app.user.attachPublicKey ? 'true' : 'false' }}"
          data-compose--encryption-keyring-value="{{ {
              stateUrl:    path('app_keyring_state'),

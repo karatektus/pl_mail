@@ -1118,6 +1118,22 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';
     public const string SETTING_CRYPTO_BLOCK_PARTIAL = 'crypto.block_partial';
 
+    /**
+     * protect subject  ON:  an encrypted message carries its subject inside the
+     *                       encryption, and the outside says "..." (RFC 9788,
+     *                       what Thunderbird does by default). A recipient
+     *                       whose program cannot read it sees "...".
+     */
+    public const string SETTING_CRYPTO_PROTECT_SUBJECT = 'crypto.protect_subject';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_PROTECT_SUBJECT. */
+    public bool $protectSubject {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, $on ? null : false);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
     public bool $autocryptHeader {
         get => false !== $this->getSetting(self::SETTING_CRYPTO_AUTOCRYPT, true);

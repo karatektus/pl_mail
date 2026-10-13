@@ -58,6 +58,8 @@ Variables:
         </p>
         {% if encrypted %}
             <p class="text-xs text-ink-muted break-words" data-mail--encrypted-message-target="signature" hidden></p>
+            {# The subject the sender encrypted (RFC 9788): the outside said "...". #}
+            <p class="text-xs text-ink-muted break-words" data-mail--encrypted-message-target="subject" data-testid="crypto-subject" hidden></p>
         {% elseif signer %}
             <p class="text-xs text-ink-muted break-words">{{ 'message.crypto.signer'|trans({ '%signer%': signer }) }}</p>
         {% endif %}

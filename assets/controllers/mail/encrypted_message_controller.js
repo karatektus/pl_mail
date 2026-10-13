@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { csrfToken } from "../../csrf.js";
 import { keyring } from "../../crypto/keyring.js";
-import { openEncrypted } from "../../crypto/message.js";
+import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
 
 /**
  * Shows an OpenPGP-encrypted message: opens the keyring, fetches the raw
@@ -34,7 +34,7 @@ import { openEncrypted } from "../../crypto/message.js";
  *   attachments  — where the decrypted attachments are listed
  */
 export default class extends Controller {
-    static targets = ["status", "signature", "signatureActions", "frameHost", "frame", "text", "attachments"];
+    static targets = ["subject", "status", "signature", "signatureActions", "frameHost", "frame", "text", "attachments"];
 
     static values = {
         rawUrl: String,
@@ -47,6 +47,7 @@ export default class extends Controller {
         // decrypted message goes once it has been opened here. See
         // App\Controller\Mail\DecryptedMailController::upload().
         uploadUrl: { type: String, default: "" },
+        outerSubject: { type: String, default: "" },
     };
 
     #observer = null;
@@ -148,6 +149,7 @@ export default class extends Controller {
 
         this.statusTarget.hidden = true;
         this.#keep(opened.mime);
+        this.#showSubject(opened.subject);
         this.#showSignature(opened.signature);
         this.#showAttachments(opened.attachments);
 
@@ -173,6 +175,29 @@ export default class extends Controller {
         const response = await fetch(this.senderKeysUrlValue, { headers: { Accept: "application/json" }, cache: "no-store" }).catch(() => null);
 
         return null === response || false === response.ok ? [] : response.json().catch(() => []);
+    }
+
+    /**
+     * The subject the sender encrypted (RFC 9788), when the outside said
+     * something else — "..." for Thunderbird and plMail. Said in the banner,
+     * and put in the conversation's heading where that heading is only the
+     * placeholder.
+     */
+    #showSubject(subject) {
+        if (null === subject || undefined === subject || subject === this.outerSubjectValue) {
+            return;
+        }
+
+        if (true === this.hasSubjectTarget) {
+            this.subjectTarget.textContent = this.messagesValue.subject.replace("%subject%", subject);
+            this.subjectTarget.hidden = false;
+        }
+
+        const heading = document.querySelector("[data-thread-subject]");
+
+        if (null !== heading && true === isPlaceholder(heading.textContent)) {
+            heading.textContent = subject;
+        }
     }
 
     /**

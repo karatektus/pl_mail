@@ -133,6 +133,7 @@ Variables:
     {% elseif encryptedPgp %}
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: '<!--plmail:body-->' } only %}{% endset %}
         <div data-controller="mail--encrypted-message"
+             data-mail--encrypted-message-outer-subject-value="{{ message.subject }}"
              data-mail--encrypted-message-raw-url-value="{{ path('app_mail_message_raw', { id: message.id }) }}"
              data-mail--encrypted-message-upload-url-value="{{ keeps_decrypted(message.account) ? path('app_mail_decrypted_upload', { id: message.id }) : '' }}"
              data-mail--encrypted-message-sender-keys-url-value="{{ path('app_contact_keys_sender', { email: message.fromAddress }) }}"
@@ -153,6 +154,7 @@ Variables:
                  noKey:        'message.crypto.no_key'|trans,
                  noSource:     'message.crypto.no_source'|trans,
                  failed:       'message.crypto.failed'|trans,
+                 subject:      'message.crypto.subject'|trans({ '%subject%': '%subject%' }),
                  signature: {
                      valid:       'message.crypto.inner.valid'|trans,
                      invalid:     'message.crypto.inner.invalid'|trans,

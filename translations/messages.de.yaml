@@ -2140,6 +2140,9 @@ encryption:
         block_partial:
             label: Nicht senden, wenn nicht alle verschlüsselt erreichbar sind
             hint: "Aus: Eine solche Mail geht unverschlüsselt an alle, mit einem Hinweis im Schreibfenster. An: Sie wird erst gesendet, wenn du diese Empfänger entfernst oder die Verschlüsselung für sie ausschaltest."
+        protect_subject:
+            label: Betreff verschlüsseln
+            hint: "Der Betreff einer verschlüsselten Nachricht reist innerhalb der Verschlüsselung, außen steht nur „...“. Thunderbird und andere zeigen den echten Betreff; ein Programm, das das nicht kann, zeigt „...“."
     devices:
         empty: "Noch keine Geräte."
         heading: "Bekannte Geräte"
@@ -2488,6 +2491,7 @@ message:
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
     crypto:
+        subject: "Betreff: %subject%"
         encrypted_kept: "Verschlüsselt empfangen · auf diesem Server lesbar gespeichert"
         sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."
         action:

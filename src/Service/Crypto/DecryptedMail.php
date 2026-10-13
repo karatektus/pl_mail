@@ -7,6 +7,7 @@ namespace App\Service\Crypto;
 use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Calendar\EventProposal;
@@ -104,6 +105,19 @@ final readonly class DecryptedMail
         $message->bodyText = (string) $parsed->getTextBody();
         $message->bodyHtml = (string) $parsed->getHTMLBody();
 
+        // Header protection (RFC 9788): the outside said "...", and the real
+        // subject is in here. Taken for the row — and the conversation, while
+        // it is the placeholder too — so the list and search show it.
+        $innerSubject = trim(MimeHeaderHelper::decode((string) $parsed->getSubject()));
+
+        if ('' !== $innerSubject && true === self::isPlaceholder($message->subject)) {
+            $message->subject = $innerSubject;
+
+            if (null !== $message->thread && true === self::isPlaceholder($message->thread->subject)) {
+                $message->thread->subject = $innerSubject;
+            }
+        }
+
         foreach ($parsed->getAttachments() as $attachment) {
             // A signature made inside the encryption is not an attachment
             // anybody wants, any more than one made outside it is.
@@ -173,6 +187,17 @@ final readonly class DecryptedMail
             ->setParameter('message', $message)->execute();
 
         $this->changes->emailChanged((int) $message->account->id, (string) $message->id, false, $message->thread);
+    }
+
+    /**
+     * Whether a subject is only what a sender puts outside when the real one
+     * is encrypted — "..." from Thunderbird and plMail, "[...]" from RFC 9788,
+     * "Encrypted Message" from some others. The browser's isPlaceholder() in
+     * assets/crypto/message.js says the same.
+     */
+    public static function isPlaceholder(?string $subject): bool
+    {
+        return 1 === preg_match('/^\s*(\.\.\.|\[\.\.\.\]|encrypted message)\s*$/i', (string) $subject);
     }
 
     /**

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:4552ea31d57c99107176749aded6472770bd9ed8 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:cbcfe90d4e06fedc9f6e2febf671200ccb674154 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1311,6 +1311,12 @@ der Nachricht und legt deine Content-*-Header und den Body **Byte für Byte** au
 eine Signatur darüber hält. Dieselbe Prüfung läuft beim Versand noch einmal; änderst du die
 Empfänger, wird nicht gesendet. Rückgängig und geplanter Versand funktionieren wie bei jeder
 Submission.
+
+**Verschlüsselte Betreffs (RFC 9788).** Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
+verschlüsselte Entität, markiert mit `protected-headers="v1"`, und schickt außen `...` als Betreff.
+Lies nach dem Entschlüsseln den inneren `Subject` und zeig ihn statt eines äußeren `...` (oder
+`[...]`); fülle damit den Betreff einer Antwort. Beim Senden genauso: die inneren Header in deiner
+Entität, `Subject: ...` auf der Nachricht, die du importierst.
 
 **Konten, die entschlüsselte Mails behalten.** Ist `keepsDecryptedMail` true, arbeite
 `DecryptedMail/pending` ab (`{accountId, limit}` → `ids`): Lade den Blob jeder Email, entschlüssele,

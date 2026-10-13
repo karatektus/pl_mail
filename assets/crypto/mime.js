@@ -30,9 +30,57 @@ const encoder = new TextEncoder();
  * @param {Array<{filename: string, contentType: string, bytes: Uint8Array}>} [message.attachments]
  * @param {Array<{contentId: string, contentType: string, bytes: Uint8Array}>} [message.related]
  *        images the HTML references as `cid:` (see extractInlineImages())
+ * @param {?Object<string, string>} [message.protectedHeaders]
+ *        header fields to carry inside the entity (RFC 9788 header protection):
+ *        name → value, encoded here. The entity is then marked
+ *        `protected-headers="v1"`, which is what Thunderbird and others read.
  * @returns {string} the entity: its headers, a blank line, its body
  */
-export function buildEntity({ html, text, attachments = [], related = [] }) {
+export function buildEntity({ html, text, attachments = [], related = [], protectedHeaders = null }) {
+    const entity = buildBody({ html, text, attachments, related });
+
+    if (null === protectedHeaders) {
+        return entity;
+    }
+
+    const [first, ...rest] = entity.split(CRLF);
+    const fields = Object.entries(protectedHeaders)
+        .filter(([, value]) => "" !== String(value ?? "").trim())
+        .map(([name, value]) => `${name}: ${encodeHeader(value)}`);
+
+    return [...fields, `${first}; protected-headers="v1"`, ...rest].join(CRLF);
+}
+
+/**
+ * A header value as it may stand in a message: as it is when it is plain
+ * printable ASCII, otherwise as RFC 2047 encoded-words of at most 75
+ * characters each, folded onto continuation lines.
+ */
+export function encodeHeader(value) {
+    const text = String(value).replace(/[\r\n]+/g, " ").trim();
+
+    if (/^[\x20-\x7e]*$/.test(text)) {
+        return text;
+    }
+
+    const words = [];
+    let chunk = "";
+
+    for (const character of text) {
+        if (encoder.encode(chunk + character).length > 45) {
+            words.push(chunk);
+            chunk = "";
+        }
+
+        chunk += character;
+    }
+
+    words.push(chunk);
+
+    return words.map((word) => `=?UTF-8?B?${bytesToBase64(encoder.encode(word))}?=`).join(`${CRLF} `);
+}
+
+function buildBody({ html, text, attachments, related }) {
     const textPart = leaf("text/plain; charset=utf-8", encoder.encode(normalise(text ?? "")));
     let body = textPart;
 

@@ -114,6 +114,33 @@ test.describe("writing encrypted mail", () => {
         expect(sent.bodyText).toContain("Readable, and provably mine.");
     });
 
+    test("keeps the subject inside the encryption, and shows it again where the key is", async ({ page }) => {
+        const email = await person(page);
+        const subject = `Pumpkin plans ${Date.now()}`;
+
+        await compose(page, [OWN], subject, "The pumpkins arrive on Friday.");
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeVisible();
+        await page.locator(`${DOCK} [data-compose-send-pill="bar"] [data-compose--compose-target="sendBtn"]`).click();
+        await expect.poll(() => held(email, subject)?.entity ?? null, { timeout: 15000 }).not.toBeNull();
+
+        const sent = held(email, subject)!;
+
+        expect(sent.seal?.protectedSubject).toBe(true);
+        expect(sent.entity).not.toContain("Pumpkin");
+
+        // Delivered the way it leaves: "..." outside, the subject within.
+        consoleCommand(`app:test:seed-crypto-mail --email=${email} --subject="..." --raw-base64=${Buffer.from(`From: ${OWN}\r\nTo: ${OWN}\r\nSubject: ...\r\nMIME-Version: 1.0\r\n${sent.entity}`, "utf8").toString("base64")}`);
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, "...").first().click();
+
+        await expect(page.getByTestId("crypto-subject")).toContainText(subject, { timeout: 15000 });
+        await expect(page.locator("[data-thread-subject]")).toHaveText(subject);
+
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+        await expect(page.locator(`#compose_inline [data-compose--compose-target="subject"]`)).toHaveValue(`Re: ${subject}`, { timeout: 15000 });
+    });
+
     test("opens a sealed draft again in the editor", async ({ page }) => {
         const email = await person(page);
         const subject = `Sealed draft ${Date.now()}`;
@@ -203,7 +230,7 @@ type Held = {
     bodyText: string | null;
     bodyHtml: string | null;
     sealedDraft: boolean;
-    seal: { kind: string; recipients: string[]; fingerprints: string[] } | null;
+    seal: { kind: string; recipients: string[]; fingerprints: string[]; protectedSubject?: boolean } | null;
     draft: string | null;
     entity: string | null;
     parts: Array<{ name: string; sealed: boolean }>;

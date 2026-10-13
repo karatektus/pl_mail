@@ -40,6 +40,9 @@ use Symfony\Component\Mime\Email;
  */
 class MessageSendService
 {
+    /** The outer subject of a message whose real one is encrypted. */
+    public const string PROTECTED_SUBJECT = '...';
+
     public function __construct(
         private readonly MailboxRepository       $mailboxRepository,
         private readonly EntityManagerInterface  $em,
@@ -317,6 +320,13 @@ class MessageSendService
         $subject = $message->subject;
         if (null === $subject) {
             $subject = '';
+        }
+
+        // Header protection (RFC 9788): the browser put the real subject
+        // inside the encryption, and the outside says only what Thunderbird
+        // and others show for it. The row keeps the subject the person wrote.
+        if (true === ($message->outgoingSeal['protectedSubject'] ?? false)) {
+            $subject = self::PROTECTED_SUBJECT;
         }
 
         $fromAddress = $message->fromAddress;

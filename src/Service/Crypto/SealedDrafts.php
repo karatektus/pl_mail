@@ -88,7 +88,7 @@ final readonly class SealedDrafts
             return;
         }
 
-        $this->acceptBuilt($message, $entity, (string) ($sealed['kind'] ?? ''), (string) ($sealed['fingerprints'] ?? ''), (string) ($sealed['signer'] ?? ''));
+        $this->acceptBuilt($message, $entity, (string) ($sealed['kind'] ?? ''), (string) ($sealed['fingerprints'] ?? ''), (string) ($sealed['signer'] ?? ''), '1' === ($sealed['protectedSubject'] ?? null));
     }
 
     /** The sealed draft, for the composer to open again. */
@@ -135,7 +135,7 @@ final readonly class SealedDrafts
         $message->outgoingSeal = null;
     }
 
-    private function acceptBuilt(Message $message, string $entity, string $kind, string $fingerprints, string $signer): void
+    private function acceptBuilt(Message $message, string $entity, string $kind, string $fingerprints, string $signer, bool $protectedSubject = false): void
     {
         if (strlen($entity) > self::MAX_ENTITY_BYTES || false === in_array($kind, [SealGuard::KIND_ENCRYPTED, SealGuard::KIND_SIGNED, SealGuard::KIND_PLAIN], true)) {
             throw new SealRefused('compose.seal.refused');
@@ -165,6 +165,11 @@ final readonly class SealedDrafts
                 explode(',', $fingerprints),
             ), static fn (string $fingerprint): bool => 1 === preg_match('/^[0-9a-f]{40,64}$/', $fingerprint))),
             'signer'       => 1 === preg_match('/^[0-9a-f]{40,64}$/', strtolower($signer)) ? strtolower($signer) : '',
+            // The subject is inside the encryption (RFC 9788 header
+            // protection), so the outside says only "..." — see
+            // MessageSendService::buildEmail(). Encrypted mail only: a signed
+            // message's inside is readable by everyone anyway.
+            'protectedSubject' => true === $protectedSubject && SealGuard::KIND_ENCRYPTED === $kind,
         ];
 
         if (SealGuard::KIND_ENCRYPTED === $kind) {

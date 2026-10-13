@@ -63,7 +63,7 @@ export async function openEncrypted(raw, ring, contactKeys = []) {
     if (true === inline) {
         const text = decoder.decode(decrypted.data);
 
-        return { html: null, text, attachments: [], signature, mime: inlineEntity(text) };
+        return { html: null, text, attachments: [], signature, subject: null, mime: inlineEntity(text) };
     }
 
     const inner = await PostalMime.parse(decrypted.data);
@@ -79,6 +79,9 @@ export async function openEncrypted(raw, ring, contactKeys = []) {
         // than as an OpenPGP packet. Said as unchecked for now rather than
         // checked badly: the bytes it covers are not what postal-mime returns.
         signature: signature ?? ((inner.attachments ?? []).some(isSignaturePart) ? { state: "unchecked", signer: null } : null),
+        // The subject the sender put inside the encryption (RFC 9788 header
+        // protection), when they did; the outside then says only "...".
+        subject: "string" === typeof inner.subject && "" !== inner.subject.trim() ? inner.subject.trim() : null,
         // The decrypted inner message, whole: what an account that keeps
         // decrypted mail on the server is handed (App\Service\Crypto\DecryptedMail).
         mime: decrypted.data,
@@ -91,6 +94,15 @@ export async function openEncrypted(raw, ring, contactKeys = []) {
  */
 function inlineEntity(text) {
     return new TextEncoder().encode(`Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n${text.replace(/\r\n|\r|\n/g, "\r\n")}`);
+}
+
+/**
+ * Whether a subject is only the placeholder a sender puts outside when the
+ * real one is encrypted (RFC 9788 header protection): "..." from Thunderbird
+ * and plMail, "[...]" from the RFC, "Encrypted Message" from some others.
+ */
+export function isPlaceholder(subject) {
+    return /^\s*(\.\.\.|\[\.\.\.\]|encrypted message)\s*$/i.test(String(subject ?? ""));
 }
 
 // ── Private ─────────────────────────────────────────────────────────────────

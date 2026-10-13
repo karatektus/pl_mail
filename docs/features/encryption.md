@@ -260,8 +260,14 @@ the next save replaced it. Add the recipients first, or press the lock before yo
 sent.** Saving it would leave it readable on the server. The compose window says so; open your keys
 in Settings → Encryption, or switch encryption off for that message.
 
-**The subject is not encrypted.** Neither are the sender, the recipients or the date: mail needs
-them on the outside to be delivered.
+**The subject is encrypted; the sender, the recipients and the date are not.** Mail needs those on
+the outside to be delivered. An encrypted message's subject travels inside the encryption, and the
+outside says "..." — what Thunderbird does too (RFC 9788). A recipient whose mail program cannot
+read it sees "...". Switch it off under *Sending* → **Encrypt the subject**. Your own plMail server
+still knows the subjects you write, as it knows every draft's.
+
+**A subject encrypted by the sender reads "..." in the list.** It shows in full when you open the
+message, and in a reply. With *Decrypted mail on this server* on, the list shows it too.
 
 **An encrypted draft opens only in a browser with your keys.** The Android app and other mail
 programs see it without a body.

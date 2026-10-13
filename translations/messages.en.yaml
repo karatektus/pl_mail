@@ -2135,6 +2135,9 @@ encryption:
         block_partial:
             label: Refuse to send when not everybody can be reached encrypted
             hint: "Off: such a message goes out unencrypted to everybody, with a note in the compose window. On: it is not sent until you remove those recipients or switch encryption off for it."
+        protect_subject:
+            label: Encrypt the subject
+            hint: "The subject of an encrypted message travels inside the encryption, and the outside says only “...”. Thunderbird and others show the real subject; a program that cannot shows “...”."
     devices:
         empty: "No devices yet."
         heading: "Known devices"
@@ -2485,6 +2488,7 @@ message:
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
     crypto:
+        subject: "Subject: %subject%"
         encrypted_kept: "Encrypted on arrival · stored readable on this server"
         sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
         action:

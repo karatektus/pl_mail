@@ -3,7 +3,7 @@ import { csrfToken } from "../../csrf.js";
 import { keyring } from "../../crypto/keyring.js";
 import { buildEntity, extractInlineImages, fromDataUri } from "../../crypto/mime.js";
 import { encryptEntity, openDraft, openFile, ownKeyEntryFor, sealDraft, sealFile, signEntity } from "../../crypto/compose.js";
-import { openEncrypted } from "../../crypto/message.js";
+import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
 
 /**
  * Encryption in the compose window: whether this message will go out
@@ -47,6 +47,7 @@ export default class extends Controller {
         mode: { type: String, default: "auto" },
         sealed: Boolean,
         signPlain: Boolean,
+        protectSubject: { type: Boolean, default: true },
         blockPartial: Boolean,
         attachKey: Boolean,
         messages: Object,
@@ -162,7 +163,17 @@ export default class extends Controller {
         const images = true === plain || null === html
             ? { html: null, related: [] }
             : await extractInlineImages(html, (src) => this.#loadImage(src));
-        const entity = buildEntity({ html: images.html, text, attachments, related: images.related });
+        // RFC 9788: the subject travels inside the encryption, the outside
+        // says "..." (MessageSendService). Not for inline PGP, which has no
+        // headers inside to carry it in.
+        const protect = "encrypted" === plan.kind && true === this.protectSubjectValue && false === inline;
+        const entity = buildEntity({
+            html: images.html,
+            text,
+            attachments,
+            related: images.related,
+            protectedHeaders: true === protect ? this.#protectedHeaders(plan) : null,
+        });
 
         const fields = { "sealed[kind]": plan.kind };
 
@@ -179,6 +190,10 @@ export default class extends Controller {
             fields["sealed[entity]"] = sealed.entity;
             fields["sealed[fingerprints]"] = sealed.fingerprints.join(",");
             fields["sealed[signer]"] = signer.fingerprint;
+
+            if (true === protect) {
+                fields["sealed[protectedSubject]"] = "1";
+            }
         } else if ("signed" === plan.kind) {
             fields["sealed[entity]"] = await signEntity({ ring: this.#ring, entity, signer });
             fields["sealed[signer]"] = signer.fingerprint;
@@ -342,6 +357,8 @@ export default class extends Controller {
                 const opened = await openEncrypted(new Uint8Array(await response.arrayBuffer()), this.#ring);
                 const holder = document.createElement("div");
 
+                this.#replySubject(opened.subject);
+
                 if (null !== opened.html) {
                     holder.innerHTML = await this.#clean(opened.html);
                 } else {
@@ -356,6 +373,22 @@ export default class extends Controller {
         }
 
         this.#htmlInput().value = this.#editor().innerHTML;
+    }
+
+    /**
+     * A reply to a message whose subject was encrypted (RFC 9788) opened with
+     * "Re: ...": the real subject goes in, now that it can be read.
+     */
+    #replySubject(subject) {
+        const input = this.#subjectInput();
+        const match = /^((?:re|fwd?|aw|wg):\s*)(.*)$/i.exec(input?.value ?? "");
+
+        if (null === subject || null === match || false === isPlaceholder(match[2])) {
+            return;
+        }
+
+        input.value = `${match[1]}${subject}`;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
     #scheduleRefresh() {
@@ -533,6 +566,22 @@ export default class extends Controller {
         }
 
         return [...emails];
+    }
+
+    /** What goes inside for header protection: the subject, and who it is from and to. */
+    #protectedHeaders(plan) {
+        const rows = (name) => this.#recipients([name]).join(", ");
+
+        return {
+            Subject: this.#subjectInput()?.value ?? "",
+            From: this.#sender?.email ?? "",
+            To: rows("to"),
+            Cc: rows("cc"),
+        };
+    }
+
+    #subjectInput() {
+        return this.element.querySelector("[data-compose--compose-target='subject']");
     }
 
     #signer() {

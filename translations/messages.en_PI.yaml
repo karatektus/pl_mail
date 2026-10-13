@@ -2019,6 +2019,9 @@ encryption:
         block_partial:
             label: Hold the letter when not all hands can be reached in cipher
             hint: "Nay: such a letter sails open to all, with a note in the writin' window. Aye: it stays in port till ye strike those hands or sail it without cipher."
+        protect_subject:
+            label: Cipher the subject line too
+            hint: "The subject of a ciphered letter sails inside the cipher, an' the outside says only “...”. Thunderbird an' the like show the real one; others show “...”."
     devices:
         empty: "No spyglasses yet."
         heading: "Known spyglasses"
@@ -2367,6 +2370,7 @@ message:
         failed_for: "Ne'er made port at %recipient%."
         reported_at: "Word came back %datetime%"
     crypto:
+        subject: "Subject: %subject%"
         encrypted_kept: "Came aboard in cipher · kept readable on this ship"
         sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
         action:

@@ -1195,6 +1195,12 @@ from the message and puts your Content-* headers and body on the wire **byte for
 signature over them holds. The same check runs again when it leaves; change the recipients and it is
 not sent. Undo and scheduled send work as for any submission.
 
+**Encrypted subjects (RFC 9788).** The web app puts `Subject`, `From`, `To` and `Cc` inside the
+encrypted entity, marked `protected-headers="v1"`, and sends `...` as the outer subject. Read the
+inner `Subject` after decrypting and show it instead of an outer `...` (or `[...]`); fill a reply's
+subject from it. When you send, do the same: the inner headers in your entity, `Subject: ...` on the
+message you import.
+
 **Accounts that keep decrypted mail.** When `keepsDecryptedMail` is true, work through
 `DecryptedMail/pending` (`{accountId, limit}` → `ids`): download each Email's blob, decrypt, upload
 the **inner MIME message whole**, and hand it over with `DecryptedMail/store`

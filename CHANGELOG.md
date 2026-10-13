@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The subject of an encrypted message is encrypted too.** It travels inside the encryption, and the
+outside says "..." — as Thunderbird does (RFC 9788). Opening the message shows the real subject,
+and a reply starts from it; with *Decrypted mail on this server* on, the list shows it as well. Switch
+it off under Settings → Encryption → *Sending* → **Encrypt the subject**. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Signing out holds.** A page's background requests that were still on their way when you pressed
 Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
 the server, one per device, and signing out deletes this device's; other devices stay signed in.

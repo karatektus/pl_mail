@@ -364,6 +364,17 @@ Switching off queues `ForgetDecryptedMailMessage` on `bulk`: bodies, attachments
 embeddings, thread summaries, insights and proposals of every such message go. Calendar events
 already created stay.
 
+## Encrypted subjects
+
+Phase 6b of issue #28, RFC 9788 header protection. The composer puts `Subject`, `From`, `To` and
+`Cc` inside the encrypted entity and marks it `protected-headers="v1"` (`assets/crypto/mime.js`),
+and posts `sealed[protectedSubject]`; `MessageSendService` then writes the outer subject as `...`.
+The row keeps the real one: the server already knew it from the draft. Reading,
+`openEncrypted()` returns the inner subject, which the banner and a placeholder heading show and a
+reply's `Re: ...` is completed with; `DecryptedMail` takes it for the row when the account keeps
+decrypted mail. Header protection is for encrypted mail only — a signed message's inside is as
+readable as its outside.
+
 ## Native clients and the keyring
 
 Phase 6 of issue #28: `urn:plmail:params:jmap:keys` gives an app password what the browser session

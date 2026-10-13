@@ -134,6 +134,46 @@ final class SealedSendTest extends WebTestCase
         self::assertNull($storage->read($id, SealedMessageStorage::OUTGOING));
     }
 
+    /**
+     * Header protection (RFC 9788): the subject is inside the encryption, so
+     * the outside says "..." — and the row keeps the one the person wrote.
+     */
+    public function testAProtectedSubjectStaysInsideTheEncryption(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'draft'            => self::DRAFT,
+            'entity'           => $this->encryptedEntity(),
+            'kind'             => 'encrypted',
+            'fingerprints'     => $this->key->fingerprint,
+            'protectedSubject' => '1',
+        ], body: '');
+
+        $this->runHandler($id);
+
+        self::assertMatchesRegularExpression('/^Subject: \.\.\.\r$/m', $this->sent[0]->toString());
+        self::assertStringNotContainsString('Sealed subject', $this->sent[0]->toString());
+        self::assertSame('Sealed subject', $this->reload($id)->subject);
+    }
+
+    public function testASignedMessageCannotHideItsSubject(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'entity'           => "Content-Type: text/plain; charset=utf-8\r\n\r\nSigned, and readable.",
+            'kind'             => 'plain',
+            'protectedSubject' => '1',
+        ], body: '<p>Signed, and readable.</p>');
+
+        $this->runHandler($id);
+
+        self::assertStringContainsString('Subject: Sealed subject', $this->sent[0]->toString());
+    }
+
     public function testASealedDraftWithNothingBuiltForItIsNotSent(): void
     {
         $client  = static::createClient();

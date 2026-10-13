@@ -141,6 +141,7 @@ final readonly class ConfigBackupUsers
         User::SETTING_CRYPTO_ATTACH_KEY,
         User::SETTING_CRYPTO_SIGN_PLAIN,
         User::SETTING_CRYPTO_BLOCK_PARTIAL,
+        User::SETTING_CRYPTO_PROTECT_SUBJECT,
         // Whether any of the person's accounts keeps decrypted mail: carried
         // with the accounts' own switches above, which it summarises.
         User::SETTING_KEEPS_DECRYPTED_ANY,

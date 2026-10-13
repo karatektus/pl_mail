@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:ee81d6cab97db49452b3802a9bf24b69687cacd6 -->
+<!-- translated-from: internals/security-model.md sha1:9f34a87e63cf9d51eeb7389dfeac5241b904c681 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -401,6 +401,18 @@ oder Loopback-Bereiche auflöst oder dem Host entspricht, dem die Person namentl
 Ausschalten reiht `ForgetDecryptedMailMessage` auf `bulk` ein: Bodys, Anhänge, die entschlüsselte
 Kopie, Embeddings, Thread-Zusammenfassungen, Insights und Vorschläge aller solcher Nachrichten
 werden gelöscht. Schon angelegte Kalendertermine bleiben.
+
+## Verschlüsselte Betreffs
+
+Phase 6b von Issue #28, Header-Schutz nach RFC 9788. Das Schreibfenster legt `Subject`, `From`, `To`
+und `Cc` in die verschlüsselte Entität, markiert sie mit `protected-headers="v1"`
+(`assets/crypto/mime.js`) und schickt `sealed[protectedSubject]`; `MessageSendService` schreibt den
+äußeren Betreff dann als `...`. Die Zeile behält den echten: Der Server kannte ihn schon aus dem
+Entwurf. Beim Lesen liefert `openEncrypted()` den inneren Betreff, den der Banner und eine
+Platzhalter-Überschrift zeigen und mit dem ein `Re: ...` einer Antwort vervollständigt wird;
+`DecryptedMail` übernimmt ihn für die Zeile, wenn das Konto entschlüsselte Mails behält. Header-Schutz
+gibt es nur für verschlüsselte Mails — das Innere einer signierten Nachricht ist so lesbar wie ihr
+Äußeres.
 
 ## Native Clients und der Schlüsselbund
 

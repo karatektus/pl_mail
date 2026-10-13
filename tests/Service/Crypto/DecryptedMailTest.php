@@ -82,6 +82,17 @@ final class DecryptedMailTest extends KernelTestCase
         );
     }
 
+    /** RFC 9788: the outside said "...", and the subject the list shows is the real one. */
+    public function testAProtectedSubjectReplacesThePlaceholder(): void
+    {
+        $message = $this->encrypted();
+        $message->subject = '...';
+
+        $this->decryptedMail()->accept($message, "Subject: =?UTF-8?B?" . base64_encode('Kürbis plans') . "?=\r\nContent-Type: text/plain; charset=utf-8; protected-headers=\"v1\"\r\n\r\nThe pumpkin is ready.");
+
+        self::assertSame('Kürbis plans', $message->subject);
+    }
+
     public function testAnAccountThatDoesNotKeepDecryptedMailIsRefused(): void
     {
         $this->account->keepDecrypted = false;

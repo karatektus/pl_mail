@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:986a7affe7bfdc8497c03b39cd875e1b9be7b15e -->
+<!-- translated-from: features/encryption.md sha1:9c1962e061a2bf0382e246d27edc9996ca435c1b -->
 
 # Verschlüsselung
 
@@ -289,8 +289,16 @@ werden soll, weder gespeichert noch gesendet.** Gespeichert läge sie lesbar auf
 Schreibfenster sagt es dir; öffne deine Schlüssel unter Einstellungen → Verschlüsselung oder schalte
 die Verschlüsselung für diese Nachricht aus.
 
-**Der Betreff wird nicht verschlüsselt.** Absender, Empfänger und Datum auch nicht: Eine Mail braucht
-sie außen, um zugestellt zu werden.
+**Der Betreff wird verschlüsselt; Absender, Empfänger und Datum nicht.** Die braucht eine Mail außen,
+um zugestellt zu werden. Der Betreff einer verschlüsselten Nachricht reist innerhalb der
+Verschlüsselung, außen steht „...“ — so macht es auch Thunderbird (RFC 9788). Ein Empfänger, dessen
+Mailprogramm ihn nicht lesen kann, sieht „...“. Ausschalten lässt es sich unter *Versand* →
+**Betreff verschlüsseln**. Dein eigener plMail-Server kennt die Betreffs, die du schreibst, weiterhin,
+wie er jeden Entwurf kennt.
+
+**Ein vom Absender verschlüsselter Betreff steht in der Liste als „...“.** Ganz zu sehen ist er, wenn
+du die Nachricht öffnest, und in einer Antwort. Mit *Entschlüsselte Mails auf diesem Server* zeigt ihn
+auch die Liste.
 
 **Ein verschlüsselter Entwurf öffnet sich nur in einem Browser mit deinen Schlüsseln.** Die
 Android-App und andere Mailprogramme sehen ihn ohne Text.
