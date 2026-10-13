@@ -127,6 +127,13 @@ import line in the background-work indicator now shows the quota, roughly how mu
 use, how many messages a minute are coming in, how long the rest of the import takes, and says
 so when Google has paused it. No
 migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+**A parcel, a code or a date in an Outlook mail was only found if it sat in the first few lines.**
+For an HTML mail, Microsoft Graph gives the text as a preview cut at 255 characters, and that
+preview is what the card extractors (parcels, codes, flights, tickets, invoices) read instead of
+the mail. A tracking number further down — in a Pickup or IKEA relay notice, say, or a GLS mail
+with the number under a heading — never produced a card. They now read the mail's HTML for an
+Outlook account, and the preview only when the HTML has no words in it. Mail already stored is
+read again by `app:backfill insights --since=…`. No migration.
 
 **The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
 icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a

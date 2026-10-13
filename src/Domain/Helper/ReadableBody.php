@@ -20,6 +20,15 @@ use App\Entity\Mail\Message;
  * wrote for exactly this purpose, and the fixtures every extractor is tested
  * against are plain text.
  *
+ * ONE EXCEPTION: a message that came through Microsoft Graph. Graph hands over
+ * an HTML mail's body as HTML and offers no plain part, so the sync stores
+ * Graph's `bodyPreview` in its place — and that preview is cut at 255
+ * characters. A tracking number, a code or a date further down the mail was
+ * never in the text at all, and every extractor read only the preview. For such
+ * a message the HTML is read, and the preview is what is left when the HTML
+ * has no words in it. A Graph mail with a text body has no HTML, so its full
+ * text is still what comes back.
+ *
  * WHAT IS REMOVED is more than tags. A mail's HTML carries a stylesheet, and
  * Outlook's conditional comments carry a second one; neither is prose, and a
  * stylesheet is full of numbers. So `<style>`, `<script>`, `<head>` and
@@ -41,6 +50,14 @@ final class ReadableBody
 {
     public static function of(Message $message): string
     {
+        if (null !== $message->graphId) {
+            $fromHtml = self::fromHtml((string) ($message->bodyHtmlSafe ?? $message->bodyHtml));
+
+            if ('' !== $fromHtml) {
+                return $fromHtml;
+            }
+        }
+
         $text = trim((string) $message->bodyText);
 
         if ('' !== $text) {

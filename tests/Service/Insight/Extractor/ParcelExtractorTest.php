@@ -66,6 +66,49 @@ final class ParcelExtractorTest extends TestCase
     }
 
     /**
+     * A mail synced through Microsoft Graph stores a 255-character preview as
+     * its text, so a number that sits further down was invisible to every
+     * extractor for as long as the text was what they read. This is the mail
+     * as the sync stores it: the number is in the HTML and not in the preview.
+     *
+     * Expected, by hand: the sender is Colissimo's notification domain, so the
+     * carrier is `colissimo`; "6A12345678901" is a digit, a letter and eleven
+     * digits, which is Colissimo's shape; neither the subject nor the body
+     * names a stage or promises a date, so the status is `announced` and there
+     * is no ETA; and La Poste's page is the tracking link.
+     */
+    public function testAGraphMailsNumberBeyondTheCutOffPreviewIsStillFound(): void
+    {
+        $lines = str_repeat('Lorem ipsum dolor sit amet. ', 12);
+        $plain = rtrim($lines) . "\nN° du colis 6A12345678901";
+
+        $message = self::message([
+            'from'     => 'noreply@notif-colissimo-laposte.info',
+            'fromName' => 'La Poste-Colissimo',
+            'subject'  => 'Votre colis arrive !',
+            'body'     => mb_substr($plain, 0, 255),
+            'html'     => '<p>' . rtrim($lines) . '</p><p>N° du colis 6A12345678901</p>',
+            'graphId'  => 'AAMkAD-colissimo',
+        ]);
+
+        self::assertStringNotContainsString('6A12345678901', (string) $message->bodyText, 'the fixture must hide the number from the preview');
+
+        $found = $this->extractor->extract($message);
+
+        self::assertCount(1, $found);
+        self::assertSame('Colissimo · 6A12345678901', $found[0]->title);
+        self::assertSame('6A12345678901', $found[0]->dedupeKey);
+        self::assertSame([
+            'carrier'        => 'colissimo',
+            'trackingNumber' => '6A12345678901',
+            'trackingUrl'    => 'https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901',
+            'merchant'       => null,
+            'status'         => 'announced',
+        ], $found[0]->payload);
+        self::assertNull($found[0]->happensAt);
+    }
+
+    /**
      * @param array<string, ?string>                                                                           $mail
      * @param list<array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}> $drafts
      */
@@ -1386,6 +1429,7 @@ final class ParcelExtractorTest extends TestCase
         $message->subject = $mail['subject'] ?? null;
         $message->bodyText = $mail['body'] ?? null;
         $message->bodyHtml = $mail['html'] ?? null;
+        $message->graphId = $mail['graphId'] ?? null;
         $message->receivedAt = new DateTimeImmutable(
             $mail['receivedAt'] ?? '2026-11-10 08:00:00',
             new DateTimeZone('UTC'),
