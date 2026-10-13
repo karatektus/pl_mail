@@ -8,6 +8,7 @@ use App\Domain\DTO\AddressBook\AddressBookChangeSet;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
+use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\AddressBook\ContactCard;
 use App\Repository\AddressBook\ContactCardRepository;
@@ -85,30 +86,68 @@ final readonly class AddressBookSync
         $pushed = 0;
 
         foreach ($this->cards->findPending($book) as $card) {
+            // Nothing in the UI lets this happen, so it is a book the server
+            // has since made read-only. The edit cannot go anywhere; the next
+            // pull puts the server's copy back. Checked before deletes as well
+            // as writes: a DELETE there is refused like any other write.
+            if (true === $book->isReadOnly) {
+                $this->logger->warning('CardDav: dropped a local edit to a read-only address book', [
+                    'addressBook' => $book->id,
+                    'card'        => $card->uid,
+                ]);
+                $this->letTheServerWin($card);
+                ++$pushed;
+
+                continue;
+            }
+
             try {
                 if (SyncState::PendingDelete === $card->syncState) {
                     $this->driver->delete($book, $card);
                     $this->em->remove($card);
-                } elseif (true === $book->isReadOnly) {
-                    // Nothing in the UI lets this happen, so it is a book the
-                    // server has since made read-only. The edit cannot go
-                    // anywhere; the next pull puts the server's copy back.
-                    $this->logger->warning('CardDav: dropped a local edit to a read-only address book', [
-                        'addressBook' => $book->id,
-                        'card'        => $card->uid,
-                    ]);
-                    $this->letTheServerWin($card);
                 } else {
-                    $written     = $this->driver->put($book, $card);
-                    $card->href  = $written['href'];
-                    $card->etag  = $written['etag'];
+                    $written         = $this->driver->put($book, $card);
+                    $card->href      = $written['href'];
+                    $card->etag      = $written['etag'];
                     $card->syncState = SyncState::Clean;
                 }
             } catch (CalendarResyncRequiredException $e) {
+                // Only a 412 is about this card. The same class also carries a
+                // 507 from CalDavClient::classify() — on a PUT that is the
+                // server's quota, not somebody else's edit — and letting the
+                // server win there would discard the edit for a reason that
+                // has nothing to do with it. Left pending, the sync fails, and
+                // the transport's retry offers it again.
+                if (412 !== $e->getStatus()) {
+                    throw $e;
+                }
+
                 $this->logger->warning('CardDav: the server changed a contact we had edited; keeping its version', [
                     'addressBook' => $book->id,
                     'card'        => $card->uid,
                     'name'        => $card->fullName,
+                ]);
+                $this->letTheServerWin($card);
+            } catch (CalendarSyncPermanentException $e) {
+                // A 403 on one card is the server refusing *this* write — most
+                // often a book whose privilege set was absent, so it was taken
+                // as writable (see CardDavDriver::isReadOnly()). Left pending,
+                // the same PUT would be refused on every run and the pull
+                // behind it would never happen again: one card would stop the
+                // whole book syncing. CalendarPusher::abandon() makes the same
+                // call for events. Every other permanent failure — a rejected
+                // password, an address refused by the SSRF guard — is about the
+                // connection, and the edit is kept for when it is fixed.
+                if (403 !== $e->getStatus()) {
+                    throw $e;
+                }
+
+                $this->logger->error('CardDav: the server refused a contact edit, giving up on it', [
+                    'addressBook' => $book->id,
+                    'card'        => $card->uid,
+                    'syncState'   => $card->syncState->value,
+                    'reason'      => $e->getMessage(),
+                    'discarded'   => $card->vcard,
                 ]);
                 $this->letTheServerWin($card);
             }

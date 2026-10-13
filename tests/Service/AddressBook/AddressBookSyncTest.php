@@ -6,6 +6,7 @@ namespace App\Tests\Service\AddressBook;
 
 use App\Domain\DTO\AddressBook\VCardFields;
 use App\Domain\Enum\Calendar\SyncState;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\AddressBook\ContactCard;
@@ -174,7 +175,7 @@ final class AddressBookSyncTest extends TestCase
         try {
             $this->sync($fixture);
             self::fail('a 500 on the push fails the sync');
-        } catch (\App\Domain\Exception\CalendarSyncException) {
+        } catch (CalendarSyncException) {
         }
 
         self::assertCount(2, $this->cards, 'nothing was pulled, so nothing was deleted');
@@ -249,6 +250,83 @@ final class AddressBookSyncTest extends TestCase
             self::assertSame([$card], $this->cards, $order);
             self::assertSame(self::BOOK . 'moved/ada.vcf', $card->href, $order);
         }
+    }
+
+    /**
+     * A 507 on a PUT is the server's quota, not somebody else's edit. Only a
+     * 412 lets the server win; anything else keeps the edit for the retry.
+     */
+    public function testOnlyA412CountsAsAConflict(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->sync($this->server(CardDavFixture::report([], 'token-2'), pushFirst: [CalDavFixture::status(507)], syncToken: 'token-1'));
+            self::fail('a 507 on the push fails the sync');
+        } catch (CalendarSyncException) {
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState, 'the edit is still waiting to go out');
+        self::assertSame('Ada King', $card->fullName);
+    }
+
+    /**
+     * A card the server refuses to accept is given up on, so the pull behind
+     * it still runs — left pending, the same 403 would stop the whole book
+     * from syncing again.
+     */
+    public function testACardTheServerRefusesIsGivenUpOnAndTheBookStillSyncs(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"1"', 'vcard' => CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com')],
+            ], 'token-2'),
+            pushFirst: [CalDavFixture::status(403)],
+            syncToken: 'token-1',
+        );
+
+        $this->sync($fixture);
+
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertSame('Ada Lovelace', $card->fullName, 'the server\'s copy is back');
+        self::assertTrue($this->book->isHealthy());
+    }
+
+    /** A rejected password is the connection's problem; the edit waits for the fix. */
+    public function testARejectedPasswordKeepsTheEdit(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->syncWith(new CardDavFixture(CalDavFixture::status(401)));
+            self::fail('a 401 fails the sync');
+        } catch (CalendarSyncPermanentException) {
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState);
+    }
+
+    /** A book the server has since made read-only is not written to, deletes included. */
+    public function testNothingIsSentToABookThatBecameReadOnly(): void
+    {
+        $this->book->isReadOnly = true;
+        $card                   = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->syncState        = SyncState::PendingDelete;
+
+        $fixture = $this->server(CardDavFixture::report([
+            '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"1"', 'vcard' => CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com')],
+        ], 'token-2'), syncToken: 'token-1');
+
+        $this->sync($fixture);
+
+        self::assertSame('PROPFIND', $fixture->method(0), 'no DELETE went out');
+        self::assertSame([$card], $this->cards, 'the card is back');
+        self::assertSame(SyncState::Clean, $card->syncState);
     }
 
     public function testAPermanentFailureIsRecordedOnTheBookForTheSettingsList(): void
