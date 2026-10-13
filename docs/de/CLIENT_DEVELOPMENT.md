@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:cbcfe90d4e06fedc9f6e2febf671200ccb674154 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d005a842c23edbd9dbf5eaaf52cde926a803c5c3 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1253,7 +1253,7 @@ plMail eingestellt hat, ebenso die Beschriftungen in offenen Markierungen.
 
 ### Ende-zu-Ende-Verschlüsselung: `urn:plmail:params:jmap:keys`
 
-plMail verschlüsselt mit OpenPGP Ende zu Ende. **Der Server hat nie einen lesbaren Schlüssel und nie
+plMail verschlüsselt mit OpenPGP und S/MIME Ende zu Ende. **Der Server hat nie einen lesbaren Schlüssel und nie
 den Text einer verschlüsselten Nachricht**; deine App macht die Kryptografie selbst, wie die Web-App
 im Browser (Konzept: [Issue #28](https://github.com/karatektus/pl_mail/issues/28), Abschnitt 13).
 Diese Capability liefert, was du dafür brauchst. Das Capability-Objekt trägt die Konstanten;
@@ -1261,8 +1261,8 @@ Diese Capability liefert, was du dafür brauchst. Das Capability-Objekt trägt d
 
 **Jede Verpackung** ist `v1.<iv>.<chiffrat>`, beides Base64 (Standardalphabet), AES-256-GCM, mit dem
 **Zweck-String als Associated Data**: `purposes.userKey` für einen User-Key,
-`purposes.addressKeyToken` für das Token eines Adress-Keys, `purposes.pairingTransfer` für das
-Kopplungspaket.
+`purposes.addressKeyToken` für das Token eines Adress-Keys, `purposes.smimeKey` für einen privaten
+S/MIME-Schlüssel, `purposes.pairingTransfer` für das Kopplungspaket.
 
 **Die Schlüssel aufs Gerät bringen — Kopplung.** Hat der Browser, der den Kopplungs-QR-Code zeigt,
 den Schlüsselbund offen, trägt die URI den Übertragungsschlüssel im Fragment:
@@ -1312,7 +1312,26 @@ eine Signatur darüber hält. Dieselbe Prüfung läuft beim Versand noch einmal;
 Empfänger, wird nicht gesendet. Rückgängig und geplanter Versand funktionieren wie bei jeder
 Submission.
 
-**Verschlüsselte Betreffs (RFC 9788).** Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
+**S/MIME.** `Keyring/get` liefert außerdem `smimeCertificates: [{id, userKeyId, fingerprint,
+certificate, chain, privateKey, addresses, subject, issuer, notBefore, notAfter, status}]`: die
+eigenen Zertifikate der Person (PEM) mit ihren privaten PKCS#8-Schlüsseln, jeweils direkt unter dem
+User-Key `userKeyId` verpackt, mit `purposes.smimeKey`. `status` ist `active` oder `retired` (durch ein
+neueres Zertifikat ersetzt; damit entschlüsseln, nie damit signieren oder verschlüsseln).
+`ContactKey/lookup` antwortet für jeden Empfänger mit `smime: {fingerprint, certificate, verified,
+notAfter}` oder null — dem aktuellen, nicht abgelaufenen Zertifikat des Kontakts oder dem eigenen für
+die eigenen Adressen — und für den Absender mit `smime`, dem Fingerabdruck des Zertifikats für die
+Absenderadresse. Die Web-App verschlüsselt mit OpenPGP, wenn jeder Empfänger einen `key` hat, sonst mit
+S/MIME, wenn jeder Empfänger `smime` hat, der Absender eines hat und es kein Bcc gibt; mach es genauso.
+Ein S/MIME-`Email/import` wird an seinem Content-Type erkannt (`application/pkcs7-mime;
+smime-type=enveloped-data` oder `multipart/signed` mit `application/pkcs7-signature`): Gib in
+`fingerprints` die SHA-256-Fingerabdrücke der Zertifikate an, an die du verschlüsselt hast, und in
+`signer` den Fingerabdruck des Absender-Zertifikats — ein signierter oder verschlüsselter
+S/MIME-Import wird mit `forbidden` abgelehnt, wenn das nicht das aktive, nicht abgelaufene Zertifikat
+der Person für die Absenderadresse ist. Verschlüssele mit AES-256-CBC und RSA-Schlüsseltransport mit
+PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer, und signiere mit SHA-256 — so lesen es
+Outlook und Thunderbird.
+
+**Verschlüsselte Betreffs (RFC 9788). Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
 verschlüsselte Entität, markiert mit `protected-headers="v1"`, und schickt außen `...` als Betreff.
 Lies nach dem Entschlüsseln den inneren `Subject` und zeig ihn statt eines äußeren `...` (oder
 `[...]`); fülle damit den Betreff einer Antwort. Beim Senden genauso: die inneren Header in deiner

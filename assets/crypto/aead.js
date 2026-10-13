@@ -28,6 +28,9 @@ export const PURPOSE = Object.freeze({
     // The keyring for a device being paired, sealed under the transfer key in
     // the QR code (crypto/pairing.js). App\Service\User\DevicePairingService::TRANSFER_PURPOSE.
     pairing: "plmail/pairing-transfer",
+    // An S/MIME private key (PKCS#8), wrapped directly under a user key
+    // (crypto/smime.js, App\Entity\Crypto\SmimeCertificate).
+    smime: "plmail/smime-key",
 });
 
 const IV_BYTES = 12;

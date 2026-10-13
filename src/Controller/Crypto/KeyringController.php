@@ -10,6 +10,7 @@ use App\Domain\Exception\KeyringRefused;
 use App\Entity\User\User;
 use App\Service\Crypto\Keyring;
 use App\Service\Crypto\KeyringView;
+use App\Service\Crypto\SmimeCertificates;
 use App\Service\Demo\DemoMode;
 use Closure;
 use Psr\Log\LoggerInterface;
@@ -38,10 +39,11 @@ final class KeyringController extends AbstractController
     use ChecksCsrf;
 
     public function __construct(
-        private readonly Keyring         $keyring,
-        private readonly KeyringView     $view,
-        private readonly DemoMode        $demoMode,
-        private readonly LoggerInterface $logger,
+        private readonly Keyring           $keyring,
+        private readonly KeyringView       $view,
+        private readonly SmimeCertificates $smime,
+        private readonly DemoMode          $demoMode,
+        private readonly LoggerInterface   $logger,
     ) {
     }
 
@@ -135,6 +137,33 @@ final class KeyringController extends AbstractController
     {
         return $this->write($request, $user, function () use ($user, $id): void {
             $this->keyring->removeCopy($user, $id);
+        });
+    }
+
+    /**
+     * An S/MIME certificate from a PKCS#12 file the browser opened: the
+     * certificate and its chain as PEM, the private key wrapped under the
+     * user key named. See SmimeCertificates for what is refused.
+     */
+    #[Route('/smime', name: 'smime_import', methods: ['POST'])]
+    public function importSmime(Request $request, #[CurrentUser] User $user): JsonResponse
+    {
+        return $this->write($request, $user, function (array $body) use ($user): void {
+            $this->smime->import(
+                $user,
+                (int) ($body['userKeyId'] ?? 0),
+                (string) ($body['certificate'] ?? ''),
+                (string) ($body['chain'] ?? ''),
+                $body['privateKey'] ?? null,
+            );
+        });
+    }
+
+    #[Route('/smime/{id}/remove', name: 'smime_remove', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function removeSmime(Request $request, #[CurrentUser] User $user, int $id): JsonResponse
+    {
+        return $this->write($request, $user, function () use ($user, $id): void {
+            $this->smime->remove($user, $id);
         });
     }
 

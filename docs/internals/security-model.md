@@ -375,6 +375,55 @@ reply's `Re: ...` is completed with; `DecryptedMail` takes it for the row when t
 decrypted mail. Header protection is for encrypted mail only — a signed message's inside is as
 readable as its outside.
 
+## S/MIME
+
+Phase 6c of issue #28. The same division of labour as OpenPGP: the browser does the cryptography
+(`assets/crypto/smime.js`, PKI.js for the structures), the server stores what it cannot open and
+holds the rules.
+
+```
+own certificate  = X.509 PEM + chain, from a PKCS#12 file opened in the browser   // SmimeCertificate
+private key      = PKCS#8, AES-256-GCM-wrapped under the user key, purpose plmail/smime-key
+contact cert     = X.509 PEM from a good signature, current or changed            // ContactCertificate
+```
+
+**Import.** `POST /keyring/smime` (keyring token) takes the certificate, its chain and the wrapped
+key. `SmimeCertificates` reads the certificate with OpenSSL itself — fingerprint (SHA-256 of the DER),
+addresses (subjectAltName, emailAddress), dates — rather than taking the browser's word, and refuses
+a non-RSA key, a certificate for none of the person's addresses, and a wrapping that is not
+`v1.…`. A newer certificate covering the same addresses retires the older (`retired`: it decrypts,
+it never signs and is never encrypted to). The wrapped key sits under a user key, so a password
+change re-wraps nothing here, and removing a user key or the person removes it (`ON DELETE
+CASCADE`). The PKCS#12 password and the file never leave the browser.
+
+**Contacts' certificates.** Kept only from a signature that checked out and names the sender:
+`SignatureVerifier` (OpenSSL, signed mail) and `POST /contact-keys/message/{id}/smime-signer` (the
+browser, for a signature inside encrypted mail, which it verified with PKI.js; the server judges only
+the certificate it is sent, for the row's own sender, after the ownership voter). Trust
+(`ContactCertificates`): a certificate that chains to the system's authorities
+(`CertificateReader`, `openssl_get_cert_locations()` plus `SMIME_CA_FILE`) is `verified`, and a
+newer verified certificate replaces a verified or expired current one; everything else is trust on
+first use with the same partial unique index as contact keys (`uniq_contact_certificate_current`).
+There is no CRL or OCSP check.
+
+**Reading.** `openEncrypted()` takes the EnvelopedData (`smime.p7m`), opens it with the keyring's
+S/MIME keys and hands the inner entity to the same path OpenPGP uses: postal-mime, DOMPurify, the
+sandboxed frame, the decrypted-mail hand-over. RSA PKCS#1 v1.5 key transport is done with BigInt
+arithmetic, blinded, because WebCrypto has no PKCS#1 v1.5 encryption and it is what Outlook and
+Thunderbird send; RSA-OAEP goes through WebCrypto; content AES-CBC (128/192/256) through
+@noble/ciphers. 3DES and AuthEnvelopedData are not opened.
+
+**Sending.** The composer chooses OpenPGP when every recipient has a key, S/MIME when every
+recipient has a usable certificate, the sender has one for the From address and there is no Bcc. It
+signs (detached SignedData, RSA-SHA256, signer certificate and chain inside, multipart/signed with
+`micalg=sha-256`) and then envelopes to every recipient and the sender (AES-256-CBC, RSA PKCS#1 v1.5,
+recipients by issuer and serial number) and posts the entity with `sealed[scheme]=smime`.
+`SealedDrafts` refuses an entity whose outside is not S/MIME of the claimed kind
+(`MessageCryptoDetector`), and `SealGuard` checks — on arrival and when the send job runs — that
+every recipient's certificate is their current one and has not expired, and that the signer is the
+person's active, unexpired certificate for the From address. Drafts stay sealed with OpenPGP: only
+the person ever opens them.
+
 ## Native clients and the keyring
 
 Phase 6 of issue #28: `urn:plmail:params:jmap:keys` gives an app password what the browser session
@@ -898,6 +947,14 @@ entity says this explicitly: adding `cancelled_at` later means making the index 
 **An aborted request is not a lost session.** `session.js` clears its stored half only when the
 server answers 404 for the unlock key. Clearing on any failure locked the keyring of everybody
 who clicked on before the first page had finished opening it — the browser abandons the request.
+
+**PKCS#1 v1.5 decryption is a padding oracle wherever its failures can be told apart.** In
+`smime.js` they cannot from outside: a message that does not open says only that it does not, to
+the person reading it. Keep it that way — no server round trip, no distinct error per padding
+failure.
+
+**A contact certificate is not re-checked against the authorities.** `verified` is what was true
+when it was last seen. An authority removed from the system bundle later does not unverify it.
 
 **A crypto kind set after the first flush is too late.** `search_vector` is a generated column, so
 the INSERT that wrote a ciphertext body indexed it. Keep `MessageCryptoDetector::seal()` in the

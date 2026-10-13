@@ -59,7 +59,7 @@ final class DecryptedMailPendingMethod implements JmapMethod
                   ORDER BY m.receivedAt DESC',
             )
                 ->setParameter('account', $account)
-                ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted])
+                ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted, MessageCrypto::SmimeEncrypted])
                 ->setParameter('none', PlaintextSource::None)
                 ->setMaxResults($limit)
                 ->getArrayResult());

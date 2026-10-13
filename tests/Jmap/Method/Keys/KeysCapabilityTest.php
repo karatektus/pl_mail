@@ -53,6 +53,7 @@ final class KeysCapabilityTest extends JmapTestCase
 
         self::assertSame('plmail/user-key', $session['capabilities'][Capability::KEYS]['purposes']['userKey']);
         self::assertSame('plmail/pairing-transfer', $session['capabilities'][Capability::KEYS]['purposes']['pairingTransfer']);
+        self::assertSame('plmail/smime-key', $session['capabilities'][Capability::KEYS]['purposes']['smimeKey']);
         self::assertFalse($session['accounts'][$this->accountId()]['accountCapabilities'][Capability::KEYS]['keepsDecryptedMail']);
         self::assertContains(Capability::KEYS, Capability::SUPPORTED);
     }
@@ -67,6 +68,9 @@ final class KeysCapabilityTest extends JmapTestCase
         self::assertArrayNotHasKey('copies', $result['list'][0]);
         self::assertCount(1, $result['list'][0]['addressKeys']);
         self::assertStringStartsWith('v1.', $result['list'][0]['userKeys'][0]['wrapped']);
+        // S/MIME certificates ride along, their keys wrapped under the user
+        // key (`plmail/smime-key`); none here.
+        self::assertSame([], $result['list'][0]['smimeCertificates']);
 
         $this->expectException(MethodException::class);
         $this->method(KeyringGetMethod::class)->handle(['accountId' => $this->accountId()], $this->context());

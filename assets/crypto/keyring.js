@@ -11,6 +11,8 @@ import { derivePasswordSecrets } from "../password_kdf.js";
  *     address    OpenPGP keys, each locked with a random passphrase ("token")
  *     keys       that is wrapped under the user key
  *     copies     the user key wrapped under a recovery phrase or a device key
+ *     S/MIME     certificates from PKCS#12 files, their PKCS#8 keys wrapped
+ *                directly under the user key (crypto/smime.js)
  *
  * Every piece of cryptography happens here; the server stores the wrapped
  * blobs and enforces the rules a browser cannot be trusted with alone (see
@@ -58,6 +60,8 @@ export class Keyring {
     #ownDeviceCopies = new Set();
     /** @type {Map<number, object>} decrypted openpgp private keys, by address key id */
     #openedAddressKeys = new Map();
+    /** @type {Map<number, Uint8Array>} unwrapped S/MIME keys (PKCS#8), by certificate id */
+    #openedSmimeKeys = new Map();
     /** @type {Promise|null} the one ensure() of this page */
     #ensuring = null;
 
@@ -387,6 +391,106 @@ export class Keyring {
 
     async makePrimary(addressKeyId, email) {
         await this.#post(this.#url(`address-keys/${addressKeyId}/primary`), { email });
+    }
+
+    // ── S/MIME ──────────────────────────────────────────────────────────────
+
+    /**
+     * A certificate and its key from a PKCS#12 file. The file is opened here
+     * and nowhere else; the server gets the certificate, its chain, and the
+     * key wrapped under the newest open user key.
+     *
+     * @param {Uint8Array} bytes
+     * @param {string} password
+     * @returns {Promise<{fingerprint: string, addresses: string[]}>}
+     * @throws {Error} what crypto/smime.js readPkcs12() throws, or no_matching_address
+     */
+    async importSmime(bytes, password) {
+        this.#assertOpen();
+
+        const smime = await import("./smime.js");
+        const opened = await smime.readPkcs12(bytes, password);
+        const described = await smime.describeCertificate(opened.certificate);
+
+        if (false === described.addresses.some((email) => this.state.addresses.includes(email))) {
+            throw new Error("no_matching_address");
+        }
+
+        const userKeyId = this.#currentUserKeyId();
+
+        await this.#post(this.#url("smime"), {
+            userKeyId,
+            certificate: opened.certificate,
+            chain: opened.chain,
+            privateKey: await seal(this.#userKeys.get(userKeyId), opened.pkcs8, PURPOSE.smime),
+        });
+
+        return described;
+    }
+
+    /**
+     * One certificate as a PKCS#12 file again, locked with a password the
+     * person chooses here.
+     *
+     * @returns {Promise<Uint8Array>}
+     */
+    async exportSmime(id, password) {
+        this.#assertOpen();
+
+        const entry = this.#smimeEntry(id);
+        const smime = await import("./smime.js");
+
+        return smime.writePkcs12({ certificate: entry.certificate, chain: entry.chain, pkcs8: await this.#openSmimeKey(entry), password });
+    }
+
+    async removeSmime(id) {
+        await this.#post(this.#url(`smime/${id}/remove`), {});
+        this.#openedSmimeKeys.delete(id);
+    }
+
+    /**
+     * Every S/MIME certificate this browser can open, with its key — retired
+     * and expired ones too, since mail encrypted to them is still mail.
+     *
+     * @returns {Promise<Array<{certificate: string, pkcs8: Uint8Array}>>}
+     */
+    async smimeKeys() {
+        this.#assertOpen();
+
+        const keys = [];
+
+        for (const entry of this.state.smimeCertificates ?? []) {
+            try {
+                keys.push({ certificate: entry.certificate, pkcs8: await this.#openSmimeKey(entry) });
+            } catch {
+                // Under a locked user key, or not opening: the others may do.
+            }
+        }
+
+        return keys;
+    }
+
+    /**
+     * What signs with the certificate $fingerprint: itself, its chain and its
+     * key.
+     *
+     * @returns {Promise<{certificate: string, chain: string, pkcs8: Uint8Array}>}
+     */
+    async smimeSigner(fingerprint) {
+        this.#assertOpen();
+
+        const entry = (this.state.smimeCertificates ?? []).find((candidate) => candidate.fingerprint === String(fingerprint).toLowerCase());
+
+        if (undefined === entry) {
+            throw new Error("no_signing_key");
+        }
+
+        return { certificate: entry.certificate, chain: entry.chain, pkcs8: await this.#openSmimeKey(entry) };
+    }
+
+    /** Lower-case SHA-256 fingerprints of the person's own certificates. */
+    ownSmimeFingerprints() {
+        return (this.state?.smimeCertificates ?? []).map((entry) => String(entry.fingerprint).toLowerCase());
     }
 
     // ── Reading mail ────────────────────────────────────────────────────────
@@ -719,6 +823,30 @@ export class Keyring {
         const token = decoder.decode(await open(userKeyBytes, entry.token, PURPOSE.token));
 
         return openpgp.decryptKey({ privateKey: await openpgp.readPrivateKey({ armoredKey: entry.privateKey }), passphrase: token });
+    }
+
+    #smimeEntry(id) {
+        const entry = (this.state.smimeCertificates ?? []).find((candidate) => candidate.id === id);
+
+        if (undefined === entry) {
+            throw new Error("no_such_certificate");
+        }
+
+        return entry;
+    }
+
+    async #openSmimeKey(entry) {
+        if (false === this.#openedSmimeKeys.has(entry.id)) {
+            const userKeyBytes = this.#userKeys.get(entry.userKeyId);
+
+            if (undefined === userKeyBytes) {
+                throw new Error("locked");
+            }
+
+            this.#openedSmimeKeys.set(entry.id, await open(userKeyBytes, entry.privateKey, PURPOSE.smime));
+        }
+
+        return this.#openedSmimeKeys.get(entry.id);
     }
 
     async #kdfParameters() {

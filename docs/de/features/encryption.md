@@ -1,12 +1,12 @@
-<!-- translated-from: features/encryption.md sha1:9c1962e061a2bf0382e246d27edc9996ca435c1b -->
+<!-- translated-from: features/encryption.md sha1:2bf62ca8357454ec261639d0dd8fe35388edd66e -->
 
 # Verschlüsselung
 
-plMail baut Ende-zu-Ende-Verschlüsselung mit OpenPGP: Mails, die nur du und die Menschen lesen
-können, denen du schreibst — nicht der plMail-Server und nicht dein Mail-Anbieter. Diese Seite
+plMail baut Ende-zu-Ende-Verschlüsselung mit OpenPGP und S/MIME: Mails, die nur du und die Menschen
+lesen können, denen du schreibst — nicht der plMail-Server und nicht dein Mail-Anbieter. Diese Seite
 beschreibt, was es heute schon gibt: deine Schlüssel, wie sie aufbewahrt werden und wie du sie
 zurückbekommst, das Lesen verschlüsselter und signierter Mails, die Schlüssel der Menschen, denen du
-schreibst, und das verschlüsselte Schreiben.
+schreibst, das verschlüsselte Schreiben und S/MIME-Zertifikate.
 
 Alles hier liegt unter **Einstellungen → Verschlüsselung**.
 
@@ -97,7 +97,8 @@ Von plMail erstellte Schlüssel laufen nicht ab — wie bei Proton. Unter **Schl
 bewahrt auf dem Server keine lesbare Kopie davon auf: Dein Browser holt die Nachricht so, wie sie
 angekommen ist, entschlüsselt sie mit deinen Schlüsseln und zeigt sie wie jede andere Mail an —
 samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht *Verschlüsselte
-Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen Text.
+Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen Text, und für
+S/MIME, sobald du dein Zertifikat importiert hast (siehe [S/MIME](#smime) unten).
 
 **Signierte Mails** zeigen, was die Prüfung der Signatur ergeben hat:
 
@@ -187,6 +188,53 @@ damit Thunderbird, Delta Chat und andere Programme verschlüsselt antworten kön
 **Öffentlichen Schlüssel anhängen** hängt ihn zusätzlich als Datei an, für Programme, die Autocrypt
 nicht lesen.
 
+## S/MIME
+
+S/MIME ist der andere Weg, Mails zu verschlüsseln und zu signieren: mit **Zertifikaten**, die eine
+Zertifizierungsstelle oder deine Organisation ausstellt und die Outlook, Apple Mail und Thunderbird
+ohne Zusatzsoftware verstehen. plMail liest, schreibt und signiert S/MIME neben OpenPGP.
+
+**Dein Zertifikat.** Wähle unter **Einstellungen → Verschlüsselung → S/MIME-Zertifikate** die
+`.p12`- oder `.pfx`-Datei, die du von deiner Zertifizierungsstelle oder deiner IT bekommen hast, und
+gib ihr Passwort ein. Die Datei wird in deinem Browser geöffnet; ihr privater Schlüssel wird unter
+deinen Schlüsseln verschlossen, bevor er zum Server geht — genauso wie deine OpenPGP-Schlüssel —, und
+weder die Datei noch ihr Passwort verlassen je den Browser. Das Zertifikat muss für eine deiner
+Adressen ausgestellt sein und einen RSA-Schlüssel haben. **Als .p12 exportieren** gibt dir Zertifikat
+und Schlüssel als neue Datei zurück, verschlossen mit einem Passwort, das du dort eingibst;
+**Entfernen** löscht beides. Importierst du ein neueres Zertifikat für dieselben Adressen — sie
+werden alle ein, zwei Jahre erneuert —, bleibt das alte als ersetzt markiert erhalten, um Mails zu
+öffnen, die damit verschlüsselt wurden.
+
+**Lesen.** S/MIME-verschlüsselte Mails öffnen sich wie verschlüsselte OpenPGP-Mails, mit *Mit S/MIME
+verschlüsselt* darüber, sobald du das Zertifikat importiert hast, mit dem sie verschlüsselt wurden.
+Ohne eines sagt die Nachricht das. Eine Signatur darin wird ebenfalls geprüft: Mit deinem eigenen
+Zertifikat oder einem, für das eine bekannte Zertifizierungsstelle bürgt, *stimmt* sie; mit jedem
+anderen ist sie intakt, aber unbestätigt.
+
+**Zertifikate deiner Kontakte.** plMail behält das Zertifikat jeder S/MIME-signierten Mail, deren
+Signatur stimmt, für den Absender — aus signierten Mails und aus Signaturen in verschlüsselten Mails.
+Sie stehen unter *Schlüssel deiner Kontakte*, mit **Bestätigt von …** bei denen, für die eine
+Zertifizierungsstelle bürgt. Ein neueres Zertifikat derselben Stelle ersetzt das alte von selbst;
+alles andere — ein selbst signiertes Zertifikat oder ein Wechsel von der einen Art zur anderen — gilt
+beim ersten Mal, wie ein OpenPGP-Schlüssel: Das erste wird genutzt, ein anderes wartet, bis du **Diesen
+Schlüssel verwenden** wählst.
+
+**Schreiben.** Welche Verschlüsselung eine Nachricht bekommt, wird pro Nachricht entschieden und nie
+gemischt:
+
+1. **OpenPGP**, wenn jeder Empfänger einen OpenPGP-Schlüssel hat.
+2. Sonst **S/MIME**, wenn jeder Empfänger ein Zertifikat hat, das plMail nutzen kann (aktuell und
+   nicht abgelaufen), du eines für die Absenderadresse hast und es keine Bcc-Empfänger gibt.
+3. Sonst wird die Nachricht nicht verschlüsselt, und der Hinweis unter den Empfängern sagt wie bisher,
+   wem ein Schlüssel fehlt.
+
+Eine S/MIME-Nachricht wird mit deinem Zertifikat signiert und mit AES-256 an das Zertifikat jedes
+Empfängers und an deines verschlüsselt — so, wie Outlook und Thunderbird es lesen. Unverschlüsselte
+Mails werden mit S/MIME statt OpenPGP signiert, wenn du ein Zertifikat für die Absenderadresse hast
+und keiner der anderen Empfänger einen OpenPGP-Schlüssel: Jedes Mailprogramm prüft eine
+S/MIME-Signatur, während eine OpenPGP-Signatur für die meisten nur eine Datei namens `signature.asc`
+ist. Wann überhaupt signiert wird, regelt weiterhin das oben Gesagte.
+
 ## Auf dem Handy
 
 Wenn du die plMail-App koppelst (Einstellungen → App-Passwörter → **Gerät koppeln**), kommen deine
@@ -249,9 +297,31 @@ Genau darum geht es.
 anzuzeigen hieße, dem Server die Adressen mitzuteilen, die der Absender verschlüsselt hat. Bilder,
 die in der Nachricht selbst stecken, werden angezeigt.
 
-**S/MIME-verschlüsselte Mails lassen sich noch nicht lesen.** Sie werden erkannt und markiert, aber
-zum Lesen braucht es ein eigenes S/MIME-Zertifikat in plMail, und das kommt später. Signierte
-S/MIME-Mails werden wie oben geprüft.
+**S/MIME-verschlüsselte Mails öffnen sich nur mit dem Zertifikat, an das sie verschlüsselt wurden.**
+Importiere jedes Zertifikat, für das du noch Mails hast, auch die alten; ein entferntes Zertifikat
+nimmt seine Mails mit.
+
+**Bei einem S/MIME-Zertifikat wird geprüft, ob eine bekannte Stelle es ausgestellt hat, nicht, ob
+es widerrufen ist.** plMail fragt weder Sperrlisten (CRL) noch OCSP ab. Ein Zertifikat, das vor
+seinem Ablauf widerrufen wurde, gilt weiter, bis es abläuft.
+
+**Nur `.p12`-Dateien mit AES lassen sich öffnen.** Alte Dateien mit RC2 oder 3DES werden abgelehnt:
+Exportiere sie erneut mit AES (OpenSSL 3 tut das von sich aus, Windows mit der Option
+*AES256-SHA256*). Zertifikate mit einem Schlüssel auf elliptischen Kurven lassen sich nicht nutzen.
+
+**S/MIME wird nicht genutzt, wenn es Bcc-Empfänger gibt.** Eine S/MIME-Nachricht nennt das
+Zertifikat jedes Empfängers außen, alle würden also sehen, wer sie sonst noch bekommen hat. Eine
+solche Nachricht geht als OpenPGP hinaus, wenn alle einen Schlüssel haben, sonst unverschlüsselt.
+
+**Mails an plMail-Menschen bleiben OpenPGP.** Alle auf plMail haben einen OpenPGP-Schlüssel, S/MIME
+kommt also nur zum Zug, wenn mindestens ein Empfänger keinen OpenPGP-Schlüssel hat, aber ein
+Zertifikat.
+
+**Zertifikate deiner Kontakte kommen nur mit signierten Mails.** Es gibt nichts nachzuschlagen: Bitte
+den Kontakt, dir zuerst eine signierte Nachricht zu schicken.
+
+**Ein Zertifikat einer eigenen Zertifizierungsstelle gilt als selbst signiert,** es sei denn, die
+Administration fügt diese Stelle hinzu (`SMIME_CA_FILE`, siehe die Konfigurationsreferenz).
 
 **Mails, die vor diesem Update synchronisiert wurden, werden nicht erneut angesehen.** Eine
 verschlüsselte oder signierte Nachricht, die früher ankam, zeigt weiter, was sie damals zeigte, bis

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:9f34a87e63cf9d51eeb7389dfeac5241b904c681 -->
+<!-- translated-from: internals/security-model.md sha1:ddc2042eb3f97fc80d182c2f4df07c07f077e0a4 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -413,6 +413,57 @@ Platzhalter-Überschrift zeigen und mit dem ein `Re: ...` einer Antwort vervolls
 `DecryptedMail` übernimmt ihn für die Zeile, wenn das Konto entschlüsselte Mails behält. Header-Schutz
 gibt es nur für verschlüsselte Mails — das Innere einer signierten Nachricht ist so lesbar wie ihr
 Äußeres.
+
+## S/MIME
+
+Phase 6c von Issue #28. Dieselbe Arbeitsteilung wie bei OpenPGP: Der Browser macht die Kryptografie
+(`assets/crypto/smime.js`, PKI.js für die Strukturen), der Server bewahrt auf, was er nicht öffnen
+kann, und hält die Regeln.
+
+```
+eigenes Zertifikat = X.509-PEM + Kette, aus einer PKCS#12-Datei, im Browser geöffnet  // SmimeCertificate
+privater Schlüssel = PKCS#8, AES-256-GCM-verpackt unter dem User-Key, Zweck plmail/smime-key
+Kontakt-Zertifikat = X.509-PEM aus einer gültigen Signatur, current oder changed       // ContactCertificate
+```
+
+**Import.** `POST /keyring/smime` (Schlüsselbund-Token) nimmt das Zertifikat, seine Kette und den
+verpackten Schlüssel. `SmimeCertificates` liest das Zertifikat selbst mit OpenSSL — Fingerabdruck
+(SHA-256 des DER), Adressen (subjectAltName, emailAddress), Daten —, statt dem Browser zu glauben,
+und lehnt einen Nicht-RSA-Schlüssel, ein Zertifikat für keine der Adressen der Person und eine
+Verpackung ab, die nicht `v1.…` ist. Ein neueres Zertifikat, das dieselben Adressen abdeckt, setzt das
+ältere auf `retired` (es entschlüsselt, signiert aber nie und wird nie verschlüsselt). Der verpackte
+Schlüssel hängt an einem User-Key: Eine Passwortänderung verpackt hier nichts neu, und wird der
+User-Key oder die Person entfernt, geht er mit (`ON DELETE CASCADE`). Das PKCS#12-Passwort und die
+Datei verlassen den Browser nie.
+
+**Zertifikate der Kontakte.** Behalten werden sie nur aus einer Signatur, die stimmt und den Absender
+nennt: `SignatureVerifier` (OpenSSL, signierte Mails) und `POST /contact-keys/message/{id}/smime-signer`
+(der Browser, für eine Signatur in verschlüsselter Mail, die er mit PKI.js geprüft hat; der Server
+beurteilt nur das Zertifikat, das er bekommt, für den Absender der eigenen Zeile, nach dem
+Ownership-Voter). Vertrauen (`ContactCertificates`): Ein Zertifikat, das bis zu den Stellen des
+Systems reicht (`CertificateReader`, `openssl_get_cert_locations()` plus `SMIME_CA_FILE`), ist
+`verified`, und ein neueres bestätigtes ersetzt ein bestätigtes oder abgelaufenes aktuelles; alles
+andere ist Vertrauen beim ersten Mal, mit demselben partiellen Unique-Index wie bei Kontakt-Schlüsseln
+(`uniq_contact_certificate_current`). Es gibt keine Prüfung über CRL oder OCSP.
+
+**Lesen.** `openEncrypted()` nimmt die EnvelopedData (`smime.p7m`), öffnet sie mit den
+S/MIME-Schlüsseln des Schlüsselbunds und gibt die innere Entity auf denselben Weg wie bei OpenPGP:
+postal-mime, DOMPurify, der Sandbox-Frame, die Übergabe entschlüsselter Mails. Der RSA-Schlüsseltransport
+mit PKCS#1 v1.5 läuft über BigInt-Arithmetik, geblindet, weil WebCrypto keine
+PKCS#1-v1.5-Verschlüsselung hat und Outlook und Thunderbird genau das schicken; RSA-OAEP läuft über
+WebCrypto, AES-CBC (128/192/256) für den Inhalt über @noble/ciphers. 3DES und AuthEnvelopedData werden
+nicht geöffnet.
+
+**Senden.** Der Composer wählt OpenPGP, wenn jeder Empfänger einen Schlüssel hat, S/MIME, wenn jeder
+Empfänger ein nutzbares Zertifikat hat, der Absender eines für die Absenderadresse hat und es kein Bcc
+gibt. Er signiert (abgetrennte SignedData, RSA-SHA256, Zertifikat und Kette des Signierenden darin,
+multipart/signed mit `micalg=sha-256`), verschlüsselt danach an jeden Empfänger und den Absender
+(AES-256-CBC, RSA PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer) und schickt die Entity mit
+`sealed[scheme]=smime`. `SealedDrafts` lehnt eine Entity ab, deren Außenseite nicht S/MIME der
+angegebenen Art ist (`MessageCryptoDetector`), und `SealGuard` prüft — beim Eintreffen und wenn der
+Sendejob läuft —, dass das Zertifikat jedes Empfängers sein aktuelles und nicht abgelaufen ist und dass
+der Signierende das aktive, nicht abgelaufene Zertifikat der Person für die Absenderadresse ist.
+Entwürfe bleiben mit OpenPGP versiegelt: Nur die Person selbst öffnet sie je.
 
 ## Native Clients und der Schlüsselbund
 
@@ -993,6 +1044,14 @@ du dir merken solltest.
 Hälfte nur, wenn der Server für den Entsperr-Schlüssel 404 antwortet. Bei jedem Fehlschlag zu
 löschen sperrte den Schlüsselbund aller, die weitergeklickt haben, bevor die erste Seite ihn
 fertig geöffnet hatte — der Browser bricht die Anfrage dann ab.
+
+**Entschlüsselung mit PKCS#1 v1.5 ist überall dort ein Padding-Orakel, wo sich ihre Fehlschläge
+unterscheiden lassen.** In `smime.js` lassen sie sich von außen nicht unterscheiden: Eine Nachricht,
+die sich nicht öffnet, sagt nur das, und nur der Person, die sie liest. Das muss so bleiben — kein
+Umweg über den Server, keine eigene Fehlermeldung je Padding-Fehler.
+
+**Ein Kontakt-Zertifikat wird nicht erneut gegen die Stellen geprüft.** `verified` ist, was beim
+letzten Sehen galt. Eine Stelle, die später aus dem System verschwindet, macht es nicht unbestätigt.
 
 **Eine Krypto-Art, die erst nach dem ersten Flush gesetzt wird, kommt zu spät.** `search_vector`
 ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon indexiert.

@@ -6,10 +6,12 @@ namespace App\Service\Crypto;
 
 use App\Domain\Enum\Crypto\PgpScheme;
 use App\Domain\Enum\Crypto\RecipientPolicy;
+use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Crypto\ContactKeyRepository;
 use App\Service\Demo\DemoMode;
+use DateTimeInterface;
 use Throwable;
 
 /**
@@ -23,6 +25,12 @@ use Throwable;
  * throttled by WkdLookup like any other lookup, and a lookup that fails is an
  * address without a key, not an error. The person's own addresses answer
  * with their own key.
+ *
+ * Beside the OpenPGP key, each answer says whether the address can be reached
+ * with S/MIME (`smime`): the certificate plMail would encrypt to — the
+ * contact's Current one while it lasts (ContactCertificates::usable()), or
+ * the person's own for their own addresses. Nothing is looked up for it;
+ * certificates only ever arrive on signed mail.
  */
 final readonly class RecipientKeys
 {
@@ -34,6 +42,8 @@ final readonly class RecipientKeys
         private ContactKeys          $contactKeys,
         private SendingKey           $sendingKeys,
         private DecryptedMailPolicy  $decryptedMail,
+        private SmimeCertificates    $ownCertificates,
+        private ContactCertificates  $contactCertificates,
         private DemoMode             $demoMode,
     ) {
     }
@@ -41,7 +51,7 @@ final readonly class RecipientKeys
     /**
      * @param list<mixed> $emails
      *
-     * @return list<array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string}>
+     * @return list<array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}>
      */
     public function describe(User $user, array $emails, bool $lookup): array
     {
@@ -63,21 +73,25 @@ final readonly class RecipientKeys
     /**
      * The sender's own key for the address a message goes out from, and
      * whether the account keeps decrypted mail — its drafts need no sealing
-     * then, and its encrypted mail keeps its text (DecryptedMail).
+     * then, and its encrypted mail keeps its text (DecryptedMail). `smime` is
+     * the fingerprint of the person's certificate for that address
+     * (SmimeCertificates::forSender()), or null: without one, nothing is
+     * signed or encrypted with S/MIME.
      *
-     * @return array{email: string, fingerprint: ?string, keepsDecrypted: bool}
+     * @return array{email: string, fingerprint: ?string, smime: ?string, keepsDecrypted: bool}
      */
     public function sender(User $user, Account $account, string $address): array
     {
         return [
             'email'          => strtolower($address),
             'fingerprint'    => $this->sendingKeys->forAccount($user, $account, $address)?->fingerprint,
+            'smime'          => $this->ownCertificates->forSender($account, $address)?->fingerprint,
             'keepsDecrypted' => $this->decryptedMail->keeps($account),
         ];
     }
 
     /**
-     * @return array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string}
+     * @return array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}
      */
     private function recipient(User $user, string $email, bool $lookup): array
     {
@@ -92,6 +106,7 @@ final readonly class RecipientKeys
                 'encrypt' => RecipientPolicy::Auto->value,
                 'sign'    => RecipientPolicy::Auto->value,
                 'scheme'  => PgpScheme::Mime->value,
+                'smime'   => self::ownCertificate($this->ownCertificates->for($user, $email)),
             ];
         }
 
@@ -121,6 +136,35 @@ final readonly class RecipientKeys
             'encrypt' => $current?->encrypt->value ?? RecipientPolicy::Auto->value,
             'sign'    => $current?->sign->value ?? RecipientPolicy::Auto->value,
             'scheme'  => $current?->scheme->value ?? PgpScheme::Mime->value,
+            'smime'   => $this->contactCertificate($user, $email),
+        ];
+    }
+
+    /**
+     * @return array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null
+     */
+    private function contactCertificate(User $user, string $email): ?array
+    {
+        $certificate = $this->contactCertificates->usable($user, $email);
+
+        return null === $certificate ? null : [
+            'fingerprint' => $certificate->fingerprint,
+            'certificate' => $certificate->certificate,
+            'verified'    => $certificate->verified,
+            'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+        ];
+    }
+
+    /**
+     * @return array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null
+     */
+    private static function ownCertificate(?SmimeCertificate $certificate): ?array
+    {
+        return null === $certificate ? null : [
+            'fingerprint' => $certificate->fingerprint,
+            'certificate' => $certificate->certificate,
+            'verified'    => true,
+            'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
         ];
     }
 }

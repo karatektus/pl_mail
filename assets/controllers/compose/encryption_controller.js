@@ -2,7 +2,9 @@ import { Controller } from "@hotwired/stimulus";
 import { csrfToken } from "../../csrf.js";
 import { keyring } from "../../crypto/keyring.js";
 import { buildEntity, extractInlineImages, fromDataUri } from "../../crypto/mime.js";
-import { encryptEntity, openDraft, openFile, ownKeyEntryFor, sealDraft, sealFile, signEntity } from "../../crypto/compose.js";
+import {
+    encryptEntity, openDraft, openFile, ownCertificateFor, ownKeyEntryFor, sealDraft, sealFile, signEntity, smimeEncryptEntity, smimeSignEntity,
+} from "../../crypto/compose.js";
 import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
 
 /**
@@ -17,6 +19,22 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  *                                        to everybody, or a refusal when the
  *                                        person said so (User::$blockPartialEncryption)
  *   - none has one                     → plain mail, as before
+ *
+ * "A key" is an OpenPGP key or an S/MIME certificate (phase 6c), and the
+ * scheme is chosen per message, never mixed:
+ *
+ *   - OpenPGP when every recipient has an OpenPGP key — every person has
+ *     one of their own, so mail among plMail people stays OpenPGP;
+ *   - otherwise S/MIME when every recipient has a usable certificate and
+ *     the person has one for the From address, and there is no Bcc (an S/MIME
+ *     envelope names every recipient's certificate to every recipient);
+ *   - otherwise the recipients missing a key are those missing the scheme
+ *     that comes closer, which is what the partial-encryption note lists.
+ *
+ * Mail that is only signed is signed with S/MIME when the person has a
+ * certificate for the From address and none of the other recipients has an
+ * OpenPGP key: an S/MIME signature is checked by every mail program without
+ * anything installed, where a signature.asc is an attachment nobody asked for.
  *
  * "Encrypt" and "Sign" in the More options menu override that for one
  * message. A reply to an encrypted message is encrypted from the start, and
@@ -93,7 +111,7 @@ export default class extends Controller {
      * @returns {Promise<boolean>} false when it must not be saved now
      */
     async prepareDraft(formData) {
-        for (const name of ["sealed[entity]", "sealed[kind]", "sealed[fingerprints]", "sealed[signer]", "sealed[draft]"]) {
+        for (const name of ["sealed[entity]", "sealed[kind]", "sealed[scheme]", "sealed[fingerprints]", "sealed[signer]", "sealed[draft]"]) {
             formData.delete(name);
         }
 
@@ -151,14 +169,15 @@ export default class extends Controller {
             throw new Error("locked");
         }
 
-        const signer = this.#signer();
+        const smime = "smime" === plan.scheme;
+        const signer = true === smime ? this.#smimeSigner() : this.#signer();
 
         if (null === signer && ("encrypted" === plan.kind || "signed" === plan.kind)) {
-            throw new Error("no_own_key");
+            throw new Error(true === smime ? "no_own_certificate" : "no_own_key");
         }
 
         const { html, text, plain } = this.#body();
-        const attachments = await this.#attachments(signer);
+        const attachments = await this.#attachments(true === smime ? null : signer);
         const inline = true === plan.inline && 0 === attachments.length;
         const images = true === plain || null === html
             ? { html: null, related: [] }
@@ -175,17 +194,24 @@ export default class extends Controller {
             protectedHeaders: true === protect ? this.#protectedHeaders(plan) : null,
         });
 
-        const fields = { "sealed[kind]": plan.kind };
+        const fields = { "sealed[kind]": plan.kind, "sealed[scheme]": plan.scheme ?? "pgp" };
 
         if ("encrypted" === plan.kind) {
-            const sealed = await encryptEntity({
-                ring: this.#ring,
-                entity,
-                inlineText: inline ? text : null,
-                recipientKeys: plan.emails.map((email) => this.#info.get(email)?.key?.publicKey).filter(Boolean),
-                signer,
-                hideRecipients: 0 < plan.bcc.length,
-            });
+            const sealed = true === smime
+                ? await smimeEncryptEntity({
+                    ring: this.#ring,
+                    entity,
+                    recipientCertificates: plan.emails.map((email) => this.#info.get(email)?.smime?.certificate).filter(Boolean),
+                    signer,
+                })
+                : await encryptEntity({
+                    ring: this.#ring,
+                    entity,
+                    inlineText: inline ? text : null,
+                    recipientKeys: plan.emails.map((email) => this.#info.get(email)?.key?.publicKey).filter(Boolean),
+                    signer,
+                    hideRecipients: 0 < plan.bcc.length,
+                });
 
             fields["sealed[entity]"] = sealed.entity;
             fields["sealed[fingerprints]"] = sealed.fingerprints.join(",");
@@ -195,7 +221,9 @@ export default class extends Controller {
                 fields["sealed[protectedSubject]"] = "1";
             }
         } else if ("signed" === plan.kind) {
-            fields["sealed[entity]"] = await signEntity({ ring: this.#ring, entity, signer });
+            fields["sealed[entity]"] = true === smime
+                ? await smimeSignEntity({ ring: this.#ring, entity, signer })
+                : await signEntity({ ring: this.#ring, entity, signer });
             fields["sealed[signer]"] = signer.fingerprint;
         } else {
             fields["sealed[entity]"] = entity;
@@ -238,6 +266,8 @@ export default class extends Controller {
                 return messages.locked;
             case "no_own_key":
                 return messages.noOwnKey;
+            case "no_own_certificate":
+                return messages.noOwnCertificate;
             default:
                 return messages.failed;
         }
@@ -432,16 +462,24 @@ export default class extends Controller {
     }
 
     /**
-     * What this message will be.
+     * What this message will be, and in which scheme (see the class
+     * docblock for the rule).
      *
-     * @returns {{encrypt: boolean, sign: boolean, kind: ?string, blocked: ?{reason: string, emails: string[]}, partial: string[], inline: boolean, emails: string[], bcc: string[]}}
+     * @returns {{encrypt: boolean, sign: boolean, kind: ?string, scheme: ?string, blocked: ?{reason: string, emails: string[]}, partial: string[], inline: boolean, emails: string[], bcc: string[]}}
      */
     #plan() {
         const emails = this.#recipients();
         const bcc = this.#recipients(["bcc"]);
         const infos = emails.map((email) => this.#info.get(email) ?? null);
-        const missing = emails.filter((email, index) => null === (infos[index]?.key ?? null));
-        const withKey = emails.length - missing.length;
+        const pgpMissing = emails.filter((email, index) => null === (infos[index]?.key ?? null));
+        const smimeMissing = emails.filter((email, index) => null === (infos[index]?.smime ?? null));
+        const ownCertificate = null !== this.#smimeSigner();
+        const smimeReady = true === ownCertificate && 0 === bcc.length && 0 < emails.length && 0 === smimeMissing.length;
+        const encryptScheme = 0 === pgpMissing.length ? "pgp" : (true === smimeReady ? "smime" : null);
+        const missing = null !== encryptScheme
+            ? []
+            : (true === ownCertificate && 0 === bcc.length && smimeMissing.length < pgpMissing.length ? smimeMissing : pgpMissing);
+        const withKey = emails.filter((email, index) => null !== (infos[index]?.key ?? null) || null !== (infos[index]?.smime ?? null)).length;
         const usable = "open" === this.#status || "locked" === this.#status || "broken" === this.#status;
         let encrypt = false;
         let blocked = null;
@@ -462,7 +500,10 @@ export default class extends Controller {
             }
         }
 
-        const canSign = "open" === this.#status && null !== this.#signer();
+        // Signed only: S/MIME when the person has a certificate for the From
+        // address and nobody else on the message has an OpenPGP key.
+        const signScheme = true === ownCertificate && false === infos.some((info) => true !== info?.own && null !== (info?.key ?? null)) ? "smime" : "pgp";
+        const canSign = "open" === this.#status && (null !== this.#signer() || true === ownCertificate);
         let sign = encrypt;
 
         if (false === encrypt) {
@@ -472,11 +513,12 @@ export default class extends Controller {
         }
 
         const kind = true === encrypt ? "encrypted" : (true === sign ? "signed" : (true === this.#sealed ? "plain" : null));
-        const inline = true === encrypt && 0 < emails.length
+        const scheme = "encrypted" === kind ? (encryptScheme ?? "pgp") : ("signed" === kind ? signScheme : null);
+        const inline = true === encrypt && "pgp" === scheme && 0 < emails.length
             && infos.every((info) => "pgp-inline" === info?.scheme || true === info?.own)
             && infos.some((info) => "pgp-inline" === info?.scheme);
 
-        return { encrypt, sign, kind, blocked, partial, inline, emails, bcc };
+        return { encrypt, sign, kind, scheme, blocked, partial, inline, emails, bcc };
     }
 
     /** The lock in the header, the note under it, the menu's ticks, the chips. */
@@ -520,7 +562,7 @@ export default class extends Controller {
             const info = this.#info.get(email);
             let lock = item.querySelector("[data-encryption-lock]");
 
-            if (null === (info?.key ?? null)) {
+            if (null === (info?.key ?? null) && null === (info?.smime ?? null)) {
                 lock?.remove();
                 continue;
             }
@@ -533,7 +575,9 @@ export default class extends Controller {
             }
 
             lock.className = `fa-solid ${true === info.changed ? "fa-triangle-exclamation text-warning" : "fa-lock text-success"} text-[10px] mr-1`;
-            lock.title = true === info.changed ? this.messagesValue.keyChanged : this.messagesValue.hasKey;
+            lock.title = true === info.changed
+                ? this.messagesValue.keyChanged
+                : (null === (info.key ?? null) ? this.messagesValue.hasCertificate : this.messagesValue.hasKey);
         }
     }
 
@@ -590,6 +634,21 @@ export default class extends Controller {
 
         return entries.find((entry) => fingerprint === String(entry.fingerprint).toLowerCase())
             ?? (null === this.#sender ? null : ownKeyEntryFor(this.#ring, this.#sender.email));
+    }
+
+    /**
+     * The person's S/MIME certificate for the From address: the one the
+     * server named (RecipientKeys::sender()), or the keyring's own choice.
+     */
+    #smimeSigner() {
+        if (null === this.#sender || null === this.#ring?.state) {
+            return null;
+        }
+
+        const fingerprint = String(this.#sender.smime ?? "").toLowerCase();
+
+        return (this.#ring.state.smimeCertificates ?? []).find((entry) => fingerprint === entry.fingerprint)
+            ?? (null === (this.#sender.smime ?? null) ? null : ownCertificateFor(this.#ring, this.#sender.email));
     }
 
     #body() {

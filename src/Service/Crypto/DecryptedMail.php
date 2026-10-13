@@ -81,8 +81,8 @@ final readonly class DecryptedMail
             throw new DecryptedMailRefused('the account does not keep decrypted mail');
         }
 
-        if (true !== $message->crypto?->isEncrypted() || false === $message->crypto->isPgp() || true === $message->sealedDraft || null === $message->id) {
-            throw new DecryptedMailRefused('not an encrypted OpenPGP message');
+        if (true !== $message->crypto?->isEncrypted() || true === $message->sealedDraft || null === $message->id) {
+            throw new DecryptedMailRefused('not an encrypted message');
         }
 
         if (PlaintextSource::Client === $message->plaintextSource) {

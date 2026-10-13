@@ -23,7 +23,9 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\ContactCertificateRepository;
 use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\SmimeCertificateRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
@@ -257,19 +259,21 @@ final readonly class ConfigBackupUsers
     ];
 
     public function __construct(
-        private UserRepository              $users,
-        private AccountRepository           $accounts,
-        private ApiTokenRepository          $apiTokens,
-        private IntegrationRepository       $integrations,
-        private LabelRepository             $labels,
-        private MailRuleRepository          $rules,
-        private CalendarRepository          $calendars,
-        private CalendarShareLinkRepository $shareLinks,
-        private BookingPageRepository       $bookingPages,
-        private UserKeyRepository           $userKeys,
-        private UserKeyCopyRepository       $userKeyCopies,
-        private AddressKeyRepository        $addressKeys,
-        private ContactKeyRepository        $contactKeys,
+        private UserRepository               $users,
+        private AccountRepository            $accounts,
+        private ApiTokenRepository           $apiTokens,
+        private IntegrationRepository        $integrations,
+        private LabelRepository              $labels,
+        private MailRuleRepository           $rules,
+        private CalendarRepository           $calendars,
+        private CalendarShareLinkRepository  $shareLinks,
+        private BookingPageRepository        $bookingPages,
+        private UserKeyRepository            $userKeys,
+        private UserKeyCopyRepository        $userKeyCopies,
+        private AddressKeyRepository         $addressKeys,
+        private ContactKeyRepository         $contactKeys,
+        private SmimeCertificateRepository   $smimeCertificates,
+        private ContactCertificateRepository $contactCertificates,
     ) {
     }
 
@@ -414,6 +418,9 @@ final readonly class ConfigBackupUsers
             // and losing them would silently reset every contact to
             // "unconfirmed".
             'contactKeys'  => $this->exportContactKeys($user),
+            // Contacts' S/MIME certificates, for the same reason: which one is
+            // in use for an address, and which wait, are decisions too.
+            'contactCertificates' => $this->exportContactCertificates($user),
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
@@ -430,7 +437,10 @@ final readonly class ConfigBackupUsers
      * The keyring, as the browser left it. See exportUser() on why carrying it
      * costs nothing the password hash beside it does not already.
      *
-     * @return array{userKeys: list<array<string, mixed>>, addressKeys: list<array<string, mixed>>}
+     * The S/MIME certificates travel with it: their private keys are wrapped
+     * under the user keys exactly as the address keys' tokens are.
+     *
+     * @return array{userKeys: list<array<string, mixed>>, addressKeys: list<array<string, mixed>>, smimeCertificates: list<array<string, mixed>>}
      */
     private function exportKeyring(User $user): array
     {
@@ -484,7 +494,54 @@ final readonly class ConfigBackupUsers
             ];
         }
 
-        return ['userKeys' => $userKeys, 'addressKeys' => $addressKeys];
+        $smimeCertificates = [];
+
+        foreach ($this->smimeCertificates->findForUser($user) as $certificate) {
+            $smimeCertificates[] = [
+                'userKeyId'   => $certificate->userKey->id,
+                'fingerprint' => $certificate->fingerprint,
+                'certificate' => $certificate->certificate,
+                'chain'       => $certificate->chain,
+                'privateKey'  => $certificate->privateKey,
+                'addresses'   => $certificate->addresses,
+                'subject'     => $certificate->subject,
+                'issuer'      => $certificate->issuer,
+                'notBefore'   => $certificate->notBefore->format(DateTimeInterface::ATOM),
+                'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+                'status'      => $certificate->status->value,
+                'createdAt'   => $certificate->createdAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        return ['userKeys' => $userKeys, 'addressKeys' => $addressKeys, 'smimeCertificates' => $smimeCertificates];
+    }
+
+    /**
+     * Contacts' S/MIME certificates, row for row.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportContactCertificates(User $user): array
+    {
+        $rows = [];
+
+        foreach ($this->contactCertificates->findForUser($user) as $certificate) {
+            $rows[] = [
+                'email'       => $certificate->email,
+                'fingerprint' => $certificate->fingerprint,
+                'certificate' => $certificate->certificate,
+                'verified'    => $certificate->verified,
+                'status'      => $certificate->status->value,
+                'subject'     => $certificate->subject,
+                'issuer'      => $certificate->issuer,
+                'notBefore'   => $certificate->notBefore->format(DateTimeInterface::ATOM),
+                'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+                'firstSeenAt' => $certificate->firstSeenAt->format(DateTimeInterface::ATOM),
+                'lastSeenAt'  => $certificate->lastSeenAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

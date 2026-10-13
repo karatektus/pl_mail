@@ -4,8 +4,8 @@ import { keyring } from "../../crypto/keyring.js";
 import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
 
 /**
- * Shows an OpenPGP-encrypted message: opens the keyring, fetches the raw
- * source, decrypts it in this browser (crypto/message.js) and puts the result
+ * Shows an encrypted message, OpenPGP or S/MIME: opens the keyring, fetches
+ * the raw source, decrypts it in this browser (crypto/message.js) and puts the result
  * where the server would have put a body — the same sandboxed frame, built from
  * the same document the server renders for every message.
  *
@@ -17,10 +17,13 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  *   rawUrl     — the message's byte-exact source (MessageSourceController::raw)
  *   senderKeysUrl — the keys the person holds for the sender
  *                (ContactKeyController::sender), for the signature inside
+ *   smimeSignerUrl — for S/MIME: where to ask what the signature inside
+ *                means (ContactKeyController::smimeSigner)
  *   document   — the frame document, with `<!--plmail:body-->` where the body goes
  *   keyring    — the keyring's config: stateUrl, unlockUrl, preloginUrl, csrf, userId, email
  *   settingsUrl — Settings → Encryption, for a locked keyring
- *   messages   — translated: decrypting, locked, noKey, noSource, failed,
+ *   messages   — translated: decrypting, locked, noKey, noCertificate,
+ *                unsupported, noSource, failed,
  *                signature.{valid, invalid, unknown_key, untrusted, key_changed, unchecked}
  *
  * Targets:
@@ -39,6 +42,7 @@ export default class extends Controller {
     static values = {
         rawUrl: String,
         senderKeysUrl: String,
+        smimeSignerUrl: { type: String, default: "" },
         document: String,
         keyring: Object,
         settingsUrl: String,
@@ -140,9 +144,17 @@ export default class extends Controller {
         let opened;
 
         try {
-            opened = await openEncrypted(new Uint8Array(await response.arrayBuffer()), ring, await this.#senderKeys());
+            opened = await openEncrypted(new Uint8Array(await response.arrayBuffer()), ring, await this.#senderKeys(), {
+                smimeSignerUrl: this.smimeSignerUrlValue,
+            });
         } catch (error) {
-            this.#say("no_key" === error?.message ? this.messagesValue.noKey : this.messagesValue.failed, true);
+            this.#say({
+                no_key: this.messagesValue.noKey,
+                // S/MIME, and none of the person's certificates opens it: the
+                // note the page shows when they have none at all.
+                no_certificate: this.messagesValue.noCertificate,
+                unsupported_cipher: this.messagesValue.unsupported,
+            }[error?.message] ?? this.messagesValue.failed, true);
 
             return;
         }

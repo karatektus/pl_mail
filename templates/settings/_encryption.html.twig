@@ -13,7 +13,10 @@ the keyring and shows the forms that apply.
 
 Four cards, most comfortable first: whether it works, the recovery phrase,
 the devices that can reopen it on their own, and — folded away — the keys
-themselves for whoever wants to import, export or replace one. A fifth lists
+themselves for whoever wants to import, export or replace one. Then the
+person's S/MIME certificates (phase 6c), which live on the same keyring: a
+PKCS#12 file is opened in the browser and its key wrapped there, so this card
+is the script's as well. A fifth lists
 contacts' keys, which is a different thing — other people's public keys, no
 keyring involved — and is the server's own frame (settings/_contact_keys).
 
@@ -75,6 +78,22 @@ Accepts nothing: what it needs is the signed-in user and the routes.
          hardwareKey:       'encryption.import.hardware_key'|trans,
          notAKey:           'encryption.import.not_a_key'|trans,
          exportFileName:    'encryption.export.file_name'|trans,
+         smimeEmpty:        'encryption.smime.empty'|trans,
+         smimeImported:     'encryption.smime.imported'|trans,
+         smimeValidUntil:   'encryption.smime.valid_until'|trans,
+         smimeExpired:      'encryption.smime.expired'|trans,
+         smimeIssuedBy:     'encryption.smime.issued_by'|trans,
+         smimeRetired:      'encryption.smime.retired'|trans,
+         smimeExport:       'encryption.smime.export'|trans,
+         smimeRemove:       'encryption.smime.remove'|trans,
+         smimeConfirmRemove:'encryption.smime.confirm_remove'|trans,
+         smimeExportPasswordMissing: 'encryption.smime.export_password_missing'|trans,
+         smimeWrongPassword:'encryption.smime.wrong_password'|trans,
+         smimeNotPkcs12:    'encryption.smime.not_pkcs12'|trans,
+         smimeLegacy:       'encryption.smime.legacy'|trans,
+         smimeNotRsa:       'encryption.smime.not_rsa'|trans,
+         smimeNoKey:        'encryption.smime.no_key'|trans,
+         smimeNoMatch:      'encryption.smime.no_match'|trans,
          failed:            'encryption.failed'|trans,
      }|json_encode }}">
 
@@ -201,6 +220,48 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                     <summary class="text-xs font-semibold text-ink cursor-pointer">{{ 'encryption.keys.advanced'|trans }}</summary>
                     <ul class="mt-3 divide-y divide-line" data-settings--encryption-target="keys"></ul>
                 </details>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── S/MIME certificates ─────────────────────────────────────────────── #}
+    {# The person's own certificates, from PKCS#12 files. Opened in the browser
+       (crypto/smime.js), the key wrapped under the user key there; the list
+       is the keyring's, so it is drawn by the script like the keys above. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.smime.heading'|trans,
+        subheading: 'encryption.smime.subheading'|trans,
+        padded:     true,
+        class:      'mb-6',
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <ul class="divide-y divide-line mb-4" data-settings--encryption-target="smimeList" data-testid="smime-certificates"></ul>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <form data-action="submit->settings--encryption#importSmime">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.smime.import_heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.smime.import_hint'|trans }}</p>
+                        <input type="file" required accept=".p12,.pfx,application/x-pkcs12"
+                               aria-label="{{ 'encryption.smime.file'|trans }}"
+                               data-settings--encryption-target="smimeFile"
+                               data-testid="smime-file"
+                               class="block w-full text-xs text-ink-muted mb-2">
+                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-smime-password">{{ 'encryption.smime.password'|trans }}</label>
+                        <input type="password" id="encryption-smime-password" autocomplete="off"
+                               data-settings--encryption-target="smimePassword" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">{{ 'encryption.smime.import_submit'|trans }}</button>
+                        <p hidden class="mt-2 text-xs" data-settings--encryption-target="smimeResult" role="status" data-testid="smime-result"></p>
+                    </form>
+
+                    <div>
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.smime.export_heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.smime.export_hint'|trans }}</p>
+                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-smime-export-password">{{ 'encryption.smime.export_password'|trans }}</label>
+                        <input type="password" id="encryption-smime-export-password" minlength="8" autocomplete="new-password"
+                               data-settings--encryption-target="smimeExportPassword" class="{{ field }}">
+                    </div>
+                </div>
             </div>
         {% endblock %}
     {% endembed %}

@@ -27,6 +27,8 @@ use Throwable;
  * authority vouches for. If that fails, once more with the chain left out: a
  * pass then means the message is intact but nobody vouches for the signer —
  * a self-signed or private-CA certificate — which is Untrusted, not Invalid.
+ * The certificate of a good signature by the sender is kept for them
+ * (ContactCertificates): it is what mail back to them is encrypted to.
  *
  * **PGP** goes through ext-gnupg, in a GnuPG home made for this one check and
  * removed after it. One home per check rather than a shared keyring: workers
@@ -55,6 +57,8 @@ final readonly class SignatureVerifier
         private RawMessageResolver   $raw,
         private AddressKeyRepository $addressKeys,
         private ContactKeyRepository $contactKeys,
+        private CertificateReader    $certificates,
+        private ContactCertificates  $contactCertificates,
         private LoggerInterface      $logger,
     ) {
     }
@@ -80,7 +84,7 @@ final readonly class SignatureVerifier
 
         try {
             return match ($crypto) {
-                MessageCrypto::SmimeSigned     => $this->smime($path, (string) $message->fromAddress),
+                MessageCrypto::SmimeSigned     => $this->smime($message, $path),
                 MessageCrypto::PgpSigned       => $this->pgpDetached($message, (string) file_get_contents($path)),
                 MessageCrypto::PgpInlineSigned => $this->pgpInline($message),
                 default                        => null,
@@ -97,13 +101,13 @@ final readonly class SignatureVerifier
     /**
      * @return array{state: SignatureState, signer: ?string}|null
      */
-    private function smime(string $path, string $from): ?array
+    private function smime(Message $message, string $path): ?array
     {
+        $from       = strtolower(trim((string) $message->fromAddress));
         $signerFile = (string) tempnam(sys_get_temp_dir(), 'plmail-signer');
 
         try {
-            $authorities = openssl_get_cert_locations()['default_cert_file'] ?? '';
-            $trusted     = openssl_pkcs7_verify($path, 0, $signerFile, true === is_file($authorities) ? [$authorities] : []);
+            $trusted = openssl_pkcs7_verify($path, 0, $signerFile, $this->certificates->authorities());
 
             if (true !== $trusted) {
                 // Intact but unvouched-for, or not intact at all.
@@ -118,46 +122,23 @@ final readonly class SignatureVerifier
                 }
             }
 
-            $addresses = self::certificateAddresses((string) @file_get_contents($signerFile));
+            $pem       = (string) @file_get_contents($signerFile);
+            $parsed    = '' === $pem ? false : openssl_x509_parse($pem);
+            $addresses = false === $parsed ? [] : CertificateReader::addresses($parsed);
             $signer    = $addresses[0] ?? null;
 
-            if (false === in_array(strtolower($from), $addresses, true)) {
+            if (false === in_array($from, $addresses, true)) {
                 return ['state' => SignatureState::Invalid, 'signer' => $signer];
             }
+
+            // Kept only now, with the signature good and naming the sender:
+            // anything less is a certificate anybody could have attached.
+            $this->contactCertificates->record($message->account->usr, $from, $pem, true === $trusted);
 
             return ['state' => true === $trusted ? SignatureState::Valid : SignatureState::Untrusted, 'signer' => $signer];
         } finally {
             @unlink($signerFile);
         }
-    }
-
-    /**
-     * The addresses a certificate is for, lower-cased: its subjectAltName
-     * emails, and the old emailAddress in the subject.
-     *
-     * @return list<string>
-     */
-    private static function certificateAddresses(string $pem): array
-    {
-        $parsed = '' === $pem ? false : openssl_x509_parse($pem);
-
-        if (false === $parsed) {
-            return [];
-        }
-
-        $addresses = [];
-
-        foreach (explode(',', (string) ($parsed['extensions']['subjectAltName'] ?? '')) as $name) {
-            if (1 === preg_match('/^\s*email:(.+)$/i', $name, $match)) {
-                $addresses[] = strtolower(trim($match[1]));
-            }
-        }
-
-        foreach ((array) ($parsed['subject']['emailAddress'] ?? []) as $address) {
-            $addresses[] = strtolower(trim((string) $address));
-        }
-
-        return array_values(array_unique($addresses));
     }
 
     // ── PGP ───────────────────────────────────────────────────────────────────

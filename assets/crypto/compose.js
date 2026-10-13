@@ -18,13 +18,19 @@
  *   - The outgoing message, signed only: multipart/signed around the exact
  *     entity, with a detached signature.
  *
+ * Each of the last two in OpenPGP or in S/MIME (RFC 8551), with the same
+ * shapes: S/MIME signs with a detached CMS signature in multipart/signed,
+ * and encrypts that signed entity into an `smime.p7m` (crypto/smime.js) to
+ * every recipient's certificate and the sender's own. Which scheme a message
+ * uses is the composer's choice (compose--encryption).
+ *
  * The keys come from the keyring (crypto/keyring.js) and the recipients'
  * keys from the server (ContactKeyController::recipients()); the server
  * checks again before sending that each recipient's key is still the one
  * used (App\Service\Crypto\SealGuard).
  */
 
-import { boundary, normalise } from "./mime.js";
+import { boundary, bytesToBase64, normalise } from "./mime.js";
 
 const CRLF = "\r\n";
 const encoder = new TextEncoder();
@@ -56,6 +62,21 @@ export function ownKeyEntryFor(ring, email) {
     }
 
     return found;
+}
+
+/**
+ * The person's own S/MIME certificate for an address: active, for it, valid
+ * now, and of those the one that lasts longest — the keyring lists them so.
+ * Mirrors App\Service\Crypto\SmimeCertificates::for().
+ */
+export function ownCertificateFor(ring, email) {
+    const address = String(email).toLowerCase();
+    const now = Date.now();
+
+    return (ring.state?.smimeCertificates ?? []).find((entry) => "active" === entry.status
+        && entry.addresses.includes(address)
+        && Date.parse(entry.notBefore) <= now
+        && now < Date.parse(entry.notAfter)) ?? null;
 }
 
 /** @returns {Promise<string>} the draft, armored, for the person's eyes only */
@@ -211,6 +232,71 @@ export async function signEntity({ ring, entity, signer }) {
     ].join(CRLF);
 }
 
+/**
+ * The message as it goes out, S/MIME-encrypted: signed first, the way
+ * Thunderbird and Outlook do it, then enveloped to every recipient's
+ * certificate and to the sender's, so the Sent copy stays readable.
+ *
+ * @param {object} options
+ * @param {object} options.ring
+ * @param {string} options.entity                  what buildEntity() made
+ * @param {string[]} options.recipientCertificates PEM, one per recipient
+ * @param {object} options.signer                  the keyring's S/MIME entry to sign with
+ * @returns {Promise<{entity: string, fingerprints: string[]}>}
+ */
+export async function smimeEncryptEntity({ ring, entity, recipientCertificates, signer }) {
+    const smime = await import("./smime.js");
+    const signed = await smimeSignEntity({ ring, entity, signer });
+    const certificates = uniqueBy([...recipientCertificates, signer.certificate], (pem) => pem.replace(/\s+/g, ""));
+    const enveloped = await smime.envelope(encoder.encode(signed), certificates);
+    const fingerprints = await Promise.all(certificates.map((pem) => smime.fingerprintOf(smime.pemToDer(pem))));
+
+    return {
+        entity: [
+            'Content-Type: application/pkcs7-mime; smime-type=enveloped-data; name="smime.p7m"',
+            "Content-Transfer-Encoding: base64",
+            'Content-Disposition: attachment; filename="smime.p7m"',
+            "Content-Description: S/MIME Encrypted Message",
+            "",
+            wrap76(bytesToBase64(enveloped)),
+            "",
+        ].join(CRLF),
+        fingerprints: [...new Set(fingerprints)],
+    };
+}
+
+/**
+ * The message as it goes out, S/MIME-signed: the entity untouched, beside a
+ * detached CMS signature over exactly its bytes (RFC 8551 §3.5.3).
+ *
+ * @returns {Promise<string>}
+ */
+export async function smimeSignEntity({ ring, entity, signer }) {
+    const smime = await import("./smime.js");
+    // What sits between the two boundaries, as signEntity() has it.
+    const signed = entity.replace(/\r\n$/, "");
+    const signature = await smime.sign(encoder.encode(signed), await ring.smimeSigner(signer.fingerprint));
+    const marker = boundary();
+
+    return [
+        `Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha-256; boundary="${marker}"`,
+        "",
+        "This is a cryptographically signed message in MIME format.",
+        `--${marker}`,
+        signed,
+        `--${marker}`,
+        'Content-Type: application/pkcs7-signature; name="smime.p7s"',
+        "Content-Transfer-Encoding: base64",
+        'Content-Disposition: attachment; filename="smime.p7s"',
+        "Content-Description: S/MIME Cryptographic Signature",
+        "",
+        wrap76(bytesToBase64(signature)),
+        "",
+        `--${marker}--`,
+        "",
+    ].join(CRLF);
+}
+
 // ── Private ─────────────────────────────────────────────────────────────────
 
 async function ownPublicKeys(ring) {
@@ -246,4 +332,24 @@ function unique(keys) {
 
         return true;
     });
+}
+
+function uniqueBy(items, keyOf) {
+    const seen = new Set();
+
+    return items.filter((item) => {
+        const key = keyOf(item);
+
+        if (true === seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+
+        return true;
+    });
+}
+
+function wrap76(base64) {
+    return (base64.match(/.{1,76}/g) ?? [""]).join(CRLF);
 }

@@ -64,4 +64,10 @@ return [
     'postal-mime' => ['version' => '2.7.6'],
     'dompurify' => ['version' => '3.4.16'],
     'uqr' => ['version' => '0.1.2'],
+    'pkijs' => ['version' => '3.4.1'],
+    'asn1js' => ['version' => '3.0.10'],
+    'pvtsutils' => ['version' => '1.3.6'],
+    'pvutils' => ['version' => '1.1.5'],
+    'bytestreamjs' => ['version' => '2.0.1'],
+    '@noble/hashes/sha1' => ['version' => '1.8.0'],
 ];

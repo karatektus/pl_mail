@@ -22,6 +22,7 @@ export default class extends Controller {
         "phraseState", "phraseCreate", "phraseBox", "phraseWords", "recoverForm", "recoverWords", "recoverResult",
         "devices", "rememberDevice", "keys",
         "importFile", "importText", "importPassphrase", "importResult", "exportPassphrase",
+        "smimeList", "smimeFile", "smimePassword", "smimeResult", "smimeExportPassword",
     ];
 
     static values = {
@@ -192,6 +193,71 @@ export default class extends Controller {
         await this.#busy(event.currentTarget, () => this.#ring.makePrimary(Number(event.params.id), event.params.email));
     }
 
+    /**
+     * A PKCS#12 file into the keyring. The file and its password stay in
+     * this browser; see Keyring.importSmime().
+     */
+    async importSmime(event) {
+        event.preventDefault();
+
+        await this.#busy(event.submitter, async () => {
+            const file = this.smimeFileTarget.files?.[0];
+
+            if (undefined === file) {
+                return;
+            }
+
+            try {
+                const imported = await this.#ring.importSmime(new Uint8Array(await file.arrayBuffer()), this.smimePasswordTarget.value);
+
+                this.smimeFileTarget.value = "";
+                this.smimePasswordTarget.value = "";
+                this.#say(this.smimeResultTarget, this.messagesValue.smimeImported.replace("%addresses%", imported.addresses.join(", ")), false);
+            } catch (error) {
+                const message = {
+                    wrong_password: this.messagesValue.smimeWrongPassword,
+                    not_pkcs12: this.messagesValue.smimeNotPkcs12,
+                    legacy_pkcs12: this.messagesValue.smimeLegacy,
+                    not_rsa: this.messagesValue.smimeNotRsa,
+                    no_key: this.messagesValue.smimeNoKey,
+                    no_certificate: this.messagesValue.smimeNoKey,
+                    no_matching_address: this.messagesValue.smimeNoMatch,
+                }[error.message] ?? this.messagesValue.failed;
+
+                this.#say(this.smimeResultTarget, message, true);
+            }
+        });
+    }
+
+    /** One certificate as a .p12 file, locked with the password typed beside the list. */
+    async exportSmime(event) {
+        const password = this.smimeExportPasswordTarget.value;
+
+        if (password.length < 8) {
+            showToast(this.messagesValue.smimeExportPasswordMissing, { type: "error" });
+            this.smimeExportPasswordTarget.focus();
+
+            return;
+        }
+
+        await this.#busy(event.currentTarget, async () => {
+            const id = Number(event.params.id);
+            const bytes = await this.#ring.exportSmime(id, password);
+            const entry = this.#ring.state.smimeCertificates.find((candidate) => candidate.id === id);
+
+            this.smimeExportPasswordTarget.value = "";
+            this.#download(`${(entry?.addresses[0] ?? "certificate").replace(/[^a-z0-9@._-]/gi, "_")}.p12`, bytes, "application/x-pkcs12");
+        });
+    }
+
+    async removeSmime(event) {
+        if (false === await askConfirm(this.messagesValue.smimeConfirmRemove)) {
+            return;
+        }
+
+        await this.#busy(event.currentTarget, () => this.#ring.removeSmime(Number(event.params.id)));
+    }
+
     // ── Private ─────────────────────────────────────────────────────────────
 
     #render() {
@@ -215,6 +281,7 @@ export default class extends Controller {
 
         this.#renderDevices();
         this.#renderKeys();
+        this.#renderSmime();
     }
 
     #renderStatus() {
@@ -334,6 +401,62 @@ export default class extends Controller {
         }));
     }
 
+    #renderSmime() {
+        if (false === this.hasSmimeListTarget) {
+            return;
+        }
+
+        const certificates = this.#ring.state.smimeCertificates ?? [];
+
+        if (0 === certificates.length) {
+            const empty = document.createElement("li");
+
+            empty.className = "py-2 text-xs text-ink-faint italic";
+            empty.textContent = this.messagesValue.smimeEmpty;
+            this.smimeListTarget.replaceChildren(empty);
+
+            return;
+        }
+
+        const lockedIds = new Set(this.#ring.lockedUserKeys().map((userKey) => userKey.id));
+
+        this.smimeListTarget.replaceChildren(...certificates.map((certificate) => {
+            const row = document.createElement("li");
+            const addresses = document.createElement("p");
+            const meta = document.createElement("p");
+            const fingerprint = document.createElement("p");
+            const actions = document.createElement("div");
+            const expired = Date.parse(certificate.notAfter) <= Date.now();
+
+            row.className = "py-3";
+            row.setAttribute("data-testid", "smime-certificate");
+            addresses.className = "text-sm text-ink break-all";
+            addresses.textContent = `${certificate.subject} · ${certificate.addresses.join(", ")}`;
+
+            meta.className = "text-[11px] text-ink-faint mt-0.5";
+            meta.textContent = [
+                `${this.messagesValue.smimeIssuedBy} ${certificate.issuer}`,
+                `${true === expired ? this.messagesValue.smimeExpired : this.messagesValue.smimeValidUntil} ${this.#date(certificate.notAfter)}`,
+                "retired" === certificate.status ? this.messagesValue.smimeRetired : null,
+                lockedIds.has(certificate.userKeyId) ? this.messagesValue.lockedKey : null,
+            ].filter(Boolean).join(" · ");
+
+            fingerprint.className = "text-[11px] font-mono text-ink-muted mt-1 break-all";
+            fingerprint.textContent = certificate.fingerprint.toUpperCase().match(/.{1,4}/g).join(" ");
+
+            actions.className = "flex flex-wrap gap-2 mt-2";
+
+            if (false === lockedIds.has(certificate.userKeyId)) {
+                actions.append(this.#button(this.messagesValue.smimeExport, "exportSmime", { id: certificate.id }));
+            }
+
+            actions.append(this.#button(this.messagesValue.smimeRemove, "removeSmime", { id: certificate.id }));
+            row.append(addresses, meta, fingerprint, actions);
+
+            return row;
+        }));
+    }
+
     #button(label, action, params) {
         const button = document.createElement("button");
 
@@ -392,8 +515,8 @@ export default class extends Controller {
         return new Intl.DateTimeFormat(this.localeValue || undefined, { dateStyle: "medium" }).format(new Date(iso));
     }
 
-    #download(name, text) {
-        const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    #download(name, content, type = "text/plain") {
+        const url = URL.createObjectURL(new Blob([content], { type }));
         const link = document.createElement("a");
 
         link.href = url;

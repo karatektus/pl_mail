@@ -6,10 +6,12 @@ namespace App\Service\Crypto;
 
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\AddressKeyBinding;
+use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Crypto\UserKeyCopy;
 use App\Entity\User\User;
 use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\SmimeCertificateRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
 use App\Service\Demo\DemoMode;
@@ -21,18 +23,19 @@ use DateTimeInterface;
  *
  * Handed only to the person it belongs to, and holding nothing the server can
  * open — the user keys are wrapped under the password, the address keys under
- * passphrases wrapped under those. Sending all of it on every load is what
- * lets any browser the person signs in on open the keyring with no more than
- * the password.
+ * passphrases wrapped under those, the S/MIME keys directly under the user
+ * keys. Sending all of it on every load is what lets any browser the person
+ * signs in on open the keyring with no more than the password.
  */
 final readonly class KeyringView
 {
     public function __construct(
-        private Keyring               $keyring,
-        private UserKeyRepository     $userKeys,
-        private UserKeyCopyRepository $copies,
-        private AddressKeyRepository  $addressKeys,
-        private DemoMode              $demoMode,
+        private Keyring                    $keyring,
+        private UserKeyRepository          $userKeys,
+        private UserKeyCopyRepository      $copies,
+        private AddressKeyRepository       $addressKeys,
+        private SmimeCertificateRepository $smimeCertificates,
+        private DemoMode                   $demoMode,
     ) {
     }
 
@@ -44,14 +47,15 @@ final readonly class KeyringView
         return [
             // A demo visitor's mailbox is public and thrown away within hours;
             // a keyring on it would protect nothing and outlive nothing.
-            'enabled'     => false === $this->demoMode->isEnabled(),
-            'kdf'         => true === $user->hasClientDerivedPassword()
+            'enabled'           => false === $this->demoMode->isEnabled(),
+            'kdf'               => true === $user->hasClientDerivedPassword()
                 ? ['salt' => $user->kdfSalt, 'iterations' => $user->kdfIterations]
                 : null,
-            'addresses'   => $this->keyring->ownedAddresses($user),
-            'userKeys'    => array_map($this->userKey(...), $this->userKeys->findForUser($user)),
-            'copies'      => array_map($this->copy(...), $this->copies->findForUser($user)),
-            'addressKeys' => array_map($this->addressKey(...), $this->addressKeys->findForUser($user)),
+            'addresses'         => $this->keyring->ownedAddresses($user),
+            'userKeys'          => array_map($this->userKey(...), $this->userKeys->findForUser($user)),
+            'copies'            => array_map($this->copy(...), $this->copies->findForUser($user)),
+            'addressKeys'       => array_map($this->addressKey(...), $this->addressKeys->findForUser($user)),
+            'smimeCertificates' => array_map($this->smimeCertificate(...), $this->smimeCertificates->findForUser($user)),
         ];
     }
 
@@ -100,6 +104,26 @@ final readonly class KeyringView
                 static fn (AddressKeyBinding $binding): array => ['email' => $binding->email, 'primary' => $binding->isPrimary],
                 $key->bindings->toArray(),
             )),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function smimeCertificate(SmimeCertificate $certificate): array
+    {
+        return [
+            'id'          => $certificate->id,
+            'userKeyId'   => $certificate->userKey->id,
+            'fingerprint' => $certificate->fingerprint,
+            'certificate' => $certificate->certificate,
+            'chain'       => $certificate->chain,
+            'privateKey'  => $certificate->privateKey,
+            'addresses'   => $certificate->addresses,
+            'subject'     => $certificate->subject,
+            'issuer'      => $certificate->issuer,
+            'notBefore'   => $certificate->notBefore->format(DateTimeInterface::ATOM),
+            'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+            'status'      => $certificate->status->value,
+            'createdAt'   => $certificate->createdAt->format(DateTimeInterface::ATOM),
         ];
     }
 }

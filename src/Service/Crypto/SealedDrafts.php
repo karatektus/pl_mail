@@ -25,8 +25,10 @@ use Symfony\Component\HttpFoundation\Request;
  *   sealed[entity]  with a send or a schedule only: the finished message the
  *                   browser built — encrypted, signed, or plain mail from a
  *                   draft the server cannot read — with sealed[kind],
- *                   sealed[fingerprints] (whose keys it is encrypted to) and
- *                   sealed[signer] (whose key signed it).
+ *                   sealed[fingerprints] (whose keys it is encrypted to),
+ *                   sealed[signer] (whose key signed it) and sealed[scheme]
+ *                   (`pgp`, or `smime` when the keys are S/MIME certificates
+ *                   and the fingerprints theirs).
  *
  * Once a draft is sealed it stays sealed: an autosave without sealed[draft]
  * does not turn it back into one the server can read, because the browser
@@ -43,9 +45,10 @@ final readonly class SealedDrafts
     private const int MAX_ENTITY_BYTES = 48 * 1024 * 1024;
 
     public function __construct(
-        private SealedMessageStorage $storage,
-        private SealGuard            $guard,
-        private DecryptedMailPolicy  $decryptedMail,
+        private SealedMessageStorage  $storage,
+        private SealGuard             $guard,
+        private DecryptedMailPolicy   $decryptedMail,
+        private MessageCryptoDetector $detector,
     ) {
     }
 
@@ -88,7 +91,15 @@ final readonly class SealedDrafts
             return;
         }
 
-        $this->acceptBuilt($message, $entity, (string) ($sealed['kind'] ?? ''), (string) ($sealed['fingerprints'] ?? ''), (string) ($sealed['signer'] ?? ''), '1' === ($sealed['protectedSubject'] ?? null));
+        $this->acceptBuilt(
+            $message,
+            $entity,
+            (string) ($sealed['kind'] ?? ''),
+            (string) ($sealed['scheme'] ?? SealGuard::SCHEME_PGP),
+            (string) ($sealed['fingerprints'] ?? ''),
+            (string) ($sealed['signer'] ?? ''),
+            '1' === ($sealed['protectedSubject'] ?? null),
+        );
     }
 
     /** The sealed draft, for the composer to open again. */
@@ -113,11 +124,12 @@ final readonly class SealedDrafts
      */
     public function sent(Message $message): void
     {
-        $kind = $message->outgoingSeal['kind'] ?? null;
+        $kind  = $message->outgoingSeal['kind'] ?? null;
+        $smime = SealGuard::SCHEME_SMIME === ($message->outgoingSeal['scheme'] ?? null);
 
         $message->crypto = match ($kind) {
-            SealGuard::KIND_ENCRYPTED => MessageCrypto::PgpEncrypted,
-            SealGuard::KIND_SIGNED    => MessageCrypto::PgpSigned,
+            SealGuard::KIND_ENCRYPTED => true === $smime ? MessageCrypto::SmimeEncrypted : MessageCrypto::PgpEncrypted,
+            SealGuard::KIND_SIGNED    => true === $smime ? MessageCrypto::SmimeSigned : MessageCrypto::PgpSigned,
             default                   => null,
         };
 
@@ -135,9 +147,11 @@ final readonly class SealedDrafts
         $message->outgoingSeal = null;
     }
 
-    private function acceptBuilt(Message $message, string $entity, string $kind, string $fingerprints, string $signer, bool $protectedSubject = false): void
+    private function acceptBuilt(Message $message, string $entity, string $kind, string $scheme, string $fingerprints, string $signer, bool $protectedSubject = false): void
     {
-        if (strlen($entity) > self::MAX_ENTITY_BYTES || false === in_array($kind, [SealGuard::KIND_ENCRYPTED, SealGuard::KIND_SIGNED, SealGuard::KIND_PLAIN], true)) {
+        if (strlen($entity) > self::MAX_ENTITY_BYTES
+            || false === in_array($kind, [SealGuard::KIND_ENCRYPTED, SealGuard::KIND_SIGNED, SealGuard::KIND_PLAIN], true)
+            || false === in_array($scheme, [SealGuard::SCHEME_PGP, SealGuard::SCHEME_SMIME], true)) {
             throw new SealRefused('compose.seal.refused');
         }
 
@@ -149,16 +163,25 @@ final readonly class SealedDrafts
 
         // An encrypted message has to say so on the outside, and nothing else
         // may pass for one: the row would be marked encrypted around mail that
-        // went out readable.
-        $isEncrypted = 'multipart' === $part->getMediaType() && 'encrypted' === $part->getMediaSubtype()
-            || 'text' === $part->getMediaType() && str_contains($entity, '-----BEGIN PGP MESSAGE-----');
+        // went out readable. S/MIME is read the way ingest reads it, so the
+        // Sent copy is classified as what the recipient will see.
+        $outside     = $this->detector->classify(self::contentTypeOf($entity), null, null);
+        $isEncrypted = SealGuard::SCHEME_SMIME === $scheme
+            ? MessageCrypto::SmimeEncrypted === $outside
+            : 'multipart' === $part->getMediaType() && 'encrypted' === $part->getMediaSubtype()
+                || 'text' === $part->getMediaType() && str_contains($entity, '-----BEGIN PGP MESSAGE-----');
 
         if ((SealGuard::KIND_ENCRYPTED === $kind) !== $isEncrypted) {
             throw new SealRefused('compose.seal.refused');
         }
 
+        if (SealGuard::SCHEME_SMIME === $scheme && SealGuard::KIND_SIGNED === $kind && MessageCrypto::SmimeSigned !== $outside) {
+            throw new SealRefused('compose.seal.refused');
+        }
+
         $seal = [
             'kind'         => $kind,
+            'scheme'       => $scheme,
             'recipients'   => SealGuard::recipientsOf($message),
             'fingerprints' => array_values(array_filter(array_map(
                 static fn (string $fingerprint): string => strtolower(trim($fingerprint)),
@@ -172,8 +195,16 @@ final readonly class SealedDrafts
             'protectedSubject' => true === $protectedSubject && SealGuard::KIND_ENCRYPTED === $kind,
         ];
 
+        // S/MIME names the person's own certificate as the signer, and it has
+        // to be the one that serves the From address now: checked here and
+        // again by SealGuard::refusal() when the message leaves.
+        if (SealGuard::SCHEME_SMIME === $scheme && SealGuard::KIND_PLAIN !== $kind
+            && null !== $this->guard->signerRefusal($message->account, (string) ($message->fromAddress ?? ''), $seal['signer'])) {
+            throw new SealRefused('compose.seal.keys_changed');
+        }
+
         if (SealGuard::KIND_ENCRYPTED === $kind) {
-            $refusal = $this->guard->keyRefusal($message->account->usr, $seal['recipients'], $seal['fingerprints']);
+            $refusal = $this->guard->keyRefusal($message->account->usr, $seal['recipients'], $seal['fingerprints'], $scheme);
 
             if (null !== $refusal) {
                 throw new SealRefused('compose.seal.keys_changed');
@@ -190,7 +221,9 @@ final readonly class SealedDrafts
             // Signed or plain mail from a sealed draft goes out readable, and
             // the composer sent its text with it so the Sent copy has a body
             // to search and show. Nothing more is sealed about it.
-            $message->crypto = SealGuard::KIND_SIGNED === $kind ? MessageCrypto::PgpSigned : null;
+            $message->crypto = SealGuard::KIND_SIGNED === $kind
+                ? (SealGuard::SCHEME_SMIME === $scheme ? MessageCrypto::SmimeSigned : MessageCrypto::PgpSigned)
+                : null;
         }
 
         $this->storage->write((int) $message->id, SealedMessageStorage::OUTGOING, $entity);
@@ -223,5 +256,14 @@ final readonly class SealedDrafts
         $message->bodyText     = null;
         $message->bodyHtml     = null;
         $message->bodyHtmlSafe = null;
+    }
+
+    /** The entity's own Content-Type header, unfolded, with its parameters. */
+    private static function contentTypeOf(string $entity): string
+    {
+        $end     = strpos($entity, "\r\n\r\n");
+        $headers = (string) preg_replace("/\r\n[ \t]+/", ' ', substr($entity, 0, false === $end ? 0 : $end));
+
+        return 1 === preg_match('/^content-type:\s*(.+)$/im', $headers, $match) ? trim($match[1]) : '';
     }
 }

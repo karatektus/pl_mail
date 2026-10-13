@@ -201,6 +201,19 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('contactKey.scheme', \App\Domain\Enum\Crypto\PgpScheme::Inline, $contactKeys[0]->scheme);
         $this->check('contactKey (changed).status', \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, $contactKeys[1]->status);
 
+        // ── S/MIME ────────────────────────────────────────────────────────
+        $smime = $container->get(\App\Repository\Crypto\SmimeCertificateRepository::class)->findForUser($user);
+        self::assertCount(1, $smime, 'the S/MIME certificate did not come back');
+        $this->check('smimeCertificate.privateKey', self::WRAPPED_KEY, $smime[0]->privateKey);
+        $this->check('smimeCertificate.userKey', $userKeys[0], $smime[0]->userKey);
+        $this->check('smimeCertificate.addresses', ['anna@work.audit.test'], $smime[0]->addresses);
+        $this->check('smimeCertificate.status', \App\Domain\Enum\Crypto\SmimeCertificateStatus::Retired, $smime[0]->status);
+
+        $certificates = $container->get(\App\Repository\Crypto\ContactCertificateRepository::class)->findForUser($user);
+        self::assertCount(1, $certificates, 'the contact certificate did not come back');
+        $this->check('contactCertificate.fingerprint', str_repeat('c', 64), $certificates[0]->fingerprint);
+        $this->check('contactCertificate.verified', true, $certificates[0]->verified);
+
         // ── The user settings bag ─────────────────────────────────────────
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
         $this->check('setting search.sort', 'oldest', $user->getSetting(User::SETTING_SEARCH_SORT));
@@ -497,6 +510,13 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $contactKey->scheme  = \App\Domain\Enum\Crypto\PgpScheme::Inline;
         $this->entityManager->persist($contactKey);
         $this->entityManager->persist(new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', str_repeat('e', 40), "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnew\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Autocrypt, \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, null, new \DateTimeImmutable()));
+
+        // An S/MIME certificate of hers, retired by a renewal, and one of
+        // Ben's that an authority vouched for.
+        $smime = new \App\Entity\Crypto\SmimeCertificate($user, $userKey, str_repeat('a', 64), "-----BEGIN CERTIFICATE-----\nanna\n-----END CERTIFICATE-----\n", '', self::WRAPPED_KEY, ['anna@work.audit.test'], 'Anna', 'Audit CA', new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2027-01-01'));
+        $smime->retire();
+        $this->entityManager->persist($smime);
+        $this->entityManager->persist(new \App\Entity\Crypto\ContactCertificate($user, 'ben@elsewhere.test', str_repeat('c', 64), "-----BEGIN CERTIFICATE-----\nben\n-----END CERTIFICATE-----\n", true, \App\Domain\Enum\Crypto\ContactKeyStatus::Current, 'Ben', 'Some CA', new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2027-01-01'), new \DateTimeImmutable('2026-01-02 03:04:05')));
 
         $token = \App\Entity\User\ApiToken::restore($user, 'iPhone', self::TOKEN_HASH, 'ab12cd', null, null);
         $this->entityManager->persist($token);

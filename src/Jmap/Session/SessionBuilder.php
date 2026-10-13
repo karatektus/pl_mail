@@ -436,6 +436,7 @@ final class SessionBuilder
                 'userKey'         => 'plmail/user-key',
                 'addressKeyToken' => 'plmail/address-key-token',
                 'pairingTransfer' => DevicePairingService::TRANSFER_PURPOSE,
+                'smimeKey'        => 'plmail/smime-key',
             ],
             'decryptedMailAllowed'    => true === $this->decryptedMail?->allowedOnInstall(),
             'maxDecryptedMailSize'    => DecryptedMail::MAX_BYTES,

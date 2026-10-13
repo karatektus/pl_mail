@@ -71,7 +71,7 @@ final class DecryptedMailController extends AbstractController
               ORDER BY m.receivedAt DESC',
         )
             ->setParameter('accounts', $accounts)
-            ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted])
+            ->setParameter('crypto', [MessageCrypto::PgpEncrypted, MessageCrypto::PgpInlineEncrypted, MessageCrypto::SmimeEncrypted])
             ->setParameter('none', PlaintextSource::None)
             ->setMaxResults(self::PENDING_BATCH)
             ->getResult();

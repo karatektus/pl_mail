@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**S/MIME, beside OpenPGP — phase 6c of end-to-end encryption.** Import your S/MIME certificate (a
+`.p12` or `.pfx` file) under Settings → Encryption: it is opened in your browser, and its private key
+is kept on the server only locked under your keys, like your OpenPGP keys; you can export it again or
+remove it. S/MIME-encrypted mail then opens in the reading pane, signature and attachments included.
+plMail keeps the certificates of contacts whose S/MIME-signed mail checks out — a certificate an
+authority vouches for counts as confirmed, any other is trusted on first use — and encrypts with
+S/MIME when every recipient has a certificate but not every recipient has an OpenPGP key (never with
+Bcc recipients). Unencrypted mail is signed with S/MIME when nobody else on it has an OpenPGP key.
+Revocation (CRL, OCSP) is not checked. Two tables are added; the migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **The subject of an encrypted message is encrypted too.** It travels inside the encryption, and the
 outside says "..." — as Thunderbird does (RFC 9788). Opening the message shows the real subject,
 and a reply starts from it; with *Decrypted mail on this server* on, the list shows it as well. Switch

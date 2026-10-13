@@ -9,6 +9,7 @@ use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -16,8 +17,11 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\User\UserRepository;
+use App\Service\Crypto\CertificateReader;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\MailSenderRegistry;
 use App\Tests\Support\Crypto\Gpg;
+use App\Tests\Support\Crypto\Smime;
 use App\Tests\Support\Mail\SendsAjaxCsrf;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -53,6 +57,7 @@ final class SealedSendTest extends WebTestCase
     private EntityManagerInterface $em;
     private Connection $connection;
     private Gpg $key;
+    private Smime $certificate;
 
     /** @var list<Email> */
     private array $sent = [];
@@ -268,6 +273,105 @@ final class SealedSendTest extends WebTestCase
         self::assertSame($this->key->fingerprint, $answer['sender']['fingerprint']);
     }
 
+    // ── S/MIME ────────────────────────────────────────────────────────────
+
+    /**
+     * What the browser built with S/MIME (crypto/smime.js) goes out as it
+     * came, and a recipient opens it: OpenSSL decrypts the wire with the
+     * certificate it was encrypted to. The Sent copy is classified S/MIME.
+     */
+    public function testAnSmimeMessageGoesOnTheWireByteForByteAndOpens(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+        $entity  = Smime::envelope("Content-Type: text/plain; charset=utf-8\r\n\r\nThe plan, in S/MIME.\r\n", [$this->certificate]);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'draft'        => self::DRAFT,
+            'entity'       => $entity,
+            'kind'         => 'encrypted',
+            'scheme'       => 'smime',
+            'fingerprints' => $this->certificate->fingerprint,
+            'signer'       => $this->certificate->fingerprint,
+        ], body: '');
+
+        self::assertSame('smime', $this->reload($id)->outgoingSeal['scheme'] ?? null);
+
+        $this->runHandler($id);
+
+        self::assertCount(1, $this->sent);
+
+        $wire = $this->sent[0]->toString();
+
+        self::assertStringContainsString($entity, $wire, 'the built message is on the wire unchanged');
+        self::assertStringContainsString('The plan, in S/MIME.', (string) $this->certificate->decrypt($wire));
+        self::assertMatchesRegularExpression('/^Content-Type:\s*(.+)$/mi', $wire);
+        preg_match('/^Content-Type:\s*([^\r\n]+(?:\r\n[ \t][^\r\n]+)*)/mi', $wire, $contentType);
+        self::assertSame(
+            MessageCrypto::SmimeEncrypted,
+            static::getContainer()->get(MessageCryptoDetector::class)->classify((string) preg_replace('/\r\n[ \t]+/', ' ', $contentType[1]), null, null),
+            'what plMail sends, plMail recognises when it comes back',
+        );
+        self::assertSame(MessageCrypto::SmimeEncrypted, $this->reload($id)->crypto);
+    }
+
+    public function testAnSmimeSignedMessageGoesOutAsBuilt(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+        $entity  = $this->certificate->signedEntity('Readable, and signed with S/MIME.');
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'entity' => $entity,
+            'kind'   => 'signed',
+            'scheme' => 'smime',
+            'signer' => $this->certificate->fingerprint,
+        ], body: '<p>Readable, and signed with S/MIME.</p>');
+
+        $this->runHandler($id);
+
+        self::assertStringContainsString($entity, $this->sent[0]->toString());
+        self::assertSame(MessageCrypto::SmimeSigned, $this->reload($id)->crypto);
+    }
+
+    /** Signed with a certificate that is not the From address's own now. */
+    public function testAnSmimeMessageSignedWithAnotherCertificateIsRefused(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'draft'        => self::DRAFT,
+            'entity'       => Smime::envelope("Content-Type: text/plain\r\n\r\nx\r\n", [$this->certificate]),
+            'kind'         => 'encrypted',
+            'scheme'       => 'smime',
+            'fingerprints' => $this->certificate->fingerprint,
+            'signer'       => str_repeat('ab', 32),
+        ], body: '');
+
+        self::assertStringContainsString('key changed while you were writing', (string) $client->getResponse()->getContent());
+        self::assertNull($this->reload($id)->outgoingSeal);
+    }
+
+    /** An OpenPGP message cannot be passed off as S/MIME, nor the other way round. */
+    public function testAnEntityThatIsNotWhatItsSchemeSaysIsRefused(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'draft'        => self::DRAFT,
+            'entity'       => $this->encryptedEntity(),
+            'kind'         => 'encrypted',
+            'scheme'       => 'smime',
+            'fingerprints' => $this->certificate->fingerprint,
+            'signer'       => $this->certificate->fingerprint,
+        ], body: '');
+
+        self::assertStringContainsString('did not arrive intact', (string) $client->getResponse()->getContent());
+        self::assertNull($this->reload($id)->outgoingSeal);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     /**
@@ -343,6 +447,7 @@ final class SealedSendTest extends WebTestCase
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
         $this->key        = new Gpg(self::ADDRESS);
+        $this->certificate = Smime::issue(self::ADDRESS);
 
         $user = $container->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
 
@@ -383,6 +488,10 @@ final class SealedSendTest extends WebTestCase
         $addressKey = new AddressKey($user, $userKey, $this->key->fingerprint, $this->key->armored, "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nx\n", 'v1.x.y', AddressKeyOrigin::Imported, null, null);
         $this->em->persist($addressKey);
         $this->em->persist($addressKey->bind(self::ADDRESS, true));
+
+        $info = $container->get(CertificateReader::class)->read($this->certificate->certificate);
+        self::assertNotNull($info);
+        $this->em->persist(new SmimeCertificate($user, $userKey, $info->fingerprint, $info->pem, '', 'v1.x.y', [self::ADDRESS], $info->subject, $info->issuer, $info->notBefore, $info->notAfter));
 
         $this->em->flush();
 

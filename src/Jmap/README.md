@@ -854,12 +854,16 @@ statement that creates the need for it.
   `maxSuggestions` rather than refused, with the applied value echoed back.
 - `Email/import` (RFC 8621 §4.8) — EmailImporter. A `$draft` import is also
   kept as the message to send, byte for byte; an encrypted one names the keys it
-  was encrypted to in the plMail argument `fingerprints` (SealGuard). Imported
-  mail lives in plMail only; nothing is appended at the provider.
+  was encrypted to in the plMail argument `fingerprints` (SealGuard) — OpenPGP
+  fingerprints, or S/MIME certificate fingerprints with `signer` naming the
+  sender's certificate. Imported mail lives in plMail only; nothing is
+  appended at the provider.
 - `urn:plmail:params:jmap:keys` (Method/Keys): `Keyring/get`, `ContactKey/get`,
   `ContactKey/lookup`, `DecryptedMail/pending`, `DecryptedMail/store`, and the
   Email properties `cryptoType`, `encrypted`, `signatureState`, `signer`,
-  `decryptedOnServer`, `sealedDraft`. See docs/CLIENT_DEVELOPMENT.md.
+  `decryptedOnServer`, `sealedDraft`. `Keyring/get` carries the person's S/MIME
+  certificates (`smimeCertificates`) and `ContactKey/lookup` each recipient's
+  (`smime`). See docs/CLIENT_DEVELOPMENT.md.
 - Not implemented: `Email/copy|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---

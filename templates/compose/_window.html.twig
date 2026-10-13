@@ -126,8 +126,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              lockedDraft:    'compose.crypto.locked_draft'|trans,
              failedDraft:    'compose.crypto.failed_draft'|trans,
              noOwnKey:       'compose.crypto.no_own_key'|trans,
+             noOwnCertificate: 'compose.crypto.no_own_certificate'|trans,
              failed:         'compose.crypto.failed'|trans,
              hasKey:         'compose.crypto.has_key'|trans,
+             hasCertificate: 'compose.crypto.has_certificate'|trans,
              keyChanged:     'compose.crypto.key_changed'|trans,
          }|json_encode|e('html_attr') }}"
          {# 'forward' moves the caret to To, spares the quote-only body the

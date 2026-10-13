@@ -122,19 +122,27 @@ final readonly class EmailImporter
         if (true === $draft) {
             $kind = match (true) {
                 true === $message->crypto?->isEncrypted() => SealGuard::KIND_ENCRYPTED,
-                null !== $message->crypto && $message->crypto->isPgp() => SealGuard::KIND_SIGNED,
+                null !== $message->crypto => SealGuard::KIND_SIGNED,
                 default => SealGuard::KIND_PLAIN,
             };
+            $scheme = null !== $message->crypto && false === $message->crypto->isPgp() ? SealGuard::SCHEME_SMIME : SealGuard::SCHEME_PGP;
 
             $seal = [
                 'kind'         => $kind,
+                'scheme'       => $scheme,
                 'recipients'   => SealGuard::recipientsOf($message),
                 'fingerprints' => self::fingerprints($import['fingerprints'] ?? []),
                 'signer'       => is_string($import['signer'] ?? null) ? strtolower($import['signer']) : '',
             ];
 
-            if (SealGuard::KIND_ENCRYPTED === $kind && null !== $this->guard->keyRefusal($account->usr, $seal['recipients'], $seal['fingerprints'])) {
+            if (SealGuard::KIND_ENCRYPTED === $kind && null !== $this->guard->keyRefusal($account->usr, $seal['recipients'], $seal['fingerprints'], $scheme)) {
                 throw new MethodException('forbidden', 'The message is not encrypted to every recipient\'s current key; see ContactKey/lookup.', ['properties' => ['fingerprints']]);
+            }
+
+            // An S/MIME signature names the certificate that made it, and it
+            // has to be the person's current one for the From address.
+            if (SealGuard::SCHEME_SMIME === $scheme && null !== $this->guard->signerRefusal($account, (string) $message->fromAddress, $seal['signer'])) {
+                throw new MethodException('forbidden', 'The message is not signed with the current S/MIME certificate of its From address; see Keyring/get.', ['properties' => ['signer']]);
             }
         }
 

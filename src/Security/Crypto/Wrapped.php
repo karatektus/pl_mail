@@ -25,9 +25,15 @@ final class Wrapped
     /** Generous for a 32-byte key or passphrase, and a bound on the column. */
     private const int MAX_LENGTH = 4096;
 
-    public static function isWellFormed(mixed $value): bool
+    /**
+     * For a wrapped private key rather than a key or passphrase: an S/MIME
+     * key is PKCS#8, which for RSA-4096 is some 2.4 kB before base64.
+     */
+    public const int MAX_KEY_LENGTH = 16384;
+
+    public static function isWellFormed(mixed $value, int $maxLength = self::MAX_LENGTH): bool
     {
-        if (false === is_string($value) || self::MAX_LENGTH < strlen($value)) {
+        if (false === is_string($value) || $maxLength < strlen($value)) {
             return false;
         }
 

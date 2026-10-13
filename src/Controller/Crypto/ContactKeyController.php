@@ -13,8 +13,10 @@ use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Repository\Crypto\ContactCertificateRepository;
 use App\Repository\Crypto\ContactKeyRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Crypto\ContactCertificates;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\ContactKeys;
 use App\Service\Crypto\PublicKeyReader;
@@ -49,6 +51,10 @@ use Symfony\UX\Turbo\TurboBundle;
  * at it and wants to see the answer. The sender's other signed mail is
  * queued (SignatureRecheck), as it is for every change made in the list.
  *
+ * Contacts' S/MIME certificates share the list and its rules (accept a
+ * changed one, remove one); and the reading pane asks here what a signature
+ * it found inside an S/MIME-encrypted message means (smimeSigner()).
+ *
  * Every row is looked up through the signed-in person (ContactKeys::owned(),
  * the OwnershipVoter for messages): another person's key or message is a 404
  * or a 403, never a write.
@@ -62,16 +68,17 @@ final class ContactKeyController extends AbstractController
 
     private const string FLASH = 'contact_keys';
 
-
     public function __construct(
-        private readonly ContactKeys            $contactKeys,
-        private readonly ContactKeyRepository   $repository,
-        private readonly ContactKeyCollector    $collector,
-        private readonly SignatureVerifier      $verifier,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly DemoMode               $demoMode,
-        private readonly SenderResolver         $senders,
-        private readonly RecipientKeys          $recipientKeys,
+        private readonly ContactKeys                  $contactKeys,
+        private readonly ContactKeyRepository         $repository,
+        private readonly ContactKeyCollector          $collector,
+        private readonly SignatureVerifier            $verifier,
+        private readonly EntityManagerInterface       $entityManager,
+        private readonly DemoMode                     $demoMode,
+        private readonly SenderResolver               $senders,
+        private readonly RecipientKeys                $recipientKeys,
+        private readonly ContactCertificates          $certificates,
+        private readonly ContactCertificateRepository $certificateRepository,
     ) {
     }
 
@@ -102,9 +109,10 @@ final class ContactKeyController extends AbstractController
     public function index(#[CurrentUser] User $user): Response
     {
         return $this->render('settings/_contact_keys.html.twig', [
-            'contactKeys' => $this->repository->findForUser($user),
-            'policies'    => RecipientPolicy::cases(),
-            'schemes'     => PgpScheme::cases(),
+            'contactKeys'         => $this->repository->findForUser($user),
+            'contactCertificates' => $this->certificateRepository->findForUser($user),
+            'policies'            => RecipientPolicy::cases(),
+            'schemes'             => PgpScheme::cases(),
         ]);
     }
 
@@ -207,6 +215,24 @@ final class ContactKeyController extends AbstractController
         });
     }
 
+    #[Route('/certificates/{id}/accept', name: 'certificate_accept', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function acceptCertificate(Request $request, #[CurrentUser] User $user, int $id): Response
+    {
+        return $this->write($request, 'contact-certificate-' . $id, function () use ($user, $id): void {
+            $this->certificates->accept($user, $id);
+            $this->say('success', 'contact_keys.accepted');
+        });
+    }
+
+    #[Route('/certificates/{id}/remove', name: 'certificate_remove', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function removeCertificate(Request $request, #[CurrentUser] User $user, int $id): Response
+    {
+        return $this->write($request, 'contact-certificate-' . $id, function () use ($user, $id): void {
+            $this->certificates->remove($user, $id);
+            $this->say('success', 'contact_keys.certificates.removed');
+        });
+    }
+
     // ── From the reading banner ───────────────────────────────────────────────
 
     /**
@@ -251,6 +277,36 @@ final class ContactKeyController extends AbstractController
 
             return 'contact_keys.accepted';
         });
+    }
+
+    /**
+     * What a signature inside an S/MIME-encrypted message means. The browser
+     * decrypted the message and checked the signature against the
+     * certificate it carried (assets/crypto/smime.js); it sends that
+     * certificate and the rest of the signature's chain, and the server —
+     * which has the system's authorities and the person's contacts — says
+     * whether it is vouched for, and keeps it for the sender
+     * (ContactCertificates::signerState()).
+     *
+     * POST with the shared `ajax` token, because it can record a certificate.
+     * Nothing about the message itself is sent; the sender is the row's.
+     */
+    #[Route('/message/{id}/smime-signer', name: 'message_smime_signer', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function smimeSigner(Request $request, #[CurrentUser] User $user, Message $message): JsonResponse
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+        $this->assertCsrf($request, 'ajax');
+        $this->refuseInDemo();
+
+        $body   = json_decode($request->getContent(), true);
+        $result = $this->certificates->signerState(
+            $user,
+            (string) $message->fromAddress,
+            is_string($body['certificate'] ?? null) ? $body['certificate'] : '',
+            is_string($body['chain'] ?? null) ? $body['chain'] : '',
+        );
+
+        return new JsonResponse(['state' => $result['state']->value, 'signer' => $result['signer']], headers: ['Cache-Control' => 'private, no-store']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

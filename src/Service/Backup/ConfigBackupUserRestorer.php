@@ -9,6 +9,7 @@ use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyStatus;
+use App\Domain\Enum\Crypto\SmimeCertificateStatus;
 use App\Domain\Enum\Crypto\PgpScheme;
 use App\Domain\Enum\Crypto\RecipientPolicy;
 use App\Domain\Enum\Crypto\UserKeyCopyKind;
@@ -20,7 +21,9 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
 use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Crypto\ContactKey;
+use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Crypto\UserKeyCopy;
 use App\Entity\Calendar\Calendar;
@@ -196,6 +199,7 @@ final readonly class ConfigBackupUserRestorer
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
         $this->createKeyring($user, $this->map($document, 'keyring'));
         $this->createContactKeys($user, $this->rows($document, 'contactKeys'));
+        $this->createContactCertificates($user, $this->rows($document, 'contactCertificates'));
         $this->createShareLinks($user, $this->rows($document, 'shareLinks'), $calendars);
         $this->createBookingPages($user, $this->rows($document, 'bookingPages'), $calendars);
 
@@ -628,6 +632,106 @@ final readonly class ConfigBackupUserRestorer
             }
 
             $this->entityManager->persist($key);
+        }
+
+        // The S/MIME certificates, whose private keys are wrapped under the
+        // user keys above. Absent from documents written before phase 6c.
+        foreach ($this->rows($keyring, 'smimeCertificates') as $row) {
+            $userKey     = $userKeys[$this->number($row, 'userKeyId') ?? 0] ?? null;
+            $status      = SmimeCertificateStatus::tryFrom((string) $this->text($row, 'status'));
+            $fingerprint = $this->text($row, 'fingerprint');
+            $pem         = $this->text($row, 'certificate');
+            $privateKey  = $this->text($row, 'privateKey');
+            $notBefore   = $this->moment($row, 'notBefore');
+            $notAfter    = $this->moment($row, 'notAfter');
+            $addresses   = array_values(array_filter((array) ($row['addresses'] ?? []), 'is_string'));
+
+            if (null === $userKey || null === $status || null === $fingerprint || null === $pem
+                || null === $privateKey || null === $notBefore || null === $notAfter || [] === $addresses) {
+                continue;
+            }
+
+            $certificate = new SmimeCertificate(
+                $user,
+                $userKey,
+                $fingerprint,
+                $pem,
+                $this->text($row, 'chain') ?? '',
+                $privateKey,
+                $addresses,
+                $this->text($row, 'subject') ?? '',
+                $this->text($row, 'issuer') ?? '',
+                $notBefore,
+                $notAfter,
+            );
+            $certificate->restoreStatus($status);
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $certificate->restoreCreatedAt($createdAt);
+            }
+
+            $this->entityManager->persist($certificate);
+        }
+    }
+
+    /**
+     * Contacts' S/MIME certificates. Absent from documents written before
+     * they existed, which restores as a person with none. A second Current
+     * row for one address comes back Changed, as createContactKeys() has it.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    private function createContactCertificates(User $user, array $rows): void
+    {
+        $current = [];
+        $seen    = [];
+
+        foreach ($rows as $row) {
+            $email       = $this->text($row, 'email');
+            $fingerprint = $this->text($row, 'fingerprint');
+            $pem         = $this->text($row, 'certificate');
+            $status      = ContactKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $notBefore   = $this->moment($row, 'notBefore');
+            $notAfter    = $this->moment($row, 'notAfter');
+            $firstSeenAt = $this->moment($row, 'firstSeenAt') ?? new DateTimeImmutable();
+
+            if (null === $email || null === $fingerprint || null === $pem || null === $status || null === $notBefore || null === $notAfter) {
+                continue;
+            }
+
+            $email = strtolower($email);
+            $key   = $email . ' ' . strtolower($fingerprint);
+
+            if (true === isset($seen[$key])) {
+                continue;
+            }
+
+            if (ContactKeyStatus::Current === $status && true === isset($current[$email])) {
+                $status = ContactKeyStatus::Changed;
+            }
+
+            $certificate = new ContactCertificate(
+                $user,
+                $email,
+                $fingerprint,
+                $pem,
+                true === ($row['verified'] ?? false),
+                $status,
+                $this->text($row, 'subject') ?? '',
+                $this->text($row, 'issuer') ?? '',
+                $notBefore,
+                $notAfter,
+                $firstSeenAt,
+            );
+            $certificate->restoreSeen($firstSeenAt, $this->moment($row, 'lastSeenAt') ?? $firstSeenAt);
+
+            $seen[$key] = true;
+
+            if (ContactKeyStatus::Current === $status) {
+                $current[$email] = true;
+            }
+
+            $this->entityManager->persist($certificate);
         }
     }
 

@@ -1,9 +1,9 @@
 # Encryption
 
-plMail is building end-to-end encryption with OpenPGP: mail that only you and the people you write
-to can read — not the plMail server, not your mail provider. This page covers what is there today:
-your keys, how they are kept and how you get them back, reading encrypted and signed mail, the
-keys of the people you write to, and writing encrypted mail.
+plMail is building end-to-end encryption with OpenPGP and S/MIME: mail that only you and the people
+you write to can read — not the plMail server, not your mail provider. This page covers what is
+there today: your keys, how they are kept and how you get them back, reading encrypted and signed
+mail, the keys of the people you write to, writing encrypted mail, and S/MIME certificates.
 
 Everything here lives under **Settings → Encryption**.
 
@@ -90,7 +90,8 @@ Keys made by plMail do not expire — as with Proton. Under **Show keys**:
 copy of it on the server: your browser fetches the message as it arrived, decrypts it with your
 keys, and shows it like any other mail — attachments included, which download straight from the
 browser. In the list it reads *Encrypted message*. This works for OpenPGP, whether the message is
-PGP/MIME or an armored block in plain text.
+PGP/MIME or an armored block in plain text, and for S/MIME once you have imported your certificate
+(see [S/MIME](#smime) below).
 
 **Signed mail** shows what checking the signature found:
 
@@ -170,6 +171,47 @@ an invisible `Autocrypt` header carries your public key, so Thunderbird, Delta C
 programs can answer encrypted. **Attach your public key** adds it as a file as well, for programs
 that do not read Autocrypt.
 
+## S/MIME
+
+S/MIME is the other way mail is encrypted and signed: with **certificates** issued by a certificate
+authority or by your organisation, which Outlook, Apple Mail and Thunderbird understand without
+anything installed. plMail reads, writes and signs it beside OpenPGP.
+
+**Your certificate.** Under **Settings → Encryption → S/MIME certificates**, choose the `.p12` or
+`.pfx` file your certificate authority or IT department gave you and type its password. The file is
+opened in your browser; its private key is locked under your keys before it goes to the server, the
+same way your OpenPGP keys are, and neither the file nor its password ever leaves the browser. The
+certificate must be for one of your addresses and have an RSA key. **Export as .p12** gives the
+certificate and key back as a new file, locked with a password you type there; **Remove** deletes
+both. When you import a newer certificate for the same addresses — they are renewed every year or
+two — the old one is kept, marked as replaced, to open mail that was encrypted to it.
+
+**Reading.** S/MIME-encrypted mail opens like encrypted OpenPGP mail, with *Encrypted with S/MIME*
+above it, once you have imported the certificate it was encrypted to. Without one, the message says
+so. A signature inside is checked too: by your own certificate, or by one a known certificate
+authority vouches for, it *checks out*; by any other it is intact but unconfirmed.
+
+**Contacts' certificates.** plMail keeps the certificate of every S/MIME-signed message whose
+signature checks out, for the sender — from signed mail and from signatures inside encrypted mail.
+They are listed under *Contacts' keys*, with **Confirmed by …** for the ones a certificate authority
+vouches for. A newer certificate from the same authority replaces the old one by itself; anything
+else — a self-signed certificate, or a change from one kind to the other — is trusted on first use
+like an OpenPGP key: the first is used, a different one waits for you to **Use this key instead**.
+
+**Writing.** Which kind of encryption a message gets is decided per message, and never mixed:
+
+1. **OpenPGP** when every recipient has an OpenPGP key.
+2. Otherwise **S/MIME** when every recipient has a certificate plMail can use (current and not
+   expired), you have one for the From address, and there are no Bcc recipients.
+3. Otherwise the message is not encrypted, and the note under the recipients says who is missing a
+   key, as before.
+
+An S/MIME message is signed with your certificate and encrypted to every recipient's certificate and
+to yours, with AES-256 — what Outlook and Thunderbird read. Unencrypted mail is signed with S/MIME
+instead of OpenPGP when you have a certificate for the From address and none of the other recipients
+has an OpenPGP key: every mail program checks an S/MIME signature, where an OpenPGP one is a file
+named `signature.asc` to most of them. The rules for when to sign at all are the same as above.
+
 ## On your phone
 
 Pairing the plMail app (Settings → App passwords → **Pair a device**) brings your keys along when
@@ -227,8 +269,29 @@ text, summaries and the assistant all see only the sender and subject. That is t
 mean telling the server the addresses the sender encrypted. Images sent inside the message are
 shown.
 
-**S/MIME-encrypted mail cannot be read yet.** It is recognised and marked, but reading it needs an
-S/MIME certificate of your own in plMail, which comes later. Signed S/MIME mail is checked as above.
+**S/MIME-encrypted mail opens only with the certificate it was encrypted to.** Import every
+certificate you still have mail for, the old ones too; a removed certificate takes its mail with it.
+
+**An S/MIME certificate is checked for being issued by a known authority, not for being revoked.**
+plMail does not ask the authority's revocation lists (CRL) or OCSP. A certificate revoked before it
+expires is still believed until it does.
+
+**Only `.p12` files locked with AES open.** Old files locked with RC2 or 3DES are refused: export them
+again with AES (OpenSSL 3 does so by default, Windows with the *AES256-SHA256* option). Certificates
+with an elliptic-curve key cannot be used.
+
+**S/MIME is not used when there are Bcc recipients.** An S/MIME message names every recipient's
+certificate on the outside, so everybody would see who else got it. Such a message goes out as
+OpenPGP if everybody has a key, or unencrypted.
+
+**Mail to plMail people stays OpenPGP.** Everybody on plMail has an OpenPGP key, so S/MIME is only
+chosen when at least one recipient has no OpenPGP key but a certificate.
+
+**Contacts' certificates only come with signed mail.** There is nothing to look up: ask the contact
+to send you a signed message first.
+
+**A certificate from a private certificate authority counts as self-signed,** unless the
+administrator adds that authority (`SMIME_CA_FILE`, see the configuration reference).
 
 **Mail synced before this update is not looked at again.** An encrypted or signed message that
 arrived earlier keeps showing what it showed then until it is synced anew.

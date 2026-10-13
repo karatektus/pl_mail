@@ -1140,7 +1140,7 @@ plMail, as are the labels inside open markers.
 
 ### End-to-end encryption: `urn:plmail:params:jmap:keys`
 
-plMail encrypts with OpenPGP end to end. **The server never holds a readable key or the text of an
+plMail encrypts with OpenPGP and S/MIME end to end. **The server never holds a readable key or the text of an
 encrypted message**; your app does the cryptography, as the web app does in the browser (concept:
 [issue #28](https://github.com/karatektus/pl_mail/issues/28), section 13). This capability gives
 you what you need. The capability object carries the constants; `accountCapabilities` carries
@@ -1148,7 +1148,8 @@ you what you need. The capability object carries the constants; `accountCapabili
 
 **Every wrapping** is `v1.<iv>.<ciphertext>`, both base64 (standard alphabet), AES-256-GCM, with the
 **purpose string as associated data**: `purposes.userKey` for a user key, `purposes.addressKeyToken`
-for an address key's token, `purposes.pairingTransfer` for the pairing bundle.
+for an address key's token, `purposes.smimeKey` for an S/MIME private key, `purposes.pairingTransfer`
+for the pairing bundle.
 
 **Getting the keys onto the device — pairing.** When the browser that shows the pairing QR code has
 the keyring open, the URI carries the transfer key in its fragment:
@@ -1194,6 +1195,23 @@ recipient's current key. Then `EmailSubmission/set` sends it: the server writes 
 from the message and puts your Content-* headers and body on the wire **byte for byte**, so a
 signature over them holds. The same check runs again when it leaves; change the recipients and it is
 not sent. Undo and scheduled send work as for any submission.
+
+**S/MIME.** `Keyring/get` also returns `smimeCertificates: [{id, userKeyId, fingerprint, certificate,
+chain, privateKey, addresses, subject, issuer, notBefore, notAfter, status}]`: the person's own
+certificates (PEM) with their PKCS#8 private keys, each wrapped directly under the user key
+`userKeyId` with `purposes.smimeKey`. `status` is `active` or `retired` (replaced by a newer
+certificate; decrypt with it, never sign or encrypt with it). `ContactKey/lookup` answers each
+recipient with `smime: {fingerprint, certificate, verified, notAfter}` or null — the contact's
+current, unexpired certificate, or the person's own for their own addresses — and the sender with
+`smime`, the fingerprint of the certificate for the From address. The web app encrypts with
+OpenPGP when every recipient has a `key`, otherwise with S/MIME when every recipient has `smime`,
+the sender has one and there is no Bcc; do the same. An S/MIME `Email/import` is classified from
+its Content-Type (`application/pkcs7-mime; smime-type=enveloped-data`, or `multipart/signed` with
+`application/pkcs7-signature`): give the SHA-256 certificate fingerprints you encrypted to in
+`fingerprints`, and the sender's certificate fingerprint in `signer` — a signed or encrypted
+S/MIME import is refused with `forbidden` unless that is the person's active, unexpired certificate
+for the From address. Encrypt with AES-256-CBC and RSA PKCS#1 v1.5 key transport, recipients
+named by issuer and serial number, and sign with SHA-256 — what Outlook and Thunderbird read.
 
 **Encrypted subjects (RFC 9788).** The web app puts `Subject`, `From`, `To` and `Cc` inside the
 encrypted entity, marked `protected-headers="v1"`, and sends `...` as the outer subject. Read the
