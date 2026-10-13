@@ -65,6 +65,7 @@ Each page names the exact console, the exact checkboxes and the exact redirect U
 | [Microsoft](providers/microsoft.md) | Azure app registration, redirect URIs, delegated permissions, tenant choice, Graph subscriptions |
 | [IMAP and SMTP](providers/imap-smtp.md) | Plain mailboxes, IDLE, and the settings servers disagree about |
 | [CalDAV](providers/caldav.md) | Discovery, app passwords, and the servers that have been tested |
+| [CardDAV](providers/carddav.md) | Address books from Nextcloud and other servers: suggestions while writing, editing, and two-way sync |
 | [ICS feeds](providers/ics-feeds.md) | Subscribing to a published calendar by URL, and why some addresses are refused |
 | [Single sign-on](providers/oidc.md) | Signing in to plMail through Authentik, Keycloak or another OpenID Connect provider: setup, account linking, and auto-creation |
 
