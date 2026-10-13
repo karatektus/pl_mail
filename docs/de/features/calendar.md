@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:63fd901e199bf9661b6416db20166c917fecf33a -->
+<!-- translated-from: features/calendar.md sha1:122f0e14aa2280cfe38b171539644284c35d7c38 -->
 
 # Kalender
 
@@ -148,7 +148,10 @@ dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird. Träg
 eigene Zeitzone, gilt sie für seine Termine, wie eh und je; geändert hat sich der Rückfall, der
 früher die Vorstellung des Containers von der Zeit war — UTC —, sodass die Linie der aktuellen Zeit
 ein bis zwei Stunden neben ihren eigenen Beschriftungen sitzen konnte und ein neuer Termin für einen
-bereits vergangenen Zeitpunkt vorgeschlagen wurde.
+bereits vergangenen Zeitpunkt vorgeschlagen wurde. Ein Kalender, den du von Google oder einem
+CalDAV-Server abonnierst, ist die Ausnahme: Seine Zone ist die, die das entfernte Konto für ihn
+führt, bei einem geteilten Kalender oft UTC; ist so ein Kalender dein Standardkalender, folgt das
+Raster trotzdem deiner eigenen Zone.
 
 Drei Dinge über das Raster sind es wert, gewusst zu werden:
 

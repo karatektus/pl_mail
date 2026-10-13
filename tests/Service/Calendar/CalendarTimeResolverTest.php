@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Calendar;
 
+use App\Domain\Enum\Calendar\CalendarRole;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\User\UserTimezoneResolver;
+use DateTimeImmutable;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +51,63 @@ final class CalendarTimeResolverTest extends TestCase
 
         self::assertSame('Europe/Berlin', $zone->getName());
         self::assertNotSame('UTC', $zone->getName());
+    }
+
+    /**
+     * **A mirrored calendar's zone is the remote account's, never the reader's.**
+     *
+     * Subscribing copies the zone Google (or the CalDAV server) holds for the
+     * calendar, and that is routinely UTC for a shared one. When such a calendar
+     * was the default, the whole page was drawn on its clock: an 11:30 Europe/Paris
+     * appointment, stored correctly as 09:30 UTC, was printed as 09:30. Read in
+     * the user's own zone it is 11:30.
+     *
+     * The calendar here is UTC and the install default is Berlin, so the answer
+     * can only be the user's if the calendar's zone was ignored — and the
+     * companion below fails the other way, if the calendar's zone is ignored
+     * for a local calendar too.
+     */
+    public function testAMirroredDefaultCalendarIsReadInTheUsersZoneNotTheRemotes(): void
+    {
+        $user           = new User();
+        $user->timezone = 'Europe/Paris';
+
+        $zone = $this->resolverFor($this->mirror('UTC'), 'Europe/Berlin')->zoneFor($user);
+
+        self::assertSame('Europe/Paris', $zone->getName());
+
+        // The appointment from the report: 09:30 UTC is 11:30 on the wall clock.
+        $startsAt = new DateTimeImmutable('2026-10-14 09:30:00', new DateTimeZone('UTC'));
+
+        self::assertSame('11:30', $startsAt->setTimezone($zone)->format('H:i'));
+    }
+
+    /** With no zone chosen on the profile it is the install's, still not the remote's. */
+    public function testAMirroredDefaultCalendarFallsBackToTheInstallsZoneForAUserWithNoPreference(): void
+    {
+        $zone = $this->resolverFor($this->mirror('UTC'), 'Europe/Berlin')->zoneFor(new User());
+
+        self::assertSame('Europe/Berlin', $zone->getName());
+    }
+
+    /**
+     * Presence companion to the two above: a calendar this install owns is still
+     * read in its own zone, because there the zone is somebody's decision — a
+     * calendar pinned to an office clock. Differs from both the install default
+     * and the user's, so nothing but the calendar can have produced it.
+     */
+    public function testALocalDefaultCalendarStillWinsOverTheUsersZone(): void
+    {
+        $local           = new Calendar();
+        $local->timeZone = 'America/New_York';
+
+        $user           = new User();
+        $user->timezone = 'Europe/Paris';
+
+        self::assertSame(
+            'America/New_York',
+            $this->resolverFor($local, 'Europe/Berlin')->zoneFor($user)->getName(),
+        );
     }
 
     /** And it follows the install's configured default rather than a constant. */
@@ -169,6 +228,17 @@ final class CalendarTimeResolverTest extends TestCase
         self::assertNull($resolver->parseDateTime('', $zone));
         self::assertNull($resolver->parseDateTime('not a date', $zone));
         self::assertNull($resolver->parseDate('14/03/2026', $zone));
+    }
+
+    /** A calendar that mirrors a remote one, carrying the zone the remote reported. */
+    private function mirror(string $zone): Calendar
+    {
+        $calendar           = new Calendar();
+        $calendar->role     = CalendarRole::Remote;
+        $calendar->remoteId = 'family@group.calendar.google.com';
+        $calendar->timeZone = $zone;
+
+        return $calendar;
     }
 
     /**

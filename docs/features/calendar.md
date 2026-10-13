@@ -133,7 +133,9 @@ and the time a new event is proposed at when you double-click empty space all fo
 Where a calendar carries a time zone of its own it wins for the events on it, as it always has; what
 changed is the fallback, which used to be the container's own idea of the time — UTC — so the
 current-time line could sit an hour or two away from the labels beside it and a new event was
-proposed at a slot already in the past.
+proposed at a slot already in the past. A calendar you subscribe to from Google or a CalDAV server
+is the exception: its zone is the one the remote account holds for it, often UTC for a shared
+calendar, so when such a calendar is your default the grid still follows your own zone.
 
 Three things about the grid are worth knowing:
 

@@ -8,6 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The calendar no longer reads its times on a synced calendar's clock.** A calendar you subscribe to
+from Google or a CalDAV server arrives with the time zone that account holds for it, and a shared
+one is often set to UTC there. When such a calendar was your default, the whole calendar page was
+drawn in UTC, so an appointment at 11:30 Paris time showed at 09:30 — the stored time was right, only
+the clock it was printed on was not. The page, and the dot in the top bar that decides what is left
+of today, now use your own time zone (the Time zone setting, else the install's default) whenever the
+default calendar is a synced one. A calendar created here keeps the zone it was given. No
+migration; nothing stored changes.
+
 **The browser tab shows the Inbox's unread count on every page that is not a mail folder.** The
 "(3)" in front of the tab's title appeared on the Inbox and vanished on Settings, the calendar and
 the admin pages, although the sidebar there still showed the same number. It stays now, and updates
