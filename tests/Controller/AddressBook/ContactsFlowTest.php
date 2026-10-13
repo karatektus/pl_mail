@@ -61,13 +61,17 @@ final class ContactsFlowTest extends WebTestCase
         $this->client = static::createClient();
         $container    = static::getContainer();
 
+        // First, before anything else is fetched from the container: a
+        // service already instantiated cannot be replaced (see
+        // IcsControllerTest::signIn()), and the repository below builds the
+        // entity manager and whatever it pulls in.
+        $container->set('app.http_client.integration', new MockHttpClient($this->server(...)));
+
         $user = $container->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
 
         if (null === $user) {
             self::markTestSkipped('run `app:test:seed-user --admin` first');
         }
-
-        $container->set('app.http_client.integration', new MockHttpClient($this->server(...)));
 
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);
