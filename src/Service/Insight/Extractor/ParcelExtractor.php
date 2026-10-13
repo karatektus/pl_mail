@@ -57,8 +57,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         // own, so that one is listed whole rather than laposte.fr, which also
         // sends login codes. GLS France is listed for its match code, which
         // only that sender's label gives meaning to (see trackingNumbersIn).
-        // The Pickup relay network is left out: it forwards parcels of several
-        // carriers, so its sender says nothing about whose parcel a mail is.
+        // The Pickup relay network is left out on purpose, see RELAY_DOMAIN.
         'notif-colissimo-laposte.info' => 'colissimo',
         'gls-france.com'               => 'gls',
         'colissimo.fr'                 => 'colissimo',
@@ -69,6 +68,36 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'dpd.fr'                       => 'dpd',
         'cainiao.com'                  => 'cainiao',
     ];
+
+    /**
+     * The Pickup relay network (network1.pickup.fr, network2.pickup.fr), kept
+     * out of CARRIER_DOMAINS because it is not a carrier: it hands over the
+     * parcels of several, so its domain names none of them, and listing it
+     * there would make every one of its cards that carrier's.
+     *
+     * Its display name sometimes does. The prefixes below are the carriers
+     * seen to appear there ("Chronopost Pickup", "Colissimo"), each mapped to
+     * its carrier id; a name that starts with none of them names no carrier,
+     * and a card says "Pickup" instead of guessing. Extend the list only with
+     * a name seen in a real mail.
+     */
+    private const string RELAY_DOMAIN = 'pickup.fr';
+
+    /** The name a card wears when the relay network is all it can say. */
+    private const string RELAY_NAME = 'Pickup';
+
+    /** @var array<string, string> display-name prefix, lowercase, to carrier id */
+    private const array RELAY_CARRIER_NAMES = [
+        'chronopost' => 'chronopost',
+        'colissimo'  => 'colissimo',
+    ];
+
+    /**
+     * The carrier an S10 number is taken for when nothing else says: a guess
+     * made for a German mailbox (see s10Carrier()), and the one reading a
+     * relay network's mail must not make.
+     */
+    private const string S10_DEFAULT_CARRIER = 'deutsche-post';
 
     /**
      * Shops that ship but also send marketing all day long, so the domain
@@ -142,7 +171,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'dpd'           => 'DPD',
         'hermes'        => 'Hermes',
         'gls'           => 'GLS',
-        'deutsche-post' => 'Deutsche Post',
+        self::S10_DEFAULT_CARRIER => 'Deutsche Post',
         'amazon'        => 'Amazon',
         'la-poste'      => 'La Poste',
         'colissimo'     => 'Colissimo',
@@ -325,6 +354,12 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         $eta = $this->eta($whole, $message->receivedAt);
         $fromName = trim((string) $message->fromName);
 
+        // The relay network's display name may name the carrier; the sender's
+        // domain never does, so the two are told apart from here on.
+        $viaRelay = null !== $senderDomain && true === $this->domainIs($senderDomain, self::RELAY_DOMAIN);
+        $relayCarrier = true === $viaRelay ? $this->relayCarrierNamed($fromName) : null;
+        $namedCarrier = $senderCarrier ?? $relayCarrier;
+
         $drafts = [];
 
         foreach (array_slice($found, 0, self::MAX_DRAFTS) as $candidate) {
@@ -332,20 +367,29 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             // 20-digit run in a DHL mail is DHL because DHL sent it, whatever
             // else the shape could be. The shape decides only for shop and
             // unknown senders.
-            $carrier = $senderCarrier ?? $candidate['carrier'];
+            $carrier = $namedCarrier ?? $candidate['carrier'];
+
+            // An S10 number that does not end in FR is filed under Deutsche
+            // Post, which is a guess made for a German mailbox. A relay network
+            // forwards anybody's parcels, so there the guess is dropped and the
+            // card names no carrier.
+            if (true === $viaRelay && null === $namedCarrier && self::S10_DEFAULT_CARRIER === $carrier) {
+                $carrier = null;
+            }
 
             $drafts[] = new InsightDraft(
                 kind: InsightKind::Parcel,
-                title: $this->carrierName($carrier, $senderDomain) . ' · ' . $candidate['number'],
+                title: (null === $carrier ? self::RELAY_NAME : $this->carrierName($carrier, $senderDomain)) . ' · ' . $candidate['number'],
                 dedupeKey: strtoupper($candidate['number']),
                 payload: [
                     'carrier'        => $carrier,
                     'trackingNumber' => $candidate['number'],
-                    'trackingUrl'    => $this->trackingUrl($carrier, $candidate['number']),
+                    'trackingUrl'    => null === $carrier ? null : $this->trackingUrl($carrier, $candidate['number']),
                     // The shop the parcel comes from, when a shop (not the
                     // carrier itself) sent the mail — that name is the half
-                    // the user actually recognizes on a card.
-                    'merchant'       => null === $senderCarrier && '' !== $fromName ? $fromName : null,
+                    // the user actually recognizes on a card. A relay's display
+                    // name that named the carrier is not a shop.
+                    'merchant'       => null === $namedCarrier && '' !== $fromName ? $fromName : null,
                     'status'         => $status,
                 ],
                 happensAt: $eta,
@@ -617,7 +661,24 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      */
     private function s10Carrier(string $number): string
     {
-        return 'FR' === substr($number, -2) ? 'la-poste' : 'deutsche-post';
+        return 'FR' === substr($number, -2) ? 'la-poste' : self::S10_DEFAULT_CARRIER;
+    }
+
+    /**
+     * The carrier a relay network's display name starts with, or null: "Chronopost
+     * Pickup" is Chronopost's, "Boutique Colissimo Mode" is nobody's. Whole
+     * word at the start, so a shop that merely mentions a carrier is not taken
+     * for it.
+     */
+    private function relayCarrierNamed(string $fromName): ?string
+    {
+        foreach (self::RELAY_CARRIER_NAMES as $prefix => $carrier) {
+            if (1 === preg_match('~^' . preg_quote($prefix, '~') . '\b~iu', $fromName)) {
+                return $carrier;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -707,12 +768,21 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
 
         // "n'a pas été livré" and "n'est pas livré" contain the phrases below
         // and say the opposite; a failed attempt must not read as delivered.
-        $negated = 1 === preg_match('~\bpas (encore )?(été|est) livr~u', $text);
+        $negated = 1 === preg_match('~\bpas (encore )?(été|est) (livr|retir|récupér)~u', $text);
 
         foreach (['delivered', 'zugestellt', 'été livré', 'est livré', 'livraison réussie', 'livré :', 'livrée :'] as $phrase) {
             if (false === $negated && true === str_contains($text, $phrase)) {
                 return 'delivered';
             }
+        }
+
+        // A parcel its recipient has collected from a relay point is as
+        // delivered as one put through the door ("Votre colis a été retiré",
+        // "… récupéré par son destinataire"). "colis" has to be near for the
+        // reason "est disponible" below needs it.
+        if (false === $negated
+            && 1 === preg_match('~\bcolis\b[^.!?\n]{0,30}\b(a (bien )?été retiré|récupéré par son destinataire)~u', $text)) {
+            return 'delivered';
         }
 
         // Waiting at a relay point or a locker: the commonest last stage of a

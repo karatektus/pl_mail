@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:54a2b58ee7445e66da90acab85ddf45c8056550d -->
+<!-- translated-from: features/mail.md sha1:2011fd5dbb57811a13d924f3a11665842104a0ad -->
 
 # Mail
 
@@ -266,12 +266,15 @@ landet auf demselben Tag wie beim ersten Mal.
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr
 wie die anderen Amazon-Shops. Ein Paket, das in einem Paketshop oder Locker auf dich wartet, hat
-eine eigene Stufe, **Abholbereit**, weder unterwegs noch zugestellt. Noch nicht richtig gelesen
-werden das Pickup-Relaisnetz, das die Pakete mehrerer Zusteller weiterleitet, sodass eine Karte aus
-seiner Mail den falschen Zusteller nennen kann, sowie die Stufen "an den Absender zurück" und
-"Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die ein Zusteller nach der Zustellung
-schickt, wird ignoriert, damit sie eine Karte **Zugestellt** nicht in etwas anderes
-zurückverwandelt.
+eine eigene Stufe, **Abholbereit**, weder unterwegs noch zugestellt, und sobald es abgeholt wurde
+("Votre colis a été retiré", "récupéré par son destinataire"), ist es **Zugestellt**. Das
+Pickup-Relaisnetz (network1.pickup.fr, network2.pickup.fr) wird ebenfalls gelesen, übergibt aber
+die Pakete mehrerer Zusteller, seine Adresse nennt also keinen davon: Eine Karte übernimmt den
+Zusteller aus dem Absendernamen, wenn der mit Chronopost oder Colissimo beginnt, und trägt sonst
+die Überschrift **Pickup**, ohne Zusteller und ohne Sendungslink. Noch nicht gelesen werden die
+Stufen "an den Absender zurück" und "Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die
+ein Zusteller nach der Zustellung schickt, wird ignoriert, damit sie eine Karte **Zugestellt**
+nicht in etwas anderes zurückverwandelt.
 
 ### Die Leiste über der Mailliste
 

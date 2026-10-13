@@ -242,11 +242,14 @@ it always did.
 The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
 GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
 like the other Amazon shops. A parcel waiting at a relay point or a locker is its own stage, **Ready
-for pickup**, neither on its way nor delivered. Not read properly yet: the Pickup relay network,
-which forwards the parcels of several carriers, so a card made from its mail can name the wrong
-carrier, and the "returned to sender" and "delivery attempt failed" stages. The satisfaction survey
-a carrier sends after delivery is ignored, so it cannot turn a **Delivered** card back into
-something else.
+for pickup**, neither on its way nor delivered, and once its recipient has collected it ("Votre
+colis a été retiré", "récupéré par son destinataire") it is **Delivered**. The Pickup relay network
+(network1.pickup.fr, network2.pickup.fr) is read too, but it hands over the parcels of several
+carriers, so its address names none of them: a card takes its carrier from the sender's name when
+that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
+link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
+satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
+card back into something else.
 
 ### The strip above the mail list
 

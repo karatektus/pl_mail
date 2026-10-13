@@ -903,6 +903,337 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // ── The Pickup relay network ───────────────────────────────────
+            // network1/network2.pickup.fr forward the parcels of several
+            // carriers, so the sender domain names none of them; the display
+            // name sometimes does. Every number here is invented, and only has
+            // to be an S10 shape. The 'XM…TS' ending is neither "FR" nor "DE":
+            // it is the case the Deutsche Post default would have claimed.
+            'pickup relay: a display name that is a listed carrier names the carrier' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Votre colis a bien été déposé dans votre point Pickup.\n"
+                        . "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XM123456789TS',
+                        // The display name named the carrier: it is not a shop.
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: the other listed carrier, from the other relay host' => [
+                [
+                    'from'     => 'noreply@network1.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a display name that is no carrier names none, and the card says Pickup' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a carrier\'s name inside a longer display name is not the carrier' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Colissimo Mode',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Colissimo Mode',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a carrier\'s name is a whole word, not the start of a longer one' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimotrade Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Colissimotrade Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // A parcel its recipient has collected is as delivered as a parcel
+            // put through the door; read as "announced" it would sit on the
+            // radar for good.
+            'pickup relay: "a été retiré" in the subject is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Votre colis a été retiré',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: the number between "colis" and "a été retiré" in the body is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Information sur votre colis',
+                    'body'     => "Votre colis XM123456789TS a bien été retiré par vos soins.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: "récupéré par son destinataire" is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis a été récupéré par son destinataire',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // The negated forms say the opposite, and one of them contains the
+            // phrase above whole.
+            'pickup relay: "n\'a pas été récupéré par son destinataire" is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis n\'a pas été récupéré par son destinataire',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // "colis" has to be near the phrase: the same words about something
+            // else in the same mail are not a parcel's stage.
+            'pickup relay: "a été retiré" about something other than the parcel is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n\n"
+                        . "Votre adresse e-mail a été retiré de notre liste de diffusion.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: "n\'a pas été retiré" is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Votre colis n\'a pas été retiré',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // What the number itself states is still read. The French
+            // issuing country is a fact about an S10 number, not a guess about
+            // the mailbox, and a Colissimo-shaped number is Colissimo's.
+            'pickup relay: an unnamed carrier does not hide what the number states: FR is La Poste' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XW123456789FR\n",
+                ],
+                true,
+                [[
+                    'title'     => 'La Poste · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'la-poste',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => $laPoste . 'XW123456789FR',
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: an unnamed carrier does not hide what the number states: Colissimo shape' => [
+                [
+                    'from'     => 'noreply@network1.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Votre colis 6A12345678901 est arrivé en relais Pickup',
+                    'body'     => "Votre colis 6A12345678901 est arrivé en relais Pickup.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'ready_for_pickup',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // The companion of the rows above: the display-name list belongs
+            // to the relay network. A shop that merely calls itself
+            // "Chronopost Pickup" is still a shop, and an S10 number from a
+            // sender nobody vouches for is still read the way it always was.
+            'pickup relay: the display-name list does not apply to any other sender' => [
+                [
+                    'from'     => 'noreply@shop.example',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Votre colis est expédié',
+                    'body'     => "Numéro de suivi : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Deutsche Post · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'deutsche-post',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Chronopost Pickup',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
             'chronopost: its mail names DPD, and that must not turn a fourteen-digit run into a second parcel' => [
                 [
                     'from'     => 'no-reply@chronopost.fr',

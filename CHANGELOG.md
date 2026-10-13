@@ -8,6 +8,21 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A parcel collected at a relay point now reads as delivered.** The mail that says "Votre colis a
+été retiré" or "… récupéré par son destinataire" named no stage the radar knew, so the card stayed
+"announced" after the parcel was in its recipient's hands. Both now read as **Delivered**; the
+same words negated ("n'a pas été retiré", "n'a pas été récupéré par son destinataire") do not, and
+neither do those words about something other than the parcel. No migration.
+
+**A parcel handed over at a Pickup relay no longer says "Deutsche Post".** The Pickup relay network
+(network1.pickup.fr, network2.pickup.fr) hands over the parcels of several carriers, and its mail
+gave every parcel whose number has the international S10 shape the carrier "Deutsche Post",
+whoever was shipping it. A card now takes its carrier from the sender's name when that starts
+with Chronopost or Colissimo, with that carrier's tracking link, and is otherwise headed "Pickup"
+with no carrier and no link. What the number itself says still counts: a number ending in FR is
+La Poste's, and Colissimo's own shape is Colissimo's. Cards already on the radar correct
+themselves the next time their mail is read, no duplicates. No migration.
+
 **Reading old mail again could turn a parcel's card back to its first status.** A card keeps the
 newest statement of its series, but "newest" meant the last mail read, not the latest dated.
 `app:backfill insights` reads by the order mail was stored, which for an Outlook import is
