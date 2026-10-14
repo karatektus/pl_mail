@@ -597,6 +597,39 @@ and nothing else — where the message lands afterwards is the provider's busine
 **Refresh** in the toolbar queues a sync for every active account you own and spins until those
 jobs have drained.
 
+On a phone the same sync is a pull: drag the list down from its top, past the indicator's
+*Release to sync*, and let go. The sync button at the top of the screen spins while it runs, and
+the indicator spins with it. Without touch, the sync button is the equivalent: it is a named button
+for a keyboard or a screen reader, and the sync toast says when the run starts and when it ends.
+
+On a phone a row swipes too. Drag it to the right and it does what the right direction is set to; by
+default that marks it read, or unread if it already is. Drag it to the left and, by default, it is
+archived. What each direction does is set under **Settings → Mail → Swipe actions**, below. Past a third of
+the row's width the action waits behind the row, and pressing it does the thing. Past two thirds, or a
+quick flick past the first third, it happens as you let go. Touching anything else closes an open row,
+and that touch does nothing more. Read / unread and archive are offered only on ordinary mail: never on
+a draft, and never in the archive, the bin or spam. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
+the toolbar do the same work, **Archive** and **More** on a selection included.
+
+Each direction has its own setting under **Settings → Mail → Swipe actions**, a select for right and one
+for left. The choices are read / unread, archive, star, and nothing. Both directions may be set to the
+same choice. Trash is not one of them (see *Things that bite*). A star is a toggle on the row, so a
+second swipe takes it off again, as it does for read / unread; archive offers its **Undo**.
+
+On a phone, pressing and holding a row also opens its actions. Hold a row still for about half a second
+and an action sheet rises from the bottom of the screen with every action the row offers: select it,
+mark it read or unread, archive it, star it, move it (a conversation, not a single message), label it,
+snooze it, mark it as spam, delete it,
+and, in the bin or in spam, move it back to the inbox and, if you have switched on **Settings → Mail →
+Disposal → Delete-now buttons**, delete it for good. The entries are the ones the row's own buttons
+offer, in the same places, and each does what that button does. **Move to**, **Label as** and **Snooze**
+open their pickers over the sheet, as they do on the toolbar. The sheet closes on a tap on the dimmed
+page, on Escape, or after an action, and the page behind it does not respond while it is open. A
+background refresh leaves it alone, and a refresh that takes the row out of the list closes it. Where
+the browser can vibrate (Android Chrome), opening the sheet gives a short buzz; iOS has no vibration for
+web pages, so there is none there. Reduced motion makes the sheet appear without its slide. Without
+touch, the row's own buttons and the toolbar do the same work.
+
 ### Keyboard shortcuts
 
 The single keys Gmail uses work here too. Press **?** anywhere for the full list, or the
@@ -1080,6 +1113,33 @@ the search box says how far it has got, and until it says nothing at all, "meani
 **Deleting a label from the sidebar is the same delete as the one in settings.** It is not a "remove
 from this view" — the dialog is a shortcut to the same operation, across every account, nested labels
 included.
+
+**Pull to refresh is for a finger at the top of the list, and only there.** A mouse, a trackpad and
+any window at the tablet breakpoint or wider never pull. A pull starts only while the list is
+scrolled to its very top, and not while the sidebar, an open row or the action sheet is up: from further
+down, the same drag just scrolls. Reduced motion removes the indicator's slide and nothing else, so the release point is the
+same.
+
+**A swipe is a finger's gesture on a phone, and its directions are physical.** A mouse never swipes,
+at any width, and nothing swipes at the tablet breakpoint or wider. Right means towards the right
+edge of the screen whatever the language, because no right-to-left locale ships. A reader who adds
+one has to decide how the two sides mirror.
+
+**A refresh leaves a row you are swiping, or have open, where it is.** Such a row keeps its state while
+a sync or an update redraws the list, and the change to that row arrives when you close it. A row that
+is only pressed, or that a long press has opened into the action sheet, is redrawn as usual. A refresh
+that removes the row takes it off the list, and closes the sheet with it.
+
+**Trash is not a swipe.** A full drag has no tap in front of it, and a trashed row has no undo of its
+own, so deleting stays with the row's buttons and the bin, where a tap comes first. Trash is not one of
+the **Settings → Mail → Swipe actions** choices either: a value stored for it reads as that direction's
+default, so a restored backup cannot bring it back.
+
+**A long press opens the sheet, and a phone's rows are not dragged.** Below the tablet breakpoint a
+thread row is not a native drag: HTML5 drag never worked from a finger, and turning it off keeps iOS
+from lifting a row during the half-second hold. A mouse still drags a row as before. The sheet offers
+trash on a row in the inbox, where the row's own trash button does, and it has no Undo, as that button
+has none.
 
 **A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
 inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see

@@ -157,6 +157,14 @@ final readonly class ConfigBackupUsers
         // Neither holds an id, and a percentage means the same on any install.
         User::SETTING_READING_PANE_MODE,
         User::SETTING_READING_PANE_WIDTH,
+        // What a dragged row does, one key per direction. In the backup for the
+        // reason the reading pane's keys are: a choice about one's own screen,
+        // a short string with no id, and the same meaning on any install. A
+        // restore that left them out would put each direction back to its
+        // default, so somebody who had chosen star would find the left swipe
+        // archiving again.
+        User::SETTING_SWIPE_RIGHT_ACTION,
+        User::SETTING_SWIPE_LEFT_ACTION,
         User::SETTING_INSIGHTS_DISABLED,
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,

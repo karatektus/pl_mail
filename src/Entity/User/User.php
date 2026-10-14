@@ -6,6 +6,8 @@ use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SwipeAction;
+use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -710,6 +712,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
 
     /**
+     * What a dragged row does, one key per direction — see SwipeAction and
+     * SwipeDirection. The bag, like the reading pane's keys beside them, for a
+     * choice about THIS screen that needs no column and no migration. Each
+     * stores one SwipeAction value; "trash" is not one of them, and a stored
+     * "trash" reads as the direction's default (SwipeAction::fromSetting).
+     */
+    public const string SETTING_SWIPE_RIGHT_ACTION = 'swipe.right_action';
+    public const string SETTING_SWIPE_LEFT_ACTION = 'swipe.left_action';
+
+    /**
      * The range the divider can be dragged through, in percent of the mail card.
      *
      * Matches the clamp in mail--reading-split; the server is what enforces it.
@@ -886,6 +898,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SWIPE_RIGHT_ACTION.
+     *
+     * Read per direction: an unreadable value here falls back to Right's default
+     * and never touches the left choice.
+     */
+    public SwipeAction $swipeRightAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_RIGHT_ACTION),
+            SwipeDirection::Right->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_RIGHT_ACTION, $action->value);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SWIPE_LEFT_ACTION. Falls back to Left's default. */
+    public SwipeAction $swipeLeftAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_LEFT_ACTION),
+            SwipeDirection::Left->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_LEFT_ACTION, $action->value);
         }
     }
 

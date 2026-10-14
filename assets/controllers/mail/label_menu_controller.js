@@ -26,6 +26,10 @@ export default class extends Controller {
     static values = {
         targetType: { type: String, default: "thread" },
         targetId: Number,
+        // The ids of the labels the target carries, comma-separated, for a menu whose target is not
+        // rendered by the server with its labels: the action sheet's copy, which is opened for one row
+        // after another. Read only in single-target mode, and only when present.
+        labelIds: String,
     };
 
     connect() {
@@ -142,6 +146,20 @@ export default class extends Controller {
      */
     _syncFromSelection() {
         if (this.hasTargetIdValue) {
+            // A single target the server did not tick (see labelIds): the ticks are the ids it was given.
+            if (this.hasLabelIdsValue) {
+                const carried = this.labelIdsValue === "" ? [] : this.labelIdsValue.split(",");
+
+                for (const button of this.panelTarget.querySelectorAll("[data-label-id]")) {
+                    const attached = carried.includes(button.dataset.labelId);
+
+                    button.dataset.attached = attached ? "true" : "false";
+
+                    button.querySelector("[data-mail--label-menu-target='check']")
+                        ?.classList.toggle("invisible", false === attached);
+                }
+            }
+
             return;
         }
 

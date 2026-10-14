@@ -17,6 +17,7 @@
 // it back on the burger, and the burger's aria-expanded says which it is.
 
 import { Controller } from "@hotwired/stimulus";
+import { registerSurface, unregisterSurface } from "../../touch_gesture.js";
 
 const DESKTOP  = "(min-width: 768px)";
 const RAIL_KEY = "plmail:sidebarRail";
@@ -27,6 +28,10 @@ export default class extends Controller {
 
     connect() {
         this._onKeydown = this._handleKeydown.bind(this);
+
+        // An open drawer is a surface no touch gesture may start over. Read from
+        // its own inert target, so it cannot disagree with what is on screen.
+        registerSurface("drawer", () => this.hasDrawerTarget && this.drawerTarget.inert === false);
 
         // A drawer left open while rotating an iPad to landscape would otherwise
         // stay stuck over the desktop layout, backdrop and all.
@@ -43,6 +48,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        unregisterSurface("drawer");
         document.removeEventListener("keydown", this._onKeydown);
         this._desktop.removeEventListener("change", this._onBreakpoint);
         this._desktop.removeEventListener("change", this._onExpandedChange);

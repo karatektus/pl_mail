@@ -156,6 +156,7 @@
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
+                                        { section: 'swipe-actions', icon: 'fa-solid fa-hand-pointer', label: 'settings.nav.swipe_actions' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
                                     ]|merge(ai_settings_available() or section == 'ai'
                                             ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
@@ -463,6 +464,19 @@
                                             {% block body %}
                                                 {% include 'settings/_disposal.html.twig' with {
                                                     deleteNow: app.user.deleteNowButtons,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'swipe-actions' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.swipe_actions.heading'|trans,
+                                            subheading: 'settings.swipe_actions.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_swipe_actions.html.twig' with {
+                                                    choices: swipeChoices,
+                                                    right:   app.user.swipeRightAction,
+                                                    left:    app.user.swipeLeftAction,
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}

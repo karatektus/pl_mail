@@ -8,6 +8,41 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**On a phone, a mail row's actions were only reachable through buttons that appear on hover, and a phone
+has no hover.** Archive, delete, snooze, move and label were in the row's strip, which a phone never shows.
+Holding a row for about half a second now opens an action sheet with every action the row offers, the same
+ones the strip and the swipe offer, in the same places. Move to (on a conversation, not a single message),
+Label as and Snooze open their pickers over
+the sheet, and Select ticks the row for a bulk action. A row is no longer a native drag on a phone, so iOS
+does not lift it during the hold. Trash in the sheet has no Undo, as the strip's trash button has none, and
+delete forever is offered only with the delete-now buttons switched on under Settings → Mail → Disposal. The
+sheet is only for a finger on a phone-width screen; a mouse and wider windows behave as before. Android
+Chrome gives a short vibration when the sheet opens; iOS has no vibration for web pages. No schema change,
+no deployment change.
+
+**On a phone, archiving a mail or marking it read meant opening it first.** The row's buttons show on
+hover, and a phone has no hover, so they never appeared in the list. A row now swipes: drag it to the
+right to mark it read or unread, and to the left to archive it, past a third of its width to reveal
+the action or past two thirds to do it straight away. It is for a finger on a phone-width screen only;
+a mouse and wider windows behave as before. Read / unread and archive are offered only on ordinary mail,
+never on a draft or in the archive, the bin or spam, as the row's own buttons do; star is offered on every
+row. Trashing is not a swipe. Each direction can be changed
+under Settings → Mail → Swipe actions (next entry). No schema change, no deployment change.
+
+**On a phone, a swipe to the right or to the left always did the same thing.** The two directions were
+read or unread and archive, with no way to change either. Settings → Mail → Swipe actions now sets each
+direction to read or unread, archive, star, or nothing, and the defaults are the same as before. Trash
+is not one of the choices: a swipe commits without a tap, and a trashed row has no Undo. A value stored
+for trash reads as the direction's default. No schema change: the two choices live in the settings bag,
+and the config backup carries them.
+
+**On a phone, syncing the inbox meant reaching for the button at the top of the screen.**
+Pulling the mail list down from its top now syncs it, through the same sync as that button: drag
+past the *Release to sync* indicator and let go, and the sync icon spins while the run lasts. It is
+for a finger on a phone-width screen only. A mouse, a trackpad and wider windows behave as before, a
+list scrolled down scrolls as it always did, and a pull while the sidebar, an open row or the action sheet
+is up does nothing.
+Reduced motion removes the indicator's slide. No schema change, no deployment change.
 **Signing in through single sign-on keeps you signed in, as "Keep me signed in" does on the password form.**
 A single sign-on sign-in left nothing but the PHP session holding you in: a cookie that ends with the
 browser, kept in a file that is cleaned up after 24 minutes without a request and that goes with the

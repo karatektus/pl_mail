@@ -114,6 +114,11 @@ const MORPHED_REGION = "rows";
 const CLIENT_OWNED = new Set([
     "data-entered", "data-enter", "data-enter-scope", "data-leaving",
     "data-selected", "aria-current",
+    // The row swipe's marker and side. See SWIPED: a marked row is skipped whole, and these
+    // two say which row it is and which way it is open, so they are not the server's to reset.
+    "data-swipe-owned", "data-swipe-side",
+    // The long-press marker on a row and its overlay, held while a finger is on them. See mail--row-hold.
+    "data-pressed",
 ]);
 
 /**
@@ -133,6 +138,23 @@ const CLIENT_OWNED = new Set([
  * becomes the server's again the moment it closes.
  */
 const MENU = '[data-ui--dropdown-target="menu"]';
+
+/**
+ * A row the client is holding: under a finger, or open for its swipe actions.
+ *
+ * Skipped whole, children included, like an open menu. The server's copy of the row
+ * knows nothing about the drag, and its inline transform, its open panel and its
+ * place in the gesture are all the client's. A refresh that resets any of them
+ * closes a row a person is holding, or snaps it back under their finger. The marker
+ * is removed when the row is released (row_swipe_controller.js #reset), and the
+ * next refresh then brings the row up to date as usual.
+ *
+ * A refresh that REMOVES a marked row is not skipped: the morph takes the row out.
+ * The gesture then gets no further events for that touch, because the touch targets
+ * the detached node and its touchend never reaches the list. The stale sequence is
+ * abandoned at the next one-finger touchstart (row_swipe_controller.js #touchStart).
+ */
+const SWIPED = "li[data-swipe-owned]";
 
 /**
  * One row of the list, as opposed to any of the hundreds of nodes inside one.
@@ -988,9 +1010,14 @@ export default class extends Controller {
     /**
      * Whether this node and everything inside it may be brought up to date.
      *
-     * Only one thing says no, and see MENU for why: a dropdown that is open.
+     * Two things say no: a dropdown that is open (see MENU), and a row the client
+     * is holding under a finger or open (see SWIPED). Both are skipped whole.
      */
     _mayMorph(node) {
+        if (true === node.matches?.(SWIPED)) {
+            return false;
+        }
+
         if (true !== node.matches?.(MENU)) {
             return true;
         }

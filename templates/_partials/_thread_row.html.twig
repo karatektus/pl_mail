@@ -299,6 +299,10 @@ be a worse regression than the one this feature fixes.
        tick, a second click re-attached a label instead of removing it, so a
        label could be put on and never taken off again. #}
     data-label-ids="{{ item.labels|filter(l => l.role is null)|map(l => l.id)|join(',') }}"
+    {# Every entry the long-press sheet offers on this row, with the URL and body
+       each posts to, resolved here by SwipeActionResolver::sheet(). The sheet's own
+       markup is one template per list; this is the only part that differs by row. #}
+    data-sheet="{{ sheet_entries(item, draft)|json_encode }}"
     data-mail--message-row-id-value="{{ rowId }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
     {# Its own attribute beside data-unread rather than folded into it: the two
@@ -312,6 +316,21 @@ be a worse regression than the one this feature fixes.
     {% if isNew %}data-new-id="{{ rowId }}"{% endif %}
     data-starred="{{ starred ? 'true' : 'false' }}"
 >
+    {# Row swipe. One panel per direction that does something on this row, drawn
+       from SwipeActionResolver, so a direction the strip would not offer has no
+       panel at all: the gesture code reads the presence of a panel as "this
+       direction is live here". The button's URL and body are the route's own;
+       the controller posts them through mail--message-row, the same path the
+       strip's buttons use. Hidden until the row is open (app.css). #}
+    {%- set swipeRight = swipe_action(item, 'right', draft) -%}
+    {%- set swipeLeft = swipe_action(item, 'left', draft) -%}
+    {%- if swipeRight -%}
+        {% include '_partials/_swipe_panel.html.twig' with { side: 'right', swipe: swipeRight } only %}
+    {%- endif -%}
+    {%- if swipeLeft -%}
+        {% include '_partials/_swipe_panel.html.twig' with { side: 'left', swipe: swipeLeft } only %}
+    {%- endif -%}
+
     {# Full-row clickable overlay #}
 <a
     {% if false == draft %}
@@ -355,6 +374,8 @@ be a worse regression than the one this feature fixes.
     {% endif %}
 
     <div
+        {# The part that moves under a swipe. The panels above stay where they are. #}
+        data-swipe-content
         {# `list-row-y` for `py-2.5` and `row-unread` for the two inline unread
            alphas. Both resolve to exactly what those classes were — Comfortable
            density IS 0.625rem, and the tint keeps its 0.4 / 0.03 — so this is a

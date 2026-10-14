@@ -1,0 +1,149 @@
+{#
+_action_sheet.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The long-press action sheet's markup, once per list. Included by the list frame
+(_layout/_mailbox.html.twig#list_frame), outside every data-list-region, so a
+background refresh never touches it. mail--row-hold copies it when a row is held,
+and mail--action-sheet fills the copy from that row's data-sheet attribute.
+
+Every entry carries data-sheet-entry, named for the enum it comes from (SwipeAction
+for read, archive and star; SheetEntry for the rest). The controller hides an
+entry the row does not offer, so this file says what the sheet can show, and the
+server says what it does show for each row.
+
+Variants: read and star have two labels, picked by the state the row is in
+(data-sheet-when). The pickers (move, labels, snooze) carry their own menu, behind
+an invisible trigger the controller presses; their values are set per row when
+the sheet opens.
+
+Variables: sidebarCounts (the list's own, for the move menu's labels).
+#}
+{% set entry_class = 'w-full flex items-center gap-3 px-4 py-3 text-sm text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer' %}
+{% set icon_class = 'w-4 text-center text-ink-faint' %}
+
+<template data-action-sheet-template>
+    <div data-controller="mail--action-sheet" class="fixed inset-0 z-40">
+        <div data-mail--action-sheet-target="backdrop"
+             data-action="click->mail--action-sheet#backdropClick"
+             class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+
+        <div data-mail--action-sheet-target="panel"
+             role="dialog"
+             aria-modal="true"
+             aria-label="{{ 'thread_row.sheet.label'|trans }}"
+             class="action-sheet-panel absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-pane bg-pane-soft border-t border-line shadow-pop">
+            <ul class="py-2">
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="select" data-action="click->mail--action-sheet#select" class="{{ entry_class }}">
+                        <i class="fa-regular fa-square-check {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'thread_row.sheet.select'|trans }}</span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="read_unread" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <span data-sheet-when="mark_read"><i class="fa-solid fa-envelope-open {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.actions.mark_read'|trans }}</span></span>
+                        <span data-sheet-when="mark_unread"><i class="fa-solid fa-envelope {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.actions.mark_unread'|trans }}</span></span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="archive" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <i class="fa-solid fa-box-archive {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'thread_row.actions.archive'|trans }}</span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="star" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <span data-sheet-when="star"><i class="fa-regular fa-star {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.star'|trans }}</span></span>
+                        <span data-sheet-when="unstar"><i class="fa-solid fa-star {{ icon_class }} mr-3" aria-hidden="true"></i><span>{{ 'thread_row.unstar'|trans }}</span></span>
+                    </button>
+                </li>
+
+                <li data-sheet-row class="relative">
+                    <button type="button" data-sheet-entry="move" data-sheet-picker="move" data-action="click->mail--action-sheet#openPicker" class="{{ entry_class }}">
+                        <i class="fa-solid fa-folder {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'toolbar.actions.move_to'|trans }}</span>
+                    </button>
+                    <div data-sheet-picker-scope="move" class="absolute inset-0">
+                        {% include '_partials/_move_menu.html.twig' with {
+                            sidebarCounts: sidebarCounts,
+                            labels: sidebarCounts.flattenedUserLabels,
+                            targetId: 0,
+                            carried: [],
+                            placement: '',
+                        } only %}
+                    </div>
+                </li>
+
+                <li data-sheet-row class="relative">
+                    <button type="button" data-sheet-entry="labels" data-sheet-picker="labels" data-action="click->mail--action-sheet#openPicker" class="{{ entry_class }}">
+                        <i class="fa-solid fa-tag {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'toolbar.actions.label'|trans }}</span>
+                    </button>
+                    <div data-sheet-picker-scope="labels" class="absolute inset-0">
+                        {% include '_partials/_label_menu.html.twig' with {
+                            labels: sidebarCounts.flattenedUserLabels,
+                            targetType: 'thread',
+                            targetId: 0,
+                            trigger: false,
+                            align: 'left',
+                        } only %}
+                    </div>
+                </li>
+
+                <li data-sheet-row class="relative">
+                    <button type="button" data-sheet-entry="snooze" data-sheet-picker="snooze" data-action="click->mail--action-sheet#openPicker" class="{{ entry_class }}">
+                        <i class="fa-solid fa-clock {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'thread_row.actions.snooze'|trans }}</span>
+                    </button>
+                    <div data-sheet-picker-scope="snooze" class="absolute inset-0">
+                        <div class="absolute inset-0" data-controller="ui--dropdown">
+                            <button type="button" tabindex="-1" aria-hidden="true"
+                                    data-action="click->ui--dropdown#toggle"
+                                    class="block w-full h-full invisible"></button>
+                            {% include '_partials/_snooze_menu.html.twig' with {
+                                controller: 'mail--action-sheet',
+                                method:     'snooze',
+                                snoozed:    false,
+                                align:      'left',
+                            } only %}
+                        </div>
+                    </div>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="spam" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <i class="fa-solid fa-circle-exclamation {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'toolbar.actions.spam'|trans }}</span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="trash" data-action="click->mail--action-sheet#run" class="{{ entry_class }} hover:text-danger">
+                        <i class="fa-solid fa-trash {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'thread_row.actions.delete'|trans }}</span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="restore" data-action="click->mail--action-sheet#run" class="{{ entry_class }}">
+                        <i class="fa-solid fa-inbox {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'discarded.actions.restore'|trans }}</span>
+                    </button>
+                </li>
+
+                <li data-sheet-row>
+                    <button type="button" data-sheet-entry="purge"
+                            data-sheet-confirm="{{ 'discarded.actions.purge_confirm'|trans }}"
+                            data-action="click->mail--action-sheet#run"
+                            class="{{ entry_class }} hover:text-danger">
+                        <i class="fa-solid fa-fire {{ icon_class }}" aria-hidden="true"></i>
+                        <span>{{ 'discarded.actions.purge'|trans }}</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</template>
