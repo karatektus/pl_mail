@@ -2624,6 +2624,9 @@ sync_now:
     still_running: 'La synchronisation se poursuit en arrière-plan.'
     complete: 'Synchronisation terminée.'
     session_expired: 'Votre session a expiré — rechargez la page pour vous reconnecter.'
+pull_to_refresh:
+    pull: 'Tirez vers le bas pour synchroniser'
+    release: 'Relâchez pour synchroniser'
 search:
     empty:
         or_keyword: ou tapez simplement un mot-clé.
@@ -3805,6 +3808,23 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Comment le courrier est jeté pour de bon.
+    swipe_actions:
+        heading: Balayage des lignes
+        hint: >-
+            Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
+            Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
+            propose Annuler. La corbeille n’est pas proposée : un balayage qui
+            supprimerait du courrier n’aurait rien pour l’annuler.
+        left:
+            label: Balayer vers la gauche
+        option:
+            archive: Archiver
+            none: Aucune action
+            read_unread: Lu / non lu
+            star: Étoile
+        right:
+            label: Balayer vers la droite
+        subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     nav:
         accounts: Comptes mail
         ai: 'Assistant'
@@ -3835,6 +3855,7 @@ settings:
         sharing: Partage
         shortcuts: Raccourcis clavier
         signature: Signatures
+        swipe_actions: Balayage des lignes
         templates: 'Modèles'
     notifications:
         devices:

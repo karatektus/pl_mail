@@ -2611,6 +2611,9 @@ sync_now:
     still_running: 'Sync is still running in the background.'
     complete: 'Sync complete.'
     session_expired: 'Your session has expired — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Pull down to sync'
+    release: 'Release to sync'
 search:
     empty:
         or_keyword: or just type a keyword.
@@ -3757,6 +3760,22 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: How mail is thrown away for good.
+    swipe_actions:
+        heading: Swipe actions
+        hint: >-
+            A swipe acts once you drag far enough or flick quickly. Read and star
+            can be undone by swiping again, and archive offers Undo. Trash is not a
+            choice: a swipe that deleted mail would have nothing to undo it.
+        left:
+            label: Swipe left
+        option:
+            archive: Archive
+            none: Nothing
+            read_unread: Read / unread
+            star: Star
+        right:
+            label: Swipe right
+        subheading: What a swipe across a row does on a phone.
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -3787,6 +3806,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Signatures
+        swipe_actions: Swipe actions
         templates: 'Templates'
     notifications:
         devices:

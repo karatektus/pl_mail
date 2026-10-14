@@ -1,0 +1,46 @@
+{#
+settings/_swipe_actions.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What a swipe to the right and a swipe to the left does on a row: one select
+per direction, each saved on its own when it changes.
+
+A plain form that submits on change and redirects, like the clock beside the
+calendar's: the choice decides what the NEXT list draws, so nothing here is
+worth streaming back.
+
+The choices are the SwipeAction cases and nothing else. Trash is not among
+them, and the hint says why, so nobody adds it back to "complete" the list.
+
+Accepts:
+  choices  list<SwipeAction>  every action a direction may take
+  right    SwipeAction        what a swipe to the right does now
+  left     SwipeAction        what a swipe to the left does now
+#}
+{% import '_partials/_select.html.twig' as select %}
+
+<div class="px-4 py-3">
+    {% for direction, active in {right: right, left: left} %}
+        <form method="post" action="{{ path('app_settings_swipe_actions_update') }}" data-turbo="false"
+              data-controller="ui--auto-submit" class="{{ loop.first ? '' : 'mt-3' }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('settings-swipe-actions') }}">
+
+            <label for="settings-swipe-{{ direction }}" class="block mb-1.5 text-xs text-ink-muted">
+                {{ ('settings.swipe_actions.' ~ direction ~ '.label')|trans }}
+            </label>
+
+            <select id="settings-swipe-{{ direction }}"
+                    name="swipe{{ direction|capitalize }}"
+                    data-action="change->ui--auto-submit#submit"
+                    {{ select.enhance() }}
+                    class="select-field w-full h-9 text-sm">
+                {% for action in choices %}
+                    <option value="{{ action.value }}" {{ action == active ? 'selected' : '' }}>
+                        {{ ('settings.swipe_actions.option.' ~ action.value)|trans }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    {% endfor %}
+
+    <p class="mt-3 text-[11px] text-ink-faint">{{ 'settings.swipe_actions.hint'|trans }}</p>
+</div>

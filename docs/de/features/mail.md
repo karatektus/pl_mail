@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d26edbd72da2119a0ed71b4b68fa46ed01e1bcfa -->
+<!-- translated-from: features/mail.md sha1:0673ada764f7c63f3330d184d6f7926335c8ff54 -->
 
 # Mail
 
@@ -657,6 +657,29 @@ und als sonst nichts — wo die Nachricht danach landet, ist Sache des Anbieters
 **Aktualisieren** in der Werkzeugleiste reiht für jedes deiner aktiven Konten eine
 Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
 
+Auf dem Telefon ist dieselbe Synchronisierung ein Ziehen: Zieh die Liste vom oberen Rand nach
+unten, über den Hinweis *Loslassen zum Synchronisieren* hinaus, und lass los. Der Synchronisieren-
+Knopf oben auf dem Bildschirm dreht sich, solange er läuft, und der Hinweis dreht sich mit. Ohne
+Berührung ist der Knopf der Ersatz: ein benannter Knopf für Tastatur und Bildschirmleser, und die
+Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
+
+Auf dem Telefon lässt sich eine Zeile auch wischen. Zieh sie nach rechts, und geschieht, was die
+Richtung rechts eingestellt hat; standardmäßig wird sie als gelesen markiert, oder als ungelesen,
+wenn sie schon gelesen ist. Zieh sie nach links, und standardmäßig wird sie archiviert. Was jede Richtung
+tut, stellst du unter **Einstellungen → E-Mail → Wischgesten** ein (siehe unten). Über ein Drittel der Zeilenbreite wartet die Aktion hinter der Zeile, und Drücken führt
+sie aus. Über zwei Drittel, oder ein schneller Wisch über das erste Drittel, geschieht sie beim
+Loslassen. Ein Tippen irgendwo anders schließt eine offene Zeile, und dieses Tippen tut sonst nichts.
+Gelesen / ungelesen und Archivieren gibt es nur bei normalen Mails: nie bei einem Entwurf und nie im
+Archiv, im Papierkorb oder bei Spam. Stern gibt es bei jeder Zeile, auch bei Entwürfen. Ohne Berührung erledigen das
+Kontrollkästchen der Zeile (ihr Avatar) und die Leiste dieselbe Arbeit, **Archivieren** und **Mehr**
+für eine Auswahl eingeschlossen.
+
+Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
+Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern und Nichts.
+Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*).
+Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
+ungelesen; Archivieren bietet sein **Rückgängig** an.
+
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
@@ -1257,3 +1280,25 @@ keine Zeit. Auf dem Radar wird sie fünfzehn Minuten nach Eingang der Mail angeb
 dann, damit ein Code von letzter Woche nicht lesbar dort stehen bleibt; die Karte über der Mail
 selbst behält ihn. plMail erfindet keine zehn Minuten, also kann die Karte dir nicht sagen, ob der
 Code noch geht — das kann nur die Mail, aus der er stammt.
+
+**Ziehen zum Aktualisieren gibt es nur mit dem Finger, und nur ganz oben in der Liste.** Maus,
+Trackpad und jedes Fenster ab der Tablet-Breite ziehen nie. Ein Ziehen beginnt nur, wenn die Liste
+ganz oben steht, und nicht bei offener Seitenleiste; von weiter unten scrollt dieselbe Bewegung nur.
+Reduzierte Bewegung nimmt dem Hinweis das Gleiten und sonst nichts, der Auslösepunkt bleibt gleich.
+
+**Ein Wisch ist eine Fingergeste auf dem Telefon, und seine Richtungen sind echte Richtungen.** Eine
+Maus wischt nie, in keiner Breite, und ab der Tablet-Breite wischt nichts. Rechts heißt zum rechten
+Bildschirmrand, unabhängig von der Sprache, denn eine Sprache von rechts nach links wird nicht
+mitgeliefert. Wer eine ergänzt, muss entscheiden, wie sich die beiden Seiten spiegeln.
+
+**Eine Aktualisierung lässt eine Zeile, die du festhältst, wo sie ist.** Eine Zeile unter deinem
+Finger oder eine offene Zeile behält ihren Zustand, während eine Synchronisierung oder eine
+Aktualisierung die Liste neu zeichnet. Die Änderung an dieser Zeile kommt, wenn du sie schließt. Eine
+Aktualisierung, die die Zeile entfernt, nimmt sie von der Liste.
+
+**Löschen ist kein Wisch.** Ein voller Zug hat kein Tippen davor, und eine Zeile im Papierkorb hat
+kein eigenes Rückgängig. Das Löschen bleibt daher bei den Knöpfen der Zeile und im Papierkorb, wo
+zuerst getippt werden muss. Auch unter **Einstellungen → E-Mail → Wischgesten** ist Löschen keine
+Wahl: Ein dafür gespeicherter Wert gilt als Standard der Richtung, sodass auch ein wiederhergestelltes
+Backup es nicht zurückbringt.
+

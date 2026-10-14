@@ -2471,6 +2471,9 @@ sync_now:
     still_running: 'Still haulin'' below decks.'
     complete: 'All hands aboard — sync complete.'
     session_expired: 'Yer watch has ended — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Heave down to haul in the post'
+    release: 'Let go, and haul in the post'
 search:
     empty:
         or_keyword: or just bellow a keyword.
@@ -3570,6 +3573,22 @@ settings:
         'off': Off
         'on': On
         subheading: "How bottles be sunk for good."
+    swipe_actions:
+        heading: "Swipe deeds"
+        hint: >-
+            A swipe acts once ye drag far enough or flick quick. Read an' star can
+            be unswiped by swipin' again, an' archive offers Undo. Trash be no
+            choice: a swipe that sank mail would have nothing to haul it back.
+        left:
+            label: "Swipe left"
+        option:
+            archive: "Stow it away"
+            none: "Nowt"
+            read_unread: "Read / unread"
+            star: "Star"
+        right:
+            label: "Swipe right"
+        subheading: "What a swipe across a bottle does on yer phone."
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
@@ -3600,6 +3619,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Yer marks
+        swipe_actions: "Swipe deeds"
         templates: 'Form letters'
     notifications:
         devices:
