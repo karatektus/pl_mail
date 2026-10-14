@@ -54,8 +54,8 @@ final class DecryptedMailSettingsController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $this->assertCsrf($request, 'decrypted-mail-' . $account->id);
 
-        $keep = $request->request->has('keep') ? '1' === (string) $request->request->get('keep') : $account->keepDecrypted;
-        $ai   = $request->request->has('ai') ? '1' === (string) $request->request->get('ai') : $account->keepDecryptedAi;
+        $keep = $request->request->has('keep') ? '1' === $request->request->getString('keep') : $account->keepDecrypted;
+        $ai   = $request->request->has('ai') ? '1' === $request->request->getString('ai') : $account->keepDecryptedAi;
 
         if (true === $keep && false === $account->keepDecrypted) {
             if (false === $policy->allowedOnInstall() || '1' !== $request->request->get('confirm')) {

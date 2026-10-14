@@ -138,7 +138,7 @@ final class ContactKeyController extends AbstractController
     {
         return $this->write($request, 'contact-keys', function () use ($request, $user): void {
             $file = $request->files->get('file');
-            $data = trim((string) $request->request->get('key', ''));
+            $data = trim($request->request->getString('key'));
 
             if ($file instanceof UploadedFile && true === $file->isValid() && $file->getSize() <= PublicKeyReader::MAX_BYTES) {
                 $data = (string) file_get_contents($file->getPathname());
@@ -161,7 +161,7 @@ final class ContactKeyController extends AbstractController
     public function lookup(Request $request, #[CurrentUser] User $user): Response
     {
         return $this->write($request, 'contact-keys', function () use ($request, $user): void {
-            $this->sayOutcome($this->contactKeys->lookUp($user, (string) $request->request->get('email', '')));
+            $this->sayOutcome($this->contactKeys->lookUp($user, $request->request->getString('email')));
         });
     }
 
@@ -207,9 +207,9 @@ final class ContactKeyController extends AbstractController
             $this->contactKeys->setPreferences(
                 $user,
                 $id,
-                RecipientPolicy::tryFrom((string) $request->request->get('encrypt')) ?? RecipientPolicy::Auto,
-                RecipientPolicy::tryFrom((string) $request->request->get('sign')) ?? RecipientPolicy::Auto,
-                PgpScheme::tryFrom((string) $request->request->get('scheme')) ?? PgpScheme::Mime,
+                RecipientPolicy::tryFrom($request->request->getString('encrypt')) ?? RecipientPolicy::Auto,
+                RecipientPolicy::tryFrom($request->request->getString('sign')) ?? RecipientPolicy::Auto,
+                PgpScheme::tryFrom($request->request->getString('scheme')) ?? PgpScheme::Mime,
             );
             $this->say('success', 'contact_keys.preferences_saved');
         });

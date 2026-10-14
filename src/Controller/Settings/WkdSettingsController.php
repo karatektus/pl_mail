@@ -42,7 +42,7 @@ final class WkdSettingsController extends AbstractController
 
         $this->assertCsrf($request, 'settings-wkd');
 
-        if (false === $this->directory->setPublished($user, (string) $request->request->get('email'), '1' === (string) $request->request->get('publish'))) {
+        if (false === $this->directory->setPublished($user, $request->request->getString('email'), '1' === $request->request->getString('publish'))) {
             throw $this->createNotFoundException();
         }
 
@@ -62,7 +62,7 @@ final class WkdSettingsController extends AbstractController
 
         $this->assertCsrf($request, 'settings-wkd');
 
-        $email = strtolower(trim((string) $request->request->get('email')));
+        $email = strtolower(trim($request->request->getString('email')));
 
         try {
             $result = $this->directory->check($user, $email);

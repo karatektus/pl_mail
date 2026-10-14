@@ -38,7 +38,7 @@ final class EncryptionSendingController extends AbstractController
         // not move it.
         foreach (['autocrypt' => 'autocryptHeader', 'attach_key' => 'attachPublicKey', 'sign_plain' => 'signPlainMail', 'block_partial' => 'blockPartialEncryption', 'protect_subject' => 'protectSubject'] as $field => $property) {
             if (true === $request->request->has($field)) {
-                $user->{$property} = '1' === (string) $request->request->get($field);
+                $user->{$property} = '1' === $request->request->getString($field);
             }
         }
 
