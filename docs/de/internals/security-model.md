@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:41247c6e2741a6f5dc2548db36cad27d25b1e043 -->
+<!-- translated-from: internals/security-model.md sha1:fb125ba7948bdc1df77298d520166f2d9d8f58e0 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -271,8 +271,9 @@ Verschlüsselte Arten bekommen einen leeren Body; Teile, die nur Hülle sind (`s
 
 Signierte Mails werden nach dem Commit auf dem Transport `enrich` geprüft (`VerifySignatureMessage`):
 S/MIME mit OpenSSL, zuerst gegen die Zertifizierungsstellen des Systems (Valid), dann mit
-`PKCS7_NOVERIFY` (Untrusted); PGP mit ext-gnupg in einem GnuPG-Verzeichnis, das für eine Prüfung
-angelegt und danach gelöscht wird (`GnupgHome`), gegen die eigenen Adress-Keys der Person (Valid),
+`PKCS7_NOVERIFY` (Untrusted); PGP mit dem Programm `gpg` in einem GnuPG-Verzeichnis, das für eine
+Prüfung angelegt und danach gelöscht wird (`GnupgHome`), ausgewertet über seine `--status-fd`-Zeilen,
+gegen die eigenen Adress-Keys der Person (Valid),
 ihre Schlüssel für den Absender (siehe unten) und einen Autocrypt-Schlüssel in der Nachricht, dessen
 `addr=` gleich `From` ist. Eine Signatur von einer anderen Adresse als `From`
 ist in beiden Fällen Invalid. `PgpMimeSplitter` holt die signierten Bytes von Hand aus der

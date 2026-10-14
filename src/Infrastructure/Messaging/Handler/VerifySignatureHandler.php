@@ -13,8 +13,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * Stores what checking a message's signature found.
  *
- * Nothing is stored when the check could not run — no raw source, ext-gnupg
- * missing — so the message reads as signed but unchecked, which is the truth,
+ * Nothing is stored when the check could not run — no raw source, no gpg
+ * to run — so the message reads as signed but unchecked, which is the truth,
  * rather than as Invalid, which would not be.
  */
 #[AsMessageHandler]

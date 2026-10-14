@@ -11,6 +11,7 @@ use App\Entity\Crypto\ContactKey;
 use App\Repository\Crypto\AddressKeyRepository;
 use App\Repository\Crypto\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
+use Closure;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -30,8 +31,8 @@ use Throwable;
  * The certificate of a good signature by the sender is kept for them
  * (ContactCertificates): it is what mail back to them is encrypted to.
  *
- * **PGP** goes through ext-gnupg, in a GnuPG home made for this one check and
- * removed after it. One home per check rather than a shared keyring: workers
+ * **PGP** goes through the gpg binary, in a GnuPG home made for this one check
+ * and removed after it (GnupgHome), and is read from its status lines. One home per check rather than a shared keyring: workers
  * run side by side and the container under any uid, and the keys to check
  * against are whatever the database says now, not what a keyring remembers.
  * Three sources of keys go in:
@@ -66,7 +67,7 @@ final readonly class SignatureVerifier
     /**
      * @return array{state: SignatureState, signer: ?string}|null null when it
      *         could not be checked at all — no raw source, an unreadable
-     *         structure, no ext-gnupg — and the message stays unchecked
+     *         structure, no gpg — and the message stays unchecked
      */
     public function verify(Message $message): ?array
     {
@@ -154,7 +155,14 @@ final readonly class SignatureVerifier
             return null;
         }
 
-        return $this->pgp($message, static fn (\gnupg $gpg): array|false => $gpg->verify($parts['signed'], $parts['signature']));
+        return $this->pgp($message, static fn (GnupgHome $home): string => $home->output(
+            null,
+            '--status-fd',
+            '1',
+            '--verify',
+            $home->file('signature.asc', $parts['signature']),
+            $home->file('signed', $parts['signed']),
+        ));
     }
 
     /**
@@ -163,22 +171,26 @@ final readonly class SignatureVerifier
     private function pgpInline(Message $message): ?array
     {
         $text = (string) $message->bodyText;
-        $plain = '';
 
-        return $this->pgp($message, static function (\gnupg $gpg) use ($text, &$plain): array|false {
-            return $gpg->verify($text, false, $plain);
-        });
+        return $this->pgp($message, static fn (GnupgHome $home): string => $home->output(
+            null,
+            '--status-fd',
+            '1',
+            '--verify',
+            $home->file('message.asc', $text),
+        ));
     }
 
     /**
-     * @param callable(\gnupg): (array<int, array<string, mixed>>|false) $check
+     * @param Closure(GnupgHome): string $check runs gpg --verify, and returns
+     *                                          its status lines
      *
      * @return array{state: SignatureState, signer: ?string}|null
      */
-    private function pgp(Message $message, callable $check): ?array
+    private function pgp(Message $message, Closure $check): ?array
     {
         if (false === GnupgHome::available()) {
-            $this->logger->notice('ext-gnupg is not installed, or gpg does not start; PGP signatures stay unchecked.');
+            $this->logger->notice('gpg is not installed, or does not start; PGP signatures stay unchecked.');
 
             return null;
         }
@@ -188,52 +200,51 @@ final readonly class SignatureVerifier
         $contacts  = $this->contactKeys->findForAddress($message->account->usr, $from);
         $autocrypt = Autocrypt::keyFor($message->headers ?? [], $from);
 
-        return GnupgHome::with(static function (\gnupg $gpg) use ($check, $from, $own, $contacts, $autocrypt): ?array {
+        return GnupgHome::with(static function (GnupgHome $home) use ($check, $from, $own, $contacts, $autocrypt): ?array {
             $keys = [
                 ...array_keys($own),
                 ...array_map(static fn (ContactKey $key): string => $key->publicKey, $contacts),
                 ...(null === $autocrypt ? [] : [$autocrypt]),
             ];
 
-            foreach ($keys as $key) {
-                $gpg->import($key);
+            // One file per key and one gpg for all of them: armored and binary
+            // keys do not mix in one stream, and a key gpg cannot read only
+            // costs itself, not the others.
+            $files = [];
+
+            foreach (array_values($keys) as $index => $key) {
+                $files[] = $home->file('key-' . $index, $key);
             }
 
-            $signatures = $check($gpg);
+            if ([] !== $files) {
+                $home->output(null, '--import', ...$files);
+            }
 
-            if (false === $signatures || [] === $signatures) {
+            $signature = self::firstSignature($check($home));
+
+            if (null === $signature) {
                 return null;
             }
 
-            $signature   = $signatures[0];
-            $fingerprint = strtolower((string) ($signature['fingerprint'] ?? ''));
-            $summary     = (int) ($signature['summary'] ?? 0);
-            $current     = self::currentKey($contacts);
+            $signer  = '' === $signature['fingerprint'] ? null : $signature['fingerprint'];
+            $current = self::currentKey($contacts);
 
-            if (0 !== ($summary & \GNUPG_SIGSUM_KEY_MISSING)) {
+            if ('missing' === $signature['outcome']) {
                 // None of the keys plMail has. When the sender has a known
                 // key, that alone is the news: whoever signed this, it was not
                 // with the key plMail knows for them.
-                return [
-                    'state'  => null === $current ? SignatureState::UnknownKey : SignatureState::KeyChanged,
-                    'signer' => '' === $fingerprint ? null : $fingerprint,
-                ];
+                return ['state' => null === $current ? SignatureState::UnknownKey : SignatureState::KeyChanged, 'signer' => $signer];
             }
 
-            if (0 !== (int) ($signature['status'] ?? 1) || 0 !== ($summary & (\GNUPG_SIGSUM_RED | \GNUPG_SIGSUM_KEY_REVOKED))) {
-                return ['state' => SignatureState::Invalid, 'signer' => '' === $fingerprint ? null : $fingerprint];
+            if ('good' !== $signature['outcome']) {
+                return ['state' => SignatureState::Invalid, 'signer' => $signer];
             }
 
-            // The key, by whichever of its fingerprints signed: a key often
-            // signs with a subkey, and it is the primary fingerprint that the
-            // keyring — and a person comparing by hand — knows it by. gpgme
-            // lists the primary first among a key's subkeys.
-            $signerKey = $gpg->keyinfo($fingerprint)[0] ?? null;
-            $primary   = strtolower((string) ($signerKey['subkeys'][0]['fingerprint'] ?? $fingerprint));
-            $addresses = array_map(
-                static fn (array $uid): string => strtolower((string) ($uid['email'] ?? '')),
-                (array) ($signerKey['uids'] ?? []),
-            );
+            // The key, by its primary fingerprint: a key often signs with a
+            // subkey, and it is the primary fingerprint that the keyring —
+            // and a person comparing by hand — knows it by.
+            $primary   = $signature['primary'];
+            $addresses = $home->keys($primary)[0]['addresses'] ?? [];
 
             if (false === in_array($from, $addresses, true)) {
                 return ['state' => SignatureState::Invalid, 'signer' => $primary];
@@ -241,6 +252,70 @@ final readonly class SignatureVerifier
 
             return ['state' => self::trust($primary, $own, $contacts, $current), 'signer' => $primary];
         });
+    }
+
+    /**
+     * The first signature in gpg's status lines (doc/DETAILS in GnuPG): good
+     * only on GOODSIG — a bad signature, an expired signature and a signature
+     * by an expired or revoked key are all not good — and missing only on
+     * ERRSIG with code 9, no public key.
+     *
+     * The signer is the issuer fingerprint where the signature names one, the
+     * long key ID where it does not; the primary fingerprint comes with
+     * VALIDSIG, which gpg prints only once it has checked the signature.
+     *
+     * @return array{outcome: 'good'|'bad'|'missing', fingerprint: string, primary: string}|null
+     *         null when gpg said nothing about a signature at all
+     */
+    private static function firstSignature(string $status): ?array
+    {
+        $outcome     = null;
+        $fingerprint = '';
+        $primary     = '';
+
+        foreach (explode("\n", $status) as $line) {
+            if (false === str_starts_with($line, '[GNUPG:] ')) {
+                continue;
+            }
+
+            $fields = explode(' ', trim(substr($line, 9)));
+
+            switch ($fields[0]) {
+                case 'NEWSIG':
+                    if (null !== $outcome) {
+                        break 2;
+                    }
+                    break;
+
+                case 'GOODSIG':
+                    $outcome = 'good';
+                    break;
+
+                case 'BADSIG':
+                case 'EXPSIG':
+                case 'EXPKEYSIG':
+                case 'REVKEYSIG':
+                    $outcome     = 'bad';
+                    $fingerprint = '' === $fingerprint ? ($fields[1] ?? '') : $fingerprint;
+                    break;
+
+                case 'ERRSIG':
+                    $outcome     = '9' === ($fields[6] ?? '') ? 'missing' : 'bad';
+                    $fingerprint = '-' !== ($fields[7] ?? '-') ? $fields[7] : ($fields[1] ?? '');
+                    break;
+
+                case 'VALIDSIG':
+                    $fingerprint = $fields[1] ?? '';
+                    $primary     = $fields[10] ?? $fingerprint;
+                    break;
+            }
+        }
+
+        if (null === $outcome || ('good' === $outcome && '' === $primary)) {
+            return null;
+        }
+
+        return ['outcome' => $outcome, 'fingerprint' => strtolower($fingerprint), 'primary' => strtolower($primary)];
     }
 
     /**

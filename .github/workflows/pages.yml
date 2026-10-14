@@ -67,12 +67,8 @@ jobs:
             # --no-dev is NOT possible: league/commonmark is a require-dev
             # dependency precisely because the application never renders
             # Markdown, and this job is the only thing that does.
-            #
-            # ext-gnupg is the application's (SignatureVerifier checks PGP
-            # signatures with it) and nothing a Markdown renderer touches;
-            # building it from PECL here would be a minute for nothing.
             - name: Install PHP dependencies
-              run: composer install --no-interaction --prefer-dist --no-progress --no-scripts --ignore-platform-req=ext-gnupg
+              run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
             - name: Build the site
               run: php bin/build-site.php build/site

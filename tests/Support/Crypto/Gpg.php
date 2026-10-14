@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Support\Crypto;
 
+use App\Service\Crypto\GnupgHome;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
@@ -33,8 +34,8 @@ final class Gpg
         array $extraAddresses = [],
         bool $expired = false,
     ) {
-        if (false === class_exists(\gnupg::class)) {
-            TestCase::markTestSkipped('ext-gnupg is not installed here.');
+        if (false === GnupgHome::available()) {
+            TestCase::markTestSkipped('gpg is not installed here.');
         }
 
         $this->home = sys_get_temp_dir() . '/gpgtest-' . bin2hex(random_bytes(4));
@@ -100,6 +101,12 @@ final class Gpg
             . "--S\r\nContent-Type: application/pgp-signature; name=\"signature.asc\"\r\n\r\n"
             . str_replace("\n", "\r\n", trim($signature)) . "\r\n"
             . "--S--\r\n";
+    }
+
+    /** $body as an inline (cleartext) signed message, signed by this key. */
+    public function clearSigned(string $body): string
+    {
+        return $this->run('--clearsign', '--local-user', $this->fingerprint, input: $body);
     }
 
     /** @return list<string> */

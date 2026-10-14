@@ -35,8 +35,7 @@ final readonly class PublicKeyReader
 
     /**
      * @return list<PublicKeyInfo> empty when nothing in $data is a public key,
-     *         when it is too big, or when ext-gnupg is not installed or
-     *         gpg does not start
+     *         when it is too big, or when gpg is not there or does not start
      */
     public function read(string $data): array
     {
@@ -48,17 +47,16 @@ final readonly class PublicKeyReader
             return [];
         }
 
-        return GnupgHome::with(static function (\gnupg $gpg) use ($data): array {
-            $imported = $gpg->import($data);
-
-            if (false === $imported || 0 === (int) ($imported['imported'] ?? 0) + (int) ($imported['unchanged'] ?? 0)) {
-                return [];
-            }
+        return GnupgHome::with(static function (GnupgHome $home) use ($data): array {
+            // The exit code says nothing useful here: gpg exits 2 when it
+            // skipped one key of several, having imported the rest. What
+            // counts is what is in the home afterwards.
+            $home->output($data, '--import');
 
             $keys = [];
 
-            foreach (array_slice((array) $gpg->keyinfo(''), 0, self::MAX_KEYS) as $key) {
-                $info = self::describe($gpg, (array) $key);
+            foreach (array_slice($home->keys(), 0, self::MAX_KEYS) as $key) {
+                $info = self::describe($home, $key);
 
                 if (null !== $info) {
                     $keys[] = $info;
@@ -83,43 +81,25 @@ final readonly class PublicKeyReader
     }
 
     /**
-     * @param array<string, mixed> $key one entry of gnupg::keyinfo()
+     * @param array{fingerprint: string, validity: string, expires: int, capabilities: string, addresses: list<string>} $key
      */
-    private static function describe(\gnupg $gpg, array $key): ?PublicKeyInfo
+    private static function describe(GnupgHome $home, array $key): ?PublicKeyInfo
     {
-        $subkeys = (array) ($key['subkeys'] ?? []);
-        $primary = (array) ($subkeys[0] ?? []);
-        $fingerprint = strtolower((string) ($primary['fingerprint'] ?? ''));
+        $armored = $home->output(null, '--armor', '--export', $key['fingerprint']);
 
-        if ('' === $fingerprint || true === (bool) ($key['is_secret'] ?? false)) {
-            return null;
-        }
-
-        $addresses = [];
-
-        foreach ((array) ($key['uids'] ?? []) as $uid) {
-            $uid   = (array) $uid;
-            $email = strtolower(trim((string) ($uid['email'] ?? '')));
-
-            if ('' !== $email && false === (bool) ($uid['revoked'] ?? false) && false === (bool) ($uid['invalid'] ?? false)) {
-                $addresses[] = $email;
-            }
-        }
-
-        $armored = $gpg->export($fingerprint);
-        $expires = (int) ($primary['expires'] ?? 0);
-
-        if (false === $armored || '' === $armored) {
+        if ('' === $armored) {
             return null;
         }
 
         return new PublicKeyInfo(
-            fingerprint: $fingerprint,
-            addresses:   array_values(array_unique($addresses)),
-            revoked:     true === (bool) ($key['revoked'] ?? false) || true === (bool) ($primary['revoked'] ?? false),
-            expired:     true === (bool) ($key['expired'] ?? false) || true === (bool) ($primary['expired'] ?? false),
-            canEncrypt:  true === (bool) ($key['can_encrypt'] ?? false),
-            expiresAt:   0 < $expires ? new DateTimeImmutable('@' . $expires) : null,
+            fingerprint: $key['fingerprint'],
+            addresses:   array_values(array_unique($key['addresses'])),
+            revoked:     'r' === $key['validity'],
+            expired:     'e' === $key['validity'],
+            // Upper case on the primary key: what the key as a whole can
+            // still do, through a subkey that is neither expired nor revoked.
+            canEncrypt:  true === str_contains($key['capabilities'], 'E'),
+            expiresAt:   0 < $key['expires'] ? new DateTimeImmutable('@' . $key['expires']) : null,
             armored:     $armored,
         );
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Crypto;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Process\Process;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -21,9 +20,8 @@ use Symfony\Contracts\Cache\ItemInterface;
  * third-party certifications along with superseded self-signatures, which no
  * WKD client needs and which only make the answer larger.
  *
- * Through the gpg binary in a throwaway home (GnupgHome::directory()), because
- * the filter that does it — `--export-filter keep-uid=…` — has no gpgme call,
- * so ext-gnupg cannot ask for it. Writing the same in PHP would mean parsing
+ * Through gpg's `--export-filter keep-uid=…` in a throwaway home
+ * (GnupgHome). Writing the same in PHP would mean parsing
  * OpenPGP packets and deciding which signature belongs to which user ID, which
  * PublicKeyReader explains is exactly the part not to do by hand.
  *
@@ -40,9 +38,6 @@ final readonly class WkdKeyExport
 {
     private const int TTL         = 86400;
     private const int FAILURE_TTL = 300;
-
-    /** gpg imports one key and exports it; anything slower is stuck. */
-    private const int TIMEOUT = 15;
 
     public function __construct(
         private PublicKeyReader $reader,
@@ -82,20 +77,15 @@ final readonly class WkdKeyExport
 
     private function export(string $armored, string $fingerprint, string $email): ?string
     {
-        // The result is read back through ext-gnupg below; without it there
-        // is nothing to check the export against, so nothing is served.
         if (false === GnupgHome::available()) {
-            $this->logger->warning('WKD: ext-gnupg is not installed, or gpg does not start; key {fingerprint} not published.', ['fingerprint' => $fingerprint]);
+            $this->logger->warning('WKD: gpg is not installed, or does not start; key {fingerprint} not published.', ['fingerprint' => $fingerprint]);
 
             return null;
         }
 
-        $binary = GnupgHome::directory(function (string $home) use ($armored, $fingerprint, $email): ?string {
-            $gpg = ['gpg', '--homedir', $home, '--batch', '--no-tty', '--quiet', '--no-autostart'];
-
-            $import = new Process([...$gpg, '--import']);
+        $binary = GnupgHome::with(function (GnupgHome $home) use ($armored, $fingerprint, $email): ?string {
+            $import = $home->process('--import');
             $import->setInput($armored);
-            $import->setTimeout(self::TIMEOUT);
             $import->run();
 
             if (false === $import->isSuccessful()) {
@@ -111,8 +101,7 @@ final readonly class WkdKeyExport
             // joanna@example.org; the second term is a user ID that is the
             // bare address.
             $filter = sprintf('keep-uid=uid =~ <%s> || uid = %s', $email, $email);
-            $export = new Process([...$gpg, '--export-options', 'export-minimal', '--export-filter', $filter, '--export', $fingerprint]);
-            $export->setTimeout(self::TIMEOUT);
+            $export = $home->process('--export-options', 'export-minimal', '--export-filter', $filter, '--export', $fingerprint);
             $export->run();
 
             if (false === $export->isSuccessful() || '' === $export->getOutput()) {

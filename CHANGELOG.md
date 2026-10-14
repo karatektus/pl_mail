@@ -43,9 +43,11 @@ Everybody who relied on "Keep me signed in" is asked to sign in once more after 
 table is added; the migration is reversible.
 [#104](https://github.com/karatektus/pl_mail/pull/104), by @pmdevelopment.
 
-**The PHP `gnupg` extension is now required.** plMail checks PGP signatures with it; the Docker
-image has carried it since the encryption work began, and `composer install` now insists on it, so
-an installation outside Docker needs it too (PECL `gnupg`, with `libgpgme`).
+**GnuPG is now required.** plMail runs the `gpg` program to check PGP signatures, read contacts'
+keys and publish keys over WKD. The Docker image carries it; an installation outside Docker needs
+`gpg` from GnuPG 2.2 or later on the `PATH`. No PHP extension is involved — an earlier build of this
+work used ext-gnupg, whose gpgme could not reach gpg inside the FrankenPHP 1.12 and 1.13.0 web
+server.
 [#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
 
 **The plMail app can read and send encrypted mail — the server side, phase 6a of end-to-end

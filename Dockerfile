@@ -1,15 +1,7 @@
 #syntax=docker/dockerfile:1
 
 # Versions
-#
-# 1.13.1 exactly, not the floating `1-php8.4`: under the FrankenPHP server of
-# 1.12.7 and 1.13.0, gpgme starts `gpgconf --version` and reads nothing back,
-# so `new gnupg()` dies on "Setting engine info failed" — while the same image
-# runs it fine from the CLI. 1.13.1 does not have that, and was then withdrawn,
-# taking the floating tag back to 1.13.0 under every build. Move on once a
-# later release passes tests/e2e/encryption-wkd.spec.ts, which needs gpg in a
-# web request; GnupgHome::available() keeps a broken one from answering 500.
-FROM dunglas/frankenphp:1.13.1-php8.4 AS frankenphp_upstream
+FROM dunglas/frankenphp:1-php8.4 AS frankenphp_upstream
 
 # The Mercure hub, taken as a binary rather than run as an image. plMail runs it
 # as one of the background processes in the worker container (app:work), which
@@ -64,6 +56,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # then fail at the moment someone actually needed a backup.
 #
 # PGDG publishes amd64 and arm64, which the two-runner image build requires.
+#
+# gnupg is not only for the PGDG key: plMail runs the gpg binary to check PGP
+# signatures, read contacts' keys and publish keys over WKD (GnupgHome).
 # hadolint ignore=DL3008
 RUN set -eux; \
 	apt-get update; \
@@ -91,11 +86,6 @@ RUN set -eux; \
         # Attachment previews only — see AttachmentThumbnailer, which degrades
         # to the paperclip icon where this is missing.
         gd \
-        # PGP signatures, checked on the server — see SignatureVerifier, which
-        # leaves them unchecked where this is missing. Pulls in libgpgme, and
-        # through it the gpg binary that is installed above for the PGDG key
-        # anyway; that apt line is now load-bearing for this too.
-        gnupg \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser

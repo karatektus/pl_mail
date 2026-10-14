@@ -246,7 +246,8 @@ attachments.
 
 Signed mail is checked after the commit, on the `enrich` transport (`VerifySignatureMessage`):
 S/MIME by OpenSSL, first against the system CAs (Valid) and then with `PKCS7_NOVERIFY` (Untrusted);
-PGP by ext-gnupg in a GnuPG home made for one check and deleted after it (`GnupgHome`), against the
+PGP by the `gpg` binary in a GnuPG home made for one check and deleted after it (`GnupgHome`), read
+from its `--status-fd` lines, against the
 person's own address keys (Valid), their keys for the sender (see below) and an Autocrypt key in the
 message whose `addr=` is `From`. A signature by an address
 other than `From` is Invalid either way. `PgpMimeSplitter` takes the signed bytes out of the raw

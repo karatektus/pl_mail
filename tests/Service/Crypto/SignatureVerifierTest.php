@@ -14,6 +14,7 @@ use App\Entity\Crypto\ContactKey;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Service\Crypto\GnupgHome;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Mail\RawMessageResolver;
 use App\Tests\Command\MailFixtures;
@@ -207,7 +208,57 @@ final class SignatureVerifierTest extends KernelTestCase
         self::assertSame(SignatureState::UnknownKey, static::getContainer()->get(SignatureVerifier::class)->verify($message)['state'] ?? null);
     }
 
+    /** A key revoked since it signed vouches for nothing, pinned or not. */
+    public function testASignatureByARevokedKeyIsInvalid(): void
+    {
+        $key = new Gpg(self::SIGNER);
+        $raw = $key->signedMessage('Hello.');
+
+        $this->em->persist(new ContactKey($this->account->usr, self::SIGNER, $key->fingerprint, $key->revoked(), ContactKeyOrigin::Manual, ContactKeyStatus::Current, null, new DateTimeImmutable()));
+        $this->em->flush();
+
+        self::assertSame(SignatureState::Invalid, $this->verify($raw, MessageCrypto::PgpSigned, self::SIGNER)['state'] ?? null);
+    }
+
+    /** A good signature by a key that carries no user ID for the sender is the forgery to flag. */
+    public function testAGoodPgpSignatureByAKeyWithoutTheSendersAddressIsInvalid(): void
+    {
+        $key = new Gpg(self::SIGNER);
+        $this->ownKey($key);
+
+        $result = $this->verify($key->signedMessage('Hello.', 'someone.else@example.test'), MessageCrypto::PgpSigned, 'someone.else@example.test');
+
+        self::assertSame(SignatureState::Invalid, $result['state'] ?? null);
+        self::assertSame($key->fingerprint, $result['signer'] ?? null);
+    }
+
+    public function testAnInlineSignatureByAPinnedContactKeyIsValid(): void
+    {
+        $key = new Gpg(self::SIGNER);
+        $this->knowContactKey($key, pinned: true);
+
+        $message = MailFixtures::message($this->em, $this->account);
+        $message->fromAddress = self::SIGNER;
+        $message->crypto      = MessageCrypto::PgpInlineSigned;
+        $message->bodyText    = $key->clearSigned("Hello.\n");
+        static::getContainer()->get(RawMessageResolver::class)->store($message, "From: " . self::SIGNER . "\r\n\r\n" . $message->bodyText);
+        $this->em->flush();
+
+        $result = static::getContainer()->get(SignatureVerifier::class)->verify($message);
+
+        self::assertSame(SignatureState::Valid, $result['state'] ?? null);
+        self::assertSame($key->fingerprint, $result['signer'] ?? null);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private function ownKey(Gpg $key): void
+    {
+        $userKey = new UserKey($this->account->usr, 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(48)));
+        $this->em->persist($userKey);
+        $this->em->persist(new AddressKey($this->account->usr, $userKey, $key->fingerprint, $key->armored, "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nx\n", 'v1.x.y', AddressKeyOrigin::Imported, null, null));
+        $this->em->flush();
+    }
 
     private function knowContactKey(Gpg $key, bool $pinned = false, ContactKeyStatus $status = ContactKeyStatus::Current): void
     {
@@ -267,8 +318,8 @@ final class SignatureVerifierTest extends KernelTestCase
      */
     private function pgpSigned(string $body): array
     {
-        if (false === class_exists(\gnupg::class)) {
-            self::markTestSkipped('ext-gnupg is not installed here.');
+        if (false === GnupgHome::available()) {
+            self::markTestSkipped('gpg is not installed here.');
         }
 
         $home = sys_get_temp_dir() . '/sigtest-' . bin2hex(random_bytes(4));
