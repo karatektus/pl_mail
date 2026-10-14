@@ -35,6 +35,8 @@ export default class extends Controller {
 
         this._running = true;
         this._spin(true);
+        // Said here, after the guard, so a click that is refused says nothing.
+        this.dispatch("started");
 
         let response = null;
 
@@ -124,10 +126,16 @@ export default class extends Controller {
         this._schedule();
     }
 
+    /**
+     * The one way a run ends, error paths included, so "stopped" is said once for
+     * every "started". Other controllers (pull to refresh) show the spinning state
+     * from these two events, whichever control started the run.
+     */
     _stop() {
         clearTimeout(this._poll);
         this._running = false;
         this._spin(false);
+        this.dispatch("stopped");
     }
 
     _spin(on) {

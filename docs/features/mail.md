@@ -597,6 +597,19 @@ and nothing else — where the message lands afterwards is the provider's busine
 **Refresh** in the toolbar queues a sync for every active account you own and spins until those
 jobs have drained.
 
+On a phone the same sync is a pull: drag the list down from its top, past the indicator's
+*Release to sync*, and let go. The sync button at the top of the screen spins while it runs, and
+the indicator spins with it. Without touch, the sync button is the equivalent: it is a named button
+for a keyboard or a screen reader, and the sync toast says when the run starts and when it ends.
+
+On a phone a row swipes too. Drag it to the right and it is marked read, or unread if it already is;
+drag it to the left and it is archived. Past a third of the row's width the action waits behind the
+row, and pressing it does the thing. Past two thirds, or a quick flick past the first third, it
+happens as you let go. Touching anything else closes an open row, and that touch does nothing more.
+A swipe offers nothing where the row's own buttons offer nothing: not on a draft, and not in the
+archive, the bin or spam. Without touch, the row's checkbox (its avatar) and the toolbar do the same
+work, **Archive** and **More** on a selection included. The two directions are fixed for now.
+
 ### Keyboard shortcuts
 
 The single keys Gmail uses work here too. Press **?** anywhere for the full list, or the
@@ -1080,6 +1093,24 @@ the search box says how far it has got, and until it says nothing at all, "meani
 **Deleting a label from the sidebar is the same delete as the one in settings.** It is not a "remove
 from this view" — the dialog is a shortcut to the same operation, across every account, nested labels
 included.
+
+**Pull to refresh is for a finger at the top of the list, and only there.** A mouse, a trackpad and
+any window at the tablet breakpoint or wider never pull. A pull starts only while the list is
+scrolled to its very top, and not while the sidebar is open: from further down, the same drag just
+scrolls. Reduced motion removes the indicator's slide and nothing else, so the release point is the
+same.
+
+**A swipe is a finger's gesture on a phone, and its directions are physical.** A mouse never swipes,
+at any width, and nothing swipes at the tablet breakpoint or wider. Right means towards the right
+edge of the screen whatever the language, because no right-to-left locale ships. A reader who adds
+one has to decide how the two sides mirror.
+
+**A refresh leaves a row you are holding where it is.** A row under your finger, or open, keeps its
+state while a sync or an update redraws the list, and the change to that row arrives when you close
+it. A refresh that removes the row takes it off the list.
+
+**Trash is not a swipe.** A full drag has no tap in front of it, and a trashed row has no undo of its
+own, so deleting stays with the row's buttons and the bin, where a tap comes first.
 
 **A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
 inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see
