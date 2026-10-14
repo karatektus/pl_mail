@@ -82,6 +82,14 @@ final readonly class WkdKeyExport
 
     private function export(string $armored, string $fingerprint, string $email): ?string
     {
+        // The result is read back through ext-gnupg below; without it there
+        // is nothing to check the export against, so nothing is served.
+        if (false === GnupgHome::available()) {
+            $this->logger->warning('WKD: ext-gnupg is not installed, or gpg does not start; key {fingerprint} not published.', ['fingerprint' => $fingerprint]);
+
+            return null;
+        }
+
         $binary = GnupgHome::directory(function (string $home) use ($armored, $fingerprint, $email): ?string {
             $gpg = ['gpg', '--homedir', $home, '--batch', '--no-tty', '--quiet', '--no-autostart'];
 

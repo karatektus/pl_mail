@@ -178,7 +178,7 @@ final readonly class SignatureVerifier
     private function pgp(Message $message, callable $check): ?array
     {
         if (false === GnupgHome::available()) {
-            $this->logger->notice('ext-gnupg is not installed; PGP signatures stay unchecked.');
+            $this->logger->notice('ext-gnupg is not installed, or gpg does not start; PGP signatures stay unchecked.');
 
             return null;
         }

@@ -35,7 +35,8 @@ final readonly class PublicKeyReader
 
     /**
      * @return list<PublicKeyInfo> empty when nothing in $data is a public key,
-     *         when it is too big, or when ext-gnupg is not installed
+     *         when it is too big, or when ext-gnupg is not installed or
+     *         gpg does not start
      */
     public function read(string $data): array
     {

@@ -8,6 +8,7 @@ use Closure;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use Throwable;
 
 /**
  * A GnuPG home that exists for one piece of work and is removed after it.
@@ -23,9 +24,36 @@ use RecursiveIteratorIterator;
  */
 final class GnupgHome
 {
+    private static ?bool $works = null;
+
+    /**
+     * Whether ext-gnupg is installed and gpgme can actually reach gpg.
+     *
+     * Installed is not enough: under some FrankenPHP releases gpgme cannot
+     * read gpgconf's answer inside a web request, and every `new gnupg()`
+     * there throws (see the Dockerfile). Asked once per process — what gpgme
+     * found out about its engine it keeps for the process too.
+     */
     public static function available(): bool
     {
-        return class_exists(\gnupg::class);
+        return self::$works ??= self::starts();
+    }
+
+    private static function starts(): bool
+    {
+        if (false === class_exists(\gnupg::class)) {
+            return false;
+        }
+
+        try {
+            return self::directory(static function (string $home): bool {
+                new \gnupg(['home_dir' => $home]);
+
+                return true;
+            });
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

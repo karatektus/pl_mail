@@ -1,7 +1,15 @@
 #syntax=docker/dockerfile:1
 
 # Versions
-FROM dunglas/frankenphp:1-php8.4 AS frankenphp_upstream
+#
+# 1.13.1 exactly, not the floating `1-php8.4`: under the FrankenPHP server of
+# 1.12.7 and 1.13.0, gpgme starts `gpgconf --version` and reads nothing back,
+# so `new gnupg()` dies on "Setting engine info failed" — while the same image
+# runs it fine from the CLI. 1.13.1 does not have that, and was then withdrawn,
+# taking the floating tag back to 1.13.0 under every build. Move on once a
+# later release passes tests/e2e/encryption-wkd.spec.ts, which needs gpg in a
+# web request; GnupgHome::available() keeps a broken one from answering 500.
+FROM dunglas/frankenphp:1.13.1-php8.4 AS frankenphp_upstream
 
 # The Mercure hub, taken as a binary rather than run as an image. plMail runs it
 # as one of the background processes in the worker container (app:work), which
