@@ -118,8 +118,8 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<string,array<string,array<string,string>>> $userChanges accountId => type => state, for one user
-     * @param list<int>                                         $arrived     accounts on which mail arrived
+     * @param array<string,array<string,string>> $userChanges accountId => type => state, for one user
+     * @param list<int>                          $arrived     accounts on which mail arrived
      */
     private function anyArrived(array $userChanges, array $arrived): bool
     {

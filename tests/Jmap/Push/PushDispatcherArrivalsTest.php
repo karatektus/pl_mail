@@ -33,11 +33,11 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
 
         $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: []);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: []);
 
         self::assertCount(0, $webPush->sent, 'an update is not new mail');
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: [$this->accountId()]);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: [$this->ownAccountId()]);
 
         self::assertCount(1, $webPush->sent, 'presence: mail arrived, so the PWA is told');
         self::assertSame('pwa-device', $webPush->sent[0]->deviceClientId);
@@ -49,7 +49,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
 
         $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: []);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: []);
 
         self::assertCount(1, $webPush->sent, 'a client that did not opt in still gets every StateChange');
         self::assertSame('a-jmap-client', $webPush->sent[0]->deviceClientId);
@@ -61,7 +61,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
 
         $fcm = new RecordingArrivalsSender(PushTransport::Fcm);
 
-        $this->dispatch($fcm, [$this->accountId()], updated: [$this->accountId()], arrived: []);
+        $this->dispatch($fcm, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: []);
 
         self::assertCount(1, $fcm->sent, 'the phone keeps every StateChange');
         self::assertSame('a-phone', $fcm->sent[0]->deviceClientId);
@@ -78,7 +78,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
 
         self::assertCount(0, $webPush->sent, 'mail for someone else is not this user\'s new mail');
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: [$this->accountId()]);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: [$this->ownAccountId()]);
 
         self::assertCount(1, $webPush->sent, 'presence: this user\'s own arrival still notifies the PWA');
     }
@@ -96,11 +96,11 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
         $otherAccountId = $this->seedOtherUsersAccount();
         $webPush        = new RecordingArrivalsSender(PushTransport::WebPush);
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: [$otherAccountId]);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: [$otherAccountId]);
 
         self::assertCount(0, $webPush->sent, 'a stranger\'s mail arrived; this user\'s mail only changed');
 
-        $this->dispatch($webPush, [$this->accountId()], updated: [$this->accountId()], arrived: [$this->accountId()]);
+        $this->dispatch($webPush, [$this->ownAccountId()], updated: [$this->ownAccountId()], arrived: [$this->ownAccountId()]);
 
         self::assertCount(1, $webPush->sent, 'presence: their own arrival notifies the PWA');
     }
@@ -130,6 +130,12 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
             $container->get(StateChangeBuilder::class),
             new NullLogger(),
         )->dispatch($changed, $arrived);
+    }
+
+    /** This user's account id as the int the dispatcher is handed; JmapTestCase::accountId() is the JMAP string. */
+    private function ownAccountId(): int
+    {
+        return (int) $this->account->id;
     }
 
     private function arrivalsOnlyBrowser(string $deviceClientId): PushSubscription

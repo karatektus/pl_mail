@@ -14,8 +14,8 @@ use PHPUnit\Framework\TestCase;
  * the webPush() factory, must stay on the full stream.
  *
  * This is the entity half of the claim. That WebPushController marks its rows
- * is not tested here: its subscribe path needs a configured VAPID sender, which
- * POSTs to a real push service, so it cannot run in this suite.
+ * is WebPushSubscribeArrivalsTest's, which posts to the real endpoint with the
+ * push client mocked.
  */
 final class PushSubscriptionArrivalsTest extends TestCase
 {
