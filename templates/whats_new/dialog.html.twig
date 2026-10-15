@@ -1,0 +1,235 @@
+{#
+whats_new/dialog.html.twig — release notes and feedback, for the shared dialog (#165).
+
+Drawn whole by every route in WhatsNewController: picking a release, opening
+the feedback form, sending it and the footer's checkbox all answer with this
+again, so the list, the selection and the footer cannot disagree. Links and
+forms inside a turbo-frame stay in it, which is all the navigation needs.
+
+`since` rides along on every link and form — see the controller's docblock.
+
+Accepts:
+  since         where this person stood, `0.3.1`
+  top           releases under the first heading: the new ones, or the running one
+  topIsNew      whether `top` is new to this person
+  older         every other release this install has, newest first
+  olderOpen     whether the selected release is among `older`
+  selected      the release on the right, or null when the changelog is missing
+  feedbackPane  whether the right side is the feedback form instead
+  accounts      the person's switched-on accounts, the first one first
+  recipient     where feedback goes
+  feedback      {sent, error, form: {rating, message, account}}
+#}
+{% set notes = '[&_p]:mt-2 [&_p:first-child]:mt-0 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1
+                [&_code]:rounded [&_code]:bg-raised [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.9em]
+                [&_a]:text-accent [&_a:hover]:text-accent-strong [&_strong]:font-semibold [&_strong]:text-ink' %}
+{% set navRow = 'flex w-full items-center gap-2 rounded-r-full py-1.5 pl-4 pr-3 text-left transition-colors' %}
+
+{% macro release_link(release, selected, since, count) %}
+    {% set on = selected and selected.version == release.version %}
+    <a href="{{ path('app_whats_new', { release: release.tag, since: since }) }}"
+       aria-current="{{ on ? 'true' : 'false' }}"
+       data-whats-new-release="{{ release.tag }}"
+       class="flex w-full items-center gap-2 rounded-r-full py-1.5 pl-4 pr-3 text-left transition-colors
+              {{ on ? 'bg-accent-soft text-accent font-medium' : 'text-ink hover:bg-hover' }}">
+        <span class="flex min-w-0 flex-1 flex-col">
+            <span class="text-sm">{{ release.tag }}</span>
+            {% if release.date %}
+                <span class="text-xs font-normal text-ink-faint">{{ release.date|intl_date('dMMMy') }}</span>
+            {% endif %}
+        </span>
+        {% if count %}
+            <span class="min-w-5 rounded-full bg-accent-soft px-1.5 text-center text-[10px] font-medium leading-[18px] text-accent-strong">{{ release.entries|length }}</span>
+        {% endif %}
+    </a>
+{% endmacro %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'whats_new.title'|trans }}</template>
+
+    <div class="flex h-[min(640px,80vh)] min-h-0 flex-col border-t border-line" data-whats-new>
+        <div class="flex min-h-0 flex-1">
+
+            {# ── Releases ─────────────────────────────────────────────────── #}
+            <nav aria-label="{{ 'whats_new.nav.label'|trans }}"
+                 class="hidden w-56 shrink-0 flex-col border-r border-line md:flex">
+                <div class="min-h-0 flex-1 space-y-0.5 overflow-y-auto py-3 pr-3">
+                    <div class="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                        {{ (topIsNew ? 'whats_new.nav.new' : 'whats_new.nav.current')|trans }}
+                    </div>
+                    {% for release in top %}
+                        {{ _self.release_link(release, feedbackPane ? null : selected, since, topIsNew) }}
+                    {% endfor %}
+
+                    {% if older is not empty %}
+                        <details class="group pt-3" {{ olderOpen ? 'open' : '' }} data-whats-new-history>
+                            <summary class="flex cursor-pointer list-none items-center gap-2 rounded-r-full py-1.5 pl-4 pr-3 text-[11px] font-semibold uppercase tracking-wider text-ink-faint hover:bg-hover [&::-webkit-details-marker]:hidden">
+                                <span class="flex-1">{{ 'whats_new.nav.history'|trans }}</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                            </summary>
+                            <div class="mt-0.5 space-y-0.5">
+                                {% for release in older %}
+                                    {{ _self.release_link(release, feedbackPane ? null : selected, since, false) }}
+                                {% endfor %}
+                            </div>
+                        </details>
+                    {% endif %}
+                </div>
+
+                {% if accounts is not empty %}
+                    <div class="border-t border-line py-2 pr-3">
+                        <a href="{{ path('app_whats_new', { pane: 'feedback', since: since }) }}"
+                           aria-current="{{ feedbackPane ? 'true' : 'false' }}"
+                           class="{{ navRow }} text-sm {{ feedbackPane ? 'bg-accent-soft text-accent font-medium' : 'text-ink hover:bg-hover' }}">
+                            <i class="fa-regular fa-comment w-4 text-center" aria-hidden="true"></i>
+                            {{ 'whats_new.feedback.title'|trans }}
+                        </a>
+                    </div>
+                {% endif %}
+            </nav>
+
+            {# ── The selected release, or the feedback form ───────────────── #}
+            <div class="min-w-0 flex-1 overflow-y-auto px-4 py-4 md:px-7 md:py-5">
+
+                {# Below md the column above is gone; a select takes its place, and
+                   the feedback form, which has its own way back, goes without. #}
+                {% if not feedbackPane %}
+                <div class="mb-4 flex flex-col gap-2 md:hidden">
+                    <form method="get" action="{{ path('app_whats_new') }}" data-controller="ui--auto-submit">
+                        <input type="hidden" name="since" value="{{ since }}">
+                        <label for="whats-new-release" class="mb-1.5 block text-xs font-medium text-ink-muted">{{ 'whats_new.nav.label'|trans }}</label>
+                        <select id="whats-new-release" name="release" data-action="change->ui--auto-submit#submit"
+                                class="select-field block h-11 w-full text-base shadow-sm shadow-zinc-950/5">
+                            <optgroup label="{{ (topIsNew ? 'whats_new.nav.new' : 'whats_new.nav.current')|trans }}">
+                                {% for release in top %}
+                                    <option value="{{ release.tag }}" {{ not feedbackPane and selected and selected.version == release.version ? 'selected' : '' }}>
+                                        {{ release.tag }}{{ release.date ? ' · ' ~ release.date|intl_date('dMMMy') : '' }}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% if older is not empty %}
+                                <optgroup label="{{ 'whats_new.nav.history'|trans }}">
+                                    {% for release in older %}
+                                        <option value="{{ release.tag }}" {{ not feedbackPane and selected and selected.version == release.version ? 'selected' : '' }}>
+                                            {{ release.tag }}{{ release.date ? ' · ' ~ release.date|intl_date('dMMMy') : '' }}
+                                        </option>
+                                    {% endfor %}
+                                </optgroup>
+                            {% endif %}
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+
+                {% if feedbackPane %}
+                    {{ include('whats_new/_feedback.html.twig') }}
+                {% elseif selected %}
+                    <article data-whats-new-notes="{{ selected.tag }}" class="space-y-5">
+                        <header class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <h3 class="text-xl font-semibold text-ink">{{ selected.tag }}</h3>
+                            <span class="text-xs text-ink-faint">
+                                {%- if selected.date %}{{ selected.date|intl_date('dMMMMy') }} · {% endif -%}
+                                {{ 'whats_new.changes'|trans({ '%count%': selected.entries|length }) }}
+                            </span>
+                        </header>
+
+                        {% if selected.intro %}
+                            <div class="text-sm leading-relaxed text-ink-soft {{ notes }}">{{ selected.intro|raw }}</div>
+                        {% endif %}
+
+                        {% set highlights = selected.highlights %}
+                        {% if highlights is not empty %}
+                            <section class="space-y-3">
+                                <h4 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'whats_new.highlights'|trans }}</h4>
+                                {% for entry in highlights %}
+                                    <div class="flex flex-col gap-4 rounded-pane border border-line p-3 sm:flex-row" data-whats-new-highlight>
+                                        {% if entry.screenshot %}
+                                            {% set shot = asset('whats-new/' ~ entry.screenshot ~ '.png') %}
+                                            <a href="{{ shot }}" target="_blank" rel="noopener"
+                                               class="block shrink-0 overflow-hidden rounded-lg border border-line sm:w-56"
+                                               aria-label="{{ 'whats_new.screenshot_open'|trans }}">
+                                                <img src="{{ shot }}" alt="" loading="lazy" class="block h-auto w-full">
+                                            </a>
+                                        {% endif %}
+                                        <div class="min-w-0 flex-1 space-y-1 p-1">
+                                            <h5 class="text-base font-semibold text-ink">{{ entry.headline|raw }}</h5>
+                                            {% if entry.body %}
+                                                <div class="text-sm leading-relaxed text-ink-soft {{ notes }}">{{ entry.body|raw }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </section>
+                        {% endif %}
+
+                        {% set others = selected.others %}
+                        {% if others is not empty %}
+                            <section>
+                                <h4 class="pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                                    {{ (highlights is empty ? 'whats_new.changes_heading' : 'whats_new.also')|trans }}
+                                </h4>
+                                {% for entry in others %}
+                                    {% if entry.body %}
+                                        <details class="group border-b border-line" data-whats-new-entry>
+                                            <summary class="flex cursor-pointer list-none items-start gap-3 py-2.5 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+                                                <span class="flex-1">{{ entry.headline|raw }}</span>
+                                                <i class="fa-solid fa-chevron-down mt-1 text-[10px] text-ink-faint transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                                            </summary>
+                                            <div class="pb-3 pr-6 text-sm leading-relaxed text-ink-soft {{ notes }}">{{ entry.body|raw }}</div>
+                                        </details>
+                                    {% else %}
+                                        <p class="border-b border-line py-2.5 text-sm font-medium text-ink" data-whats-new-entry>{{ entry.headline|raw }}</p>
+                                    {% endif %}
+                                {% endfor %}
+                            </section>
+                        {% endif %}
+
+                        {% if is_granted('ROLE_ADMIN') and selected.adminNotes is not empty %}
+                            <aside class="flex items-start gap-3 rounded-lg alert-info px-4 py-3" data-whats-new-admin>
+                                <i class="fa-solid fa-circle-info mt-0.5 text-info" aria-hidden="true"></i>
+                                <div class="min-w-0 space-y-2 text-xs leading-relaxed text-ink-soft {{ notes }}">
+                                    <p class="font-semibold text-ink">{{ 'whats_new.admin'|trans }}</p>
+                                    {% for note in selected.adminNotes %}{{ note|raw }}{% endfor %}
+                                </div>
+                            </aside>
+                        {% endif %}
+
+                        {% if accounts is not empty %}
+                            <div class="flex flex-wrap items-center gap-3 rounded-pane border border-dashed border-line p-4">
+                                <p class="flex-1 text-sm text-ink-soft">{{ 'whats_new.feedback.nudge'|trans }}</p>
+                                <a href="{{ path('app_whats_new', { pane: 'feedback', since: since }) }}"
+                                   class="inline-flex h-8 items-center rounded-lg bg-raised px-3 text-sm font-medium text-ink hover:bg-hover">
+                                    {{ 'whats_new.feedback.title'|trans }}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </article>
+                {% else %}
+                    <p class="text-sm text-ink-muted">{{ 'whats_new.missing'|trans }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Footer ───────────────────────────────────────────────────────── #}
+        <div class="flex flex-wrap items-center gap-3 border-t border-line px-4 py-3 md:px-6">
+            <form method="post" action="{{ path('app_whats_new_quiet') }}"
+                  data-controller="ui--auto-submit" data-ui--modal-keep-open class="flex-1">
+                <input type="hidden" name="_token" value="{{ csrf_token('whats-new') }}">
+                <input type="hidden" name="since" value="{{ since }}">
+                <input type="hidden" name="release" value="{{ selected ? selected.tag : '' }}">
+                <input type="hidden" name="pane" value="{{ feedbackPane ? 'feedback' : '' }}">
+                <input type="hidden" name="quiet" value="0">
+                <label class="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink-soft md:min-h-0">
+                    <input type="checkbox" name="quiet" value="1" {{ app.user.whatsNewQuiet ? 'checked' : '' }}
+                           data-action="change->ui--auto-submit#submit"
+                           class="size-4 cursor-pointer rounded border-field bg-field accent-accent focus:ring-2 focus:ring-accent">
+                    {{ 'whats_new.quiet'|trans }}
+                </label>
+            </form>
+            <button type="button" data-action="ui--modal#close" autofocus
+                    class="inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-strong md:h-8 md:w-auto">
+                {{ 'whats_new.done'|trans }}
+            </button>
+        </div>
+    </div>
+</turbo-frame>

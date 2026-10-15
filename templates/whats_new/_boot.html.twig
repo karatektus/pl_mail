@@ -1,0 +1,22 @@
+{#
+whats_new/_boot.html.twig — what opens What's new by itself after an update (#165).
+
+An empty element carrying ui--modal and whats-new--autostart, the way
+onboarding/_boot.html.twig opens setup. Rendered only when WhatsNewGlobal says
+so: a release is running that this person has not been shown, they have not
+asked for quiet, and setup is not on screen. Drawing the dialog records the
+release as seen, so the next page load renders nothing here.
+
+Size "split" is the max-w-5xl preset in _modal.html.twig: the release list
+beside the notes.
+#}
+{% if whatsNew.opensByItself %}
+    <div
+        data-controller="ui--modal whats-new--autostart"
+        data-ui--modal-src-value="{{ path('app_whats_new') }}"
+        data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
+        data-ui--modal-size-value="split"
+        data-whats-new--autostart-release-value="{{ whatsNew.running }}"
+        hidden
+    ></div>
+{% endif %}

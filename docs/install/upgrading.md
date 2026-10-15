@@ -145,6 +145,29 @@ gets no answer. The page says so and keeps what the last answered check found, a
 command does not count it as an error. GitHub's anonymous API allows sixty requests an hour per
 address, which a busy shared address can use up; the page names that case when it happens.
 
+## What everyone sees after an update
+
+The first time somebody opens plMail after an update, **What's new** opens by itself: the releases
+since the one they last saw, newest first, each with its highlights at the top and the rest as
+headlines that open. It is the notes from `CHANGELOG.md`, read from the image itself, so they are
+always the notes of the build that is running. A **?** in the top bar opens the same dialog at any
+time, with a dot on it while there is something unseen, and the whole changelog under
+**Full changelog**.
+
+- **After an update only, never on an install.** Somebody created on a fresh install, or added
+  later, starts at the release that was running when they first signed in. Everybody who existed
+  when the dialog arrived starts at 0.3.1, so their first look is every release since.
+- **Only release builds.** A `main` or `sha-…` image, or a checkout, never opens it by itself and
+  shows no dot: there is no release to call new. The **?** still opens the notes.
+- **Migration notes are for administrators.** `**Migration:**` lines and *Before you upgrade*
+  sections are shown in a box only administrators see; everybody else reads what changed for them.
+- **Don't show this after updates** in the dialog's footer makes it quiet for that person: no
+  dialog and no dot. **Settings → General → What's new** switches it back on.
+- **Send feedback**, in the dialog and under the **?**, is a mail the person sends from one of their
+  own accounts, with their plMail version and, if they tick it, a screenshot of the page they were
+  on. A copy lands in their Sent folder. It goes to `feedback@pluetzner.de` unless `APP_FEEDBACK_TO`
+  says otherwise — see the [configuration reference](configuration.md).
+
 ## Turning on pgvector
 
 Semantic search compares two vectors with `plmail_embed_distance()`. The shipped database image has

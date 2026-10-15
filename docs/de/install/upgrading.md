@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:94e00eff9f3e08f0bd5a0e49462d5eb4d7a6927a -->
+<!-- translated-from: install/upgrading.md sha1:d349985a9ac85af50a2b96c5a566a80c16495651 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -157,6 +157,34 @@ Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte b
 gefunden hat, und der stündliche Befehl zählt es nicht als Fehler. GitHubs anonyme API erlaubt
 sechzig Anfragen pro Stunde und Adresse, was eine viel genutzte gemeinsame Adresse aufbrauchen kann;
 die Seite nennt diesen Fall, wenn er eintritt.
+
+## Was alle nach einem Update sehen
+
+Wenn jemand plMail nach einem Update zum ersten Mal öffnet, geht **Was ist neu** von selbst auf: die
+Versionen seit der, die die Person zuletzt gesehen hat, die neueste zuerst, jede mit ihren
+Highlights oben und dem Rest als Überschriften zum Aufklappen. Es sind die Hinweise aus
+`CHANGELOG.md`, gelesen aus dem Image selbst, also immer die des Builds, der gerade läuft. Ein
+**?** in der oberen Leiste öffnet denselben Dialog jederzeit, mit einem Punkt darauf, solange es
+etwas Ungesehenes gibt, und dem ganzen Änderungsprotokoll unter **Vollständiges
+Änderungsprotokoll**.
+
+- **Nur nach einem Update, nie bei einer Neuinstallation.** Wer auf einer frischen Installation
+  angelegt oder später hinzugefügt wird, beginnt bei der Version, die bei der ersten Anmeldung lief.
+  Alle, die es schon gab, als der Dialog kam, beginnen bei 0.3.1 und sehen beim ersten Mal jede
+  Version seitdem.
+- **Nur Release-Builds.** Ein `main`- oder `sha-…`-Image oder ein Checkout öffnet ihn nie von selbst
+  und zeigt keinen Punkt: Es gibt keine Version, die neu wäre. Über das **?** sind die Hinweise
+  trotzdem da.
+- **Migrationshinweise sind für Administratoren.** Zeilen mit `**Migration:**` und Abschnitte
+  *Before you upgrade* stehen in einem Kasten, den nur Administratoren sehen; alle anderen lesen, was
+  sich für sie geändert hat.
+- **Nach Updates nicht mehr anzeigen** im Fuß des Dialogs macht ihn für diese Person still: kein
+  Dialog und kein Punkt. **Einstellungen → Allgemein → Was ist neu** schaltet ihn wieder ein.
+- **Feedback senden**, im Dialog und unter dem **?**, ist eine Mail, die die Person von einem ihrer
+  eigenen Konten schickt, mit ihrer plMail-Version und, wenn sie es ankreuzt, einem Screenshot der
+  Seite, auf der sie war. Eine Kopie landet in ihrem Ordner „Gesendet“. Sie geht an
+  `feedback@pluetzner.de`, sofern `APP_FEEDBACK_TO` nichts anderes sagt — siehe die
+  [Konfigurationsreferenz](configuration.md).
 
 ## pgvector einschalten
 

@@ -3783,6 +3783,13 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    whats_new:
+        heading: 'What''s new'
+        'off': 'Off'
+        'on': 'On'
+        show: 'Show what''s new after an update'
+        show_hint: 'Off: nothing opens after an update, and the ? in the top bar shows no dot. The notes are still under ? → What''s new.'
+        subheading: 'What plMail shows you after it has been updated.'
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -4440,3 +4447,52 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+whats_new:
+    admin: 'For administrators'
+    also: 'Also in this release'
+    changes: '{0}No changes|{1}1 change|]1,Inf[ %count% changes'
+    changes_heading: 'Changes'
+    done: 'Done'
+    feedback:
+        back: 'Back to the changes'
+        error:
+            account: 'Choose the account to send from.'
+            empty: 'Write a message, or say how plMail is doing.'
+            screenshot: 'The screenshot could not be attached. Untick it and send again.'
+            send: 'The mail could not be sent. Your text is still here; try again in a moment.'
+        from: 'Send from'
+        message:
+            label: 'Your message'
+            placeholder: 'What you like, what you miss, what broke.'
+        nudge: 'Something you like, miss, or that broke?'
+        rating:
+            better: 'Better'
+            label: 'Since the update, plMail is (optional)'
+            same: 'Same as before'
+            worse: 'Worse'
+        screenshot:
+            failed: 'The page could not be captured, so nothing will be attached.'
+            label: 'Attach a screenshot of the page you were on'
+            preview: 'The screenshot that will be attached'
+            taking: 'Taking the screenshot…'
+        send: 'Send feedback'
+        sent:
+            body: 'A copy is in your Sent folder, and a reply arrives like any other mail.'
+            title: 'Feedback sent.'
+        title: 'Send feedback'
+        where: 'Goes by mail to %address%, with your plMail version. A copy stays in your Sent folder.'
+    highlights: 'Highlights'
+    menu:
+        label: 'Help and feedback'
+        unseen: 'There are release notes you have not seen'
+        version: 'plMail %version%'
+    missing: 'The release notes are not part of this installation.'
+    nav:
+        current: 'Installed'
+        history: 'Full changelog'
+        label: 'Releases'
+        new: 'New to you'
+    quiet: 'Don''t show this after updates'
+    screenshot_open: 'Open the screenshot full size'
+    title: 'What''s new'

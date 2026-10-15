@@ -400,6 +400,19 @@
                                                 {% endblock %}
                                             {% endembed %}
 
+                                            {# Last on the page: the way back from "Don't show
+                                               this after updates" in the dialog itself (#165). #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.whats_new.heading'|trans,
+                                                subheading: 'settings.whats_new.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_whats_new.html.twig' with {
+                                                        show: not app.user.whatsNewQuiet,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
+
                                         </div>
                                     {% elseif section == 'categories' %}
                                         {# Everything about the inbox tabs on one page: what sorts

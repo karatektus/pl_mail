@@ -3592,6 +3592,13 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    whats_new:
+        heading: 'What''s new aboard'
+        'off': 'Off'
+        'on': 'On'
+        show: 'Show what''s new after a refit'
+        show_hint: 'Off: nothin'' opens after a refit, an'' the ? up top shows no dot. The log be still under ? → What''s new aboard.'
+        subheading: 'What plMail shows ye after she''s been refitted.'
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
@@ -4211,3 +4218,52 @@ templates:
         sender_email: 'Yer address'
         sender_name: 'Yer name'
         signature: 'Mark'
+
+whats_new:
+    admin: 'For them that captain the ship'
+    also: 'Also in this haul'
+    changes: '{0}Nary a change|{1}1 change|]1,Inf[ %count% changes'
+    changes_heading: 'Changes'
+    done: 'Aye'
+    feedback:
+        back: 'Back to the changes'
+        error:
+            account: 'Pick the ship ye be sendin'' from.'
+            empty: 'Scrawl a message, or say how plMail be sailin''.'
+            screenshot: 'The likeness couldn''t be lashed on. Untick it an'' send again.'
+            send: 'The bottle couldn''t be sent. Yer words be still here; try again in a moment.'
+        from: 'Send from'
+        message:
+            label: 'Yer message'
+            placeholder: 'What ye like, what ye miss, what broke.'
+        nudge: 'Somethin'' ye like, miss, or that broke?'
+        rating:
+            better: 'Better'
+            label: 'Since the refit, plMail be (if ye please)'
+            same: 'Same as before'
+            worse: 'Worse'
+        screenshot:
+            failed: 'The page couldn''t be captured, so nothin'' will be lashed on.'
+            label: 'Lash on a likeness o'' the page ye were on'
+            preview: 'The likeness that''ll be lashed on'
+            taking: 'Takin'' the likeness…'
+        send: 'Send word'
+        sent:
+            body: 'A copy be in yer Sent hold, an'' a reply comes aboard like any other bottle.'
+            title: 'Word sent.'
+        title: 'Send word'
+        where: 'Goes by bottle to %address%, with yer plMail version. A copy stays in yer Sent hold.'
+    highlights: 'Treasures'
+    menu:
+        label: 'Help an'' word'
+        unseen: 'There be ship''s log entries ye haven''t seen'
+        version: 'plMail %version%'
+    missing: 'The ship''s log ain''t aboard this vessel.'
+    nav:
+        current: 'Aboard'
+        history: 'The whole ship''s log'
+        label: 'Refits'
+        new: 'New to ye'
+    quiet: 'Don''t show this after a refit'
+    screenshot_open: 'Open the likeness full size'
+    title: 'What''s new aboard'

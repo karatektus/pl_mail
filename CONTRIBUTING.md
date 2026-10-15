@@ -353,6 +353,37 @@ already owns a mailbox.
 
 Never point it at a stack holding real mail.
 
+## Release notes
+
+`CHANGELOG.md` is not only for people reading GitHub: every installation reads it from its own image
+and shows it in **What's new** after an update (see
+[What everyone sees after an update](docs/install/upgrading.md#what-everyone-sees-after-an-update)).
+So an entry is written for the person using plMail, and three conventions decide how it is shown:
+
+- **An entry is a paragraph that opens with a bold sentence.** The bold part is its headline in the
+  dialog; the rest, until the next bold paragraph, is what opens under it.
+- **`**Migration:**` and `### Before you upgrade` are for administrators.** They are shown in a box
+  only administrators see, so say there what the server needs and leave it out of the rest.
+- **A highlight is marked by a comment on the line above the entry**, which GitHub does not render:
+
+  ```markdown
+  <!-- highlight screenshot=pull-to-sync -->
+  **Pull the mail list down to sync it, on a phone.** …
+  ```
+
+  `<!-- highlight -->` alone makes a highlight without a picture. With `screenshot=`, the dialog
+  shows `public/whats-new/pull-to-sync.png` beside it, and `ChangelogReaderTest` fails until that
+  file exists. Take it with a test of the same name in `tests/e2e/whats-new-screenshots.spec.ts`,
+  run like the README's pictures:
+
+  ```bash
+  npm run test:e2e:screenshots -- --project=chromium --workers=1
+  ```
+
+  Named by feature, not by release, because the pull request that adds a feature does not know which
+  release it will ship in. Mark a handful per release; a dialog where everything is a highlight has
+  none.
+
 ## Secrets and the encryption key
 
 plMail generates its own secrets on first start rather than shipping working ones, and one of them

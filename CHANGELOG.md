@@ -8,6 +8,22 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+<!-- highlight screenshot=whats-new -->
+**What's new opens after an update, with a way to send feedback.** The first time you open plMail
+after it has been updated, a dialog lists what changed since the version you last saw: the
+highlights first, then every other change as a headline you can open. The **?** in the top bar opens
+it again at any time, with a dot on it while there is something you have not seen, and the whole
+changelog is under **Full changelog**. It never opens on a fresh install, only after an update; if
+you would rather not be shown it, tick **Don't show this after updates**, and **Settings → General
+→ What's new** turns it back on. **Send feedback**, in the dialog and under the **?**, sends a mail
+from your own account, with your plMail version and, if you tick it, a screenshot of the page you
+were on; a copy stays in your Sent folder. It goes to `feedback@pluetzner.de`, or to
+`APP_FEEDBACK_TO` where that is set. **Migration:** everybody who already has an account is recorded
+as having seen 0.3.1, so their first look is every release since; nothing else changes in the
+schema.
+[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @karatektus.
+
+<!-- highlight -->
 **A draft you started in another mail app opens in plMail.**
 A draft that arrived by sync (from Outlook or Gmail) was listed in its
 conversation, and clicking it gave a "Not found" page: it had been marked as already sent, which the
@@ -19,6 +35,7 @@ the provider still files as drafts are made openable too; one that was sent else
 upgrade is left as it was.
 [#164](https://github.com/karatektus/pl_mail/pull/164), by @Flouss.
 
+<!-- highlight -->
 **Pull the mail list down to sync it, on a phone.** Reaching for the button at the top of the screen
 is no longer the only way: pulling the mail list down from its top now syncs it, through the same
 sync as that button. Drag past the *Release to sync* indicator and let go, and the sync icon spins
@@ -28,6 +45,7 @@ sidebar is open does nothing. Reduced motion removes the indicator's slide. No s
 deployment change.
 [#163](https://github.com/karatektus/pl_mail/pull/163), by @Flouss.
 
+<!-- highlight -->
 **An installed plMail no longer says "New mail" when nothing arrived.** The notification on a phone
 or browser was sent for every change to a message — opening a conversation, marking it read,
 starring, archiving, a spam move, a copy of something you sent — and again a few minutes later when

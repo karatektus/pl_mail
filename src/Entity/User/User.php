@@ -1135,6 +1135,48 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * The last plMail release this person was shown What's new for, as
+     * `0.3.6` (#165).
+     *
+     * State, not a choice: WhatsNew writes it when the dialog is drawn, and
+     * nobody sets it by hand. Everybody who existed when the dialog shipped
+     * was given 0.3.1 by Version20261016090000; anybody created since gets the
+     * running release on their first request (WhatsNewFirstSighting), which
+     * is what keeps the dialog off a fresh install.
+     */
+    public const string SETTING_WHATS_NEW_SEEN = 'whats_new.seen_version';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_SEEN. */
+    public ?string $whatsNewSeenVersion {
+        get {
+            $stored = $this->getSetting(self::SETTING_WHATS_NEW_SEEN);
+
+            return true === is_string($stored) && 1 === preg_match('/^\d+\.\d+\.\d+$/', $stored) ? $stored : null;
+        }
+        set (?string $version) {
+            $this->setSetting(self::SETTING_WHATS_NEW_SEEN, $version);
+        }
+    }
+
+    /**
+     * "Don't show this after updates", from the What's new dialog's footer, and
+     * its way back under Settings → General (#165).
+     *
+     * Quiet means quiet: the dialog does not open by itself and the ? in the
+     * top bar shows no dot. What's new is still in that menu for someone who
+     * goes looking. Off unless somebody asks, so only a stored true is on.
+     */
+    public const string SETTING_WHATS_NEW_QUIET = 'whats_new.quiet';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_QUIET. */
+    public bool $whatsNewQuiet {
+        get => true === $this->getSetting(self::SETTING_WHATS_NEW_QUIET, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_WHATS_NEW_QUIET, $on ? true : null);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

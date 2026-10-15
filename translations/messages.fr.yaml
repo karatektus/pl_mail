@@ -3832,6 +3832,13 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    whats_new:
+        heading: 'Nouveautés'
+        'off': 'Désactivé'
+        'on': 'Activé'
+        show: 'Afficher les nouveautés après une mise à jour'
+        show_hint: 'Désactivé : rien ne s’ouvre après une mise à jour, et le ? de la barre du haut n’affiche aucun point. Les notes restent sous ? → Nouveautés.'
+        subheading: 'Ce que plMail vous montre après une mise à jour.'
     nav:
         accounts: Comptes mail
         ai: 'Assistant'
@@ -4465,3 +4472,52 @@ templates:
         sender_email: 'Votre adresse'
         sender_name: 'Votre nom'
         signature: 'Signature'
+
+whats_new:
+    admin: 'Pour les administrateurs'
+    also: 'Également dans cette version'
+    changes: '{0}Aucun changement|{1}1 changement|]1,Inf[ %count% changements'
+    changes_heading: 'Changements'
+    done: 'Terminé'
+    feedback:
+        back: 'Retour aux changements'
+        error:
+            account: 'Choisissez le compte d’envoi.'
+            empty: 'Écrivez un message, ou dites comment plMail se porte.'
+            screenshot: 'La capture d’écran n’a pas pu être jointe. Décochez-la et envoyez à nouveau.'
+            send: 'Le courrier n’a pas pu être envoyé. Votre texte est toujours là ; réessayez dans un instant.'
+        from: 'Envoyer depuis'
+        message:
+            label: 'Votre message'
+            placeholder: 'Ce qui vous plaît, ce qui vous manque, ce qui ne marche pas.'
+        nudge: 'Quelque chose vous plaît, vous manque ou ne marche pas ?'
+        rating:
+            better: 'Mieux'
+            label: 'Depuis la mise à jour, plMail est (facultatif)'
+            same: 'Comme avant'
+            worse: 'Moins bien'
+        screenshot:
+            failed: 'La page n’a pas pu être capturée, rien ne sera donc joint.'
+            label: 'Joindre une capture de la page où vous étiez'
+            preview: 'La capture qui sera jointe'
+            taking: 'Capture en cours…'
+        send: 'Envoyer un avis'
+        sent:
+            body: 'Une copie se trouve dans votre dossier Envoyés, et une réponse arrive comme n’importe quel courrier.'
+            title: 'Avis envoyé.'
+        title: 'Envoyer un avis'
+        where: 'Part par courrier à %address%, avec votre version de plMail. Une copie reste dans votre dossier Envoyés.'
+    highlights: 'À la une'
+    menu:
+        label: 'Aide et avis'
+        unseen: 'Des notes de version que vous n’avez pas encore vues'
+        version: 'plMail %version%'
+    missing: 'Les notes de version ne font pas partie de cette installation.'
+    nav:
+        current: 'Installée'
+        history: 'Historique complet'
+        label: 'Versions'
+        new: 'Nouveau pour vous'
+    quiet: 'Ne plus afficher après les mises à jour'
+    screenshot_open: 'Ouvrir la capture en taille réelle'
+    title: 'Nouveautés'

@@ -35,6 +35,10 @@ twig:
         # variable because that header renders from a layout every admin
         # section extends — there is no one controller to thread it through.
         app_version: '@App\Service\System\AppVersion'
+        # Whether What's new opens by itself and whether the ? in the top bar
+        # carries a dot (#165). The top bar and the layout read it on every
+        # signed-in page, like onboarding above.
+        whatsNew: '@App\Twig\WhatsNewGlobal'
 
 when@test:
     twig:

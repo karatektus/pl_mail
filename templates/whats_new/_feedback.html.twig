@@ -1,0 +1,97 @@
+{#
+whats_new/_feedback.html.twig — "Send feedback", the right side of the What's new dialog (#165).
+
+Included by dialog.html.twig, whose variables it reads. Posted into the same
+frame, so a mistake comes back with the form as it was typed and a sent mail
+comes back as the line that says so.
+
+It is a mail from the person's own account — see FeedbackMailer — so the line
+above the button says where it goes and that a copy is in their Sent folder.
+Nothing about it is hidden from the person sending it.
+#}
+{% set form = feedback.form %}
+{% set rating = form.rating|default(null) %}
+
+{% if feedback.sent %}
+    <div class="space-y-2 pt-4" role="status" data-whats-new-feedback-sent>
+        <h3 class="text-xl font-semibold text-ink">{{ 'whats_new.feedback.sent.title'|trans }}</h3>
+        <p class="text-sm leading-relaxed text-ink-soft">{{ 'whats_new.feedback.sent.body'|trans }}</p>
+    </div>
+{% else %}
+    <form method="post" action="{{ path('app_whats_new_feedback') }}"
+          data-ui--modal-keep-open
+          data-controller="whats-new--screenshot"
+          class="max-w-xl space-y-5" data-whats-new-feedback>
+        <input type="hidden" name="_token" value="{{ csrf_token('whats-new') }}">
+        <input type="hidden" name="since" value="{{ since }}">
+
+        <h3 class="text-xl font-semibold text-ink">{{ 'whats_new.feedback.title'|trans }}</h3>
+
+        {% if feedback.error %}
+            <p class="alert-danger rounded-lg px-3 py-2 text-sm" role="alert">{{ feedback.error|trans }}</p>
+        {% endif %}
+
+        <fieldset class="space-y-2">
+            <legend class="mb-2 text-xs font-medium text-ink-muted">{{ 'whats_new.feedback.rating.label'|trans }}</legend>
+            <div class="flex flex-wrap gap-2">
+                {% for value in ['better', 'same', 'worse'] %}
+                    <label>
+                        <input type="radio" name="rating" value="{{ value }}" class="peer sr-only" {{ rating == value ? 'checked' : '' }}>
+                        <span class="inline-flex h-11 cursor-pointer items-center rounded-full border border-line px-4 text-sm font-medium text-ink transition-colors hover:bg-hover
+                                     peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:text-accent-strong
+                                     peer-focus-visible:ring-2 peer-focus-visible:ring-accent md:h-9">
+                            {{ ('whats_new.feedback.rating.' ~ value)|trans }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <div>
+            <label for="whats-new-message" class="mb-1.5 block text-xs font-medium text-ink-muted">{{ 'whats_new.feedback.message.label'|trans }}</label>
+            <textarea id="whats-new-message" name="message" rows="5"
+                      placeholder="{{ 'whats_new.feedback.message.placeholder'|trans }}"
+                      class="block w-full resize-y rounded-lg border border-field bg-field px-3 py-2 text-base text-ink shadow-sm shadow-zinc-950/5
+                             placeholder:text-ink-faint focus:border-transparent focus:outline-none focus:ring-2 focus:ring-accent md:text-sm">{{ form.message|default('') }}</textarea>
+        </div>
+
+        <div class="space-y-2">
+            <label class="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink-soft md:min-h-0">
+                <input type="checkbox" data-whats-new--screenshot-target="toggle"
+                       data-action="change->whats-new--screenshot#toggle"
+                       class="size-4 cursor-pointer rounded border-field bg-field accent-accent focus:ring-2 focus:ring-accent">
+                {{ 'whats_new.feedback.screenshot.label'|trans }}
+            </label>
+            <input type="hidden" name="screenshot" value="" data-whats-new--screenshot-target="data">
+            <p class="text-xs text-ink-faint" data-whats-new--screenshot-target="status" aria-live="polite"
+               data-taking="{{ 'whats_new.feedback.screenshot.taking'|trans }}"
+               data-failed="{{ 'whats_new.feedback.screenshot.failed'|trans }}"></p>
+            <img alt="{{ 'whats_new.feedback.screenshot.preview'|trans }}" hidden
+                 data-whats-new--screenshot-target="preview"
+                 class="max-h-40 rounded-lg border border-line">
+        </div>
+
+        <div>
+            <label for="whats-new-account" class="mb-1.5 block text-xs font-medium text-ink-muted">{{ 'whats_new.feedback.from'|trans }}</label>
+            <select id="whats-new-account" name="account"
+                    class="select-field block h-11 w-full text-base shadow-sm shadow-zinc-950/5 md:h-9 md:text-sm">
+                {% for account in accounts %}
+                    <option value="{{ account.id }}" {{ form.account|default(null) == account.id ? 'selected' : '' }}>{{ account.displayAddress }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <p class="text-xs text-ink-faint">{{ 'whats_new.feedback.where'|trans({ '%address%': recipient }) }}</p>
+
+        <div class="flex flex-wrap justify-end gap-2">
+            <a href="{{ path('app_whats_new', { since: since }) }}"
+               class="inline-flex h-11 items-center justify-center rounded-lg px-3.5 text-sm font-medium text-ink-soft hover:bg-hover md:h-8">
+                {{ 'whats_new.feedback.back'|trans }}
+            </a>
+            <button type="submit" data-whats-new--screenshot-target="submit"
+                    class="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50 md:h-8">
+                {{ 'whats_new.feedback.send'|trans }}
+            </button>
+        </div>
+    </form>
+{% endif %}

@@ -259,7 +259,17 @@ class MessageSendService
         $headers->addIdHeader('Message-ID', $existing);
     }
 
-    private function appendToSentFolder(Email $email, Account $account): void
+    /**
+     * File a copy of mail that has already left into the account's IMAP Sent
+     * folder. For a sender whose filesSentCopy() is false; a provider API
+     * files its own.
+     *
+     * Public for the one other mail plMail sends as the user and wants in
+     * their Sent folder: feedback from the What's new dialog (#165). Throws
+     * whatever the IMAP server throws; the caller decides what a missing copy
+     * is worth.
+     */
+    public function appendToSentFolder(Email $email, Account $account): void
     {
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
 

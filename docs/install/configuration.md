@@ -86,6 +86,7 @@ These are the variables in `.env`, in the order they appear there.
 | `PUSH_ALLOWED_HOSTS` | Comma-separated hosts a push endpoint may point at although they resolve to a private address. | blank | Only for a LAN ntfy | Every other private, loopback or link-local push endpoint is refused at registration and at send. Running the bundled ntfy on a LAN or Tailscale address, set it to your `SERVER_NAME` or phones stop receiving pushes. See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOW_HTTP` | Whether a user may name a `http://` server for a self-hosted integration. | `false` | No | See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Comma-separated hosts exempt from the private-range block. | blank | No | See [the SSRF guard](#the-ssrf-guard) below. |
+| `APP_FEEDBACK_TO` | Where **Send feedback** in What's new mails to. The mail leaves through the person's own account; this is only the recipient. | `feedback@pluetzner.de` (also the `app.fallback_feedback_to` parameter, used when the variable is absent) | No | Feedback from the people on this install goes to plMail's developer. Point it at your own address to read it yourself; a typo sends it nowhere, and the person who wrote it gets a bounce in their own mailbox. |
 
 **The failure mode of this table is treating a blank as a missing value.** Four of the blanks
 above are load-bearing: they are blank so that first-run generation happens, and filling one in

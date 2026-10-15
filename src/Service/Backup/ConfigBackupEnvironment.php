@@ -169,6 +169,10 @@ final readonly class ConfigBackupEnvironment
         'APP_DEFAULT_TIMEZONE',
         'APP_DB_LOG_LEVEL',
         'DEFAULT_URI',
+        // Where What's new feedback goes. A choice about the installation —
+        // an operator who collects their users' feedback themselves — that
+        // means the same on any machine.
+        'APP_FEEDBACK_TO',
     ];
 
     /**

@@ -3796,6 +3796,13 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    whats_new:
+        heading: 'Was ist neu'
+        'off': 'Aus'
+        'on': 'An'
+        show: 'Nach einem Update zeigen, was neu ist'
+        show_hint: 'Aus: Nach einem Update öffnet sich nichts, und das ? oben zeigt keinen Punkt. Die Hinweise findest du weiter unter ? → Was ist neu.'
+        subheading: 'Was plMail dir zeigt, nachdem es aktualisiert wurde.'
     nav:
         accounts: E-Mail-Konten
         ai: 'Assistent'
@@ -4435,3 +4442,52 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+whats_new:
+    admin: 'Für Administratoren'
+    also: 'Außerdem in dieser Version'
+    changes: '{0}Keine Änderungen|{1}1 Änderung|]1,Inf[ %count% Änderungen'
+    changes_heading: 'Änderungen'
+    done: 'Fertig'
+    feedback:
+        back: 'Zurück zu den Änderungen'
+        error:
+            account: 'Wähle das Konto, von dem gesendet wird.'
+            empty: 'Schreib eine Nachricht oder sag, wie es mit plMail läuft.'
+            screenshot: 'Der Screenshot ließ sich nicht anhängen. Nimm den Haken heraus und sende noch einmal.'
+            send: 'Die Mail konnte nicht gesendet werden. Dein Text ist noch da; versuch es gleich noch einmal.'
+        from: 'Senden von'
+        message:
+            label: 'Deine Nachricht'
+            placeholder: 'Was dir gefällt, was dir fehlt, was kaputt ist.'
+        nudge: 'Gefällt dir etwas, fehlt dir etwas oder ist etwas kaputt?'
+        rating:
+            better: 'Besser'
+            label: 'Seit dem Update ist plMail (optional)'
+            same: 'Wie vorher'
+            worse: 'Schlechter'
+        screenshot:
+            failed: 'Die Seite ließ sich nicht aufnehmen, also wird nichts angehängt.'
+            label: 'Screenshot der Seite anhängen, auf der du warst'
+            preview: 'Der Screenshot, der angehängt wird'
+            taking: 'Screenshot wird aufgenommen …'
+        send: 'Feedback senden'
+        sent:
+            body: 'Eine Kopie liegt in deinem Ordner „Gesendet“, und eine Antwort kommt an wie jede andere Mail.'
+            title: 'Feedback gesendet.'
+        title: 'Feedback senden'
+        where: 'Geht per Mail an %address%, mit deiner plMail-Version. Eine Kopie bleibt in deinem Ordner „Gesendet“.'
+    highlights: 'Highlights'
+    menu:
+        label: 'Hilfe und Feedback'
+        unseen: 'Es gibt Versionshinweise, die du noch nicht gesehen hast'
+        version: 'plMail %version%'
+    missing: 'Die Versionshinweise sind in dieser Installation nicht enthalten.'
+    nav:
+        current: 'Installiert'
+        history: 'Vollständiges Änderungsprotokoll'
+        label: 'Versionen'
+        new: 'Neu für dich'
+    quiet: 'Nach Updates nicht mehr anzeigen'
+    screenshot_open: 'Screenshot in voller Größe öffnen'
+    title: 'Was ist neu'
