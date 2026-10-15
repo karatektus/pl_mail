@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:cd56ca54927898f35075d3948a2deb9257fc0a4a -->
+<!-- translated-from: install/upgrading.md sha1:94e00eff9f3e08f0bd5a0e49462d5eb4d7a6927a -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -64,7 +64,7 @@ zu lassen, woran gerade gearbeitet wird, und das Changelog wird es noch nicht be
 festgenagelte Version ist richtig, wenn du Upgrades lieber planst als empfängst.
 
 **Der typische Fehlerfall ist `pull_policy: always` auf einem beweglichen Tag.**
-`truenas.compose.yaml` setzt das, ein Redeploy von der NAS-App-Seite holt sich also, worauf dieser
+Damit holt sich ein Redeploy von einer NAS-App-Seite, worauf dieser
 Tag inzwischen zeigt — bequem bei `latest` und überraschend bei `main`.
 
 ## Das Upgrade

@@ -1,33 +1,8 @@
+# plMail on the published image: web, worker and Postgres.
+# Secrets are generated on first start; see docs/install/docker.md.
+
 x-app-image: &app-image ghcr.io/karatektus/pl_mail:latest
 
-# Every secret below is blank by default and generated on first start by the
-# secrets-init service, into the shared app_secrets volume. Set any of them in
-# your environment and yours is used instead — nothing is ever generated over
-# the top of a value you supplied.
-#
-# "In your environment" and not "in a .env beside this file", because the .env
-# beside this file is Symfony's — committed, full of development defaults, and
-# read by compose for ${VAR} interpolation whether anyone meant it to be or not.
-# A default written here only applies when that file is silent about the
-# variable, so anything it does set is what a cloned repo actually runs with.
-# ComposeEnvironmentTest holds every ${VAR} below to that: interpolate only what
-# .env leaves alone, or leaves at exactly the value written here.
-#
-# APP_ENV is hardcoded for that reason. It was `${APP_ENV:-prod}` and .env says
-# `APP_ENV=dev`, so every `git clone && docker compose up -d` — the install the
-# README documents — booted the prod image in dev mode, where bundles.php loads
-# DebugBundle, which `composer install --no-dev` never put in the image. Six
-# services crash-looped on a missing class, and the entrypoint reported it as
-# "the database is not up or not reachable". Running this stack in dev is what
-# compose.override.yaml.dist is for; it sets APP_ENV per service and merges over
-# this one.
-#
-# DATABASE_URL is deliberately absent: the app entrypoint assembles it from the
-# generated POSTGRES_PASSWORD. Set it explicitly to point at a database of your
-# own, and the entrypoint leaves it alone. It is the one exemption from the rule
-# above — .env sets a credential-less DSN on purpose (a blank one has no driver
-# and breaks the image's cache warmup), and the entrypoint tests for the missing
-# password rather than for emptiness.
 x-app-env: &app-env
   APP_ENV: prod
   APP_SECRET: ${APP_SECRET:-}
@@ -39,12 +14,7 @@ x-app-env: &app-env
   MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
   MERCURE_URL: ${MERCURE_URL:-http://mercure/.well-known/mercure}
   MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
-  # Blank, and plMail picks: the `__Secure-` name when the public address is
-  # https, a name without the prefix otherwise (a browser drops a `__Secure-`
-  # cookie over HTTP). Set it only to use a name of your own.
   MERCURE_COOKIE_NAME: ${MERCURE_COOKIE_NAME:-}
-  # Single sign-on, for an install that would rather not use Admin → SSO. What
-  # is saved there wins over these. Blank is off; see docs/providers/oidc.md.
   OIDC_ISSUER: ${OIDC_ISSUER:-}
   OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
   OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
@@ -53,21 +23,6 @@ x-app-env: &app-env
   OIDC_AUTO_CREATE: ${OIDC_AUTO_CREATE:-false}
   OIDC_REQUIRE_VERIFIED_EMAIL: ${OIDC_REQUIRE_VERIFIED_EMAIL:-true}
 
-# The state that must outlive a container and be shared between them.
-#
-# Every app service mounts all four. app_secrets because the secrets minted on
-# first run live there and a service that cannot see them generates its own and
-# stops being able to read what the others wrote; the other three because the
-# WORKERS write attachments, raw sources and staged uploads while the web
-# container is what serves them back. Unmounted, each container keeps its own
-# copy in its own layer: downloads 404 because the file is in a process that is
-# not answering the request, and everything written vanishes on the next
-# `docker compose up` that recreates a container.
-#
-# This has happened before. compose.override.yaml.dist was missing exactly these
-# three mounts once and it cost real data — CONTRIBUTING.md records it — and
-# they were then added to the override and to truenas.compose.yaml but never to
-# the file the README actually tells an operator to run.
 x-app-storage: &app-storage
   - app_secrets:/app/var/secrets
   - app_attachments:/app/var/attachments
@@ -75,12 +30,6 @@ x-app-storage: &app-storage
   - app_uploads:/app/var/uploads
 
 services:
-  # Mints APP_SECRET, APP_ENCRYPTION_KEY, POSTGRES_PASSWORD and
-  # MERCURE_JWT_SECRET into app_secrets, then exits. Runs before everything
-  # else because Postgres reads its password when its container is created: it
-  # cannot wait for the app to hand it one.
-  #
-  # Idempotent: on every later start it finds the file and does nothing.
   secrets-init:
     image: *app-image
     restart: "no"
@@ -98,21 +47,12 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-env
-      # `localhost` is the name Caddy makes its self-signed certificate for.
-      # `:443` is every other name and address the machine is reached at: the
-      # same site, answered with that same certificate (frankenphp/Caddyfile
-      # says how), so an install on a headless box opens from the LAN behind
-      # the usual certificate warning. Both go when you set SERVER_NAME — a
-      # real domain is then the only name served, and ":80" is plain HTTP.
       SERVER_NAME: ${SERVER_NAME:-localhost, :443}, php:80
       MAILER_DSN: ${MAILER_DSN:-null://null}
       APP_CONTAINER_NAME: web
     volumes:
       - caddy_data:/data
       - caddy_config:/config
-      # The x-app-storage list, spelled out: this service adds Caddy's own two,
-      # and YAML merges mappings but not sequences, so there is no way to say
-      # "that anchor, plus these". Keep the four in step with it.
       - app_secrets:/app/var/secrets
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
@@ -133,43 +73,21 @@ services:
       database:
         condition: service_healthy
 
-  # ── Everything that is not the web server ─────────────────────────────────
-  # One container, ten processes (app:work): the IMAP supervisor, one
-  # consumer per queue, the scheduler, and the Mercure hub. They used to be
-  # seven containers of this same image and the hub's own; see
-  # App\Service\System\Work\BackgroundProcesses for what each is for.
-  #
-  # Still one PROCESS per queue, which is the part that matters: a consumer
-  # already inside a long handler cannot pick up anything else, so pressing
-  # Send must never queue behind a Gmail batch. Only the containers merged.
-  #
-  # Answers to `mercure` on the network, because it runs the hub: the web
-  # container proxies /.well-known/mercure there and MERCURE_URL publishes
-  # there, exactly as they did to a hub container of that name.
   worker:
     image: *app-image
     restart: unless-stopped
     command: php bin/console app:work
-    # The IMAP supervisor's children are this container's grandchildren; if
-    # the supervisor dies hard, something has to reap them. Docker's own init.
     init: true
-    # Longer than app:work's own 25s: it signals every process at once and
-    # gives them that long to finish the message in hand.
     stop_grace_period: 30s
     environment:
       <<: *app-env
-      # Each process overrides this with its own name; this one is the
-      # supervisor's.
       APP_CONTAINER_NAME: worker
     networks:
       default:
         aliases: [mercure]
     volumes:
-      # The hub's state, in the volumes the hub container used, so an upgrade
-      # keeps its event history.
       - mercure_data:/data
       - mercure_config:/config
-      # The x-app-storage list, spelled out for the reason php spells it out.
       - app_secrets:/app/var/secrets
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
@@ -187,27 +105,14 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       POSTGRES_USER: ${POSTGRES_USER:-app}
-      # The official image supports _FILE for any of its variables, which is the
-      # only way to hand it a password that did not exist when compose parsed
-      # this file.
       POSTGRES_PASSWORD_FILE: /run/plmail/postgres_password
     depends_on:
       secrets-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
-      # STATED, because the default is what made every start slow. Docker
-      # runs the first probe one `interval` after the container starts, and
-      # the default interval is thirty seconds — so the web server and the
-      # workers, which wait for this to be healthy, could not begin for
-      # half a minute however quickly Postgres was up, and for a whole
-      # minute whenever it was still replaying its log at the first look.
-      # A start that should take ten seconds took forty to seventy.
-      # pg_isready is a connection attempt; every five seconds costs nothing.
       interval: 5s
       timeout: 5s
-      # Thirty of them, so that a database in trouble is called unhealthy
-      # after the same two and a half minutes as before the interval changed.
       retries: 30
       start_period: 60s
     volumes:
@@ -220,63 +125,17 @@ services:
       - "-c"
       - "pg_stat_statements.track=top"
 
-  # Push for Android, without Google.
-  #
-  # Optional and off by default: `docker compose --profile push up -d`. Nobody
-  # who does not want push pays for a container they never use.
-  #
-  # This needs no plMail code at all. The app already speaks Web Push — RFC 8030
-  # transport, RFC 8291 payload encryption, RFC 8292 VAPID signing — and ntfy is
-  # a push service that speaks exactly that. What it adds is the missing half on
-  # Android: RFC 8030 requires a *push service* that owns the endpoint URL and
-  # holds the connection to the device, browsers ship one and native apps do
-  # not. A UnifiedPush distributor on the phone talks to this.
-  #
-  # The alternative for an Android user is Firebase, which means Google sees
-  # that a message arrived and when. Running this instead keeps that on your own
-  # hardware, which is the reason to self-host mail in the first place.
   ntfy:
     image: binwiederhier/ntfy
     profiles: [push]
     restart: unless-stopped
     command: serve
     environment:
-      # Derived from SERVER_NAME, so push needs no configuration of its own:
-      # the host set at first boot is already the one phones can reach, which is
-      # the only thing this has to be. Set NTFY_BASE_URL explicitly to override
-      # it — a separate hostname, or TLS terminated in front (see below).
-      #
-      # It is baked into every endpoint handed out, so changing it later
-      # invalidates every existing subscription and every device must
-      # re-register. Worth getting right before handing the address to phones.
-      #
-      # ntfy cannot be hosted under a sub-path — it refuses a base-url with one
-      # at startup — so it cannot be folded behind the app's own Caddy at
-      # /push the way the Mercure hub is at /.well-known/mercure. Hence a port
-      # of its own.
       NTFY_BASE_URL: ${NTFY_BASE_URL:-http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}}
       NTFY_LISTEN_HTTP: ':80'
       NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
       NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
-      # Open by default, and that is a considered choice rather than laziness.
-      # UnifiedPush topics are random and unguessable, and the payload is
-      # encrypted to the device's own key before it ever reaches here — so this
-      # service cannot read your mail, and someone who guessed a topic could
-      # only send noise the app fails to decrypt and discards.
-      #
-      # The default URL above is http, which is right for the LAN and Tailscale
-      # deployments this is usually reached over, and not for the open
-      # internet: the endpoint URL is itself the secret, so anyone able to watch
-      # the traffic could learn a topic. Facing the internet, put TLS in front
-      # and set NTFY_BASE_URL to the https address.
-      #
-      # To lock it down anyway, set this to deny-all and create a user:
-      #   docker compose exec ntfy ntfy user add --role=admin plmail
-      # then give the phone that login in the ntfy app. It is the right move if
-      # this is exposed to the internet rather than reached over a VPN.
       NTFY_AUTH_DEFAULT_ACCESS: ${NTFY_AUTH_DEFAULT_ACCESS:-read-write}
-      # A personal server has a handful of devices; the defaults are sized for a
-      # public instance and would let one client exhaust it.
       NTFY_VISITOR_REQUEST_LIMIT_BURST: '60'
       NTFY_VISITOR_REQUEST_LIMIT_REPLENISH: '5s'
     ports:

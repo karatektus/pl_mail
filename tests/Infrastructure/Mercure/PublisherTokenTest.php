@@ -64,7 +64,7 @@ final class PublisherTokenTest extends KernelTestCase
     /**
      * THE TRUENAS CASE, and the reason the identifier is a literal.
      *
-     * truenas.compose.yaml leaves `mercure_public_url` blank on purpose: the
+     * The TrueNAS app leaves `mercure_public_url` blank on purpose: the
      * setup screen asks for the public URL on first boot and stores it in the
      * database, which is long after the hub container has to have been told
      * what to trust. While `iss` and `aud` were derived from that variable,

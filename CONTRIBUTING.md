@@ -63,30 +63,15 @@ this is what keeps an unreviewed commit off running installs.
 
 ## Development setup
 
-Create your local compose override first — this is the step that switches you from the published
-image to a dev stack built from source:
+The dev stack is `compose.yaml` plus `compose.dev.yaml`, which builds the dev image and mounts the
+source:
 
 ```bash
-cp compose.override.yaml.dist compose.override.yaml
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
-Then:
-
-```bash
-docker compose up --build
-```
-
-`compose.override.yaml` is deliberately **not** tracked, and `.gitignore` keeps it that way. Compose
-auto-loads it whenever it exists, so a committed one would silently opt every *user* into building
-from source instead of pulling the release image — which is exactly the thing they should never have
-to do. Its `.dist` is the tracked template.
-
-> **Changing the override? Change the `.dist` too.** They are meant to stay identical, and
-> `diff compose.override.yaml.dist compose.override.yaml` should come back empty. The two drifted
-> apart once before and it cost real data: the `.dist` was missing the `app_attachments`, `app_raw`
-> and `app_uploads` mounts, so anyone starting from a fresh clone got attachment downloads that
-> 404'd and blob data that vanished on container recreate. The `Dockerfile` comment about the
-> removed `VOLUME /app/var/` explains why those mounts have to be declared per service.
+To skip the `-f` flags, `export COMPOSE_FILE=compose.yaml:compose.dev.yaml` in your shell. Do not put
+it in `.env`: compose reads that file for every install, not only yours.
 
 There is nothing else to fill in: dependencies install themselves on first boot, the secrets are
 generated on first start (see below), and the one setting with no sensible default — the address
@@ -389,8 +374,8 @@ and takes a `flock`, so four containers starting at once mint each value once be
 
 `APP_STORAGE_DIR` decides where blobs live relative to the project root — attachments, raw messages,
 uploads and avatars all sit under it, and `var` by default. It exists so a deployment can put the
-whole lot on one mount: `truenas.compose.yaml` sets it to `var/data` and binds a single host
-directory there, which is why that file has one path to fill in rather than five. Attachment paths
+whole lot on one mount: the TrueNAS app sets it to one data directory and binds a single host path
+there, which is why it has one path to fill in rather than five. Attachment paths
 are stored relative to the project root, so changing it on an install with mail in it orphans what
 is already there.
 

@@ -109,7 +109,7 @@ reads them directly when it assembles `DATABASE_URL`.
 | `POSTGRES_PASSWORD` | Database password. | blank — 24 random bytes, hex, generated on first start | Never rotated by `app:reset`: Postgres was initialised with it and keeps its own copy, so a new one locks the app out of the database it just reset. |
 | `POSTGRES_HOST` | Host in the assembled DSN. Read by the entrypoint only. | `database` | Only relevant when running plMail outside this compose file. |
 | `POSTGRES_CHARSET` | `charset` in the assembled DSN. Entrypoint only. | `utf8` | — |
-| `APP_SECRETS_DIR` | Directory `generate-secrets` writes into. | `/app/var/secrets` | Must agree with `APP_SECRETS_FILE`. `truenas.compose.yaml` moves both under one bind mount. |
+| `APP_SECRETS_DIR` | Directory `generate-secrets` writes into. | `/app/var/secrets` | Must agree with `APP_SECRETS_FILE`. The TrueNAS app moves both under one bind mount. |
 | `NTFY_PORT` | Host port for the optional ntfy container. | `8090` | Only used under the `push` profile. |
 | `NTFY_BASE_URL` | Base URL ntfy hands out in push endpoints. | `http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}` | Baked into every endpoint handed out, so changing it later invalidates every existing subscription and every device must re-register. |
 | `NTFY_AUTH_DEFAULT_ACCESS` | ntfy's default access policy. | `read-write` | Open by design — UnifiedPush topics are unguessable and payloads are encrypted to the device — but set it to `deny-all` and create a user if this is exposed to the internet rather than reached over a VPN. |
@@ -213,8 +213,8 @@ environment when it is non-empty:
 | Which file integrations are offered at all | Admin → Integrations |
 | Integration provider base URLs (the SSRF pin above) | Admin → Integrations |
 
-This is the path the [admin page](../features/admin.md) documents, and the one `truenas.compose.yaml`
-points people at, because it shows the exact redirect URI to paste into the provider's console.
+This is the path the [admin page](../features/admin.md) documents, and the recommended one, because
+it shows the exact redirect URI to paste into the provider's console.
 
 **The failure mode is a half-filled row.** A stored value only shadows the environment when it is
 actually set, so a row holding a client id and no secret does not silently disable a working `.env`

@@ -55,7 +55,6 @@
           - any-glob-to-any-file:
                 - Dockerfile
                 - compose*.yaml
-                - truenas.compose.yaml
                 - docker/**
                 - docs/install/**
                 - .github/workflows/docker.yml
