@@ -314,7 +314,9 @@ That makes the tag the only gate there is, and two things have to be true before
 Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date` in a pull
 request titled `Release vX.Y.Z` — `main` is protected, so the release commit goes through one like
 everything else — merge it, tag the commit it made on `main` and push the tag. The release commit
-changes the changelog and nothing else, so what was tested is what is tagged. Then close the
+changes the changelog and nothing else, so what was tested is what is tagged — except for the
+highlight pictures that release pushes past their ten releases, which it deletes (see
+[Release notes](#release-notes)). Then close the
 milestone of that name, moving anything still open in it to the next one (see
 [How work gets in](#how-work-gets-in)).
 
@@ -383,6 +385,11 @@ So an entry is written for the person using plMail, and three conventions decide
   Named by feature, not by release, because the pull request that adds a feature does not know which
   release it will ship in. Mark a handful per release; a dialog where everything is a highlight has
   none.
+- **A picture is kept for its release and the ten after it.** Every file in `public/whats-new/` ships
+  in every image, so they do not stay for good: the `Release vX.Y.Z` pull request that pushes a
+  release more than ten back deletes its pictures and turns their markers into plain
+  `<!-- highlight -->`, so the entries stay highlights without the picture. `ChangelogReaderTest`
+  fails until that is done, and also fails on a file in `public/whats-new/` that no highlight names.
 
 ## Secrets and the encryption key
 

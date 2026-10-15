@@ -17,6 +17,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class ChangelogReaderTest extends TestCase
 {
+    /** How many releases after its own a highlight's picture is kept for. */
+    private const int KEEP_PICTURES_FOR = 10;
+
     private const string CHANGELOG = <<<'MD'
         # Changelog
 
@@ -170,5 +173,79 @@ final class ChangelogReaderTest extends TestCase
                 sprintf('A highlight names the screenshot "%s"; generate it with `npm run test:e2e:screenshots` (CONTRIBUTING.md → Release notes).', $name),
             );
         }
+    }
+
+    /**
+     * Nothing in public/whats-new that no highlight names. A highlight that
+     * loses its picture, or is dropped, takes the file with it; otherwise it
+     * ships in every image for nothing.
+     */
+    public function testNoPictureIsLeftThatNothingNames(): void
+    {
+        $root  = dirname(__DIR__, 4);
+        $named = array_keys(self::screenshotsByRelease((string) file_get_contents($root . '/CHANGELOG.md')));
+
+        foreach (glob($root . '/public/whats-new/*') ?: [] as $file) {
+            self::assertContains(
+                basename($file, '.png'),
+                $named,
+                sprintf('public/whats-new/%s is named by no highlight in CHANGELOG.md: delete it.', basename($file)),
+            );
+        }
+    }
+
+    /**
+     * A picture is kept for its release and the ten after it, then removed
+     * (CONTRIBUTING.md → Release notes). Every picture ships in every image,
+     * so without an end they would grow it by a few hundred kilobytes a
+     * release for good; ten releases is further back than anybody reads
+     * release notes. The release pull request that pushes one past the limit
+     * deletes the file and turns its `screenshot=` marker into a plain
+     * `<!-- highlight -->`: still a highlight, without the picture.
+     */
+    public function testPicturesAreKeptForTenReleasesAfterTheirOwn(): void
+    {
+        $byRelease = self::screenshotsByRelease((string) file_get_contents(dirname(__DIR__, 4) . '/CHANGELOG.md'));
+
+        foreach ($byRelease as $name => $age) {
+            self::assertLessThanOrEqual(
+                self::KEEP_PICTURES_FOR,
+                $age,
+                sprintf(
+                    'The screenshot "%s" belongs to a release %d releases back, beyond the %d its picture is kept for. '
+                    . 'Delete public/whats-new/%s.png and make its marker `<!-- highlight -->`.',
+                    $name,
+                    $age,
+                    self::KEEP_PICTURES_FOR,
+                    $name,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Each screenshot a highlight names, with how many releases back its own
+     * release is: 0 for Unreleased, 1 for the newest tag, and so on.
+     *
+     * @return array<string, int>
+     */
+    private static function screenshotsByRelease(string $markdown): array
+    {
+        $found = [];
+        $age   = -1;
+
+        foreach (explode("\n", $markdown) as $line) {
+            if (str_starts_with($line, '## ')) {
+                ++$age;
+
+                continue;
+            }
+
+            if (1 === preg_match('/<!--\s*highlight\s+screenshot=([a-z0-9-]+)\s*-->/', $line, $m)) {
+                $found[$m[1]] = max(0, $age);
+            }
+        }
+
+        return $found;
     }
 }
