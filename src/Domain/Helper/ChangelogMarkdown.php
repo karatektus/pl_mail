@@ -64,6 +64,9 @@ final class ChangelogMarkdown
             static fn (array $m): string => '<a href="' . $m[2] . '" target="_blank" rel="noopener noreferrer">' . $m[1] . '</a>',
             $text,
         );
+        // A link to a page in the repository (`docs/…`) goes nowhere from
+        // inside an installation, so it keeps its words and loses the target.
+        $text = (string) preg_replace('/\[([^\]]+)\]\((?!https?:\/\/)[^)\s]+\)/', '$1', $text);
         $text = (string) preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
         $text = (string) preg_replace('/(?<![\w*])\*(?![\s*])(.+?)(?<![\s*])\*(?![\w*])/', '<em>$1</em>', $text);
 

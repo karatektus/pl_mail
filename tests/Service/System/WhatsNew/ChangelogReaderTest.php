@@ -45,7 +45,7 @@ final class ChangelogReaderTest extends TestCase
         ## v0.3.5 — 2026-10-13
 
         **A <script> in the text stays text.** See [the issue](https://github.com/x/y/issues/1)
-        and [this](javascript:alert(1)).
+        and [this](javascript:alert(1)), set up as in [Single sign-on](docs/providers/oidc.md).
 
         ### Before you upgrade
 
@@ -119,6 +119,7 @@ final class ChangelogReaderTest extends TestCase
         self::assertSame('A &lt;script&gt; in the text stays text.', $entry->headline);
         self::assertStringContainsString('<a href="https://github.com/x/y/issues/1" target="_blank" rel="noopener noreferrer">the issue</a>', $entry->body);
         self::assertStringNotContainsString('href="javascript', $entry->body);
+        self::assertStringContainsString('set up as in Single sign-on.', $entry->body, 'a link into the repository keeps its words');
     }
 
     /** The older releases' style: a list under a heading, one change per item. */

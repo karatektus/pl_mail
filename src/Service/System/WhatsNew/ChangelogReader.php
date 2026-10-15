@@ -50,6 +50,14 @@ use Symfony\Contracts\Cache\CacheInterface;
  */
 final readonly class ChangelogReader
 {
+    /**
+     * Part of the cache key, raised whenever what parse() produces changes.
+     * The file's size and time say when the NOTES changed; an image that
+     * only changed how they are read would otherwise go on serving the
+     * last image's reading of them.
+     */
+    private const int FORMAT = 2;
+
     private const string HIGHLIGHT = '/<!--\s*highlight(?:\s+screenshot=([a-z0-9][a-z0-9-]*))?\s*-->/';
 
     public function __construct(
@@ -72,7 +80,7 @@ final readonly class ChangelogReader
             return [];
         }
 
-        $key = 'whats_new.changelog.' . $stat['size'] . '.' . $stat['mtime'];
+        $key = 'whats_new.changelog.' . self::FORMAT . '.' . $stat['size'] . '.' . $stat['mtime'];
 
         return $this->cache->get($key, fn (): array => self::parse((string) file_get_contents($this->path)));
     }
