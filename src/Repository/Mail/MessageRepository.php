@@ -1331,6 +1331,9 @@ class MessageRepository extends ServiceEntityRepository
                 'EXISTS ('
                 . ' SELECT p.id FROM ' . MessagePart::class . ' p'
                 . ' WHERE p.message = m'
+                // Sealed parts are a sealed draft's encrypted attachments,
+                // never a misfiled body — see MisfiledBodyBackfillTask.
+                . ' AND p.sealed = false'
                 . " AND (p.contentType IN (:bodyTypes) OR p.contentType LIKE 'multipart/%')"
                 . ' AND LENGTH(p.filename) = 8'
                 . " AND ((p.contentType = 'text/html' AND (m.bodyHtml IS NULL OR m.bodyHtml = ''))"

@@ -421,6 +421,10 @@ class MessageSendService
      */
     private function applyAutocrypt(Account $account, Email $email, string $fromAddress): void
     {
+        if (null === $account->usr) {
+            return;
+        }
+
         $header = $this->autocrypt->for($account->usr, $fromAddress);
 
         if (null !== $header) {
@@ -435,7 +439,7 @@ class MessageSendService
      */
     private function attachPublicKey(Account $account, Email $email, string $fromAddress): void
     {
-        if (false === $account->usr->attachPublicKey) {
+        if (null === $account->usr || false === $account->usr->attachPublicKey) {
             return;
         }
 
