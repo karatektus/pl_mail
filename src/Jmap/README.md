@@ -498,8 +498,8 @@ Get these wrong and things fail quietly rather than loudly.
 - **`var/attachments`, `var/raw` and `var/uploads` must be shared storage.** The
   workers write them, the web container serves them. `php` overlays `/app/var`
   with a private volume for cache/logs, so those three paths are bound
-  explicitly in every service — see `compose.override.yaml` and
-  `truenas.compose.yaml`. The Dockerfile deliberately no longer declares
+  explicitly in every service — see `compose.yaml` and `compose.dev.yaml`.
+  The Dockerfile deliberately no longer declares
   `VOLUME /app/var/`; it gave each container its own anonymous volume there,
   which made downloads 404 and lost the data on every container recreate.
 - **Every path that changes a JMAP-visible property must call

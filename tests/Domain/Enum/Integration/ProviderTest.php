@@ -6,6 +6,7 @@ namespace App\Tests\Domain\Enum\Integration;
 
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Enum\Integration\DestinationKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Integration\ServiceKind;
 use App\Domain\Interface\CalendarSyncDriverInterface;
@@ -349,6 +350,42 @@ final class ProviderTest extends TestCase
             yield $store->value.' null'  => [$store, null, true];
             yield $store->value.' empty' => [$store, '', true];
         }
+    }
+
+    /**
+     * What a "Save to…" lands in, which decides whether the destination chooser
+     * draws a tree to walk or a flat list to pick from.
+     *
+     * Paperless is the case this exists for: it is not a photo library, but it
+     * has no tree either — a save files under a tag, and nothing is beneath a
+     * tag. Deriving "flat" from isMediaLibrary() drew its tags as folders to
+     * navigate into, and clicking one went nowhere.
+     */
+    #[DataProvider('destinationKinds')]
+    public function testEachFileProviderSaysWhatItsDestinationsAre(Provider $provider, DestinationKind $expected): void
+    {
+        self::assertSame($expected, $provider->destinationKind());
+    }
+
+    public function testOnlyAFolderTreeIsNavigable(): void
+    {
+        self::assertFalse(DestinationKind::Folder->isFlat());
+        self::assertTrue(DestinationKind::Album->isFlat());
+        self::assertTrue(DestinationKind::Tag->isFlat());
+    }
+
+    /**
+     * @return iterable<string,array{Provider,DestinationKind}>
+     */
+    public static function destinationKinds(): iterable
+    {
+        yield 'nextcloud'    => [Provider::Nextcloud, DestinationKind::Folder];
+        yield 'googleDrive'  => [Provider::GoogleDrive, DestinationKind::Folder];
+        yield 'oneDrive'     => [Provider::OneDrive, DestinationKind::Folder];
+        yield 'dropbox'      => [Provider::Dropbox, DestinationKind::Folder];
+        yield 'immich'       => [Provider::Immich, DestinationKind::Album];
+        yield 'googlePhotos' => [Provider::GooglePhotos, DestinationKind::Album];
+        yield 'paperless'    => [Provider::Paperless, DestinationKind::Tag];
     }
 
     public function testEveryProviderHasALabelAndAnIcon(): void

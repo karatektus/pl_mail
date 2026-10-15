@@ -1163,6 +1163,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "No mail outside Spam and the bin."
+
 alias:
     added: 'Address added.'
     catch_all_added: 'Catch-all domain added.'
@@ -2171,16 +2176,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choose where this filter saves attachments.'
         choose_here: 'Choose this folder'
+        choose_tag: 'Choose a tag for %file%'
         choose_this: Choose
         create: Create
         folder_name: 'Folder name'
         library: 'Library (no album)'
         new_album: 'New album'
         new_folder: 'New folder'
+        new_tag: 'New tag'
         no_albums: 'No albums yet.'
         no_subfolders: 'No folders here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet.'
         save_here: 'Save here'
         start_over: 'Start over'
+        tag_name: 'Tag name'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'
@@ -2189,6 +2199,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Nothing found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2208,6 +2219,7 @@ integration:
             skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
+        use_as_avatar: 'Use as profile picture'
 
 jobs:
     button:
@@ -3760,6 +3772,17 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: How mail is thrown away for good.
+    images:
+        always_show: Always show remote images
+        always_show_hint: >-
+            Loads the pictures in every message without asking first. Senders
+            can then tell that and when you opened their mail, though not your
+            address: images still come to you through plMail. Mail in Spam stays
+            blocked either way. Off until you turn it on.
+        heading: Images
+        'off': 'Off'
+        'on': 'On'
+        subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -3779,6 +3802,7 @@ settings:
             mail: Mail
             personal: Personal
         health: 'Account health'
+        images: Images
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -3999,6 +4023,11 @@ settings:
         reorder: "Drag to reorder"
         subheading: "Switch the built-in tabs on or off, add your own, and drag them into the order you want."
     sorting:
+        account_tabs:
+            hint: Shows the tabs on an account's own inbox too, when you click the account in the sidebar. Off shows that account's whole inbox as one list.
+            label: Tabs on each account
+            'off': 'Off'
+            'on': 'On'
         again:
             button: Ask again
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
@@ -4176,6 +4205,7 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
+        all_mail: All Mail
         archive: Archive
         calendar: Calendar
         drafts: Drafts

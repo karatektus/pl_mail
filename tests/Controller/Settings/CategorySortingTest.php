@@ -121,6 +121,39 @@ final class CategorySortingTest extends WebTestCase
     }
 
     /**
+     * The account page's tabs (#55): off until switched on, stored in the
+     * settings bag, and offered only while the inbox has tabs at all — with One
+     * list there is nothing for the switch to show.
+     */
+    public function testTheAccountTabsSwitchIsOffUntilSwitchedOnAndOnlyOfferedWithTabs(): void
+    {
+        [$client] = $this->signedIn();
+
+        self::assertFalse($this->reread()->accountInboxTabs);
+
+        $card = $client->request('GET', '/settings?section=categories');
+        self::assertSame('0', $card->filter('input[name="accountTabs"]:checked')->attr('value'));
+
+        $this->post($client, ['accountTabs' => '1']);
+
+        self::assertResponseRedirects();
+        self::assertTrue($this->reread()->accountInboxTabs);
+        self::assertCount(0, $this->queued(), 'drawing tabs re-files nothing');
+
+        // A post that does not mention it leaves it, and One list hides it.
+        $this->post($client, ['tabs' => '0']);
+
+        self::assertTrue($this->reread()->accountInboxTabs);
+        self::assertCount(0, $client->request('GET', '/settings?section=categories')->filter('input[name="accountTabs"]'));
+
+        $this->post($client, ['tabs' => '1']);
+        $this->post($client, ['accountTabs' => '0']);
+
+        self::assertFalse($this->reread()->accountInboxTabs);
+        self::assertNull($this->reread()->getSetting(User::SETTING_ACCOUNT_INBOX_TABS), 'off is the absent key');
+    }
+
+    /**
      * Tabs off with the assistant still sorting is said out loud, and only then.
      *
      * It is allowed — the mail is theirs — but every new message then costs a

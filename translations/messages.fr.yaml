@@ -1170,6 +1170,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: La version que cette installation exécute — la publication, et le commit à partir duquel elle a été construite.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Aucun message hors du spam et de la corbeille."
+
 alias:
     added: 'Adresse ajoutée.'
     catch_all_added: 'Domaine fourre-tout ajouté.'
@@ -2182,16 +2187,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choisissez où ce filtre enregistre les pièces jointes.'
         choose_here: 'Choisir ce dossier'
+        choose_tag: 'Choisir une étiquette pour %file%'
         choose_this: Choisir
         create: Créer
         folder_name: 'Nom du dossier'
         library: 'Bibliothèque (sans album)'
         new_album: 'Nouvel album'
         new_folder: 'Nouveau dossier'
+        new_tag: 'Nouvelle étiquette'
         no_albums: 'Aucun album pour l’instant.'
         no_subfolders: 'Aucun dossier ici.'
+        no_tag: 'Sans étiquette'
+        no_tags: 'Aucune étiquette pour l’instant.'
         save_here: 'Enregistrer ici'
         start_over: 'Recommencer'
+        tag_name: 'Nom de l’étiquette'
     picker:
         attach: Joindre
         attach_from: 'Joindre depuis %name%'
@@ -2200,6 +2210,7 @@ integration:
         link: Lien
         more: 'Afficher plus'
         no_results: 'Rien trouvé pour « %query% ».'
+        not_an_image: 'Pas une image'
         search: Rechercher
         search_placeholder:
             dropbox: 'Rechercher dans Dropbox'
@@ -2219,6 +2230,7 @@ integration:
             skipped: 'Ignorés : %files%'
         timeline: 'Aller à une date'
         too_big: 'Trop volumineux pour être joint'
+        use_as_avatar: 'Utiliser comme photo de profil'
 
 jobs:
     button:
@@ -3808,6 +3820,18 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Comment le courrier est jeté pour de bon.
+    images:
+        always_show: Toujours afficher les images distantes
+        always_show_hint: >-
+            Charge les images de chaque message sans demander d’abord. Les
+            expéditeurs peuvent alors savoir que vous avez ouvert leur courrier, et
+            quand, mais pas votre adresse : les images vous parviennent toujours par
+            plMail. Le courrier dans Spam reste bloqué dans tous les cas. Désactivé
+            tant que vous ne l’activez pas.
+        heading: Images
+        'off': 'Désactivé'
+        'on': 'Activé'
+        subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
     nav:
         accounts: Comptes mail
         ai: 'Assistant'
@@ -3827,6 +3851,7 @@ settings:
             mail: Courrier
             personal: Personnel
         health: 'Santé des comptes'
+        images: Images
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
@@ -4023,6 +4048,11 @@ settings:
             toggle: 'Vue de la signature'
         subheading: 'Ce qui est ajouté en bas des messages que vous écrivez.'
     sorting:
+        account_tabs:
+            hint: Affiche aussi les onglets dans la boîte de réception d’un compte, quand vous cliquez sur le compte dans la barre latérale. Désactivé affiche toute la boîte de ce compte en une seule liste.
+            label: Onglets dans chaque compte
+            'off': 'Désactivé'
+            'on': 'Activé'
         again:
             button: Redemander
             hint: L’assistant répond une fois par message et garde la réponse. Redemandez après un changement de modèle, d’instruction ou de version de plMail — cela coûte un appel au modèle par message, c’est donc limité à votre courrier le plus récent.
@@ -4200,6 +4230,7 @@ sidebar:
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'
     nav:
+        all_mail: Tous les messages
         archive: Archives
         calendar: Agenda
         drafts: Brouillons

@@ -65,7 +65,7 @@ final readonly class LabelChangePropagator
 
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailStarPayload($starred));
-        $this->dispatchGraph($messages);
+        $this->dispatchGraph($messages, flagged: $starred);
     }
 
     /**
@@ -83,7 +83,7 @@ final readonly class LabelChangePropagator
 
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailReadPayload($read));
-        $this->dispatchGraph($messages);
+        $this->dispatchGraph($messages, isRead: $read);
     }
 
     /**
@@ -400,9 +400,17 @@ final readonly class LabelChangePropagator
      * @param iterable<Message>        $messages
      * @param (callable(Account): ?int)|null $moveToLabelResolver  per-account
      *        destination-label resolver, or null for a state-only push
+     * @param bool|null $isRead   the read state this call just set, so the job
+     *        carries it instead of leaving the worker to read it off a row the
+     *        caller may not have flushed yet — see ApplyGraphChangesMessage
+     * @param bool|null $flagged  the same for the star
      */
-    private function dispatchGraph(iterable $messages, ?callable $moveToLabelResolver = null): void
-    {
+    private function dispatchGraph(
+        iterable  $messages,
+        ?callable $moveToLabelResolver = null,
+        ?bool     $isRead = null,
+        ?bool     $flagged = null,
+    ): void {
         /** @var array<int, int[]> $byAccount */
         $byAccount = [];
         /** @var array<int, Account> $accounts */
@@ -431,7 +439,7 @@ final readonly class LabelChangePropagator
                 ? $moveToLabelResolver($accounts[$accountId])
                 : null;
 
-            $this->bus->dispatch(new ApplyGraphChangesMessage($accountId, $messageIds, $moveToLabel));
+            $this->bus->dispatch(new ApplyGraphChangesMessage($accountId, $messageIds, $moveToLabel, $isRead, $flagged));
         }
     }
 

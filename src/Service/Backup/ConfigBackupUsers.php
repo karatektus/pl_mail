@@ -167,6 +167,13 @@ final readonly class ConfigBackupUsers
         // choice about irreversible deletion. A boolean, no id, means the same
         // on any install.
         User::SETTING_DISPOSAL_DELETE_NOW,
+        // Whether remote images load without being asked for. A choice about
+        // what senders may learn of one's reading, so a restore must not
+        // quietly undo it in either direction. A boolean, no id.
+        User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Whether an account's own inbox has the category tabs. How the
+        // mailbox is drawn, like the reading pane above; a boolean, no id.
+        User::SETTING_ACCOUNT_INBOX_TABS,
         // How the topbar's calendar button moves between views. One enum
         // value, no id, the same on any install, and a preference about one's
         // own screen like the pane's mode and width above.

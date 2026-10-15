@@ -1,114 +1,31 @@
-# The test stack — PHPUnit and the Playwright E2E suite.
-#
-#   npm run test:unit:docker
-#   npm run test:e2e:docker
-#
-# Not only local: .github/workflows/e2e.yml boots this same file and runs those
-# same two suites against it, which is the point. CI used to serve the app with
-# `php -S` on the runner and install PHP beside it, so the two environments
-# agreed about nothing except the source tree, and each had failures the other
-# could not reproduce.
-#
-# Deliberately its OWN compose project (see `name:` below) with its OWN Postgres,
-# so it can never reconcile, recreate or restart the dev stack, and can never
-# reach the database holding real mail. `docker compose ...` without -f is
-# untouched by this file.
-#
-# Served by the app's own FrankenPHP image rather than PHP's built-in server:
-# variables_order is GPCS, so `php -S` never exposes APP_ENV to Symfony and the
-# app silently falls back to .env.local and the dev database. A server SAPI puts
-# the environment into $_SERVER, so the values below actually take effect.
+# Test stack for PHPUnit and Playwright, locally and in CI.
+# npm run test:unit:docker / npm run test:e2e:docker
+
 name: pl_mail_test
 
 x-test-app: &test-app
-  # The dev target, not the ghcr image: prod is built with `composer install
-  # --no-dev` (no PHPUnit) and ships a dump-env'd .env.local.php pinning prod.
   build:
     context: .
     target: frankenphp_dev
-  # Named explicitly rather than left to compose's `<project>-<service>`
-  # default, for two reasons.
-  #
-  # `app` and `app-init` are the same image built from the same target, so the
-  # default naming had compose tagging it twice under two names. And the name
-  # stopped being predictable the moment anyone passed `-p` — a worktree on its
-  # own project got its own tags, which is why the one-off-container recipes in
-  # the handbook could not just name an image.
-  #
-  # Fixed, it is also a build CI can do ahead of time: .github/workflows/e2e.yml
-  # builds this tag with a layer cache and then brings the stack up without
-  # `--build`, which it could not do if the tag depended on the project name.
   image: pl_mail_test-app
   volumes:
     - ./:/app
-    # A dedicated var volume. Never share the dev stack's `app_var`: it is a
-    # named volume overlaying the bind mount, so sharing it would let the two
-    # environments write each other's caches and built assets.
     - app_var_test:/app/var
-    # Same trick, same reason, for the compiled assets `asset-map:compile`
-    # writes in app-init. `public/assets/` does not exist in the repo and the
-    # dev stack bind-mounts this very directory, so without an overlay the
-    # compiled output would land on the host and be served — stale — by the
-    # dev stack on every source edit, since Caddy prefers a real file over
-    # index.php. Keeping it in a volume means the test stack gets static assets
-    # and development is untouched by it.
-    #
-    # Docker does create an *empty* `public/assets/` on the host as the mount
-    # point. That is harmless and expected: the compiled files live in the
-    # volume, so the dev stack finds nothing there and falls through to PHP
-    # exactly as it did before. `.gitignore` already covers the directory.
     - app_public_assets_test:/app/public/assets
   environment: &test-env
     APP_ENV: test
     APP_DEBUG: "1"
-    # Pinned, and passed as real environment variables rather than left to
-    # .env.test: the entrypoint generates these when the environment does not
-    # carry them, and a generated value would win over the dotenv one. The
-    # suite wants them fixed — stable CSRF tokens, and a seed encrypted with
-    # the same key every run. Same values as .env.test.
     APP_SECRET: 282065e0f71bf96c0dbcf0496c1f5d3e
     APP_ENCRYPTION_KEY: emL6R8zs0pSXCVV2HvVvbFubriWJIla7kgnqSGqCJ8E=
-    # Host is `database`, unlike .env.test which targets 127.0.0.1 for CI.
-    # Doctrine's when@test dbname_suffix (config/packages/doctrine.yaml) turns
-    # this into `app_test` automatically.
     DATABASE_URL: postgresql://app:app@database:5432/app?serverVersion=18&charset=utf8
-    # `in-memory://` for the three shared queues, which means a message routed
-    # to one is kept and never handled — every worker process is a container
-    # this stack does not run, and an in-memory transport is per-process
-    # anyway. That is deliberate and is what keeps the suite deterministic: a
-    # spec is never racing an AI classification, a mailbox resort or a rule
-    # pass that fired in the background.
     MESSENGER_TRANSPORT_DSN: in-memory://
-    # The one exception, and the reason `bulk` has a DSN of its own in
-    # config/packages/messenger.yaml. A whole-view action HAS to actually run
-    # for bulk-select-all.spec.ts to mean anything — it selects the view,
-    # archives it and waits for the rows to go — so this queue is a real
-    # Postgres one with the worker below draining it. Pointing the shared
-    # variable here instead would switch the other three on at the same time.
-    #
-    # auto_setup=0: `messenger_messages` is created by a migration
-    # (Version20260625123836), and app-init has run it before anything else
-    # starts.
     MESSENGER_BULK_DSN: doctrine://default?auto_setup=0
     MAILER_DSN: null://null
     APP_DEV_USER_EMAIL: e2e@plmail.test
     APP_DEV_USER_PASSWORD: e2e-password-change-me
-    # Same-origin: the browser reaches the hub through the app's own Caddy
-    # (`handle /.well-known/mercure*` in frankenphp/Caddyfile), so the
-    # subscriber cookie is a first-party cookie and needs no CORS.
-    #
-    # http, not https, on purpose — Symfony derives the cookie's `secure` flag
-    # from this URL's scheme, so an https value here would mint a cookie the
-    # browser refuses to send back over the test stack's plain HTTP.
     MERCURE_PUBLIC_URL: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
-    # Plain HTTP here, so the `__Secure-` name Mercure 1.0 defaults to would be
-    # dropped by the browser before it ever reached the hub. The hub is told the
-    # same name below.
     MERCURE_COOKIE_NAME: mercure_access_token
     MERCURE_URL: http://mercure/.well-known/mercure
-    # Fixed, like APP_SECRET above: the suite signs subscriber JWTs with it and
-    # the hub verifies them, so both sides have to agree without depending on
-    # generated secrets that differ per run.
     MERCURE_JWT_SECRET: e2e-mercure-secret-not-for-production
   depends_on:
     database:
@@ -129,12 +46,8 @@ services:
     volumes:
       - database_data_test:/var/lib/postgresql
 
-  # Owns schema, assets and the seed user, then exits. `app` waits for it.
   app-init:
     <<: *test-app
-    # The image entrypoint waits on the database and runs migrations *before*
-    # the database exists, so it cannot bootstrap an empty volume. Drop to the
-    # upstream PHP entrypoint and do the ordering here.
     entrypoint: ["docker-php-entrypoint"]
     restart: "no"
     command:
@@ -142,92 +55,32 @@ services:
       - -c
       - |
         set -e
-        # The entrypoint this service deliberately skips is also the thing that
-        # installs PHP dependencies into the bind mount (see the long note in
-        # frankenphp/docker-entrypoint.sh). Dropping to docker-php-entrypoint
-        # bought correct ordering around the database and lost that, which was
-        # invisible for as long as everyone running this stack already had a
-        # vendor/ from the dev stack. On a tree that never had one — a fresh
-        # clone, a new worktree, a CI checkout — every bin/console below died on
-        # "Dependencies are missing. Try running composer install." and the
-        # stack never came up at all.
-        #
-        # No lock around it, unlike the entrypoint's version: this service runs
-        # on its own and `app` waits for it to exit, so there is no second
-        # container racing for the same vendor/.
         [ -f vendor/autoload_runtime.php ] || composer install --prefer-dist --no-progress --no-interaction
         php bin/console doctrine:database:create --if-not-exists
         php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
         php bin/console importmap:install
-        # Not optional: specs assert toBeVisible()/toBeHidden(), which depend on
-        # Tailwind's `.hidden { display: none }`. Building here also keeps this
-        # stack independent of the dev `tailwind` watcher.
-        #
-        # Three goes, because the first build on a fresh tree downloads the
-        # Tailwind binary from a GitHub release, and GitHub answers that with a
-        # 500 now and then. When it did on the v0.3.2 tag, three of five
-        # Playwright jobs ended here, before a single spec had run, and the run
-        # went red with nothing wrong in the commit. A build that fails for a
-        # real reason fails three times and still stops the stack.
-        #
-        # Spelt out rather than looped: a shell variable in this file is
-        # Compose's to interpolate first.
         php bin/console tailwind:build \
             || { sleep 5; php bin/console tailwind:build; } \
             || { sleep 20; php bin/console tailwind:build; }
-        # Compiled, not served through PHP. Without this, `try_files {path}
-        # index.php` in frankenphp/Caddyfile sends every asset request into a
-        # full Symfony kernel boot: /login alone pulls 54 modulepreload entries
-        # plus 2 stylesheets, measured at ~35ms each against ~1.6ms for a real
-        # static file. Playwright gives every test a cold HTTP cache, so that
-        # was ~1.9s of PHP spent serving JavaScript once per test — about 40%
-        # of the whole e2e suite.
         php bin/console asset-map:compile
         php bin/console app:test:seed-user
-        # The admin the PHPUnit controller tests look for. Seeded here rather
-        # than left to the Playwright suite, which is where it used to come
-        # from: PageRendersTest and friends skip themselves when the user is
-        # missing, so `npm run test:unit:docker` on a fresh volume quietly ran
-        # ~50 fewer tests than it appeared to until the browser suite had been
-        # run at least once.
         php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
-  # The real hub, so the suite can assert on live updates and on recovery after
-  # the stream drops. Runs the image's DEFAULT Caddyfile, not dev.Caddyfile:
-  # the default one requires a subscriber JWT, which is what production serves,
-  # so the tests exercise the authorization path rather than an anonymous hub
-  # that would accept anything and hide a broken cookie.
   mercure:
     image: dunglas/mercure
     environment:
       SERVER_NAME: ":80"
       MERCURE_PUBLISHER_JWT_KEY: e2e-mercure-secret-not-for-production
       MERCURE_SUBSCRIBER_JWT_KEY: e2e-mercure-secret-not-for-production
-      # RFC 9068: the issuer this hub trusts and the audience it demands, both
-      # matching what config/packages/mercure.yaml mints. See compose.yaml,
-      # which carries the reasoning.
       MERCURE_TRUSTED_ISSUERS: https://plmail.invalid/.well-known/mercure
       MERCURE_EXTRA_DIRECTIVES: |
         resource_identifier https://plmail.invalid/.well-known/mercure
         cookie_name mercure_access_token
-    # NO healthcheck here, deliberately — the image's own is used, exactly as
-    # in compose.yaml and for the same reason: the hub moved its readiness
-    # probe out from under the URL we had hard-coded, and every job in CI then
-    # failed to start for three days while the hub itself was fine.
-    #
-    # Tempting to keep just the old five-second interval and inherit the rest,
-    # and Compose will not have it: a healthcheck block without a `test` is
-    # rejected outright — "must define a healthcheck command for all
-    # healthchecks" — so the only way to own the cadence is to own the command
-    # again, which is the thing that rotted. The image asks every 30s instead
-    # of every 5s, so a job waits a few more seconds for the hub and no longer
-    # risks waiting for ever.
 
   app:
     <<: *test-app
     environment:
       <<: *test-env
-      # Plain HTTP on 80 inside the container — no TLS, no cert prompts.
       SERVER_NAME: ":80"
     ports:
       - "${TEST_HTTP_PORT:-8001}:80"
@@ -239,36 +92,11 @@ services:
       mercure:
         condition: service_healthy
 
-  # Drains the one queue this stack makes real — see MESSENGER_BULK_DSN above.
-  #
-  # `--time-limit` is short because the stack is short-lived and a worker that
-  # has exited is easier to read in `compose ps` than one that is idle; the
-  # restart policy brings it straight back either way. `-vv` so a handler that
-  # throws says why in `compose logs worker-bulk`, which is the only window
-  # onto work that no longer happens inside a request the browser can see.
   worker-bulk:
     <<: *test-app
     command: php bin/console messenger:consume bulk --time-limit=600 --memory-limit=256M -vv
     restart: unless-stopped
     stop_grace_period: 5s
-    # The image carries a HEALTHCHECK that curls the web server, which a worker
-    # is not. Left on, `compose up --wait` reports this container unhealthy and
-    # exits non-zero with the stack up and working — which in CI is a red run
-    # for a container doing exactly what it should.
-    #
-    # It was `disable: true` for that reason, and that swapped one red run for
-    # another: `up --wait` names this service (see .github/actions/test-stack,
-    # which explains why it has to), and a named service with no healthcheck at
-    # all makes Compose exit 1 with "container … has no healthcheck configured".
-    # Every E2E run since has been red before a single test executed. The
-    # answer is not to take the check away but to ask the right question — a
-    # worker is healthy when its consumer is running, which is what this reads.
-    #
-    # No `ps` and no `pgrep` in the image, so the process table is read where it
-    # actually lives. `messenger:[c]onsume` rather than `messenger:consume` is
-    # the old trick and it is load-bearing: the health probe's OWN command line
-    # is in /proc too, so a literal pattern matches itself and the check passes
-    # on a container whose worker died ten minutes ago.
     healthcheck:
       test:
         - CMD-SHELL

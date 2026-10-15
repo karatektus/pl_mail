@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Integration;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Helper\AvatarStorage;
 use App\Domain\Helper\InlineDisposition;
 use App\Controller\Mail\ComposeAttachmentController;
 use App\Domain\Enum\Integration\Capability;
@@ -14,6 +15,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Integration\IntegrationFilePicker;
+use App\Service\User\AvatarFromIntegration;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -67,6 +69,7 @@ final class FilePickerController extends AbstractController
 
     public function __construct(
         private readonly IntegrationFilePicker  $picker,
+        private readonly AvatarFromIntegration  $avatars,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -90,6 +93,18 @@ final class FilePickerController extends AbstractController
 
         $this->assertUsable($integration, Capability::Browse);
 
+        // Choosing a profile picture is the third way in. It is this same
+        // picker — albums, people, search, the date bar and paging — because a
+        // second, smaller one only ever showed the first page of the library
+        // root. What differs is the end of it: nothing is attached to a draft,
+        // the choice is handed back to the profile form (see
+        // integration_picker_controller.js), and that form posts it.
+        $forAvatar = 'avatar' === $request->query->get('mode');
+
+        if (true === $forAvatar) {
+            $this->assertUsable($integration, Capability::Download);
+        }
+
         $folderId = $request->query->get('folder');
         $draftId = $request->query->getInt('draft');
         $cursor = $this->blankToNull($request->query->get('cursor'));
@@ -104,8 +119,14 @@ final class FilePickerController extends AbstractController
             'folderId'    => $folderId,
             'draftId'     => $draftId,
             'query'       => $query,
-            'maxBytes'    => ComposeAttachmentController::MAX_ATTACHMENT_BYTES,
-            'canLink'     => $integration->supports(Capability::ShareLink),
+            'mode'        => $forAvatar ? 'avatar' : 'attach',
+            // The avatar store's own cap, so a photo it would refuse shows as
+            // too large rather than being chosen and then bounced.
+            'maxBytes'    => $forAvatar ? AvatarStorage::MAX_BYTES : ComposeAttachmentController::MAX_ATTACHMENT_BYTES,
+            // Files on this page that cannot be a picture: shown, not choosable.
+            'refusedIds'  => $forAvatar ? $this->avatars->refusedIds($view->listing) : [],
+            // A share link is no use as a profile picture.
+            'canLink'     => false === $forAvatar && $integration->supports(Capability::ShareLink),
             'canThumb'    => $integration->supports(Capability::Thumbnail),
             'canSearch'   => $view->canSearch,
             'buckets'     => $view->buckets,

@@ -12,11 +12,21 @@ the same thing. Only the URLs differ, so the caller passes them:
   closeUrl   string              where "stop browsing" goes
   fileField  string              full_name of the form field the choice binds to
   current    string|null         URL of the picture in use, if there is one
+  modalPicker bool               open the file picker in a dialog (see below)
 
-A thumbnail *is* the submit: choosing and saving are one action, and the button
-carries the field name the form binds it to. Browsing is a navigation rather
-than a client-side toggle because these fields belong to the surrounding form,
-and HTML has no nested forms.
+Two ways to choose, because the two callers differ in where they live.
+
+Settings passes `modalPicker`: each connection opens the same dialog the compose
+window attaches files with, in its avatar mode, and the choice comes back through
+settings/avatar_from_service_controller.js on the form. `picking`, `entries`,
+`pickUrls`, `closeUrl` and `fileField` are not used.
+
+The setup wizard does not, and still gets the grid below. Its profile step is
+itself rendered in the modal frame, which the file picker would replace — the
+wizard would vanish behind it. A thumbnail *is* the submit there: choosing and
+saving are one action, and the button carries the field name the form binds it
+to. Browsing is a navigation rather than a client-side toggle because these
+fields belong to the surrounding form, and HTML has no nested forms.
 #}
 {% if current is defined and current is not null %}
     {# Shown wherever the profile is edited. A file input reports a filename at
@@ -36,23 +46,40 @@ and HTML has no nested forms.
 
         <div class="mt-2 flex flex-wrap items-center gap-2">
             {% for source in sources %}
-                {% set isOpen = picking is not null and picking.id == source.id %}
-                <a href="{{ isOpen ? closeUrl : pickUrls[source.id] }}"
-                   data-turbo-frame="{{ frame|default('_self') }}"
-                   id="avatar-source-{{ source.id }}"
-                   class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors
-                          {% if isOpen %}
-                            border-accent bg-accent/10 text-accent
-                          {% else %}
-                            border-field bg-field text-ink-soft hover:bg-hover
-                          {% endif %}">
-                    <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
-                    {{ source.name }}
-                </a>
+                {% if modalPicker|default(false) %}
+                    {# type=button: this sits inside the profile form, where the
+                       default would submit it. #}
+                    <button type="button"
+                            id="avatar-source-{{ source.id }}"
+                            data-controller="ui--modal"
+                            data-ui--modal-title-value="{{ source.name }}"
+                            data-ui--modal-size-value="{{ source.provider.isMediaLibrary ? 'full' : 'wide' }}"
+                            data-ui--modal-src-value="{{ path('app_integration_browse', { id: source.id, mode: 'avatar' }) }}"
+                            data-action="click->ui--modal#open"
+                            class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer
+                                   border-field bg-field text-ink-soft hover:bg-hover">
+                        <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
+                        {{ source.name }}
+                    </button>
+                {% else %}
+                    {% set isOpen = picking is not null and picking.id == source.id %}
+                    <a href="{{ isOpen ? closeUrl : pickUrls[source.id] }}"
+                       data-turbo-frame="{{ frame|default('_self') }}"
+                       id="avatar-source-{{ source.id }}"
+                       class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors
+                              {% if isOpen %}
+                                border-accent bg-accent/10 text-accent
+                              {% else %}
+                                border-field bg-field text-ink-soft hover:bg-hover
+                              {% endif %}">
+                        <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
+                        {{ source.name }}
+                    </a>
+                {% endif %}
             {% endfor %}
         </div>
 
-        {% if picking is not null %}
+        {% if not modalPicker|default(false) and picking is not null %}
             {% if entries|length %}
                 <ul class="mt-4 grid grid-cols-4 sm:grid-cols-6 gap-2">
                     {% for entry in entries %}

@@ -5386,6 +5386,45 @@ label:has(> input.sr-only) {
     z-index: 30;
 }
 
+/* ═══ A message header in a narrow pane ═════════════════════════════════════
+   The header is one row: avatar, sender, and a block holding the date, the ⋮
+   menu and the chevron. The last of those is as wide as it is on a desktop
+   (the date alone is ~150px), so in a pane of phone width it left the sender
+   about 110px and the address broke mid-word onto three lines.
+
+   Keyed to the width of `.thread-messages`, NOT to a media query. The reading
+   pane on the right makes a ~400px message pane on a 1920px monitor, and a
+   viewport breakpoint would fix the phone and leave exactly that case broken.
+   36rem is the same threshold the list rows use for their own narrow layout.
+
+   Narrow, the date block drops to a row of its own: the date at the left, ⋮
+   and the chevron at the right, indented to line up under the sender rather
+   than under the avatar. That gives the sender the full width, and the row it
+   already is (name, address, labels, `flex-wrap`) does the rest: the address
+   sits beside the name when it fits and takes a line of its own when it does
+   not. How much of a long address shows on that line is the address's own
+   styling, which this block does not touch. */
+.thread-messages {
+    container: thread-messages / inline-size;
+}
+
+@container thread-messages (max-width: 36rem) {
+    .thread-message-head {
+        flex-wrap: wrap;
+        row-gap: 0.125rem;
+    }
+
+    /* 3rem = the avatar (2.25rem) and the header's gap (0.75rem). */
+    .thread-message-meta {
+        flex: 0 0 100%;
+        padding-left: 3rem;
+    }
+
+    .thread-message-date {
+        margin-right: auto;
+    }
+}
+
 /* ═══ Dragging conversations onto folders and tabs ═════════════════════════
    The visual half of mail--dnd. Everything here keys off two data attributes
    the controller sets and clears: `data-dnd-active` on <html> for the whole

@@ -8,12 +8,116 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-**On a phone, syncing the inbox meant reaching for the button at the top of the screen.**
-Pulling the mail list down from its top now syncs it, through the same sync as that button: drag
+**Pull the mail list down to sync it, on a phone.** Reaching for the button at the top of the
+screen is no longer the only way: pulling the mail list down from its top now syncs it, through the same sync as that button: drag
 past the *Release to sync* indicator and let go, and the sync icon spins while the run lasts. It is
 for a finger on a phone-width screen only. A mouse, a trackpad and wider windows behave as before, a
 list scrolled down scrolls as it always did, and a pull while the sidebar is open does nothing.
 Reduced motion removes the indicator's slide. No schema change, no deployment change.
+[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
+
+**Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
+inbox or on an account's page, replaces the current entry, as Gmail does, so the browser's Back
+leaves the inbox instead of stepping back through every tab you looked at. The address still follows
+the tab. No migration.
+[#161](https://github.com/karatektus/pl_mail/pull/161), by @Flouss.
+
+**Mail read, unread, starred or unstarred in Outlook now reaches plMail.**
+An Outlook account follows each folder with a change feed, and the feed was begun asking for a
+message's id, folder and Message-ID only. Exchange reports a change in the properties a feed asks
+for, so a message whose only change was being read, unread, flagged or unflagged was not reported
+at all: mail handled in Outlook, on a phone or by a rule stayed as plMail had last seen it. (The
+other direction, plMail to Outlook, was not affected.) The feed now asks for both. A feed already
+running keeps what it was begun with, so after the upgrade every Outlook folder is listed once more
+and followed from a new feed; the account shows as importing until that pass is done, which costs
+its listing pages and fetches nothing it already has. Each message listed is also compared with the
+server's read state and star, so the few that drifted while nothing was listening move to match the
+server: a message plMail has as read that Outlook still has unread goes back to unread, and the
+other way round, so a badge can go up as well as down. **Migration:** clears the stored change feeds
+of Outlook accounts; nothing else changes in the schema.
+[#114](https://github.com/karatektus/pl_mail/pull/114), by @Flouss.
+
+**Saving an attachment to Paperless-ngx works.** The "Save to…" chooser listed your Paperless tags
+as folders to open, but a tag has nothing inside it, so clicking one only reloaded the same list and
+the dialog seemed to do nothing. A tag is now the choice itself: click it and the attachment is filed
+under it, or pick **No tag** to file it under none. The same goes for the folder a filter saves to.
+The upload itself was also refused ("No file was submitted") because it was sent in a form
+Paperless could not read; it now goes through. Paperless still turns down file types it cannot
+consume, a ZIP for one, and says so. Nextcloud, Google Drive, OneDrive, Dropbox, Immich and Google Photos choose exactly as before. No
+migration.
+[#78](https://github.com/karatektus/pl_mail/pull/78), by @Flouss.
+
+**A message you read in plMail is read in Outlook too.** On Microsoft accounts, marking mail read
+(or starring it) is sent to Outlook by a background job, and that job used to work out the new state
+by reading the message back from plMail's database. When the job started a moment before the change
+had been saved, it read the old state and told Outlook the message was still unread: Outlook was
+touched, nothing changed, and an hour later the next sync brought the "unread" back into plMail. In
+a bulk mark-read several messages were affected. The job now carries what you chose. Archive,
+trash and label changes are unchanged, and a retried push still sends the current state rather than
+the original choice. Messages already stuck this way are not repaired; mark them read again. Gmail
+and IMAP jobs already carried the change themselves. No migration.
+[#111](https://github.com/karatektus/pl_mail/pull/111), by @Flouss.
+
+**A message's header no longer breaks into pieces in a narrow pane.** On a phone, or with the
+reading pane on the right and dragged narrow, the sender's address was cut mid-word across three
+lines while the date and the buttons took half the width. Below 36rem of pane width the date, the
+menu and the arrow now sit on a row of their own under the header, so the sender gets the full
+width. It follows the width of the pane, not of the window. Wider panes are unchanged. No
+migration.
+
+**Outlook mail moved in another app leaves the folder it came from here too.**
+A message marked as spam (or archived, or deleted) in the phone's mail app was taken out of its old
+folder and put in the new one, but its conversation kept the old folder as well. The message sat in
+Spam while the inbox list went on showing it. A conversation now sits in exactly the folders its
+messages do, so the move shows in the list at the next sync. Conversations already left that way
+are put right the next time one of their messages changes folder.
+[#121](https://github.com/karatektus/pl_mail/pull/121), by @Flouss.
+
+**All Mail, if you want it: every conversation outside Spam and the bin, in one list (#57).**
+Archived mail had no list of its own to be browsed in, only search. All Mail holds it, together
+with what arrived, what you sent and your drafts, as Gmail's All Mail does, leaving out only Spam
+and the bin. It is off until you switch it on with its eye in Settings → Mail → Labels; then it is
+a row beside Drafts for every account together, and a row at the top of each account's folders for
+that account alone. Archiving or snoozing from it leaves the conversation in the list. A
+conversation with several labels is listed once. No migration.
+
+**An Outlook account's read, unread, starred, moved and deleted mail reaches an open page without a reload.**
+Marking a message unread in Outlook on the web moved the unread counts in the sidebar and left the
+list showing the old row until the page was reloaded; moving or deleting one there did the same. A
+sync that only changed such a message ingested no mail, and "an account changed" was announced only
+after a sync had ingested something, so the open list was never told. It is told now, once per
+sync, and only when a row really changed: a server that agrees with what plMail already has says
+nothing.
+[#122](https://github.com/karatektus/pl_mail/pull/122), by @Flouss.
+
+**Choosing a profile picture from Immich, Paperless-ngx or another connected service opens the
+same picker as attaching to a mail.** Settings → Profile showed a small grid of its own: the first
+couple of dozen images at the top of the service, with no albums, no people, no search, no way to
+scroll on. Each connection's button now opens the full picker, with "Use as profile picture" where
+a mail has "Attach", and one picture can be chosen at a time. A PDF, or a file the service says is
+over 4 MB, is shown greyed out rather than hidden; Immich and Google Photos do not report sizes, so
+a large photo from them is still refused after it is chosen, with the reason under the picture
+field. A scanned photograph from Paperless-ngx is now taken as the original — it used to arrive as
+the archived PDF and be refused. The setup wizard's profile step still has the small grid, because
+the picker would replace the wizard it is inside. No migration.
+
+**Remote images can be shown in every message without asking (#124).**
+Settings → Mail → Images has one switch, **Always show remote images**, off until you turn it on.
+With it on, no message asks before loading its pictures; they still come through plMail's image
+proxy, so a sender learns that the message was opened but not your address. Mail in Spam stays
+blocked as before, and the senders you trusted one by one are kept for when it is switched off
+again. The choice lives in your user settings and a config backup carries it. No migration.
+
+**An account's own inbox can have the category tabs (#55).** Clicking an account in the sidebar
+opened a plain list, so on an Outlook account — or any account — the tabs were nowhere to be found
+unless you went back to the top-level Inbox. The categories were being worked out all along; that
+page just never drew them. Settings → Mail → Categories now has **Tabs on each account**, off until
+you turn it on: with it on, an account's page shows Primary, Social, Promotions, Updates, Forums and
+your own tabs for that account's mail; off, it stays the account's whole inbox in one list, as
+before. It is offered only while **Inbox tabs** is on, and a config backup carries it. The tabs on
+this page are plainer than the top-level Inbox's: no "new" pills, sender hints or unread tint
+(those add up every account), and no dropping a conversation onto a tab. No migration.
+
 **Signing in through single sign-on keeps you signed in, as "Keep me signed in" does on the password form.**
 A single sign-on sign-in left nothing but the PHP session holding you in: a cookie that ends with the
 browser, kept in a file that is cleaned up after 24 minutes without a request and that goes with the
@@ -304,6 +408,12 @@ import line in the background-work indicator now shows the quota, roughly how mu
 use, how many messages a minute are coming in, how long the rest of the import takes, and says
 so when Google has paused it. No
 migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+**An account's page shows your own tabs, so mail filed in one can be found there.** Clicking an
+account in the sidebar offered the five built-in tabs and none of the ones you made. Mail filed in
+one of yours is in that tab only — not in Primary or any other — so on an account's page it was in
+no tab at all. The page now has the same tabs as the top-level Inbox, yours included, each shown
+while it holds mail in that account, and `?tab=` accepts yours. Counts are per account; a link to a
+tab that is not yours, or was deleted, opens Primary as it does in the Inbox. No migration.
 
 **The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
 icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a

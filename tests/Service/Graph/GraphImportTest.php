@@ -405,6 +405,8 @@ final class GraphImportTest extends KernelTestCase
             $container->get('App\Service\Mail\MessageEraser'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
             new \App\Service\Mail\SyncOrigin(),
+            $container->get('App\Service\Label\ThreadLabelSynchronizer'),
+            new \App\Service\Mail\SyncNotifier(new \App\Tests\Support\Mercure\RecordingHub(), new \Psr\Log\NullLogger()),
         );
     }
 
