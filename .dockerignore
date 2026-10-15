@@ -2,11 +2,7 @@
 .github/
 .idea/
 **/*.log
-docker-compose.override.yml
-compose.override.yaml
 compose.test.yaml
-# Local deployment file — contains real secrets, must never reach an image.
-truenas.compose.yaml.local
 .env.local
 .env.*.local
 .env.local.php

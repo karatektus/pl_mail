@@ -23,16 +23,16 @@ use Symfony\Component\Dotenv\Dotenv;
  * mode; bundles.php loads DebugBundle there, `composer install --no-dev` never
  * put it in the image, and all six app services crash-looped on a missing class
  * while the entrypoint blamed the database. Nobody caught it because both paths
- * the maintainers use avoid the file — truenas.compose.yaml hardcodes prod and
- * has no `.env` beside it, and a development checkout has an override that
- * builds an image which does have the dev dependencies.
+ * the maintainers use avoid the file — the TrueNAS app hardcodes prod and has
+ * no `.env` beside it, and a development checkout runs compose.dev.yaml, which
+ * builds an image that does have the dev dependencies.
  *
  * So the rule, and it is one rule rather than a list of variables to remember:
  * a compose file an operator runs against a checkout may interpolate a variable
  * only where doing so cannot change what runs — `.env` does not set it, or sets
  * it to exactly what the compose default already says. Anything that must be
  * one specific value in production is hardcoded, and dev overrides it from
- * compose.override.yaml.dist, which is the file whose whole job that is.
+ * compose.dev.yaml, which is the file whose whole job that is.
  *
  * Text rather than `docker compose config`: this has to fail in CI and on a
  * machine with no Docker daemon, and the parse is what is being asserted about.
@@ -42,17 +42,12 @@ final class ComposeEnvironmentTest extends TestCase
     /**
      * The files an operator runs from a checkout, where `.env` is present.
      *
-     * compose.override.yaml.dist is deliberately absent: it is the development
-     * override, it is *meant* to follow `.env` into dev, and holding it to this
-     * rule would break the thing the rule exists to protect.
-     *
-     * truenas.compose.yaml is absent for the opposite reason — it is pasted into
-     * an appliance's YAML box with no `.env` anywhere near it, so interpolation
-     * there resolves to the compose defaults and nothing else.
+     * compose.dev.yaml is deliberately absent: it is the development overlay,
+     * it is *meant* to follow `.env` into dev, and holding it to this rule would
+     * break the thing the rule exists to protect.
      */
     public const array OPERATOR_COMPOSE_FILES = [
         'compose.yaml',
-        'compose.prod.yaml',
         // The demo overlay, and it belongs here for a sharper version of the
         // reason above: `.env` ships APP_DEMO_MODE=0, so a `${APP_DEMO_MODE:-1}`
         // in that file would resolve to 0 for every operator who cloned the
@@ -131,7 +126,7 @@ final class ComposeEnvironmentTest extends TestCase
                     '%s interpolates ${%s} with the default "%s", but .env sets it to "%s" — and '
                     . 'compose reads .env, so "%s" is what every operator who cloned the repo '
                     . 'actually gets. Hardcode the production value in %s and let '
-                    . 'compose.override.yaml.dist supply the development one.',
+                    . 'compose.dev.yaml supply the development one.',
                     $file,
                     $variable,
                     $default,

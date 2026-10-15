@@ -9,8 +9,10 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Mail\AllMailView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\ListViewResolver;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
@@ -47,6 +49,7 @@ final class ListViewResolverCustomTabTest extends KernelTestCase
             $container->get(MessageThreadRepository::class),
             $container->get(LabelRepository::class),
             new InboxTabs($container->get(InboxCategoryRepository::class)),
+            new AllMailView($container->get(AccountRepository::class)),
         );
 
         $this->connection->beginTransaction();

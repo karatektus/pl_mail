@@ -109,6 +109,11 @@ jobs:
     # about a minute; splitting it across runners would spend more time starting
     # stacks than it saved, and the point of this workflow is wall-clock rather
     # than the appearance of parallelism.
+    # THESE JOB NAMES ARE BRANCH PROTECTION. `main` requires "PHPStan and
+    # PHPUnit", every "Playwright N/M" shard and "Playwright (install-wide)" by
+    # name (Settings → Branches). Renaming one, or changing the shard count,
+    # leaves a required check that never reports, and every pull request waits
+    # on it for ever — change the rule in the same breath.
     static:
         name: PHPStan and PHPUnit
         runs-on: ubuntu-latest

@@ -65,7 +65,7 @@ because half a provider would look set up here while nothing signed anybody in.
 
 An install that manages its configuration in a compose file can set the same things there, and they
 are used whenever Admin → SSO holds no complete provider. `compose.yaml` passes them through from
-your environment, and `truenas.compose.yaml` has the first four in its `x-config` block.
+your environment.
 
 | Variable | Setting | Default |
 |---|---|---|

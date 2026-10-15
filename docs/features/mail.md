@@ -19,12 +19,13 @@ label you made shows everything carrying it, wherever it arrived.
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
 | **Archive** | Conversations you archived |
+| **All Mail** | Every conversation outside Spam and the bin, archived mail, sent mail and drafts included — off until you switch it on |
 | **Accounts** | One row per account; clicking it opens that account's inbox |
 
-Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**,
-and **Spam** where an account has a junk folder — has an eye in **Settings → Labels**: switch one off
-and its row leaves the sidebar, switch it back on and it returns, both straight away. **Unread** is
-the one that starts off.
+Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **All
+Mail**, **Trash**, and **Spam** where an account has a junk folder — has an eye in **Settings →
+Labels**: switch one off and its row leaves the sidebar, switch it back on and it returns, both
+straight away. **Unread** and **All Mail** are the ones that start off.
 
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
@@ -35,6 +36,16 @@ way: the conversation is starred where it lies, and one that already was stays s
 Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
 click further; the account row is not an archive of everything the account has ever held.
+
+**All Mail** is everything you have, in one list: what arrived, what you sent, your drafts, and
+above all what you archived, which otherwise has no list to be browsed in. Only Spam and the bin
+are left out. It is Gmail's All Mail, and like Gmail's it holds your own mail too. Switched on, it
+is a row beside **Drafts** for all your accounts together, and a row at the top of each account's
+folders for that account alone; the account row itself still opens the account's inbox. One eye in
+**Settings → Labels** shows or hides both. Archiving or snoozing a conversation from All Mail
+leaves it in the list, where it still belongs; moving it to Spam or the bin takes it out. A
+conversation carrying several labels is listed once, and the unread filter counts the same list.
+Nothing can be dropped on it — there is nothing to move into a list that already holds everything.
 
 Under **Accounts**, expanding an account shows the labels that actually exist on it. That list is
 narrower than the sidebar's own label list on purpose: the sidebar means "across every account",
@@ -79,7 +90,17 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
 
-On a phone, switching tabs replaces the entry in the browser's history rather than adding one, so the browser's Back leaves the inbox instead of stepping back through the tabs you looked at.
+The tabs are on the top-level Inbox, and you can have them on **an account's own inbox** too (click
+the account in the sidebar): **Settings → Mail → Categories**, **Tabs on each account**. It is off
+until you turn it on, and then an Outlook or any other account has them, [tabs of your
+own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
+is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
+account's mail — so a tab of yours that holds mail only in another account is not on this one. The
+account page's tabs are plainer: no
+"new" pills, sender hints or unread tint, because those add up every account and would describe the
+wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
+
+Switching tabs replaces the entry in the browser's history rather than adding one, as Gmail does, so the browser's Back leaves the inbox instead of stepping back through the tabs you looked at. The same goes for the tabs on an account's page.
 
 ### An inbox without tabs
 
@@ -742,6 +763,25 @@ you had it.
 **Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
+
+## Remote images
+
+Pictures that a message loads from the sender's servers are blocked until you ask for them: a
+picture fetched when you open a message tells its sender that, and when, you read it. The message
+says how many it held back, with two ways to show them — **Show images** for this message only, and
+**Always show images from** the sender, which remembers that sender for your account. A trusted
+sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
+yourself shows its pictures without asking.
+
+**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
+your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
+senders you trusted one by one are kept either way, so switching it off again brings back exactly
+the list you had. A config backup carries the choice.
+
+Mail in **Spam** stays blocked whatever you choose, trusted senders included: a message filed as
+spam is your provider doubting it comes from who it says, and **Show images** is still there to
+load one message's pictures by hand.
 
 ## Snooze
 

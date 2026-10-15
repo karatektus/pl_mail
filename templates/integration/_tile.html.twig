@@ -13,9 +13,12 @@ selection, which pulled its corners away from the ring.
 {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
 {% set thumbUrl = path('app_integration_thumbnail', { id: integration.id, file: entry.id }) %}
 
-{% if knownTooBig %}
+{# Profile-picture mode only: not something that can become a picture. #}
+{% set notAnImage = entry.id in refusedIds|default([]) %}
+
+{% if knownTooBig or notAnImage %}
     <div class="relative aspect-square rounded-lg overflow-hidden bg-sunken opacity-40"
-         title="{{ 'integration.picker.too_big'|trans }}">
+         title="{{ (notAnImage ? 'integration.picker.not_an_image' : 'integration.picker.too_big')|trans }}">
         <img src="{{ thumbUrl }}" alt="" loading="lazy" class="w-full h-full object-cover">
     </div>
 {% else %}

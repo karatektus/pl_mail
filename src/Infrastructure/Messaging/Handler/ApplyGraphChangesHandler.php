@@ -102,7 +102,11 @@ final class ApplyGraphChangesHandler
 
         $this->ensureCategoriesDefined($account, $messages);
 
-        $throttled = $this->pushState($account, $messages);
+        // `?? null` and not a plain read: a job serialized before these two
+        // fields existed comes back with them uninitialised, and reading an
+        // uninitialised property is an Error that would reject every Graph push
+        // queued across an upgrade. `??` is the one read that does not throw.
+        $throttled = $this->pushState($account, $messages, $message->isRead ?? null, $message->flagged ?? null);
         $throttled = array_merge($throttled, $this->pushMove($account, $messages, $message->moveToLabel));
 
         $this->em->flush();
@@ -119,7 +123,7 @@ final class ApplyGraphChangesHandler
      * @param list<Message> $messages
      * @return list<string>  throttled graph ids
      */
-    private function pushState(Account $account, array $messages): array
+    private function pushState(Account $account, array $messages, ?bool $isRead, ?bool $flagged): array
     {
         $patches = [];
 
@@ -136,10 +140,15 @@ final class ApplyGraphChangesHandler
                 ]);
             }
 
+            // What the job says wins over the row: the row may be the old one,
+            // see ApplyGraphChangesMessage. Nothing said, the row decides.
+            $read    = $isRead ?? $entity->hasFlag(MessageFlag::SEEN);
+            $starred = $flagged ?? (null !== $entity->starredAt);
+
             $patches[$graphId] = [
-                'isRead'     => $entity->hasFlag(MessageFlag::SEEN),
+                'isRead'     => $read,
                 'flag'       => [
-                    'flagStatus' => null !== $entity->starredAt ? 'flagged' : 'notFlagged',
+                    'flagStatus' => true === $starred ? 'flagged' : 'notFlagged',
                 ],
                 'categories' => $this->labelPolicy->categoryNames($entity),
             ];
@@ -536,6 +545,8 @@ final class ApplyGraphChangesHandler
             'count'     => count($retryIds),
         ]);
 
+        // No isRead / flagged: the retry pushes what the rows say now, not what
+        // the user chose thirty seconds ago. See ApplyGraphChangesMessage.
         $this->bus->dispatch(
             new ApplyGraphChangesMessage((int) $account->id, $retryIds, $moveToLabel),
             [new DelayStamp(self::RETRY_DELAY_MS)],

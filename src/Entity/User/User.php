@@ -1048,6 +1048,59 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether remote images load in every message without the "Show images"
+     * bar, as if every sender were on the allowlist (#124).
+     *
+     * OFF unless somebody switches it on. The block is what keeps a sender's
+     * tracking pixel from learning that, when and where a message was opened,
+     * and that protection is worth most to the people who never thought to ask
+     * for it. Somebody who has weighed it and would rather not click every time
+     * can say so once. Only a stored true is on, so the key is absent for
+     * nearly everybody.
+     *
+     * Spam is still blocked with this on — MessageRenderer reads a message in
+     * Spam as the provider disputing who sent it, and no standing permission
+     * outranks that. Images still come through the proxy, so a sender learns
+     * that the message was opened but not the reader's address. Per USER, like
+     * the allowlist it widens — Settings → Mail → Images.
+     */
+    public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
+
+    /** Virtual, out of the settings bag — see SETTING_IMAGES_ALWAYS_SHOW. */
+    public bool $alwaysShowImages {
+        get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether an account's own inbox (the account row in the sidebar) is shown
+     * in the category tabs as well as the unified Inbox (#55).
+     *
+     * OFF unless somebody switches it on. With it on, clicking an account opens
+     * its Primary tab, and its Social or Promotions mail is one more click
+     * away; off, the account page is the account's whole inbox, which is what
+     * it always was and what the account's own "Inbox" folder row still lists.
+     * Turning a familiar page into a narrower one is a change somebody should
+     * ask for, not one that arrives with an upgrade.
+     *
+     * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
+     * somebody who chose One list gets one list everywhere, whatever this says.
+     * Only a stored true is on, so the key is absent for nearly everybody.
+     * Per USER — Settings → Mail → Categories.
+     */
+    public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
+
+    /** Virtual, out of the settings bag — see SETTING_ACCOUNT_INBOX_TABS. */
+    public bool $accountInboxTabs {
+        get => true === $this->getSetting(self::SETTING_ACCOUNT_INBOX_TABS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_ACCOUNT_INBOX_TABS, $on ? true : null);
+        }
+    }
+
+    /**
      * Which position the topbar's calendar button leaves out — Settings →
      * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
      * is what the button has always done, and a person who has learned it

@@ -156,6 +156,7 @@
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
+                                        { section: 'images',        icon: 'fa-regular fa-image' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
                                     ]|merge(ai_settings_available() or section == 'ai'
                                             ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
@@ -417,6 +418,7 @@
                                                         overrideProvider: app.user.categorySorting.overrideProvider,
                                                         assistantOffered: ai_categorisation_enabled(),
                                                         tabs:             app.user.categorySorting.tabs,
+                                                        accountTabs:      app.user.accountInboxTabs,
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
@@ -463,6 +465,17 @@
                                             {% block body %}
                                                 {% include 'settings/_disposal.html.twig' with {
                                                     deleteNow: app.user.deleteNowButtons,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'images' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.images.heading'|trans,
+                                            subheading: 'settings.images.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_images.html.twig' with {
+                                                    alwaysShow: app.user.alwaysShowImages,
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}

@@ -1084,6 +1084,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Not a bottle aboard outside Spam an' the bin."
+
 alias:
     added: 'Address added, arr!'
     catch_all_added: 'Catch-all harbour added, arr!'
@@ -2051,16 +2056,21 @@ integration:
         choose_folder: 'Pick a hold fer %file%'
         choose_for_filter: "Pick where this sieve stows its cargo."
         choose_here: 'Take this hold'
+        choose_tag: 'Pick a tag fer %file%'
         choose_this: Take it
         create: Make
         folder_name: 'Hold name'
         library: 'Whole library (no album)'
         new_album: 'New album'
         new_folder: 'New hold'
+        new_tag: 'New tag'
         no_albums: 'No albums yet, matey.'
         no_subfolders: 'No holds here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet, matey.'
         save_here: 'Stow here'
         start_over: 'Start afresh'
+        tag_name: 'Tag name'
     picker:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'
@@ -2069,6 +2079,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Naught found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2088,6 +2099,7 @@ integration:
             skipped: 'Left on the dock: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too heavy to haul'
+        use_as_avatar: 'Hoist as me flag'
 
 jobs:
     button:
@@ -3570,6 +3582,13 @@ settings:
         'off': Off
         'on': On
         subheading: "How bottles be sunk for good."
+    images:
+        always_show: "Always hoist the pictures"
+        always_show_hint: "Hauls in the pictures in every bottle without askin' first. Senders can then tell that an' when ye opened their mail, but not where ye be anchored: pictures still come aboard through plMail. Bottles in Spam stay blocked either way. Off till ye turn it on."
+        heading: Pictures
+        'off': Off
+        'on': On
+        subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
@@ -3589,6 +3608,7 @@ settings:
             mail: "Th' post"
             personal: Yerself
         health: "State o' yer crew"
+        images: Pictures
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
@@ -3798,6 +3818,11 @@ settings:
         reorder: "Drag t' reorder"
         subheading: "Raise or strike the ship's own tabs, add yer own, an' haul 'em into whatever order ye fancy."
     sorting:
+        account_tabs:
+            hint: "Shows the tabs on each ship's own hold too, when ye click the ship in the sidebar. Off shows that ship's whole hold as one pile."
+            label: "Tabs on every ship"
+            'off': Off
+            'on': On
         again:
             button: "Ask again"
             hint: "Th' oracle answers once per message an' keeps th' answer. Ask again when th' oracle, its orders or a plMail release have changed — it costs an askin' per message, so it be bounded to yer newest post."
@@ -3975,6 +4000,7 @@ sidebar:
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:
+        all_mail: Every bottle aboard
         archive: The hold
         calendar: Almanac
         drafts: Scrolls in the works

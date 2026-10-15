@@ -443,6 +443,33 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         );
     }
 
+    /**
+     * "Select all N" in All Mail reaches every chunk of it (#57): All Mail is
+     * not a label, so ListViewResolver answers it with its own query, and a
+     * whole-view job has to keep asking that query page after page.
+     */
+    public function testUnifiedAllMailWholeViewProcessesEveryChunk(): void
+    {
+        $ids = $this->seedThreads();
+        $job = $this->job();
+
+        $job->view = ['scope' => 'all_mail', 'value' => '', 'unreadOnly' => true];
+        $this->em->flush();
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Done, $fresh->state);
+        self::assertSame(self::THREADS, $fresh->processed);
+
+        foreach ($ids as $id) {
+            self::assertNotNull($this->em->find(Message::class, $id)?->seenAt);
+        }
+    }
+
     private function job(): BackgroundJob
     {
         $job = new BackgroundJob($this->user, JobKind::MarkRead);
