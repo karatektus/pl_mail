@@ -13,6 +13,11 @@ use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
 use App\Entity\Mail\Account;
+use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\UserKey;
+use App\Entity\Crypto\UserKeyCopy;
+use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\UserKeyCopyKind;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Monitoring\LogSettings;
 use App\Entity\User\User;
@@ -38,6 +43,12 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 final class ConfigBackupRoundTripTest extends KernelTestCase
 {
     private const string EMAIL = 'audit@round-trip.test';
+
+    /** Shapes the keyring checks for; nothing ever opens them. */
+    private const string KDF_SALT      = 'c2FsdHNhbHRzYWx0c2FsdA==';
+    private const string WRAPPED_KEY   = 'v1.AAAAAAAAAAAAAAAA.c29tZSB3cmFwcGVkIHVzZXIga2V5IGJ5dGVz';
+    private const string ADDRESS_FPR   = '0123456789abcdef0123456789abcdef01234567';
+    private const string CONTACT_FPR   = 'fedcba9876543210fedcba9876543210fedcba98';
 
     private const string PASSWORD = 'a long enough backup password';
 
@@ -163,6 +174,45 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.categorySorting.overrideProvider', true, $user->categorySorting->overrideProvider);
         $this->check('user.categorySorting.tabs', false, $user->categorySorting->tabs);
         $this->check('user.signature (file)', 'anna-signature.png', $user->signature);
+
+        $this->check('user.kdfSalt', self::KDF_SALT, $user->kdfSalt);
+        $this->check('user.kdfIterations', 600000, $user->kdfIterations);
+
+        // ── The keyring ───────────────────────────────────────────────────
+        $userKeys = $container->get(\App\Repository\Crypto\UserKeyRepository::class)->findForUser($user);
+        self::assertCount(1, $userKeys, 'the user key did not come back');
+        $this->check('userKey.wrapped', self::WRAPPED_KEY, $userKeys[0]->wrapped);
+
+        $copies = $container->get(\App\Repository\Crypto\UserKeyCopyRepository::class)->findForUser($user);
+        self::assertCount(1, $copies, 'the recovery phrase copy did not come back');
+
+        $addressKeys = $container->get(\App\Repository\Crypto\AddressKeyRepository::class)->findForUser($user);
+        self::assertCount(1, $addressKeys, 'the address key did not come back');
+        $this->check('addressKey.fingerprint', self::ADDRESS_FPR, $addressKeys[0]->fingerprint);
+        $this->check('addressKey.userKey', $userKeys[0], $addressKeys[0]->userKey);
+        $this->check('addressKey.addresses', ['anna@work.audit.test'], $addressKeys[0]->addresses());
+
+        // ── Contacts' keys ────────────────────────────────────────────────
+        $contactKeys = $container->get(\App\Repository\Crypto\ContactKeyRepository::class)->findForUser($user);
+        self::assertCount(2, $contactKeys, 'the contact keys did not come back');
+        $this->check('contactKey.fingerprint', self::CONTACT_FPR, $contactKeys[0]->fingerprint);
+        $this->check('contactKey.pinned', true, $contactKeys[0]->pinned);
+        $this->check('contactKey.encrypt', \App\Domain\Enum\Crypto\RecipientPolicy::Always, $contactKeys[0]->encrypt);
+        $this->check('contactKey.scheme', \App\Domain\Enum\Crypto\PgpScheme::Inline, $contactKeys[0]->scheme);
+        $this->check('contactKey (changed).status', \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, $contactKeys[1]->status);
+
+        // ── S/MIME ────────────────────────────────────────────────────────
+        $smime = $container->get(\App\Repository\Crypto\SmimeCertificateRepository::class)->findForUser($user);
+        self::assertCount(1, $smime, 'the S/MIME certificate did not come back');
+        $this->check('smimeCertificate.privateKey', self::WRAPPED_KEY, $smime[0]->privateKey);
+        $this->check('smimeCertificate.userKey', $userKeys[0], $smime[0]->userKey);
+        $this->check('smimeCertificate.addresses', ['anna@work.audit.test'], $smime[0]->addresses);
+        $this->check('smimeCertificate.status', \App\Domain\Enum\Crypto\SmimeCertificateStatus::Retired, $smime[0]->status);
+
+        $certificates = $container->get(\App\Repository\Crypto\ContactCertificateRepository::class)->findForUser($user);
+        self::assertCount(1, $certificates, 'the contact certificate did not come back');
+        $this->check('contactCertificate.fingerprint', str_repeat('c', 64), $certificates[0]->fingerprint);
+        $this->check('contactCertificate.verified', true, $certificates[0]->verified);
 
         // ── The user settings bag ─────────────────────────────────────────
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
@@ -376,7 +426,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->email     = self::EMAIL;
         $user->nameFirst = 'Anna';
         $user->nameLast  = 'Beispiel';
-        $user->password  = self::PASSWORD_HASH;
+        $user->useClientDerivedPassword(self::PASSWORD_HASH, self::KDF_SALT, 600000);
         $user->roles     = [User::ROLE_ADMIN];
         $user->locale    = 'de';
         $user->timezone  = 'Europe/Berlin';
@@ -431,6 +481,42 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
 
         $this->entityManager->persist($account);
+
+        // The keyring: wrapped blobs the backup must carry byte for byte, or
+        // the restored password opens nothing.
+        $userKey = new UserKey($user, self::WRAPPED_KEY);
+        $this->entityManager->persist($userKey);
+        $this->entityManager->persist(new UserKeyCopy($userKey, UserKeyCopyKind::Phrase, self::WRAPPED_KEY));
+
+        $addressKey = new AddressKey(
+            $user,
+            $userKey,
+            self::ADDRESS_FPR,
+            "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\npublic\n-----END PGP PUBLIC KEY BLOCK-----",
+            "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nprivate\n-----END PGP PRIVATE KEY BLOCK-----",
+            self::WRAPPED_KEY,
+            AddressKeyOrigin::Generated,
+            null,
+            null,
+        );
+        $addressKey->bind('anna@work.audit.test', true);
+        $this->entityManager->persist($addressKey);
+
+        // A contact's key she pinned, with her preferences for him, and a
+        // changed one she has not decided about: decisions, which must travel.
+        $contactKey = new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', self::CONTACT_FPR, "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nben\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Wkd, \App\Domain\Enum\Crypto\ContactKeyStatus::Current, null, new \DateTimeImmutable('2026-01-02 03:04:05'));
+        $contactKey->pin();
+        $contactKey->encrypt = \App\Domain\Enum\Crypto\RecipientPolicy::Always;
+        $contactKey->scheme  = \App\Domain\Enum\Crypto\PgpScheme::Inline;
+        $this->entityManager->persist($contactKey);
+        $this->entityManager->persist(new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', str_repeat('e', 40), "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnew\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Autocrypt, \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, null, new \DateTimeImmutable()));
+
+        // An S/MIME certificate of hers, retired by a renewal, and one of
+        // Ben's that an authority vouched for.
+        $smime = new \App\Entity\Crypto\SmimeCertificate($user, $userKey, str_repeat('a', 64), "-----BEGIN CERTIFICATE-----\nanna\n-----END CERTIFICATE-----\n", '', self::WRAPPED_KEY, ['anna@work.audit.test'], 'Anna', 'Audit CA', new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2027-01-01'));
+        $smime->retire();
+        $this->entityManager->persist($smime);
+        $this->entityManager->persist(new \App\Entity\Crypto\ContactCertificate($user, 'ben@elsewhere.test', str_repeat('c', 64), "-----BEGIN CERTIFICATE-----\nben\n-----END CERTIFICATE-----\n", true, \App\Domain\Enum\Crypto\ContactKeyStatus::Current, 'Ben', 'Some CA', new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2027-01-01'), new \DateTimeImmutable('2026-01-02 03:04:05')));
 
         $token = \App\Entity\User\ApiToken::restore($user, 'iPhone', self::TOKEN_HASH, 'ab12cd', null, null);
         $this->entityManager->persist($token);

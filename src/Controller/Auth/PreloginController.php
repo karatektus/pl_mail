@@ -45,7 +45,7 @@ final class PreloginController extends AbstractController
             return new JsonResponse(['error' => 'rate_limited'], 429);
         }
 
-        $email = trim((string) $request->request->get('email', ''));
+        $email = trim($request->request->getString('email'));
 
         if ('' === $email) {
             return new JsonResponse(['error' => 'email_required'], 400);

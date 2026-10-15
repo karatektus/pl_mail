@@ -93,6 +93,18 @@ final class Capability
     public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
 
     /**
+     * End-to-end encryption for a native client (phase 6 of issue #28): the
+     * person's keyring as the browser keeps it — wrapped, never readable here
+     * — their contacts' keys, the key lookup the composer uses, and the queue
+     * of encrypted mail an account that keeps decrypted mail still waits on.
+     * Also the encryption fields on Email and the `fingerprints` argument of
+     * Email/import. See docs/CLIENT_DEVELOPMENT.md.
+     *
+     * A vendor URN like the others; the concept called it `urn:plmail:keys`.
+     */
+    public const string KEYS = 'urn:plmail:params:jmap:keys';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -112,5 +124,6 @@ final class Capability
         self::SYNC,
         self::CONTACTS,
         self::TEMPLATES,
+        self::KEYS,
     ];
 }

@@ -52,7 +52,7 @@ final class AttachmentController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
-        if (false === PdfAttachment::matches($part->contentType, $part->filename)) {
+        if (true === $part->sealed || false === PdfAttachment::matches($part->contentType, $part->filename)) {
             throw $this->createNotFoundException();
         }
 
@@ -96,7 +96,9 @@ final class AttachmentController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
-        $contentType  = $part->contentType ?? 'application/octet-stream';
+        // A sealed part is an OpenPGP message, whatever the browser said the
+        // file was: served as what it is, and only to be downloaded.
+        $contentType  = true === $part->sealed ? 'application/octet-stream' : ($part->contentType ?? 'application/octet-stream');
 
         // An allow-list, not a prefix test. `image/svg+xml` starts with
         // "image/" and executes script when loaded as a document, and the type

@@ -215,6 +215,14 @@ export function consoleCommand(command: string): void {
     });
 }
 
+/** A console command's output, for the few specs that read what the server holds. */
+export function consoleOutput(command: string): string {
+    return execSync(`${CONSOLE} ${command}`, {
+        env: { ...process.env, APP_ENV: "test" },
+        encoding: "utf8",
+    });
+}
+
 /**
  * The inbox row (`<li id="thread_{id}">`) carrying the given subject.
  */

@@ -12,6 +12,7 @@ use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Crypto\DecryptedMailPolicy;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
@@ -80,6 +81,7 @@ final readonly class ClassifyMailHandler
         private HeldMailReleaser       $releaser,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
+        private ?DecryptedMailPolicy   $decrypted = null,
     ) {
     }
 
@@ -295,7 +297,10 @@ final readonly class ClassifyMailHandler
             return false;
         }
 
-        return $this->permissions->allows($user, AiFeature::Categorise);
+        return $this->permissions->allows($user, AiFeature::Categorise)
+            // Decrypted mail only as far as its account lets the models read
+            // it. See DecryptedMailPolicy::allowsAi().
+            && ($this->decrypted?->allowsAi($mail, AiFeature::Categorise) ?? true);
     }
 
     /**

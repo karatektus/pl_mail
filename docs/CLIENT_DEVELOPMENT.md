@@ -668,6 +668,8 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Identity/get` / `Identity/set` | |
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. No `accountId` argument on get and set; per-user. See [Templates](#templates). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Same capability. The folders a user made; the per-account folders of the web tree are not objects. |
+| `Email/import` | RFC 8621 §4.8, plus the plMail argument `fingerprints` for an encrypted draft. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
 
 **Not implemented today.** None of these is a deliberate exclusion — they haven't been needed yet. If
 your client wants one, **ask for it rather than engineering around it** (see [§0](#0-read-this-first-the-server-is-under-active-development)):
@@ -1135,6 +1137,104 @@ What to do with the answer:
 
 Dates are computed in the user's time zone and written in the language the user has set in
 plMail, as are the labels inside open markers.
+
+### End-to-end encryption: `urn:plmail:params:jmap:keys`
+
+plMail encrypts with OpenPGP and S/MIME end to end. **The server never holds a readable key or the text of an
+encrypted message**; your app does the cryptography, as the web app does in the browser (concept:
+[issue #28](https://github.com/karatektus/pl_mail/issues/28), section 13). This capability gives
+you what you need. The capability object carries the constants; `accountCapabilities` carries
+`keepsDecryptedMail` per account.
+
+**Every wrapping** is `v1.<iv>.<ciphertext>`, both base64 (standard alphabet), AES-256-GCM, with the
+**purpose string as associated data**: `purposes.userKey` for a user key, `purposes.addressKeyToken`
+for an address key's token, `purposes.smimeKey` for an S/MIME private key, `purposes.pairingTransfer`
+for the pairing bundle.
+
+**Getting the keys onto the device — pairing.** When the browser that shows the pairing QR code has
+the keyring open, the URI carries the transfer key in its fragment:
+`plmail://pair?host=…&code=…#k=<base64url, 32 bytes>`. The fragment never reaches the server. The
+redeem answer (`POST /device/pair`) then has a `keys` field next to `secret` and `username`; open it
+with the transfer key (`purposes.pairingTransfer`) to get JSON
+`{"v": 1, "userKeys": [{"id": 3, "key": "<base64, 32 bytes>"}]}`. Store the user keys under a
+Keystore key of your own. A QR code without `#k=` pairs without keys.
+
+**Fallback — the password, once.** `Keyring/get` (no `accountId`, one object with id `singleton`)
+returns `kdf: {salt, iterations}` and `userKeys: [{id, wrapped, status}]`. Derive
+`masterKey = PBKDF2-SHA256(password, salt, iterations, 32 bytes)` and
+`wrapKey = HKDF-SHA256(masterKey, salt = empty, info = kdf.wrapKeyInfo, 32 bytes)`, then open each
+active `wrapped` with `purposes.userKey`.
+
+**Address keys.** `Keyring/get` also returns `addressKeys: [{id, userKeyId, fingerprint, publicKey,
+privateKey, token, status, addresses: [{email, primary}]}]`. Open `token` with the user key
+`userKeyId` (`purposes.addressKeyToken`); it is the passphrase of the armored `privateKey`. New
+addresses, renewed keys and password changes in the web app need no new pairing: they hang off the
+user key you already hold. Sign with the `active` key whose `addresses` has the From address
+`primary`; decrypt with any of them.
+
+**Reading.** Email has five plMail properties: `cryptoType` (`pgp_encrypted`, `pgp_signed`,
+`pgp_inline_encrypted`, `pgp_inline_signed`, `smime_encrypted`, `smime_signed` or null),
+`encrypted`, `signatureState` (`valid`, `untrusted`, `invalid`, `unknown_key`, `key_changed` or
+null — for signed mail, checked by the server), `signer`, and `decryptedOnServer`. For an encrypted
+message `bodyValues` are empty unless `decryptedOnServer`; download its `blobId` (the ciphertext as
+it arrived), decrypt, and parse the inner MIME message yourself. Check a signature inside the
+encryption against `ContactKey/get`.
+
+**Contacts' keys and composing.** `ContactKey/get` lists the keys plMail holds (`status: current`
+is the one in use; `changed` waits to be accepted in the web app), with each recipient's `encrypt`,
+`sign` and `scheme`. `ContactKey/lookup` with `{emails, lookup: true, accountId, from}` answers what
+the web composer is told: each recipient's key — looked up on their domain's WKD through the server
+if plMail has none — and the sender's own key. Encrypt when every recipient has a key, as the web
+app does.
+
+**Sending.** Build the MIME message yourself, encrypt it to every recipient **and the sender** (or
+sign it), upload it, and `Email/import` it with `keywords: {"$draft": true}`. For an encrypted
+message add `fingerprints` — the primary fingerprints of the recipients' keys (and your own) you
+encrypted to — and `signer`; the import is refused with `forbidden` unless they are every
+recipient's current key. Then `EmailSubmission/set` sends it: the server writes the outer headers
+from the message and puts your Content-* headers and body on the wire **byte for byte**, so a
+signature over them holds. The same check runs again when it leaves; change the recipients and it is
+not sent. Undo and scheduled send work as for any submission.
+
+**S/MIME.** `Keyring/get` also returns `smimeCertificates: [{id, userKeyId, fingerprint, certificate,
+chain, privateKey, addresses, subject, issuer, notBefore, notAfter, status}]`: the person's own
+certificates (PEM) with their PKCS#8 private keys, each wrapped directly under the user key
+`userKeyId` with `purposes.smimeKey`. `status` is `active` or `retired` (replaced by a newer
+certificate; decrypt with it, never sign or encrypt with it). `ContactKey/lookup` answers each
+recipient with `smime: {fingerprint, certificate, verified, notAfter}` or null — the contact's
+current, unexpired certificate, or the person's own for their own addresses — and the sender with
+`smime`, the fingerprint of the certificate for the From address. The web app encrypts with
+OpenPGP when every recipient has a `key`, otherwise with S/MIME when every recipient has `smime`,
+the sender has one and there is no Bcc; do the same. An S/MIME `Email/import` is classified from
+its Content-Type (`application/pkcs7-mime; smime-type=enveloped-data`, or `multipart/signed` with
+`application/pkcs7-signature`): give the SHA-256 certificate fingerprints you encrypted to in
+`fingerprints`, and the sender's certificate fingerprint in `signer` — a signed or encrypted
+S/MIME import is refused with `forbidden` unless that is the person's active, unexpired certificate
+for the From address. Encrypt with AES-256-CBC and RSA PKCS#1 v1.5 key transport, recipients
+named by issuer and serial number, and sign with SHA-256 — what Outlook and Thunderbird read.
+
+**Web Key Directory.** `Keyring/get` also returns `wkd: [{email, state, published, fingerprint,
+urls: {advanced, direct}}]` — the person's addresses on the domains the installation publishes keys
+for, and what its Web Key Directory does for each. `state` is `published`, `switched_off`, `no_key`
+or `not_sign_in_address` (only the sign-in address is ever published); `fingerprint` is the key
+that is or would be served. Empty when the installation publishes no keys. Switching publishing is
+the web app's (Settings → Encryption); there is no JMAP method for it.
+
+**Encrypted subjects (RFC 9788).** The web app puts `Subject`, `From`, `To` and `Cc` inside the
+encrypted entity, marked `protected-headers="v1"`, and sends `...` as the outer subject. Read the
+inner `Subject` after decrypting and show it instead of an outer `...` (or `[...]`); fill a reply's
+subject from it. When you send, do the same: the inner headers in your entity, `Subject: ...` on the
+message you import.
+
+**Accounts that keep decrypted mail.** When `keepsDecryptedMail` is true, work through
+`DecryptedMail/pending` (`{accountId, limit}` → `ids`): download each Email's blob, decrypt, upload
+the **inner MIME message whole**, and hand it over with `DecryptedMail/store`
+(`{accountId, emails: {emailId: blobId}}` → `stored`, `notStored`). The server parses and sanitises
+it itself; search, parcels, dates and rules then work on it.
+
+**Do not** send decrypted text anywhere else, cache it unencrypted on disk, or show an encrypted
+message's text in a notification ("Encrypted message" is the whole of it unless
+`decryptedOnServer`). When the app password answers 401, delete the keys with it.
 
 ### Blobs: upload and download
 

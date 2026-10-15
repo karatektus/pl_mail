@@ -173,6 +173,7 @@
                                         { section: 'integrations',  icon: 'fa-solid fa-plug' },
                                         { section: 'app-passwords', icon: 'fa-solid fa-key',   label: 'settings.nav.app_passwords' },
                                         { section: 'security',      icon: 'fa-solid fa-shield-halved' },
+                                        { section: 'encryption',    icon: 'fa-solid fa-lock' },
                                     ] },
                                 ] %}
 
@@ -422,6 +423,9 @@
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}
+                                    {% elseif section == 'encryption' %}
+                                        {# Its own cards, like security: four subjects, not one. #}
+                                        {% include 'settings/_encryption.html.twig' %}
                                     {% elseif section == 'disposal' %}
                                         {% embed 'settings/_card.html.twig' with {
                                             heading:    'settings.disposal.heading'|trans,

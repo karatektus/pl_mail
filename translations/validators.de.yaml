@@ -16,6 +16,7 @@ compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adress
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
 settings.password.current_required: Gib dein aktuelles Passwort ein — es verhindert, dass jemand an deinem offenen Bildschirm es einfach ändert.
 settings.password.current_wrong: Das ist nicht dein aktuelles Passwort.
+settings.password.keys_not_rewrapped: "Deine Verschlüsselungsschlüssel konnten nicht auf das neue Passwort übertragen werden. Lade die Seite neu und versuche es noch einmal."
 settings.password.malformed: Dein Browser hat etwas gesendet, das plMail nicht erwartet hat. Lade die Seite neu und versuche es noch einmal.
 settings.password.mismatch: Die beiden neuen Passwörter stimmen nicht überein.
 settings.password.needs_script: Zum Ändern des Passworts wird JavaScript gebraucht — es wird im Browser geschützt, bevor etwas gesendet wird.

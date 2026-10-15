@@ -341,11 +341,23 @@ framework:
             # than a retry on the worker.
             App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: export
             App\Infrastructure\Messaging\Message\HarvestContactsMessage: maintenance
+            # A signed message's check: a raw fetch from Gmail or Microsoft at
+            # worst, then OpenSSL or GnuPG. Per message and soon after it
+            # arrives, which is what `enrich` is for.
+            App\Infrastructure\Messaging\Message\VerifySignatureMessage: enrich
+            # Reading the sender's key out of a message — its Autocrypt header,
+            # an attached key — for the same reasons, beside the check it feeds.
+            App\Infrastructure\Messaging\Message\CollectContactKeysMessage: enrich
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export
             App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: export
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
+            # Taking decrypted mail back off the server when an account stops
+            # keeping it. bulk, not maintenance: somebody just pressed the
+            # button that says their decrypted mail will be deleted, and it
+            # should be gone by the time they look, not after a backfill.
+            App\Infrastructure\Messaging\Message\ForgetDecryptedMailMessage: bulk
             App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
             # enrich, with everything else that happens to mail once it is in.
             # These were on ingest; see the transport's note for what that cost.

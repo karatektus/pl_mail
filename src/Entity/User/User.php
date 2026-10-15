@@ -1085,6 +1085,115 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * How mail goes out once plMail can encrypt it — Settings → Encryption →
+     * Sending. Four switches in the settings bag, each stored only when it
+     * differs from its default, like the two above.
+     *
+     *   autocrypt      ON:  every message carries an Autocrypt header with
+     *                       the sender's public key, so Thunderbird, Delta Chat
+     *                       and the like can answer encrypted. Invisible to the
+     *                       people who read the mail.
+     *   attach key     OFF: the public key as a file on every message, for
+     *                       recipients whose program does not read Autocrypt.
+     *   sign plain     OFF: sign mail that goes out unencrypted. A
+     *                       signature.asc confuses people without PGP, which is
+     *                       why it is off; mail to somebody whose key plMail
+     *                       knows is signed whatever this says.
+     *   block partial  OFF: when some recipients can be reached encrypted and
+     *                       others cannot, refuse to send rather than send the
+     *                       mail unencrypted to all of them, which is the
+     *                       default and what Proton does.
+     */
+    /**
+     * Whether any of this person's accounts keeps decrypted mail on the
+     * server (Account::SETTING_KEEP_DECRYPTED) — kept here, by the settings
+     * page that switches those, so the layout can decide whether to mount the
+     * background decrypter without a query of its own on every page.
+     */
+    public const string SETTING_KEEPS_DECRYPTED_ANY = 'crypto.keeps_decrypted_any';
+
+    public const string SETTING_CRYPTO_AUTOCRYPT     = 'crypto.autocrypt';
+    public const string SETTING_CRYPTO_ATTACH_KEY    = 'crypto.attach_key';
+    public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';
+    public const string SETTING_CRYPTO_BLOCK_PARTIAL = 'crypto.block_partial';
+
+    /**
+     * protect subject  ON:  an encrypted message carries its subject inside the
+     *                       encryption, and the outside says "..." (RFC 9788,
+     *                       what Thunderbird does by default). A recipient
+     *                       whose program cannot read it sees "...".
+     */
+    public const string SETTING_CRYPTO_PROTECT_SUBJECT = 'crypto.protect_subject';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_PROTECT_SUBJECT. */
+    public bool $protectSubject {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $autocryptHeader {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_AUTOCRYPT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_AUTOCRYPT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $attachPublicKey {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_ATTACH_KEY, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_ATTACH_KEY, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $signPlainMail {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_SIGN_PLAIN, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_SIGN_PLAIN, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $blockPartialEncryption {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, $on ? true : null);
+        }
+    }
+
+    /**
+     * The addresses whose key the person does not want in plMail's Web Key
+     * Directory (WkdDirectory). A list of the ones switched OFF rather than of
+     * the ones switched on, so that publishing is the default the day an
+     * administrator enables the domain, and so an address that becomes the
+     * person's later starts published like the rest. Absent when empty.
+     */
+    public const string SETTING_CRYPTO_WKD_UNPUBLISHED = 'crypto.wkd_unpublished';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_WKD_UNPUBLISHED.
+     * Lower-cased and de-duplicated on the way in, so a comparison against a
+     * binding's address never depends on how somebody typed it.
+     *
+     * @var list<string>
+     */
+    public array $wkdUnpublished {
+        get {
+            $addresses = $this->getSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, []);
+
+            return true === is_array($addresses) ? array_values(array_filter($addresses, 'is_string')) : [];
+        }
+        set(array $addresses) {
+            $addresses = array_values(array_unique(array_map(static fn (string $address): string => strtolower(trim($address)), $addresses)));
+            $this->setSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, [] === $addresses ? null : $addresses);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

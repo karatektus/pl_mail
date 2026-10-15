@@ -38,4 +38,15 @@ class MessagePart
 
     #[ORM\Column]
     public ?bool $isInline = false;
+
+    /**
+     * Uploaded to a sealed draft, so encrypted in the browser to the person's
+     * own key: the stored bytes are an OpenPGP message, and contentType and
+     * filename are what the browser said the file was. Nothing on the server
+     * reads such a part — no thumbnail, no preview, no text extraction — and
+     * it never goes out as it is: the browser opens it again when it builds
+     * the message. See App\Service\Crypto\SealedDrafts.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $sealed = false;
 }

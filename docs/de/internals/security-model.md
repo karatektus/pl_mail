@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:d9c0b6bab334aa62ea98b7a1b572760942843254 -->
+<!-- translated-from: internals/security-model.md sha1:fb125ba7948bdc1df77298d520166f2d9d8f58e0 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -218,6 +218,319 @@ vom Anlegeformular der Administration und von `app:user:password` gesetzt (auße
 `/password/required`, bis sie ein eigenes gewählt hat — nur auf der Firewall `main`, damit
 App-Passwörter weiter synchronisieren.
 
+## Der Schlüsselbund
+
+Phase 2 von Issue #28. Alles Kryptografische passiert im Browser (`assets/crypto/keyring.js`); der
+Server speichert Blobs, die er nicht öffnen kann, und hält die Regeln, die ein veralteter Tab
+brechen könnte (`App\Service\Crypto\Keyring`).
+
+```
+wrapKey         = HKDF-SHA256(masterKey, "plmail/user-key-wrap")      // siehe Abschnitt oben
+User-Key        = 32 Zufallsbytes, per AES-256-GCM unter wrapKey verpackt   // UserKey
+Adress-Key      = OpenPGP-Schlüssel, verschlossen mit einem Zufalls-Token  // AddressKey
+Token           = per AES-256-GCM unter dem User-Key verpackt
+Phrase-Kopie    = User-Key unter HKDF(BIP39-Entropie) verpackt         // UserKeyCopy, Art phrase
+Geräte-Kopie    = User-Key unter einem nicht exportierbaren IndexedDB-Schlüssel  // Art device
+```
+
+Jede Verpackung hat die Form `v1.<iv>.<ciphertext>`, ihr Zweck ist als Associated Data eingebunden
+(`App\Security\Crypto\Wrapped` prüft die Form). Der User-Key ist symmetrisch, wo das Konzept einen
+OpenPGP-Schlüssel skizziert hatte: Er wird nie herausgegeben und verpackt nur Tokens, was AES-GCM
+samt Integrität erledigt.
+
+**Die Sitzung bleibt entsperrt**, indem sie geteilt wird: Bei der Anmeldung verpackt der Browser
+`wrapKey` unter einem zufälligen Entsperr-Schlüssel, legt das Ergebnis in localStorage ab und sendet
+nur den Entsperr-Schlüssel (`unlock_key`), den `SessionUnlock` in der Sitzung hält. Eine spätere
+Seite holt ihn über `GET /keyring/unlock` zurück. Keine Hälfte öffnet allein etwas, und die Hälfte
+des Browsers ist wertlos, sobald die Sitzung endet. Eine Sitzung, die nicht das Anmeldeformular
+geöffnet hat — Angemeldet bleiben, der Installationsassistent —, ist gesperrt, bis `POST
+/keyring/unlock` das Passwort wie eine Anmeldung beweist (gedrosselt durch `keyring_unlock`).
+
+**Regeln, die der Server hält:** ein Schlüsselbund je Person, solange einer aktiv ist; Schlüssel nur
+für Adressen, die der Person gehören; ein primärer Schlüssel je Adresse; ein erzeugter Schlüssel,
+den niemand gesehen hat (`firstUsedAt` null), wird gelöscht statt behalten, wenn ein anderer primär
+wird, außer sein User-Key ist gesperrt; ein Passwortwechsel muss jeden aktiven User-Key neu verpackt
+mitbringen (`PasswordChanger` verweigert ihn sonst, im selben Flush); ein Passwort, das hier niemand
+gewählt hat — `app:user:password`, der erzwungene Wechsel —, sperrt stattdessen jeden Schlüssel. Wer
+entfernt wird, verliert seinen Schlüsselbund.
+
+**Im Haupt-Thread, nicht in einem Worker.** Modul-Worker sehen die Import-Map der Seite nicht, und
+nichts in dieser Phase ist langsam genug, um die Seite zu blockieren. Große Mails zu entschlüsseln
+ist der Punkt, an dem sich ein Worker lohnt.
+
+## Verschlüsselte und signierte Mails lesen
+
+Phase 3 von Issue #28. `MessageCryptoDetector` ordnet jede Nachricht im Builder des jeweiligen
+Anbieters ein, **bevor die Zeile zum ersten Mal geschrieben wird** — `search_vector` wird beim
+INSERT aus `body_text` erzeugt, ein später geleerter Body wäre also schon im Index. Er liest den
+obersten Content-Type mit seinen Parametern `protocol=` / `smime-type=` (von Hand geparst: die
+Erweiterungsattribute von webklex nimmt der erste Header, der sie setzt, und sie machen aus `-` ein
+`_`), weicht nur für Graph auf die Anhangsliste aus und auf Armor am Zeilenanfang im Body.
+Verschlüsselte Arten bekommen einen leeren Body; Teile, die nur Hülle sind (`signature.asc`,
+`smime.p7s`, das Chiffrat), werden nicht als Anhänge gespeichert.
+
+Signierte Mails werden nach dem Commit auf dem Transport `enrich` geprüft (`VerifySignatureMessage`):
+S/MIME mit OpenSSL, zuerst gegen die Zertifizierungsstellen des Systems (Valid), dann mit
+`PKCS7_NOVERIFY` (Untrusted); PGP mit dem Programm `gpg` in einem GnuPG-Verzeichnis, das für eine
+Prüfung angelegt und danach gelöscht wird (`GnupgHome`), ausgewertet über seine `--status-fd`-Zeilen,
+gegen die eigenen Adress-Keys der Person (Valid),
+ihre Schlüssel für den Absender (siehe unten) und einen Autocrypt-Schlüssel in der Nachricht, dessen
+`addr=` gleich `From` ist. Eine Signatur von einer anderen Adresse als `From`
+ist in beiden Fällen Invalid. `PgpMimeSplitter` holt die signierten Bytes von Hand aus der
+Rohquelle, weil jeder MIME-Parser etwas Dekodiertes zurückgibt.
+
+Verschlüsselte PGP-Mails werden im Browser geöffnet (`assets/crypto/message.js`): die byte-genaue
+Rohquelle von `GET /mail/message/{id}/raw`, openpgp.js mit den Adress-Keys des Schlüsselbunds,
+postal-mime für den inneren Teil, DOMPurify für das HTML. Das Ergebnis kommt in denselben
+Sandbox-Frame, gebaut aus demselben Dokument (`mail/_frame_document.html.twig`, gerendert mit dem
+Platzhalter `<!--plmail:body-->`), sodass CSP und per Hash erlaubtes Frame-Skript Byte für Byte die
+des Servers sind. Externe Bilder werden ersetzt, nicht über den Proxy geladen: der Proxy würde die
+URLs erfahren, die der Absender verschlüsselt hat.
+
+## Schlüssel der Kontakte und Schlüsselsuche
+
+Phase 4 von Issue #28. `ContactKey` ist eine Zeile pro Person, Adresse und Schlüssel; `ContactKeys`
+schreibt als Einziges hinein und hält die Vertrauensregel, **Trust on First Use**:
+
+- Der erste verwendbare Schlüssel für eine Adresse ist `current`. Jeder andere danach ist `changed`
+  und wird für nichts verwendet, bis die Person ihn akzeptiert — nicht, wenn er per Mail kommt, nicht
+  über WKD, nicht aus einem Import. Ein partieller Unique-Index (`uniq_contact_key_current`,
+  `WHERE status = 'current'`) ist der Schutz, wenn zwei Worker gleichzeitig Schlüssel übernehmen; das
+  Lesen-dann-Schreiben in PHP ist es nicht.
+- Eine Adresse mit irgendwelchen Schlüsseln — etwa einem entfernten `current` neben einem wartenden
+  `changed` — bekommt durch Ankunft keinen neuen `current`. Die Entscheidung bleibt bei der Person.
+- `pinned` ist das Wort der Person, dass sie den Fingerprint verglichen hat. Es gibt kein Web of
+  Trust: Beglaubigungen auf einem Schlüssel zählen nichts.
+- Was ein verwendbarer Schlüssel ist, entscheidet gpg (`PublicKeyReader`, in einem Wegwerf-
+  Verzeichnis): eine User-ID für die Adresse mit gültiger Selbstsignatur, nicht widerrufen, nicht
+  abgelaufen. Privates Schlüsselmaterial wird abgewiesen, bevor gpg es sieht.
+
+`SignatureVerifier` importiert die eigenen Schlüssel der Person, jeden Schlüssel, den sie für `From`
+hat, und den Autocrypt-Schlüssel der Nachricht. Eigener Schlüssel oder gepinnter `current`: Valid.
+Ungepinnter `current`: Untrusted. Ein `changed`-Schlüssel, ein Autocrypt-Schlüssel, während die
+Adresse schon Schlüssel hat, oder ein fehlender Schlüssel, während sie einen `current` hat:
+**KeyChanged**. Der Browser wendet dieselbe Tabelle auf eine Signatur in verschlüsselter Mail an
+(`assets/crypto/message.js`, mit den Schlüsseln von `GET /contact-keys/sender`). Jede Änderung an den
+Schlüsseln eines Absenders reiht `VerifySignatureMessage` für seine neuesten zweihundert
+PGP-signierten Nachrichten ein (`SignatureRecheck`); die Aktionen im Banner prüfen die geöffnete
+Nachricht sofort.
+
+**Aus eingehender Mail übernommen** von `CollectContactKeysStep` → `CollectContactKeysMessage` auf
+`enrich`: der Autocrypt-Header nur, wenn `addr=` gleich `From` ist (und nur, wenn er der einzige
+gültige Header ist, ohne unbekanntes kritisches Attribut), angehängte Schlüssel aus der Rohquelle
+nur mit einer User-ID für `From`, nie für Mail von den eigenen Adressen der Person. Eine Nachricht
+kann jedermanns Schlüssel tragen; dass der Absender für seinen eigenen bürgt, ist die einzige
+Aussage, die sie machen kann.
+
+**WKD über den Server** (`WkdLookup`), weil die Seite nur mit ihrem eigenen Ursprung sprechen darf.
+Das ist ein Endpunkt, der URLs abruft, die aus Benutzereingaben abgeleitet sind, also:
+
+- Die URL wird gebaut, nie übernommen: `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/<z-base-32 des SHA-1 des kleingeschriebenen lokalen Teils>?l=<lokaler Teil>`,
+  danach `https://<domain>/.well-known/openpgpkey/hu/…`. Die Domain muss ein IDNA-kodierter DNS-Name
+  mit mindestens zwei Labels sein — kein IP-Literal, kein Port, kein Pfad, kein nackter
+  Container-Name.
+- Der Host wird zuerst aufgelöst; ist unter seinen A- und AAAA-Einträgen eine private oder
+  reservierte Adresse, wird nichts gefragt. Die geprüfte Adresse wird festgehalten (`resolve`), und
+  `NoPrivateNetworkHttpClient` prüft die Adresse, mit der tatsächlich verbunden wird.
+- Keine Weiterleitungen (`max_redirects: 0`), 4 Sekunden Timeout und 8 Sekunden Obergrenze, und ein
+  Limit von 256 KiB, das schon während des Empfangs greift.
+- Antworten werden in `cache.app` gemerkt, einen Tag bei einem Treffer und eine Stunde ohne, und nur
+  Suchen, die hinausgehen, zählen gegen den Limiter `wkd_lookup` pro Person (30 in 10 Minuten).
+- Nur Schlüssel mit einer User-ID für die gefragte Adresse werden behalten.
+
+keys.openpgp.org (VKS) wird nicht gefragt; das Konzept lässt das als optionale Instanz-Einstellung
+offen.
+
+## Verschlüsselte Mails schreiben und senden
+
+Phase 5 von Issue #28. Der Server baut, signiert und verschlüsselt nichts: Er hat keinen privaten
+Schlüssel. Das Schreibfenster entscheidet (`assets/controllers/compose/encryption_controller.js`,
+nach den Schlüsseln, die `POST /contact-keys/recipients` nennt), und sobald ein Entwurf verschlüsselt
+werden soll, wird er **versiegelt**:
+
+- jedes automatische Speichern verschlüsselt das Getippte an die aktiven eigenen Schlüssel und
+  schickt es als `sealed[draft]`, die Body-Felder leer. `SealedDrafts` legt es auf der Platte ab
+  (`SealedMessageStorage`, `<storage>/sealed/`), setzt `Message::$sealedDraft` und leert ab dann den
+  Body jedes Speicherns dieser Zeile, egal was es mitbringt — einmal versiegelt, immer versiegelt;
+- Anhänge werden vor dem Hochladen im Browser verschlüsselt (`MessagePart::$sealed`): kein
+  Vorschaubild, keine Vorschau, ausgeliefert nur als `application/octet-stream`;
+- eingebettete Bilder bleiben als `data:`-URIs im versiegelten Entwurf;
+- eine Antwort zitiert verschlüsselte Mails als Markierung `data-quote-sealed`, die der Browser aus
+  der Rohquelle füllt.
+
+Beim Senden baut der Browser die ganze MIME-Entität (`assets/crypto/mime.js`) und verschlüsselt sie
+(PGP/MIME, innen signiert, an alle Empfänger und den Absender) oder signiert sie (multipart/signed)
+oder lässt sie für einen versiegelten Entwurf, der unverschlüsselt rausgeht, unverändert, und schickt
+sie als `sealed[entity]` mit Art, den Fingerprints, an die verschlüsselt wurde, und dem Signierenden.
+`MessageSendService` legt sie über `SealedEntityPart` Byte für Byte auf die Leitung; die äußeren
+Header — From, To, Subject, Date, Message-ID, Autocrypt — schreibt `Email` wie bei jeder Mail, also
+funktionieren alle drei Sender, Rückgängig und geplanter Versand unverändert. Danach werden die
+gesendeten Bytes zur Rohquelle der Zeile, die der Lesebereich wie jede verschlüsselte Mail
+entschlüsselt, und die versiegelten Dateien werden gelöscht.
+
+`SealGuard` wird gefragt, wenn die Entität ankommt, und noch einmal, wenn der Versandjob läuft: Die
+Empfänger müssen noch dieselben sein, für die sie gebaut wurde, und jeder muss noch einen brauchbaren
+Schlüssel haben (`PublicKeyReader`: nicht widerrufen, nicht abgelaufen, zum Verschlüsseln geeignet),
+der unter den Fingerprints ist. Sonst scheitert der Versand, und die Person erfährt es; auf dem
+Server wird nichts neu gebaut.
+
+`Autocrypt:` steht auf jeder ausgehenden Nachricht, mit dem aktiven Schlüssel des Absenders für die
+From-Adresse (`AutocryptHeader`), außer die Person hat es ausgeschaltet.
+
+## Entschlüsselte Mails auf dem Server behalten
+
+Phase 3b von Issue #28, aus, solange eine Person es nicht für ein Konto wählt
+(`Account::$keepDecrypted`), und für die ganze Installation abgelehnt mit
+`APP_E2E_SERVER_PLAINTEXT=forbid` (`DecryptedMailPolicy`).
+
+Ein Browser mit offenem Schlüsselbund entschlüsselt und schickt die **innere MIME-Nachricht als
+Ganzes** an `POST /mail/message/{id}/plaintext` — im Hintergrund (`crypto--decrypted-mail`, das
+`GET /mail/decrypted/pending` abarbeitet) und beim Lesen (`mail--encrypted-message`). `DecryptedMail`
+vertraut nichts davon: Es zerlegt die MIME mit dem Parser des Syncs, bereinigt das HTML selbst,
+speichert Anhänge wie der Sync, legt die entschlüsselte Nachricht neben der Rohquelle ab
+(`SealedMessageStorage::DECRYPTED`; die Rohquelle bleibt das Chiffrat) und markiert die Zeile mit
+`plaintext_source = client`. Danach, was der Ingest getan hätte: der Suchvektor (aus `body_text`
+erzeugt), Insights, Terminvorschläge, Termine aus `.ics`-Teilen und die Regeln — nur solange
+ungelesen.
+
+Die Modelle sind eine eigene Zustimmung (`Account::$keepDecryptedAi`). `DecryptedMailPolicy::allowsAi()`
+fragen die vier Stellen, die Mailtext an ein Modell geben — `MessageEmbedder`, `ClassifyMailHandler`,
+`ThreadTranscript` (Zusammenfassungen), `ReplyContextReader` (der Schreibassistent) —, und sagt für
+einen vom Client gelieferten Body nur Ja, wenn der Modell-Host der Funktion vollständig in private
+oder Loopback-Bereiche auflöst oder dem Host entspricht, dem die Person namentlich zugestimmt hat.
+
+Ausschalten reiht `ForgetDecryptedMailMessage` auf `bulk` ein: Bodys, Anhänge, die entschlüsselte
+Kopie, Embeddings, Thread-Zusammenfassungen, Insights und Vorschläge aller solcher Nachrichten
+werden gelöscht. Schon angelegte Kalendertermine bleiben.
+
+## Verschlüsselte Betreffs
+
+Phase 6b von Issue #28, Header-Schutz nach RFC 9788. Das Schreibfenster legt `Subject`, `From`, `To`
+und `Cc` in die verschlüsselte Entität, markiert sie mit `protected-headers="v1"`
+(`assets/crypto/mime.js`) und schickt `sealed[protectedSubject]`; `MessageSendService` schreibt den
+äußeren Betreff dann als `...`. Die Zeile behält den echten: Der Server kannte ihn schon aus dem
+Entwurf. Beim Lesen liefert `openEncrypted()` den inneren Betreff, den der Banner und eine
+Platzhalter-Überschrift zeigen und mit dem ein `Re: ...` einer Antwort vervollständigt wird;
+`DecryptedMail` übernimmt ihn für die Zeile, wenn das Konto entschlüsselte Mails behält. Header-Schutz
+gibt es nur für verschlüsselte Mails — das Innere einer signierten Nachricht ist so lesbar wie ihr
+Äußeres.
+
+## S/MIME
+
+Phase 6c von Issue #28. Dieselbe Arbeitsteilung wie bei OpenPGP: Der Browser macht die Kryptografie
+(`assets/crypto/smime.js`, PKI.js für die Strukturen), der Server bewahrt auf, was er nicht öffnen
+kann, und hält die Regeln.
+
+```
+eigenes Zertifikat = X.509-PEM + Kette, aus einer PKCS#12-Datei, im Browser geöffnet  // SmimeCertificate
+privater Schlüssel = PKCS#8, AES-256-GCM-verpackt unter dem User-Key, Zweck plmail/smime-key
+Kontakt-Zertifikat = X.509-PEM aus einer gültigen Signatur, current oder changed       // ContactCertificate
+```
+
+**Import.** `POST /keyring/smime` (Schlüsselbund-Token) nimmt das Zertifikat, seine Kette und den
+verpackten Schlüssel. `SmimeCertificates` liest das Zertifikat selbst mit OpenSSL — Fingerabdruck
+(SHA-256 des DER), Adressen (subjectAltName, emailAddress), Daten —, statt dem Browser zu glauben,
+und lehnt einen Nicht-RSA-Schlüssel, ein Zertifikat für keine der Adressen der Person und eine
+Verpackung ab, die nicht `v1.…` ist. Ein neueres Zertifikat, das dieselben Adressen abdeckt, setzt das
+ältere auf `retired` (es entschlüsselt, signiert aber nie und wird nie verschlüsselt). Der verpackte
+Schlüssel hängt an einem User-Key: Eine Passwortänderung verpackt hier nichts neu, und wird der
+User-Key oder die Person entfernt, geht er mit (`ON DELETE CASCADE`). Das PKCS#12-Passwort und die
+Datei verlassen den Browser nie.
+
+**Zertifikate der Kontakte.** Behalten werden sie nur aus einer Signatur, die stimmt und den Absender
+nennt: `SignatureVerifier` (OpenSSL, signierte Mails) und `POST /contact-keys/message/{id}/smime-signer`
+(der Browser, für eine Signatur in verschlüsselter Mail, die er mit PKI.js geprüft hat; der Server
+beurteilt nur das Zertifikat, das er bekommt, für den Absender der eigenen Zeile, nach dem
+Ownership-Voter). Vertrauen (`ContactCertificates`): Ein Zertifikat, das bis zu den Stellen des
+Systems reicht (`CertificateReader`, `openssl_get_cert_locations()` plus `SMIME_CA_FILE`), ist
+`verified`, und ein neueres bestätigtes ersetzt ein bestätigtes oder abgelaufenes aktuelles; alles
+andere ist Vertrauen beim ersten Mal, mit demselben partiellen Unique-Index wie bei Kontakt-Schlüsseln
+(`uniq_contact_certificate_current`). Es gibt keine Prüfung über CRL oder OCSP.
+
+**Lesen.** `openEncrypted()` nimmt die EnvelopedData (`smime.p7m`), öffnet sie mit den
+S/MIME-Schlüsseln des Schlüsselbunds und gibt die innere Entity auf denselben Weg wie bei OpenPGP:
+postal-mime, DOMPurify, der Sandbox-Frame, die Übergabe entschlüsselter Mails. Der RSA-Schlüsseltransport
+mit PKCS#1 v1.5 läuft über BigInt-Arithmetik, geblindet, weil WebCrypto keine
+PKCS#1-v1.5-Verschlüsselung hat und Outlook und Thunderbird genau das schicken; RSA-OAEP läuft über
+WebCrypto, AES-CBC (128/192/256) für den Inhalt über @noble/ciphers. 3DES und AuthEnvelopedData werden
+nicht geöffnet.
+
+**Senden.** Der Composer wählt OpenPGP, wenn jeder Empfänger einen Schlüssel hat, S/MIME, wenn jeder
+Empfänger ein nutzbares Zertifikat hat, der Absender eines für die Absenderadresse hat und es kein Bcc
+gibt. Er signiert (abgetrennte SignedData, RSA-SHA256, Zertifikat und Kette des Signierenden darin,
+multipart/signed mit `micalg=sha-256`), verschlüsselt danach an jeden Empfänger und den Absender
+(AES-256-CBC, RSA PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer) und schickt die Entity mit
+`sealed[scheme]=smime`. `SealedDrafts` lehnt eine Entity ab, deren Außenseite nicht S/MIME der
+angegebenen Art ist (`MessageCryptoDetector`), und `SealGuard` prüft — beim Eintreffen und wenn der
+Sendejob läuft —, dass das Zertifikat jedes Empfängers sein aktuelles und nicht abgelaufen ist und dass
+der Signierende das aktive, nicht abgelaufene Zertifikat der Person für die Absenderadresse ist.
+Entwürfe bleiben mit OpenPGP versiegelt: Nur die Person selbst öffnet sie je.
+
+## Native Clients und der Schlüsselbund
+
+Phase 6 von Issue #28: `urn:plmail:params:jmap:keys` gibt einem App-Passwort, was die Browser-Sitzung
+hat — den Schlüsselbund weiterhin verpackt (`Keyring/get`, ohne die Recovery-Kopien), Kontaktschlüssel
+und die Suche des Schreibfensters (`RecipientKeys`, mit dem Web geteilt), die Übergabe entschlüsselter
+Mails (`DecryptedMail`, dieselben Regeln) —, und Email bekommt ihre Krypto-Felder. Nichts Lesbares
+kommt dazu.
+
+**Die Kopplung übergibt die User-Keys, ohne dass der Server sie sieht.** Der Browser versiegelt sie
+unter einem frischen 32-Byte-Übertragungsschlüssel (AES-GCM, Zweck `plmail/pairing-transfer`),
+schickt nur die versiegelte Kopie und setzt den Übertragungsschlüssel ins Fragment der
+Kopplungs-URI; diesen QR-Code zeichnet der Browser selbst, weil ein vom Server gezeichneter den
+Schlüssel bräuchte. Die versiegelte Kopie liegt seine zwei Minuten lang neben dem Code im Cache und
+geht beim Einlösen mit dem App-Passwort hinaus. Wer den QR-Code fotografiert, kann ohnehin koppeln;
+die Schlüssel geben nichts, was eine Kopplung nicht schon gab.
+
+**`Email/import` ist der Weg, eine im Client gebaute Nachricht zu senden.** Ein Import als `$draft`
+behält seine Content-*-Header und seinen Body als ausgehende Entität — der Weg des Web-Schreibfensters
+aus Phase 5 —, und ein verschlüsselter nennt die Fingerprints, an die er verschlüsselt ist, geprüft
+von `SealGuard` beim Import und beim Senden.
+
+## Schlüssel veröffentlichen: das Web Key Directory
+
+Phase 6d von Issue #28. `WkdController` beantwortet die beiden Formen des Entwurfs —
+`/.well-known/openpgpkey/<domain>/hu/<hash>` (erweitert) und `/.well-known/openpgpkey/hu/<hash>`
+(direkt, Domain aus dem `Host`-Header) — und beide `policy`-Dateien. `WkdDirectory` entscheidet; es
+ist die andere Seite von `WkdLookup` und teilt dessen Hash (`WkdLookup::hash()`) und Domain-Form
+(`WkdLookup::domain()`), damit das Ausgelieferte unter dem Namen liegt, den jeder Client berechnet.
+
+**Öffentlich, ohne Session.** Das Präfix hat eine eigene Firewall mit `security: false`, wie
+`/branding/`: kein Token, keine Session, kein CSRF, keine Weiterleitung zur Anmeldung. Nichts, was ein
+Aufrufer schickt, wird geschrieben; der eine Schreibvorgang ist `AddressKey::$firstUsedAt`, wenn ein
+Schlüssel zum ersten Mal ausgeliefert wird, damit er nicht mehr als ungesehen gelöscht werden kann.
+
+**Drei Ebenen entscheiden, jede kann nur Nein sagen:**
+
+- **Die Domains der Installation** (`APP_WKD_DOMAINS`, standardmäßig leer). Nie „jede Domain, auf der
+  jemand eine Adresse hat“: Wer hier ein Gmail-Konto hat, gibt plMail kein Mitspracherecht über
+  `gmail.com`.
+- **Nur die Anmeldeadresse.** `User::$email` ist eindeutig und von einem Admin gesetzt. Jede andere
+  Adresse ist die Behauptung der Person selbst — ein manueller Alias, die eingetippte Adresse eines
+  IMAP-Kontos und sogar dessen Server —, und sie zu veröffentlichen ließe jeden mit einem Konto einen
+  Schlüssel unter die Adresse eines anderen legen.
+- **Der Schalter der Person** (`User::$wkdUnpublished`, im Konfigurations-Backup).
+
+**Der Schlüssel** ist der von `SendingKey`: aktiv, der primäre für die Adresse, nicht abgelaufen. Ein
+ersetzter, widerrufener oder abgelaufener Schlüssel wird sofort nicht mehr ausgeliefert.
+`WkdKeyExport` reduziert ihn mit dem gpg-Programm in einem Wegwerf-Home (`--export-options
+export-minimal --export-filter keep-uid=uid =~ <adresse>`), liest das Ergebnis mit `PublicKeyReader`
+zurück und liefert es nur aus, wenn gpg es für diese Adresse noch annimmt; das Ergebnis wird nach
+Armor und Adresse gecacht.
+
+**Keine Aufzählung über die eine Tatsache hinaus.** Ein unbekannter Hash, eine ausgeschaltete
+Adresse, eine Adresse ohne Schlüssel, ein Alias, eine nicht bediente Domain, das ausgeschaltete
+Verzeichnis: ein 404, dieselben Header, leerer Body. Der Hinweis `?l=` wird ignoriert — nur der Hash
+findet eine Adresse, also holt ein Hinweis auf jemand anderen nichts von dieser Person. Nicht
+verbergen lässt sich, dass eine veröffentlichte Adresse einen Schlüssel hat; der Limiter `wkd_serve`
+(300 pro Stunde und IP) bremst das Abarbeiten einer Namensliste.
+
+**Die Prüfung in den Einstellungen** (`POST /settings/encryption/wkd/check`) geht durch `WkdLookup`
+mit allen seinen Regeln — nur HTTPS, keine Weiterleitungen, keine privaten Adressen, das Limit pro
+Person — an seinem Cache vorbei. Beide Aktionen in den Einstellungen nehmen eine Adresse aus dem
+Formular, und beide lehnen eine ab (404), die nicht die eigene der Person auf einer bedienten Domain
+ist.
+
 ## Firewalls
 
 `config/packages/security.yaml` deklariert drei: `dev`, `jmap` und `main`.
@@ -249,8 +562,12 @@ JMAP-Aufruf löste sonst einen Schreibvorgang aus.
 der ein Passwort über viele Konten streut, lockerer, damit ein Haushalt hinter einer NAT-Adresse
 sich nicht selbst aussperrt; und 20 je Benutzername, egal von welcher Adresse, damit auch über
 viele Adressen verteilte Versuche an eine Decke stoßen. Symfonys Vorgabe kennt nur die ersten
-beiden — diese Seite nannte das früher „je Benutzername“, was es nicht ist. Remember-me arbeitet signaturbasiert mit 60 Tagen
-Lebensdauer: keine Speicherung, und ein Passwortwechsel entwertet jedes dafür ausgegebene Cookie.
+beiden — diese Seite nannte das früher „je Benutzername“, was es nicht ist. Remember-me hält seine
+Tokens auf dem Server (`rememberme_token`, Symfonys DoctrineTokenProvider), eine Zeile pro Gerät, mit
+60 Tagen Lebensdauer. Abmelden löscht die Zeile dieses Geräts, also öffnet ein Cookie auf einer
+Anfrage, die vor dem Abmelden losging und danach ankommt, nichts mehr — mit einem rein signierten
+Cookie haben die eigenen Hintergrund-Anfragen der Seite die Person sofort wieder angemeldet. Ein
+Passwortwechsel beendet weiterhin alle.
 
 ### Zugriffssteuerung, und die Endpunkte, die keine Session halten können
 
@@ -268,6 +585,10 @@ Die `access_control`-Liste in `security.yaml` ist regelweise kommentiert, denn j
 | `/book/…` | ebenso | das Token im Pfad, plus ein Rate Limiter auf dem POST |
 | `/install` | es legt die erste Administratorin an, kann also keine voraussetzen | `InstallGuard` |
 | `/2fa` | das Passwort ist da, der zweite Faktor nicht | `IS_AUTHENTICATED_2FA_IN_PROGRESS` |
+
+Das Web Key Directory (`/.well-known/openpgpkey/`) steht nicht in der Liste: Wie `/branding/` hat es
+eine eigene Firewall mit `security: false`, weil seine Antworten für alle gleich sind und keine Session
+berühren dürfen. Was es antwortet, steht unter [Schlüssel veröffentlichen](#schlüssel-veröffentlichen-das-web-key-directory).
 
 `/healthz` antwortet mit Urteilen und sonst nichts — keine Zahlen, keine Adressen, keine Version
 —, denn wer den Port erreichen kann, kann es lesen. Es liefert nur dann 503, wenn die Datenbank
@@ -767,6 +1088,78 @@ ein einziges Feld, öffnet alle Pfade auf einmal wieder.
 wieder jemand buchen kann.** Die Entität sagt das ausdrücklich: `cancelled_at` später zu ergänzen
 heißt, den Index partiell zu machen — `WHERE cancelled_at IS NULL` —, und das ist der Satz, den
 du dir merken solltest.
+
+**Eine abgebrochene Anfrage ist keine verlorene Sitzung.** `session.js` löscht seine gespeicherte
+Hälfte nur, wenn der Server für den Entsperr-Schlüssel 404 antwortet. Bei jedem Fehlschlag zu
+löschen sperrte den Schlüsselbund aller, die weitergeklickt haben, bevor die erste Seite ihn
+fertig geöffnet hatte — der Browser bricht die Anfrage dann ab.
+
+**Entschlüsselung mit PKCS#1 v1.5 ist überall dort ein Padding-Orakel, wo sich ihre Fehlschläge
+unterscheiden lassen.** In `smime.js` lassen sie sich von außen nicht unterscheiden: Eine Nachricht,
+die sich nicht öffnet, sagt nur das, und nur der Person, die sie liest. Das muss so bleiben — kein
+Umweg über den Server, keine eigene Fehlermeldung je Padding-Fehler.
+
+**Ein Kontakt-Zertifikat wird nicht erneut gegen die Stellen geprüft.** `verified` ist, was beim
+letzten Sehen galt. Eine Stelle, die später aus dem System verschwindet, macht es nicht unbestätigt.
+
+**Eine Krypto-Art, die erst nach dem ersten Flush gesetzt wird, kommt zu spät.** `search_vector`
+ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon indexiert.
+`MessageCryptoDetector::seal()` gehört in die Builder, vor `persist()`.
+
+**Wer `_frame_document.html.twig` ändert, ändert beide Wege, und genau so soll es sein.** Das
+Frame-Skript ist über den Hash seines genauen Texts erlaubt; eine zweite Kopie des Dokuments in
+JavaScript liefe nicht mehr, sobald sich eine der beiden ändert.
+
+**Nichts darf die Entität einer im Browser gebauten Nachricht neu kodieren.** Eine Signatur deckt
+ihre genauen Bytes ab, und nichts auf dem Server könnte sie neu verschlüsseln. Sie bleibt in
+`SealedEntityPart`; ein auf anderem Weg gesetzter Body ist eine Nachricht, die der Server neu gebaut
+hat.
+
+**Ein versiegelter Entwurf hat keinen Body, also sieht jede Server-Funktion, die Entwürfe liest,
+keinen.** Genau darum geht es, und es hält nur, solange nichts einen Body zurückschreibt:
+`SealedDrafts::accept()` leert ihn bei jedem Speichern einer versiegelten Zeile, nicht nur bei
+denen, die `sealed[draft]` mitbrachten.
+
+**`SealGuard` läuft zweimal, weil ein geplanter Versand Tage warten kann.** Nur beim Eintreffen der
+Entität zu prüfen, schickte eine Nachricht, die an einen inzwischen ersetzten oder widerrufenen
+Schlüssel verschlüsselt ist.
+
+**Verschlüsseln an Bcc-Empfänger nutzt Platzhalter-Key-IDs.** Ein PKESK pro Empfänger nennt dessen
+Schlüssel außen, und dann wüsste jeder, wer die Nachricht noch bekommen hat.
+
+**Eine neue Stelle, die Mailtext an ein Modell gibt, muss `DecryptedMailPolicy::allowsAi()` fragen.**
+Sonst hält nichts entschlüsselte Mails von ihr fern: Für jeden anderen Leser ist ein vom Client
+gelieferter Body ein Body.
+
+**Ob ein Host lokal ist, entscheidet DNS im Moment der Frage.** Ein Modell-Host, der heute privat und
+morgen öffentlich auflöst, ist morgen extern; eine Zustimmung gilt einem Hostnamen, nicht einer
+Adresse.
+
+**Ein geänderter Schlüssel, der auf einem anderen Weg als `ContactKeys::accept()` zu `current` wird,
+hebelt TOFU aus.** Der partielle Index verhindert zwei `current`-Zeilen, nicht einen Schreibvorgang,
+der den bekannten Schlüssel vorher herabstuft. Jeder Schreiber geht über `ContactKeys`.
+
+**Ein Autocrypt-Header wird nur gelesen, wenn `addr=` gleich `From` ist.** Phase 3 las jeden; ein
+Header, der jemand anderen nennt, würde jetzt beim ersten Mal einen Schlüssel für diese Person
+unterschieben.
+
+**WKD-URLs werden aus einer geprüften Domain gebaut, nie aus der Eingabe.** Ein Such-Endpunkt, der
+eine URL nähme, oder eine Domain mit Port oder Pfad darin, wäre eine SSRF-Lücke, egal wie gut der
+Client darunter Adressen prüft.
+
+**Ein WKD-Fehlschlag muss eine einzige Antwort bleiben.** Jeder neue Grund für „hier ist kein
+Schlüssel“ geht über `WkdDirectory::find()`, das null liefert, und das eine 404 des Controllers —
+nicht über eine Exception, eine Weiterleitung oder eine Meldung, die die Gründe unterscheidbar machen
+würden.
+
+**gpgs Filter-Eigenschaft `mail` trifft in `keep-uid` nichts** (gpg 2.4). `WkdKeyExport` filtert
+stattdessen auf `uid`; zurückgeändert ginge jeder Schlüssel ohne Benutzer-ID hinaus, und die
+Rückprüfung würde nichts veröffentlichen.
+
+**`MockHttpClient` folgt keiner Weiterleitung, egal was man ihm sagt**, und
+`NoPrivateNetworkHttpClient` folgt ihnen selbst, nie der Client darunter. Ein Test kann nicht zeigen,
+dass `max_redirects: 0` wirkt; die Option in `WkdLookup::fetch()` ist der Schutz, und dort steht,
+warum.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
 `migrate: true` ist der einzige Unterschied zwischen einer bekannten und einer unbekannten Adresse,

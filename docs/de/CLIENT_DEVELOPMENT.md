@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:db4d4e0dc67011afa4300ba033154448d882dc2b -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:13ea7826ef0d39b61c224f244313de7c1f20999f -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -733,6 +733,8 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Identity/get` / `Identity/set` | |
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. Kein `accountId`-Argument bei get und set; pro Benutzer. Siehe [Vorlagen](#vorlagen). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Dieselbe Capability. Die Ordner, die ein Benutzer angelegt hat; die Konto-Ordner des Web-Baums sind keine Objekte. |
+| `Email/import` | RFC 8621 §4.8, plus das plMail-Argument `fingerprints` für einen verschlüsselten Entwurf. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
 
 **Heute nicht implementiert.** Nichts davon ist ein bewusster Ausschluss — es wurde bisher nur
 nicht gebraucht. Wenn dein Client etwas davon will, **frag danach, statt darum herum zu
@@ -1248,6 +1250,111 @@ Was du mit der Antwort machst:
 
 Daten werden in der Zeitzone des Benutzers berechnet und in der Sprache geschrieben, die er in
 plMail eingestellt hat, ebenso die Beschriftungen in offenen Markierungen.
+
+### Ende-zu-Ende-Verschlüsselung: `urn:plmail:params:jmap:keys`
+
+plMail verschlüsselt mit OpenPGP und S/MIME Ende zu Ende. **Der Server hat nie einen lesbaren Schlüssel und nie
+den Text einer verschlüsselten Nachricht**; deine App macht die Kryptografie selbst, wie die Web-App
+im Browser (Konzept: [Issue #28](https://github.com/karatektus/pl_mail/issues/28), Abschnitt 13).
+Diese Capability liefert, was du dafür brauchst. Das Capability-Objekt trägt die Konstanten;
+`accountCapabilities` trägt pro Konto `keepsDecryptedMail`.
+
+**Jede Verpackung** ist `v1.<iv>.<chiffrat>`, beides Base64 (Standardalphabet), AES-256-GCM, mit dem
+**Zweck-String als Associated Data**: `purposes.userKey` für einen User-Key,
+`purposes.addressKeyToken` für das Token eines Adress-Keys, `purposes.smimeKey` für einen privaten
+S/MIME-Schlüssel, `purposes.pairingTransfer` für das Kopplungspaket.
+
+**Die Schlüssel aufs Gerät bringen — Kopplung.** Hat der Browser, der den Kopplungs-QR-Code zeigt,
+den Schlüsselbund offen, trägt die URI den Übertragungsschlüssel im Fragment:
+`plmail://pair?host=…&code=…#k=<base64url, 32 Bytes>`. Das Fragment erreicht den Server nie. Die
+Antwort beim Einlösen (`POST /device/pair`) hat dann neben `secret` und `username` ein Feld `keys`;
+öffne es mit dem Übertragungsschlüssel (`purposes.pairingTransfer`) und du bekommst JSON
+`{"v": 1, "userKeys": [{"id": 3, "key": "<base64, 32 Bytes>"}]}`. Leg die User-Keys unter einem
+eigenen Keystore-Schlüssel ab. Ein QR-Code ohne `#k=` koppelt ohne Schlüssel.
+
+**Notlösung — einmal das Passwort.** `Keyring/get` (ohne `accountId`, ein Objekt mit der id
+`singleton`) liefert `kdf: {salt, iterations}` und `userKeys: [{id, wrapped, status}]`. Leite
+`masterKey = PBKDF2-SHA256(passwort, salt, iterations, 32 Bytes)` und
+`wrapKey = HKDF-SHA256(masterKey, salt = leer, info = kdf.wrapKeyInfo, 32 Bytes)` ab und öffne damit
+jedes aktive `wrapped` mit `purposes.userKey`.
+
+**Adress-Keys.** `Keyring/get` liefert außerdem `addressKeys: [{id, userKeyId, fingerprint,
+publicKey, privateKey, token, status, addresses: [{email, primary}]}]`. Öffne `token` mit dem
+User-Key `userKeyId` (`purposes.addressKeyToken`); es ist die Passphrase des gepanzerten
+`privateKey`. Neue Adressen, erneuerte Schlüssel und Passwortwechsel in der Web-App brauchen keine
+neue Kopplung: Sie hängen am User-Key, den du schon hast. Signiere mit dem `active`-Schlüssel, in
+dessen `addresses` die From-Adresse `primary` ist; entschlüsseln geht mit jedem.
+
+**Lesen.** Email hat fünf plMail-Properties: `cryptoType` (`pgp_encrypted`, `pgp_signed`,
+`pgp_inline_encrypted`, `pgp_inline_signed`, `smime_encrypted`, `smime_signed` oder null),
+`encrypted`, `signatureState` (`valid`, `untrusted`, `invalid`, `unknown_key`, `key_changed` oder
+null — für signierte Mails, vom Server geprüft), `signer` und `decryptedOnServer`. Für eine
+verschlüsselte Nachricht sind die `bodyValues` leer, außer bei `decryptedOnServer`; lade ihre
+`blobId` (das Chiffrat, wie es ankam), entschlüssele und zerlege die innere MIME-Nachricht selbst.
+Eine Signatur innerhalb der Verschlüsselung prüfst du gegen `ContactKey/get`.
+
+**Kontaktschlüssel und Schreiben.** `ContactKey/get` listet die Schlüssel, die plMail kennt
+(`status: current` ist der verwendete; `changed` wartet darauf, in der Web-App angenommen zu
+werden), mit `encrypt`, `sign` und `scheme` pro Empfänger. `ContactKey/lookup` mit `{emails,
+lookup: true, accountId, from}` sagt, was das Web-Schreibfenster gesagt bekommt: den Schlüssel jedes
+Empfängers — über den Server in der WKD seiner Domain nachgeschlagen, falls plMail keinen hat — und
+den eigenen Schlüssel des Absenders. Verschlüssele, wenn alle Empfänger einen Schlüssel haben, wie
+die Web-App.
+
+**Senden.** Bau die MIME-Nachricht selbst, verschlüssele sie an alle Empfänger **und den Absender**
+(oder signiere sie), lade sie hoch und importiere sie mit `Email/import` und
+`keywords: {"$draft": true}`. Für eine verschlüsselte Nachricht gib `fingerprints` mit — die
+primären Fingerprints der Empfänger-Schlüssel (und deines eigenen), an die du verschlüsselt hast —
+und `signer`; der Import wird mit `forbidden` abgelehnt, wenn das nicht für jeden Empfänger der
+aktuelle Schlüssel ist. Dann sendet `EmailSubmission/set`: Der Server schreibt die äußeren Header aus
+der Nachricht und legt deine Content-*-Header und den Body **Byte für Byte** auf die Leitung, damit
+eine Signatur darüber hält. Dieselbe Prüfung läuft beim Versand noch einmal; änderst du die
+Empfänger, wird nicht gesendet. Rückgängig und geplanter Versand funktionieren wie bei jeder
+Submission.
+
+**S/MIME.** `Keyring/get` liefert außerdem `smimeCertificates: [{id, userKeyId, fingerprint,
+certificate, chain, privateKey, addresses, subject, issuer, notBefore, notAfter, status}]`: die
+eigenen Zertifikate der Person (PEM) mit ihren privaten PKCS#8-Schlüsseln, jeweils direkt unter dem
+User-Key `userKeyId` verpackt, mit `purposes.smimeKey`. `status` ist `active` oder `retired` (durch ein
+neueres Zertifikat ersetzt; damit entschlüsseln, nie damit signieren oder verschlüsseln).
+`ContactKey/lookup` antwortet für jeden Empfänger mit `smime: {fingerprint, certificate, verified,
+notAfter}` oder null — dem aktuellen, nicht abgelaufenen Zertifikat des Kontakts oder dem eigenen für
+die eigenen Adressen — und für den Absender mit `smime`, dem Fingerabdruck des Zertifikats für die
+Absenderadresse. Die Web-App verschlüsselt mit OpenPGP, wenn jeder Empfänger einen `key` hat, sonst mit
+S/MIME, wenn jeder Empfänger `smime` hat, der Absender eines hat und es kein Bcc gibt; mach es genauso.
+Ein S/MIME-`Email/import` wird an seinem Content-Type erkannt (`application/pkcs7-mime;
+smime-type=enveloped-data` oder `multipart/signed` mit `application/pkcs7-signature`): Gib in
+`fingerprints` die SHA-256-Fingerabdrücke der Zertifikate an, an die du verschlüsselt hast, und in
+`signer` den Fingerabdruck des Absender-Zertifikats — ein signierter oder verschlüsselter
+S/MIME-Import wird mit `forbidden` abgelehnt, wenn das nicht das aktive, nicht abgelaufene Zertifikat
+der Person für die Absenderadresse ist. Verschlüssele mit AES-256-CBC und RSA-Schlüsseltransport mit
+PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer, und signiere mit SHA-256 — so lesen es
+Outlook und Thunderbird.
+
+**Web Key Directory.** `Keyring/get` liefert außerdem `wkd: [{email, state, published, fingerprint,
+urls: {advanced, direct}}]` — die Adressen der Person auf den Domains, für die die Installation
+Schlüssel veröffentlicht, und was ihr Web Key Directory für jede tut. `state` ist `published`,
+`switched_off`, `no_key` oder `not_sign_in_address` (veröffentlicht wird immer nur die
+Anmeldeadresse); `fingerprint` ist der Schlüssel, der ausgeliefert wird oder würde. Leer, wenn die
+Installation keine Schlüssel veröffentlicht. Das Veröffentlichen schaltet die Web-App um
+(Einstellungen → Verschlüsselung); eine JMAP-Methode dafür gibt es nicht.
+
+**Verschlüsselte Betreffs (RFC 9788). Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
+verschlüsselte Entität, markiert mit `protected-headers="v1"`, und schickt außen `...` als Betreff.
+Lies nach dem Entschlüsseln den inneren `Subject` und zeig ihn statt eines äußeren `...` (oder
+`[...]`); fülle damit den Betreff einer Antwort. Beim Senden genauso: die inneren Header in deiner
+Entität, `Subject: ...` auf der Nachricht, die du importierst.
+
+**Konten, die entschlüsselte Mails behalten.** Ist `keepsDecryptedMail` true, arbeite
+`DecryptedMail/pending` ab (`{accountId, limit}` → `ids`): Lade den Blob jeder Email, entschlüssele,
+lade die **innere MIME-Nachricht als Ganzes** hoch und übergib sie mit `DecryptedMail/store`
+(`{accountId, emails: {emailId: blobId}}` → `stored`, `notStored`). Der Server zerlegt und bereinigt
+sie selbst; Suche, Pakete, Termine und Regeln funktionieren dann mit ihr.
+
+**Nicht** entschlüsselten Text anderswohin schicken, unverschlüsselt auf der Platte zwischenspeichern
+oder den Text einer verschlüsselten Nachricht in einer Benachrichtigung zeigen („Verschlüsselte
+Nachricht“ ist alles, außer bei `decryptedOnServer`). Antwortet das App-Passwort mit 401, lösch die
+Schlüssel mit.
 
 ### Blobs: hochladen und herunterladen
 

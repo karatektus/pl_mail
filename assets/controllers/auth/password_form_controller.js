@@ -1,5 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
-import { deriveAuthHash, newSalt } from "../../password_kdf.js";
+import { derivePasswordSecrets, deriveAuthHash, newSalt } from "../../password_kdf.js";
+import { keyring } from "../../crypto/keyring.js";
+import { replace as replaceSessionKey } from "../../crypto/session.js";
 
 /**
  * Sets a new password without sending it — for Settings → Security, and for
@@ -18,7 +20,15 @@ import { deriveAuthHash, newSalt } from "../../password_kdf.js";
  * latter. Either way the new password is stretched, so the account is moved
  * over by changing it.
  *
+ * The keyring rides along. Its user keys are wrapped under the password, so
+ * on Settings the browser re-wraps every one under the new password and sends
+ * them with the change (`rewrappedKeys`); the server refuses a change that
+ * leaves one behind. Once the change has gone through, the session's stored
+ * wrap key is replaced too, or the next page could not open the keyring.
+ *
  * Values:
+ *   keyringUrl          — optional; the keyring endpoint, on Settings only
+ *   unlockUrl           — optional; the session unlock endpoint
  *   currentSalt         — this account's salt, empty when it has none
  *   currentIterations   — its iteration count
  *   minLength           — User::PASSWORD_MIN_LENGTH
@@ -31,8 +41,30 @@ import { deriveAuthHash, newSalt } from "../../password_kdf.js";
  *   currentPassword, currentProof   — optional; absent on the forced form
  *   newPassword, newRepeat          — the two boxes
  *   newAuthHash, newSalt, newIterations — hidden; the last is read, not written
+ *   rewrappedKeys                   — optional, hidden; JSON, user key id => wrapped
  *   submit                          — optional; the button to mark busy
  */
+/**
+ * The wrap key of a change on its way to the server, swapped into the session
+ * only once the server has said yes. A refused change leaves the old password
+ * — and the old wrap key — in force.
+ */
+let pendingWrapKey = null;
+
+document.addEventListener("turbo:submit-end", async (event) => {
+    if (null === pendingWrapKey) {
+        return;
+    }
+
+    const { wrapKey, unlockUrl } = pendingWrapKey;
+
+    pendingWrapKey = null;
+
+    if (true === event.detail.success) {
+        await replaceSessionKey(wrapKey, unlockUrl);
+    }
+});
+
 export default class extends Controller {
     static targets = [
         "currentPassword",
@@ -42,10 +74,14 @@ export default class extends Controller {
         "newAuthHash",
         "newSalt",
         "newIterations",
+        "rewrappedKeys",
         "submit",
     ];
 
     static values = {
+        keyringUrl: String,
+        unlockUrl: String,
+        csrf: String,
         currentSalt: String,
         currentIterations: Number,
         minLength: Number,
@@ -94,13 +130,21 @@ export default class extends Controller {
             }
 
             const salt = newSalt();
-
-            this.newSaltTarget.value = salt;
-            this.newAuthHashTarget.value = await deriveAuthHash(
+            const { authHash, wrapKey } = await derivePasswordSecrets(
                 this.newPasswordTarget.value,
                 salt,
                 Number(this.newIterationsTarget.value),
             );
+
+            this.newSaltTarget.value = salt;
+            this.newAuthHashTarget.value = authHash;
+
+            if (true === this.hasRewrappedKeysTarget && "" !== this.keyringUrlValue) {
+                const rewrapped = await this.#keyring().rewrapFor(this.currentPasswordTarget.value, wrapKey);
+
+                this.rewrappedKeysTarget.value = JSON.stringify(rewrapped);
+                pendingWrapKey = { wrapKey, unlockUrl: this.unlockUrlValue };
+            }
         } catch {
             this.#release();
             return;
@@ -118,6 +162,10 @@ export default class extends Controller {
     }
 
     // ── Private ─────────────────────────────────────────────────────────────
+
+    #keyring() {
+        return keyring({ stateUrl: this.keyringUrlValue, unlockUrl: this.unlockUrlValue, csrf: this.csrfValue });
+    }
 
     #validate() {
         // Checked here rather than left to the server: an empty current

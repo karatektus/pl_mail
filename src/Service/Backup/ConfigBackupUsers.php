@@ -22,6 +22,12 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
+use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\ContactCertificateRepository;
+use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\SmimeCertificateRepository;
+use App\Repository\Crypto\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
 use DateTimeInterface;
 use Throwable;
@@ -130,6 +136,22 @@ final readonly class ConfigBackupUsers
         // switched it back on would have `e` archiving mail for a person who
         // had said no.
         User::SETTING_KEYBOARD_SHORTCUTS,
+        // How mail goes out once it can be encrypted. Choices about one's own
+        // mail like the rest, and a restore that quietly turned Autocrypt
+        // back on — or blocking off — would be sending mail differently.
+        User::SETTING_CRYPTO_AUTOCRYPT,
+        User::SETTING_CRYPTO_ATTACH_KEY,
+        User::SETTING_CRYPTO_SIGN_PLAIN,
+        User::SETTING_CRYPTO_BLOCK_PARTIAL,
+        User::SETTING_CRYPTO_PROTECT_SUBJECT,
+        // Which addresses stay out of the Web Key Directory. Addresses, not
+        // ids, so they mean the same on the target; and a restore that quietly
+        // published a key somebody had withdrawn would be telling the world
+        // something they had decided not to.
+        User::SETTING_CRYPTO_WKD_UNPUBLISHED,
+        // Whether any of the person's accounts keeps decrypted mail: carried
+        // with the accounts' own switches above, which it summarises.
+        User::SETTING_KEEPS_DECRYPTED_ANY,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
         // Travels, unlike its `sidebar.expanded_account` neighbour, and the
         // difference is what these hold: this is section names and label FULL
@@ -194,6 +216,14 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // Whether this account keeps decrypted mail, and lets the models read
+        // it. The person's choice, carried like any other; the decrypted text
+        // itself is not in the backup, and a browser decrypts it anew on the
+        // target. The consent travels with the host it named, so a target
+        // whose model host is another one asks again (DecryptedMailPolicy).
+        Account::SETTING_KEEP_DECRYPTED,
+        Account::SETTING_KEEP_DECRYPTED_AI,
+        Account::SETTING_KEEP_DECRYPTED_AI_HOST,
     ];
 
     /**
@@ -234,15 +264,21 @@ final readonly class ConfigBackupUsers
     ];
 
     public function __construct(
-        private UserRepository              $users,
-        private AccountRepository           $accounts,
-        private ApiTokenRepository          $apiTokens,
-        private IntegrationRepository       $integrations,
-        private LabelRepository             $labels,
-        private MailRuleRepository          $rules,
-        private CalendarRepository          $calendars,
-        private CalendarShareLinkRepository $shareLinks,
-        private BookingPageRepository       $bookingPages,
+        private UserRepository               $users,
+        private AccountRepository            $accounts,
+        private ApiTokenRepository           $apiTokens,
+        private IntegrationRepository        $integrations,
+        private LabelRepository              $labels,
+        private MailRuleRepository           $rules,
+        private CalendarRepository           $calendars,
+        private CalendarShareLinkRepository  $shareLinks,
+        private BookingPageRepository        $bookingPages,
+        private UserKeyRepository            $userKeys,
+        private UserKeyCopyRepository        $userKeyCopies,
+        private AddressKeyRepository         $addressKeys,
+        private ContactKeyRepository         $contactKeys,
+        private SmimeCertificateRepository   $smimeCertificates,
+        private ContactCertificateRepository $contactCertificates,
     ) {
     }
 
@@ -376,6 +412,20 @@ final readonly class ConfigBackupUsers
                 'recoveryCodes' => array_values($user->backupCodes),
             ],
             'appPasswords' => $this->exportAppPasswords($user),
+            // Every blob exactly as stored, and nothing the server could open:
+            // the user keys are wrapped under the person's password, the
+            // address keys under passphrases wrapped under those. So a restore
+            // with the password hash and its salt above opens with the same
+            // password, and the file is no more sensitive for carrying them.
+            'keyring'      => $this->exportKeyring($user),
+            // Public keys, which are no secret — but which keys a person
+            // pinned and which changed keys they turned down are decisions,
+            // and losing them would silently reset every contact to
+            // "unconfirmed".
+            'contactKeys'  => $this->exportContactKeys($user),
+            // Contacts' S/MIME certificates, for the same reason: which one is
+            // in use for an address, and which wait, are decisions too.
+            'contactCertificates' => $this->exportContactCertificates($user),
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
@@ -387,6 +437,146 @@ final readonly class ConfigBackupUsers
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The keyring, as the browser left it. See exportUser() on why carrying it
+     * costs nothing the password hash beside it does not already.
+     *
+     * The S/MIME certificates travel with it: their private keys are wrapped
+     * under the user keys exactly as the address keys' tokens are.
+     *
+     * @return array{userKeys: list<array<string, mixed>>, addressKeys: list<array<string, mixed>>, smimeCertificates: list<array<string, mixed>>}
+     */
+    private function exportKeyring(User $user): array
+    {
+        $copies = [];
+
+        foreach ($this->userKeyCopies->findForUser($user) as $copy) {
+            $copies[$copy->userKey->id][] = [
+                'kind'       => $copy->kind->value,
+                'wrapped'    => $copy->wrapped,
+                'label'      => $copy->label,
+                'lastUsedAt' => $copy->lastUsedAt?->format(DateTimeInterface::ATOM),
+                'createdAt'  => $copy->createdAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        $userKeys = [];
+
+        foreach ($this->userKeys->findForUser($user) as $userKey) {
+            $userKeys[] = [
+                'id'        => $userKey->id,
+                'wrapped'   => $userKey->wrapped,
+                'status'    => $userKey->status->value,
+                'lockedAt'  => $userKey->lockedAt?->format(DateTimeInterface::ATOM),
+                'createdAt' => $userKey->createdAt->format(DateTimeInterface::ATOM),
+                'copies'    => $copies[$userKey->id] ?? [],
+            ];
+        }
+
+        $addressKeys = [];
+
+        foreach ($this->addressKeys->findForUser($user) as $key) {
+            $addresses = [];
+
+            foreach ($key->bindings as $binding) {
+                $addresses[] = ['email' => $binding->email, 'primary' => $binding->isPrimary];
+            }
+
+            $addressKeys[] = [
+                'userKeyId'             => $key->userKey->id,
+                'fingerprint'           => $key->fingerprint,
+                'publicKey'             => $key->publicKey,
+                'privateKey'            => $key->privateKey,
+                'token'                 => $key->token,
+                'origin'                => $key->origin->value,
+                'status'                => $key->status->value,
+                'expiresAt'             => $key->expiresAt?->format(DateTimeInterface::ATOM),
+                'revocationCertificate' => $key->revocationCertificate,
+                'firstUsedAt'           => $key->firstUsedAt?->format(DateTimeInterface::ATOM),
+                'createdAt'             => $key->createdAt->format(DateTimeInterface::ATOM),
+                'addresses'             => $addresses,
+            ];
+        }
+
+        $smimeCertificates = [];
+
+        foreach ($this->smimeCertificates->findForUser($user) as $certificate) {
+            $smimeCertificates[] = [
+                'userKeyId'   => $certificate->userKey->id,
+                'fingerprint' => $certificate->fingerprint,
+                'certificate' => $certificate->certificate,
+                'chain'       => $certificate->chain,
+                'privateKey'  => $certificate->privateKey,
+                'addresses'   => $certificate->addresses,
+                'subject'     => $certificate->subject,
+                'issuer'      => $certificate->issuer,
+                'notBefore'   => $certificate->notBefore->format(DateTimeInterface::ATOM),
+                'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+                'status'      => $certificate->status->value,
+                'createdAt'   => $certificate->createdAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        return ['userKeys' => $userKeys, 'addressKeys' => $addressKeys, 'smimeCertificates' => $smimeCertificates];
+    }
+
+    /**
+     * Contacts' S/MIME certificates, row for row.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportContactCertificates(User $user): array
+    {
+        $rows = [];
+
+        foreach ($this->contactCertificates->findForUser($user) as $certificate) {
+            $rows[] = [
+                'email'       => $certificate->email,
+                'fingerprint' => $certificate->fingerprint,
+                'certificate' => $certificate->certificate,
+                'verified'    => $certificate->verified,
+                'status'      => $certificate->status->value,
+                'subject'     => $certificate->subject,
+                'issuer'      => $certificate->issuer,
+                'notBefore'   => $certificate->notBefore->format(DateTimeInterface::ATOM),
+                'notAfter'    => $certificate->notAfter->format(DateTimeInterface::ATOM),
+                'firstSeenAt' => $certificate->firstSeenAt->format(DateTimeInterface::ATOM),
+                'lastSeenAt'  => $certificate->lastSeenAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Contacts' keys, row for row, preferences and pins included.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportContactKeys(User $user): array
+    {
+        $rows = [];
+
+        foreach ($this->contactKeys->findForUser($user) as $key) {
+            $rows[] = [
+                'email'       => $key->email,
+                'fingerprint' => $key->fingerprint,
+                'publicKey'   => $key->publicKey,
+                'origin'      => $key->origin->value,
+                'status'      => $key->status->value,
+                'pinned'      => $key->pinned,
+                'expiresAt'   => $key->expiresAt?->format(DateTimeInterface::ATOM),
+                'firstSeenAt' => $key->firstSeenAt->format(DateTimeInterface::ATOM),
+                'lastSeenAt'  => $key->lastSeenAt->format(DateTimeInterface::ATOM),
+                'encrypt'     => $key->encrypt->value,
+                'sign'        => $key->sign->value,
+                'scheme'      => $key->scheme->value,
+            ];
+        }
+
+        return $rows;
+    }
 
     /**
      * The app passwords, as hashes.

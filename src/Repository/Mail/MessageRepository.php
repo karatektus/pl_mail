@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
@@ -2473,7 +2474,7 @@ class MessageRepository extends ServiceEntityRepository
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, crypto: ?MessageCrypto}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2481,9 +2482,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, crypto: ?MessageCrypto}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.crypto')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2492,7 +2493,7 @@ class MessageRepository extends ServiceEntityRepository
         $bodies = [];
 
         foreach ($rows as $row) {
-            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText'], 'crypto' => $row['crypto']];
         }
 
         return $bodies;
@@ -2816,5 +2817,36 @@ class MessageRepository extends ServiceEntityRepository
             'by'         => null === $row['arrived_by'] ? null : (string) $row['arrived_by'],
             'in'         => null === $row['arrived_in'] ? null : (string) $row['arrived_in'],
         ], $rows);
+    }
+
+    /**
+     * The newest PGP-signed messages a person received from one address,
+     * newest first — what SignatureRecheck checks again once a key for that
+     * address is added, pinned or replaced.
+     *
+     * Only messages whose signature the server checks: signed, not encrypted.
+     * The browser checks the signature inside an encrypted message every time
+     * it opens one, so there is nothing stored to bring up to date.
+     *
+     * @return list<int>
+     */
+    public function findPgpSignedIdsFrom(User $user, string $email, int $limit): array
+    {
+        /** @var list<array{id: int|string}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->join('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('LOWER(m.fromAddress) = :email')
+            ->andWhere('m.crypto IN (:crypto)')
+            ->setParameter('usr', $user)
+            ->setParameter('email', strtolower(trim($email)))
+            ->setParameter('crypto', [MessageCrypto::PgpSigned->value, MessageCrypto::PgpInlineSigned->value])
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
     }
 }

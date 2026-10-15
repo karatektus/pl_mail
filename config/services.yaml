@@ -21,6 +21,24 @@ parameters:
     # reverse. See App\Service\Demo\DemoMode.
     app.demo_mode_default: false
 
+    # Whether people on this install may keep the decrypted text of their
+    # end-to-end encrypted mail on the server (`allow`, the default) or not
+    # (`forbid`). For an organisation that must not hold such text for
+    # compliance: a setting in the deployment, not a switch in the admin
+    # panel, so it cannot be flipped in passing. See DecryptedMailPolicy.
+    app.e2e_server_plaintext_default: 'allow'
+    app.e2e_server_plaintext: '%env(default:app.e2e_server_plaintext_default:APP_E2E_SERVER_PLAINTEXT)%'
+
+    # The domains plMail publishes people's OpenPGP keys for, through the Web
+    # Key Directory (`example.org,example.net`). Empty, the default, is no
+    # directory at all: the routes answer 404 to everything. A list rather than
+    # "every domain somebody here has an address on", because a person with a
+    # Gmail account here gives plMail no right to speak for gmail.com — and
+    # because serving a domain also needs DNS or a forward only its owner can
+    # set up. A deployment setting like the one above. See WkdDirectory.
+    app.wkd_domains_default: ''
+    app.wkd_domains: '%env(default:app.wkd_domains_default:APP_WKD_DOMAINS)%'
+
     # The subscriber cookie's name when nothing says otherwise: no prefix.
     #
     # The Mercure 1.0 default is `__Secure-` prefixed, and a browser refuses a
@@ -148,6 +166,10 @@ services:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\RawMessageStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
+    App\Domain\Helper\SealedMessageStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'

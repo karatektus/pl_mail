@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
-import { deriveAuthHash } from "../../password_kdf.js";
+import { derivePasswordSecrets } from "../../password_kdf.js";
+import { remember } from "../../crypto/session.js";
 
 /**
  * Signs in without sending the password.
@@ -14,6 +15,11 @@ import { deriveAuthHash } from "../../password_kdf.js";
  * sign-in it is posted alongside the auth hash and the server swaps the hash
  * over. See App\Security\LoginFormAuthenticator.
  *
+ * The same stretching yields the key that opens the person's keyring. It is
+ * kept for the session the way crypto/session.js describes — wrapped here,
+ * with only the unlock key posted as `unlock_key` — so the keyring is open on
+ * the first page after signing in without the password being asked for again.
+ *
  * Values:
  *   preloginUrl         — the prelogin endpoint
  *   busyLabel           — the button's text while stretching, translated
@@ -23,11 +29,12 @@ import { deriveAuthHash } from "../../password_kdf.js";
  * Targets:
  *   email, password     — the two boxes
  *   authHash            — hidden input the result goes into
+ *   unlockKey           — hidden input for the session's unlock key
  *   submit              — the button
  *   error               — where a failure is said, hidden until then
  */
 export default class extends Controller {
-    static targets = ["email", "password", "authHash", "submit", "error"];
+    static targets = ["email", "password", "authHash", "unlockKey", "submit", "error"];
     static values = {
         preloginUrl: String,
         busyLabel: String,
@@ -72,7 +79,10 @@ export default class extends Controller {
         try {
             const params = await this.#prelogin();
 
-            this.authHashTarget.value = await deriveAuthHash(this.passwordTarget.value, params.salt, params.iterations);
+            const { authHash, wrapKey } = await derivePasswordSecrets(this.passwordTarget.value, params.salt, params.iterations);
+
+            this.authHashTarget.value = authHash;
+            this.unlockKeyTarget.value = await remember(wrapKey);
 
             if (true !== params.migrate) {
                 this.passwordTarget.removeAttribute("name");
@@ -123,6 +133,7 @@ export default class extends Controller {
     #reset() {
         this.#busy = false;
         this.authHashTarget.value = "";
+        this.unlockKeyTarget.value = "";
         this.passwordTarget.setAttribute("name", "password");
         this.submitTarget.disabled = false;
         this.submitTarget.removeAttribute("aria-busy");

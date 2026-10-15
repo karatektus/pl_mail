@@ -8,6 +8,127 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Your key, findable by your address — phase 6d of end-to-end encryption.** plMail can publish
+people's OpenPGP keys through the Web Key Directory, so Thunderbird, Proton, GnuPG
+(`gpg --locate-keys`) and other plMail installations find them on their own. Off until an
+administrator names the installation's own domains in `APP_WKD_DOMAINS` and points
+`openpgpkey.<domain>` (or the website's `/.well-known/openpgpkey/`) at plMail; then each person's
+current key for their sign-in address is published — only that address, and only that address's
+user ID — unless they switch it off under Settings → Encryption → *Web Key Directory*, where a
+**Check from outside** button confirms what the world sees. Every address without a published key
+gets the same answer, and lookups are rate-limited per IP. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**S/MIME, beside OpenPGP — phase 6c of end-to-end encryption.** Import your S/MIME certificate (a
+`.p12` or `.pfx` file) under Settings → Encryption: it is opened in your browser, and its private key
+is kept on the server only locked under your keys, like your OpenPGP keys; you can export it again or
+remove it. S/MIME-encrypted mail then opens in the reading pane, signature and attachments included.
+plMail keeps the certificates of contacts whose S/MIME-signed mail checks out — a certificate an
+authority vouches for counts as confirmed, any other is trusted on first use — and encrypts with
+S/MIME when every recipient has a certificate but not every recipient has an OpenPGP key (never with
+Bcc recipients). Unencrypted mail is signed with S/MIME when nobody else on it has an OpenPGP key.
+Revocation (CRL, OCSP) is not checked. Two tables are added; the migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**The subject of an encrypted message is encrypted too.** It travels inside the encryption, and the
+outside says "..." — as Thunderbird does (RFC 9788). Opening the message shows the real subject,
+and a reply starts from it; with *Decrypted mail on this server* on, the list shows it as well. Switch
+it off under Settings → Encryption → *Sending* → **Encrypt the subject**. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**Signing out holds.** A page's background requests that were still on their way when you pressed
+Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
+the server, one per device, and signing out deletes this device's; other devices stay signed in.
+Everybody who relied on "Keep me signed in" is asked to sign in once more after the update. One
+table is added; the migration is reversible.
+[#104](https://github.com/karatektus/pl_mail/pull/104), by @pmdevelopment.
+
+**GnuPG is now required.** plMail runs the `gpg` program to check PGP signatures, read contacts'
+keys and publish keys over WKD. The Docker image carries it; an installation outside Docker needs
+`gpg` from GnuPG 2.2 or later on the `PATH`. No PHP extension is involved — an earlier build of this
+work used ext-gnupg, whose gpgme could not reach gpg inside the FrankenPHP 1.12 and 1.13.0 web
+server.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**The plMail app can read and send encrypted mail — the server side, phase 6a of end-to-end
+encryption.** Pairing a device now brings your keys along when your browser has them open: they
+travel sealed, and the key that opens them is only in the QR code, which your browser draws itself.
+JMAP gains a capability for encryption (`urn:plmail:params:jmap:keys`) with the wrapped keyring,
+contacts' keys and the key lookup, the hand-over of decrypted mail, and encryption fields on Email;
+and `Email/import`, through which the app sends a message it built and encrypted itself, byte for
+byte. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**Encrypted mail can be kept readable on your own server, if you choose — the optional step towards
+end-to-end encryption.** Under Settings → Encryption → *Decrypted mail on this server*, per account
+and off by default: your browser then decrypts that account's encrypted mail in the background and
+hands it to the server, so search, parcels, invoices, dates, invitations and your rules work on it
+like on any other mail, while your mail provider still sees only ciphertext. The banner says
+*Encrypted on arrival · stored readable on this server*. The models — categories, search by
+meaning, summaries, the writing assistant — are a second switch; a model host outside the
+installation's own network needs your agreement by name. Switching off deletes the decrypted
+copies, but not from backups taken meanwhile. Administrators can forbid the option for the whole
+installation with `APP_E2E_SERVER_PLAINTEXT=forbid`. One column is added to the message table; the
+migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**plMail writes encrypted mail — the fifth step towards end-to-end encryption.** When everybody you
+write to has a key, the message is encrypted by itself: a lock on each recipient, *Encrypted* in the
+header, and a green lock in the toolbar that also switches it on or off for one message. The draft
+is encrypted in your browser before it is ever saved, attachments before they are uploaded, and the
+message is built and encrypted to every recipient and to you when you press Send — undo, *Send
+later* and *Sent* work as before. When only some recipients have a key, a note says so and the mail
+goes out unencrypted, unless you choose under Settings → Encryption → *Sending* to refuse instead.
+A reply to encrypted mail is encrypted, with the original quoted decrypted. Mail to somebody whose
+key plMail knows is signed. Every message now carries your public key in an invisible Autocrypt
+header, so other mail programs can answer encrypted; this can be switched off, and the key can be
+attached as a file as well. A scheduled encrypted message is checked again when it leaves and is
+not sent if a recipient's key has been replaced or revoked since. The subject is not encrypted. The
+writing assistant is not offered for encrypted drafts. Three columns are added to the message and
+attachment tables; the migration is reversible.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**plMail keeps your contacts' keys, and tells you when one changes — the fourth step towards
+end-to-end encryption.** Signed mail used to end at *signed with a key plMail does not know yet*.
+Now the key comes from the mail itself (an Autocrypt header or an attached key, for the sender
+only), from the sender's own domain through its Web Key Directory — asked by the server, so your
+browser never contacts it — or from an import in the new Settings → Encryption → Contacts' keys.
+The first key for an address is trusted; a different one turning up later is listed with a warning
+in that list and in the message banner, and is not used until you accept it. Marking a key as
+verified, after comparing its fingerprint with the contact, is what makes their signatures read as
+checked; the banner offers looking a key up, trusting it, or taking a changed one. Signatures inside
+encrypted mail are checked against the same keys. Each contact also gets preferences (encrypt,
+sign, PGP/MIME or inline) for when sending arrives. Configuration backups carry the keys and your
+decisions about them. One table is added; the migration is reversible, and going back down drops
+the collected keys and pins. Mail that arrived before the update is not searched for keys.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**Encrypted and signed mail is recognised, checked and readable — the third step towards
+end-to-end encryption.** An OpenPGP-encrypted message, PGP/MIME or inline, now opens in your
+browser with the keys plMail made for you, attachments included; the server keeps no readable copy,
+so it is left out of search, filters on the text, summaries and the assistant, and the list shows
+*Encrypted message*. Signed mail says what its signature is worth — checked, intact but unconfirmed,
+from an unknown key, or not matching — with S/MIME checked against the usual certificate
+authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
+blocked; S/MIME-encrypted mail is recognised but not yet readable. The image gains the PHP `gnupg`
+extension. Three columns are added to the message table; the migration is reversible. Mail synced
+before the update is not re-examined.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**Your OpenPGP keys are made, kept and recoverable — the second step towards end-to-end
+encryption.** The first time you sign in after the update, your browser makes a key for every
+address you send from and keeps them on the server wrapped under your password, which the server
+never sees; signing in unlocks them for the whole session. Settings → Encryption adds a recovery
+phrase (twelve words, shown once, downloadable together with your keys' revocation certificates),
+known devices that reopen your keys on their own after a password reset, importing a key you already
+use, exporting all of them as one file GnuPG, Thunderbird and Proton read, and renewing or marking a
+key compromised. Changing your password in Settings carries your keys over; `app:user:password`
+locks them until the recovery phrase or a known device opens them again. Configuration backups
+carry the keys. Nothing is encrypted with them yet — reading and sending encrypted mail come next.
+Four tables are added; the migration is reversible, but going back down deletes every key, and
+with it anything that will have been encrypted to them.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Your password no longer reaches the server.** The login form stretches it in the browser
 (PBKDF2-SHA256, 600 000 rounds, as Bitwarden does) and sends only the result, which the server
 hashes like any password; changing your password in Settings works the same way. It is the

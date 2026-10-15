@@ -1806,6 +1806,7 @@ compose:
         save_failed: Could not save the draft
         saved: Draft saved
         saving: "Saving…"
+        sealing: "Encrypting…"
         uploading: "Uploading…"
     # Why an upload was refused. The compose window prints these as-is on its
     # status line, so they are the whole of the explanation the user gets.
@@ -1829,9 +1830,29 @@ compose:
     discard: Delete draft
     empty_draft: (empty draft)
     encrypt: Encrypt message
-    # The whole of what the disabled encrypt button says for itself. It has to
-    # be a complete sentence: it is the only explanation anyone gets.
-    encrypt_unavailable: Encryption is not available yet.
+    crypto:
+        encrypt: Encrypt
+        sign: Sign
+        encrypted: Encrypted
+        encrypted_hint: "This message will be end-to-end encrypted: only you and the people it goes to can read it."
+        has_key: "plMail has a key for this address, so mail to it can be encrypted."
+        has_certificate: "plMail has an S/MIME certificate for this address, so mail to it can be encrypted."
+        key_changed: "A new key for this address is waiting to be accepted in Settings → Encryption. The known key is used until then."
+        partial: "%emails% cannot be reached encrypted, so this message goes out unencrypted to everybody."
+        partial_blocked: "%emails% cannot be reached encrypted. Remove them, or switch encryption off for this message."
+        missing: "There is no key for %emails%. Remove them, or switch encryption off for this message."
+        locked: "Your keys are locked in this browser. Open them in Settings → Encryption, or switch encryption off for this message."
+        locked_not_saved: "Not saved: this draft is encrypted, and your keys are locked in this browser."
+        locked_draft: "This draft is encrypted, and your keys are locked in this browser. Open them in Settings → Encryption to keep writing."
+        failed_draft: "This encrypted draft could not be opened."
+        no_own_key: "You have no key for this From address, so nothing can be signed or encrypted from it."
+        no_own_certificate: "You have no S/MIME certificate for this From address, so this message cannot be signed or encrypted with S/MIME."
+        failed: "The message could not be encrypted. Nothing was sent."
+        sealed_attachment: "Encrypted: until the message is sent, only you can open it."
+    seal:
+        refused: "The encrypted message did not arrive intact. Nothing was sent; try again."
+        keys_changed: "A recipient's key changed while you were writing. Nothing was sent; send it again."
+        unbuilt: "This draft is encrypted, so it can only be sent from a browser where your keys are open."
     expand: Expand
     formatting: Formatting options
     forward: Forward
@@ -1914,6 +1935,75 @@ compose:
         search: 'Find a template'
         untitled: 'Untitled template'
 
+contact_keys:
+    heading: "Contacts' keys"
+    subheading: "The public keys plMail checks your contacts' signatures with — and will encrypt to once plMail sends encrypted mail."
+    loading: "Loading contacts' keys…"
+    empty: "No keys yet. plMail picks them up from signed mail; you can also look one up or import it above."
+    verified: "Verified"
+    first_seen: "first seen %date%"
+    last_seen: "last seen %date%"
+    expires: "expires %date%"
+    origin:
+        attached: "Attached to a message"
+        autocrypt: "From a message's Autocrypt header"
+        manual: "Imported by you"
+        wkd: "From the domain's key directory (WKD)"
+    pin: "Mark as verified"
+    unpin: "Remove the checkmark"
+    accept: "Use this key instead"
+    remove: "Remove"
+    confirm_remove: "Remove this key? Signatures made with it cannot be checked until plMail finds it again."
+    changed_warning: "A different key turned up for this address. It may be your contact's new key — or somebody posing as them. plMail keeps using the known key until you compare this fingerprint with your contact and accept it."
+    pinned: "Marked as verified."
+    accepted: "This key is now the one used for the address."
+    removed: "Key removed."
+    preferences_saved: "Saved."
+    not_found: "That key is no longer there."
+    signer_unknown: "plMail does not have the key that made this signature. Look it up or import it first."
+    certificates:
+        heading: "Contacts' S/MIME certificates"
+        hint: "Picked up from your contacts' signed mail. Mail to them is encrypted with S/MIME when every recipient has one and you have a certificate of your own."
+        empty: "None yet. plMail keeps the certificate of every S/MIME-signed message whose signature checks out."
+        verified: "Confirmed by %issuer%"
+        unverified: "Not confirmed by a certificate authority"
+        confirm_remove: "Remove this certificate? Mail to this address cannot be encrypted with S/MIME until plMail sees a new one."
+        changed_warning: "A different certificate turned up for this address, and no certificate authority vouches for the change. plMail keeps using the known one until you compare this fingerprint with your contact and accept it."
+        removed: "Certificate removed."
+    import:
+        heading: "Import a key"
+        hint: "Paste a public key block or choose a file. The key is kept for every address it names."
+        file: "Key file"
+        paste: "Public key"
+        submit: "Add key"
+        done: "Imported. Addresses with this key: %count%."
+        changed: "Imported — but %count% of the addresses already had a different key. Compare the fingerprints below before you accept the new one."
+        unusable: "Nothing usable in that key: it is revoked, expired, or names no address."
+        not_a_key: "That is not an OpenPGP public key."
+        private_key: "That is a private key. Only import your contacts' public keys here — your own keys belong in the keyring above."
+    lookup:
+        heading: "Look up a key"
+        hint: "Asks the address's own domain for its key (Web Key Directory). The request goes through this server."
+        email: "Email address"
+        submit: "Look up"
+        found: "Found a key, and kept it."
+        changed: "Found a key — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        nothing: "The domain publishes no usable key for this address."
+        invalid_address: "That address cannot be looked up."
+        rate_limited: "Too many lookups in a row. Try again in a few minutes."
+    preferences:
+        heading: "Preferences for this recipient"
+        hint: "Used when plMail sends encrypted mail."
+        encrypt: "Encrypt"
+        sign: "Sign"
+        scheme: "Format"
+        save: "Save"
+        policy:
+            always: "Always"
+            auto: "Automatically"
+            never: "Never"
+        scheme_pgp-inline: "Inline PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Demo
@@ -2018,6 +2108,181 @@ dnd:
 drafts:
     empty: No drafts.
     heading: Drafts
+
+encryption:
+    decrypted:
+        heading: Decrypted mail on this server
+        subheading: "Off unless you choose it, per account. Your mail provider still cannot read your encrypted mail either way."
+        forbidden: "This installation does not keep decrypted mail. Your encrypted mail stays encrypted on the server."
+        state_on: "Encrypted mail is decrypted in your browser and kept readable here, so search, parcels, dates and rules work on it."
+        state_off: "Encrypted mail stays encrypted here: only sender and subject are searchable."
+        confirm: "Encrypted mail of this account will be stored on this plMail server after it is decrypted. Search, parcels and dates then work on it. Anybody with access to the server can read it. Your mail provider still cannot."
+        confirm_needed: "Tick the box to say you want decrypted mail kept on this server."
+        turn_on: Keep decrypted mail here
+        turn_off: Stop, and delete the decrypted copies
+        ai:
+            label: Let the models read it too
+            local: "Classification, search by meaning and summaries, with the model host %host%, which is on this installation's own network."
+            external: "The model host %host% is outside this installation's network: decrypted mail would be sent to it."
+            no_model: "No model host is set up on this installation."
+            consent: "I agree that decrypted mail of this account is sent to %host%."
+            consent_needed: "Tick the box to agree that decrypted mail is sent to the model host."
+            turn_on: Let the models read it
+            turn_off: Stop, and delete what they made of it
+    sending:
+        heading: Sending
+        subheading: "How mail goes out now that plMail can encrypt it. Mail to people whose keys plMail knows is encrypted by itself."
+        on: "On"
+        off: "Off"
+        autocrypt:
+            label: Share your key with every message
+            hint: "An invisible Autocrypt header carries your public key, so Thunderbird, Delta Chat and others can answer encrypted."
+        attach_key:
+            label: Attach your public key
+            hint: "As a file on every message, for recipients whose mail program does not read Autocrypt. People without PGP see an attachment they do not need."
+        sign_plain:
+            label: Sign unencrypted mail
+            hint: "People without PGP see a signature.asc attachment. Mail to somebody whose key plMail knows is signed either way."
+        block_partial:
+            label: Refuse to send when not everybody can be reached encrypted
+            hint: "Off: such a message goes out unencrypted to everybody, with a note in the compose window. On: it is not sent until you remove those recipients or switch encryption off for it."
+        protect_subject:
+            label: Encrypt the subject
+            hint: "The subject of an encrypted message travels inside the encryption, and the outside says only “...”. Thunderbird and others show the real subject; a program that cannot shows “...”."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Your public key, published under this installation's own domains, so Thunderbird, Proton and GnuPG find it by your address."
+        disabled: "This installation does not publish keys. An administrator can switch it on."
+        no_addresses: "None of your addresses is on a domain this installation publishes keys for (%domains%)."
+        publish: "Publish the key for %email%"
+        url_advanced: "Advanced method (openpgpkey subdomain)"
+        url_direct: "Direct method"
+        state:
+            published: "Published. Anybody who knows the address can fetch your public key."
+            switched_off: "Not published — you switched it off."
+            no_key: "Nothing to publish yet: this address has no active key."
+            not_sign_in_address: "Not published: plMail publishes only the address you sign in with, which an administrator gave you."
+        check:
+            button: "Check from outside"
+            current: "Found your current key for %email%."
+            outdated: "Found a key for %email%, but not your current one. Another server may be answering for the domain, or a cache still holds the old key."
+            missing: "No key found for %email%. The domain may not point to plMail yet — see the setup notes, or ask your administrator."
+        setup:
+            heading: "Setting up the domain (administrators)"
+            enable: "Name the domains in the APP_WKD_DOMAINS environment variable and restart plMail:"
+            domains: "Keys are published for: %domains%. Each domain needs one of these two ways to reach plMail."
+            advanced: "Advanced method, preferred: a DNS record for openpgpkey.%domain% pointing to %host%, and a TLS certificate for that name on plMail's server."
+            direct: "Direct method: the website at %domain% forwards everything under /.well-known/openpgpkey/ to plMail, passing the Host header on."
+            check: "Then use “Check from outside” on your own address. The check runs from this server, so a domain that resolves to a private address here is reported as missing even if it works from outside."
+    devices:
+        empty: "No devices yet."
+        heading: "Known devices"
+        last_used: "used"
+        remember: "Remember this device"
+        remove: "Remove"
+        subheading: "Browsers that can open your keys on their own after a password reset, without the recovery phrase."
+        this_device: "This device"
+        unavailable: "This browser cannot keep a device key here — it needs HTTPS and site storage."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Export your keys"
+        hint: "Every private key, old ones included, as one file GnuPG, Thunderbird and Proton can read."
+        passphrase: "Passphrase for the file"
+        submit: "Export"
+    failed: "That did not work. Reload the page and try again."
+    import:
+        done: "%count% keys imported."
+        hardware_key: "The secret parts of this key live on a smartcard or security key, which a browser cannot use."
+        heading: "Import a key"
+        hint: "An OpenPGP private key you already use, exported from GnuPG, Thunderbird or Proton. It becomes the key of the addresses it names."
+        no_match: "None of these keys names one of your addresses."
+        not_a_key: "That is not an OpenPGP private key."
+        passphrase: "Passphrase of the key"
+        submit: "Import"
+        wrong_passphrase: "That passphrase does not open the key."
+    keys:
+        advanced: "Show keys"
+        compromised: "Mark as compromised"
+        confirm_compromised: "Mark this key as compromised? It will not be used again, and its addresses get a new one."
+        confirm_renew: "Make a new key for these addresses? The old one stays, to open mail sent to it."
+        created: "created"
+        expires: "expires"
+        heading: "Keys"
+        locked: "locked — open it with your recovery phrase"
+        make_primary: "Make primary"
+        origin:
+            generated: "made by plMail"
+            imported: "imported"
+        primary: "primary"
+        renew: "Renew"
+        status:
+            active: "Active"
+            compromised: "Compromised"
+            obsolete: "Replaced"
+        subheading: "The OpenPGP keys of your addresses. Bring one you already use, or take yours elsewhere."
+    smime:
+        heading: "S/MIME certificates"
+        subheading: "Certificates from a certificate authority or your organisation, which Outlook, Apple Mail and Thunderbird understand. Used when every recipient has one and not every recipient has an OpenPGP key."
+        empty: "No S/MIME certificate yet."
+        import_heading: "Import a certificate"
+        import_hint: "A .p12 or .pfx file with your certificate and its private key. The file is opened in this browser; the server only keeps the key encrypted."
+        file: "Certificate file"
+        password: "Password of the file"
+        import_submit: "Import certificate"
+        imported: "Imported. It now signs and decrypts mail for %addresses%."
+        export_heading: "Export a certificate"
+        export_hint: "Type a password for the file here, then choose Export next to a certificate above."
+        export_password: "Password for the exported file"
+        export_password_missing: "First type a password of at least 8 characters for the exported file."
+        export: "Export as .p12"
+        remove: "Remove"
+        confirm_remove: "Remove this certificate and its private key? Mail encrypted to it can no longer be read here."
+        valid_until: "valid until"
+        expired: "expired"
+        issued_by: "issued by"
+        retired: "replaced by a newer certificate"
+        wrong_password: "That password does not open the file."
+        not_pkcs12: "That is not a .p12 or .pfx file."
+        legacy: "This file uses an old encryption (RC2 or 3DES) that plMail cannot open. Export it again with AES — OpenSSL 3 does by default, Windows with the AES-256 option."
+        not_rsa: "Only certificates with an RSA key can be used here."
+        no_key: "The file holds no private key that belongs to one of its certificates."
+        no_match: "The certificate is not for any of your addresses."
+    nag:
+        action: "Open settings"
+        locked_keys: "Some of your older keys are locked since your password was reset."
+        recovered: "Your older keys were opened again from this device."
+    phrase:
+        create: "Create recovery phrase"
+        download: "Download"
+        file_intro: "plMail recovery phrase. Keep this file somewhere safe and offline. The blocks below it are the revocation certificates of your keys."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Recovery phrase"
+        invalid: "These are not twelve valid recovery words. Check for typos."
+        missing: "You have no recovery phrase yet."
+        opens_nothing: "This phrase does not open any of your locked keys."
+        recover_heading: "Open older keys"
+        recover_hint: "Some of your keys were locked when your password was reset. Enter your recovery phrase to open them again."
+        recover_submit: "Open with recovery phrase"
+        recovered: "%count% keys opened again."
+        recreate: "Create a new recovery phrase"
+        saved: "Your recovery phrase is set up. Make a new one if the old one may have been seen."
+        shown_once: "Write these words down or download them now — they are shown only once. Anyone who has them can open your keys."
+        subheading: "Twelve words that open your keys if you ever forget your password. Without them, encrypted mail is lost with the password."
+    status:
+        broken: "Your keys could not be opened. Sign out and in again; if that does not help, an administrator finds the reason in the log."
+        disabled: "Not available on this installation."
+        insecure: "Needs HTTPS. This page was opened over plain http://, where the browser offers no cryptography of its own — open plMail through its https:// address."
+        heading: "End-to-end encryption"
+        key_count: "Active keys: %keys% · Addresses: %addresses%"
+        loading: "Opening your keys…"
+        locked: "Locked in this browser. Enter your password to unlock it."
+        open: "Set up, and unlocked in this browser."
+        subheading: "Mail only you and the people you write to can read — not this server, not your mail provider."
+    unlock:
+        label: "Password"
+        rate_limited: "Too many attempts. Wait a few minutes and try again."
+        submit: "Unlock"
+        wrong_password: "That is not your password."
 
 errors:
     page:
@@ -2285,6 +2550,43 @@ message:
         failed: 'This message was not delivered.'
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
+    crypto:
+        subject: "Subject: %subject%"
+        encrypted_kept: "Encrypted on arrival · stored readable on this server"
+        sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
+        action:
+            accept: "Use the new key"
+            lookup: "Look up the key"
+            manage: "Contacts' keys"
+            trust: "Trust this key"
+        compare_hint: "Compare the fingerprint with the sender — by phone, in person — before you trust it."
+        key_changed_hint: "It may be the sender's new key, or somebody posing as them. Compare the fingerprint with the sender before you use it."
+        decrypting: "Decrypting…"
+        encrypted: "End-to-end encrypted"
+        encrypted_smime: "Encrypted with S/MIME"
+        failed: "This message could not be decrypted."
+        inner:
+            invalid: "The signature inside does not match"
+            key_changed: "Signed with key %signer% — not the key plMail knows for this sender"
+            unchecked: "Signed inside the encryption; the signature has not been checked"
+            unknown_key: "Signed with key %signer%, which plMail does not know yet"
+            untrusted: "Signed inside the encryption — intact, but nobody has confirmed the key %signer%"
+            valid: "Signed inside the encryption, with your own key or one you verified"
+        locked: "Your keys are locked in this browser."
+        no_key: "This message was encrypted to a key you do not have here."
+        no_source: "The original of this message is not available, so it cannot be decrypted."
+        open_settings: "Unlock them"
+        signed:
+            invalid: "The signature does not match — this message was changed or is not from the sender"
+            key_changed: "Signed with a different key than the one plMail knows for this sender"
+            pending: "Signed — checking the signature…"
+            unknown_key: "Signed with a key plMail does not know yet"
+            untrusted: "Signed — the message is intact, but nothing confirms who signed it"
+            valid: "Signed, and the signature checks out"
+        signer: "Signed by %signer%"
+        smime_unreadable: "This message is encrypted with S/MIME for a certificate plMail does not have. Import it in Settings → Encryption, or open the message in a mail program that holds it."
+        smime_unsupported: "This message is encrypted with a cipher plMail cannot open; only AES is supported."
+        snippet: "Encrypted message"
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '
@@ -2858,6 +3160,7 @@ settings:
         scan_title: "Scan this with the plMail app"
         scan_hint: "The code works once and expires in two minutes. It doesn't contain your app password — the app exchanges it for a new one."
         qr_alt: "Pairing code"
+        with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
     app_passwords:
@@ -3710,6 +4013,7 @@ settings:
         appearance: Appearance
         calendars: Calendars
         disposal: Disposal
+        encryption: "Encryption"
         filters: Filters
         general: General
         group:

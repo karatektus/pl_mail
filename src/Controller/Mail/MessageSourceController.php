@@ -10,6 +10,8 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\MessageSourceBuilder;
 use App\Service\Mail\RawMessageResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -56,6 +58,41 @@ final class MessageSourceController extends AbstractController
             'reconstructed' => null === $raw,
             'auth'          => $this->authenticationResults($message),
         ]);
+    }
+
+    /**
+     * The message exactly as it arrived, byte for byte — what the browser
+     * decrypts an OpenPGP message from (assets/crypto/message.js).
+     *
+     * Not original() without the page around it: that one forces the bytes to
+     * UTF-8 for Twig and falls back to a reconstruction, and either change
+     * breaks a signature or ciphertext. Here there is no fallback — no raw
+     * source is a 404, and the page says it cannot open the message.
+     *
+     * Served the way an attachment is (AttachmentController::serve()): as a
+     * download nobody's browser renders, under a sandbox, and kept out of every
+     * cache — an encrypted message is still somebody's mail.
+     */
+    #[Route('/raw', name: 'raw', methods: ['GET'])]
+    public function raw(Message $message): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        $path = $this->rawResolver->absolutePathFor($message);
+
+        if (null === $path || false === is_file($path)) {
+            throw $this->createNotFoundException('No raw source is kept for this message.');
+        }
+
+        $response = new BinaryFileResponse($path, public: false, headers: [
+            'Content-Type'            => 'message/rfc822',
+            'X-Content-Type-Options'  => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Cache-Control'           => 'private, no-store',
+        ]);
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, sprintf('message-%d.eml', $message->id));
+
+        return $response;
     }
 
     #[Route('/print', name: 'print', methods: ['GET'])]

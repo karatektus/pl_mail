@@ -1,0 +1,72 @@
+{#
+mail/_frame_document.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The document a message body is shown in: the sandboxed frame's whole page.
+
+Its own file because two things build it and they must build the same bytes.
+_message_body.html.twig fills it with the server's sanitized body. For an
+encrypted message the server has no body, so it renders this once with the
+placeholder `<!--plmail:body-->` and hands it to the browser, which puts the
+body it decrypted where the placeholder is (assets/crypto/message.js). The
+frame script is allowed by the hash of its exact text (MessageFrameScript), so
+a copy kept in JavaScript would stop running the day either one changed.
+
+Variables:
+  render  MessageRender
+  body    string, already sanitized
+-#}
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ render.csp }}">
+{# Every link in a mail body opens away from the app. MailBodySanitizer already
+   forces target="_blank" per link; this covers anything it did not author. #}
+<base target="_blank">
+<style>
+    /* The mail sheet, carried across the document boundary.
+       CSS custom properties do not inherit into a frame, and an opaque-origin
+       frame cannot be reached from outside to be styled — so these are the
+       fallbacks that paint immediately, and the parent controller posts the
+       live theme values over the top as soon as it can read them. Every theme's
+       sheet is light (see app.css), so a light default is never far wrong and
+       there is no flash of the wrong colours. */
+    :root { color-scheme: light; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        background: #fff;
+        color: #27272a;
+        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        word-break: break-word;
+        overflow-x: auto;
+    }
+    a { color: #1d4ed8; }
+    /* Senders assume a viewport. Without this a 700px table adds a horizontal
+       scrollbar to a pane that used to just show it. */
+    img { max-width: 100%; height: auto; }
+    /* A blocked image keeps its box so the layout holds, and says so. */
+    img[data-plmail-blocked] {
+        min-width: 12px; min-height: 12px;
+        background: repeating-linear-gradient(135deg, #f4f4f5 0 6px, #e4e4e7 6px 12px);
+        outline: 1px dashed #a1a1aa;
+        outline-offset: -1px;
+    }
+    /* Two ceilings, because a placeholder's job is to say an image was here,
+       not to reserve every pixel of one.
+
+       The generous one applies to a box we shaped from the sender's own
+       numbers: those are honest, and the only thing wrong with an honest
+       1200px box is that it is 1200px of hatching. It can grow to a screenful
+       and no further. The cost is a jump when such an image is un-blocked,
+       paid only by images already too tall to take in at once.
+
+       The tight one is for an image whose shape nobody declared. `height:auto`
+       needs an intrinsic ratio to compute from and the blank placeholder's is
+       1:1, so a width and no height makes a square — 600px of hatching for a
+       banner. There is nothing to be faithful to there, so it stays small. */
+    img[data-plmail-blocked] { max-height: 24rem; }
+    img[data-plmail-blocked]:not([data-plmail-box]) { max-height: 8rem; }
+</style>
+</head><body>
+{{ body|raw }}
+<script>{{ render.frameScript|raw }}</script>
+</body></html>
