@@ -116,7 +116,7 @@ test("after a switch, Back from an opened row lands on the switched-to tab", asy
     await mailRow(page, INBOX_SUBJECTS.star).click();
     await expect(page.locator("#message-list")).toBeHidden();
 
-    await page.getByRole("button", { name: BACK_BUTTON }).first().click();
+    await page.getByRole("button", { name: BACK_BUTTON, exact: true }).first().click();
 
     await expect(page.locator("#message-list")).toBeVisible();
     await expect.poll(() => page.url()).toBe(tabUrl);
