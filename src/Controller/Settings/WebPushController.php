@@ -103,6 +103,12 @@ final class WebPushController extends AbstractController
             $subscription->pointAt($endpoint);
         }
 
+        // Both branches above, deliberately: a browser that re-subscribes
+        // after an endpoint rotation must come back narrowed too. This is the
+        // only place that narrows a row. A JMAP client registering through
+        // PushSubscription/set is not marked and keeps the full stream.
+        $subscription->markArrivalsOnly();
+
         $subscription->p256dh = $p256dh;
         $subscription->auth = $auth;
         $this->em->flush();

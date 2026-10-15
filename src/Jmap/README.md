@@ -120,7 +120,13 @@ column.
   relays ciphertext. `FcmSender` sends such a payload sealed or not at all;
   `StateChange` and `PushVerification` carry no content and stay readable.
 - `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
-  driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
+  driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`, which
+  drains two buffers from `StateManager`: what changed (`drainDirty()`) and on
+  which accounts mail arrived (`drainArrivals()`). A subscription with
+  `arrivalsOnly` — the in-app browser/PWA device, set by `WebPushController` —
+  is sent a StateChange only when its user had an arrival; every other row is
+  sent every StateChange. "Arrived" is decided by `PostIngestPipeline` (a live
+  batch, filed in the Inbox), not by an Email being created.
 
 **Appearance glue**
 - `Mapper/AppearanceMapper` — `App\Entity\Embeddable\Appearance` → the JMAP

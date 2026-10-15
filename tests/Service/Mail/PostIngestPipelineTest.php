@@ -6,7 +6,9 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
+use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Interface\PostIngestStepInterface;
+use App\Jmap\State\StateManager;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -224,7 +226,85 @@ final class PostIngestPipelineTest extends KernelTestCase
         self::assertFalse($ran);
     }
 
+    /**
+     * "New mail" means mail that ARRIVED in the Inbox, not any Email created: a
+     * spam, filed or unplaced message is a create too, and must not reach the
+     * arrivals buffer. The Inbox case is the presence companion for the three
+     * absences, in the same test.
+     */
+    public function testOnlyAnInboxArrivalInALiveBatchIsRecordedAsAnArrival(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        // Not importing any more, so the batch is live. The fixture mailbox
+        // starts out syncing, which is an import in progress.
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Spam), $this->account),
+        ]);
+        self::assertSame([], $state->drainArrivals(), 'spam is not new mail');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Elsewhere), $this->account),
+        ]);
+        self::assertSame([], $state->drainArrivals(), 'mail filed elsewhere is not new mail');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(null), $this->account),
+        ]);
+        self::assertSame([], $state->drainArrivals(), 'a message with no arrival place is not new mail');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'an Inbox arrival is new mail');
+    }
+
+    /**
+     * An import is tens of thousands of messages nobody is watching arrive.
+     * The same Inbox message in a batch that is not live must not be announced
+     * as new mail; once the mailbox is done importing it must be.
+     */
+    public function testAnInboxMessageDuringAnImportIsNotAnArrivalButAfterItIs(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        $this->mailbox->isSyncEnabled = true;
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+        self::assertSame([], $state->drainArrivals(), 'an import is not new mail');
+
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'presence: once the import is done, it is');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * A persisted message whose arrival place is set the way ArrivalStamper
+     * would set it at persist. The stamper itself needs provider headers this
+     * fixture does not carry, so the place is written here.
+     */
+    private function seedArrival(?ArrivalPlace $arrivedIn): Message
+    {
+        $message = $this->seedMessage('arrival-' . uniqid('', true));
+        $message->arrivedIn = $arrivedIn;
+        $this->em->flush();
+
+        return $message;
+    }
 
     /**
      * Built by hand rather than pulled from the container so the test can pass

@@ -24,6 +24,13 @@ use Psr\Log\LoggerInterface;
  * for. An unconfigured transport skips its own rows and leaves the others
  * alone, which is what makes turning Firebase off a decision about Android
  * rather than about push.
+ *
+ * **A subscription can ask for arrivals only.** The in-app browser/PWA device
+ * wants "new mail" and nothing else, and a StateChange cannot say which it is:
+ * it names an Email that changed, and a read, a flag or a sent copy changes one
+ * too. So such a row is sent only when mail arrived in one of its user's
+ * accounts since the last drain. Every other row is sent exactly as before, and
+ * a silenced row records nothing, the same as a row the type filter skips.
  */
 final class PushDispatcher
 {
@@ -37,13 +44,16 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<int,array<string,string>> $changed accountId => type => state
+     * @param array<int,array<string,string>> $changed           accountId => type => state
+     * @param list<int>                       $arrivedAccountIds accounts on which mail arrived since the last drain
      */
-    public function dispatch(array $changed): void
+    public function dispatch(array $changed, array $arrivedAccountIds): void
     {
         if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
+
+        $arrived = array_map('intval', $arrivedAccountIds);
 
         foreach ($this->groupByUser($changed) as $userId => $userChanges) {
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
@@ -57,6 +67,13 @@ final class PushDispatcher
                 // everything else. The Session already tells those clients that
                 // FCM is unavailable.
                 if (null === $sender || false === $sender->isConfigured()) {
+                    continue;
+                }
+
+                // Judged per user, not per change: a StateChange for this user's
+                // own mail is what the PWA is waiting for, and another user's
+                // arrival says nothing about it.
+                if (true === $subscription->arrivalsOnly && false === $this->anyArrived($userChanges, $arrived)) {
                     continue;
                 }
 
@@ -98,6 +115,21 @@ final class PushDispatcher
         }
 
         return $byUser;
+    }
+
+    /**
+     * @param array<string,array<string,string>> $userChanges accountId => type => state, for one user
+     * @param list<int>                          $arrived     accounts on which mail arrived
+     */
+    private function anyArrived(array $userChanges, array $arrived): bool
+    {
+        foreach (array_keys($userChanges) as $accountId) {
+            if (true === in_array((int) $accountId, $arrived, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

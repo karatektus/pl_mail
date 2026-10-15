@@ -77,7 +77,7 @@ final class PushDispatcherFanOutTest extends JmapTestCase
             new PushSenderRegistry($senders),
             $container->get(StateChangeBuilder::class),
             new NullLogger(),
-        )->dispatch([(int) $this->account->id => ['Email' => '9']]);
+        )->dispatch([(int) $this->account->id => ['Email' => '9']], []);
     }
 
     /** Verified, because an unverified subscription is deliverable to nothing. */

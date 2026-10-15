@@ -69,6 +69,25 @@ final readonly class MailChangeRecorder
     }
 
     /**
+     * New mail arrived in the account's Inbox.
+     *
+     * A distinct announcement from emailChanged(), though it sounds like one of
+     * its cases. That call answers "did an Email change", which every JMAP
+     * client needs and which a draft or a sent copy also answers. This answers
+     * "did mail arrive", which only one device wants, and it is the only signal
+     * that device gets. It is not a feature in the sense the class docblock
+     * refuses: it is a different question with a different audience, and folding
+     * it into emailChanged() would make every create look like new mail.
+     *
+     * Recorded by the caller in addition to emailChanged(created: true), never
+     * instead of it: the Email still changed for everybody else.
+     */
+    public function mailArrived(int $accountId): void
+    {
+        $this->stateManager->recordArrival($accountId);
+    }
+
+    /**
      * An Email was really deleted — unlike Email/set destroy, which moves the
      * message to Trash and keeps its id resolvable.
      *
