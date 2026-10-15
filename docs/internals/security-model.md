@@ -518,6 +518,34 @@ device's row, so a cookie on a request that set off before the sign-out and arri
 nothing — the page's own background requests used to sign the person straight back in with a
 signature-only cookie. Changing the password still ends every one of them.
 
+**Single sign-on is a second authenticator on `main`, not a second firewall.**
+`App\Security\OidcAuthenticator` ends in the same token for the same `User` as the password form, so
+the user checker, the throttle above and two-factor apply to it unchanged — see
+[Single sign-on](../providers/oidc.md) for the operator's side. Four decisions are worth knowing:
+
+- **The ID token's signature is not verified.** The token is only ever taken from the provider's
+  token endpoint, over TLS, in exchange for the code and the client secret, and OpenID Connect Core
+  § 3.1.3.7 allows the TLS connection to stand in for the signature in exactly that case. That is why
+  the issuer and its endpoints must be `https://`, and why no request to the provider follows a
+  redirect. A change that accepts an ID token from anywhere else has to add JWKS verification first;
+  `IdTokenValidator` says so.
+- **An account is linked by issuer and subject**, never matched by address after the first sign-in.
+  The first link is by address, and only when the provider says the address is verified — otherwise
+  anybody who can edit their own address at the provider could claim an account.
+- **It is configured under Admin → SSO, with the environment as the fallback** — a stored provider
+  wins, whole, and the `OIDC_*` variables are used when none is stored (`OidcSettings`). That is a
+  deliberate exception to the rule that an admin session must not become a second way into every
+  mailbox: this setting decides who may sign in, and an administrator who points it at a provider of
+  their own can sign in as any account without a second factor, since a new issuer relinks every
+  account by address. Two-factor authentication still holds, because the code is asked for after
+  the provider has answered. The first version read the environment only for exactly this reason;
+  being able to set it up without a restart was judged worth it.
+- **It moves trust to the provider.** Whoever runs the provider can sign in as anybody, which is what
+  single sign-on means. The less obvious half: Admin → Users can change an account's address, and an
+  unlinked account is found by address, so an administrator with a second login at the provider can
+  reach an account that has not been linked yet. `app:user:oidc-unlink` is console-only for the same
+  reason.
+
 ### Access control, and the endpoints that cannot hold a session
 
 `security.yaml`'s `access_control` list is annotated per rule, because every `PUBLIC_ACCESS`
@@ -960,6 +988,13 @@ The Spam banner is separate and needs no heuristic at all: the message carries a
 role is Spam. A trusted sender does **not** get images inside Spam — the allowlist records a
 belief about a sender, and a message in Spam is the provider disagreeing about whether this is
 really that sender.
+
+**Settings → Mail → Images** can widen the allowlist to every sender (`images.always_show` in the
+user's settings, off unless switched on, #124). It is read in `MessageRenderer` beside the
+allowlist and stops where the allowlist stops: Spam still wins, and images still go through the
+proxy, so a sender learns that a message was opened but not the reader's address. It is kept
+apart from the allowlist on purpose, so no "Stop showing" line is drawn for a sender nobody
+trusted, and switching it off leaves the per-sender entries as they were.
 
 ## Things that bite
 

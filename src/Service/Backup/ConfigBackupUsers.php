@@ -19,6 +19,7 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -188,6 +189,14 @@ final readonly class ConfigBackupUsers
         // choice about irreversible deletion. A boolean, no id, means the same
         // on any install.
         User::SETTING_DISPOSAL_DELETE_NOW,
+        // Whether remote images load without being asked for. A choice about
+        // what senders may learn of one's reading, so a restore must not
+        // quietly undo it in either direction. A boolean, no id.
+        User::SETTING_IMAGES_ALWAYS_SHOW,
+        // How the topbar's calendar button moves between views. One enum
+        // value, no id, the same on any install, and a preference about one's
+        // own screen like the pane's mode and width above.
+        User::SETTING_CALENDAR_SWITCH_SKIP,
     ];
 
     /**
@@ -224,6 +233,10 @@ final readonly class ConfigBackupUsers
         Account::SETTING_KEEP_DECRYPTED,
         Account::SETTING_KEEP_DECRYPTED_AI,
         Account::SETTING_KEEP_DECRYPTED_AI_HOST,
+        // A list of domain names, with nothing in it that belongs to one
+        // host: the mailbox is a catch-all for the same domains wherever
+        // plMail reads it from.
+        Account::SETTING_CATCH_ALL_DOMAINS,
     ];
 
     /**
@@ -273,6 +286,7 @@ final readonly class ConfigBackupUsers
         private CalendarRepository           $calendars,
         private CalendarShareLinkRepository  $shareLinks,
         private BookingPageRepository        $bookingPages,
+        private InboxCategoryRepository      $inboxCategories,
         private UserKeyRepository            $userKeys,
         private UserKeyCopyRepository        $userKeyCopies,
         private AddressKeyRepository         $addressKeys,
@@ -429,6 +443,7 @@ final readonly class ConfigBackupUsers
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
+            'inboxCategories' => $this->exportInboxCategories($user),
             'rules'        => $this->exportRules($user),
             'calendars'    => $this->exportCalendars($user),
             'shareLinks'   => $this->exportShareLinks($user),
@@ -791,6 +806,31 @@ final readonly class ConfigBackupUsers
                 'color'     => $label->color,
                 'isVisible' => $label->isVisible,
                 'sortOrder' => $label->sortOrder,
+            ];
+        }
+
+        return $exported;
+    }
+
+    /**
+     * The inbox tabs the person made themselves, in the order their strip draws
+     * them.
+     *
+     * With each one's id, for the reason labels carry theirs: a filter's "File in
+     * category" action names a category by that number, and the restorer rewrites
+     * it to the id the new row is given. Without these rows the filter would file
+     * into nothing, which is why they travel BEFORE the rules in the document.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportInboxCategories(User $user): array
+    {
+        $exported = [];
+
+        foreach ($this->inboxCategories->findForUserOrdered($user) as $category) {
+            $exported[] = [
+                'id'   => $category->id,
+                'name' => $category->name,
             ];
         }
 

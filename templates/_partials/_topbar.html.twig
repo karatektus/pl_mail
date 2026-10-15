@@ -331,6 +331,7 @@
             data-action="click->ui--modal#open"
             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
+            data-ui--modal-size-value="wide"
             class="flex cursor-pointer items-center h-9 rounded-lg
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
@@ -383,6 +384,13 @@
        three drew at once, on top of each other. An icon control has to be right
        from the markup alone. Same for the accented state, which is two utility
        classes the controller adds and removes rather than a new rule.
+
+       **User::$calendarSwitchSkip turns it into a two-way switch** (Settings →
+       Calendar → Behaviour): the mail and either the calendar beside it or the
+       calendar full width, the other one skipped. All three icons are still
+       rendered, because the skipped position is one the switch can be found in
+       — a stored split, or a drag of the handle; only where a press leads
+       changes — the label below, and _nextMode() in ui--split.
 
        Below lg the split position looks like the calendar position — the row
        cannot hold both — but the switch still has three stops, because the
@@ -470,7 +478,7 @@
            once, translated, and the controller copies the right one into the
            live label — so the strings exist in the template and not in the
            JavaScript. #}
-        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey|trans }}</span>
+        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey(app.user.calendarSwitchSkip)|trans }}</span>
         <span hidden>
             {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
                 <span data-calendar-mode-name="{{ candidate.value }}">{{ ('calendar.pane.mode.' ~ candidate.value)|trans }}</span>

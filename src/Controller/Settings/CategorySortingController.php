@@ -126,7 +126,7 @@ final class CategorySortingController extends AbstractController
             $this->bus->dispatch(new ResortMailboxMessage((int) $user->id));
         }
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_index', ['section' => 'categories']);
     }
 
     /**
@@ -163,6 +163,6 @@ final class CategorySortingController extends AbstractController
 
         $this->bus->dispatch(new ReclassifyRecentMessage((int) $user->id, $limit));
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_index', ['section' => 'categories']);
     }
 }

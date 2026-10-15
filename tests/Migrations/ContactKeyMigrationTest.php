@@ -13,7 +13,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * That Version20261014090000 landed — with the partial index that holds
+ * That Version20261014190000 landed — with the partial index that holds
  * "one key in use per address" — and that its own down() and up() take it
  * back and put it there again.
  *
@@ -91,7 +91,7 @@ final class ContactKeyMigrationTest extends KernelTestCase
         // Migrations are not autoloaded; the runner loads them by path, and
         // so does this. The class name comes from the file for the same
         // reason: static analysis does not see the migrations directory.
-        $file = self::getContainer()->getParameter('kernel.project_dir') . '/migrations/Version20261014090000.php';
+        $file = self::getContainer()->getParameter('kernel.project_dir') . '/migrations/Version20261014190000.php';
         require_once $file;
 
         $class = 'DoctrineMigrations\\' . pathinfo($file, PATHINFO_FILENAME);

@@ -24,8 +24,8 @@ use DateTimeImmutable;
  * So the CONTEXT WORD IS MANDATORY. Nothing is read from a number's shape
  * alone: a candidate counts only when it sits within a few dozen characters
  * of a word that promises a code — "Bestätigungscode", "verification code",
- * "Einmalcode", "2FA" — on either side of it, because both "Your code is
- * 123456" and "123456 ist dein Bestätigungscode" are how these mails are
+ * "Einmalcode", "code de vérification", "2FA" — on either side of it, because
+ * both "Your code is 123456" and "123456 ist dein Bestätigungscode" are how these mails are
  * actually written. Years, money, and anything introduced as a Bestellnummer
  * or Kundennummer are refused even inside that window; see
  * InsightExtractorInterface on returning nothing rather than probably-
@@ -60,6 +60,7 @@ final readonly class OtpExtractor implements InsightExtractorInterface
         'code', 'verification', 'verifizier', 'bestätigung', 'bestaetigung',
         'sicherheits', 'einmal', 'one-time', 'one time', 'otp', '2fa',
         'anmeld', 'login', 'log in', 'sign in', 'sign-in', 'authentifizier',
+        'vérification', 'connexion', 'authentification', 'usage unique',
     ];
 
     /**
@@ -68,7 +69,7 @@ final readonly class OtpExtractor implements InsightExtractorInterface
      * the chaperone, which is the difference between this and the S10 numbers
      * ParcelExtractor lets vouch for themselves.
      */
-    private const string CONTEXT = '~verification code|security code|one[- ]time (?:code|password|passcode)|access code|login code|sign[- ]in code|bestätigungscode|bestaetigungscode|sicherheitscode|einmalcode|einmal-code|verifizierungscode|anmeldecode|zugangscode|\bOTP\b|\b2FA\b~iu';
+    private const string CONTEXT = '~verification code|security code|one[- ]time (?:code|password|passcode)|access code|login code|sign[- ]in code|bestätigungscode|bestaetigungscode|sicherheitscode|einmalcode|einmal-code|verifizierungscode|anmeldecode|zugangscode|code de v[ée]rification|code de s[ée]curit[ée]|code de confirmation|code de connexion|code d.acc[èe]s|code d.authentification|code à usage unique|mot de passe à usage unique|\bOTP\b|\b2FA\b~iu';
 
     /**
      * How far in front of the context word a code may sit. Short, because
@@ -96,6 +97,8 @@ final readonly class OtpExtractor implements InsightExtractorInterface
         'bestellnummer', 'kundennummer', 'auftragsnummer', 'rechnungsnummer',
         'vertragsnummer', 'sendungsnummer', 'order number', 'order no',
         'customer number', 'invoice number', 'reference number', 'ticket number',
+        'numéro de commande', 'numero de commande', 'numéro de client', 'numero de client',
+        'numéro de facture', 'numero de facture', 'numéro de suivi', 'numero de suivi',
     ];
 
     /**
@@ -303,7 +306,7 @@ final readonly class OtpExtractor implements InsightExtractorInterface
         // beside it. The window reaches both ways — English writes "expires
         // in 15 minutes", German just as happily "10 Minuten gültig".
         preg_match_all(
-            '~gültig|gueltig|valid|expires?|expiry|läuft ab|laeuft ab|verfällt|verfaellt~iu',
+            '~gültig|gueltig|valid|expires?|expiry|läuft ab|laeuft ab|verfällt|verfaellt|valable|expire~iu',
             $text,
             $matches,
             PREG_OFFSET_CAPTURE,
@@ -317,7 +320,7 @@ final readonly class OtpExtractor implements InsightExtractorInterface
                 return (int) $match[1];
             }
 
-            if (1 === preg_match('~\b(\d{1,2})\s*(?:stunden|stunde|hours?|hrs?)~iu', $window, $match)) {
+            if (1 === preg_match('~\b(\d{1,2})\s*(?:stunden|stunde|hours?|hrs?|heures?)~iu', $window, $match)) {
                 // Hours are folded into minutes rather than kept as their own
                 // unit: the card shows one countdown, and the renderer never
                 // has to decide which unit it is looking at.
@@ -349,7 +352,7 @@ final readonly class OtpExtractor implements InsightExtractorInterface
             return $receivedAt->modify(sprintf('+%d minutes', $minutes));
         }
 
-        if (1 !== preg_match('~(?:gültig bis|gueltig bis|valid until|expires at|expires on|bis)\s*(\d{1,2}):(\d{2})~iu', $text, $match)) {
+        if (1 !== preg_match('~(?:gültig bis|gueltig bis|valid until|expires at|expires on|valable jusqu.à|bis)\s*(\d{1,2})[:h](\d{2})~iu', $text, $match)) {
             return null;
         }
 

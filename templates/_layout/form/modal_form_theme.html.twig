@@ -27,7 +27,18 @@ a collection row — is one field to the reader and should stay tight.
 {% block form_row %}
     <div class="flex flex-col gap-2">
         {{ form_label(form) }}
-        {{ form_widget(form) }}
+        {# The widget in an element of its own, so that nothing follows the
+           input as a sibling. Bitwarden reads the text after a field as part of
+           its label, and the help text is exactly that: on Admin → SSO the
+           Scopes help says "email" twice, which made the field an identity's
+           email address to it and opened its menu there — with `off` and its
+           own opt-out attribute both set, and after the placeholder that also
+           said "email" had gone. `contents`, so the wrapper exists for whoever
+           walks the DOM and not for the layout: the input is still a flex
+           child of the row. #}
+        <div class="contents">
+            {{ form_widget(form) }}
+        </div>
         {{ form_errors(form) }}
         {{ form_help(form) }}
     </div>
@@ -74,6 +85,16 @@ a collection row — is one field to the reader and should stay tight.
             'data-lpignore':  'true',
             'data-form-type': 'other',
         }) %}
+
+        {# And `off` where the field said nothing. No browser takes it as an
+           order, but Bitwarden reads it when deciding where to open its menu:
+           on Admin → SSO it offered logins in "Name on the button" and
+           "Scopes", the two text fields with no `autocomplete`, and left the
+           two that said `off` alone. A field that wants suggestions — an
+           address, a name in a real profile form — says so and keeps it. #}
+        {% if attr.autocomplete is not defined %}
+            {% set attr = attr|merge({ autocomplete: 'off' }) %}
+        {% endif %}
     {% endif %}
 
     {% set attr = attr|merge({

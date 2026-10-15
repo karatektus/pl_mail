@@ -98,6 +98,19 @@ final class StateManager
     }
 
     /**
+     * Whether anything has been recorded since the last drain.
+     *
+     * Asked while a response is still being built, which is before the drain
+     * (that happens once the response has gone). It is how a web request tells
+     * the browser that made it "this changed your mail" — see
+     * MailChangedHeaderSubscriber.
+     */
+    public function hasDirty(): bool
+    {
+        return [] !== $this->dirty;
+    }
+
+    /**
      * The (account, type) pairs touched since the last drain, with their
      * current state tokens, emptying the buffer.
      *

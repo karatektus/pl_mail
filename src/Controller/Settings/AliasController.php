@@ -133,6 +133,92 @@ final class AliasController extends AbstractController
         return $this->streamResponse($request, $account, 'alias.deleted');
     }
 
+    /**
+     * The name mail from this address goes out under.
+     *
+     * Empty clears it, and that is an answer rather than an error: the address
+     * goes back to sending under the account's name, which is what every alias
+     * does until somebody says otherwise (Account::senderNameFor()).
+     *
+     * Control characters are dropped on the way in. The name ends up in a
+     * header, and although the mailer encodes it, a line break stored here
+     * would also be shown in the From selector and published to JMAP clients,
+     * none of which expect one.
+     */
+    #[Route('/{aliasId}/name', name: 'name', methods: ['POST'])]
+    public function setName(Request $request, Account $account, int $aliasId): Response
+    {
+        $this->assertCsrf($request, 'alias-name' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $target = $this->ownedAlias($account, $aliasId);
+
+        $name = (string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string) $request->request->get('name', ''));
+
+        $target->displayName = mb_substr(trim($name), 0, 255);
+        $this->em->flush();
+
+        return $this->streamResponse(
+            $request,
+            $account,
+            null === $target->displayName ? 'alias.name_cleared' : 'alias.name_set',
+        );
+    }
+
+    /**
+     * Declare a domain a catch-all: every address at it reaches this mailbox.
+     *
+     * What that buys is answering as the address a mail was sent to
+     * (ReplyFromResolver) without adding each one as an alias first. Refused
+     * for Gmail and Microsoft accounts, where it could not work: both send as
+     * the addresses the provider knows about and rewrite or reject any other
+     * From, so the setting would promise something the first reply would break.
+     */
+    #[Route('/catch-all/add', name: 'catch_all_add', methods: ['POST'])]
+    public function addCatchAll(Request $request, Account $account): Response
+    {
+        $this->assertCsrf($request, 'alias-catch-all' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
+            return $this->streamResponse($request, $account, 'alias.catch_all_unsupported');
+        }
+
+        $domain = $this->domainFrom((string) $request->request->get('domain', ''));
+
+        if (null === $domain) {
+            return $this->streamResponse($request, $account, 'alias.catch_all_invalid');
+        }
+
+        $domains = $account->catchAllDomains;
+
+        if (true === in_array($domain, $domains, true)) {
+            return $this->streamResponse($request, $account, 'alias.catch_all_duplicate');
+        }
+
+        $domains[]                = $domain;
+        $account->catchAllDomains = $domains;
+        $this->em->flush();
+
+        return $this->streamResponse($request, $account, 'alias.catch_all_added');
+    }
+
+    #[Route('/catch-all/remove', name: 'catch_all_remove', methods: ['POST'])]
+    public function removeCatchAll(Request $request, Account $account): Response
+    {
+        $this->assertCsrf($request, 'alias-catch-all' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $domain = strtolower(trim((string) $request->request->get('domain', '')));
+
+        $account->catchAllDomains = array_values(array_filter(
+            $account->catchAllDomains,
+            static fn (string $existing): bool => $existing !== $domain,
+        ));
+        $this->em->flush();
+
+        return $this->streamResponse($request, $account, 'alias.catch_all_removed');
+    }
+
     #[Route('/refresh', name: 'refresh', methods: ['POST'])]
     public function refresh(Request $request, Account $account): Response
     {
@@ -145,6 +231,34 @@ final class AliasController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * A domain name out of whatever was typed, or null when it is not one.
+     *
+     * Forgiving about the spellings people reach for — `@example.com`,
+     * `*@example.com`, a pasted address — because all of them mean the same
+     * domain, and strict about the result: letters, digits and hyphens in
+     * dot-separated labels with a top-level one, which is what a domain mail
+     * is delivered to looks like. An internationalised name goes in as its
+     * punycode form, the way it appears in an address on the wire.
+     */
+    private function domainFrom(string $typed): ?string
+    {
+        $domain = strtolower(trim($typed));
+        $at     = strrpos($domain, '@');
+
+        if (false !== $at) {
+            $domain = substr($domain, $at + 1);
+        }
+
+        $domain = trim($domain, " .\t");
+
+        if (strlen($domain) > 253 || 1 !== preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/', $domain)) {
+            return null;
+        }
+
+        return $domain;
+    }
 
     private function streamResponse(Request $request, Account $account, string $toastMessage): Response
     {

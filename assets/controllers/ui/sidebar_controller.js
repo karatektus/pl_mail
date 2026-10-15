@@ -16,6 +16,19 @@ const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-me
 const ANCESTOR_CLASS   = "is-active-ancestor";
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
+/**
+ * The server saying this user's mail changed — see MailChangeNotifier.
+ *
+ * Its own event and its own, shorter floor (CHANGED_FLOOR_MS). A sync event
+ * says a mailbox was looked at, usually finds nothing, and comes one per
+ * mailbox per account; this one is only published when something was actually
+ * recorded, once per request or handled message, and it is what tells a tab
+ * that the mail sent ten seconds ago has now left Drafts. Fifteen seconds of
+ * patience is right for the first and is the bug for the second.
+ */
+const CHANGED_EVENT    = "core--mercure:mail-changed";
+/** The key the counts payload carries its change sequence under. */
+const SEQUENCE_KEY     = "state:sequence";
 /** The frame the mail list lives in — see templates/_layout/_mailbox.html.twig. */
 const LIST_FRAME_ID    = "inbox-list-frame";
 /**
@@ -114,6 +127,28 @@ let freshPending = null;
 /** The floor between two counts requests. */
 const MIN_COUNTS_MS = 15000;
 
+/** The floor after a `mail.changed` nudge. See CHANGED_EVENT. */
+const CHANGED_FLOOR_MS = 2000;
+
+/**
+ * How long a nudge waits before it is compared with what has been counted.
+ * Longer than the announcement window in mail_writes.js plus a request leaving,
+ * so this tab's own post-write request is on the wire by then.
+ */
+const CHANGED_SETTLE_MS = 400;
+
+/**
+ * The change sequence the newest counts answer was read at, or null before
+ * the first one.
+ *
+ * A `mail.changed` nudge carries the sequence of the change it is about. One
+ * that is not newer than this is a change the badges already show — nearly
+ * always this tab's own, which re-read its counts on the response to the
+ * request that made it, a moment before the hub delivered the nudge for the
+ * same write. Without the comparison every write would be counted twice.
+ */
+let countsSequence = null;
+
 /**
  * @param {string}  url
  * @param {boolean} fresh  A caller that has just written and cannot be served
@@ -181,6 +216,17 @@ function request(url) {
 
     inFlight = fetch(url, { headers: { Accept: "application/json" } })
         .then((response) => (response.ok ? response.json() : null))
+        .then((counts) => {
+            const sequence = counts?.[SEQUENCE_KEY];
+
+            // Never backwards: two answers can land out of order, and the
+            // older one must not make a change already counted look new.
+            if ("number" === typeof sequence && (null === countsSequence || sequence > countsSequence)) {
+                countsSequence = sequence;
+            }
+
+            return counts;
+        })
         .catch(() => null)
         .finally(() => {
             inFlight = null;
@@ -326,7 +372,7 @@ function patchTabUnread(counts) {
 
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "collapseSummary"];
-    static values = { countsUrl: String, collapseUrl: String, i18n: Object };
+    static values = { countsUrl: String, collapseUrl: String, sequence: Number, i18n: Object };
 
     connect() {
         // Before the first paint of this element, so nothing is seen in the
@@ -395,8 +441,43 @@ export default class extends Controller {
             document.addEventListener(name, this._onSynced),
         );
 
+        // The badges this element was rendered with were counted at this
+        // sequence. Without it a freshly loaded page knows nothing, and the
+        // first nudge to reach it — the hub replays the last one to a tab that
+        // reconnects — would re-read numbers the server had just sent.
+        if (this.hasSequenceValue && (null === countsSequence || this.sequenceValue > countsSequence)) {
+            countsSequence = this.sequenceValue;
+        }
+
         this._onWritten = () => this.refreshCounts({ immediate: true });
         document.addEventListener(WRITTEN_EVENT, this._onWritten);
+
+        this._onChanged = async (event) => {
+            const sequence = event.detail?.sequence;
+
+            // Not yet. For this tab's own write the hub is quicker than the
+            // tab: the nudge was measured arriving before the counts request
+            // the write itself sets off had even left, so comparing sequences
+            // straight away always found the nudge "newer" and every write was
+            // counted twice. Give that request time to go out, then wait for
+            // whatever is on the wire, and only then ask whether the change is
+            // one the badges already show.
+            await new Promise((resolve) => setTimeout(resolve, CHANGED_SETTLE_MS));
+            await inFlight?.catch(() => null);
+
+            if (false === this.element.isConnected) {
+                return;
+            }
+
+            // Already counted — see countsSequence. A nudge with no sequence
+            // is from a server that sends none, and is taken at its word.
+            if ("number" === typeof sequence && null !== countsSequence && sequence <= countsSequence) {
+                return;
+            }
+
+            this.refreshCounts({ floor: CHANGED_FLOOR_MS });
+        };
+        document.addEventListener(CHANGED_EVENT, this._onChanged);
 
         this._trailing = null;
     }
@@ -462,6 +543,7 @@ export default class extends Controller {
             document.removeEventListener(name, this._onSynced),
         );
         document.removeEventListener(WRITTEN_EVENT, this._onWritten);
+        document.removeEventListener(CHANGED_EVENT, this._onChanged);
 
         // A refresh owed to a sidebar that has gone is owed to nobody.
         clearTimeout(this._trailing);
@@ -548,7 +630,7 @@ export default class extends Controller {
         sessionStorage.setItem(SCROLL_KEY, String(this.scrollerTarget.scrollTop));
     }
 
-    async refreshCounts({ immediate = false } = {}) {
+    async refreshCounts({ immediate = false, floor = MIN_COUNTS_MS } = {}) {
         if (!this.hasCountsUrlValue) {
             return;
         }
@@ -579,11 +661,11 @@ export default class extends Controller {
         // number indefinitely. The rate limit stays shared, which is what it is
         // for: both wake at the end of the same window and `inFlight`
         // deduplicates them into one round trip.
-        if (!immediate && inFlight === null && Date.now() - lastFetchAt < MIN_COUNTS_MS) {
+        if (!immediate && inFlight === null && Date.now() - lastFetchAt < floor) {
             clearTimeout(this._trailing);
             this._trailing = setTimeout(
                 () => this.refreshCounts({ immediate: true }),
-                MIN_COUNTS_MS - (Date.now() - lastFetchAt),
+                floor - (Date.now() - lastFetchAt),
             );
 
             return;

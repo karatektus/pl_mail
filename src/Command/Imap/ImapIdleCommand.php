@@ -20,6 +20,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Webklex\PHPIMAP\Connection\Protocols\Protocol;
 use Webklex\PHPIMAP\Connection\Protocols\Response;
 
 #[AsCommand(
@@ -32,6 +33,28 @@ class ImapIdleCommand extends Command
     private const RECONNECT_DELAY   = 5;    // seconds between reconnection attempts
     private const MAX_RETRIES       = 10;
     private const HEARTBEAT_MIN_GAP = 30;   // min seconds between idle-loop keepalive beats
+
+    /**
+     * How quickly an empty read has to come back to be a closed connection
+     * rather than a quiet one.
+     *
+     * A read on a quiet mailbox blocks for the stream's timeout — thirty
+     * seconds — before it gives up empty. A read on a connection the server
+     * has closed gives up empty at once. One second is far from both.
+     */
+    private const float CLOSED_READ_SECONDS = 1.0;
+
+    /**
+     * How long a connection has to have lived for its loss to be ordinary.
+     *
+     * Some servers end an idle session after a few minutes (Lark, QQ), and
+     * that is their normal: reconnect at once, count nothing. A connection
+     * lost within seconds of being made is something else — a server that
+     * accepts IDLE and then hangs up, a login that is being throttled — and
+     * reconnecting at once to that would be a loop of its own. Shorter than
+     * this, the loss is a failure and takes the retry ladder in execute().
+     */
+    private const int HEALTHY_SECONDS = 60;
 
     /**
      * The shortest gap between two full mailbox syncs dispatched from here.
@@ -106,6 +129,37 @@ class ImapIdleCommand extends Command
 
         pcntl_signal(SIGTERM, $handler);
         pcntl_signal(SIGINT, $handler);
+    }
+
+    /**
+     * Whether an empty read means the connection is gone rather than quiet.
+     *
+     * Two signs, either of which is enough. The stream says so itself — it is
+     * at end-of-file, or is no longer a stream at all. Or the read came back
+     * faster than a quiet connection can: a TLS stream does not always report
+     * end-of-file for a peer that has gone away, but it cannot make a read
+     * that should have blocked for thirty seconds return in a millisecond.
+     *
+     * Public and static for the reason announcesFlagChange() is: it is a
+     * decision about a value, and the loop around it needs a mail server to
+     * run.
+     */
+    public static function connectionEnded(mixed $stream, float $readSeconds): bool
+    {
+        if (false === is_resource($stream) || true === feof($stream)) {
+            return true;
+        }
+
+        return $readSeconds < self::CLOSED_READ_SECONDS;
+    }
+
+    /** Run something whose failure changes nothing — closing what is already closed. */
+    private function quietly(callable $action): void
+    {
+        try {
+            $action();
+        } catch (\Throwable) {
+        }
     }
 
     protected function configure(): void
@@ -214,12 +268,50 @@ class ImapIdleCommand extends Command
                 return;
             }
 
+            $readAt = microtime(true);
+
             try {
                 $line = $connection->nextLine(new Response(0, false));
             } catch (\Throwable $e) {
                 if (true === $this->shouldStop) {
                     $connection->done();
                     $client->disconnect();
+                    return;
+                }
+
+                // "empty response" is what the library says for two different
+                // things: the read timed out with nothing to say, and the
+                // server has closed the connection. They were both taken for
+                // the first. On a closed connection every read returns empty
+                // AT ONCE, so the loop below never blocked again and spun a
+                // core until the 29-minute re-issue — measured at 85 minutes of
+                // CPU in three hours for one Lark inbox, against half a second
+                // for a Gmail one (#94).
+                $readSeconds = microtime(true) - $readAt;
+
+                // The stream is the socket client's to show. Any other
+                // protocol class is judged on the timing alone.
+                $ended = $connection instanceof Protocol
+                    ? self::connectionEnded($connection->getStream(), $readSeconds)
+                    : $readSeconds < self::CLOSED_READ_SECONDS;
+
+                if (true === str_contains($e->getMessage(), 'empty response') && true === $ended) {
+                    // A sync held in the quiet window still has to leave: the
+                    // notification behind it may be the last thing this
+                    // connection ever said.
+                    $this->flushSync($mailboxId, $io);
+                    $this->quietly(static fn () => $client->disconnect());
+
+                    if (time() - $startTime < self::HEALTHY_SECONDS) {
+                        throw new \RuntimeException(sprintf(
+                            'The server closed the IDLE connection %d seconds after it was opened.',
+                            time() - $startTime,
+                        ), 0, $e);
+                    }
+
+                    $io->text(sprintf('[%s] The server closed the IDLE connection — reconnecting.', date('H:i:s')));
+                    $this->beat($mailbox, $account, true);
+
                     return;
                 }
 

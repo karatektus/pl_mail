@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use Throwable;
+use App\Domain\Helper\ImapEmptyAnswer;
 use App\Entity\Mail\Mailbox;
 use App\Domain\Helper\ImapFolderLocator;
 use App\Repository\Mail\MailboxRepository;
@@ -123,19 +125,51 @@ final readonly class ImapMailboxImporter
         $query      = $folder->messages()->where(MessageSyncer::uidSetCriteria($page));
         $lowestHeld = null;
 
-        foreach ($this->pagedFetch->pages($query, self::PAGE_SIZE) as [$batch, $unreadable]) {
-            // Found again for each: storing a page clears the entity manager.
-            $current = $this->mailboxes->find($mailboxId);
+        try {
+            foreach ($this->pagedFetch->pages($query, self::PAGE_SIZE) as [$batch, $unreadable]) {
+                // Found again for each: storing a page clears the entity manager.
+                $current = $this->mailboxes->find($mailboxId);
 
-            if (null === $current) {
-                return ImapImportOutcome::Finished;
+                if (null === $current) {
+                    return ImapImportOutcome::Finished;
+                }
+
+                $held = $this->messageSyncer->storeImportPage($current, $batch, $unreadable);
+
+                if (null !== $held) {
+                    $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);
+                }
+            }
+        } catch (Throwable $e) {
+            // The server listed these UIDs and then returned nothing for any
+            // of them. A page of a hundred never gets here — one UID that will
+            // not come back is simply absent among ninety-nine that do — so
+            // this is the LAST page, holding only what the server will not
+            // hand over: iCloud lists a message in SEARCH that it has hidden
+            // from FETCH, most likely one deleted and not yet expunged (#96).
+            //
+            // It used to leave this method as an exception, before the
+            // attempts below were counted, so the rule that gives up after
+            // MAX_PAGE_ATTEMPTS never applied: the import was retried every
+            // few minutes for good, at 486 of 487, and every folder of the
+            // account ranked after this one waited behind it.
+            //
+            // Counted as a page that held something back, which is what it
+            // is. Only this failure: a dropped connection or a refusal says
+            // nothing about the messages, and passing over mail because the
+            // network was down for an hour is not a trade to make.
+            if (false === ImapEmptyAnswer::is($e)) {
+                throw $e;
             }
 
-            $held = $this->messageSyncer->storeImportPage($current, $batch, $unreadable);
+            $this->logger->info('Import: the server lists messages it returned nothing for', [
+                'mailboxId' => $mailboxId,
+                'mailbox'   => $path,
+                'from'      => min($page),
+                'to'        => max($page),
+            ]);
 
-            if (null !== $held) {
-                $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);
-            }
+            $lowestHeld = min($page);
         }
 
         $mailbox = $this->mailboxes->find($mailboxId);

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/event-extraction.md sha1:8c058a6ccdf39d1a56836321655acee9c4e3404e -->
+<!-- translated-from: internals/event-extraction.md sha1:2dae76980d57094d8e6eec5557ae1617da260b33 -->
 # Extraktion von Terminen
 
 Wie aus einer `.ics`-Einladung ein Kalendereintrag wird, wie aus einem gewöhnlichen Satz das
@@ -326,8 +326,9 @@ unsichtbare: eine Nachricht, die der Parser hätte lesen können und die das Gat
 hat, was niemandem auffällt, weil nichts angezeigt wurde. Es antwortet „vielleicht" und „ganz
 sicher nicht", und gehandelt wird nur nach der zweiten Antwort.
 
-Deutsch und Englisch stehen in einer Alternation statt in je einem Durchgang pro Sprache, weil
-die Mail dieser Nutzerin beides ist und keine Nachricht sagt, welches von beidem. Jeder
+Deutsch, Englisch und Französisch stehen in einer Alternation statt in je einem Durchgang pro
+Sprache, weil ein Postfach sie mischt und keine Nachricht sagt, welche es ist — die Sprache der
+Oberfläche sagt nichts über die Sprache der Mail, also werden für alle Nutzer alle drei gelesen. Jeder
 Wochentags- und Monatsname steht **vollständig** da statt als Stamm mit Platzhalter: Die erste
 Fassung benutzte `(?:mon|die|sam|mai)[a-zäöü]*`, und das trifft „money", „die", „same" und
 „mail" — der deutsche bestimmte Artikel und das Wort „mail" kommen praktisch in jeder Nachricht

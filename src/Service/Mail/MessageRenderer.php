@@ -96,11 +96,20 @@ final readonly class MessageRenderer
         // because this account's own session put it there.
         $own       = self::hasRole($message, LabelRole::Sent);
 
+        // The reader's own "always show images" (#124): every sender treated
+        // as if it were on the allowlist. Kept apart from $trusted on purpose —
+        // $trusted is what draws the "Images are always shown for this sender /
+        // Stop trusting" line, and that line would offer to undo an entry that
+        // does not exist.
+        $everyone  = $user instanceof User && true === $user->alwaysShowImages;
+
         // A message sitting in Spam never loads images on an allowlist. The
         // allowlist records a belief about a sender; a message in Spam is the
         // provider disagreeing about whether this really is that sender, and
-        // the safe reading of a disagreement is the cautious one.
-        $allow = (true === $trusted || true === $own || true === $forceImages) && false === $inSpam;
+        // the safe reading of a disagreement is the cautious one. The same goes
+        // for the blanket setting: it widens the allowlist, so it stops where
+        // the allowlist stops.
+        $allow = (true === $trusted || true === $own || true === $everyone || true === $forceImages) && false === $inSpam;
 
         // The blocker settles what the body may load; the collapser then folds
         // its trailing reply-history behind a "Show quoted text" toggle. Both

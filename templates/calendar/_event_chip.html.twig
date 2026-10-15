@@ -314,11 +314,19 @@ identity is threaded through a URL that would outlive the render that made it.
         ]) %}
     {% endfor %}
 
-    {# The same stops read two ways: around a dot, down a bar. `slices` is a
+    {# The same stops read two ways: around a dot, along a bar. `slices` is a
        list of `colour from% to%` triples, which is the one syntax both gradient
-       functions take, so the shape is the only thing that changes here. #}
+       functions take, so the shape is the only thing that changes here.
+
+       ALONG the bar, whichever way it lies. It stands upright beside the title
+       and is split top to bottom — but a month cell too narrow for words turns
+       it on its side (the @max-[5.5rem] classes on the span below), and split
+       top to bottom there it was two hairlines stacked in a bar six pixels
+       tall. The direction is a custom property so that the same container
+       query that lays the bar flat can turn the split with it; an inline
+       style cannot be reached by a class any other way. #}
     {% set mark_style = 'background: '
-        ~ (roomy ? 'linear-gradient(to bottom, ' : 'conic-gradient(')
+        ~ (roomy ? 'linear-gradient(var(--mark-split, to bottom), ' : 'conic-gradient(')
         ~ slices|join(', ') ~ ')' %}
 {% else %}
     {% set mark_style = 'background-color: ' ~ event.calendar.color %}
@@ -426,7 +434,7 @@ identity is threaded through a URL that would outlive the render that made it.
                     it; with the button collapsed to `display: block` it is an
                     inline span again, and an inline span ignores a width and a
                     height both. The bar rendered as nothing at all. #}
-                 {{ monthCell ? '@max-[5.5rem]:block @max-[5.5rem]:w-full @max-[5.5rem]:h-1.5' : '' }}
+                 {{ monthCell ? '@max-[5.5rem]:block @max-[5.5rem]:w-full @max-[5.5rem]:h-1.5 @max-[5.5rem]:[--mark-split:to_right]' : '' }}
                  {{ stacked
                      ? 'col-start-1 row-span-full'
                      : (timeColumn ? '' : 'order-first') }}"

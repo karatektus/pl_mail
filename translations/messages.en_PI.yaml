@@ -676,6 +676,7 @@ admin:
         performance: Speed
         push: "Signal flags"
         reset: "Scuttle"
+        sso: 'Fleet''s seal'
         system: Ship
         updates: "New sails"
         users: Th' crew roster
@@ -856,6 +857,32 @@ admin:
         running_for: 'for %duration%'
         waiting_since: 'Waitin'' since'
     refresh_hint: 'Live panels be redrawn every 10s'
+    sso:
+        clear_secret: 'Forget th'' stowed client secret'
+        clear_secret_help: 'Empty th'' issuer an'' th'' client ID with it. Boardin'' then falls back t'' th'' OIDC_* variables in th'' environment, or shuts if there be none.'
+        env_note: 'Leave issuer, client ID an'' secret all empty an'' boardin'' falls back t'' OIDC_ISSUER, OIDC_CLIENT_ID an'' OIDC_CLIENT_SECRET in th'' environment, so a ship rigged that way sails on. What be saved here wins over ''em.'
+        field:
+            auto_create: 'Make a berth fer sailors plMail has never seen'
+            auto_create_help: 'On, every sailor th'' fleet lets through gets a common berth here, so limit who that be at th'' fleet. Off, th'' cap''n makes each berth first, with th'' same bottle address.'
+            button_label: 'Name on th'' button'
+            button_label_help: 'Th'' boardin'' button reads "Board with …" an'' this name. Empty says "yer fleet''s seal".'
+            client_id: 'Client ID'
+            client_secret: 'Client secret'
+            issuer: 'Issuer'
+            issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
+            require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
+            require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
+            scopes: 'Scopes'
+            scopes_help: 'Parted by spaces. "openid" be always added, an'' without "email" a first boardin'' cannot find its berth. Empty asks fer openid, email an'' profile.'
+        heading: 'Fleet''s seal'
+        intro: 'Let sailors board through an OpenID Connect fleet ye already run: Authentik, Keycloak, Authelia an'' th'' like. Th'' boardin'' page then shows a button above th'' secret-word form, which stays.'
+        redirect_uri_help: 'Register this at th'' fleet as th'' redirect URI, exactly as shown.'
+        save: 'Stow'
+        saved: 'Fleet''s seal stowed.'
+        status:
+            environment: 'On, from th'' environment'
+            'off': 'Off'
+            'on': 'On'
     summary:
         accounts: '%count% crews'
         active: '%count% astir'
@@ -1059,9 +1086,16 @@ admin:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
 alias:
     added: 'Address added, arr!'
+    catch_all_added: 'Catch-all harbour added, arr!'
+    catch_all_duplicate: 'That harbour already catches all for this crew member.'
+    catch_all_invalid: 'That be no harbour name. Write it like example.com.'
+    catch_all_removed: 'Catch-all harbour struck from the charts.'
+    catch_all_unsupported: 'Gmail and Outlook only sail under addresses their harbourmaster knows, so a catch-all harbour be no use to this crew member.'
     deleted: 'Address struck from the roster.'
     duplicate: 'That address already sails with this crew member.'
     invalid: 'That don''t look like a proper parrot address.'
+    name_cleared: 'Sender name struck. This address sails under the crew member''s name again.'
+    name_set: 'Sender name stowed.'
     primary_set: 'Flagship address changed.'
     refreshed: 'Fetched anew from the harbourmaster.'
     status_blocked: 'The flagship address can''t be struck — name another flagship first.'
@@ -2333,6 +2367,13 @@ jobs:
         folder: "Now: %folder%"
         heading: "Haulin' %account% aboard"
         newest_first: "Freshest post first"
+        quota: "Gmail's ration: about %used% o' %limit% units this minute"
+        quota_assumed: "Gmail's ration: about %used% o' %limit% units this minute (a guess, till Google names the limit)"
+        quota_paused: "Becalmed by Gmail's ration · under way in %seconds% s"
+        quota_refused: "Gmail said nay at about %used% o' %limit% units a minute"
+        rate: "About %count% letters a minute"
+        remaining_hours: "About %hours% h %minutes% min o' haulin' left"
+        remaining_minutes: "About %minutes% min o' haulin' left"
         waiting: "Waitin' fer the tide"
     started: 'Started %action% — she runs below decks.'
     failure:
@@ -2405,6 +2446,10 @@ login:
         remember_me: Keep me aboard
         submit: Come aboard
         submitting: Comin' aboard…
+    oidc:
+        button: Board with yer fleet's seal
+        button_named: Board with %provider%
+        or: or
     page_title: Come aboard
     register:
         coming_soon: Signin' on be comin' soon.
@@ -2474,6 +2519,7 @@ message:
             ai: "an oracle, for no rule knew it: "
             ai_differs: 'the rules say otherwise'
             awaiting_resort: "Bein' re-stowed — ye changed how post be sorted, an' this one has not shifted yet."
+            own_filter: "stowed there by one o' yer sieves"
             gmail_overruled: "not used — ye asked plMail to stow this itself"
             in_force: 'this one decides'
             ai_no_answer: 'asked, naught useful back'
@@ -2485,6 +2531,7 @@ message:
             pinned: 'ye hauled it here yerself'
             promotion: 'a bulk-cargo header: '
             social: 'the sender port '
+            switched_off: "it'd be %category%, an' ye scuttled that one"
             thread_differs: "This message alone would be %category% — a yarn takes th' category o' its newest message."
             update: 'a sign of an unmanned sender: '
         category: rank
@@ -2975,6 +3022,12 @@ settings:
     aliases:
         add: 'Add'
         add_placeholder: 'Add another address…'
+        catch_all:
+            add: 'Make it catch all'
+            hint: 'If every address at a harbour lands in this hold, add the harbour here. A reply then sails from the address the letter was sent to, without adding each one above.'
+            label: 'Catch-all harbours'
+            placeholder: 'example.com'
+            remove: 'Strike %domain%'
         delete: 'Strike it'
         disable: 'Furl it'
         empty: 'No addresses yet.'
@@ -2983,6 +3036,9 @@ settings:
         make_primary: 'Make it the flagship'
         ms_sender_hint: 'Outlook always sails under yer crew member''s flagship alias, whatever ye pick here — change it in yer'
         ms_sender_hint_link: 'Microsoft account settings'
+        name_for: 'Sender name for %alias%'
+        name_placeholder: 'Sender name'
+        name_save: 'Stow the name'
         primary: 'Flagship'
         refresh: 'Fetch from the harbourmaster'
         subheading: 'Addresses this crew member sends and receives under.'
@@ -3243,6 +3299,7 @@ settings:
         action:
             applyLabel: Fly the flag
             archive: Skip the hold
+            fileInCategory: Stow in a hold of its own
             markRead: Mark as read
             markSpam: Call it bilge
             removeLabel: Strike the flag
@@ -3306,6 +3363,7 @@ settings:
             draft: a rough draft
             flagged: marked
             seen: read
+        category_missing: '(scuttled hold)'
         integration_missing: '(cast-off port)'
         label_missing: '(struck flag)'
         move_down: 'Send "%name%" astern'
@@ -3315,6 +3373,7 @@ settings:
         new_title: New sieve
         no: Nay
         no_actions: No orders yet
+        no_categories: 'No holds yet — build one first.'
         no_integrations: 'No ports moored — make fast to one in Friendly ports first.'
         of_the_following: o the followin
         op:
@@ -3704,6 +3763,14 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
+    calendar_behaviour:
+        button: Calendar button
+        button_hint: 'Which views the button up top steps through. A view it leaves out be not scuttled: the drag handle still reaches it.'
+        heading: Behaviour
+        option_calendar: Split only
+        option_none: All three
+        option_split: Full breadth only
+        subheading: 'How the calendar button up top moves between views.'
     calendars:
         account_hint: Where reckonin's found in parrots from %address% be filed.
         caldav:
@@ -3820,13 +3887,22 @@ settings:
         'off': Off
         'on': On
         subheading: "How bottles be sunk for good."
+    images:
+        always_show: "Always hoist the pictures"
+        always_show_hint: "Hauls in the pictures in every bottle without askin' first. Senders can then tell that an' when ye opened their mail, but not where ye be anchored: pictures still come aboard through plMail. Bottles in Spam stay blocked either way. Off till ye turn it on."
+        heading: Pictures
+        'off': Off
+        'on': On
+        subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
+        calendar_behaviour: Behaviour
         calendars: Almanacs
+        categories: "Holds"
         disposal: Disposal
         encryption: "Sealed letters"
         filters: Sieves
@@ -3838,6 +3914,7 @@ settings:
             mail: "Th' post"
             personal: Yerself
         health: "State o' yer crew"
+        images: Pictures
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
@@ -4008,14 +4085,52 @@ settings:
         reverted: 'Back to the ship''s own mark.'
         save: 'Set down yer mark'
         saved: 'Set down.'
+        source:
+            clean: 'Nothing was thrown overboard.'
+            embedded: 'Pictures stowed in the signature: %count%.'
+            failed: 'The signature could not be drawn. Yer HTML be untouched. Try again.'
+            html: 'HTML'
+            label: '%label% as HTML'
+            placeholder: 'Paste or scrawl the HTML of yer signature…'
+            remote: 'Pictures that could not be stowed and stay linked: %count%. They do not show here, and some recipients must allow them first.'
+            removed: 'Thrown overboard, for letter readers would not show it or it be not safe to send: %items%.'
+            rendered: 'Drawn'
+            toggle: 'Signature view'
         subheading: 'What be carved at the foot o'' the scrolls ye write.'
+    categories:
+        add: Add
+        built_in: "Ship's own"
+        built_in_off: "Ship's own · struck — its loot be on the Main deck"
+        created: 'Built the hold "%name%".'
+        delete: Scuttle the hold
+        delete_confirm: 'Scuttle "%name%"? Post stowed there goes back to the hold it would be in otherwise. No post goes over the side.'
+        deleted: 'Scuttled "%name%".'
+        error:
+            empty: 'A hold needs a name.'
+            reserved: 'That name belongs to one o'' the holds the ship came with.'
+            taken: 'Ye already have a hold by that name.'
+            too_long: 'That name be too long (forty letters at most).'
+        filters_link: 'Settings → Sieves.'
+        heading: "Tabs"
+        hint: "A tab o' yer own shows in the inbox while it holds letters. Letters go into it through a filter whose order be \"File in category\" — rig one up under"
+        move_down: "Haul %tab% down"
+        move_up: "Haul %tab% up"
+        name_label: Name
+        off: "Nay"
+        on: "Aye"
+        placeholder: 'e.g. Parcels'
+        primary_fixed: "Always first an' always flyin' — loot from a tab ye strike lands here."
+        rename: Rename
+        renamed: 'Renamed to "%name%".'
+        reorder: "Drag t' reorder"
+        subheading: "Raise or strike the ship's own tabs, add yer own, an' haul 'em into whatever order ye fancy."
     sorting:
         again:
             button: "Ask again"
             hint: "Th' oracle answers once per message an' keeps th' answer. Ask again when th' oracle, its orders or a plMail release have changed — it costs an askin' per message, so it be bounded to yer newest post."
             label: "Stow recent post again"
         applies_to_new: "Changin' either o' these re-stows the post ye already have, below decks — a big hold takes a few minutes, so give the tabs a moment. Yarns ye stowed by hand yerself be left be."
-        heading: Categories
+        heading: "Sortin'"
         override:
             hint: "A Gmail account arrives already stowed by Google. This decides whether plMail leaves it be or answers for itself."
             label: "On Gmail accounts"

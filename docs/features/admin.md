@@ -413,6 +413,23 @@ delivery.
 
 Retention is 30 days, swept nightly by `app:monitoring:prune`; `--push-days=N` changes it.
 
+## SSO
+
+Single sign-on: the OpenID Connect provider people sign in to plMail through — Authentik, Keycloak,
+Authelia and the like. One form: the issuer, the client ID and the client secret out of the
+provider's console, the name the login button carries, and two switches for how accounts are
+matched. The page shows the redirect URI to register at the provider, and a chip that says whether
+sign-in is **On**, **On, from the environment** or **Off**.
+
+Saving takes effect at once. The client secret is write-only, like every credential in this area:
+the field never shows a stored one, and leaving it empty keeps it. Setup step by step, what each
+switch does and the `OIDC_*` variables that stand in when nothing is saved here are in
+[Single sign-on](../providers/oidc.md).
+
+**This is the one admin page that decides who can sign in.** Whoever can save it can point plMail at
+a provider of their own and sign in as any account that has no second factor — see the page above
+before handing out administrator accounts.
+
 ## AI
 
 Optional, off by default, and plMail is a complete mail client with it off. Nothing here is switched

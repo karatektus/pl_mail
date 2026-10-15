@@ -82,6 +82,50 @@ final class InviteReaderTest extends KernelTestCase
         self::assertSame(ParticipationStatus::NeedsAction, $invite->myStatus());
     }
 
+    /**
+     * An invitation sent to an address at a catch-all domain is the user's:
+     * the mail it came in is the evidence, since no list of aliases names it.
+     */
+    public function testAnInvitationToACatchAllAddressIsTheUsersToAnswer(): void
+    {
+        $this->account->catchAllDomains = ['shop.test'];
+
+        $message              = $this->invitation(attendee: 'yo@shop.test');
+        $message->toAddresses = [['name' => '', 'address' => 'yo@shop.test']];
+        $this->em->flush();
+        $this->reader->reset();
+
+        $invite = $this->reader->forMessage($message, $this->user);
+
+        self::assertNotNull($invite);
+        self::assertNotNull($invite->me, 'the catch-all address the mail came in for is us');
+        self::assertSame('yo@shop.test', $invite->me->email);
+        self::assertTrue($invite->canRespond);
+    }
+
+    /**
+     * The other half, and the reason the whole domain is not claimed: Anna
+     * has a mailbox of her own at the same domain. An invitation naming her,
+     * delivered here for yo@, must not offer to answer on her behalf.
+     */
+    public function testAnInvitationNamingAColleagueAtTheCatchAllDomainIsNotOursToAnswer(): void
+    {
+        $this->account->catchAllDomains = ['shop.test'];
+
+        $message              = $this->invitation(attendee: 'anna@shop.test');
+        $message->toAddresses = [
+            ['name' => '', 'address' => 'anna@shop.test'],
+            ['name' => '', 'address' => 'yo@shop.test'],
+        ];
+        $message->headers     = ['Delivered-To' => 'yo@shop.test'];
+        $this->em->flush();
+        $this->reader->reset();
+
+        $invite = $this->reader->forMessage($message, $this->user);
+
+        self::assertNull($invite?->me, 'anna@ is somebody else, whatever domain she is at');
+    }
+
     public function testTheOrganiserIsShownTheInvitationButCannotAnswerIt(): void
     {
         $message = $this->invitation(organiser: $this->address(), attendee: 'someone@example.org');

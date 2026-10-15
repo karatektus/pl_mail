@@ -86,6 +86,16 @@
         forums:     'text-violet-600 dark:text-violet-400',
     } %}
 
+    {# The tabs the reader made themselves have no identity colour or glyph of
+       their own — the five above are Gmail's, and a category is a name somebody
+       typed — so they share one neutral set. A folder because that is what a
+       tab you made is: somewhere you put things. Slate rather than an accent
+       tone, so a custom tab never reads as one of Gmail's. #}
+    {% set customIcon      = 'M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z' %}
+    {% set customIconSolid = 'M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 9h-15a4.483 4.483 0 0 0-3 1.146Z' %}
+    {% set customTone      = 'bg-slate-600 text-white' %}
+    {% set customIconTone  = 'text-slate-600 dark:text-slate-400' %}
+
     {# A lone Primary tab is a heading pretending to be a choice — when no
        other category has mail, the whole row stays home. #}
     {# What a tab link carries with it.
@@ -130,8 +140,10 @@
        phone-sized card, and `min-w-0` on each tab let them all shrink until
        the labels ran under the next tab's icon. So a tab keeps its own width
        (`shrink-0`) and the row overflows sideways — inside the nav, never the
-       page. Padding tightens below the list's `@xl`, the same breakpoint the
-       rows use, because the card can be narrow on a wide viewport too.
+       page. Padding tightens below the list's `@xl` (36rem), which is
+       also where the rows go from three lines to two — one line comes
+       later, at `@rowwide` — because the card can be narrow on a wide
+       viewport too.
 
        `pb-px -mb-px` on the nav is what the tabs' own `-mb-px` used to do
        against the wrapper's hairline: an overflow container clips whatever
@@ -142,9 +154,9 @@
         <nav class="relative flex text-sm overflow-x-auto overflow-y-hidden pb-px -mb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
              data-controller="ui--scroll-active">
             {% for tabCase in tabs %}
-                {% set isActive = tabCase === tab %}
-                {% set tabName = ('tabs.' ~ tabCase.value)|trans %}
-                {% set newCount = newMail.forCategory(tabCase) %}
+                {% set isActive = tab is not null and tabCase.value == tab.value %}
+                {% set tabName = tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans %}
+                {% set newCount = newMail.forTab(tabCase) %}
 
                 {# Rendered on every tab except the one being looked at. The tint answers "where
                    is the mail I cannot see"; the active tab is the one place on
@@ -165,8 +177,8 @@
                    know which of the five a given tab wears. #}
                 {% set tintable  = false === isActive %}
                 {% set unreadHere = tintable ? (tab_unread[tabCase.value]|default(0)) : 0 %}
-                {% set iconTone  = tabIconTones[tabCase.value]|default('') %}
-                {% set senderNames = newCount > 0 ? newMail.sendersForCategory(tabCase)|join(', ') : '' %}
+                {% set iconTone  = tabIconTones[tabCase.value]|default(customIconTone) %}
+                {% set senderNames = newCount > 0 ? newMail.sendersForTab(tabCase)|join(', ') : '' %}
 
                 {# min-h rather than padding for the vertical size: the tab is
                    one line without a sender hint and two with one, and a
@@ -190,12 +202,12 @@
                     {% if isActive %}
                         <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
                              {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="{{ tabIconsSolid[tabCase.value] }}"/>
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="{{ tabIconsSolid[tabCase.value]|default(customIconSolid) }}"/>
                         </svg>
                     {% else %}
                         <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"
                              {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ tabIcons[tabCase.value] }}"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ tabIcons[tabCase.value]|default(customIcon) }}"/>
                         </svg>
                     {% endif %}
 
@@ -256,7 +268,7 @@
                                carries the data-count-key the counts endpoint
                                emits, and the patcher rewrites text as well as
                                visibility. #}
-                            <span class="ml-1.5 inline-flex align-middle">{{ newMarkers.new_pill(newCount, 'new:category:' ~ tabCase.value, tabName, tabTones[tabCase.value] ?? null) }}</span>
+                            <span class="ml-1.5 inline-flex align-middle">{{ newMarkers.new_pill(newCount, 'new:category:' ~ tabCase.value, tabName, tabTones[tabCase.value] ?? customTone) }}</span>
                         </span>
 
                         {# Who the new mail is from — Gmail's second line.
@@ -301,7 +313,7 @@
                     class="flex items-center shrink-0 px-3 @xl:px-5 py-1.5 min-h-14 text-sm font-medium
                            text-ink-faint border-b-2 border-dashed border-transparent
                            whitespace-nowrap transition-colors"
-                >{{ ('tabs.' ~ tabCase.value)|trans }}</span>
+                >{{ tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans }}</span>
             {% endfor %}
         </nav>
     </div>

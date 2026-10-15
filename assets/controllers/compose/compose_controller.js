@@ -1493,7 +1493,12 @@ export default class extends Controller {
     _signatureFor(token) {
         const map = this.hasSignaturesValue ? this.signaturesValue : {};
 
-        return map?.[token] ?? '';
+        // An address at a catch-all domain has no entry of its own — the
+        // server cannot list every local part — so it signs with the account's
+        // wildcard entry, `<accountId>|*`. See SignatureProvider::tokenMap().
+        const wildcard = `${String(token).split('|')[0]}|*`;
+
+        return map?.[token] ?? map?.[wildcard] ?? '';
     }
 
     _currentSignature() {

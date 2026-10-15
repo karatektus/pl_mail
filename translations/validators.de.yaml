@@ -4,6 +4,10 @@ account.host_invalid: Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne 
 admin.ai.keep_alive_invalid: Nimm eine Dauer wie 5m, 30m oder 4h, eine reine Sekundenzahl oder -1, damit das Modell dauerhaft geladen bleibt — leer lassen nimmt die Einstellung des Hosts.
 admin.integrations.client_id_missing: Trage die Client-ID ein, die zu diesem Secret gehört.
 admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der Client-ID allein kann sich niemand anmelden.
+admin.sso.error.client_id_missing: 'Zum Issuer und zum Secret gehört eine Client-ID. Alle drei oder keins davon.'
+admin.sso.error.issuer_missing: 'Zur Client-ID und zum Secret gehört ein Issuer. Alle drei oder keins davon.'
+admin.sso.error.issuer_not_https: 'Der Issuer muss mit https:// beginnen. plMail vertraut dem Anbieter wegen der TLS-Verbindung zu ihm.'
+admin.sso.error.secret_missing: 'Zum Issuer und zur Client-ID gehört ein Client-Secret. Alle drei oder keins davon.'
 admin.users.password_too_short: Mindestens {{ limit }} Zeichen — dieses Passwort wählst du für jemand anderen.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
 app_password.name_required: Gib dem App-Passwort einen Namen, damit du es später wiedererkennst.

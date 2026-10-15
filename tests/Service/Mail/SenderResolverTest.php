@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\EmailAlias;
+use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Mail\SenderResolver;
@@ -137,6 +141,46 @@ final class SenderResolverTest extends TestCase
         $account = $this->account();
 
         self::assertStringEndsWith('|me@example.test', $this->resolver->token($account));
+    }
+
+    // ── the token a draft's window opens on ──────────────────────────────────
+
+    public function testADraftOpensOnTheAddressItAlreadyGoesOutFrom(): void
+    {
+        $account = $this->account();
+        $account->addAlias(new EmailAlias($account, 'me@example.test', EmailAliasSource::Manual, EmailAliasStatus::Primary));
+        $account->addAlias(new EmailAlias($account, 'sales@example.test', EmailAliasSource::Manual, EmailAliasStatus::Active));
+
+        // The fixture account was never persisted, so its id reads as 0.
+        self::assertSame('0|sales@example.test', $this->resolver->tokenFor($this->draft($account, 'Sales@Example.test'), $account));
+    }
+
+    public function testADraftFromACatchAllAddressOpensOnThatAddress(): void
+    {
+        $account                  = $this->account();
+        $account->catchAllDomains = ['shop.test'];
+
+        self::assertSame('0|yo@shop.test', $this->resolver->tokenFor($this->draft($account, 'yo@shop.test'), $account));
+    }
+
+    /** An alias disabled since the draft was written is not an option any more. */
+    public function testADraftFromAnAddressTheAccountNoLongerSendsAsOpensOnThePrimary(): void
+    {
+        $account = $this->account();
+        $account->addAlias(new EmailAlias($account, 'me@example.test', EmailAliasSource::Manual, EmailAliasStatus::Primary));
+        $account->addAlias(new EmailAlias($account, 'old@example.test', EmailAliasSource::Manual, EmailAliasStatus::Inactive));
+
+        self::assertSame($this->resolver->token($account), $this->resolver->tokenFor($this->draft($account, 'old@example.test'), $account));
+        self::assertSame($this->resolver->token($account), $this->resolver->tokenFor($this->draft($account, null), $account));
+    }
+
+    private function draft(Account $account, ?string $from): Message
+    {
+        $draft              = new Message();
+        $draft->account     = $account;
+        $draft->fromAddress = $from;
+
+        return $draft;
     }
 
     private function account(): Account

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Repository\Mail\GmailSkippedMessageRepository;
 use App\Domain\Exception\GmailApiException;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
@@ -33,14 +34,27 @@ final class GmailApiSyncer
     /** Message-list page size (API max is 500). */
     private const int PAGE_SIZE = 500;
 
-    /** Gmail message IDs per fan-out batch. */
-    private const int BATCH_SIZE = 100;
+    /**
+     * Gmail message IDs per fan-out batch: one job's worth. The client sends
+     * them a few to a request — see GmailApiClient::getMessages() — so this
+     * is how much a worker takes on at a time.
+     */
+    private const int BATCH_SIZE = 50;
 
     /** How many of the Inbox's newest messages an import asks for by name, first. */
     private const int INBOX_SLICE = 200;
 
     /** Seconds before an unfinished backfill lists again. */
     private const int BACKFILL_COOLDOWN = 3600;
+
+    /**
+     * Seconds before it lists again when everything Gmail counts is already
+     * accounted for. The hour is for batches still draining; once the
+     * mailbox is all in, what is left is one listing to confirm it, and an
+     * hour of "Importing · 100%" in front of it says something that is not
+     * true.
+     */
+    private const int CONFIRM_COOLDOWN = 600;
 
     /** Hourly listings before an unfinished backfill stops retrying. */
     private const int BACKFILL_MAX_ATTEMPTS = 24;
@@ -53,6 +67,7 @@ final class GmailApiSyncer
         private readonly LoggerInterface        $logger,
         private readonly MessageEraser          $eraser,
         private readonly SyncOrigin             $origin,
+        private readonly GmailSkippedMessageRepository $skipped,
     ) {}
 
     /**
@@ -146,7 +161,7 @@ final class GmailApiSyncer
             'labelIds'   => 'INBOX',
         ]);
 
-        $this->dispatchBatches($account, $this->newGmailIds($account, $listed['messages']), true);
+        $this->dispatchBatches($account, $this->newGmailIds($account, $listed['messages']), true, true);
     }
 
     /**
@@ -173,9 +188,22 @@ final class GmailApiSyncer
             // now would find the same ids missing and dispatch them a second
             // time; an hour is long enough for the queue to have made visible
             // progress.
+            //
+            // Visible progress, not the end of it: a large mailbox on a low
+            // quota takes most of a day, and each hourly listing in that time
+            // names everything still outstanding again. Those batches are
+            // marked `onlyMissing`, so what an earlier one has brought in by
+            // the time a later one is handled costs a lookup and no fetch.
             $ranAt = $account->backfillRanAt;
 
-            if (null !== $ranAt && $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::BACKFILL_COOLDOWN))) {
+            if (
+                null !== $ranAt
+                && $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::BACKFILL_COOLDOWN))
+                && (
+                    $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::CONFIRM_COOLDOWN))
+                    || false === $this->isAccountedFor($account)
+                )
+            ) {
                 return GmailBackfillStep::Waiting;
             }
 
@@ -190,12 +218,21 @@ final class GmailApiSyncer
             $this->em->flush();
         }
 
-        // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
-        $listed = $this->apiClient->listMessagesPage($account, ['maxResults' => self::PAGE_SIZE], $pageToken);
+        // No labelIds filter — all mail — and Spam and Trash asked for by
+        // name. The comment here said "inbox, sent, spam, trash", and the
+        // request never included the last two: messages.list leaves both out
+        // unless includeSpamTrash is set. getProfile's messagesTotal, which
+        // the progress line counts towards, includes them, so an import of a
+        // mailbox with a full Trash could never reach its own total.
+        $listed = $this->apiClient->listMessagesPage(
+            $account,
+            ['maxResults' => self::PAGE_SIZE, 'includeSpamTrash' => 'true'],
+            $pageToken,
+        );
 
         $pending = $this->newGmailIds($account, $listed['messages']);
 
-        $this->dispatchBatches($account, $pending, $toImportQueue);
+        $this->dispatchBatches($account, $pending, $toImportQueue, true);
 
         $found = $account->backfillPending + count($pending);
 
@@ -558,11 +595,45 @@ final class GmailApiSyncer
      * @param list<array{id?: string}> $refs
      * @return list<string>
      */
+    /**
+     * Whether everything in the mailbox is here, by count: stored on this
+     * account, stored on the account it was addressed to, or looked at and
+     * declined — measured against Gmail's total as it is now, not as it was
+     * when the import began, since mail has arrived in the meantime.
+     *
+     * Only ever a reason to list sooner. The listing is still what decides
+     * the import is finished; a count can be fooled where a list of ids
+     * cannot.
+     */
+    private function isAccountedFor(Account $account): bool
+    {
+        $profile = $this->apiClient->getProfile($account);
+
+        if (false === isset($profile['messagesTotal'])) {
+            return false;
+        }
+
+        $account->importTotal = (int) $profile['messagesTotal'];
+        $this->em->flush();
+
+        $done = $this->messageRepository->countForAccount($account)
+            + $this->messageRepository->countCarriedBy($account)
+            + $this->skipped->countForAccount($account);
+
+        return $done >= $account->importTotal;
+    }
+
     private function newGmailIds(Account $account, array $refs): array
     {
-        $syncedGmailIds = array_flip(
-            $this->messageRepository->findSyncedGmailIdsForUser($account->usr)
-        );
+        // "Not here yet" means neither stored nor already looked at and
+        // declined. Without the second half a declined message is missing for
+        // ever: named by every listing, fetched in full each time, and the
+        // import waits out its whole attempt ceiling on mail that is not
+        // coming. See GmailSkippedMessage.
+        $syncedGmailIds = array_flip([
+            ...$this->messageRepository->findSyncedGmailIdsForUser($account->usr),
+            ...$this->skipped->findGmailIdsForAccount($account),
+        ]);
 
         $pending = [];
 
@@ -585,8 +656,12 @@ final class GmailApiSyncer
 
     /**
      * @param list<string> $gmailIds
+     * @param bool         $onlyMissing a listing's batch: by the time it is
+     *                                  handled some of what it names may be
+     *                                  here already, and those are not
+     *                                  fetched again
      */
-    private function dispatchBatches(Account $account, array $gmailIds, bool $toImportQueue = false): void
+    private function dispatchBatches(Account $account, array $gmailIds, bool $toImportQueue = false, bool $onlyMissing = false): void
     {
         if (count($gmailIds) === 0) {
             return;
@@ -604,6 +679,7 @@ final class GmailApiSyncer
                     (int) $account->id,
                     $batch,
                     $this->origin->current(),
+                    $onlyMissing,
                 ),
                 true === $toImportQueue ? [new TransportNamesStamp([self::IMPORT_QUEUE])] : [],
             );

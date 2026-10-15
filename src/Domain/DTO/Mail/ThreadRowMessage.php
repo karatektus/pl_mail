@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Mail;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Entity\Mail\Message;
 use DateTimeImmutable;
 
@@ -35,6 +36,13 @@ final readonly class ThreadRowMessage
         public ?DateTimeImmutable $sentAt,
         public DateTimeImmutable $createdAt,
         public ?DateTimeImmutable $submissionSendAt,
+        /**
+         * Whether the message is filed under Sent or Drafts — which only the
+         * account's own mail is. It is how a From at a catch-all domain is
+         * told apart: the user's own when this is true, a colleague with a
+         * mailbox of their own when it is not. See OwnAddressHelper.
+         */
+        public bool $filedAsSent = false,
     ) {
     }
 
@@ -51,6 +59,11 @@ final readonly class ThreadRowMessage
             $message->sentAt,
             $message->createdAt,
             $message->submissionSendAt,
+            // Asked only for a From at a catch-all domain. For every other
+            // message the answer is never read, and asking would walk the
+            // labels of each message on the row — a lazy load apiece.
+            true === ($message->account ?? null)?->catchesAddress($message->fromAddress)
+                && true === OwnAddressHelper::sentByAccount($message),
         );
     }
 }

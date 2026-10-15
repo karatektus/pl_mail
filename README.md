@@ -78,8 +78,9 @@ provider doesn't.
 - **And when there is something newer** — follow releases or the main branch, and the
   administrators hear about each new build once: on their devices and at the top of the admin area,
   with what changed since the one they run.
-- **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, ten icons for the tab and the
-  phone's home screen, English, German and Pirate.
+- **Yours** — two-factor auth, sign-in through Authentik, Keycloak or any other OpenID Connect
+  provider, per-app JMAP passwords, 41 themes, ten icons for the tab and the phone's home screen,
+  English, German, French and Pirate.
 
 ## A look around
 

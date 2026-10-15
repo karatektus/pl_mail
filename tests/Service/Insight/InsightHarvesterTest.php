@@ -112,6 +112,79 @@ final class InsightHarvesterTest extends KernelTestCase
         self::assertSame($second->id, $rows[0]->message?->id, 'the link follows the newest mail');
     }
 
+    /**
+     * The backfill walks stored mail by id, and ids are not dates: the Graph
+     * import stored a mailbox newest-first, so the mail about a parcel being
+     * out for delivery has the LOWER id and is read before the one that
+     * announced it. "The later draft wins" has to mean later by the mail's own
+     * date, or a re-read turns every parcel's card back into its first status.
+     */
+    public function testAnOlderMailDoesNotOverwriteWhatANewerOneSaid(): void
+    {
+        $older = $this->thread('announced', lastMessageAt: '2026-10-08 21:15:24')->messages->first();
+        $newer = $this->thread('out for delivery', lastMessageAt: '2026-10-09 11:50:17')->messages->first();
+
+        self::assertSame(1, $this->harvestOne($newer, 'out_for_delivery'), 'the first mail writes the card');
+        self::assertSame(0, $this->harvestOne($older, 'announced'), 'the older one writes nothing, and says so');
+
+        $rows = $this->repository()->findBy(['account' => $this->account]);
+
+        self::assertCount(1, $rows);
+        self::assertSame('out_for_delivery', $rows[0]->payload['status'], 'the older mail must not turn the card back');
+        self::assertSame($newer->id, $rows[0]->message?->id, 'and must not take the link to itself');
+    }
+
+    public function testTheNewerMailStillWinsWhenItIsReadSecond(): void
+    {
+        $older = $this->thread('announced', lastMessageAt: '2026-10-08 21:15:24')->messages->first();
+        $newer = $this->thread('out for delivery', lastMessageAt: '2026-10-09 11:50:17')->messages->first();
+
+        $this->harvestOne($older, 'announced');
+        $this->harvestOne($newer, 'out_for_delivery');
+
+        $rows = $this->repository()->findBy(['account' => $this->account]);
+
+        self::assertCount(1, $rows);
+        self::assertSame('out_for_delivery', $rows[0]->payload['status']);
+        self::assertSame($newer->id, $rows[0]->message?->id);
+    }
+
+    public function testTwoMailsOfTheSameInstantLeaveTheLastReadAsTheWinner(): void
+    {
+        $first  = $this->thread('first', lastMessageAt: '2026-10-09 10:00:00')->messages->first();
+        $second = $this->thread('second', lastMessageAt: '2026-10-09 10:00:00')->messages->first();
+
+        $this->harvestOne($first, 'announced');
+        $this->harvestOne($second, 'out_for_delivery');
+
+        $rows = $this->repository()->findBy(['account' => $this->account]);
+
+        self::assertSame('out_for_delivery', $rows[0]->payload['status'], 'no mail is older than the other, so the last read speaks');
+        self::assertSame($second->id, $rows[0]->message?->id);
+    }
+
+    public function testAnOlderMailRefreshesACardWhoseOwnMailIsGone(): void
+    {
+        $older = $this->thread('announced', lastMessageAt: '2026-10-08 21:15:24')->messages->first();
+        $newer = $this->thread('out for delivery', lastMessageAt: '2026-10-09 11:50:17')->messages->first();
+
+        $this->harvestOne($newer, 'out_for_delivery');
+
+        // A deleted mail does not un-ship the parcel: the card outlives it and
+        // only loses its link (see MailInsight::$message).
+        $card = $this->repository()->findOneByDedupe($this->account, 'stub:123');
+        self::assertInstanceOf(MailInsight::class, $card);
+        $card->message = null;
+        $this->em->flush();
+
+        $this->harvestOne($older, 'announced');
+
+        $rows = $this->repository()->findBy(['account' => $this->account]);
+
+        self::assertSame('announced', $rows[0]->payload['status'], 'with no mail to be older than, the draft is the only statement left');
+        self::assertSame($older->id, $rows[0]->message?->id);
+    }
+
     public function testDismissalOutlivesTheNextUpsert(): void
     {
         $draft = new InsightDraft(InsightKind::Parcel, 'DHL · 9', '9', []);
@@ -189,6 +262,23 @@ final class InsightHarvesterTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame(1, $written, 'the broken extractor must not eat the working one');
+    }
+
+    /**
+     * One harvest of one mail that states the parcel in the given status,
+     * flushed.
+     *
+     * @return int how many insights it wrote
+     */
+    private function harvestOne(Message $message, string $status): int
+    {
+        $written = $this->harvester($this->stub([
+            new InsightDraft(InsightKind::Parcel, 'DHL · 123', '123', ['status' => $status]),
+        ]))->harvest($message);
+
+        $this->em->flush();
+
+        return $written;
     }
 
     private function harvester(InsightExtractorInterface ...$extractors): InsightHarvester

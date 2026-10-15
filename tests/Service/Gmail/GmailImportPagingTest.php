@@ -178,6 +178,7 @@ final class GmailImportPagingTest extends TestCase
             new NullLogger(),
             $this->createStub(MessageEraser::class),
             new SyncOrigin(),
+            $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
         );
     }
 

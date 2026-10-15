@@ -102,144 +102,162 @@ empty panel.
            in a modal is the "why won't this move" bug in waiting. #}
         <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-5">
 
-            {% if rows is not empty %}
-                <ul class="divide-y divide-line">
-                    {% for row in rows %}
-                        {# Both fall back rather than rendering empty: a booking mail
-                           with no Subject: header is rare and a blank line where the
-                           provenance should be reads as a bug. #}
-                        {% set row_title = row.event.title ?: 'calendar.soon.untitled'|trans %}
-                        {% set row_from = 'calendar.soon.from'|trans({
-                            '%subject%': row.source ? (row.source.subject ?: 'calendar.soon.untitled'|trans) : '',
-                        }) %}
+            {# ── Two columns from `md` up ─────────────────────────────────
+               What is coming up is the main column; "Also spotted" — the
+               undated activity (GitHub and the like) — sits to its right
+               rather than under it, so a long fortnight does not push it out of
+               sight. One Stimulus scope over everything, so the per-action
+               dismiss token is minted once rather than once per card. A
+               dismissed last card takes its whole section with it
+               (radar_controller), so the sections are direct flex children: the
+               main column then widens into the gap instead of leaving an empty
+               track behind. Below `md` it is the old single stack, and with
+               nothing in the main column "Also spotted" has the panel to
+               itself. #}
+            {% set hasMain = rows is not empty or insights is not empty %}
+            <div {% if insights is not empty or undatedInsights is not empty -%}
+                     data-controller="insight--radar"
+                     data-insight--radar-token-value="{{ csrf_token('insight-dismiss') }}"
+                 {%- endif %}
+                 class="md:flex md:items-start md:gap-6">
 
-                        {# Equal slices in the members' order, the same construction and
-                           the same reading as the merged chip's dot — one affordance
-                           learned once. Built only for a merged row: a cluster of one
-                           has a single calendar and a plain coloured dot would add a
-                           mark to every line for no information. #}
-                        {% if row.cluster.isMerged %}
-                            {% set slices = [] %}
-                            {% for color in row.cluster.colors %}
-                                {% set slices = slices|merge([
-                                    color
-                                        ~ ' ' ~ (loop.index0 * 100 / row.cluster.colors|length)|round(3) ~ '%'
-                                        ~ ' ' ~ (loop.index * 100 / row.cluster.colors|length)|round(3) ~ '%',
-                                ]) %}
-                            {% endfor %}
-                            {% set row_on = 'calendar.chip.on_calendars'|trans({
-                                '%calendars%': row.cluster.calendarNames|join(', '),
-                            }) %}
+                {% if hasMain %}
+                    <div class="min-w-0 flex-1">
+                        {% if rows is not empty %}
+                            <ul class="divide-y divide-line">
+                                {% for row in rows %}
+                                    {# Both fall back rather than rendering empty: a booking mail
+                                       with no Subject: header is rare and a blank line where the
+                                       provenance should be reads as a bug. #}
+                                    {% set row_title = row.event.title ?: 'calendar.soon.untitled'|trans %}
+                                    {% set row_from = 'calendar.soon.from'|trans({
+                                        '%subject%': row.source ? (row.source.subject ?: 'calendar.soon.untitled'|trans) : '',
+                                    }) %}
+
+                                    {# Equal slices in the members' order, the same construction and
+                                       the same reading as the merged chip's dot — one affordance
+                                       learned once. Built only for a merged row: a cluster of one
+                                       has a single calendar and a plain coloured dot would add a
+                                       mark to every line for no information. #}
+                                    {% if row.cluster.isMerged %}
+                                        {% set slices = [] %}
+                                        {% for color in row.cluster.colors %}
+                                            {% set slices = slices|merge([
+                                                color
+                                                    ~ ' ' ~ (loop.index0 * 100 / row.cluster.colors|length)|round(3) ~ '%'
+                                                    ~ ' ' ~ (loop.index * 100 / row.cluster.colors|length)|round(3) ~ '%',
+                                            ]) %}
+                                        {% endfor %}
+                                        {% set row_on = 'calendar.chip.on_calendars'|trans({
+                                            '%calendars%': row.cluster.calendarNames|join(', '),
+                                        }) %}
+                                    {% endif %}
+
+                                    <li class="flex items-start gap-3 py-3">
+
+                                        {# The icon carries the kind's name as text for anyone who
+                                           cannot see it, so the row still says "Flight" rather than
+                                           leaving the shape to do all the work. #}
+                                        <span class="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
+                                                     rounded-lg bg-sunken text-ink-muted">
+                                            <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
+
+                                            {% if row.cluster.isMerged %}
+                                                <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full
+                                                             ring-2 ring-surface"
+                                                      style="background: conic-gradient({{ slices|join(', ') }})"
+                                                      title="{{ row_on }}"></span>
+                                                <span class="sr-only">{{ row_on }}</span>
+                                            {% endif %}
+                                        </span>
+
+                                        <div class="min-w-0 flex-1">
+                                            {# The row opens the event, whether or not a mail
+                                               is behind it. Before this the only thing on a
+                                               row you could act on was the provenance link,
+                                               so a hand-made appointment — which by
+                                               definition has no mail — was the one kind you
+                                               could not open at all. #}
+                                            <button type="button"
+                                                    data-controller="ui--modal"
+                                                    data-action="click->ui--modal#open"
+                                                    data-ui--modal-src-value="{{ path('app_calendar_event_details', {
+                                                        id: row.event.id,
+                                                        instance: row.occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
+                                                    }) }}"
+                                                    {# NOT calendar.event.title — that is the label on the
+                                                       title FIELD in the editor, and reusing it here headed
+                                                       the details dialog with the word "Title" above a card
+                                                       that shows the event's name, its dates and its
+                                                       calendar. A heading naming one field of a form is
+                                                       wrong over a summary of the whole event. #}
+                                                    data-ui--modal-title-value="{{ 'calendar.event.details_heading'|trans }}"
+                                                    class="block w-full truncate text-left text-sm font-medium text-ink
+                                                           hover:text-accent hover:underline focus:outline-none
+                                                           focus-visible:ring-2 focus-visible:ring-accent rounded"
+                                                    title="{{ row_title }}">
+                                                {{ row_title }}
+                                            </button>
+
+                                            <p class="mt-0.5 text-xs text-ink-muted">
+                                                <span class="sr-only">{{ row.transKey|trans }} · </span>
+                                                {# An all-day row is floating — a wall date at
+                                                   midnight with no zone — so `false` keeps it in
+                                                   its own, and the reader's clock does not move it
+                                                   onto the day before. #}
+                                                {{ row.startsAt|intl_date('EEEdMMM', row.event.isAllDay ? false : null) }}
+                                                {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
+                                            </p>
+
+                                            {% if row.source is not null %}
+                                                <a href="{{ path('app_mail_message', { id: row.source.id }) }}"
+                                                   data-turbo-frame="_top"
+                                                   class="mt-1 inline-flex max-w-full items-center gap-1.5
+                                                          text-xs text-ink-faint hover:text-accent hover:underline"
+                                                   title="{{ row_from }}">
+                                                    <i class="fa-regular fa-envelope text-[10px] shrink-0" aria-hidden="true"></i>
+                                                    <span class="truncate">{{ row_from }}</span>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
                         {% endif %}
 
-                        <li class="flex items-start gap-3 py-3">
+                        {# ── The radar ────────────────────────────────────── #}
+                        {% if insights is not empty %}
+                            <section data-insight-section
+                                     class="{{ rows is not empty ? 'mt-3 border-t border-line pt-4' : 'pt-1' }}">
+                                <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                                    {{ 'insights.panel.heading'|trans }}
+                                </h3>
 
-                            {# The icon carries the kind's name as text for anyone who
-                               cannot see it, so the row still says "Flight" rather than
-                               leaving the shape to do all the work. #}
-                            <span class="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
-                                         rounded-lg bg-sunken text-ink-muted">
-                                <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
+                                <ul class="mt-2 space-y-2" data-insight-list>
+                                    {% for insight in insights %}
+                                        {% include 'insight/_card.html.twig' with { insight: insight } only %}
+                                    {% endfor %}
+                                </ul>
+                            </section>
+                        {% endif %}
+                    </div>
+                {% endif %}
 
-                                {% if row.cluster.isMerged %}
-                                    <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full
-                                                 ring-2 ring-surface"
-                                          style="background: conic-gradient({{ slices|join(', ') }})"
-                                          title="{{ row_on }}"></span>
-                                    <span class="sr-only">{{ row_on }}</span>
-                                {% endif %}
-                            </span>
+                {% if undatedInsights is not empty %}
+                    <section data-insight-section
+                             class="{{ hasMain ? 'mt-4 md:mt-0 md:w-96 md:shrink-0 md:border-l md:border-line md:pl-6' : 'pt-1' }}">
+                        <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                            {{ 'insights.panel.undated_heading'|trans }}
+                        </h3>
 
-                            <div class="min-w-0 flex-1">
-                                {# The row opens the event, whether or not a mail
-                                   is behind it. Before this the only thing on a
-                                   row you could act on was the provenance link,
-                                   so a hand-made appointment — which by
-                                   definition has no mail — was the one kind you
-                                   could not open at all. #}
-                                <button type="button"
-                                        data-controller="ui--modal"
-                                        data-action="click->ui--modal#open"
-                                        data-ui--modal-src-value="{{ path('app_calendar_event_details', {
-                                            id: row.event.id,
-                                            instance: row.occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
-                                        }) }}"
-                                        {# NOT calendar.event.title — that is the label on the title FIELD in the
-      editor, and reusing it here headed the details dialog with the word
-      "Title" above a card that shows the event's name, its dates and its
-      calendar. A heading naming one field of a form is wrong over a summary of
-      the whole event. #}
-   data-ui--modal-title-value="{{ 'calendar.event.details_heading'|trans }}"
-                                        class="block w-full truncate text-left text-sm font-medium text-ink
-                                               hover:text-accent hover:underline focus:outline-none
-                                               focus-visible:ring-2 focus-visible:ring-accent rounded"
-                                        title="{{ row_title }}">
-                                    {{ row_title }}
-                                </button>
-
-                                <p class="mt-0.5 text-xs text-ink-muted">
-                                    <span class="sr-only">{{ row.transKey|trans }} · </span>
-                                    {# An all-day row is floating — a wall date at
-                                       midnight with no zone — so `false` keeps it in
-                                       its own, and the reader's clock does not move it
-                                       onto the day before. #}
-                                    {{ row.startsAt|intl_date('EEEdMMM', row.event.isAllDay ? false : null) }}
-                                    {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
-                                </p>
-
-                                {% if row.source is not null %}
-                                    <a href="{{ path('app_mail_message', { id: row.source.id }) }}"
-                                       data-turbo-frame="_top"
-                                       class="mt-1 inline-flex max-w-full items-center gap-1.5
-                                              text-xs text-ink-faint hover:text-accent hover:underline"
-                                       title="{{ row_from }}">
-                                        <i class="fa-regular fa-envelope text-[10px] shrink-0" aria-hidden="true"></i>
-                                        <span class="truncate">{{ row_from }}</span>
-                                    </a>
-                                {% endif %}
-                            </div>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-
-            {# ── The radar ─────────────────────────────────────────────────
-               One Stimulus scope over both sections, so the per-action
-               dismiss token is minted once rather than once per card. #}
-            {% if insights is not empty or undatedInsights is not empty %}
-                <div data-controller="insight--radar"
-                     data-insight--radar-token-value="{{ csrf_token('insight-dismiss') }}"
-                     class="{{ rows is not empty ? 'mt-3 border-t border-line pt-4' : 'pt-1' }}">
-
-                    {% if insights is not empty %}
-                        <section data-insight-section>
-                            <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                                {{ 'insights.panel.heading'|trans }}
-                            </h3>
-
-                            <ul class="mt-2 space-y-2" data-insight-list>
-                                {% for insight in insights %}
-                                    {% include 'insight/_card.html.twig' with { insight: insight } only %}
-                                {% endfor %}
-                            </ul>
-                        </section>
-                    {% endif %}
-
-                    {% if undatedInsights is not empty %}
-                        <section data-insight-section class="{{ insights is not empty ? 'mt-4' : '' }}">
-                            <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-                                {{ 'insights.panel.undated_heading'|trans }}
-                            </h3>
-
-                            <ul class="mt-2 space-y-2" data-insight-list>
-                                {% for insight in undatedInsights %}
-                                    {% include 'insight/_card.html.twig' with { insight: insight } only %}
-                                {% endfor %}
-                            </ul>
-                        </section>
-                    {% endif %}
-                </div>
-            {% endif %}
+                        <ul class="mt-2 space-y-2" data-insight-list>
+                            {% for insight in undatedInsights %}
+                                {% include 'insight/_card.html.twig' with { insight: insight } only %}
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endif %}
+            </div>
 
         </div>
     {% endif %}

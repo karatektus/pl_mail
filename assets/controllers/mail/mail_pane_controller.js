@@ -289,6 +289,9 @@ export default class extends Controller {
             clearTimeout(this._refreshTimer);
             this._refreshTimer = null;
         }
+
+        // The same for a refresh queued behind one in flight.
+        this._refreshAgain = null;
     }
 
     /**
@@ -768,7 +771,22 @@ export default class extends Controller {
 
         // One at a time: a burst of sync events would otherwise have several
         // responses racing to write the same element.
+        //
+        // But queued, not dropped. The fetch in flight was asked for BEFORE
+        // whatever this request is about, and may well come back without it:
+        // a bulk job's per-chunk nudge starts a refresh, the job finishes while
+        // that fetch is out, and the job's "done" — the one event that is
+        // certain to describe the finished list — arrived here and was thrown
+        // away. The list then went on showing the archived conversations until
+        // something unrelated happened to refresh it. One follow-up is taken
+        // when the current fetch lands, carrying the most urgent of whatever
+        // asked in the meantime.
         if (this._refreshing === true) {
+            this._refreshAgain = {
+                immediate: immediate || (this._refreshAgain?.immediate ?? false),
+                url: url ?? this._refreshAgain?.url ?? null,
+            };
+
             return;
         }
 
@@ -849,6 +867,14 @@ export default class extends Controller {
             console.warn("[mail-pane] list refresh failed", error);
         } finally {
             this._refreshing = false;
+
+            const again = this._refreshAgain ?? null;
+
+            this._refreshAgain = null;
+
+            if (again !== null) {
+                this._refreshList(again);
+            }
         }
     }
 

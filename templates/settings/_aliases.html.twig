@@ -50,6 +50,52 @@
                         {{ 'settings.aliases.add'|trans }}
                     </button>
                 {{ form_end(aliasForm) }}
+
+                {# Catch-all domains. Not drawn for Gmail and Microsoft, which
+                   send only as addresses the provider knows — see
+                   AliasController::addCatchAll(). #}
+                {% if not account.isGmail and not account.isMicrosoft %}
+                    <div class="mt-4" data-catch-all="{{ account.id }}">
+                        <p class="text-sm text-ink">{{ 'settings.aliases.catch_all.label'|trans }}</p>
+                        <p class="text-xs text-ink-faint">{{ 'settings.aliases.catch_all.hint'|trans }}</p>
+
+                        {% if account.catchAllDomains is not empty %}
+                            <ul class="mt-2 flex flex-wrap gap-1.5">
+                                {% for domain in account.catchAllDomains %}
+                                    <li class="inline-flex items-center gap-1.5 rounded-full bg-sunken pl-2.5 pr-1.5 py-0.5 text-xs text-ink">
+                                        <span>*@{{ domain }}</span>
+                                        <form method="post" action="{{ path('app_alias_catch_all_remove', { id: account.id }) }}"
+                                              data-turbo-stream class="inline-flex">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('alias-catch-all' ~ account.id) }}">
+                                            <input type="hidden" name="domain" value="{{ domain }}">
+                                            <button type="submit"
+                                                    class="text-ink-faint hover:text-red-500 transition-colors cursor-pointer"
+                                                    aria-label="{{ 'settings.aliases.catch_all.remove'|trans({'%domain%': domain}) }}">
+                                                <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <form method="post" action="{{ path('app_alias_catch_all_add', { id: account.id }) }}"
+                              data-turbo-stream class="mt-2 flex items-end gap-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token('alias-catch-all' ~ account.id) }}">
+                            <input type="text" name="domain" required autocomplete="off"
+                                   data-1p-ignore data-lpignore="true"
+                                   placeholder="{{ 'settings.aliases.catch_all.placeholder'|trans }}"
+                                   aria-label="{{ 'settings.aliases.catch_all.label'|trans }}"
+                                   class="min-w-0 flex-1 h-9 rounded-lg border border-line bg-surface px-3 text-sm text-ink
+                                          placeholder:text-ink-faint focus:border-accent focus:outline-none">
+                            <button type="submit"
+                                    class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium border border-line text-ink hover:bg-hover transition-colors cursor-pointer">
+                                <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                                {{ 'settings.aliases.catch_all.add'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
             </div>
 
         {% endfor %}

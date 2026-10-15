@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:fb125ba7948bdc1df77298d520166f2d9d8f58e0 -->
+<!-- translated-from: internals/security-model.md sha1:50dd08302faf6786559797239abf074086952d5e -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -569,6 +569,37 @@ Anfrage, die vor dem Abmelden losging und danach ankommt, nichts mehr — mit ei
 Cookie haben die eigenen Hintergrund-Anfragen der Seite die Person sofort wieder angemeldet. Ein
 Passwortwechsel beendet weiterhin alle.
 
+**Single Sign-on ist ein zweiter Authenticator auf `main`, keine zweite Firewall.**
+`App\Security\OidcAuthenticator` endet im selben Token für denselben `User` wie das Passwortformular,
+also gelten der User Checker, die Drosselung oben und die Zwei-Faktor-Abfrage dafür unverändert —
+die Betreiberseite steht unter [Single Sign-on](../providers/oidc.md). Vier Entscheidungen solltest
+du kennen:
+
+- **Die Signatur des ID-Tokens wird nicht geprüft.** Das Token kommt ausschließlich vom
+  Token-Endpunkt des Anbieters, über TLS, im Tausch gegen den Code und das Client-Secret, und OpenID
+  Connect Core § 3.1.3.7 lässt für genau diesen Fall die TLS-Verbindung an die Stelle der Signatur
+  treten. Deshalb müssen der Issuer und seine Endpunkte `https://` sein, und deshalb folgt keine
+  Anfrage an den Anbieter einer Weiterleitung. Wer ein ID-Token von irgendwo anders annehmen will,
+  muss zuerst die JWKS-Prüfung ergänzen; `IdTokenValidator` sagt das.
+- **Ein Konto wird über Issuer und Subject verknüpft**, nach der ersten Anmeldung nie mehr über die
+  Adresse gefunden. Die erste Verknüpfung läuft über die Adresse, und nur, wenn der Anbieter sie als
+  bestätigt meldet — sonst könnte jede Person, die ihre eigene Adresse beim Anbieter ändern darf, ein
+  Konto übernehmen.
+- **Konfiguriert wird es unter Administration → SSO, mit der Umgebung als Rückfall** — ein
+  gespeicherter Anbieter hat Vorrang, im Ganzen, und die `OIDC_*`-Variablen gelten, wenn keiner
+  gespeichert ist (`OidcSettings`). Das ist eine bewusste Ausnahme von der Regel, dass eine
+  Admin-Sitzung kein zweiter Weg in jedes Postfach werden darf: Diese Einstellung entscheidet, wer
+  sich anmelden darf, und eine Administratorin, die sie auf einen eigenen Anbieter zeigen lässt,
+  kann sich als jedes Konto ohne zweiten Faktor anmelden, weil ein neuer Issuer jedes Konto über
+  die Adresse neu verknüpft. Die Zwei-Faktor-Authentifizierung hält weiterhin, weil der Code
+  abgefragt wird, nachdem der Anbieter geantwortet hat. Die erste Fassung las aus genau diesem Grund
+  nur die Umgebung; es ohne Neustart einrichten zu können, wurde als den Preis wert beurteilt.
+- **Es verlagert Vertrauen zum Anbieter.** Wer den Anbieter betreibt, kann sich als jede Person
+  anmelden, das ist der Sinn von Single Sign-on. Die weniger offensichtliche Hälfte: Administration →
+  Benutzer kann die Adresse eines Kontos ändern, und ein unverknüpftes Konto wird über die Adresse
+  gefunden, also erreicht eine Administratorin mit einem zweiten Login beim Anbieter ein Konto, das
+  noch nicht verknüpft ist. `app:user:oidc-unlink` gibt es aus demselben Grund nur auf der Konsole.
+
 ### Zugriffssteuerung, und die Endpunkte, die keine Session halten können
 
 Die `access_control`-Liste in `security.yaml` ist regelweise kommentiert, denn jeder
@@ -1057,6 +1088,14 @@ Das Spam-Banner ist davon getrennt und braucht gar keine Heuristik: Die Nachrich
 Label mit der Rolle Spam. Eine vertraute Absenderin bekommt im Spam **keine** Bilder — die
 Positivliste hält eine Überzeugung über eine Absenderin fest, und eine Nachricht im Spam ist der
 Widerspruch der Anbieterin dagegen, dass dies wirklich jene Absenderin ist.
+
+**Einstellungen → Mail → Bilder** kann die Positivliste auf alle Absender ausweiten
+(`images.always_show` in den Einstellungen der Person, aus, bis es eingeschaltet wird, #124). Es
+wird in `MessageRenderer` neben der Positivliste gelesen und endet, wo sie endet: Spam gewinnt
+weiterhin, und Bilder laufen weiterhin über den Proxy, sodass eine Absenderin erfährt, dass eine
+Nachricht geöffnet wurde, aber nicht die Adresse der Leserin. Es ist absichtlich von der
+Positivliste getrennt, damit keine „Nicht mehr anzeigen“-Zeile für eine Absenderin erscheint, der
+niemand vertraut hat, und damit Ausschalten die Einträge pro Absender so lässt, wie sie waren.
 
 ## Fallstricke
 

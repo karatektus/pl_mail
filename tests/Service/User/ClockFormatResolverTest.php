@@ -49,8 +49,12 @@ final class ClockFormatResolverTest extends TestCase
         $english = new User();
         $english->locale = 'en';
 
+        $french = new User();
+        $french->locale = 'fr';
+
         self::assertSame(ClockFormat::TwentyFour, $this->resolver()->resolve($german));
         self::assertSame(ClockFormat::Twelve, $this->resolver()->resolve($english));
+        self::assertSame(ClockFormat::TwentyFour, $this->resolver()->resolve($french), 'French writes 14 h 00, never 2 PM');
     }
 
     /** A user with no locale of their own follows the install's. */

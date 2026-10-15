@@ -56,9 +56,19 @@ use App\Entity\Mail\Message;
  *
  * WHAT THIS IS FOR
  * ────────────────
- * Deciding whether mail may change a calendar without being asked
- * (EventReconciler). Nothing here shows a warning or blocks a message: an
- * `Unknown` or a `Fail` only ever means "ask the person first".
+ * Two decisions, and the second has the higher stakes.
+ *
+ * Whether mail may change a calendar without being asked (EventReconciler):
+ * an `Unknown` or a `Fail` only ever means "ask the person first".
+ *
+ * Whether a filter may file a message into an inbox tab the reader made
+ * (RuleCategoryFiler): only a `Pass` does, so that a forged sender cannot sit
+ * in a tab named after the real one. There an `Unknown` or a `Fail` means the
+ * message is left to the ordinary rules, and nothing is shown to say a filter
+ * declined — which is why the believed-server rules above are a security
+ * property of that feature and not only of calendar updates.
+ *
+ * Nothing here shows a warning or blocks a message.
  */
 final readonly class SenderAuthentication
 {

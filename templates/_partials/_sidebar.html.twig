@@ -379,6 +379,11 @@ controller instead — the scroll position and which trees are open.
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        data-controller="ui--sidebar"
        data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
+       {# The change sequence the badges below were counted at. The controller
+          ignores a `mail.changed` nudge that is not newer than it, so a page
+          that has just been rendered does not re-read numbers it was sent a
+          moment ago. See SidebarCounts::changeSequence(). #}
+       data-ui--sidebar-sequence-value="{{ sidebarCounts.changeSequence }}"
        data-ui--sidebar-collapse-url-value="{{ path('app_mail_sidebar_section_collapsed') }}"
        {# The badge names are patched on every sync alongside the numbers, so
           the strings have to reach the controller rather than being written in
@@ -899,6 +904,7 @@ controller instead — the scroll position and which trees are open.
                             data-action="click->ui--modal#open {{ _drawerClose }}"
                             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
                             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
+                            data-ui--modal-size-value="wide"
                             class="flex min-w-0 items-start gap-2 rounded-lg bg-sunken px-2.5 py-1.5 text-left
                                    hover:bg-hover transition-colors cursor-pointer
                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

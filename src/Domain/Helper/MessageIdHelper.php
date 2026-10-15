@@ -14,9 +14,23 @@ namespace App\Domain\Helper;
  */
 final class MessageIdHelper
 {
+    /**
+     * The id without its brackets, and storable.
+     *
+     * An id is ASCII by the standard and not always in the wild: a mailer that
+     * builds one out of a host or a user name it never encoded writes the raw
+     * 8-bit byte, and webklex hands it over as it came. Postgres refused the
+     * row on it ("invalid byte sequence for encoding UTF8: 0xfc", #81), and the
+     * same byte in In-Reply-To or References lost the message the same way.
+     *
+     * Repaired here, and not where the IMAP row is built, because every id
+     * goes through this method whichever header it came from. That is what
+     * keeps threading intact: the reply's In-Reply-To and the original's
+     * Message-ID are repaired by one rule and still compare equal.
+     */
     public static function normalise(string $raw): string
     {
-        return trim(trim($raw), '<> ');
+        return trim(trim(CharsetHelper::ensureUtf8($raw)), '<> ');
     }
 
     /**

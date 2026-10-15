@@ -139,7 +139,12 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                                bar that has stopped says nothing by itself;
                                "waiting" at least says it is known to have. #}
                             <p class="mt-1 text-[11px] text-ink-faint truncate">
-                                {% if line.waiting %}
+                                {# Held by Google for a minute is not
+                                   "waiting": it is known why, and when it
+                                   ends. #}
+                                {% if line.quota and line.quota.isPaused() %}
+                                    {{ 'jobs.import.quota_paused'|trans({ '%seconds%': line.quota.pausedSeconds }) }}
+                                {% elseif line.waiting %}
                                     {{ 'jobs.import.waiting'|trans }}
                                 {% elseif line.label %}
                                     {{ 'jobs.import.folder'|trans({ '%folder%': line.label|label_name }) }}
@@ -149,6 +154,40 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                                     {{ 'jobs.import.newest_first'|trans }}
                                 {% endif %}
                             </p>
+
+                            {# A Gmail import is as fast as Google's quota
+                               lets it be, so the quota is what answers "why
+                               so slow" and "how much longer". All of it is
+                               plMail's own reckoning — Google reports none
+                               of it — hence "about". #}
+                            {% if line.quota %}
+                                {# Not truncated like its neighbours: the note that
+                                   the limit is only assumed is the end of the
+                                   sentence, and the part that was cut off. #}
+                                <p class="mt-0.5 text-[11px] text-ink-faint" data-import-quota>
+                                    {{ (line.quota.isPaused() ? 'jobs.import.quota_refused' : (line.quota.learnt ? 'jobs.import.quota' : 'jobs.import.quota_assumed'))|trans({
+                                        '%used%': line.quota.used|number_format,
+                                        '%limit%': line.quota.limit|number_format,
+                                    }) }}
+                                </p>
+                                {% if line.quota.messagesPerMinute > 0 and not line.waiting %}
+                                    <p class="mt-0.5 text-[11px] text-ink-faint truncate" data-import-rate>
+                                        {{ 'jobs.import.rate'|trans({ '%count%': line.quota.messagesPerMinute|number_format }) }}
+                                    </p>
+                                {% endif %}
+                                {% if line.quota.minutesLeft is not null and (not line.waiting or line.quota.isPaused()) %}
+                                    <p class="mt-0.5 text-[11px] text-ink-faint truncate" data-import-remaining>
+                                        {% if line.quota.minutesLeft >= 60 %}
+                                            {{ 'jobs.import.remaining_hours'|trans({
+                                                '%hours%': line.quota.minutesLeft // 60,
+                                                '%minutes%': line.quota.minutesLeft % 60,
+                                            }) }}
+                                        {% else %}
+                                            {{ 'jobs.import.remaining_minutes'|trans({ '%minutes%': line.quota.minutesLeft }) }}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                            {% endif %}
                         </li>
                     {% endfor %}
                     {% for job in jobs %}

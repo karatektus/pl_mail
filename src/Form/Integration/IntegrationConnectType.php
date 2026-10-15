@@ -6,9 +6,9 @@ namespace App\Form\Integration;
 
 use App\Domain\Enum\Integration\Provider;
 use App\Form\PasswordManagerIgnore;
+use App\Form\SecretType;
 use App\Entity\Integration\Integration;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -63,15 +63,14 @@ final class IntegrationConnectType extends AbstractType
         // Write-only, as on the admin forms: blank keeps the stored credential,
         // so renaming a connection does not require re-pasting an app password
         // the user may no longer have.
-        $builder->add('secret', PasswordType::class, [
+        $builder->add('secret', SecretType::class, [
             'label'    => 'settings.integrations.field.secret.'.$provider->value,
             'help'     => 'settings.integrations.field.secret_help.'.$provider->value,
             'required' => $isNew,
             'mapped'   => false,
             'attr'     => [
-                'autocomplete' => 'off',
                 'placeholder'  => $isNew ? '' : 'settings.integrations.field.secret_unchanged',
-            ] + PasswordManagerIgnore::SECRET,
+            ],
         ]);
     }
 

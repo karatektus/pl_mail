@@ -8,13 +8,14 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
@@ -91,6 +92,8 @@ final class BulkStatusController extends AbstractController
         private readonly StatusUndoService       $undo,
         private readonly MessagePurger           $purger,
         private readonly MailPlacement           $placement,
+        private readonly InboxTabs               $inboxTabs,
+        private readonly InboxCategoryRepository $inboxCategories,
     ) {
     }
 
@@ -211,10 +214,13 @@ final class BulkStatusController extends AbstractController
         $destination = null;
 
         if ('category' === $action) {
-            $category = MessageCategory::tryFrom((string) ($body['category'] ?? ''));
+            // Resolved against THIS reader's own tabs as well as the five, and
+            // a key that is somebody else's category is refused exactly like a
+            // made-up one: see InboxTabs::resolve().
+            $category = $this->inboxTabs->resolve($user, (string) ($body['category'] ?? ''));
 
-            // tryFrom and a refusal, where MailController falls back to Primary
-            // on the same input. The difference is what the two are: `?tab=` is
+            // A refusal, where MailController falls back to Primary on the same
+            // input. The difference is what the two are: `?tab=` is
             // a URL somebody may have mistyped, and showing them the inbox is
             // the kind answer. This is a write, and "filed it under Primary
             // because I did not recognise what you asked for" is not something
@@ -397,8 +403,18 @@ final class BulkStatusController extends AbstractController
         // strip counts — so this one is applied to the threads directly and
         // returns before the grouping it has no use for.
         if ('category' === $action) {
+            // The entity for one of the reader's own tabs, the enum for a
+            // built-in one: setCategory() writes whichever column it names.
+            $target = true === $category->isCustom()
+                ? $this->inboxCategories->find((int) $category->categoryId)
+                : $category->builtIn;
+
+            if (null === $target) {
+                throw $this->createAccessDeniedException('Unknown inbox category.');
+            }
+
             foreach ($threads as $thread) {
-                $this->status->setCategory($thread, $category);
+                $this->status->setCategory($thread, $target);
             }
 
             return $this->renderTurboStream('thread/status/_category.stream.html.twig', [

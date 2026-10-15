@@ -236,10 +236,10 @@ final class ConfigBackupImporterTest extends KernelTestCase
                 // APP_SECRET used to stand here, and was the headline name of
                 // the whole section. It left the inventory for a reason none of
                 // the others share: it protects nothing durable on this install
-                // — remember-me is signature-based, sessions and CSRF die with
-                // the session, JMAP signs with the pems — so the one thing
-                // restoring it did was keep the source machine's browser
-                // cookies verifying here. Now KeptDeliberately, which means an
+                // — remember-me was signature-based then and is kept on the
+                // server now, sessions and CSRF die with the session, JMAP
+                // signs with the pems — so the one thing restoring it did was
+                // keep the source machine's browser cookies verifying here. Now KeptDeliberately, which means an
                 // old backup carrying it belongs to the vocabulary test below.
                 // MERCURE_JWT_SECRET used to stand here too. It left the
                 // inventory the way the DSNs did — it pairs the app with the

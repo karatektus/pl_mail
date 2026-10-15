@@ -138,7 +138,7 @@ final class CategorySortingTest extends WebTestCase
         $this->em->persist($settings);
         $this->em->flush();
 
-        $warning = fn (): int => $client->request('GET', '/settings?section=general')
+        $warning = fn (): int => $client->request('GET', '/settings?section=categories')
             ->filter('[data-sorting-tabs-warning]')
             ->count();
 
@@ -302,7 +302,7 @@ final class CategorySortingTest extends WebTestCase
 
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=general');
+        $crawler = $client->request('GET', '/settings?section=categories');
 
         return (string) $crawler
             ->filter('form[action="/settings/sorting"] input[name="_token"]')

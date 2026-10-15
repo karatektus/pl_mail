@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:e766d746221089f9c6476313842daea51ff4d33d -->
+<!-- translated-from: internals/jmap.md sha1:42f8206efa6d7cda9909e16d323308ad25e27916 -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -468,6 +468,57 @@ mehr, sobald `sentAt` gesetzt ist); die Zuordnung bleibt also eineindeutig, und
 hat, wenn der Aufruf zurückkehrt, tatsächlich noch nicht stattgefunden. Das Rückgängig-Fenster
 des Web-Editors wird bewusst **nicht** angewandt — ein JMAP-Client hat darum gebeten, jetzt zu
 senden.
+
+### `replyFrom` in `Email/get` — eine Erweiterung
+
+Der Web-Editor öffnet eine Antwort mit der Adresse, an die die Nachricht ging
+(`App\Service\Mail\ReplyFromResolver`). Ein Client, der seine Antworten selbst baut, kommt an
+diese Antwort nicht heran, und eine Kopie der Regel in Kotlin und eine weitere in Swift wären zwei
+Stellen mehr, an denen sie auseinanderläuft. Also veröffentlicht `Email/get` die Antwort:
+`replyFrom`, die Identität, die diese Email beantwortet, oder `null`. `EmailGetMethod` fragt den
+Resolver nach der Adresse und `App\Jmap\Mail\IdentityResolver::forAddress()` nach der Identität.
+
+**Sie wird nur geliefert, wenn sie in `properties` genannt ist.** Der Wert bringt eine Signatur
+mit, die mit eingebetteten Bildern Hunderte Kilobyte groß sein kann, und ein Client, der vor der
+Eigenschaft geschrieben wurde, fragt alles an und liest nichts davon.
+
+Bei einem Alias ist der Wert die Identität, die `Identity/get` auflistet. Für eine Adresse an
+einer Catch-all-Domain (`Account::$catchAllDomains`) gibt es keine Alias-Zeile und damit keine
+aufgelistete Identität — die Liste kann nicht eine pro Local-Part führen —, und der Wert ist eine
+**Adress-Identität**, deren ID aus `addr-` und dem base64url der Adresse besteht.
+`IdentityResolver::addressFor()`, über das `EmailSubmission/set` eine `identityId` einlöst,
+dekodiert eine solche ID und fragt `Account::maySendAs()`, ob das Konto *jetzt* mit dieser Adresse
+senden darf. Die ID ist also eine Schreibweise und keine Erlaubnis: Eine, die ein Client für eine
+Domain errechnet hat, die das Konto nicht abfängt, ergibt `forbiddenFrom` wie jede unbekannte ID,
+und eine, die gestern ausgegeben wurde, gilt nicht mehr, sobald die Domain entfernt ist.
+
+Zwei Alternativen wurden verworfen. RFC 8621 §6 sieht genau dafür `*@example.com` als `email`
+einer Identität vor, aber jede installierte App würde das in ihrem Von-Auswahlfeld als Adresse
+anzeigen. Und `from` in `Email/set` anzunehmen, ohne `identityId` an der Submission, hieße, die
+Adresse an zwei Stellen zu prüfen — und gegenüber einem älteren Server wird das `from` des Clients
+abgelehnt oder verworfen, und die Nachricht geht stillschweigend von der primären Adresse hinaus.
+
+### `identityId` in `Email/set` — eine Erweiterung
+
+Ein Entwurf, den eine App gespeichert hat, hatte keinen eigenen Absender: `JmapDraftWriter` legte
+jeden mit der Adresse des Kontos ab, und die Identität kam erst mit der Submission. `replyFrom`
+konnte an einem Entwurf also nicht sagen, was gewählt war, und eine Antwort, die von einem Alias aus
+automatisch gespeichert wurde, öffnete sich wieder mit der primären Adresse.
+
+`Email/set` nimmt deshalb `identityId` beim Anlegen und im Patch eines Updates an (es steht in
+`EmailPatchApplier::DRAFT_PROPERTIES`, also nimmt es nur ein Entwurf). `JmapDraftWriter::senderFor()`
+löst sie über `IdentityResolver::addressFor()` auf — den Resolver der Submission, es bleibt also bei
+einer Antwort darauf, worunter ein Konto senden darf — und schreibt `fromAddress` und `fromName`.
+
+Eine id, die sich nicht auflösen lässt, wird **ignoriert**, wo die Submission sie ablehnt. Der Patch
+ist ein automatisches Speichern; ihn wegen eines Absenders abzulehnen, der seit dem Öffnen des
+Entwurfs deaktiviert wurde, würde den Text kosten, und die Submission nennt ihre Identität noch
+einmal und lehnt dort ab.
+
+Die `urn:ietf:params:jmap:mail`-Capability des Kontos trägt `draftIdentity: true`. Ein Client muss
+das wissen, bevor er den Schlüssel schickt, denn ein Server von davor antwortet auf ein Update, das
+eine Eigenschaft nennt, die er nicht ändern kann, mit `invalidPatch` — und das nimmt den Rest des
+Speicherns mit.
 
 ## Push
 

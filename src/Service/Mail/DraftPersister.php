@@ -146,7 +146,10 @@ final readonly class DraftPersister
         // account's own address one line later. Every mail sent from an alias
         // went out as the primary address, and nothing reported it.
         $message->fromAddress = $sender ?? $account->email;
-        $message->fromName    = $account->name;
+        // The name that address sends under — an alias's own when it has one.
+        // Same lookup MessageSendService builds the From header with, so the
+        // local copy and the mail on the wire name the same sender.
+        $message->fromName    = $account->senderNameFor($message->fromAddress);
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= new DateTimeImmutable();
 

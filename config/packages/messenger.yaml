@@ -267,6 +267,11 @@ framework:
                     # kind is dropped with a warning, the other is put back to
                     # wait, and neither is a CRITICAL any more.
                     - App\Infrastructure\Messaging\Middleware\GiveUpQuietlyOnThrottling
+                    # A clock on every message a worker handles, which closes
+                    # the IMAP connections it opened if it runs out — so one
+                    # server sending a trickle cannot hold a queue. See
+                    # App\Service\Imap\ImapDeadline.
+                    - App\Infrastructure\Messaging\Middleware\AbortStalledImap
 
         routing:
             # Admin "run now" buttons dispatch this; the scheduler dispatches

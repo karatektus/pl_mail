@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -332,7 +333,66 @@ final class EmailCategoryTest extends KernelTestCase
         $this->queryIds(['category' => 'promotions']);
     }
 
+    // ── A reader's own tabs, which JMAP must not learn about ──────────────
+
+    /**
+     * The vocabulary is a closed, documented set of five, and a client draws its
+     * tabs from it. A conversation the reader filed under a tab of their own is
+     * therefore served as the BUILT-IN category it would otherwise be in — so an
+     * old client shows it exactly where it always showed it — and is found by
+     * that category's filter, as the web finds it in the built-in tab it sits
+     * under for anybody who has not filed it elsewhere.
+     *
+     * Serving the custom key, or null, instead would make the conversation
+     * vanish from every tab on a client that has never heard of custom tabs.
+     */
+    public function testAConversationInTheReadersOwnTabIsStillServedAsItsBuiltInCategory(): void
+    {
+        $thread               = $this->thread(MessageCategory::Promotions, [MessageCategory::Promotions]);
+        $thread->userCategory = $this->ownCategory('Shipping');
+        $this->em->flush();
+
+        $result = $this->threadGet->handle(
+            ['accountId' => $this->accountId(), 'ids' => [(string) $thread->id]],
+            new JmapContext($this->user),
+        );
+
+        self::assertSame('promotions', $result['list'][0]['category']);
+        self::assertSame($this->emailIdsOf($thread), $this->queryIds(['threadCategory' => 'promotions']));
+    }
+
+    /**
+     * A custom tab's key is no category to JMAP: refused like any other value
+     * outside the five, and the refusal still names only the five.
+     */
+    public function testACustomTabKeyIsRefusedAndTheVocabularyStaysTheFive(): void
+    {
+        $category = $this->ownCategory('Shipping');
+        $this->em->flush();
+
+        try {
+            $this->queryIds(['threadCategory' => 'c' . $category->id]);
+            self::fail('a custom tab key must not be accepted as a JMAP category');
+        } catch (MethodException $exception) {
+            $error = $exception->toError();
+
+            self::assertSame('invalidArguments', $error['type']);
+            self::assertStringContainsString('primary, social, promotions, updates, forums', $error['description']);
+            self::assertStringNotContainsString('Shipping', $error['description']);
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
+
+    private function ownCategory(string $name): InboxCategory
+    {
+        $category       = new InboxCategory();
+        $category->usr  = $this->user;
+        $category->name = $name;
+        $this->em->persist($category);
+
+        return $category;
+    }
 
     private function accountId(): string
     {

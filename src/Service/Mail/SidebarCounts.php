@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Jmap\State\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
@@ -65,6 +66,9 @@ class SidebarCounts implements ResetInterface
     /** Whether roleLabelIds has been filled — see roleLabelId(). */
     private bool $roleLabelIdsLoaded = false;
 
+    /** See changeSequence(). */
+    private ?int $changeSequence = null;
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -86,13 +90,49 @@ class SidebarCounts implements ResetInterface
         $this->hiddenRoles        = [];
 
         $this->roleLabelIdsLoaded = false;
+        $this->changeSequence     = null;
     }
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
+        private readonly ChangeLogRepository     $changeLog,
     ) {}
+
+    /**
+     * How far along this user's mail was when these counts were read: the
+     * highest change sequence across their accounts.
+     *
+     * The sidebar carries it into the browser, with the rendered badges and
+     * with every /mail/sidebar/counts answer, and a tab ignores a
+     * `mail.changed` nudge that is not newer — which is what keeps the tab
+     * that made a change from counting it twice. See MailChangeNotifier.
+     *
+     * READ BEFORE THE COUNTS IT GOES OUT WITH. The sidebar asks for it in its
+     * opening tag, above every badge, and the counts endpoint puts it first in
+     * its payload. Read after, a change landing between the two would be in
+     * the sequence and not in the counts, and the nudge for it would be
+     * ignored as already shown.
+     *
+     * Not asked for by the count methods themselves, which would make that
+     * ordering a guarantee: they are also called where no sidebar is drawn — a
+     * list-frame navigation counts the inbox tabs — and there the read would
+     * be a query per navigation for a number nothing uses. What is left
+     * unguarded is a page whose counts were memoised before its sidebar began
+     * and a change committing in those few milliseconds; the next sync, poll
+     * or write puts it right.
+     */
+    public function changeSequence(): int
+    {
+        if (null !== $this->changeSequence) {
+            return $this->changeSequence;
+        }
+
+        $user = $this->security->getUser();
+
+        return $this->changeSequence = null === $user ? 0 : $this->changeLog->latestSequenceForUser($user);
+    }
 
     /**
      * The visible labels materialised on one account, for the folder list the

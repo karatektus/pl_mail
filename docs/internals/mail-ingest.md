@@ -82,6 +82,33 @@ The two are separate now. A sync arranges for new mail to be seen and stops; the
   rule.
 - **Gmail asks for the Inbox by name first,** then pages the whole-mailbox listing one request
   at a time, with the page token kept on the account between jobs.
+- **Gmail's quota is learnt, not configured.** Google allows one user a number of quota units
+  a minute and does not say how many until it refuses a request. `GmailQuotaPacer` starts from
+  15,000, reads the limit out of the first refusal (a project created since May 2026 has
+  6,000) and paces every account to 85% of it from then on, five messages to a request — Google
+  refuses a minute's worth spent in one second — and more slowly for a while after any refusal
+  at a limit it already knows. A message is counted at 60 units: Google's table says 20, which
+  is what a fetch without the body costs; `app:gmail:quota-probe` measured 60 for the `full`
+  and `raw` formats. A learnt limit is forgotten after a day so a raised one is found again. What an account has spent and when it was last
+  refused are in a database-backed cache pool, so every worker draws on one allowance. A
+  refusal is not an error anywhere on this path: a batch, an import page or a sync that meets
+  one is put back to run when the account's minute is over.
+- **A Gmail message belongs to the mailbox it is in.** The batch handler gives a message to
+  another connected account only when that account has the better claim (Gmailify: a sibling
+  named in its headers); everything else in the mailbox is the Gmail account's, including mail
+  sent from a "send mail as" address, mail forwarded in from an address not connected here and
+  Gmail drafts, which arrive as drafts. The listing asks for Spam and Trash as well
+  (`includeSpamTrash`), which `messages.list` otherwise leaves out and `messagesTotal` counts.
+- **A Gmail message that is looked at and not stored is written down.** The batch handler
+  declines a chat — the one kind left with nowhere to go — and cannot store a message Gmail
+  lists and answers 404 for. Each gets a row
+  in `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) with the reason, its labels
+  and its address headers. The listing treats a recorded id like a stored one, so the message
+  is not fetched again every hour and an import whose every outstanding message has an answer
+  finishes on that pass instead of at its attempt ceiling; the progress line counts it as done,
+  since Google's total includes it. `app:gmail:skipped` prints the record grouped by kind, and
+  `--forget` clears it for an account so the next listing asks again. A row is removed when its
+  message is stored after all.
 - **Microsoft reads each folder's first delta round a page at a time.** A folder without a
   delta link is planned on the account (`Account::$graphImport`) instead of being enumerated
   by the sync, and `GraphApiSyncer::importPage()` walks that round fifty messages at a call,
@@ -135,6 +162,25 @@ Then, once for the whole batch: `MailRuleEngine::applyToBatch()` (one query per 
 threading, so archive and trash actions can reach each message's thread), a flush, a second
 pass collecting thread ids per account for `MailChangeRecorder::threadsTouched()`, and a
 second flush for the change-log rows.
+
+A filter's **File in category** action runs in that same pass and is the one action that writes
+a category. It does not write `Message::$category`: five things recompute that column from stored
+data (arrival, `app:backfill category`, the re-sort a settings change queues, the assistant's
+release, Gmail enrichment), and every one would erase a verdict kept there. The verdict goes in
+`Message::$ruleCategory` instead, which nothing recomputes, and `RuleCategoryFiler` then has the
+thread re-resolve through `MessageThreader::refreshCategory()` — most-recent-wins, pin-aware, hold-aware,
+like the built-in category. `MessageThread::$userCategory` is the thread's side, resolved by the same
+two recompute statements as `category`. A message is filed only when `SenderAuthentication` says
+`Pass`; see its docblock for whose verdict is believed. The filter files Gmail-labelled mail too:
+the provider's categories outrank plMail's own sorting, not an instruction the reader wrote.
+
+A built-in category the reader switched off (`CategorySorting::$disabled`) takes no mail.
+`MessageCategorizer::explain()` maps whatever the cascade decided — header rule, Gmail label or
+the assistant — to Primary with the reason `switched_off`, rather than consulting the next rule, so
+"Forums is off" never turns a mailing list into Promotions. Switching a category off or on queues
+the same re-sort as the other sorting choices. Both recompute statements write only the
+conversations whose tab changes and return them, and every caller records those as JMAP Thread
+changes, so a phone hears about a re-sort.
 
 `PostIngestResult` is what comes back — messages in ingest order, owning accounts by id, and
 thread ids by owning account — because the three callers do not finish the same way: IMAP

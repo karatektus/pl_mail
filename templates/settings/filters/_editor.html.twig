@@ -9,7 +9,7 @@ indent and wrapped control rows rather than a reduced set of options — there i
 nothing here a narrow screen has to give up.
 
 Variables:
-  rule, errors, submitted*, labels, accounts, actionTypes
+  rule, errors, submitted*, labels, accounts, actionTypes, categories
 #}
 {% import '_partials/_select.html.twig' as select %}
 <turbo-frame id="filter-editor">
@@ -32,6 +32,8 @@ Variables:
               data-rules--rule-builder-seed-condition-value="{{ (submittedConditions is empty and rule.id is null) ? '1' : '0' }}"
               data-rules--rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
               data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
+              {# The reader's own categories, for the "File in category" row. #}
+              data-rules--rule-builder-categories-value="{{ categories|json_encode|e('html_attr') }}"
               {# More than id and name: the editor opens the shared destination
                  picker for whichever connection is selected, so each one brings
                  the URL that chooser lives at and whether it is a photo library
@@ -112,6 +114,8 @@ Variables:
                   'action.trash': 'settings.filters.action.trash'|trans,
                   'action.markSpam': 'settings.filters.action.markSpam'|trans,
                   'action.saveToIntegration': 'settings.filters.action.saveToIntegration'|trans,
+                  'action.fileInCategory': 'settings.filters.action.fileInCategory'|trans,
+                  no_categories: 'settings.filters.no_categories'|trans,
                   'folder.choose': 'settings.filters.folder.choose'|trans,
                   'folder.default': 'settings.filters.folder.default'|trans,
                   no_integrations: 'settings.filters.no_integrations'|trans,

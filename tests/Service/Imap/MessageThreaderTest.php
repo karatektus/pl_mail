@@ -6,6 +6,7 @@ namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
@@ -130,6 +131,127 @@ final class MessageThreaderTest extends TestCase
         $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
 
         self::assertSame($expected, $thread->category);
+    }
+
+    /**
+     * A conversation is SHOWN in one of the reader's own tabs exactly when its
+     * newest message was filed there — the same most-recent-wins the built-in
+     * category follows, carried by a column beside it so the built-in one stays
+     * one of the five. See MessageThread::$userCategory.
+     */
+    public function testNewThreadIsShownInTheTabItsFirstMessageWasFiledUnder(): void
+    {
+        $shipping = new InboxCategory();
+        $message  = $this->message(MessageCategory::Promotions, '2026-07-28 10:00:00');
+        $message->ruleCategory = $shipping;
+
+        $this->threaderWithThreadLookup(null)->assignThread($message, new Account());
+
+        self::assertSame($shipping, $message->thread->userCategory);
+        self::assertSame(
+            MessageCategory::Promotions,
+            $message->thread->category,
+            'the built-in category must still be the one the rules decided',
+        );
+    }
+
+    /**
+     * Four cases, one rule. The two that move the thread are the ones a naive
+     * "only ever set it" would get wrong: a newer message the filter did not
+     * claim takes the conversation back out of the reader's tab, exactly as a
+     * newer Promotions message takes it out of Updates.
+     */
+    #[DataProvider('userCategoryCases')]
+    public function testThreadUserCategoryFollowsTheNewestMessage(
+        string $incomingReceivedAt,
+        bool $incomingIsFiled,
+        string $expected,
+    ): void {
+        $shipping = new InboxCategory();
+        $receipts = new InboxCategory();
+        $tabs     = ['shipping' => $shipping, 'receipts' => $receipts, 'none' => null];
+
+        $thread = $this->existingThread();
+        $thread->userCategory = $shipping;
+
+        $message = $this->message(MessageCategory::Promotions, $incomingReceivedAt);
+        $message->ruleCategory = true === $incomingIsFiled ? $receipts : null;
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertSame($tabs[$expected], $thread->userCategory);
+    }
+
+    /**
+     * @return iterable<string, array{string, bool, string}>
+     */
+    public static function userCategoryCases(): iterable
+    {
+        yield 'newer, filed elsewhere, moves the thread' => ['2026-07-28 13:00:00', true, 'receipts'];
+        yield 'newer, not filed, takes it out of the tab' => ['2026-07-28 13:00:00', false, 'none'];
+        yield 'older, filed elsewhere, changes nothing'   => ['2026-07-28 11:00:00', true, 'shipping'];
+        yield 'older, not filed, changes nothing'         => ['2026-07-28 11:00:00', false, 'shipping'];
+    }
+
+    /**
+     * A filter's verdict moves the conversation on Gmail mail too, with Google's
+     * categories otherwise in charge: the reader wrote the filter.
+     */
+    public function testAVerdictOnGmailLabelledMailMovesTheThread(): void
+    {
+        $shipping = new InboxCategory();
+        $owner    = new \App\Entity\User\User();
+        $account  = new Account();
+        $account->usr = $owner;
+
+        $message = $this->message(MessageCategory::Promotions, '2026-07-28 10:00:00');
+        $message->account       = $account;
+        $message->gmailLabelIds = ['INBOX', 'CATEGORY_PROMOTIONS'];
+        $message->ruleCategory  = $shipping;
+
+        $this->threaderWithThreadLookup(null)->assignThread($message, $account);
+
+        self::assertFalse($owner->categorySorting->overrideProvider);
+        self::assertSame($shipping, $message->thread->userCategory);
+    }
+
+    /**
+     * A conversation dragged onto a tab stays there — for the reader's own tabs
+     * as for the built-in ones, and by the same flag. Without it the choice
+     * holds until the next message and then silently reverts.
+     */
+    public function testAPinnedThreadKeepsItsUserCategoryWhenANewerMessageArrives(): void
+    {
+        $shipping = new InboxCategory();
+
+        $thread = $this->existingThread();
+        $thread->userCategory     = $shipping;
+        $thread->categoryPinnedAt = new \DateTimeImmutable('2026-07-28 12:30:00');
+
+        $message = $this->message(MessageCategory::Promotions, '2026-07-28 13:00:00');
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertSame($shipping, $thread->userCategory);
+    }
+
+    /**
+     * A locally composed draft has no category at all and is not an opinion
+     * about where the conversation belongs: it must not take a conversation out
+     * of the tab its newest RECEIVED message was filed in.
+     */
+    public function testAnUncategorisedMessageLeavesTheUserCategoryAlone(): void
+    {
+        $shipping = new InboxCategory();
+
+        $thread = $this->existingThread();
+        $thread->userCategory = $shipping;
+
+        $message = $this->message(null, '2026-07-28 13:00:00');
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertSame($shipping, $thread->userCategory);
     }
 
     /**

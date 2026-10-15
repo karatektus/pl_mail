@@ -186,6 +186,15 @@ final readonly class SignatureProvider
 
                 $map[$account->id . '|' . $address] = $this->blockFor($account, $address);
             }
+
+            // An address at a catch-all domain is a From option no row above
+            // names — there are as many of them as there are local parts. They
+            // all sign the same way, with the account's signature, so one
+            // wildcard entry answers for every one of them and the composer
+            // falls back to it for a token it does not find by name.
+            if ([] !== $account->catchAllDomains) {
+                $map[$account->id . '|*'] = $this->blockFor($account, null);
+            }
         }
 
         return $map;

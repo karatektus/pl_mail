@@ -77,7 +77,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset', 'demo'] %}
+                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'sso', 'ai', 'backup', 'updates', 'reset', 'demo'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -157,6 +157,16 @@
                                        class="{{ section == 'push' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.push'|trans }}
+                                    </a>
+                                    {# Beside the other credentials pasted out of
+                                       somebody's console, and a section of its
+                                       own rather than a row under integrations:
+                                       those are services people use once they
+                                       are in, and this is how they get in. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'sso' }) }}"
+                                       class="{{ section == 'sso' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-key w-4 {{ section == 'sso' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.sso'|trans }}
                                     </a>
                                     {# After push and before users: it configures
                                        an outside service the way push does, and
@@ -347,6 +357,20 @@
                                         <turbo-frame id="admin-push-deliveries"
                                                      src="{{ path('app_admin_push_deliveries') }}"
                                                      class="block mt-3"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'sso' %}
+
+                                        {# No auto-refresh, for the reason push
+                                           gives: this frame holds a form with a
+                                           secret being pasted into it. #}
+                                        <turbo-frame id="admin-sso"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_sso_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

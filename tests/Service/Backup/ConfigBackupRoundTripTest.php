@@ -243,6 +243,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('account setting sync.backfill_target', null, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
         $this->check('account setting compose.signature', '<p>Viele Grüße, Anna</p>', $account->getSetting(Account::SETTING_SIGNATURE));
         $this->check('account setting compose.read_receipt.default', 'ask', $account->getSetting(Account::SETTING_READ_RECEIPT_DEFAULT));
+        $this->check('account setting mail.catch_all_domains', ['shop.test'], $account->catchAllDomains);
         $this->check(
             'account setting compose.signature.alias.N',
             '<p>Anna, privat</p>',
@@ -479,6 +480,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->setSetting(Account::SETTING_BACKFILL_TARGET, 0);
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Viele Grüße, Anna</p>');
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
+        $account->catchAllDomains = ['shop.test'];
 
         $this->entityManager->persist($account);
 

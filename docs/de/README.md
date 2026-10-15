@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:4e4d48ef2be259c4caf3eafa572d42592a6fbf19 -->
+<!-- translated-from: README.md sha1:01e39c4a2bd0d1527b9ce79dcd78b9abfb1fe091 -->
 
 # plMail-Dokumentation
 
@@ -69,6 +69,7 @@ Jede Seite nennt die genaue Konsole, die genauen Häkchen und die genauen Redire
 | [IMAP und SMTP](providers/imap-smtp.md) | Gewöhnliche Postfächer, IDLE, und die Einstellungen, über die sich die Server uneinig sind |
 | [CalDAV](providers/caldav.md) | Discovery, App-Passwörter, und die Server, die getestet wurden |
 | [ICS-Feeds](providers/ics-feeds.md) | Einen veröffentlichten Kalender per URL abonnieren, und warum manche Adressen abgelehnt werden |
+| [Single Sign-on](providers/oidc.md) | Anmeldung bei plMail über Authentik, Keycloak oder einen anderen OpenID-Connect-Anbieter: Einrichtung, Verknüpfung von Konten und automatisches Anlegen |
 
 ## Wie es funktioniert
 

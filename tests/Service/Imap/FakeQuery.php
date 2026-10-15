@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use Webklex\PHPIMAP\Connection\Protocols\Response;
 use Webklex\PHPIMAP\Exceptions\GetMessagesFailedException;
+use Webklex\PHPIMAP\Exceptions\ResponseException;
 use Webklex\PHPIMAP\Message;
 use Webklex\PHPIMAP\Query\WhereQuery;
 use Webklex\PHPIMAP\Support\MessageCollection;
@@ -31,7 +33,7 @@ use Illuminate\Support\Collection;
  */
 final class FakeQuery extends WhereQuery
 {
-    /** @var array<int, Message|\Throwable> UID => the message, or what building it throws */
+    /** @var array<int, Message|\Throwable|string> UID => the message, what building it throws, or NEVER_RETURNED */
     private array $script = [];
 
     /** @var list<int> the page number of every fetch, in order */
@@ -47,7 +49,7 @@ final class FakeQuery extends WhereQuery
     private ?\Closure $onFetch = null;
 
     /**
-     * @param array<int, Message|\Throwable>   $script
+     * @param array<int, Message|\Throwable|string> $script
      * @param (\Closure(list<int>): void)|null $onFetch
      */
     public static function finding(array $script, ?\Closure $onFetch = null): self
@@ -90,11 +92,36 @@ final class FakeQuery extends WhereQuery
         return new Collection($uids);
     }
 
+    /** A UID the server lists in SEARCH and returns nothing for in FETCH. */
+    public const string NEVER_RETURNED = 'listed, never returned';
+
+    /** Thrown from every page fetch when set — the connection dying mid-command, say. */
+    public ?\Throwable $pageFailure = null;
+
     public function curate_messages(Collection $available_messages): MessageCollection
     {
         $this->fetchedPages[] = $this->page;
 
         $messages = MessageCollection::make();
+
+        if (null !== $this->pageFailure) {
+            // Query::curate_messages() wraps whatever populate() throws.
+            throw new GetMessagesFailedException($this->pageFailure->getMessage(), 0, $this->pageFailure);
+        }
+
+        $asked = $available_messages->forPage($this->page, $this->limit)->all();
+        $given = array_filter($asked, fn (int $uid): bool => self::NEVER_RETURNED !== $this->script[$uid]);
+
+        // What the real library does with a FETCH the server completed without
+        // a single FETCH line: its Response is neither data nor allowed to be
+        // empty, validatedData() throws, and soft-fail does not come into it.
+        // One absent UID among others that came back is NOT this — the answer
+        // has data, and the absent one is simply not in it.
+        if ([] !== $asked && [] === $given) {
+            $empty = ResponseException::make(Response::empty());
+
+            throw new GetMessagesFailedException($empty->getMessage(), 0, $empty);
+        }
 
         if (null !== $this->onFetch) {
             ($this->onFetch)(array_values($available_messages->forPage($this->page, $this->limit)->all()));
@@ -102,6 +129,10 @@ final class FakeQuery extends WhereQuery
 
         foreach ($available_messages->forPage($this->page, $this->limit) as $uid) {
             $entry = $this->script[$uid];
+
+            if (self::NEVER_RETURNED === $entry) {
+                continue;
+            }
 
             if ($entry instanceof \Throwable) {
                 $this->setError($uid, $entry instanceof \Exception ? $entry : new \RuntimeException($entry->getMessage()));

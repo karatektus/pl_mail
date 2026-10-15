@@ -76,10 +76,20 @@
        compose_controller#_trackViewport. #}
     <meta name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
+    {#
+    The "(n)" in front of the title: by default the Inbox's unread count, so a
+    page that is not a mail folder (settings, the calendar, admin) still tells
+    the person that mail is waiting. Mail folders carry their own figure, or
+    none, and switch this off — see _layout/_mailbox.html.twig.
+
+    Nothing is printed for a count of zero, or when nobody is signed in:
+    SidebarCounts answers 0 without a user.
+    #}
+    <title>{% block title_prefix %}{% set _inboxUnread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}{{ _inboxUnread > 0 ? '(' ~ _inboxUnread ~ ') ' }}{% endblock %}{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
     {#
     Which counts key the "(n)" in the title above came from, or empty on a page
-    whose title carries no count.
+    whose title carries no count. Defaults to the key the prefix above is read
+    from, so the two cannot name different numbers.
 
     The title is rendered once, server-side, while the sidebar badges are
     patched in place after every sync — so the tab kept saying (4) long after
@@ -87,7 +97,7 @@
     rewrite the title from the same payload it patches the badges with, which
     makes "the same source" a fact rather than an intention.
     #}
-    <meta name="title-count-key" content="{% block title_count_key %}{% endblock %}">
+    <meta name="title-count-key" content="{% block title_count_key %}role:inbox{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
        needs the apple-touch-icon specifically — it ignores the manifest icons. #}

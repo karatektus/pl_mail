@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:4c4f90f1c0e5193b1b24b6095da93cf6aa8b03b6 -->
+<!-- translated-from: features/admin.md sha1:2a5ac40d476e8bbadb62071938fdbe90998a9274 -->
 
 # Administration
 
@@ -457,6 +457,23 @@ Benachrichtigungen**: jedes registrierte Gerät mit Transportweg, ob der Verifik
 abgeschlossen ist, und seiner letzten Zustellung.
 
 Aufbewahrt wird 30 Tage, nächtlich weggeräumt von `app:monitoring:prune`; `--push-days=N` ändert das.
+
+## SSO
+
+Single Sign-on: der OpenID-Connect-Anbieter, über den sich Menschen bei plMail anmelden — Authentik,
+Keycloak, Authelia und ähnliche. Ein Formular: der Issuer, die Client-ID und das Client-Secret aus
+der Konsole des Anbieters, der Name, den der Login-Button trägt, und zwei Schalter dafür, wie Konten
+zugeordnet werden. Die Seite zeigt die Redirect-URI, die du beim Anbieter einträgst, und einen Chip,
+der sagt, ob die Anmeldung **An**, **An, aus der Umgebung** oder **Aus** ist.
+
+Speichern gilt sofort. Das Client-Secret ist nur schreibbar, wie alle Zugangsdaten in diesem
+Bereich: Das Feld zeigt ein gespeichertes nie an, und ein leeres Feld behält es. Die Einrichtung
+Schritt für Schritt, was jeder Schalter tut, und die `OIDC_*`-Variablen, die einspringen, wenn hier
+nichts gespeichert ist, stehen unter [Single Sign-on](../providers/oidc.md).
+
+**Das ist die eine Admin-Seite, die entscheidet, wer sich anmelden kann.** Wer sie speichern kann,
+kann plMail auf einen eigenen Anbieter zeigen lassen und sich als jedes Konto anmelden, das keinen
+zweiten Faktor hat — lies die Seite oben, bevor du Admin-Konten vergibst.
 
 ## KI
 

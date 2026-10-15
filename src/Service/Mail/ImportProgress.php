@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Domain\DTO\Mail\GmailQuotaStatus;
 use App\Domain\DTO\Mail\ImportLine;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Graph\GraphFolderResolver;
 use DateTimeImmutable;
 
@@ -45,6 +48,8 @@ final readonly class ImportProgress
         private MailboxRepository   $mailboxes,
         private MessageRepository   $messages,
         private GraphFolderResolver $folders,
+        private GmailQuotaPacer     $pacer,
+        private GmailSkippedMessageRepository $skipped,
     ) {}
 
     /** @return list<ImportLine> one per importing account, in the accounts' own order */
@@ -80,12 +85,34 @@ final readonly class ImportProgress
 
             if (true === $account->isGmail()) {
                 if (true === $account->needsBackfill()) {
+                    // Dealt with, not only stored. The total is Google's count
+                    // of the mailbox, which includes what plMail looks at and
+                    // declines — a draft, a chat — and counting only what was
+                    // stored left the line short of its total for good: 21,964
+                    // of 24,199 with nothing still to come (#90).
+                    //
+                    // And dealt with wherever it went. Mail Gmail collected
+                    // from a mailbox that is also connected here is stored on
+                    // that account, not this one; counting only this account's
+                    // rows left a line at 65,010 of 76,018 with the queue
+                    // empty, short by exactly what the other account held.
+                    $done = $this->messages->countForAccount($account)
+                        + $this->messages->countCarriedBy($account)
+                        + $this->skipped->countForAccount($account);
+
+                    // Never past the total. It is Gmail's count when it was
+                    // last asked, and mail that arrived since is stored too.
+                    if (null !== $account->importTotal) {
+                        $done = min($done, $account->importTotal);
+                    }
+
                     $lines[] = new ImportLine(
                         $account,
-                        $this->messages->countForAccount($account),
+                        $done,
                         $account->importTotal,
                         null,
                         $this->isWaiting($account),
+                        quota: $this->quota($account, $done),
                     );
                 }
 
@@ -108,6 +135,38 @@ final readonly class ImportProgress
         }
 
         return $lines;
+    }
+
+    /**
+     * What the quota allows this import, and how long the rest takes at that.
+     *
+     * The time is the messages still to come over the rate the pacer holds an
+     * import to. It runs long towards the end: the total is Google's count of
+     * the mailbox, which includes what is never stored — a draft, a chat —
+     * so the last of "what is left" is mail that is not coming.
+     */
+    private function quota(Account $account, int $done): GmailQuotaStatus
+    {
+        $total = $account->importTotal;
+        $left  = null === $total ? null : max(0, $total - $done);
+
+        $paused = $this->pacer->waitSeconds($account);
+        $used   = $this->pacer->usedThisMinute($account);
+
+        return new GmailQuotaStatus(
+            $this->pacer->limit(),
+            $this->pacer->isLimitLearnt(),
+            // While Google holds the account nothing is being spent, and the
+            // running count falls to nothing; what was spent when it said no
+            // is the figure that explains the pause.
+            $paused > 0 ? $this->pacer->usedWhenRefused($account) : $used,
+            $paused,
+            // What was spent, over what a message costs. A listing page is in
+            // the count as well and is a quarter of one message; a refused
+            // message is in it too, and was not fetched. Roughly, then.
+            $paused > 0 ? 0 : intdiv($used, GmailQuotaPacer::UNITS_PER_MESSAGE),
+            null === $left || 0 === $left ? null : (int) ceil($left / $this->pacer->messagesPerMinute($account)),
+        );
     }
 
     private function isWaiting(Account $account): bool

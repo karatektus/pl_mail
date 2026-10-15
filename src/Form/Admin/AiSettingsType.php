@@ -10,12 +10,12 @@ use App\Domain\Ai\KeepAlive;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Entity\Ai\AiSettings;
 use App\Form\PasswordManagerIgnore;
+use App\Form\SecretType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -115,7 +115,7 @@ final class AiSettingsType extends AbstractType
                 ],
             ])
             ->add('baseUrl', TextType::class, self::addressField('admin.ai.field.base_url', 'admin.ai.field.base_url_help'))
-            ->add('apiToken', PasswordType::class, self::tokenField($hasToken));
+            ->add('apiToken', SecretType::class, self::tokenField($hasToken));
 
         // Only on Admin → AI. The setup wizard is the short version of this
         // form: an address, a token, two models. Somebody who needs these knows
@@ -154,7 +154,7 @@ final class AiSettingsType extends AbstractType
                     ],
                 ])
                 ->add('embeddingBaseUrl', TextType::class, self::addressField('admin.ai.field.embedding_base_url', 'admin.ai.field.base_url_help'))
-                ->add('embeddingApiToken', PasswordType::class, self::tokenField($hasSearchToken))
+                ->add('embeddingApiToken', SecretType::class, self::tokenField($hasSearchToken))
                 ->add('embeddingHeaders', TextareaType::class, self::headersField($storedSearchHeaders))
                 ->add('clearEmbeddingHeaders', CheckboxType::class, self::clearHeadersField());
         }
@@ -331,10 +331,7 @@ final class AiSettingsType extends AbstractType
             'required'   => false,
             'mapped'     => false,
             'empty_data' => '',
-            // Spread, like every other credential field here: without it a
-            // password manager's overlay survives the Turbo frame swap and sits
-            // over the field it was anchored to.
-            'attr'       => [...PasswordManagerIgnore::SECRET, 'placeholder' => $hasToken ? '••••••••' : ''],
+            'attr'       => ['placeholder' => $hasToken ? '••••••••' : ''],
         ];
     }
 

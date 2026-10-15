@@ -1,0 +1,105 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/sso/_frame.html.twig — Admin → SSO.
+
+Accepts:
+  config — App\Entity\Oidc\OidcConfig (unsaved when nothing was ever configured)
+  form   — App\Form\Admin\OidcConfigType, bound to it
+  saved  — true immediately after a successful save
+  source — App\Service\Oidc\OidcSettings::SOURCE_*: where sign-in takes its
+           configuration from right now
+
+The chip reads `source` and not the row, because what an administrator needs
+to know is what the login page is doing: a provider set in the environment is
+single sign-on switched on with nothing in this form, and saying "not set up"
+over it would send them looking for a fault that is not there.
+
+The client secret is never rendered. The field is write-only and its
+placeholder says only whether one exists.
+
+No auto-refresh wraps this frame — it is configuration, and a poll would empty
+a field mid-paste.
+#}
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here — see admin/push/_frame.html.twig. #}
+<turbo-frame id="admin-sso">
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-key text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.sso.heading'|trans }}</h2>
+
+            {% if source == 'admin' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.sso.status.on'|trans }}
+                </span>
+            {% elseif source == 'environment' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.sso.status.environment'|trans }}
+                </span>
+            {% else %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
+                    {{ 'admin.sso.status.off'|trans }}
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-4">
+
+            {% if saved %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.sso.saved'|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.sso.intro'|trans }}</p>
+
+            {# The one value that goes the other way: out of plMail and into
+               the provider's console. Copyable, like the mail registrations'. #}
+            <div class="flex flex-col gap-1.5">
+                <span class="block text-[13px] font-medium leading-none text-ink-soft">
+                    {{ 'admin.integrations.field.redirect_uri'|trans }}
+                </span>
+                <div class="flex items-center gap-2"
+                     data-controller="ui--clipboard"
+                     data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+                     data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+                    <code data-ui--clipboard-target="source"
+                          class="flex-1 min-w-0 truncate rounded-lg bg-sunken border border-line px-3 py-2 text-xs text-ink-muted">{{ url('app_login_oidc_callback') }}</code>
+                    <button type="button"
+                            data-action="click->ui--clipboard#copy"
+                            class="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg text-ink-soft
+                                   bg-field border border-field hover:bg-hover transition-colors"
+                            aria-label="{{ 'admin.integrations.copy_redirect_uri'|trans }}">
+                        <i class="fa-solid fa-copy text-xs" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-ink-faint">{{ 'admin.sso.redirect_uri_help'|trans }}</p>
+            </div>
+
+            {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-sso' } }) }}
+                <div class="space-y-4">
+                    {{ form_widget(form) }}
+
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                       text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk text-xs" aria-hidden="true"></i>
+                            {{ 'admin.sso.save'|trans }}
+                        </button>
+                    </div>
+                </div>
+            {{ form_end(form) }}
+        </div>
+    </div>
+
+    {# px-4, the house inset — see admin/push/_frame.html.twig. #}
+    <p class="px-4 text-xs text-ink-faint leading-relaxed">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+        {{ 'admin.sso.env_note'|trans }}
+    </p>
+
+</turbo-frame>

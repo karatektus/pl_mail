@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:ca0e4734b8a3295ffaa110d32f4d65e64762172b -->
+<!-- translated-from: features/accounts.md sha1:e3b70a077702b079166c724d88537caef5fba35f -->
 
 # Konten und Aliase
 
@@ -236,6 +236,47 @@ Schreibfenster nicht mehr angeboten.
 
 Die **From**-Auswahl im Schreibfenster listet Konten und Aliase gemeinsam auf, sodass das Senden
 unter einer Aliasadresse eine Wahl ist und nicht zwei.
+
+Eine **Antwort** öffnet sich mit der Adresse, an die die Mail gerichtet war. Was für einen Alias
+ankam, wird von diesem Alias beantwortet, ohne dass du ihn auswählst; eine Mail, die keine Adresse
+des Kontos nennt — eine Liste, ein Bcc, von dem der Server keine Spur gelassen hat — wird von der
+primären beantwortet. Antwortest du auf eine Mail, die du selbst geschickt hast, bleibt die
+Adresse, von der du sie geschickt hast. Die Auswahl ist weiterhin da, um das zu ändern.
+
+### Der Name, unter dem eine Adresse sendet
+
+Unter jeder Adresse steht ein Feld für den **Absendernamen**: das, was die Empfängerin neben der
+Adresse sieht. Bleibt es leer, sendet die Adresse unter dem Namen des Kontos, und genau den zeigt
+das Feld ausgegraut. Eine Familienadresse in einem privaten Konto kann „Herr und Frau Schmidt“
+heißen, während das Konto „Jan Schmidt“ bleibt. Die From-Auswahl zeigt denselben Namen, mit dem die
+Mail hinausgeht.
+
+### Catch-all-Domains
+
+Wenn dein Anbieter **jede** Adresse einer Domain in dieses Postfach zustellt, trag die Domain unter
+**Catch-all-Domains** ein. plMail behandelt dann jede Adresse dieser Domain beim Antworten als
+deine: Eine Antwort auf eine Mail an `irgendwas@example.com` geht von `irgendwas@example.com` aus,
+mit dem Namen und der Signatur des Kontos, und in deinem eigenen „Allen antworten“ stehst du nicht
+selbst. Eine Termineinladung an eine solche Adresse ist deine, und deine Antwort geht von ihr aus
+zurück. Du musst vorher keinen Alias anlegen, und an eingehender Mail ändert sich nichts.
+
+**Nicht jede Adresse der Domain gilt als du.** Ein Catch-all fängt auf, was kein eigenes Postfach
+hat, und auf einer Familien- oder Firmendomain haben andere eines: `anna@example.com` liegt auf
+deiner Catch-all-Domain und ist jemand anderes. Eine Adresse zählt deshalb nur bei einer Mail als
+deine, mit der sie dich erreicht hat — die Adresse, an die dein Server sie laut seinem Vermerk
+zugestellt hat, oder, wenn der Server keinen hinterlassen hat, die Adressen dieser Domain in An und
+Cc. Anna bleibt in deinem „Allen antworten“, ihre Mail wird an sie beantwortet und nicht als sie,
+und eine Einladung, die sie nennt, wird dir nicht angeboten. Nennt eine Mail euch beide und trägt
+keinen Zustellvermerk, kann plMail nicht unterscheiden, welche deine war, und behandelt beide als
+dich.
+
+Drei Dinge tut es nicht. Es gilt für genau eine Domain — `example.com` deckt `mail.example.com`
+nicht ab. Es gilt für Antworten und Weiterleitungen; eine neue Nachricht geht weiterhin von einer
+Adresse aus der Liste oben aus. Und für Gmail- und Outlook-Konten wird es nicht angeboten, denn die
+senden nur über Adressen, die der Anbieter selbst kennt, und schreiben jede andere um oder lehnen
+sie ab. plMail prüft nicht, ob die Domain wirklich ein Catch-all ist oder ob dein Anbieter dich von
+dort senden lässt: Das ist eine Sache zwischen dir und dem Anbieter, und ein falscher Eintrag zeigt
+sich bei der ersten Antwort als abgelehnter oder umgeschriebener Absender.
 
 Einen Vorbehalt nennt plMail auf der Seite selbst: **Outlook versendet unabhängig von deiner
 Wahl hier immer über den primären Alias des Kontos.** Das ist Microsofts Verhalten, geändert

@@ -89,7 +89,7 @@ final readonly class RecentMailPolicy
      *
      * @return list<int>
      */
-    public function recentIds(PostIngestResult $result, ?DateTimeImmutable $now = null): array
+    public function recentIds(PostIngestResult $result, ?DateTimeImmutable $now = null, bool $includeSetAside = false): array
     {
         $now ??= new DateTimeImmutable();
         $ids   = [];
@@ -98,6 +98,13 @@ final readonly class RecentMailPolicy
             $id = $message->id;
 
             if (null === $id || false === $this->isRecent($message, $now)) {
+                continue;
+            }
+
+            // Spam and Trash are kept and not worked on — see
+            // Message::isSetAside(). The steps that read mail for meaning
+            // (insights, events, proposals) all ask here.
+            if (false === $includeSetAside && true === $message->isSetAside()) {
                 continue;
             }
 

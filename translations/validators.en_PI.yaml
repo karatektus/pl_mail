@@ -3,6 +3,10 @@ account.host_invalid: A host name or IP address only, sailor — no slashes, que
 admin.ai.keep_alive_invalid: "Give a spell like 5m, 30m or 4h, a plain count o' seconds, or -1 to keep it aboard for good — leave it empty an' the host's own word stands."
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
+admin.sso.error.client_id_missing: 'A client ID be needed with th'' issuer an'' th'' secret. All three, or none o'' them.'
+admin.sso.error.issuer_missing: 'An issuer be needed with th'' client ID an'' th'' secret. All three, or none o'' them.'
+admin.sso.error.issuer_not_https: 'Th'' issuer must begin with https://. plMail trusts th'' fleet by th'' TLS line t'' it.'
+admin.sso.error.secret_missing: 'A client secret be needed with th'' issuer an'' th'' client ID. All three, or none o'' them.'
 admin.users.password_too_short: "{{ limit }} marks at least — ye be choosin' this one for somebody else."
 alias.invalid: That be no proper parrot address, matey.
 app_password.name_required: Give the ship's key a name, lest ye forget which lock it opens.

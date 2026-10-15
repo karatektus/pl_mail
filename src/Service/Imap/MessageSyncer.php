@@ -973,9 +973,15 @@ class MessageSyncer
 
         $message->priority = $this->priorityOf($message->headers);
 
-        // Body
-        $message->bodyText = $imapMessage->getTextBody() ?? '';
-        $message->bodyHtml = $imapMessage->getHTMLBody() ?? '';
+        // Body. Past the guard although Utf8AwareMessageDecoder already ends
+        // in it, because the decoder is not always asked: webklex skips
+        // convertEncoding() for a part labelled us-ascii, on the reasoning
+        // that ASCII is UTF-8 already. The label is the sender's claim and not
+        // a fact — "charset=us-ascii" over 8-bit German text is what a mailer
+        // writes when nobody configured it — so a raw 0xFC went to the column
+        // as it came and the INSERT was refused (#81).
+        $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
+        $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
 
         // OpenPGP or S/MIME, decided from the top-level Content-Type and the
         // body — before anything is written, because an encrypted message's
@@ -1176,14 +1182,21 @@ class MessageSyncer
 
         $part = new MessagePart();
         $part->message     = $message;
-        $part->contentType = $attachment->getContentType() ?? 'application/octet-stream';
+        // Both of these are tokens a mailer writes and neither is decoded by
+        // anything on the way here, so a raw 8-bit byte in one refused the
+        // part's INSERT, and the message with it (#81). The id is repaired
+        // before it is compared with the body, which went through the same
+        // repair, so a `cid:` reference still finds its part.
+        $part->contentType = CharsetHelper::ensureUtf8($attachment->getContentType() ?? 'application/octet-stream');
         $part->filename    = $filename;
         $part->size        = strlen($content);
         $part->storagePath = $storagePath;
 
         // getId() falls back to a content hash when the part has no Content-ID,
         // so it only counts as a cid when the HTML body actually references it.
-        $normalizedCid = $this->inlineDetector->normalizeContentId((string) $attachment->getId());
+        $normalizedCid = $this->inlineDetector->normalizeContentId(
+            CharsetHelper::ensureUtf8((string) $attachment->getId()),
+        );
         $isInline      = $this->inlineDetector->isInline(
             $attachment->getDisposition(),
             $normalizedCid,

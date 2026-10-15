@@ -36,13 +36,6 @@ and a reply starts from it; with *Decrypted mail on this server* on, the list sh
 it off under Settings → Encryption → *Sending* → **Encrypt the subject**. No database change.
 [#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
 
-**Signing out holds.** A page's background requests that were still on their way when you pressed
-Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
-the server, one per device, and signing out deletes this device's; other devices stay signed in.
-Everybody who relied on "Keep me signed in" is asked to sign in once more after the update. One
-table is added; the migration is reversible.
-[#104](https://github.com/karatektus/pl_mail/pull/104), by @pmdevelopment.
-
 **GnuPG is now required.** plMail runs the `gpg` program to check PGP signatures, read contacts'
 keys and publish keys over WKD. The Docker image carries it; an installation outside Docker needs
 `gpg` from GnuPG 2.2 or later on the `PATH`. No PHP extension is involved — an earlier build of this
@@ -142,6 +135,355 @@ themselves back in). Three columns are added to the user table; the migration is
 schema, but going back down leaves every moved account unable to sign in until
 `app:user:password` resets it.
 [#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**Remote images can be shown in every message without asking (#124).**
+Settings → Mail → Images has one switch, **Always show remote images**, off until you turn it on.
+With it on, no message asks before loading its pictures; they still come through plMail's image
+proxy, so a sender learns that the message was opened but not your address. Mail in Spam stays
+blocked as before, and the senders you trusted one by one are kept for when it is switched off
+again. The choice lives in your user settings and a config backup carries it. No migration.
+
+**Signing in through single sign-on keeps you signed in, as "Keep me signed in" does on the password form.**
+A single sign-on sign-in left nothing but the PHP session holding you in: a cookie that ends with the
+browser, kept in a file that is cleaned up after 24 minutes without a request and that goes with the
+container whenever the server is updated. Which is why it signed people out every few hours. It now
+sets the same 60-day remember-me cookie, stored in the database, so a lapsed session is picked up
+again without a visit to the provider. Accounts with two-factor authentication are still asked for
+their code when the cookie signs them back in. Everyone signed in through the provider before the
+upgrade signs in once more to get the cookie.
+
+**A Gmail import takes in everything in the mailbox, not only mail addressed to the account.**
+plMail kept a Gmail message only when its headers named the account, and on a real mailbox
+(`app:gmail:skipped`) what it dropped was the account owner's own mail: 202 messages sent from
+"send mail as" addresses, 89 forwarded in from an address not connected here, 43 drafts and 4
+addressed to the `googlemail.com` spelling of the address. A message in a Gmail mailbox is now that
+account's unless another connected account has a better claim to it; drafts arrive as drafts, and
+`googlemail.com` is read as `gmail.com`. Only chats are still left out. The import also fetches
+Spam and Trash now, which it said it did and never asked Google for — the reason an import could
+not reach Gmail's own total. Every Gmail account lists its mailbox once more after the upgrade to
+take these in, and shows as importing until that pass is done. A message that names nobody and that
+Gmail collected from another connected account is merged into that account's copy rather than
+listed twice. **Migration:** clears the record of
+skipped Gmail messages except chats, and the backfill markers of Gmail
+accounts. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev. The progress line also counts mail the import
+stored on another connected account — Gmail collecting a mailbox that is connected here too — so it
+no longer stops short of Gmail's total by that mailbox's size. Once everything is in, the import confirms it within
+about ten minutes instead of showing "Importing · 100%" for up to an hour, and the count no longer
+runs past a total that new mail has outgrown.
+
+**Spam and Trash are kept, not worked on.** Mail arriving in either — from any provider, and now
+from a Gmail import — is no longer categorised by the language model, held back from the inbox
+tabs, read for parcels, invoices or meetings, or offered as a calendar event, and senders of spam
+no longer become contacts. A forged invitation in Spam stays out of the calendar. Read receipts
+filtered into Spam are still matched to the mail they are about. No migration.
+
+**plMail speaks French.** Choose **Français** under **Settings → General → Language**, or when
+creating the first account. The whole interface is translated, including the admin panel, the
+validation and sign-in messages and the emoji picker's search; French also defaults to the
+24-hour clock, as German does. Mail written in French is read as German and English mail already
+was, whatever language the interface is in: an appointment like "mardi prochain à 14h30" is offered
+for the calendar, a "facture" with its "net à payer" becomes an invoice card, and a "code de
+vérification" a login-code card. A slashed date such as 04/08/2026 is read day first for a French
+reader. No migration.
+
+**Inbox tabs are yours to arrange: switch the built-in ones off, make your own, and put them in
+any order.** The new Settings → Categories, in the Mail group, holds everything about the tabs: what
+sorts mail into them (the card that used to sit under General), which of the five built-in tabs are
+on, the tabs you make yourself, and the order of all of them — dragged, or moved with buttons from a
+keyboard or a phone. Primary is always first and always on. A tab you switch off takes no mail: the
+header rules, Google's labels and the assistant all file what would have gone there under Primary,
+and switching it back on re-sorts and brings it back. A tab of your own is filled by a filter whose
+action is **File in category**; mail filed there leaves the built-in tab it would otherwise be in,
+and the tab shows while it holds mail, takes drag-and-drop, and counts and badges like the others. A
+filter files Gmail mail too, whatever you chose about Google's own sorting. Only mail whose sender
+passes authentication is filed, so a forged "your parcel is waiting" never lands in a tab named after
+the real carrier; on a mailbox where plMail cannot tell which server vouches for the mail such a
+filter files nothing, and the filters page says so. Mail stays in a tab when the filter that put it
+there is changed or deleted. The Android app and other JMAP clients can draw the same tabs and move
+mail between them (`urn:plmail:params:jmap:inboxtabs`), and a re-sort that moves conversations
+between tabs now tells them — a phone used to keep showing a conversation where it had been. Re-sorting
+also reads only the mailbox being re-sorted, where it used to sort every user's mail once per account.
+**Migration:** one new table, a nullable column each on messages and conversations and two settings
+columns on users, added without rewriting any mail. With tabs on, every inbox page and sidebar-counts
+poll makes one more indexed read. [#87](https://github.com/karatektus/pl_mail/pull/87), by @Flouss.
+
+## v0.3.5 — 2026-10-13
+
+**Browsers and password managers kept offering your logins in client-secret fields.** Opening
+Admin → SSO, or a Google, Microsoft or integration provider form, could put your mail address in the
+client ID and your password in the secret field, one press of Save away from being stored; with
+that stopped, a click in the field still had Chrome list every saved password and Bitwarden offer to
+generate one, and Bitwarden opened its menu in the text fields below. All of it followed from the
+field being a password input, which no attribute talks every browser and extension out of. Client
+secrets, API tokens and mail-server passwords are now text fields drawn as dots, and a text field
+that asks for nothing says `autocomplete="off"`. The sign-in form and the forms that set a login
+password are unchanged.
+
+**Sign in through Authentik, Keycloak or any other OpenID Connect provider.** Enter the provider's
+issuer, client ID and secret under the new **Admin → SSO** and the login page offers a "Sign in with
+…" button above the password form, which stays; the `OIDC_*` variables do the same for an install
+configured from its compose file, and what is saved in the admin area wins. An account is found by
+its address the first time — only when the provider says it verified that address — and by the
+provider's subject from then on, so changing the address at the provider later changes nothing here.
+A switch creates an account for somebody plMail has never seen; it is off by default. Suspension,
+the login throttle and two-factor apply as they do to a password. Setup, with Authentik step by
+step, is in [Single sign-on](docs/providers/oidc.md). `app:user:oidc-unlink` forgets a link from the
+console, for somebody deleted and re-added at the provider. **Migration:** two nullable columns and
+a unique index on `user`, and a new one-row table `oidc_config`; nothing backfilled, reversible.
+[#106](https://github.com/karatektus/pl_mail/pull/106), by @jo2904.
+
+**Happening soon is wider, with Also spotted beside the list.** The panel opened at the narrowest
+dialog width, so a fortnight of bookings pushed the undated cards under "Also spotted" far down the
+scroll. It now opens wide, and on a screen wide enough for it the list and "On your radar" stay on
+the left while "Also spotted" sits to their right. On a phone it stacks as before. No migration.
+[#83](https://github.com/karatektus/pl_mail/pull/83), by @Flouss.
+
+**The calendar no longer reads its times on a synced calendar's clock.** A calendar you subscribe to
+from Google or a CalDAV server arrives with the time zone that account holds for it, and a shared
+one is often set to UTC there. When such a calendar was your default, the whole calendar page was
+drawn in UTC, so an appointment at 11:30 Paris time showed at 09:30 — the stored time was right, only
+the clock it was printed on was not. The page, and the dot in the top bar that decides what is left
+of today, now use your own time zone (the Time zone setting, else the install's default) whenever the
+default calendar is a synced one. A calendar created here keeps the zone it was given. No
+migration; nothing stored changes.
+
+**The browser tab shows the Inbox's unread count on every page that is not a mail folder.** The
+"(3)" in front of the tab's title appeared on the Inbox and vanished on Settings, the calendar and
+the admin pages, although the sidebar there still showed the same number. It stays now, and updates
+on sync like the Inbox's does. Mail folders are unchanged: each shows its own figure or none, so
+Trash, Sent and Archive do not borrow the Inbox's. No migration.
+[#72](https://github.com/karatektus/pl_mail/pull/72), by @Flouss.
+
+**Attachments on Outlook and Hotmail mail show up.** A message with a file on it arrived in plMail
+with no attachment at all, no paperclip, nothing to download, for every Outlook.com, Hotmail and
+Microsoft 365 account. The list of a message's attachments was asked of Microsoft in a form it
+rejects, and a refused list was read as "none", silently. The request is fixed, and a message that
+Microsoft says has attachments but whose list does not come back is now logged as a warning
+instead of passing unnoticed. Mail that has already been synced stays as it was stored, without its
+attachments, until it is fetched again; mail that arrives from now on is correct. No migration.
+[#77](https://github.com/karatektus/pl_mail/pull/77), by @Flouss.
+
+**A parcel collected at a relay point now reads as delivered.** The mail that says "Votre colis a
+été retiré" or "… récupéré par son destinataire" named no stage the radar knew, so the card stayed
+"announced" after the parcel was in its recipient's hands. Both now read as **Delivered**; the
+same words negated ("n'a pas été retiré", "n'a pas été récupéré par son destinataire") do not, and
+neither do those words about something other than the parcel. No migration.
+
+**A parcel handed over at a Pickup relay no longer says "Deutsche Post".** The Pickup relay network
+(network1.pickup.fr, network2.pickup.fr) hands over the parcels of several carriers, and its mail
+gave every parcel whose number has the international S10 shape the carrier "Deutsche Post",
+whoever was shipping it. A card now takes its carrier from the sender's name when that starts
+with Chronopost or Colissimo, with that carrier's tracking link, and is otherwise headed "Pickup"
+with no carrier and no link. What the number itself says still counts: a number ending in FR is
+La Poste's, and Colissimo's own shape is Colissimo's. Cards already on the radar correct
+themselves the next time their mail is read, no duplicates. No migration.
+
+**Reading old mail again could turn a parcel's card back to its first status.** A card keeps the
+newest statement of its series, but "newest" meant the last mail read, not the latest dated.
+`app:backfill insights` reads by the order mail was stored, which for an Outlook import is
+newest-first, so a parcel's "out for delivery" mail was read before its "announced" one and the
+older statement overwrote it. A mail older than the one a card already stands on now leaves the
+card alone; mail of the same instant, or a card whose mail was deleted, behave as before. No
+migration.
+
+**A card made from old mail looked like new mail on Happening soon.** The cards without a date of
+their own — GitHub activity, mostly — are listed for the last seven days, measured from when the
+card was created. That equals the mail's age only while cards are made as mail arrives:
+`app:backfill insights`, or an import, creates them from old mail now, so a month-old notification
+took a place among the newest twenty for a week. The window and the order now follow the date of
+the card's mail, and the card's own date only when its mail was deleted. No migration.
+
+**A one-time code stayed on Happening soon, readable, for a week.** When a code's mail says how
+long it lasts, the card drops off when that time passes. When it says nothing — a password
+manager's, many shops' — the card had no date to drop off by and was listed like any undated card,
+for seven days, with the code on it. Such a code is now offered for fifteen minutes from its mail;
+it is still on the mail itself. Codes that state an expiry, and every other kind of card, are
+unchanged. No migration.
+
+**A parcel, a code or a date in an Outlook mail was only found if it sat in the first few lines.**
+For an HTML mail, Microsoft Graph gives the text as a preview cut at 255 characters, and that
+preview is what the card extractors (parcels, codes, flights, tickets, invoices) read instead of
+the mail. A tracking number further down — in a Pickup or IKEA relay notice, say, or a GLS mail
+with the number under a heading — never produced a card. They now read the mail's HTML for an
+Outlook account, and the preview only when the HTML has no words in it. Mail already stored is
+read again by `app:backfill insights --since=…`. No migration.
+
+**A GLS France parcel never appeared on the radar.** GLS France prints no tracking number of a
+recognisable shape: its mails carry an eight-character code under "Numéro de colis" (`Q7XK2M4P`),
+and the sender was not known either. Mail from gls-france.com is now read for that code, behind
+that label only, and the card links to GLS France's own tracking page. Eight bare digits, or a
+code in mail from anyone else, are still not read. No migration.
+
+**An invoice card could be numbered "TIFICATIONS", and two bills from one sender became one
+card.** A billing mail whose footer says "Manage invoice notifications" had that line read as an
+invoice number: "invoice no" matched the start of "notifications" and the rest of the word became
+the number. Every bill that sender sent got the same number and so the same card, and each
+overwrote the last. "Invoice no" and "invoice number" now have to be whole words. No migration.
+
+**Signing out holds.** A page's background requests that were still on their way when you pressed
+Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
+the server, one per device, and signing out deletes this device's; other devices stay signed in.
+Everybody who relied on "Keep me signed in" is asked to sign in once more after the update. One
+table is added; the migration is reversible.
+
+**An address can send under its own name.** Settings → Aliases has a sender name field under each
+address; left empty, the address sends under the account's name as before. The name was already
+shown in the From selector for an alias that had one (a phone app could set it), but the mail
+itself went out under the account's name regardless — the selector and the recipient now see the
+same one, in the browser and from the apps. No
+migration. [#70](https://github.com/karatektus/pl_mail/issues/70), reported by @Node815.
+
+**A reply goes out from the address the mail was sent to.** Mail that came in for an alias is
+answered from that alias, with that alias's signature, instead of every reply opening on the
+primary address; answering your own sent mail keeps the address it was sent from. A domain whose
+every address reaches the mailbox can be added under Settings → Aliases → Catch-all domains, and
+mail to any address at it is then answered from that address without adding each one as an alias
+(not offered for Gmail and Outlook accounts, which send only as addresses the provider knows).
+A meeting invitation sent to such an address is yours to answer. Only the address a mail actually
+reached you by counts as yours, not the whole domain, so somebody else with a mailbox at the same
+domain stays in your reply-all and is never answered as.
+Reopening a draft saved from an alias no longer puts it back on the primary address. Typing an
+arbitrary From address into a new message is not part of this. The phone apps build their replies
+themselves and get the same answer from the server: `Email/get` has a `replyFrom` property, the
+identity that answers a mail, returned when asked for by name, and `EmailSubmission/set` accepts
+the identity it names for a catch-all address. A draft saved by an app now keeps its sender: `Email/set`
+takes `identityId` on a draft (announced as `draftIdentity` in the session), so a reply written
+from an alias no longer comes back from Drafts on the primary address. Apps already installed are
+unaffected and go on answering from the primary address until they are updated. No
+migration. [#41](https://github.com/karatektus/pl_mail/issues/41), reported by @YoGo9.
+
+**A signature can be pasted as HTML, and its images travel with the mail.** The signature editor
+has two views, Rendered and HTML. HTML takes the source; Rendered shows it as it will be stored,
+cleaned by the server, with a line underneath naming what was removed (usually a `<style>` block
+and `class` attributes). An image a signature links to is fetched and kept in the signature — up
+to 256 KB each — so it shows in the editor, which it could not before, and is sent as an attached
+inline image instead of a link recipients have to allow. Existing signatures are unchanged until
+they are next saved. No
+migration. [#32](https://github.com/karatektus/pl_mail/issues/32), reported by @eatcodeplay.
+
+**The sidebar's numbers follow what happens, without a reload.** Saving a draft did not raise
+Drafts, deleting or sending it did not lower it, and a mail read on the phone left the badge where
+it was until the next sync or a click on another folder. The numbers were only re-read when a
+button remembered to ask, and the composer, the worker that sends a mail and the phone apps had no
+way to. The server now says so itself whenever mail changes — on the response to the request that
+changed it, and over the hub for a change made elsewhere — so every tab hears, once per change.
+Opening a conversation that was already read no longer writes anything, tells the provider anything
+or wakes the phone apps. No
+migration. [#86](https://github.com/karatektus/pl_mail/issues/86), reported by @pmdevelopment.
+
+**A reply you sent from a catch-all address shows as "me" in the list.** It showed the account's
+name, as though a third person had joined the conversation. Somebody else writing from the same
+domain keeps their name. No migration.
+
+**A meeting on two calendars splits its colours side by side in a narrow month.** The bar a month
+cell falls back to when there is no room for the title stacked the two colours on top of each other
+in a few pixels of height. No migration.
+
+**An IMAP folder whose server closes idle connections no longer burns a CPU core.** Some servers
+(Lark, QQ) end an idling connection after a few minutes. plMail read that as a quiet mailbox and
+kept reading a connection that was gone, as fast as it could, until the 29-minute refresh — a core
+per folder. It now sees that the connection has ended and reconnects. No
+migration. [#94](https://github.com/karatektus/pl_mail/issues/94), reported by @montywei.
+
+**An import no longer sticks one message short of the end.** A server can list a message it will
+not hand over (iCloud does, for a draft deleted but not yet purged). Left alone on the last page,
+it made the import fail before its tries were counted, so it was retried every few minutes for good
+at 486 of 487 and the account's remaining folders waited behind it. It is given up on after five
+tries now. The same answer — nothing — from a folder that really is empty was also taken for the
+server not answering, so mail deleted from an emptied folder elsewhere stayed in plMail; an empty
+folder is read as empty. No
+migration. [#96](https://github.com/karatektus/pl_mail/issues/96), reported by @montywei.
+
+**One slow mail server can no longer hold up every import.** A server sending a trickle of data
+never tripped the 30-second read timeout, which is per read, so one fetch could occupy an import
+worker for as long as the trickle lasted while every other account waited. A worker now gives a
+message it is handling five minutes; after that its IMAP connections are closed, the message is
+retried later and the queue moves on. No
+migration. [#95](https://github.com/karatektus/pl_mail/issues/95), reported by @montywei.
+
+**A Gmail import finishes, instead of waiting a day on mail that is not coming.** plMail fetches
+some Gmail messages and then does not store them — a draft, a chat, mail whose headers tie it to no
+account connected here. Nothing remembered that, so every hourly listing found them missing and
+fetched all of them again: on the mailbox this was reported from, 2,235 messages and about a third
+of the hour's quota, every hour, with the account showing "Importing: waiting" until the import
+gave up after a day. They are written down now. The listing leaves them alone, the import ends on
+the pass where everything outstanding has an answer, and the progress line counts them as done, so
+it reaches Google's total. `php bin/console app:gmail:skipped` shows what was skipped for an
+account, grouped by kind. An import already stuck this way finishes within two hourly listings of
+the upgrade. Whether some of these messages should be stored after all is not changed here.
+**Migration:** adds the empty table `gmail_skipped_message`; nothing existing is
+altered. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+
+## v0.3.4 — 2026-10-13
+
+**A Gmail import no longer runs into Google's quota and stays there.** Google lowered the
+per-user limit to 6,000 units a minute for projects created since May 2026 and raised the cost
+of fetching a message with its body from 5 units to 60 (its table says 20, which is the
+cost without the body); plMail paced imports for 15,000 at the old cost, so on
+a new project most of what an import asked for was refused, the log filled with rate-limit
+warnings and an import could stop without resuming. plMail now reads the limit out of Google's
+first refusal and keeps to it — nothing to configure — counts a message at its real cost,
+fetches five to a request so a minute's worth is never asked for in one second, and shares one
+allowance between its workers. An account Google still refuses at the right limit is slowed
+down and speeds up again by itself. An import longer than an hour no longer fetches again what
+an earlier pass already brought in. A refusal is no longer an
+error: whatever met it — a batch, an import page, a sync, a label change being pushed — waits
+out the minute and carries on. The
+import line in the background-work indicator now shows the quota, roughly how much of it is in
+use, how many messages a minute are coming in, how long the rest of the import takes, and says
+so when Google has paused it. No
+migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+
+**The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
+icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a
+fixed 192px wax-seal PNG as a second tab icon, and Firefox prefers that to the SVG for a tab. The
+PNG is gone from the tab icons; the home-screen and install icons are unchanged. No migration.
+[#74](https://github.com/karatektus/pl_mail/pull/74), by @Flouss.
+
+**A message with a stray non-UTF-8 byte in the wrong place was never stored.** Over IMAP, a mail
+whose text was labelled `us-ascii` but written in Latin-1 — "Grüße" from a mailer nobody configured
+— was refused by the database ("invalid byte sequence for encoding UTF8: 0xfc"), asked for again
+on each of the next syncs and then given up on, so it never appeared. The same happened with such
+a byte in a Message-ID, In-Reply-To or References header, and in an attachment's content type or
+content ID. All of them are now read the way a subject or a file name with that byte already was,
+and the message arrives with its umlauts. A message that was given up on before this is not
+fetched again by itself. No migration.
+[#81](https://github.com/karatektus/pl_mail/issues/81)
+
+**The envelope on a row's read button shows what pressing it does.** On an unread row, "Mark as
+read" wore the closed envelope, while the same action above a selection wears the open one — which
+looked like a Promotions problem only because that is where mail is unread. A row's button now
+matches the toolbar: open envelope to mark read, closed envelope to mark unread. No migration.
+[#61](https://github.com/karatektus/pl_mail/pull/61), by @Flouss.
+
+**A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
+password were already given the first colour no other account was wearing; accounts connected
+through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
+sidebar and the corner mark on every message row looked the same. They now take the first free
+colour like any other. Accounts you connected before this keep the colour they have; the swatch on
+the account's row in Settings → Mail accounts changes it. No migration.
+[#60](https://github.com/karatektus/pl_mail/pull/60), by @Flouss.
+
+**The mail list is readable beside an open message.** A row went to a single line once the list was
+about 575px wide, which left the subject around 120px and its preview wrapped next to it ("Facture
+pour Co…") whenever the reading pane was open, or on a large phone. A row now goes to one line only
+once the list is 75rem (about 1200px) wide. Below that it is two lines — sender and subject, then
+the preview across the whole row — and on a list narrower than about 575px, a phone, the three it
+always was. Not less, because a one-line row in a 65rem list (the list beside the reading pane on a
+2560px screen) still cut real subjects after about 30 characters. Archive, delete, snooze and the
+other row actions appear on hover in two- and three-line rows too, instead of only in one-line rows.
+A two-line row has no unread dot; like a one-line row it says unread with a bold sender and subject.
+Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No
+setting; no migration.
+[#62](https://github.com/karatektus/pl_mail/pull/62), by @Flouss.
+**The calendar button can skip a view.** The button in the top bar has always been a three-way
+switch: mail, then the calendar beside the mail, then the calendar full width. Settings → Calendar →
+Behaviour has one choice, **Calendar button**, that can make it a two-way one. **Full width only**
+goes between the mail and the calendar full width, one press each way, and clicking a mail link
+while the calendar is full width goes back to the mail instead of dropping into a split. **Split
+only** goes between the mail and the calendar beside it. **All three** is the default, so the button
+behaves as before until you change it. Nothing is added to the database.
+[#80](https://github.com/karatektus/pl_mail/pull/80), by @Flouss.
 
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you

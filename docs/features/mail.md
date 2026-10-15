@@ -81,8 +81,8 @@ re-categorisation never needs a resync.
 
 ### An inbox without tabs
 
-If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings → General
-→ Categories**. The inbox then shows everything in it, newest first, and the tabs are
+If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings →
+Categories**. The inbox then shows everything in it, newest first, and the tabs are
 gone along with what belongs to them: the "new" pills, dragging a conversation onto a tab, and the
 panel that explains why a message was filed where it was.
 
@@ -93,7 +93,7 @@ choosing **Rules** stops it.
 
 ### Choosing what sorts your mail
 
-Both of those defaults are yours to change, under **Settings → General → Categories**.
+Both of those defaults are yours to change, under **Settings → Categories**.
 
 **Sorted by** picks what decides. **Rules** reads headers — a mailing-list header, an unsubscribe
 link, a sender you have written to before — and answers the same way every time for the same
@@ -137,6 +137,49 @@ again about your newest 100, 200 or 500 messages.
 It is bounded because it costs a model call each — a few hundred is minutes on a warm host, a whole
 mailbox is hours. Recent mail is where a wrong tab gets noticed anyway. Nothing asks again on its
 own, and nothing should.
+
+### Arranging the tabs
+
+The **Tabs** card on the same page lists every tab in the order the inbox shows them. Drag one to
+move it, or use the arrows beside it from a keyboard or on a phone. **Primary** is always first and
+always on: it is where the inbox opens and where mail from a tab you switch off goes.
+
+Any of the other four built-in tabs can be switched **Off**. Forums is the usual candidate — Gmail
+itself rarely puts anything there. A tab that is off is not just hidden: nothing sorts into it any
+more, not the rules, not Google's labels and not the assistant, and the mail that would have gone
+there is in Primary. The **Details** panel says so on such a message ("it would be Forums, which you
+switched off"). Switching a tab off or back on re-files the mail you already have, in the
+background, the same way changing what sorts your mail does; switching it back on brings its mail
+back, because the category is worked out again from what is stored on each message. A conversation
+you had dragged into a tab you switch off goes back to being sorted like any other.
+
+### Tabs of your own
+
+The five are what plMail knows how to recognise. If you want a tab for something it cannot — parcels,
+receipts, one client's mail — add it at the bottom of the **Tabs** card under **Settings →
+Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-your-own-tabs)
+whose action is **File in category** puts mail into it, and like the others it only shows in the
+inbox while it holds mail. A filter files Gmail mail too: Google's categories outrank plMail's own
+sorting unless you say otherwise, but a filter is something you wrote, and it outranks both.
+
+Mail stays in your tab when the filter that put it there is changed or deleted, as a label stays on
+mail when its filter goes. Dragging the conversation out, or deleting the tab, is how it leaves.
+
+A conversation is in exactly one tab, so mail filed into yours leaves the built-in tab it would
+otherwise have been in — a carrier's notice that used to sit in Promotions is in Shipping now, and
+Promotions counts, shows and badges only what is left. You can also drag a conversation onto a tab
+of your own, or off one onto a built-in tab, exactly as between the five; a conversation you moved
+by hand stays where you put it.
+
+The message's **Details** panel names your tab when that is where the conversation is, and says it
+was filed there by one of your filters (or, after a drag, that you moved it). Renaming a tab renames
+it everywhere at once. **Deleting** one puts its mail back in the tab it would otherwise be in;
+nothing is deleted.
+
+The Android app shows your tabs as the browser does — in your order, without the ones you switched
+off — and moves mail between them. Other mail apps that connect over JMAP see what they always did:
+the five built-in categories, with a conversation in your Shipping tab under the built-in tab it
+would otherwise be in. Gmail itself knows nothing of your tabs.
 
 ### Telling plMail it got one wrong
 
@@ -239,12 +282,17 @@ delivery day promised in words rather than digits ("arriving today", "Arriving M
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did.
 
-The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France
-and Cainiao, with Amazon.fr treated like the other Amazon shops. A parcel waiting at a relay point
-or a locker is its own stage, **Ready for pickup**, neither on its way nor delivered. Not read yet:
-GLS France and the Pickup relay network, whose mail states no number the radar can recognise, and
-the "returned to sender" and "delivery attempt failed" stages. The satisfaction survey a carrier
-sends after delivery is ignored, so it cannot turn a **Delivered** card back into something else.
+The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
+GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
+like the other Amazon shops. A parcel waiting at a relay point or a locker is its own stage, **Ready
+for pickup**, neither on its way nor delivered, and once its recipient has collected it ("Votre
+colis a été retiré", "récupéré par son destinataire") it is **Delivered**. The Pickup relay network
+(network1.pickup.fr, network2.pickup.fr) is read too, but it hands over the parcels of several
+carriers, so its address names none of them: a card takes its carrier from the sender's name when
+that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
+link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
+satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
+card back into something else.
 
 ### The strip above the mail list
 
@@ -285,7 +333,8 @@ One-time codes are the one source with an expiry rather than an occurrence. A co
 the moment the mail says the code stops working — "valid for 10 minutes", "gültig bis 09:30" — so
 it drops off the radar when it goes dead instead of sitting there looking usable. When the mail
 states no lifetime, the card carries no time at all: guessing ten minutes would either retire a
-code that still works or, worse, keep a dead one looking fresh.
+code that still works or, worse, keep a dead one looking fresh. The radar still offers such a code,
+but only for fifteen minutes after its mail arrived; the card above the mail itself keeps it.
 
 ### Reporting a mail the radar missed
 
@@ -692,6 +741,25 @@ you had it.
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
 
+## Remote images
+
+Pictures that a message loads from the sender's servers are blocked until you ask for them: a
+picture fetched when you open a message tells its sender that, and when, you read it. The message
+says how many it held back, with two ways to show them — **Show images** for this message only, and
+**Always show images from** the sender, which remembers that sender for your account. A trusted
+sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
+yourself shows its pictures without asking.
+
+**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
+your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
+senders you trusted one by one are kept either way, so switching it off again brings back exactly
+the list you had. A config backup carries the choice.
+
+Mail in **Spam** stays blocked whatever you choose, trusted senders included: a message filed as
+spam is your provider doubting it comes from who it says, and **Show images** is still there to
+load one message's pictures by hand.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,
@@ -763,7 +831,8 @@ attachment has never touched plMail's disk; it is materialised on first access.
 **Compose** opens a window docked at the bottom right. Replying from inside a thread opens the
 editor at the foot of the conversation instead, on a wide screen; below that it falls back to the
 dock. Either way the window offers rich text, contact autocomplete on the address fields, and a
-**From** selector listing every active account and every sending alias on it.
+**From** selector listing every active account and every sending alias on it. A reply opens on the
+address the mail was sent to; see [Accounts and aliases](accounts.md#sending-aliases).
 
 Autocomplete only ever offers **your own** harvested contacts. On an install with more than one
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
@@ -838,6 +907,24 @@ on, and the caret starts in the **To** row, since the recipient is the one thing
 leave without; **Insert signature** adds the block when you want it. That button replaces the block
 in place instead of adding a second one, and so does changing the **From** account: the signature
 block is swapped and a paragraph you have already typed survives the change.
+
+**A signature you already have as HTML** — from a generator, a brand guide, another mail client —
+goes in through the **HTML** view of the editor. **Rendered** and **HTML** above the field switch
+between the two: HTML is the signature as source, to paste or edit; Rendered is the signature as it
+will be stored. Switching to Rendered is not the browser drawing what you pasted. The source goes to
+the server, through the same clean-up every signature is saved through, and what comes back is what
+you see — so the rendered view cannot look better than what recipients get. A line under the editor
+names anything that was taken out: typically a `<style>` block and the `class` attributes that
+pointed into it, since most mail clients ignore both. Put the styling on the elements themselves
+(`style="…"`), which is kept. Saving from either view stores the same thing.
+
+**Images in a signature are stored in the signature.** A picture referenced by address
+(`<img src="https://…">`) is fetched when you render or save and kept inside the signature
+itself. It then travels with every mail as an attached inline image — the recipient sees your logo
+without being asked to load remote content, and it keeps working after the web address stops. An
+image stays a plain reference instead when it cannot be fetched over https, is not a PNG, JPEG, GIF
+or WebP, or is larger than 256 KB (768 KB for one signature in all); the line under the editor
+counts those, and they do not show in the editor, which loads no images from elsewhere.
 
 Writing inside a conversation gets a **reduced header**: the **To** field itself, typable, with
 From, Cc, Bcc and the subject folded away behind the chevron beside it. Replying rarely means
@@ -1013,11 +1100,10 @@ the search box says how far it has got, and until it says nothing at all, "meani
 from this view" — the dialog is a shortcut to the same operation, across every account, nested labels
 included.
 
-**A signature image cannot be an inline image.** A picture placed in a *signature* is stored as an
-ordinary image reference, not as a `cid:` part: the sanitiser every signature is written through
-drops the marker attribute that would make it one, deliberately, so a signature cannot smuggle in
-something that looks like one of the message's own inline pictures. Inline images work in the
-message body, where you put them.
+**A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
+inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see
+[Signature](#signature). Anything larger, an SVG, or an image that could not be fetched stays a
+reference to its web address, which recipients may have to allow before it shows.
 
 **"New" is not "unread", and losing the badge is not reading anything.** Scrolling past a row in the
 inbox retires its New badge, because the row was put in front of you. The conversation stays unread
@@ -1065,6 +1151,8 @@ administrator can read and download it. That is what makes a new extractor writa
 the dialog says so before you send. On an installation you do not run yourself, report the mail
 whose shape you want recognised — not one whose contents you would rather keep.
 
-**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time,
-and it stays until you dismiss it. plMail will not invent ten minutes, so the card cannot tell you
-whether the code still works — the mail it came from is the only thing that can.
+**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time. On
+the radar it is offered for fifteen minutes after its mail arrived and then goes, so a code from
+last week is not left there readable; the card above the mail itself keeps it. plMail will not
+invent ten minutes, so the card cannot tell you whether the code still works — the mail it came
+from is the only thing that can.

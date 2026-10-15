@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:43f57642347736db71ec013bef9e22bfb70ee747 -->
+<!-- translated-from: features/appearance.md sha1:963b5496c55b39c78ef14815a4c3c0e5b2ae8f78 -->
 
 # Darstellung
 
@@ -281,7 +281,7 @@ wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem l
 wird. Deine Mail bleibt genau so, wie sie geschrieben wurde — es wird nichts übersetzt und
 nichts umgeschrieben.
 
-plMail liefert **English**, **Deutsch** und **Pirate English** mit. Eine Änderung lädt die
+plMail liefert **English**, **Deutsch**, **Français** und **Pirate English** mit. Eine Änderung lädt die
 Seite neu, statt sie nachzubessern, denn jede Zeichenkette auf dem Bildschirm muss neu
 gerendert werden.
 

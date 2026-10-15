@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:dcb2b781f03c1702974cc382857086d18024e21c -->
+<!-- translated-from: internals/mail-ingest.md sha1:4cec2680ca81aaeda118258ea11392456b81c947 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -93,6 +93,38 @@ die Vorgeschichte gehört `App\Service\Mail\MailImporter`, auf der Warteschlange
 - **Gmail fragt zuerst namentlich nach dem Posteingang,** dann blättert es die Auflistung des
   ganzen Postfachs Anfrage für Anfrage durch; das Seiten-Token liegt zwischen den Jobs auf dem
   Konto.
+- **Gmails Kontingent wird gelernt, nicht eingestellt.** Google erlaubt einem Nutzer eine Zahl
+  von Kontingent-Einheiten pro Minute und sagt erst, wie viele, wenn es eine Anfrage ablehnt.
+  `GmailQuotaPacer` beginnt bei 15.000, liest das Limit aus der ersten Ablehnung (ein seit Mai
+  2026 angelegtes Projekt hat 6.000) und taktet von da an jedes Konto auf 85 % davon, fünf
+  Nachrichten pro Anfrage — Google lehnt ab, was den Vorrat einer Minute in einer Sekunde
+  verbraucht — und nach jeder Ablehnung bei einem schon bekannten Limit eine Weile langsamer.
+  Eine Nachricht zählt 60 Einheiten: Googles Tabelle nennt 20, und das kostet ein Abruf ohne
+  Inhalt; `app:gmail:quota-probe` hat für die Formate `full` und `raw` 60 gemessen. Ein
+  gelerntes Limit wird nach einem Tag vergessen, damit ein angehobenes wiedergefunden wird.
+  Was ein Konto verbraucht hat und wann es zuletzt abgelehnt wurde, liegt in einem Cache-Pool
+  in der Datenbank, sodass alle Worker aus einem Kontingent schöpfen. Eine Ablehnung ist auf
+  diesem Weg nirgends ein Fehler: Ein Stapel, eine Import-Seite oder ein Sync, der auf eine
+  trifft, wird zurückgestellt und läuft, wenn die Minute des Kontos vorbei ist.
+- **Eine Gmail-Nachricht gehört zu dem Postfach, in dem sie liegt.** Der Stapel-Handler gibt
+  eine Nachricht nur dann einem anderen verbundenen Konto, wenn dieses den besseren Anspruch
+  hat (Gmailify: ein Geschwisterkonto, das in ihren Headern genannt ist); alles andere im
+  Postfach gehört dem Gmail-Konto, auch von einer „Senden als“-Adresse verschickte Mail, von
+  einer hier nicht verbundenen Adresse weitergeleitete Mail und Gmail-Entwürfe, die als
+  Entwürfe ankommen. Die Auflistung fragt auch nach Spam und Papierkorb (`includeSpamTrash`),
+  die `messages.list` sonst auslässt und `messagesTotal` mitzählt.
+- **Eine Gmail-Nachricht, die angesehen und nicht gespeichert wird, wird notiert.** Der
+  Stapel-Handler lehnt einen Chat ab — die einzige Art, für die es keinen Platz gibt — und
+  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet. Jede
+  bekommt eine Zeile in
+  `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) mit dem Grund, ihren Labels
+  und ihren Adress-Headern. Die Auflistung behandelt eine notierte id wie eine gespeicherte, die
+  Nachricht wird also nicht jede Stunde erneut abgerufen, und ein Import, bei dem jede
+  ausstehende Nachricht eine Antwort hat, endet in diesem Durchlauf statt an seiner
+  Versuchsgrenze; die Fortschrittszeile zählt sie als erledigt, denn Googles Gesamtzahl enthält
+  sie. `app:gmail:skipped` gibt die Notizen nach Art gruppiert aus, und `--forget` löscht sie
+  für ein Konto, sodass die nächste Auflistung erneut fragt. Eine Zeile verschwindet, wenn ihre
+  Nachricht doch gespeichert wird.
 - **Microsoft liest die erste Delta-Runde jedes Ordners seitenweise.** Ein Ordner ohne
   Delta-Link wird auf dem Konto eingeplant (`Account::$graphImport`), statt vom Abgleich
   aufgezählt zu werden, und `GraphApiSyncer::importPage()` geht diese Runde in Schritten von
@@ -154,6 +186,28 @@ nach der Konversationsbildung, damit Archivier- und Papierkorb-Aktionen die Konv
 Nachricht erreichen), ein Flush, ein zweiter Durchgang, der Konversations-Ids pro Konto für
 `MailChangeRecorder::threadsTouched()` einsammelt, und ein zweiter Flush für die Zeilen des
 Änderungsprotokolls.
+
+Die Filter-Aktion **In Kategorie ablegen** läuft im selben Durchgang und ist die einzige Aktion,
+die eine Kategorie schreibt. Sie schreibt nicht `Message::$category`: Fünf Dinge berechnen diese
+Spalte aus gespeicherten Daten neu (Ankunft, `app:backfill category`, die Neusortierung, die eine
+Einstellungsänderung einreiht, die Freigabe durch den Assistenten, die Gmail-Anreicherung), und jedes
+davon würde ein dort abgelegtes Urteil löschen. Das Urteil steht stattdessen in
+`Message::$ruleCategory`, das nichts neu berechnet, und `RuleCategoryFiler` lässt dann die
+Konversation über `MessageThreader::refreshCategory()` neu auflösen — neueste gewinnt, pin-bewusst,
+Hold-bewusst, wie bei der eingebauten Kategorie. `MessageThread::$userCategory` ist die Seite der
+Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Eine Nachricht
+wird nur abgelegt, wenn `SenderAuthentication` `Pass` sagt; wessen Urteil geglaubt wird, steht in
+dessen Docblock. Der Filter legt auch Mail mit Gmail-Labels ab: Die Kategorien des Anbieters haben
+Vorrang vor plMails eigener Sortierung, nicht vor einer Anweisung, die die Nutzerin geschrieben hat.
+
+Eine eingebaute Kategorie, die die Nutzerin ausgeschaltet hat (`CategorySorting::$disabled`),
+bekommt keine Mail. `MessageCategorizer::explain()` macht aus dem, was die Kaskade entschieden hat —
+Header-Regel, Gmail-Label oder Assistent —, Allgemein mit dem Grund `switched_off`, statt die nächste
+Regel zu fragen; „Foren ist aus“ macht eine Mailingliste also nie zu Werbung. Eine Kategorie aus- oder
+einzuschalten reiht dieselbe Neusortierung ein wie die anderen Sortier-Einstellungen. Beide
+Neuberechnungs-Statements schreiben nur die Konversationen, deren Tab sich ändert, und geben sie
+zurück, und jeder Aufrufer trägt sie als JMAP-Thread-Änderungen ein — so erfährt ein Handy von einer
+Neusortierung.
 
 Zurück kommt `PostIngestResult` — Nachrichten in Ingest-Reihenfolge, besitzende Konten nach Id
 und Konversations-Ids nach besitzendem Konto —, weil die drei Aufrufer nicht gleich zu Ende

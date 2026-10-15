@@ -13,3 +13,16 @@
 # leave a correct password looking broken.
 account.deactivated: Your account has been switched off by an administrator. Ask them to switch it back on — nothing of yours has been deleted.
 account.removed: This account has been removed and cannot be used to sign in.
+
+# Single sign-on through an OpenID Connect provider, thrown by
+# App\Security\OidcAuthenticator. Each says what the person can do about it,
+# and none repeats what the provider said — that goes to the log, where an
+# administrator can read it.
+oidc.unavailable: Single sign-on is not working right now. Sign in with your password, or ask your administrator to check the logs.
+oidc.denied: The sign-in provider did not let you in to plMail.
+oidc.failed: The sign-in through your provider could not be completed. Try again.
+oidc.no_email: Your sign-in provider did not tell plMail your email address, so there is no account to sign you in to.
+oidc.email_unverified: Your sign-in provider has not confirmed your email address, so plMail will not link it to an account. Ask your administrator.
+oidc.ambiguous: More than one account here has your email address. Ask your administrator to sort it out.
+oidc.no_account: There is no plMail account for you yet. Ask your administrator to create one with your email address.
+oidc.linked_elsewhere: The account with your email address is already linked to someone else at your sign-in provider. Ask your administrator.

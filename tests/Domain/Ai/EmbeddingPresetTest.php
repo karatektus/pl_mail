@@ -39,7 +39,7 @@ final class EmbeddingPresetTest extends KernelTestCase
         $translator = self::getContainer()->get(TranslatorInterface::class);
 
         foreach (EmbeddingPreset::ordered() as $preset) {
-            foreach (['en', 'de', 'en_PI'] as $locale) {
+            foreach (['en', 'de', 'fr', 'en_PI'] as $locale) {
                 $key  = $preset->summaryKey();
                 $text = $translator->trans($key, [], 'messages', $locale);
 

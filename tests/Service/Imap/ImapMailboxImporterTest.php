@@ -237,6 +237,83 @@ final class ImapMailboxImporterTest extends KernelTestCase
         self::assertSame(3, (int) $this->row()['failed_uid_attempts']);
     }
 
+    // ── a message the server lists and will not return ───────────────────────
+
+    /**
+     * #96, an iCloud Drafts folder at 486 of 487. One UID is in the server's
+     * SEARCH answer and in nothing it returns for a FETCH — most likely a
+     * message deleted and not yet expunged. Alone on the last page, the fetch
+     * for it comes back empty, which the library raises as a failure; that
+     * left importPage() before the attempts were counted, so the import was
+     * retried for ever and never gave up.
+     */
+    public function testAMessageTheServerListsButNeverReturnsIsGivenUpOnAndTheFolderFinishes(): void
+    {
+        // A hundred that arrive, in two full pages, and then the one that
+        // will not — on a page of its own. That is the shape that stuck: on a
+        // page it shares, it is merely absent (the test below).
+        $script    = $this->mails(range(31, self::TOP));
+        $script[1] = FakeQuery::NEVER_RETURNED;
+        $server    = FakeImportClient::holding($script);
+
+        // Everything above it, a page at a time, exactly as before.
+        while (1 < count($this->missing($server))) {
+            self::assertNotSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+        }
+
+        self::assertSame(range(31, self::TOP), $this->storedUids());
+
+        for ($try = 1; $try < ImapMailboxImporter::MAX_PAGE_ATTEMPTS; ++$try) {
+            self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $server), sprintf('try %d', $try));
+            self::assertSame($try, (int) $this->row()['import_page_attempts'], 'counted, which is what it never was');
+        }
+
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(0, (int) $this->row()['import_floor_uid']);
+        self::assertSame(0, (int) $this->row()['import_remaining']);
+    }
+
+    /** One that will not come back among forty-nine that do costs nothing at all. */
+    public function testAnAbsentMessageAmongOthersThatArriveDoesNotHoldItsPage(): void
+    {
+        $script      = $this->mails(range(1, self::TOP));
+        $script[100] = FakeQuery::NEVER_RETURNED;
+        $server      = FakeImportClient::holding($script);
+
+        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(0, (int) $this->row()['import_page_attempts']);
+    }
+
+    /**
+     * The other failure that says "empty response", and the reason only one
+     * of the two is counted: a connection that died says nothing about the
+     * messages. Five failed tries in an hour's outage must not pass over a
+     * page of somebody's mail for good.
+     */
+    public function testADroppedConnectionIsNotCountedAsAMessageThatWillNotCome(): void
+    {
+        $server              = FakeImportClient::holding($this->mails(range(1, self::TOP)));
+        $server->pageFailure = new \Webklex\PHPIMAP\Exceptions\RuntimeException('empty response');
+
+        for ($try = 1; $try <= ImapMailboxImporter::MAX_PAGE_ATTEMPTS + 1; ++$try) {
+            try {
+                $this->importer->importPage($this->mailboxId, $server);
+                self::fail('a dead connection is the caller\'s to retry');
+            } catch (\Throwable $e) {
+                self::assertStringContainsString('empty response', $e->getMessage());
+            }
+        }
+
+        self::assertSame(0, (int) $this->row()['import_page_attempts']);
+        self::assertSame(self::TOP + 1, (int) $this->row()['import_floor_uid'], 'and the floor has not moved');
+    }
+
+    /** @return list<int> the scripted UIDs not stored yet */
+    private function missing(FakeImportClient $server): array
+    {
+        return array_values(array_diff(array_keys($server->script), $this->storedUids()));
+    }
+
     public function testAnEmptyFolderIsFinishedAtOnce(): void
     {
         self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, FakeImportClient::holding([])));

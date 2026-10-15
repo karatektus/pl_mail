@@ -208,10 +208,13 @@ A message is only considered when **all** of these hold:
   mail arrived.
 - Nothing about it has been refused before.
 
-And the text itself has to be unambiguous. Explicit and semi-explicit forms in German and English
-are read — `04.08.2026 um 14 Uhr`, `4. August 2026, 14:00`, `2026-08-04 14:00`, `Samstag um 15 Uhr`,
-`Saturday at 3pm`, `tomorrow at 9`, `next Tuesday 10:30` — with a duration where the mail states one
-(`2 Stunden`, `90 Minuten`, `2 hours`).
+And the text itself has to be unambiguous. Explicit and semi-explicit forms in German, English and
+French are read, whatever language you use plMail in — `04.08.2026 um 14 Uhr`,
+`4. August 2026, 14:00`, `2026-08-04 14:00`, `Samstag um 15 Uhr`, `Saturday at 3pm`,
+`tomorrow at 9`, `next Tuesday 10:30`, `le 1er août à 14h30`, `mardi prochain à 10h`,
+`demain à 9h` — with a duration where the mail states one (`2 Stunden`, `90 Minuten`, `2 hours`,
+`2 heures`). A slashed date like `04/08/2026` is read day first in German and French and month first
+in English.
 
 Three rules shape the reading:
 

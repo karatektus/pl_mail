@@ -8,6 +8,7 @@ use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
+use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Label\Label;
@@ -135,7 +136,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * tabs off — see CategorySorting::$tabs. Null and not a default argument,
      * so that every caller has to say which of the two it means.
      */
-    public function findForUnifiedInbox(UserInterface $user, ?MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -151,7 +152,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setMaxResults($perPage)
             ->distinct();
 
-        $this->narrowToCategory($qb, $category);
+        $this->narrowToCategory($qb, $category, $this->switchedOffBy($user));
 
         $this->excludeTrashed($qb);
         $this->narrowToUnread($qb, $unreadOnly);
@@ -166,18 +167,117 @@ class MessageThreadRepository extends ServiceEntityRepository
      * count so the two cannot come to mean different things — a pager offering
      * a page the list does not have is what that looks like.
      */
-    private function narrowToCategory(QueryBuilder $qb, ?MessageCategory $category): void
+    /**
+     * @param list<string> $absorbed built-in values switched off — their
+     *                               conversations are listed under Primary
+     */
+    private function narrowToCategory(QueryBuilder $qb, MessageCategory|InboxTab|null $category, array $absorbed = []): void
     {
         if (null === $category) {
             return;
         }
 
-        $qb->andWhere('t.category = :category')
-            ->setParameter('category', $category);
+        $tab = $category instanceof MessageCategory ? InboxTab::builtIn($category) : $category;
+
+        // A thread is in exactly ONE tab: the reader's own when it has been
+        // filed in one, else the built-in one. So a custom tab is a plain match
+        // on the reader's column, and a built-in tab must also exclude whatever
+        // has left it for one of the reader's — otherwise a carrier's notice is
+        // listed in Promotions AND in Shipping, and the tab counts stop adding
+        // up to the inbox.
+        if (true === $tab->isCustom()) {
+            $qb->andWhere('IDENTITY(t.userCategory) = :userCategory')
+                ->setParameter('userCategory', $tab->categoryId);
+
+            return;
+        }
+
+        // Primary also holds whatever is in a category the reader switched
+        // off. The re-sort a switch queues moves those messages for good, but
+        // it takes minutes on a big mailbox, and a conversation somebody
+        // pinned there is not its to move: until then they would be in no tab
+        // at all.
+        if (MessageCategory::Primary === $tab->builtIn && [] !== $absorbed) {
+            $qb->andWhere('t.userCategory IS NULL')
+                ->andWhere('t.category IN (:categories)')
+                ->setParameter('categories', [MessageCategory::Primary->value, ...$absorbed]);
+
+            return;
+        }
+
+        $qb->andWhere('t.userCategory IS NULL')
+            ->andWhere('t.category = :category')
+            ->setParameter('category', $tab->builtIn);
+    }
+
+    /**
+     * The built-in categories this reader switched off, as stored values.
+     *
+     * @return list<string>
+     */
+    private function switchedOffBy(UserInterface $user): array
+    {
+        if (false === $user instanceof \App\Entity\User\User) {
+            return [];
+        }
+
+        return array_map(
+            static fn (MessageCategory $category): string => $category->value,
+            $user->categorySorting->switchedOff(),
+        );
+    }
+
+    /**
+     * Which tab a grouped row belongs to: the reader's own when the thread is
+     * filed in one, else the built-in category.
+     *
+     * One definition, because the three grouped counts and the sender hint must
+     * key a tab identically or the strip's numbers and its dots describe
+     * different tabs. The key is InboxTab's, which for a built-in is the value
+     * it always was.
+     */
+    /**
+     * @param list<string> $absorbed switched-off built-ins, counted as Primary
+     */
+    private function tabKeyOf(mixed $category, mixed $userCategoryId, array $absorbed = []): string
+    {
+        if (null !== $userCategoryId) {
+            return InboxTab::CUSTOM_PREFIX . (int) $userCategoryId;
+        }
+
+        $value = $category instanceof MessageCategory ? $category->value : (string) $category;
+
+        return true === in_array($value, $absorbed, true) ? MessageCategory::Primary->value : $value;
+    }
+
+    /**
+     * Fold grouped rows into tab => count.
+     *
+     * Added up rather than assigned: the query groups by the built-in category
+     * AND the reader's tab, so one of the reader's tabs arrives as several rows
+     * — one per built-in category its threads happen to have — and keeping the
+     * last of them would report a fraction of the tab.
+     *
+     * @param iterable<array<string,mixed>> $rows
+     * @param list<string>                  $absorbed switched-off built-ins, counted as Primary
+     *
+     * @return array<string,int>
+     */
+    private function foldByTab(iterable $rows, string $countField, array $absorbed = []): array
+    {
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $key = $this->tabKeyOf($row['category'], $row['userCategory'] ?? null, $absorbed);
+
+            $counts[$key] = ($counts[$key] ?? 0) + (int) $row[$countField];
+        }
+
+        return $counts;
     }
 
     /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
-    public function countForUnifiedInbox(UserInterface $user, ?MessageCategory $category, bool $unreadOnly = false): int
+    public function countForUnifiedInbox(UserInterface $user, MessageCategory|InboxTab|null $category, bool $unreadOnly = false): int
     {
         // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
         // and ->distinct() would put the DISTINCT on the aggregate rather than
@@ -196,7 +296,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
 
-        $this->narrowToCategory($qb, $category);
+        $this->narrowToCategory($qb, $category, $this->switchedOffBy($user));
 
         // The same exclusion findForUnifiedInbox() applies, and it was missing
         // here. A thread keeps its Inbox label when it goes to the bin — the
@@ -221,33 +321,20 @@ class MessageThreadRepository extends ServiceEntityRepository
     public function countByCategoryForUnifiedInbox(UserInterface $user): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS threadCount')
+            ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
             ->groupBy('t.category')
+            ->addGroupBy('t.userCategory')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->excludeTrashed($qb);
 
-        $rows = $qb->getQuery()->getResult();
-
-        $counts = [];
-
-        foreach ($rows as $row) {
-            $categoryValue = $row['category'];
-
-            if ($categoryValue instanceof MessageCategory) {
-                $categoryValue = $categoryValue->value;
-            }
-
-            $counts[$categoryValue] = (int) $row['threadCount'];
-        }
-
-        return $counts;
+        return $this->foldByTab($qb->getQuery()->getResult(), 'threadCount', $this->switchedOffBy($user));
     }
 
     /**
@@ -268,7 +355,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS threadCount')
+            ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS threadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
@@ -276,26 +363,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('l.role = :inbox')
             ->andWhere('t.unreadCount > 0')
             ->groupBy('t.category')
+            ->addGroupBy('t.userCategory')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->excludeTrashed($qb);
 
-        $rows = $qb->getQuery()->getResult();
-
-        $counts = [];
-
-        foreach ($rows as $row) {
-            $categoryValue = $row['category'];
-
-            if ($categoryValue instanceof MessageCategory) {
-                $categoryValue = $categoryValue->value;
-            }
-
-            $counts[$categoryValue] = (int) $row['threadCount'];
-        }
-
-        return $counts;
+        return $this->foldByTab($qb->getQuery()->getResult(), 'threadCount', $this->switchedOffBy($user));
     }
 
     /**
@@ -931,32 +1005,21 @@ class MessageThreadRepository extends ServiceEntityRepository
     public function countNewByCategoryForUnifiedInbox(UserInterface $user, \DateTimeImmutable $now): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS newCount')
+            ->select('t.category AS category', 'IDENTITY(t.userCategory) AS userCategory', 'COUNT(DISTINCT t.id) AS newCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
             ->groupBy('t.category')
+            ->addGroupBy('t.userCategory')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox);
 
         $this->restrictToNew($qb, $now);
         $this->excludeTrashed($qb);
 
-        $counts = [];
-
-        foreach ($qb->getQuery()->getResult() as $row) {
-            $category = $row['category'];
-
-            if ($category instanceof MessageCategory) {
-                $category = $category->value;
-            }
-
-            $counts[(string) $category] = (int) $row['newCount'];
-        }
-
-        return $counts;
+        return $this->foldByTab($qb->getQuery()->getResult(), 'newCount', $this->switchedOffBy($user));
     }
 
     /**
@@ -982,10 +1045,13 @@ class MessageThreadRepository extends ServiceEntityRepository
         \DateTimeImmutable $now,
         int $perCategory = 3,
     ): array {
+        $absorbed = $this->switchedOffBy($user);
+
         $qb = $this->createQueryBuilder('t')
             ->select(
                 't.id AS threadId',
                 't.category AS category',
+                'IDENTITY(t.userCategory) AS userCategory',
                 't.lastMessageAt AS arrivedAt',
                 'm.fromName AS fromName',
                 'm.fromAddress AS fromAddress',
@@ -1018,12 +1084,6 @@ class MessageThreadRepository extends ServiceEntityRepository
                 continue;
             }
 
-            $category = $row['category'];
-
-            if ($category instanceof MessageCategory) {
-                $category = $category->value;
-            }
-
             $name = trim((string) ($row['fromName'] ?? ''));
 
             if ('' === $name) {
@@ -1031,7 +1091,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
 
             $threads[$id] = [
-                'category'  => (string) $category,
+                'category'  => $this->tabKeyOf($row['category'], $row['userCategory'] ?? null, $absorbed),
                 'arrivedAt' => $row['arrivedAt'],
                 'name'      => $name,
                 'at'        => $at,
@@ -2399,8 +2459,76 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The same resolution as recomputeCategoriesForAccount(), for a handful of
+     * threads rather than a mailbox.
+     *
+     * That one is right for a re-sort and wrong for a batch: it resolves every
+     * conversation the account has, which is the correct shape once and a
+     * scan of a hundred thousand rows if it runs after each batch of arriving
+     * mail. This is the same statement with the threads named, so the plan is
+     * bounded by the batch instead of by the mailbox.
+     *
+     * `category_pinned_at IS NULL` is carried over verbatim, and it is the part
+     * that must not be lost in the narrowing: a conversation somebody dragged
+     * onto a tab keeps it, whatever any model or rule now says.
+     *
+     * @param list<int> $threadIds
+     *
+     * @return array<int, list<int>> account id => the conversations that
+     *                               changed tab, for the JMAP change log
+     */
+    public function recomputeCategoriesForThreads(array $threadIds): array
+    {
+        if ([] === $threadIds) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            UPDATE message_thread t
+            SET category = sub.category,
+                -- The reader's own tab, resolved by the same newest-message
+                -- rule in the same pass — and to NULL when that message was
+                -- filed nowhere, which is how a conversation leaves it. See
+                -- MessageThread::$userCategory.
+                user_category_id = sub.rule_category_id
+            FROM (
+                -- The filter's verdict as it stands, on Gmail mail too: a filter
+                -- the reader wrote outranks Google's categories whatever they
+                -- told plMail about Google's own sorting.
+                SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id
+                FROM message m
+                WHERE m.category IS NOT NULL
+                  -- A message held for the assistant has no say yet: its
+                  -- category is the rules' guess, and adopting it is the
+                  -- flicker holding exists to prevent. Message::$categoryHeldAt.
+                  AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
+                  AND m.thread_id IN (:threadIds)
+                ORDER BY m.thread_id, m.received_at DESC NULLS LAST
+            ) sub
+            WHERE t.id = sub.thread_id
+              AND t.category_pinned_at IS NULL
+              -- Only what moves: a phone is told about every row returned.
+              AND (t.category IS DISTINCT FROM sub.category
+                   OR t.user_category_id IS DISTINCT FROM sub.rule_category_id)
+            RETURNING t.id, t.account_id
+            SQL,
+            ['threadIds' => $threadIds],
+            ['threadIds' => ArrayParameterType::INTEGER],
+        );
+
+        $changed = [];
+
+        foreach ($rows as $row) {
+            $changed[(int) $row['account_id']][] = (int) $row['id'];
+        }
+
+        return $changed;
+    }
+
+    /**
      * Resolve every thread's category from its own messages, most-recent-wins,
-     * in one statement.
+     * in one statement, for one account.
      *
      * Raw SQL because DISTINCT ON is a Postgres extension DQL has no form of,
      * and because this is an UPDATE ... FROM over a derived table: the ORM's
@@ -2414,72 +2542,68 @@ class MessageThreadRepository extends ServiceEntityRepository
      * category anybody had ever dragged a conversation into — the whole install
      * at once, which is worse than the arrival-time case the flag was written
      * for.
+     *
+     * RETURNS THE CONVERSATIONS THAT MOVED, and only writes those. A re-sort
+     * used to rewrite every row with its own value and tell nobody, so a JMAP
+     * client went on drawing a conversation in the tab it had left until
+     * something else happened to it. The caller records these.
+     *
+     * @return list<int>
      */
-    /**
-     * The same resolution, for a handful of threads rather than a mailbox.
-     *
-     * recomputeCategoriesForAccount() below is right for a backfill and wrong
-     * for a batch: it runs `DISTINCT ON (thread_id)` across every message the
-     * account has, which is the correct shape once and a scan of a hundred
-     * thousand rows if it runs after each batch of arriving mail. This is the
-     * same statement with the threads named, so the plan is bounded by the
-     * batch instead of by the mailbox.
-     *
-     * `category_pinned_at IS NULL` is carried over verbatim, and it is the part
-     * that must not be lost in the narrowing: a conversation somebody dragged
-     * onto a tab keeps it, whatever any model or rule now says.
-     *
-     * @param list<int> $threadIds
-     */
-    public function recomputeCategoriesForThreads(array $threadIds): int
-    {
-        if ([] === $threadIds) {
-            return 0;
-        }
-
-        return (int) $this->getEntityManager()->getConnection()->executeStatement(
-            <<<'SQL'
-            UPDATE message_thread t
-            SET category = sub.category
-            FROM (
-                SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
-                FROM message m
-                WHERE m.category IS NOT NULL
-                  -- A message held for the assistant has no say yet: its
-                  -- category is the rules' guess, and adopting it is the
-                  -- flicker holding exists to prevent. Message::$categoryHeldAt.
-                  AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
-                  AND m.thread_id IN (:threadIds)
-                ORDER BY m.thread_id, m.received_at DESC NULLS LAST
-            ) sub
-            WHERE t.id = sub.thread_id
-              AND t.category_pinned_at IS NULL
-            SQL,
-            ['threadIds' => $threadIds],
-            ['threadIds' => ArrayParameterType::INTEGER],
-        );
-    }
-
-    public function recomputeCategoriesForAccount(Account $account): int
+    public function recomputeCategoriesForAccount(Account $account): array
     {
         $sql = <<<'SQL'
         UPDATE message_thread t
-        SET category = sub.category
+        SET category = sub.category,
+            user_category_id = sub.rule_category_id
         FROM (
-            SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
+            SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id
             FROM message m
             WHERE m.category IS NOT NULL
               AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
+              -- This account's conversations only. Without it the DISTINCT ON
+              -- sorted every message on the installation, every user's, once
+              -- per account re-sorted — and switching a tab on or off re-sorts.
+              AND m.thread_id IN (SELECT id FROM message_thread WHERE account_id = :accountId)
             ORDER BY m.thread_id, m.received_at DESC NULLS LAST
         ) sub
         WHERE t.id = sub.thread_id
           AND t.account_id = :accountId
           AND t.category_pinned_at IS NULL
+          AND (t.category IS DISTINCT FROM sub.category
+               OR t.user_category_id IS DISTINCT FROM sub.rule_category_id)
+        RETURNING t.id
         SQL;
 
+        return array_map(
+            intval(...),
+            $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, ['accountId' => $account->id]),
+        );
+    }
+
+    /**
+     * Release this reader's conversations pinned to a built-in category, before
+     * that category is switched off.
+     *
+     * The recompute statements skip a pinned conversation, so one dragged into
+     * a category that is then switched off would never be resolved again. Only
+     * conversations shown in that category: one in a tab of the reader's own
+     * keeps its pin, since that tab is still there.
+     */
+    public function unpinFromCategory(\App\Entity\User\User $user, MessageCategory $category): int
+    {
         return (int) $this->getEntityManager()->getConnection()->executeStatement(
-            $sql,
-            ['accountId' => $account->id],
+            <<<'SQL'
+            UPDATE message_thread t
+            SET category_pinned_at = NULL
+            FROM account a
+            WHERE a.id = t.account_id
+              AND a.usr_id = :user
+              AND t.category = :category
+              AND t.user_category_id IS NULL
+              AND t.category_pinned_at IS NOT NULL
+            SQL,
+            ['user' => $user->id, 'category' => $category->value],
         );
     }
 

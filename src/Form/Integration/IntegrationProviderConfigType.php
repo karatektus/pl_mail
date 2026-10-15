@@ -8,12 +8,12 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Form\PasswordManagerIgnore;
+use App\Form\SecretType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -64,16 +64,15 @@ final class IntegrationProviderConfigType extends AbstractType
                 'required' => false,
                 'attr'     => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ])
-            ->add('clientSecret', PasswordType::class, [
+            ->add('clientSecret', SecretType::class, [
                 'label'    => 'admin.integrations.field.client_secret',
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete' => 'off',
                     'placeholder'  => $config instanceof IntegrationProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
             ]);
 
         if ($config instanceof IntegrationProviderConfig && true === $config->hasClientSecret()) {

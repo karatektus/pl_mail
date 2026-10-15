@@ -152,6 +152,7 @@ final class ThreadRows implements ResetInterface
                 self::dateOrNull($row['sentAt']),
                 $createdAt,
                 self::dateOrNull($row['submissionSendAt']),
+                (int) ($row['filedAsSent'] ?? 0) > 0,
             );
         }
 

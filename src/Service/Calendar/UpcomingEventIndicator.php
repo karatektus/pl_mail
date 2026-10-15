@@ -42,7 +42,6 @@ final readonly class UpcomingEventIndicator
     public function forUser(User $user, ?DateTimeImmutable $now = null): ?array
     {
         $calendarIds = [];
-        $zone        = null;
 
         // Through UserCalendars rather than the repository because the topbar
         // asks this same question twice on every render — HappeningSoonReader
@@ -50,10 +49,6 @@ final readonly class UpcomingEventIndicator
         // order; see that class.
         foreach ($this->calendars->visible($user) as $calendar) {
             $calendarIds[] = (int) $calendar->id;
-
-            if (null === $zone && true === $calendar->isDefault) {
-                $zone = $calendar->timeZone;
-            }
         }
 
         if (0 === count($calendarIds)) {
@@ -67,7 +62,7 @@ final readonly class UpcomingEventIndicator
         // "Today" is the user's today, not UTC's: at 01:00 in Berlin the two
         // disagree about which day it is, and the wrong one shows an empty dot
         // on a morning that has three meetings in it.
-        $local  = $now->setTimezone($this->zone($zone, $user));
+        $local  = $now->setTimezone($this->time->zoneFor($user));
         $endsAt = $local->modify('tomorrow')->setTime(0, 0)->setTimezone($utc);
 
         $upcoming = $this->occurrences->findInRange($user, $calendarIds, $now, $endsAt);
@@ -99,26 +94,5 @@ final readonly class UpcomingEventIndicator
             $minutes <= self::SOON_MINUTES     => 'soon',
             default                            => 'later',
         };
-    }
-
-    /**
-     * The visible default calendar's zone, else the user's own — never the
-     * process's, which is pinned to UTC in this container.
-     *
-     * `$name` is null whenever no VISIBLE calendar carries the default flag,
-     * which is a state a real account reaches: the flag is per-user, nothing
-     * re-asserts it, and hiding the default is only refused while it still holds
-     * the flag. Falling through to UTC put "today" on the wrong day for anyone
-     * east of it between midnight and their offset — the dot reads empty on a
-     * morning with three meetings in it, which is the one failure this class
-     * exists to avoid.
-     */
-    private function zone(?string $name, User $user): DateTimeZone
-    {
-        if (null === $name) {
-            return $this->time->zoneFor($user);
-        }
-
-        return $this->time->safeZone($name);
     }
 }

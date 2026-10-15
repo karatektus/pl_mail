@@ -8,9 +8,11 @@ use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\SignatureImporter;
 use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -74,7 +76,33 @@ final class SignatureController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly AccountRepository      $accountRepository,
         private readonly SignatureProvider      $signatures,
+        private readonly SignatureImporter      $importer,
     ) {
+    }
+
+    /**
+     * What a signature would be stored as, without storing it.
+     *
+     * This is the editor's "Rendered" view of HTML typed as source: the same
+     * import a save runs (SignatureImporter), returned instead of written, so
+     * what the user is shown before saving is what the save will keep — not
+     * the browser's own rendering of markup the server is about to cut down.
+     * The report beside the HTML names what was removed.
+     *
+     * Its own token, per account, sent the way a form would send it. Nothing
+     * is written here, but the import fetches the images the HTML names, and a
+     * request that makes the server fetch something is not one to accept from
+     * another site's page.
+     */
+    #[Route('/preview', name: 'preview', methods: ['POST'])]
+    public function preview(Request $request, Account $account): JsonResponse
+    {
+        $this->assertCsrf($request, 'signature-preview' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        return new JsonResponse(
+            $this->importer->import((string) $request->request->get('signature', ''))->toArray(),
+        );
     }
 
     /**
@@ -88,7 +116,7 @@ final class SignatureController extends AbstractController
 
         $account->setSetting(
             Account::SETTING_SIGNATURE,
-            $this->signatures->sanitize((string) $request->request->get('signature', '')),
+            $this->importer->import((string) $request->request->get('signature', ''))->html,
         );
         $this->em->flush();
 
@@ -99,7 +127,7 @@ final class SignatureController extends AbstractController
      * Set, seed or clear one address's own signature. See the class docblock
      * for why all three share a route.
      */
-    #[Route('/{aliasId}', name: 'alias', methods: ['POST'])]
+    #[Route('/{aliasId}', name: 'alias', requirements: ['aliasId' => '\\d+'], methods: ['POST'])]
     public function setForAlias(Request $request, Account $account, int $aliasId): Response
     {
         $this->assertCsrf($request, 'settings-signature-alias' . $aliasId);
@@ -132,7 +160,7 @@ final class SignatureController extends AbstractController
 
         $account->setSetting(
             $key,
-            $this->signatures->sanitize((string) $request->request->get('signature', '')),
+            $this->importer->import((string) $request->request->get('signature', ''))->html,
         );
         $this->em->flush();
 

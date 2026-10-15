@@ -256,7 +256,7 @@ sensible.
 **Settings → General → Language** sets the language the interface is shown in. Your mail is left
 exactly as it was written — nothing is translated, and nothing is rewritten.
 
-plMail ships **English**, **Deutsch** and **Pirate English**. Changing it reloads the page rather
+plMail ships **English**, **Deutsch**, **Français** and **Pirate English**. Changing it reloads the page rather
 than patching it, because every string on screen has to be re-rendered.
 
 The same section carries **Time zone**, which decides the clock times and dates you are shown. It

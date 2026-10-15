@@ -54,6 +54,12 @@ use Doctrine\ORM\EntityManagerInterface;
  * what it asked for instead. On a thread because a conversation is the unit of
  * a move, as it is of a snooze.
  *
+ * The fourth is `inboxTab`: put the conversation in a tab — a built-in one
+ * or one the reader made — the way dragging it onto the tab does on the web,
+ * through the same ThreadStatusUpdater::setCategory(). The value is a tab key
+ * (see InboxTabMapper); one the reader does not have, a switched-off built-in
+ * included, is refused rather than read as Primary.
+ *
  * Deliberately narrow. `create` and `destroy` are refused outright: threads
  * come into being by mail arriving and go away when their last message does,
  * and a client that could conjure one would be describing something the rest
@@ -74,6 +80,9 @@ final class ThreadSetMethod implements JmapMethod
         private readonly ThreadSnoozeService $snoozeService,
         private readonly MoveToService $moveTo,
         private readonly LabelBindingRepository $bindingRepository,
+        private readonly \App\Service\Mail\InboxTabs $inboxTabs,
+        private readonly \App\Service\Mail\ThreadStatusUpdater $status,
+        private readonly \App\Repository\Mail\InboxCategoryRepository $inboxCategories,
     ) {
     }
 
@@ -218,7 +227,7 @@ final class ThreadSetMethod implements JmapMethod
         }
 
         foreach (array_keys($patch) as $property) {
-            if (false === in_array($property, ['snoozedUntil', 'isNew', 'moveTo'], true)) {
+            if (false === in_array($property, ['snoozedUntil', 'isNew', 'moveTo', 'inboxTab'], true)) {
                 throw new MethodException(
                     'invalidProperties',
                     sprintf('"%s" is not a settable Thread property.', (string) $property),
@@ -245,6 +254,10 @@ final class ThreadSetMethod implements JmapMethod
             $this->move($thread, $patch['moveTo'], $user, $accountId);
         }
 
+        if (true === array_key_exists('inboxTab', $patch)) {
+            $this->fileInTab($thread, $patch['inboxTab'], $user);
+        }
+
         if (false === array_key_exists('snoozedUntil', $patch)) {
             // An empty patch is a no-op rather than an error: it changes
             // nothing, and refusing it would make a client's "apply whatever
@@ -265,6 +278,36 @@ final class ThreadSetMethod implements JmapMethod
         }
 
         return $shown;
+    }
+
+    /**
+     * `inboxTab: "<key>"` — the web's drop onto a tab. Pins the conversation
+     * there, as the drop does, and records the Thread change itself.
+     *
+     * @throws MethodException when the key names no tab this reader has
+     */
+    private function fileInTab(MessageThread $thread, mixed $key, User $user): void
+    {
+        $tab = is_string($key) ? $this->inboxTabs->resolve($user, $key) : null;
+
+        if (null === $tab) {
+            throw new MethodException(
+                'invalidProperties',
+                sprintf('"%s" is not one of your inbox tabs. InboxTab/get lists them.', is_string($key) ? $key : get_debug_type($key)),
+            );
+        }
+
+        $target = true === $tab->isCustom()
+            ? $this->inboxCategories->find((int) $tab->categoryId)
+            : $tab->builtIn;
+
+        // resolve() checked ownership; a category deleted between the two
+        // reads is the only way to land here.
+        if (null === $target) {
+            throw new MethodException('invalidProperties', 'That tab no longer exists.');
+        }
+
+        $this->status->setCategory($thread, $target);
     }
 
     /**

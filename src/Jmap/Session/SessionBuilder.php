@@ -101,6 +101,9 @@ final class SessionBuilder
                 // Whether this account's encrypted mail is to be decrypted and
                 // handed over (DecryptedMail/pending, DecryptedMail/store).
                 Capability::KEYS => ['keepsDecryptedMail' => true === $this->decryptedMail?->keeps($account)],
+                // The user's tabs, answered by every account — see
+                // Capability::INBOX_TABS.
+                Capability::INBOX_TABS => new \stdClass(),
             ];
 
             if ($accountId === $calendarAccountId) {
@@ -120,6 +123,7 @@ final class SessionBuilder
         if (null !== $primaryId) {
             $primaryAccounts[Capability::MAIL] = $primaryId;
             $primaryAccounts[Capability::CONTACTS] = $primaryId;
+            $primaryAccounts[Capability::INBOX_TABS] = $primaryId;
         }
 
         if (null !== $calendarAccountId) {
@@ -154,6 +158,7 @@ final class SessionBuilder
                 Capability::CONTACTS => $this->contactsCapabilities(),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
                 Capability::KEYS => $this->keysCapabilities(),
+                Capability::INBOX_TABS => new \stdClass(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -199,6 +204,12 @@ final class SessionBuilder
             'maxSizeAttachmentsPerEmail' => 50_000_000,
             'emailQuerySortOptions' => ['receivedAt', 'from', 'to', 'subject', 'size'],
             'mayCreateTopLevelMailbox' => true,
+            // A plMail key in the standard object: Email/set stores an
+            // `identityId` named on a draft. A client has to know before it
+            // sends one, because a server from before this refuses the whole
+            // patch for naming a property it cannot update — and the patch is
+            // an autosave. Clients ignore keys they do not know.
+            'draftIdentity' => true,
         ];
     }
 

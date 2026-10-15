@@ -1,0 +1,35 @@
+# Messages de contraintes. Symfony traduit la validation dans le domaine
+# `validators`, pas `messages` — voir validators.en.yaml.
+account.host_invalid: Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.
+admin.ai.keep_alive_invalid: Utilisez une durée comme 5m, 30m ou 4h, un nombre de secondes, ou -1 pour garder le modèle chargé en permanence — laissez vide pour utiliser le réglage de l’hôte.
+admin.integrations.client_id_missing: Saisissez l’ID client qui va avec ce secret.
+admin.integrations.secret_missing: Saisissez aussi le secret client — un ID client seul ne permet à personne de se connecter.
+admin.sso.error.client_id_missing: 'Un ID client est nécessaire avec l’émetteur et le secret. Les trois, ou aucun.'
+admin.sso.error.issuer_missing: 'Un émetteur est nécessaire avec l’ID client et le secret. Les trois, ou aucun.'
+admin.sso.error.issuer_not_https: 'L’émetteur doit commencer par https://. plMail fait confiance au fournisseur grâce à la connexion TLS vers lui.'
+admin.sso.error.secret_missing: 'Un secret client est nécessaire avec l’émetteur et l’ID client. Les trois, ou aucun.'
+admin.users.password_too_short: Utilisez au moins {{ limit }} caractères — ce mot de passe est choisi pour quelqu’un d’autre.
+alias.invalid: Saisissez une adresse e-mail valide.
+app_password.name_required: Donnez un nom au mot de passe d’application pour le reconnaître plus tard.
+caldav.address_required: Saisissez l’adresse de votre serveur CalDAV — sans elle, plMail n’a personne à interroger.
+caldav.credential_required: Saisissez un mot de passe d’application, ou cochez la case pour utiliser celui enregistré d’un compte mail.
+caldav.reuse_account_required: Choisissez le compte mail dont utiliser le mot de passe, ou décochez la case et saisissez-en un.
+caldav.username_required: Saisissez le nom d’utilisateur sous lequel votre serveur CalDAV vous connaît.
+calendar.name_required: Donnez un nom à l’agenda — c’est ce qui le distingue des autres.
+compose.recipient_invalid: "« {{ address }} » n’est pas une adresse e-mail valide."
+compose.recipient_required: Ajoutez au moins un destinataire avant d’envoyer.
+settings.password.current_required: Saisissez votre mot de passe actuel — c’est ce qui empêche quelqu’un devant votre écran déverrouillé de le changer.
+settings.password.current_wrong: Ce n’est pas votre mot de passe actuel.
+settings.password.mismatch: Les deux nouveaux mots de passe ne correspondent pas.
+settings.password.too_short: Utilisez au moins {{ limit }} caractères.
+setup.install.password_mismatch: Les deux mots de passe ne correspondent pas.
+setup.install.password_too_short: Utilisez au moins {{ limit }} caractères. Ce compte n’a pas de réinitialisation de mot de passe.
+user.email_taken: Quelqu’un utilise déjà cette adresse. Chaque adresse de cette installation appartient à une seule personne.
+admin.ai.field.base_url_invalid: 'Ceci doit commencer par http:// ou https://.'
+profile.avatar_wrong_type: 'Utilisez une image PNG, JPEG, GIF ou WebP.'
+admin.ai.headers.malformed: 'Écrivez chaque en-tête sur sa propre ligne sous la forme Nom: valeur.'
+admin.ai.headers.name: 'Un nom d’en-tête ne peut contenir que des lettres, des chiffres et des tirets, et ne peut pas être vide.'
+admin.ai.headers.value: 'Une valeur d’en-tête ne peut pas être vide, ne peut pas contenir de saut de ligne ni d’autre caractère de contrôle, et fait au plus 4096 caractères.'
+admin.ai.headers.reserved: 'Un de ces en-têtes est défini par plMail lui-même et ne peut pas être remplacé : Host, Content-Type, Content-Length, Connection et consorts.'
+admin.ai.headers.duplicate: 'Le même en-tête est listé deux fois.'
+admin.ai.headers.too_many: 'Au plus %max% en-têtes supplémentaires.'

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\Helper\RecipientHeaderHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -30,6 +31,7 @@ final class ReplyDraftBuilder
     public function __construct(
         private readonly SignatureProvider $signatures,
         private readonly MailBodySanitizer $sanitizer,
+        private readonly ReplyFromResolver $replyFrom = new ReplyFromResolver(),
     ) {
     }
 
@@ -41,12 +43,20 @@ final class ReplyDraftBuilder
     {
         $draft = $this->draft($original, $account, 'Re', 'reply');
 
-        $own = $account->ownedAddresses;
+        // The account's aliases, the catch-all addresses this mail came in
+        // for, and the address the reply goes out from — not every address at
+        // a catch-all domain, where a colleague with a mailbox of their own
+        // would be dropped from the reply. See OwnAddressHelper.
+        $own = OwnAddressHelper::forMessage($original);
+
+        if (null !== $draft->fromAddress) {
+            $own[] = $draft->fromAddress;
+        }
 
         // Answering mail you sent yourself is continuing that conversation with
         // the people you wrote to — every client does this, and without it
         // Reply on a message in Sent addressed the reply to you.
-        if (true === $this->isOwn($original->fromAddress, $own) && [] !== $this->withoutOwn($original->toAddresses ?? [], $own)) {
+        if (true === OwnAddressHelper::sentByAccount($original) && [] !== $this->withoutOwn($original->toAddresses ?? [], $own)) {
             $draft->toAddresses = $this->withoutOwn($original->toAddresses ?? [], $own);
             $draft->ccAddresses = true === $replyAll
                 ? $this->withoutOwn($original->ccAddresses ?? [], $own)
@@ -60,7 +70,7 @@ final class ReplyDraftBuilder
         $draft->toAddresses = $this->replyAddresses($original);
 
         $draft->ccAddresses = true === $replyAll
-            ? $this->withoutAddresses($this->everyoneElse($original, $account), $draft->toAddresses)
+            ? $this->withoutAddresses($this->everyoneElse($original, $own), $draft->toAddresses)
             : [];
 
         $this->linkToOriginal($draft, $original);
@@ -95,15 +105,11 @@ final class ReplyDraftBuilder
         ]];
     }
 
-    /** @param list<string> $own */
-    private function isOwn(?string $address, array $own): bool
-    {
-        return in_array(strtolower($address ?? ''), $own, true);
-    }
-
     /**
+     * A list of addresses minus the account's own.
+     *
      * @param array<array<string,mixed>> $addresses
-     * @param list<string>               $own
+     * @param list<string>               $own       lowercased
      *
      * @return list<array<string,mixed>>
      */
@@ -111,7 +117,7 @@ final class ReplyDraftBuilder
     {
         return array_values(array_filter(
             $addresses,
-            fn (array $address): bool => false === $this->isOwn($address['address'] ?? null, $own),
+            static fn (array $address): bool => false === in_array(strtolower($address['address'] ?? ''), $own, true),
         ));
     }
 
@@ -132,7 +138,10 @@ final class ReplyDraftBuilder
             $already,
         );
 
-        return $this->withoutOwn($addresses, $taken);
+        return array_values(array_filter(
+            $addresses,
+            static fn (array $address): bool => false === in_array(strtolower($address['address'] ?? ''), $taken, true),
+        ));
     }
 
     /**
@@ -190,24 +199,20 @@ final class ReplyDraftBuilder
     /**
      * Everyone the original reached except the person now answering it.
      *
-     * Compared against the account's owned addresses rather than its primary
-     * one: an alias is still the user, and replying to all should not put them
-     * in their own Cc.
+     * Compared against every address that is the user's in this mail rather
+     * than the primary one: an alias is still the user, and replying to all
+     * should not put them in their own Cc.
+     *
+     * @param list<string> $own lowercased
      *
      * @return list<array<string,mixed>>
      */
-    private function everyoneElse(Message $original, Account $account): array
+    private function everyoneElse(Message $original, array $own): array
     {
-        $own  = $account->ownedAddresses;
-        $seen = [];
-
-        foreach (array_merge($original->toAddresses ?? [], $original->ccAddresses ?? []) as $address) {
-            if (false === in_array(strtolower($address['address'] ?? ''), $own, true)) {
-                $seen[] = $address;
-            }
-        }
-
-        return $seen;
+        return $this->withoutOwn(
+            array_merge($original->toAddresses ?? [], $original->ccAddresses ?? []),
+            $own,
+        );
     }
 
     private function draft(Message $original, ?Account $account, string $prefix, string $mode, bool $signed = true): Message
@@ -216,10 +221,17 @@ final class ReplyDraftBuilder
         // paragraph that is the writing space, so the unsigned body already
         // starts with somewhere to type — a second one would render as a
         // blank line above the caret.
-        $lead = $signed ? $this->signature($account) : '';
+        // Chosen before the signature, because the signature follows it: an
+        // alias with a sign-off of its own signs the reply it sends.
+        $from = null !== $account ? $this->replyFrom->addressFor($original, $account) : null;
+        $lead = $signed ? $this->signature($account, $from) : '';
 
         $draft                 = new Message();
         $draft->account        = $account;
+        // Null when the original names none of the account's addresses, which
+        // leaves the window on the primary one — SenderResolver::tokenFor()
+        // reads this back when it pre-selects From.
+        $draft->fromAddress    = $from;
         $draft->subject        = $this->prefixSubject($prefix, $original->subject);
         $draft->bodyHtml       = $lead . $this->quote($original, $mode);
         $draft->hasAttachments = false;
@@ -243,19 +255,19 @@ final class ReplyDraftBuilder
      * the quote follows that. Exactly the arrangement every other mail client
      * uses.
      *
-     * The account's own display address rather than a chosen alias, because
-     * nothing has been chosen yet — the window opens on the token
-     * SenderResolver::token() builds, which is that address. Picking a
-     * different From afterwards swaps the block, which is what the
-     * `data-pl-signature` marker on it is for.
+     * For the address the reply goes out from — ReplyFromResolver's answer —
+     * and the account's display address when there is none, which is the
+     * option the window then opens on. Picking a different From afterwards
+     * swaps the block, which is what the `data-pl-signature` marker on it is
+     * for.
      */
-    private function signature(?Account $account): string
+    private function signature(?Account $account, ?string $from = null): string
     {
         if (null === $account) {
             return '';
         }
 
-        $block = $this->signatures->blockFor($account, $account->displayAddress);
+        $block = $this->signatures->blockFor($account, $from ?? $account->displayAddress);
 
         return '' === $block ? '' : '<p><br></p>' . $block;
     }

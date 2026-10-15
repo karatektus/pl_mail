@@ -208,7 +208,23 @@ final readonly class SyncGraphMessageBatchHandler
         }
 
         try {
-            return $this->apiClient->batchListAttachments($account, $withAttachments);
+            $listed = $this->apiClient->batchListAttachments($account, $withAttachments);
+
+            // Graph said these messages carry attachments and the listing has
+            // nothing at all for them: a sub-request failed. Stored as it is
+            // the message shows no attachment and nothing says why, which is
+            // how a rejected $select went unseen across a whole mailbox.
+            $unlisted = array_values(array_diff($withAttachments, array_keys($listed)));
+
+            if (count($unlisted) > 0) {
+                $this->logger->warning('SyncGraphMessageBatch: attachment listing returned nothing', [
+                    'accountId' => $account->id,
+                    'count'     => count($unlisted),
+                    'graphIds'  => $unlisted,
+                ]);
+            }
+
+            return $listed;
         } catch (\Throwable $e) {
             $this->logger->error('SyncGraphMessageBatch: attachment listing failed', [
                 'accountId' => $account->id,

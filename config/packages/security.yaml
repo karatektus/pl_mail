@@ -81,7 +81,18 @@ security:
         main:
             lazy: true
             provider: app_user_provider
-            custom_authenticator: App\Security\LoginFormAuthenticator
+            # The password form, and single sign-on through an OpenID Connect
+            # provider when one is set up under Admin → SSO or in the OIDC_*
+            # variables — see App\Security\OidcAuthenticator, which declines
+            # every request while neither is. Both end in the same token for the same User,
+            # so the user checker, the login throttle and two-factor below
+            # apply to either way in.
+            custom_authenticators:
+                - App\Security\LoginFormAuthenticator
+                - App\Security\OidcAuthenticator
+            # Two authenticators means Symfony has to be told which one sends
+            # a signed-out visitor somewhere. The login page, which offers both.
+            entry_point: App\Security\LoginFormAuthenticator
             # Refuses an account an administrator has suspended or removed, and
             # does it after the password has been verified rather than before —
             # the class says why at length. A session that was already open is
@@ -102,7 +113,9 @@ security:
             # firewall listener with its own throttle, see below.
             login_throttling:
                 limiter: App\Security\LoginRateLimiter
-            # Opt-in via the "keep me logged in" checkbox on the login form.
+            # Opt-in via the "keep me logged in" checkbox on the login form;
+            # a single sign-on sign-in has no form and asks for it itself, in
+            # App\Security\OidcAuthenticator.
             # Signature-based tokens: no storage, and changing the password
             # invalidates every cookie that was issued for it.
             remember_me:

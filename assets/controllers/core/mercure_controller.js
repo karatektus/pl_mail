@@ -394,6 +394,13 @@ export default class extends Controller {
             this.dispatch("mailbox-synced", {detail: data});
         } else if (data.type === "account.synced") {
             this.dispatch("account-synced", {detail: data});
+        } else if (data.type === "mail.changed") {
+            // The user's mail changed, by any route: this tab, another one, a
+            // phone, or a worker finishing a send. Published from the same
+            // drain that tells the phone apps (MailChangeNotifier), so it is
+            // not a feature's job to remember it. Carries the change sequence;
+            // the sidebar ignores one it has already counted.
+            this.dispatch("mail-changed", {detail: data});
         } else if (data.type === "calendar.sync-finished") {
             // Published by App\Service\Calendar\CalendarNotifier on both the
             // success and the failure path. The account-health card is the

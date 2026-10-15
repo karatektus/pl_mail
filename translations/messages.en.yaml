@@ -738,6 +738,7 @@ admin:
         performance: Performance
         push: Push
         reset: Reset
+        sso: 'SSO'
         system: System
         updates: Updates
         users: Users
@@ -923,6 +924,32 @@ admin:
     refresh_hint: 'Live panels refresh every 10s'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
+    sso:
+        clear_secret: 'Forget the stored client secret'
+        clear_secret_help: 'Empty the issuer and the client ID as well. Sign-in then falls back to the OIDC_* variables in the environment, or switches off if there are none.'
+        env_note: 'Leave issuer, client ID and secret all empty and sign-in falls back to OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET in the environment, so an installation configured that way keeps working. What is saved here wins over them.'
+        field:
+            auto_create: 'Create an account for people plMail has not seen'
+            auto_create_help: 'On, everybody the provider lets through gets an ordinary account here, so limit who that is at the provider. Off, an administrator creates each account first, with the same address.'
+            button_label: 'Name on the button'
+            button_label_help: 'The login button reads "Sign in with …" and this name. Empty says "single sign-on".'
+            client_id: 'Client ID'
+            client_secret: 'Client secret'
+            issuer: 'Issuer'
+            issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
+            require_verified_email: 'Only link an address the provider has verified'
+            require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
+            scopes: 'Scopes'
+            scopes_help: 'Separated by spaces. "openid" is always added, and without "email" a first sign-in cannot find its account. Empty asks for openid, email and profile.'
+        heading: 'Single sign-on'
+        intro: 'Let people sign in through an OpenID Connect provider you already run: Authentik, Keycloak, Authelia and the like. The login page then shows a button above the password form, which stays.'
+        redirect_uri_help: 'Register this at the provider as the redirect URI, exactly as shown.'
+        save: 'Save'
+        saved: 'Single sign-on saved.'
+        status:
+            environment: 'On, from the environment'
+            'off': 'Off'
+            'on': 'On'
     summary:
         accounts: '%count% accounts'
         active: '%count% active'
@@ -1138,9 +1165,16 @@ admin:
         hint: The build this installation is running — the release, and the commit it was built from.
 alias:
     added: 'Address added.'
+    catch_all_added: 'Catch-all domain added.'
+    catch_all_duplicate: 'That domain is already a catch-all on this account.'
+    catch_all_invalid: "That doesn't look like a domain. Enter it like example.com."
+    catch_all_removed: 'Catch-all domain removed.'
+    catch_all_unsupported: 'Gmail and Outlook only send as addresses the provider knows, so a catch-all domain cannot be used on this account.'
     deleted: 'Address removed.'
     duplicate: 'That address is already on this account.'
     invalid: "That doesn't look like a valid email address."
+    name_cleared: 'Sender name removed. This address sends under the account name again.'
+    name_set: 'Sender name saved.'
     primary_set: 'Primary address updated.'
     refreshed: 'Refreshed from provider.'
     status_blocked: "The primary address can't be disabled — make another primary first."
@@ -2451,6 +2485,13 @@ jobs:
         folder: "Now: %folder%"
         heading: "Importing %account%"
         newest_first: "Newest mail first"
+        quota: "Gmail quota: about %used% of %limit% units this minute"
+        quota_assumed: "Gmail quota: about %used% of %limit% units this minute (limit assumed until Google names it)"
+        quota_paused: "Paused by Gmail's quota · continues in %seconds% s"
+        quota_refused: "Gmail said no at about %used% of %limit% units a minute"
+        rate: "About %count% messages a minute"
+        remaining_hours: "About %hours% h %minutes% min left"
+        remaining_minutes: "About %minutes% min left"
         waiting: "Waiting to continue"
     started: 'Started %action% — this runs in the background.'
     failure:
@@ -2523,6 +2564,10 @@ login:
         remember_me: Keep me logged in
         submit: Sign in
         submitting: Signing in…
+    oidc:
+        button: Sign in with single sign-on
+        button_named: Sign in with %provider%
+        or: or
     page_title: Sign in
     register:
         coming_soon: Registration coming soon.
@@ -2595,6 +2640,7 @@ message:
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
             awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            own_filter: 'filed there by one of your filters'
             gmail_overruled: 'not used — you asked plMail to sort this itself'
             in_force: 'this one decides'
             # Asked, and what came back was not one of the five categories. Kept
@@ -2611,6 +2657,7 @@ message:
             pinned: 'you moved it here'
             promotion: 'a bulk-mail header: '
             social: 'the sender domain '
+            switched_off: "it would be %category%, which you switched off"
             # A conversation takes ONE category, from its newest message, so a
             # reply can carry the whole thread out of the tab this message
             # belongs in. Said outright, because without it the panel reads as
@@ -3128,6 +3175,12 @@ settings:
     aliases:
         add: 'Add'
         add_placeholder: 'Add another address…'
+        catch_all:
+            add: 'Set as catch-all'
+            hint: 'If every address at a domain reaches this mailbox, add the domain here. A reply then goes out from the address the mail was sent to, without adding each one above.'
+            label: 'Catch-all domains'
+            placeholder: 'example.com'
+            remove: 'Remove %domain%'
         delete: 'Remove'
         disable: 'Disable'
         empty: 'No addresses yet.'
@@ -3136,6 +3189,9 @@ settings:
         make_primary: 'Make primary'
         ms_sender_hint: 'Outlook sends as your account’s primary alias regardless of the address chosen here — change it in your'
         ms_sender_hint_link: 'Microsoft account settings'
+        name_for: 'Sender name for %alias%'
+        name_placeholder: 'Sender name'
+        name_save: 'Save name'
         primary: 'Primary'
         refresh: 'Refresh from provider'
         subheading: 'Addresses this account sends and receives as.'
@@ -3396,6 +3452,7 @@ settings:
         action:
             applyLabel: Apply label
             archive: Skip inbox
+            fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
             removeLabel: Remove label
@@ -3466,6 +3523,7 @@ settings:
             draft: a draft
             flagged: starred
             seen: read
+        category_missing: '(deleted category)'
         integration_missing: '(disconnected service)'
         label_missing: '(deleted label)'
         move_down: Move "%name%" later
@@ -3475,6 +3533,7 @@ settings:
         new_title: New filter
         no: No
         no_actions: No actions yet
+        no_categories: 'No categories yet — create one first.'
         no_integrations: 'No services connected — set one up in Integrations first.'
         of_the_following: of the following
         op:
@@ -3886,6 +3945,14 @@ settings:
         test_failed: 'Connection test failed'
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
+    calendar_behaviour:
+        button: Calendar button
+        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
+        heading: Behaviour
+        option_calendar: Split only
+        option_none: All three
+        option_split: Full width only
+        subheading: 'How the calendar button in the top bar moves between views.'
     calendars:
         account_hint: Where events found in mail from %address% are filed.
         caldav:
@@ -4005,13 +4072,26 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: How mail is thrown away for good.
+    images:
+        always_show: Always show remote images
+        always_show_hint: >-
+            Loads the pictures in every message without asking first. Senders
+            can then tell that and when you opened their mail, though not your
+            address: images still come to you through plMail. Mail in Spam stays
+            blocked either way. Off until you turn it on.
+        heading: Images
+        'off': 'Off'
+        'on': 'On'
+        subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
+        calendar_behaviour: Behaviour
         calendars: Calendars
+        categories: "Categories"
         disposal: Disposal
         encryption: "Encryption"
         filters: Filters
@@ -4023,6 +4103,7 @@ settings:
             mail: Mail
             personal: Personal
         health: 'Account health'
+        images: Images
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -4204,14 +4285,52 @@ settings:
         reverted: 'Back to the account signature.'
         save: 'Save signature'
         saved: 'Saved.'
+        source:
+            clean: 'Nothing was removed.'
+            embedded: 'Images stored in the signature: %count%.'
+            failed: 'The signature could not be rendered. Your HTML is unchanged. Try again.'
+            html: 'HTML'
+            label: '%label% as HTML'
+            placeholder: 'Paste or write the HTML of your signature…'
+            remote: 'Images that could not be stored and stay linked: %count%. They do not show here and some recipients have to allow them first.'
+            removed: 'Removed, because mail clients would not show it or it is not safe to send: %items%.'
+            rendered: 'Rendered'
+            toggle: 'Signature view'
         subheading: 'What is added to the bottom of the messages you write.'
+    categories:
+        add: Add
+        built_in: "Built in"
+        built_in_off: "Built in · switched off — its mail is in Primary"
+        created: 'Created "%name%".'
+        delete: Delete category
+        delete_confirm: 'Delete "%name%"? Mail filed there goes back to the tab it would otherwise be in. No mail is deleted.'
+        deleted: 'Deleted "%name%".'
+        error:
+            empty: 'A category needs a name.'
+            reserved: 'That name belongs to one of the built-in tabs.'
+            taken: 'You already have a category with that name.'
+            too_long: 'That name is too long (40 characters at most).'
+        filters_link: 'Settings → Filters.'
+        heading: "Tabs"
+        hint: "A tab of your own shows in the inbox while it holds mail. Mail goes into it through a filter whose action is \"File in category\" — set one up under"
+        move_down: "Move %tab% down"
+        move_up: "Move %tab% up"
+        name_label: Name
+        off: "Off"
+        on: "On"
+        placeholder: 'e.g. Shipping'
+        primary_fixed: "Always first and always on — mail from a tab you switch off lands here."
+        rename: Rename
+        renamed: 'Renamed to "%name%".'
+        reorder: "Drag to reorder"
+        subheading: "Switch the built-in tabs on or off, add your own, and drag them into the order you want."
     sorting:
         again:
             button: Ask again
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
             label: Sort recent mail again
         applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
-        heading: Categories
+        heading: "Sorting"
         override:
             hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.
             label: On Gmail accounts

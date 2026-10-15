@@ -32,6 +32,16 @@ final class MessageIdHelperTest extends TestCase
      * The bug this helper exists for: IMAP stored ids unbracketed while the API
      * backends stored them bracketed, so the two never compared equal.
      */
+    public function testAnIdWithARawEightBitByteComesOutStorable(): void
+    {
+        // #81: Postgres refuses the byte, and the message went with it.
+        $id = MessageIdHelper::normalise("<pr\xFCf@example.test>");
+
+        self::assertTrue(mb_check_encoding($id, 'UTF-8'));
+        self::assertSame('prüf@example.test', $id);
+        self::assertSame([$id], MessageIdHelper::normaliseList("<pr\xFCf@example.test>"));
+    }
+
     public function testBracketedAndBareFormsNormaliseToTheSameId(): void
     {
         self::assertSame(

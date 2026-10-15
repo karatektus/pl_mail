@@ -3,6 +3,7 @@
 namespace App\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
@@ -47,6 +48,13 @@ use Symfony\Component\Validator\Constraints\DateTime;
 // for the one address that can still collide — `deleted-<id>@invalid`, which
 // the admin delete action writes and which nothing stops someone typing.
 #[UniqueEntity(fields: ['email'], message: 'user.email_taken')]
+// One account per provider identity. Two rows holding the same pair would make
+// a sign-in through the provider land on whichever Postgres returned first.
+// Both columns are null on every account that never used the provider, and
+// Postgres does not consider nulls equal, so those never collide. Issuer
+// first because that is how the one query that reads it asks — both columns,
+// by equality — and an install has one issuer and many subjects.
+#[ORM\UniqueConstraint(name: 'uniq_user_oidc_identity', columns: ['oidc_issuer', 'oidc_subject'])]
 class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
     use TimestampableTrait;
@@ -354,6 +362,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public bool $isDeactivated {
         get => null !== $this->deactivatedAt;
     }
+
+    /**
+     * The OpenID Connect identity this account signs in as, if it has one.
+     *
+     * Issuer and subject together, because that pair is the only thing OIDC
+     * promises is stable: `sub` is unique per issuer and nowhere else, and the
+     * address an identity provider reports can be edited there at any time.
+     * Matching on the address on every sign-in would let whoever can change
+     * their own address at the provider walk into any account here that holds
+     * the new one. The address is used once, to link an existing account the
+     * first time, and only when the provider vouches for it — see
+     * App\Service\Oidc\OidcUserResolver.
+     *
+     * The issuer is kept rather than assumed so that pointing the install at a
+     * different provider does not hand the new provider's `sub` values the
+     * old provider's accounts: a row linked to another issuer is relinked by
+     * address, never matched by subject.
+     *
+     * Cleared by the admin delete action, so a removed account cannot be
+     * signed into through the provider and does not hold the identity against
+     * a new account for the same person.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcIssuer = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcSubject = null;
 
     /**
      * @var Collection<int, Account>
@@ -1191,6 +1226,68 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         set(array $addresses) {
             $addresses = array_values(array_unique(array_map(static fn (string $address): string => strtolower(trim($address)), $addresses)));
             $this->setSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, [] === $addresses ? null : $addresses);
+        }
+    }
+
+    /**
+     * Whether remote images load in every message without the "Show images"
+     * bar, as if every sender were on the allowlist (#124).
+     *
+     * OFF unless somebody switches it on. The block is what keeps a sender's
+     * tracking pixel from learning that, when and where a message was opened,
+     * and that protection is worth most to the people who never thought to ask
+     * for it. Somebody who has weighed it and would rather not click every time
+     * can say so once. Only a stored true is on, so the key is absent for
+     * nearly everybody.
+     *
+     * Spam is still blocked with this on — MessageRenderer reads a message in
+     * Spam as the provider disputing who sent it, and no standing permission
+     * outranks that. Images still come through the proxy, so a sender learns
+     * that the message was opened but not the reader's address. Per USER, like
+     * the allowlist it widens — Settings → Mail → Images.
+     */
+    public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
+
+    /** Virtual, out of the settings bag — see SETTING_IMAGES_ALWAYS_SHOW. */
+    public bool $alwaysShowImages {
+        get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Which position the topbar's calendar button leaves out — Settings →
+     * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
+     * is what the button has always done, and a person who has learned it
+     * should not find it moved.
+     *
+     * One value, the enum's own, and absent for the default like every setting
+     * in the bag. It was two booleans at first, "skip the split" and "skip the
+     * full width", which could both be true and then had to be kept apart by
+     * the setters and read as neither when a backup held both anyway. One value
+     * cannot say "skip both", so none of that is here.
+     */
+    public const string SETTING_CALENDAR_SWITCH_SKIP = 'calendar.switch_skip';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CALENDAR_SWITCH_SKIP.
+     * Anything stored that is not one of the enum's values, a hand-edited
+     * backup say, reads as the default cycle.
+     */
+    public CalendarSwitchSkip $calendarSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CALENDAR_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? CalendarSwitchSkip::tryFrom($stored) ?? CalendarSwitchSkip::None
+                : CalendarSwitchSkip::None;
+        }
+        set (CalendarSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CALENDAR_SWITCH_SKIP,
+                CalendarSwitchSkip::None === $skip ? null : $skip->value,
+            );
         }
     }
 
