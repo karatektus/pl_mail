@@ -91,6 +91,29 @@ admin:
             sobald die Container neu starten. Weichen die beiden nach einem Neustart
             immer noch voneinander ab, ist APP_PUBLIC_URL in der Compose-Datei
             gesetzt, und das hat Vorrang.
+        probe:
+            field:
+                seconds: Sekunden zwischen den Prüfungen
+                seconds_help: >-
+                    Zwischen %min% und %max%. Kürzer heißt: Neue Mail erscheint
+                    früher, und plMail schickt mehr Anfragen an Google und
+                    Microsoft. Standard sind 30.
+            heading: Prüfung auf neue Mail
+            in_use: Derzeit verwendet
+            intro: >-
+                Gmail und Outlook melden plMail neue Mail nur dann von selbst, wenn
+                sie plMail aus dem Internet erreichen können. Wo das nicht geht,
+                fragt plMail beide in kurzem Abstand selbst nach und synchronisiert,
+                sobald etwas angekommen ist. Alles andere (Spam, gefilterte Mail,
+                Änderungen anderswo) wartet weiter auf den Durchlauf alle
+                fünfzehn Minuten.
+            pinned: >-
+                MAIL_PROBE_INTERVAL_SECONDS ist in der Umgebung gesetzt und hat
+                deshalb Vorrang; diese Seite kann den Wert nicht ändern. Ändere ihn
+                dort und starte den Stack neu.
+            save: Abstand speichern
+            saved: 'Gespeichert. Die Worker starten neu, um ihn zu übernehmen.'
+            seconds: '%seconds% Sekunden'
         restart_help: >-
             Für Live-Aktualisierungen reicht es, plMail hier neu zu starten. Starte
             zusätzlich den ganzen Stack neu, damit die Worker Push unter der neuen
@@ -790,14 +813,14 @@ admin:
                 account: 'Konto'
                 arrives_by: 'Kommt an über'
                 elsewhere: 'Nicht im Posteingang'
-                elsewhere_hint: 'Spam und Mail, die ein Filter woanders abgelegt hat: wie viele, und ihre übliche Verzögerung. Anbieter melden nur Mail im Posteingang, der Rest wartet auf den Takt.'
+                elsewhere_hint: 'Spam und Mail, die ein Filter woanders abgelegt hat: wie viele, und ihre übliche Verzögerung. Push meldet nur Mail im Posteingang; die Postfachprüfung findet den Rest bei Gmail und Outlook, anderswo wartet er auf den Takt.'
                 max: 'Längste'
                 median: 'Übliche Verzögerung'
                 messages: 'Mail im Posteingang'
                 p95: '95 % innerhalb'
             footnote: 'Von dem Moment, in dem der Anbieter eine Nachricht angenommen hat, bis plMail sie gespeichert hat – für Mail, die im Posteingang gelandet ist. Mail aus einem Import und Mail, die aus plMail selbst verschickt wurde, zählt nicht mit.'
             heading: 'Wie spät Mail ankommt'
-            lead: 'Sekunden heißt: Der Anbieter meldet plMail neue Mail, sobald sie eintrifft. Minuten heißt: Das Konto wird stattdessen im Viertelstundentakt abgefragt.'
+            lead: 'Sekunden heißt: Der Anbieter meldet plMail neue Mail, sobald sie eintrifft. Minuten heißt: Das Konto wird stattdessen nach einem Zeitplan abgefragt: alle 30 Sekunden für den Posteingang eines Gmail- oder Outlook-Kontos ohne Push, alle Viertelstunde für alles andere.'
             no_accounts: 'Keine aktiven Konten.'
             provider:
                 google: 'Gmail'
@@ -809,6 +832,7 @@ admin:
                     idle: 'IDLE'
                     manual: 'Sync-Knopf'
                     poll: 'Takt'
+                    probe: 'Postfachprüfung'
                     push: 'Push'
                     unknown: '—'
                 col:
@@ -821,7 +845,7 @@ admin:
                     underway: 'Schon unterwegs seit'
                     underway_hint: 'Vom Datum, das die Nachricht trägt, bis zur Annahme durch den Anbieter: ein Absender, der sie zurückgehalten oder zu früh datiert hat. Daran hätte plMail nichts verkürzen können.'
                 empty: 'In diesem Zeitraum ist keine Mail angekommen.'
-                footnote: 'Die langsamsten zuerst. Mail außerhalb des Posteingangs meldet der Anbieter nie, bis zu fünfzehn Minuten sind dort also der Takt, wie er gedacht ist. Wodurch eine Nachricht geholt wurde, wird ab dieser Version festgehalten.'
+                footnote: 'Die langsamsten zuerst. Mail außerhalb des Posteingangs meldet Push nie, bei einem Konto ohne die Postfachprüfung sind bis zu fünfzehn Minuten dort also der Takt, wie er gedacht ist. Wodurch eine Nachricht geholt wurde, wird ab dieser Version festgehalten.'
                 heading: 'Die langsamsten in diesem Zeitraum'
                 in:
                     elsewhere: 'Woanders'

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Scheduler;
 
+use App\Service\Mail\InboxProbeInterval;
 use Symfony\Component\Console\Messenger\RunCommandMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -32,6 +33,7 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
 {
     public function __construct(
         private readonly CacheInterface $cache,
+        private readonly InboxProbeInterval $probeInterval,
     ) {
     }
 
@@ -45,6 +47,23 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // delivery, and IDLE connections drop. Polling is the backstop
                 // that notices what the push paths missed.
                 RecurringMessage::cron('*/15 * * * *', new RunCommandMessage('app:mail:sync')),
+
+                // What stands in for push on an install nobody can reach from
+                // the internet: a one-request look at each Gmail and Outlook
+                // inbox, queueing the real sync only when mail has arrived.
+                // Without it an account with no push waits up to the quarter
+                // hour above. Cheap by construction (one request and a timeout
+                // per account, a budget per run), and the line above stays as
+                // the backstop for everything this cannot see.
+                //
+                // Periodical rather than cron: cron cannot say less than a
+                // minute. The interval is the administrator's to set (30 s by
+                // default, see InboxProbeInterval) and is read when the
+                // scheduler boots, which saving it from the admin page
+                // arranges. The schedule is stateful, so a restart keeps the
+                // phase, and processOnlyLastMissedRun collapses runs the
+                // worker was too busy to take into one catch-up.
+                RecurringMessage::every($this->probeInterval->seconds(), new RunCommandMessage('app:mail:probe')),
 
                 // Gmail watches last 7 days, Graph subscriptions ~3. Daily
                 // renewal with the command's own thresholds leaves ample

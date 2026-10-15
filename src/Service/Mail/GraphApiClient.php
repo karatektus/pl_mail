@@ -117,6 +117,13 @@ final class GraphApiClient
     /** Light projection used while planning — ids only, no bodies. */
     private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';
 
+    /**
+     * How long the inbox probe waits on Microsoft, in seconds.
+     * See GmailApiClient::PROBE_TIMEOUT_SECONDS: the same scheduler worker,
+     * the same reason.
+     */
+    private const float PROBE_TIMEOUT_SECONDS = InboxProbeInterval::REQUEST_TIMEOUT_SECONDS;
+
     public function __construct(
         // The scoped client from framework.yaml, not the default one: it
         // retries a GET that Graph answers with 5xx, which is weather rather
@@ -202,6 +209,71 @@ final class GraphApiClient
     }
 
     // ── Messages ─────────────────────────────────────────────────────────────
+
+    /**
+     * When the newest message in the mailbox was received, in whichever folder
+     * it is, or null for an empty one.
+     *
+     * What an Outlook account is asked every few seconds in place of a webhook,
+     * on an install nobody can reach from the internet. A change in this value
+     * is the signal that mail has arrived; it is not a delta query on purpose,
+     * because a delta link is the real sync's cursor and reading it here would
+     * either move it or invite the two to be confused.
+     *
+     * THE WHOLE MAILBOX, which is what this method used to not ask: it read the
+     * inbox folder, so Junk Email and the folders a rule files into were left
+     * for the quarter-hourly sweep. The sync that a change here wakes reads
+     * every folder (GraphFolderSyncer), so what this announces it will fetch.
+     *
+     * DRAFTS ARE LEFT OUT, SENT MESSAGES ARE NOT. A draft being written is in
+     * `/me/messages`, and an edit of one may make it the newest message over
+     * and over: a full sync per save. `$filter=isDraft eq false` keeps it out.
+     * A message just sent carries a receivedDateTime about a second after its
+     * sentDateTime, so each send is one extra sync, bounded by what the user
+     * does and not by the clock.
+     *
+     * THE FILTER IS CHECKED, NOT ASSUMED. Graph refuses some `$filter` and
+     * `$orderby` pairs, and a refusal is a failed look, which pauses the
+     * account for five minutes (InboxProbe). This pair was sent to two live
+     * Outlook accounts on 2026-10-12 and answered 200 with the same newest
+     * message as without the filter. Both are personal Microsoft accounts: a
+     * work or school account has not been tried. What was NOT observed is a
+     * draft being edited (neither account had one), so that an edit moves
+     * receivedDateTime is the reason for the filter, not something seen.
+     *
+     * THE TIMESTAMP, NOT THE ID OF THE NEWEST MESSAGE, and that is the point of
+     * this method. receivedDateTime has a resolution of one second, so a burst —
+     * three messages in a row, which is the case being fixed — puts several
+     * under one value, and nothing promises that `$orderby` lists them in the
+     * same order twice. An id signal would then flip between two of them from
+     * one minute to the next and queue a full sync each time, until something
+     * newer arrived. A timestamp cannot flip: every message sharing it is
+     * already in the mailbox by the time the sync it triggers runs, so nothing
+     * is lost by not telling them apart. What it cannot see is a message that
+     * lands in the same second as the newest one already seen, which waits for
+     * the quarter-hourly sync like everything else this does not cover.
+     *
+     * One message and one projected field, so a call every 30 s is a
+     * timestamp and not a download, with a timeout of its own because it runs
+     * on the scheduler's worker beside everything else scheduled. Throttling
+     * reaches the caller as GraphThrottledException carrying Retry-After.
+     */
+    public function newestReceivedAt(Account $account): ?string
+    {
+        $body = $this->request($account, 'GET', self::ME . '/messages', [
+            'query'   => [
+                '$top'     => 1,
+                '$orderby' => 'receivedDateTime desc',
+                '$select'  => 'receivedDateTime',
+                '$filter'  => 'isDraft eq false',
+            ],
+            'timeout' => self::PROBE_TIMEOUT_SECONDS,
+        ])->toArray();
+
+        $receivedAt = $body['value'][0]['receivedDateTime'] ?? null;
+
+        return null === $receivedAt ? null : (string) $receivedAt;
+    }
 
     /**
      * Run a delta query over one folder.

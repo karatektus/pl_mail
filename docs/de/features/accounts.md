@@ -43,6 +43,13 @@ Danach hält plMail eine IMAP-IDLE-Verbindung zu
 jedem Postfach und synchronisiert in dem Moment, in dem sich etwas ändert, mit einem geplanten
 Durchlauf alle fünfzehn Minuten dahinter.
 
+Gmail- und Outlook-Konten haben keine Verbindung, die sich offen halten ließe. Wo Push plMail nicht
+erreichen kann, wird alle 30 Sekunden (standardmäßig; unter Admin → Adresse änderbar) nachgefragt, ob neue Mail im Posteingang angekommen ist,
+und das Konto wird synchronisiert, sobald das der Fall ist — eine Nachricht landet also etwa eine
+Minute, nachdem sie dein Handy erreicht hat, ganz ohne öffentliche Adresse. Spam und Mail, die ein
+Filter am Posteingang vorbeigeleitet hat, warten weiter auf den Durchlauf alle fünfzehn Minuten.
+Siehe [Mail-Ingest](../internals/mail-ingest.md#ohne-push-die-posteingangs-abfrage).
+
 Siehe [IMAP und SMTP](../providers/imap-smtp.md) für die Einstellungen, über die sich die
 Server uneinig sind.
 

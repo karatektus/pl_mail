@@ -7,6 +7,11 @@ Accepts:
   saved   — true immediately after a successful save
   current — the address the running processes use, or null when there is none
   stored  — the address on file, or null when nothing was ever saved
+  probeForm    — App\Form\Admin\ProbeIntervalType, or null while the
+                 environment pins the interval
+  probeSaved   — true immediately after that form was saved
+  probeSeconds — the interval in force, in seconds
+  probePinned  — true when MAIL_PROBE_INTERVAL_SECONDS is set in the environment
 
 **Two addresses, shown side by side whenever they differ.** `current` is what
 this process was started with and `stored` is what the next start will read.
@@ -108,5 +113,58 @@ the field mid-word.
         <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
         {{ 'admin.address.follow_up'|trans }}
     </p>
+
+    {# How often Gmail and Outlook are asked about new mail when push cannot
+       reach plMail: the other half of this page's subject. Its own card and
+       its own form, posting to the same action. The workers are restarted by
+       the save itself (InboxProbeInterval), so unlike the address above there
+       is nothing to restart by hand. #}
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-stopwatch text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.address.probe.heading'|trans }}</h2>
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-4">
+
+            {% if probeSaved %}
+                <div role="status" data-probe-interval-saved
+                     class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.address.probe.saved'|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.address.probe.intro'|trans }}</p>
+
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                <dt class="text-ink-faint">{{ 'admin.address.probe.in_use'|trans }}</dt>
+                <dd class="font-mono text-ink-soft">{{ 'admin.address.probe.seconds'|trans({'%seconds%': probeSeconds}) }}</dd>
+            </dl>
+
+            {% if probePinned %}
+                <div role="status" data-probe-interval-pinned
+                     class="rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                    <p class="leading-snug">{{ 'admin.address.probe.pinned'|trans }}</p>
+                </div>
+            {% elseif probeForm %}
+                {{ form_start(probeForm, { attr: { 'data-turbo-frame': 'admin-address' } }) }}
+                    <div class="space-y-4">
+                        {{ form_widget(probeForm) }}
+
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                           text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                                <i class="fa-solid fa-floppy-disk text-xs" aria-hidden="true"></i>
+                                {{ 'admin.address.probe.save'|trans }}
+                            </button>
+                        </div>
+                    </div>
+                {{ form_end(probeForm) }}
+            {% endif %}
+        </div>
+    </div>
 
 </turbo-frame>

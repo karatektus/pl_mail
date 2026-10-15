@@ -2756,10 +2756,12 @@ class MessageRepository extends ServiceEntityRepository
      * anything stored more than a week before that column existed — is not in
      * the figures at all, which is better than being in them wrongly.
      *
-     * THE INBOX AND EVERYTHING ELSE, COUNTED APART. A provider announces what
-     * lands in the inbox and nothing more, so spam and mail a filter files
-     * elsewhere wait for the schedule by design. Mixed in, they put a
-     * quarter-hour tail on an account whose push is perfect; the three delay
+     * THE INBOX AND EVERYTHING ELSE, COUNTED APART. Push announces what lands
+     * in the inbox and nothing more, so spam and mail a filter files elsewhere
+     * wait for the schedule — or, on a Gmail or Outlook account, for the mail
+     * probe (app:mail:probe), which looks at every folder and so shows these
+     * as seconds, not a quarter-hour. Mixed in, they put a quarter-hour tail
+     * on an account whose push is perfect; the three delay
      * figures are therefore of inbox mail, and the rest gets a count and a
      * typical delay of its own. By where the mail was filed when it arrived,
      * not where it is now — see ArrivalPlace.

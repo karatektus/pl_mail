@@ -192,6 +192,34 @@ final class ConfigBackupExporterTest extends KernelTestCase
     }
 
     /**
+     * The probe interval an administrator saved from Admin → Address lives in
+     * the generated-config file, and a choice made on a screen is the kind of
+     * thing a backup exists to carry: restoring onto a new machine must not
+     * quietly put it back to 30.
+     *
+     * The unrelated name beside it is the presence companion: the file is read
+     * through the inventory, so a name nobody listed stays out, and the value
+     * above is carried because it is named and not because the file is dumped.
+     */
+    public function testAProbeIntervalSavedFromTheAdminPageIsCarried(): void
+    {
+        $file = sys_get_temp_dir() . '/plmail-probe-interval-' . bin2hex(random_bytes(8)) . '.env';
+        file_put_contents($file, "MAIL_PROBE_INTERVAL_SECONDS=45\nSOME_NAME_NOBODY_LISTED=1\n");
+
+        try {
+            $exported = (new ConfigBackupEnvironment(
+                new GeneratedSecretsFile($file),
+                new RealProcessEnvironment(),
+            ))->export();
+        } finally {
+            unlink($file);
+        }
+
+        self::assertSame('45', $exported['MAIL_PROBE_INTERVAL_SECONDS'] ?? null);
+        self::assertArrayNotHasKey('SOME_NAME_NOBODY_LISTED', $exported);
+    }
+
+    /**
      * The sweep for the trap's siblings.
      *
      * Every name the exporter refuses, set in the real process environment at

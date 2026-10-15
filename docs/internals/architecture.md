@@ -211,6 +211,7 @@ in before, with logs and orphaned blobs growing without bound.
 | Cron | Command | Why that cadence |
 |---|---|---|
 | `*/15 * * * *` | `app:mail:sync` | Neither Gmail push nor Graph subscriptions guarantee delivery and IDLE connections drop; polling is the backstop |
+| every 30 seconds by default | `app:mail:probe` | What stands in for push where nobody can reach the install: one cheap look at each Gmail and Outlook mailbox for new mail in any folder, queueing the real sync only when mail has arrived. Bounded by a per-request timeout and a time budget because it shares the scheduler's one worker. See [Mail ingest](mail-ingest.md#without-push-the-inbox-probe) |
 | `7-59/15 * * * *` | `app:calendar:sync --stale` | The mechanism for CalDAV and ICS feeds, the backstop for Google and Graph. Offset off the quarter hour so it does not stack on the mail sweep — they share one worker |
 | `20 * * * *` | `app:calendar:push` | Hourly, not because anything expires that fast, but because registration fails for *deployment* reasons that have nothing to do with the click that connected the calendar |
 | `* * * * *` | `app:mail:wake-snoozed` | A minute is the unit people pick a wake time in |

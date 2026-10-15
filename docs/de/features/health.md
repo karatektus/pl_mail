@@ -1,4 +1,4 @@
-<!-- translated-from: features/health.md sha1:7ff829ccadb403e034cd7bb9278e2a2c95456f38 -->
+<!-- translated-from: features/health.md sha1:e81d0c0500bf44c6dc36ddb288c83425c3ca3831 -->
 
 # Zustand der Konten
 
@@ -208,8 +208,9 @@ auch ungefragt, was passiert ist.
 
 **Eine ausgeschaltete Sofortzustellung ist kein Fehler und lässt die Anzeige nicht aufleuchten.** Eine
 selbst gehostete Installation ohne öffentlich erreichbare HTTPS-Adresse kann sich für Push überhaupt
-nicht registrieren. Post kommt über den Durchlauf alle fünfzehn Minuten, und genau darum ist das ein
-Hinweis und keine Warnung. Ein *kaputter* Push — abgelaufen oder registriert und nicht zustellend —
+nicht registrieren. Post kommt über den Durchlauf alle fünfzehn Minuten — neue Mail im Posteingang
+von Gmail und Outlook binnen etwa einer Minute, über die Posteingangs-Abfrage —, und genau darum ist
+das ein Hinweis und keine Warnung. Ein *kaputter* Push — abgelaufen oder registriert und nicht zustellend —
 ist eine Warnung und lässt sie sehr wohl aufleuchten, denn du hast um Sofortzustellung gebeten und
 bekommst sie nicht.
 

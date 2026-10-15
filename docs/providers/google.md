@@ -12,7 +12,7 @@ people routinely set up the first and then wonder why the third does not work:
 | What | Buys you | Needed? |
 |---|---|---|
 | An OAuth client | Signing in, reading and sending mail, and calendars | Yes, for any Gmail account |
-| A Cloud Pub/Sub topic and subscription | Gmail arriving the instant it is sent | Optional; without it Gmail is checked every fifteen minutes |
+| A Cloud Pub/Sub topic and subscription | Gmail arriving the instant it is sent | Optional; without it new inbox mail is noticed within about a minute, everything else on the fifteen-minute sweep |
 | A verified domain | Calendar changes arriving as they happen | Optional; without it calendars are read every fifteen minutes |
 
 Everything under **Settings** that this enables is described in
@@ -192,8 +192,12 @@ GMAIL_PUBSUB_VERIFICATION_TOKEN=YOUR_SECRET
 The stored values win and fall back to the environment, exactly as the OAuth credentials do.
 
 Then turn on **Instant delivery** for the account under **Settings → Mail accounts**. It is per
-account and opt-in: without the topic configured the account stays on the fifteen-minute schedule
-and says so rather than failing.
+account and opt-in: without the topic configured the account does not use push and says so rather
+than failing. New mail is then found by a check that runs every 30 seconds by default, `app:mail:probe`, which asks
+Gmail whether any message was added, in any folder, since the last sync and queues a sync when one
+was — no public address and no Pub/Sub involved. Spam and mail a filter kept out of the inbox count;
+your own drafts and sent copies do not. Changes made elsewhere (read, archived, deleted) still wait
+for the fifteen-minute sweep.
 
 A Gmail watch lasts at most seven days. plMail renews any watch expiring within the next day, from
 a nightly sweep, so there is nothing to maintain by hand. **Admin → Gmail webhooks** is where to

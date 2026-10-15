@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Form\Admin\ProbeIntervalType;
 use App\Form\Admin\PublicUrlType;
+use App\Service\Mail\InboxProbeInterval;
 use App\Service\Setup\PublicUrlSetting;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +36,7 @@ final class PublicAddressController extends AbstractController
 {
     public function __construct(
         private readonly PublicUrlSetting $publicUrl,
+        private readonly InboxProbeInterval $probeInterval,
     ) {}
 
     #[Route('', name: 'settings', methods: ['GET', 'POST'])]
@@ -59,11 +62,42 @@ final class PublicAddressController extends AbstractController
             $saved = true;
         }
 
+        // A second form on the same page, posting to the same action: it is
+        // the other half of the answer to "plMail cannot be reached from
+        // outside" — how often it asks Gmail and Outlook instead. Each form
+        // answers only to its own name, so a POST of one leaves the other
+        // untouched.
+        //
+        // Absent when the environment pins the value: the page could not
+        // change what is in force, and a field that saves and then changes
+        // nothing is worse than none.
+        $probeForm  = null;
+        $probeSaved = false;
+
+        if (false === $this->probeInterval->isPinnedByEnvironment()) {
+            $probeForm = $this->createForm(ProbeIntervalType::class, [
+                'seconds' => $this->probeInterval->stored() ?? $this->probeInterval->seconds(),
+            ], [
+                'action' => $this->generateUrl('app_admin_address_settings'),
+            ]);
+            $probeForm->handleRequest($request);
+
+            if (true === $probeForm->isSubmitted() && true === $probeForm->isValid()) {
+                $this->probeInterval->save((int) $probeForm->get('seconds')->getData());
+
+                $probeSaved = true;
+            }
+        }
+
         return $this->render('admin/address/_frame.html.twig', [
-            'form'    => $form,
-            'saved'   => $saved,
-            'current' => $this->publicUrl->current(),
-            'stored'  => $this->publicUrl->stored(),
+            'form'         => $form,
+            'saved'        => $saved,
+            'current'      => $this->publicUrl->current(),
+            'stored'       => $this->publicUrl->stored(),
+            'probeForm'    => $probeForm,
+            'probeSaved'   => $probeSaved,
+            'probeSeconds' => $this->probeInterval->seconds(),
+            'probePinned'  => $this->probeInterval->isPinnedByEnvironment(),
         ]);
     }
 }

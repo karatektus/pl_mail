@@ -47,6 +47,23 @@ final class GmailApiClient
      */
     private const int MESSAGES_PER_REQUEST = 5;
 
+    /**
+     * How long the inbox probe waits on Google, in seconds.
+     *
+     * The probe runs on the scheduler's worker, which also runs every other
+     * scheduled job. Without a timeout of its own a stalled connection holds
+     * that worker for HttpClient's socket default, and a stalled provider
+     * becomes a stalled schedule.
+     */
+    private const float PROBE_TIMEOUT_SECONDS = InboxProbeInterval::REQUEST_TIMEOUT_SECONDS;
+
+    /**
+     * The most pages the probe will read before answering "more than I looked
+     * at". A filtered feed with a hundred-record page and five of them is
+     * already a window the real sync needs to deal with.
+     */
+    private const int PROBE_MAX_PAGES = 5;
+
     private const array TRANSIENT_REASONS = [
         'rateLimitExceeded',
         'userRateLimitExceeded',
@@ -382,6 +399,123 @@ final class GmailApiClient
             'history'   => $history,
             'historyId' => $latestHistoryId,
         ];
+    }
+
+    /**
+     * Whether mail has arrived since a history cursor, in any folder: asked,
+     * never acted on.
+     *
+     * This is what stands in for Pub/Sub on an install that cannot be reached
+     * from the internet, and it runs every few seconds on the scheduler's
+     * worker, so it is deliberately small. One request narrowed to message
+     * additions — not read flags, not labels moved — with a short timeout and
+     * a page cap, where listHistory() reads the whole window unfiltered and
+     * unbounded because the sync needs every change. Nothing here is stored,
+     * and in particular the account's cursor is left alone: it belongs to
+     * syncIncremental(), and a probe that moved it would hand the sync it asks
+     * for an empty window.
+     *
+     * NO LABEL, which is what this method used to ask for (INBOX). That is
+     * what Pub/Sub does, because the watch is registered on the inbox, and it
+     * left spam and mail a filter kept out of the inbox for the quarter-hourly
+     * sweep. The sweep reads the history unfiltered, so everything this finds
+     * is something the sync it asks for will fetch.
+     *
+     * WHAT DOES NOT COUNT, and it is decided here and not by the request
+     * because the response says what each added message is labelled: a draft,
+     * and a copy in the sent folder. Gmail writes a draft as a NEW message on
+     * every save, so one being typed is a record every few seconds and, left
+     * in, a full sync for each; the user's own sends are one record each and
+     * are in plMail already. A message in both SENT and INBOX — one sent to the
+     * address that sent it — is mail that came in, and counts.
+     *
+     * `historyTypes` is a repeated parameter in the API's own description, but
+     * a single value is an ordinary query field; it is the several-types form
+     * that a query array cannot express (see GmailApiSyncer::syncIncremental).
+     *
+     * @return string|null the id of the newest history record that added mail
+     *                     that came in, null when none did. Newest of those,
+     *                     not newest of all: the caller remembers this value to
+     *                     tell what it has announced from what is new, so a
+     *                     draft saved after the last arrival must not move it.
+     *                     Reaching the page cap with more still to read answers
+     *                     with a marker rather than null: "could not rule it
+     *                     out" is a reason to let the real sync look, not to
+     *                     stay quiet.
+     */
+    public function probeArrivals(Account $account, string $startHistoryId): ?string
+    {
+        $token  = $this->tokenManager->getValidAccessToken($account);
+        $newest = null;
+        $page   = null;
+
+        for ($fetched = 0; $fetched < self::PROBE_MAX_PAGES; $fetched++) {
+            $query = [
+                'startHistoryId' => $startHistoryId,
+                'historyTypes'   => 'messageAdded',
+            ];
+
+            if (null !== $page) {
+                $query['pageToken'] = $page;
+            }
+
+            $response = $this->httpClient->request('GET', self::BASE . '/history', [
+                'auth_bearer' => $token,
+                'query'       => $query,
+                'timeout'     => self::PROBE_TIMEOUT_SECONDS,
+            ]);
+
+            $body = $this->decode($account, $response, 'history.list');
+
+            foreach ($body['history'] ?? [] as $record) {
+                if (true === isset($record['id']) && true === self::addedMailThatCameIn($record)) {
+                    $newest = (string) $record['id'];
+                }
+            }
+
+            $page = $body['nextPageToken'] ?? null;
+
+            if (null === $page) {
+                return $newest;
+            }
+        }
+
+        return $newest ?? 'more:' . $startHistoryId;
+    }
+
+    /**
+     * Whether a history record added anything but the user's own draft or sent
+     * copy. See probeArrivals() for why those two, and why here.
+     *
+     * A record is left out only when it SAYS so: one that lists no messages, or
+     * a message that names no labels, is not ruled out, and the sync it wakes
+     * is the cheap way to find out.
+     *
+     * @param array<string, mixed> $record
+     */
+    private static function addedMailThatCameIn(array $record): bool
+    {
+        $added = $record['messagesAdded'] ?? [];
+
+        if ([] === $added) {
+            return true;
+        }
+
+        foreach ($added as $change) {
+            $labels = $change['message']['labelIds'] ?? [];
+
+            if (true === in_array('DRAFT', $labels, true)) {
+                continue;
+            }
+
+            if (true === in_array('SENT', $labels, true) && false === in_array('INBOX', $labels, true)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     // ── watch / push ──────────────────────────────────────────────────────────

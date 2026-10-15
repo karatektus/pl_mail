@@ -62,7 +62,8 @@ final class PublicAddressControllerTest extends WebTestCase
 
         // The file is shared by the whole suite, and an address left in it
         // would be the public URL of every test that runs afterwards.
-        $this->config->remove(['APP_PUBLIC_URL']);
+        $this->config->remove(['APP_PUBLIC_URL', 'MAIL_PROBE_INTERVAL_SECONDS']);
+        unset($_SERVER['MAIL_PROBE_INTERVAL_SECONDS'], $_ENV['MAIL_PROBE_INTERVAL_SECONDS']);
 
         parent::tearDown();
     }
@@ -96,6 +97,107 @@ final class PublicAddressControllerTest extends WebTestCase
         ]));
 
         self::assertArrayNotHasKey('APP_PUBLIC_URL', $this->config->read());
+    }
+
+    public function testASavedProbeIntervalReachesTheFile(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/address');
+
+        self::assertResponseIsSuccessful();
+        self::assertArrayNotHasKey('MAIL_PROBE_INTERVAL_SECONDS', $this->config->read());
+
+        $this->client->submit($crawler->filter('form[name="probe_interval"]')->form([
+            'probe_interval[seconds]' => '45',
+        ]));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('45', $this->config->read()['MAIL_PROBE_INTERVAL_SECONDS'] ?? null);
+        self::assertSelectorExists('turbo-frame#admin-address [data-probe-interval-saved]');
+    }
+
+    public function testAProbeIntervalOutsideTheBoundsIsRefusedRatherThanStored(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/address');
+
+        foreach (['5', '901', 'often'] as $bad) {
+            $this->client->submit($crawler->filter('form[name="probe_interval"]')->form([
+                'probe_interval[seconds]' => $bad,
+            ]));
+
+            // The form's own refusal (422, the form on the page again), not an
+            // error page: if it let 901 through, save() would throw and
+            // nothing would be written either, and only the status would say
+            // which of the two had done the refusing.
+            self::assertResponseStatusCodeSame(422, $bad);
+            self::assertSelectorExists('form[name="probe_interval"]');
+            self::assertArrayNotHasKey('MAIL_PROBE_INTERVAL_SECONDS', $this->config->read(), $bad);
+        }
+
+        // The presence companion: the same form does save an edge value, so the
+        // refusals above are the bounds and not a form that saves nothing.
+        $crawler = $this->client->request('GET', '/admin/address');
+        $this->client->submit($crawler->filter('form[name="probe_interval"]')->form([
+            'probe_interval[seconds]' => '15',
+        ]));
+
+        self::assertSame('15', $this->config->read()['MAIL_PROBE_INTERVAL_SECONDS'] ?? null);
+    }
+
+    public function testAnIntervalSetInTheEnvironmentIsShownAndCannotBeEditedHere(): void
+    {
+        $_SERVER['MAIL_PROBE_INTERVAL_SECONDS'] = '20';
+
+        $this->client->request('GET', '/admin/address');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#admin-address [data-probe-interval-pinned]');
+        self::assertSelectorNotExists('form[name="probe_interval"]');
+        // The other form on the page is untouched by it.
+        self::assertSelectorExists('form[name="public_url"]');
+    }
+
+    public function testASavedIntervalExportedBackIntoTheEnvironmentStillOffersTheForm(): void
+    {
+        // What the entrypoint does at the next start with a value this page
+        // saved: it comes back through $_SERVER. The page must still let an
+        // administrator change it.
+        $this->config->set('MAIL_PROBE_INTERVAL_SECONDS', '15');
+        $_SERVER['MAIL_PROBE_INTERVAL_SECONDS'] = '15';
+
+        $this->client->request('GET', '/admin/address');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('turbo-frame#admin-address [data-probe-interval-pinned]');
+        self::assertSelectorExists('form[name="probe_interval"]');
+    }
+
+    public function testAnIntervalSetInTheEnvironmentIsNotOverwrittenByAPost(): void
+    {
+        // The page offers no field while the environment pins the value, but a
+        // POST does not need the field: a stale tab, or a script. Taken from the
+        // page while nothing is pinned, so the token is a genuine one and the
+        // refusal is the pin's and not a bad token's.
+        $crawler = $this->client->request('GET', '/admin/address');
+        $token   = $crawler->filter('form[name="probe_interval"]')->form()->get('probe_interval[_token]')->getValue();
+
+        $_SERVER['MAIL_PROBE_INTERVAL_SECONDS'] = '20';
+
+        $this->client->request('POST', '/admin/address', [
+            'probe_interval' => ['seconds' => '45', '_token' => $token],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertArrayNotHasKey('MAIL_PROBE_INTERVAL_SECONDS', $this->config->read());
+        self::assertSelectorExists('turbo-frame#admin-address [data-probe-interval-pinned]');
+
+        // The presence companion: the same request, unpinned, is what saves.
+        unset($_SERVER['MAIL_PROBE_INTERVAL_SECONDS']);
+
+        $this->client->request('POST', '/admin/address', [
+            'probe_interval' => ['seconds' => '45', '_token' => $token],
+        ]);
+
+        self::assertSame('45', $this->config->read()['MAIL_PROBE_INTERVAL_SECONDS'] ?? null);
     }
 
     public function testTheSectionIsReachableFromTheAdminNavigation(): void

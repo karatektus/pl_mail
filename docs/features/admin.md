@@ -89,7 +89,8 @@ the last hour, 24 hours and 7 days.
 plMail storing it. Seconds means the provider is telling plMail about new mail as it lands — IMAP
 IDLE, Gmail push, a Graph subscription. A typical delay of five minutes or more is highlighted: that
 account is living on the quarter-hourly poll, which "works" and is why nothing else on any page
-would tell you. Mail brought in by an import is not counted, nor is mail sent from plMail itself.
+would tell you. A Gmail or Outlook inbox without push is checked every 30 seconds (by default) instead, so a delay
+this long there means something else is wrong; **Brought in by** says what delivered the message. Mail brought in by an import is not counted, nor is mail sent from plMail itself.
 
 The three delay figures are of mail that landed in the inbox, because that is the only mail a
 provider announces. Spam, and mail a filter filed somewhere else, waits for the schedule by design;

@@ -169,6 +169,7 @@ final readonly class ConfigBackupEnvironment
         'APP_DEFAULT_TIMEZONE',
         'APP_DB_LOG_LEVEL',
         'DEFAULT_URI',
+        'MAIL_PROBE_INTERVAL_SECONDS',
     ];
 
     /**

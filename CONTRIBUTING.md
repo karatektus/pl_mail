@@ -842,6 +842,7 @@ php bin/mirror-wiki.php --check
 |---|---|
 | `app:setup` | Create the first admin user (interactive) |
 | `app:mail:sync [account-id]` | Dispatch an account-level sync for one or all active accounts |
+| `app:mail:probe` | Ask each active Gmail and Outlook account whether new mail has arrived, in any folder, and queue a sync for those that have. Runs from the scheduler every 30 seconds, or as often as `MAIL_PROBE_INTERVAL_SECONDS` / Admin → Address says, and is what stands in for push on an install nobody can reach from the internet; `app:mail:sync` stays as the quarter-hourly backstop |
 | `app:mail:send-draft [message-id]` | Send a draft message (picker if no ID given) |
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |

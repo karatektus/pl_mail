@@ -286,6 +286,68 @@ once.
 Admin → AI shows beside the switch — median, 95th percentile, and how many messages were shown
 before the model had answered.
 
+## Without push: the inbox probe
+
+Gmail and Outlook announce new mail by calling plMail — Pub/Sub for Google, a webhook for Microsoft —
+and both need an address the internet can reach. An install behind a firewall has neither, and an
+account without push used to be synced only by the quarter-hourly `app:mail:sync`: mail on the phone
+at once, in plMail up to fifteen minutes later.
+
+`app:mail:probe` runs every 30 seconds by default (Admin → Address, or `MAIL_PROBE_INTERVAL_SECONDS`, between 15 and 900) and asks each active Gmail and Outlook account one cheap question,
+through `App\Service\Mail\InboxProbe`, and queues the ordinary `SyncAccountMessage` (trigger
+`SyncTrigger::Probe`) only when the answer is yes. It does not fetch anything itself and it does not
+replace the poll.
+
+| | Gmail | Outlook |
+|---|---|---|
+| The question | `history.list` from the stored cursor, for messages *added* in any folder | When the newest message in the whole mailbox was received, one projected field |
+| What counts as news | Any such record, except one that only added a draft or a copy in the sent folder | A later timestamp than the one seen last time |
+| First look at an account | Evidence, if the window holds an arrival | Only remembered: there is nothing to compare it with |
+| An expired cursor | One sync to recover it (the real sync re-lists the mailbox) | — |
+
+**The probe never moves a cursor.** Gmail's `historyId` and Graph's delta links belong to the real sync;
+a probe that advanced either would hand the sync it just asked for an empty window.
+
+**What stops it queueing a sync on every tick.** The answer stays "yes" until the sync it triggered has
+run, and that sync waits on the single `ingest` consumer, which can be minutes deep. So each account
+remembers *what* it last announced — the newest history record, the newest message's timestamp — and
+announces a thing once. Mail that arrives meanwhile is a different thing and is announced in its own right, which
+keeps the number of syncs bounded by the number of arrivals rather than the number of ticks. The memory
+lives in the cache, so losing it costs one redundant sync and never a missed one.
+
+**Why Outlook's signal is a timestamp and not the newest message's id.** `receivedDateTime` has a
+resolution of one second, so a burst — three messages at once — puts several under one value, and
+nothing promises that the query lists them in the same order twice. An id signal flips between them and
+queues a full sync per flip until something newer arrives. A timestamp cannot flip, and nothing is lost:
+every message sharing it is in the mailbox by the time the triggered sync runs. The one thing it cannot
+see is a message landing in the same second as the newest one already seen, which waits for the poll.
+
+**Any folder, but not the user's own drafts and sent copies.** The probe used to ask about the inbox
+alone, because that is all push announces, which left spam and mail a filter or rule files elsewhere
+waiting for the poll: as much "on the phone and not in plMail" as inbox mail. Gmail's question now has
+no label, and Outlook's is the newest message of `/me/messages`; the sync either wakes reads every
+folder, so what the probe announces is what it fetches. Gmail saves a draft as a *new* message on
+every save, so a record whose messages are all drafts, or sent copies that are not also in the inbox,
+is not an arrival (`GmailApiClient::probeArrivals()`); left in, one draft being typed would be a full
+sync every few seconds. Outlook's query leaves drafts out with `$filter=isDraft eq false`. Graph
+refuses some `$filter` and `$orderby` pairs and a refused look pauses the account for five minutes, so
+this pair was sent to two live Outlook accounts (both personal; a work or school account has not been
+tried) and answered 200. A message just sent has a `receivedDateTime` about a second after it was sent,
+so a send there is one extra sync.
+
+**What it deliberately leaves to the poll.** Every change that is not an arrival — read state, labels,
+deletions made elsewhere. None of those is the "my phone has it and plMail does not" case, and
+`Message::$arrivedBy` says which path delivered what: `probe` is the fast path working, `poll` is
+what it cannot see. Gmail push still announces the inbox alone (the watch is registered on that
+label), so on a Gmail account that has push as well, only the probe sees the rest.
+
+**Being a good neighbour.** It runs on the scheduler's single worker, beside every other scheduled job.
+Each request carries its own ten-second timeout, a run starts no further account once the interval less one request timeout has gone (20 seconds by default), and
+an account that fails is left alone — for as long as the provider's own `Retry-After` says when
+throttled, five minutes after anything else. Accounts whose grant is already known to be dead are not
+asked at all, because every look would begin with a token refresh. At two requests a minute per account
+this is a few units of a quota counted in thousands, and well inside Microsoft's per-mailbox limit.
+
 ## Threading
 
 `App\Service\Imap\MessageThreader::assignThread()` is a three-step cascade, and each step
@@ -513,6 +575,12 @@ connection-holding worker.
 table sends every post-ingest message to `enrich`; only the stamp moves a finished account's
 mail to `enrich_live`. Dispatch with `$this->router->stampsFor($result)`, and only for
 `RecentMailPolicy::recentIds()`.
+
+**A signal that stays true until a sync has run is a sync queued every tick.** The inbox probe's
+"new mail" answer only clears when the real sync moves the cursor, which waits on one shared queue.
+`InboxProbe` therefore announces each arrival once; anything added to it that reports state, not
+events, has to do the same or it recreates the self-feeding loop `ImapIdleCommand::SYNC_MIN_GAP` was
+written for.
 
 **A held message nothing releases is mail nobody can see in their inbox.** Its thread has no
 category and so is in no tab. That is why the timed release is dispatched before the feature

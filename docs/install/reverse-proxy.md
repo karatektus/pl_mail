@@ -60,7 +60,8 @@ Fail either and calendar push and Microsoft Graph mail push do not register. **T
 error condition** — an install with no publicly reachable address simply polls instead, and polling
 is unchanged by any of it: `app:mail:sync` runs every 15 minutes and `app:calendar:sync --stale`
 every 15 minutes offset off the quarter hour. Push only makes mail and calendar changes arrive
-first rather than late.
+first rather than late. Gmail and Outlook mailboxes are also checked, every 30 seconds by default, by
+`app:mail:probe`, so having no public address does not mean a quarter-hour wait for new mail.
 
 **The failure mode is a public URL with a trailing path or a trailing slash.** It is trimmed of a
 trailing `/` when stored, and webhook URLs are built by appending a generated route path to it — so

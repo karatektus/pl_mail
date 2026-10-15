@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:ab22097bf3000ba96411f571d10ade5dd0362ae3 -->
+<!-- translated-from: providers/google.md sha1:178cadfd4b2aa859abcf3289b649d52b3ed60bb6 -->
 
 # Google
 
@@ -14,7 +14,7 @@ denn regelmäßig wird das erste eingerichtet und dann gerätselt, warum das dri
 | Was | Bringt dir | Nötig? |
 |---|---|---|
 | Ein OAuth-Client | Anmeldung, Lesen und Senden von Mail, und Kalender | Ja, für jedes Gmail-Konto |
-| Ein Cloud-Pub/Sub-Topic samt Abonnement | Gmail trifft in dem Moment ein, in dem sie gesendet wird | Optional; ohne das wird Gmail alle fünfzehn Minuten abgerufen |
+| Ein Cloud-Pub/Sub-Topic samt Abonnement | Gmail trifft in dem Moment ein, in dem sie gesendet wird | Optional; ohne das wird neue Mail im Posteingang binnen etwa einer Minute bemerkt, alles andere beim Durchlauf alle fünfzehn Minuten |
 | Eine verifizierte Domain | Kalenderänderungen treffen ein, sobald sie geschehen | Optional; ohne das werden Kalender alle fünfzehn Minuten gelesen |
 
 Alles unter **Einstellungen**, was dadurch möglich wird, beschreiben
@@ -207,8 +207,13 @@ Die gespeicherten Werte gewinnen und fallen auf die Umgebung zurück, genau wie 
 OAuth-Zugangsdaten.
 
 Schalte danach für das Konto unter **Einstellungen → E-Mail-Konten** die **Sofortige Zustellung** ein.
-Sie gilt pro Konto und muss aktiv gewählt werden: Ohne konfiguriertes Topic bleibt das Konto beim
-Viertelstundentakt und sagt das auch, statt zu scheitern.
+Sie gilt pro Konto und muss aktiv gewählt werden: Ohne konfiguriertes Topic nutzt das Konto kein
+Push und sagt das auch, statt zu scheitern. Neue Mail findet dann `app:mail:probe`, eine Prüfung, die standardmäßig alle 30 Sekunden
+läuft. Sie fragt Gmail, ob seit der letzten Synchronisierung in einem beliebigen Ordner eine
+Nachricht hinzugekommen ist, und reiht eine Synchronisierung ein, wenn ja — ohne öffentliche
+Adresse und ohne Pub/Sub. Spam und Mail, die ein Filter am Posteingang vorbeigeleitet hat, zählen;
+eigene Entwürfe und gesendete Kopien nicht. Anderswo gemachte Änderungen (gelesen, archiviert, gelöscht) warten weiter auf den Durchlauf alle
+fünfzehn Minuten.
 
 Ein Gmail-Watch hält höchstens sieben Tage. plMail erneuert jeden Watch, der innerhalb des nächsten
 Tages abläuft, aus einem nächtlichen Durchlauf heraus, es gibt also nichts von Hand zu pflegen.

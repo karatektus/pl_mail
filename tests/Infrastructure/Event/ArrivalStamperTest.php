@@ -81,6 +81,30 @@ final class ArrivalStamperTest extends KernelTestCase
         self::assertSame(SyncTrigger::Poll, $message->arrivedBy);
     }
 
+    /**
+     * Admin → Performance tells a message the inbox probe fetched from
+     * one the quarter-hourly poll did, which is the only way to see whether the
+     * fast path is what is delivering. Through a flush and a reload, because
+     * the column is a short VARCHAR and the value has to fit it.
+     */
+    public function testAMessageFetchedByAProbeIsRecordedAsSuchAndSurvivesTheDatabase(): void
+    {
+        $message = $this->message(['received' => self::RECEIVED], gmailLabels: ['INBOX']);
+
+        $this->origin->during(SyncTrigger::Probe, fn () => $this->em->persist($message));
+        $this->em->flush();
+
+        $id = $message->id;
+
+        $this->em->clear();
+
+        $reloaded = $this->em->find(Message::class, $id);
+
+        self::assertNotNull($reloaded);
+        self::assertSame(SyncTrigger::Probe, $reloaded->arrivedBy);
+        self::assertNotSame(SyncTrigger::Poll, $reloaded->arrivedBy);
+    }
+
     public function testMailFiledPastTheInboxArrivedElsewhere(): void
     {
         $message = $this->message(['received' => self::RECEIVED], gmailLabels: ['CATEGORY_PROMOTIONS', 'Label_27']);

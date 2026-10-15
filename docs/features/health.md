@@ -186,7 +186,8 @@ does nothing useful — the card will say what happened without being asked twic
 
 **Instant delivery being off is not an error, and will not light the indicator.** A self-hosted
 install with no publicly reachable HTTPS address can never register push at all. Mail arrives on the
-fifteen-minute sweep, which is why this is a notice rather than a warning. Push that is *broken* —
+fifteen-minute sweep — new Gmail and Outlook inbox mail within about a minute, through the inbox
+probe — which is why this is a notice rather than a warning. Push that is *broken* —
 expired, or registered and not delivering — is a warning and does light it, because you asked for
 instant delivery and are not getting it.
 

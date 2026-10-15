@@ -583,6 +583,18 @@ could only be attached as a three-second clip — on a library full of iPhone ph
 the grid. Library, search, album and person views now leave those clips out. Archived photos stay,
 and so does anything a server that predates the `visibility` field sends. No migration.
 [#46](https://github.com/karatektus/pl_mail/issues/46).
+**New Gmail and Outlook mail now arrives within about a minute, with no public address.** Push needs
+Google or Microsoft to reach plMail, which an install behind a firewall cannot offer, and an account
+without push waited for the quarter-hourly sync: mail on the phone at once, in plMail up to fifteen
+minutes later. A new check, `app:mail:probe`, now runs every 30 seconds, or as often as you set under Admin → Address (15 to 900 seconds), and asks each Gmail and Outlook
+account one cheap question — has any mail arrived? — and queues the ordinary sync when the
+answer is yes. One small request per account every 30 seconds; an account that is throttled or failing is
+left alone for as long as the provider says, or five minutes. It looks at every folder, so spam and mail
+a filter or rule files elsewhere arrive as fast as inbox mail; on Gmail your own drafts and sent copies
+do not count, and on Outlook drafts do not count while a message you send is one extra sync. Changes made elsewhere
+(read, archived, deleted) still wait for the quarter-hourly sync, which is unchanged. Admin →
+Performance shows which path delivered a message: `probe` is the new check (labelled "Mail check"),
+`poll` is the sweep. No migration.
 
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and

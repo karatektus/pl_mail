@@ -88,6 +88,28 @@ admin:
             containers start again. If the two still differ after a restart,
             APP_PUBLIC_URL is set in the compose file, and that setting wins over
             this one.
+        probe:
+            field:
+                seconds: Seconds between checks
+                seconds_help: >-
+                    Between %min% and %max%. Shorter means new mail shows up sooner,
+                    and plMail makes more requests to Google and Microsoft. The
+                    default is 30.
+            heading: Checking for new mail
+            in_use: In use now
+            intro: >-
+                Gmail and Outlook tell plMail about new mail themselves only when
+                they can reach it from the internet. Where they cannot, plMail asks
+                each of them on a short timer instead, and syncs the moment
+                something has arrived. Other mail (spam, filtered mail, changes made
+                elsewhere) still waits for the sweep every quarter of an hour.
+            pinned: >-
+                MAIL_PROBE_INTERVAL_SECONDS is set in the environment, so it
+                decides and this page cannot change it. Change it there and restart
+                the stack.
+            save: Save interval
+            saved: 'Saved. The workers are restarting to apply it.'
+            seconds: '%seconds% seconds'
         restart_help: >-
             Restarting plMail here is enough for live updates. Restart the whole
             stack as well, so the workers register push at the new address.
@@ -779,14 +801,14 @@ admin:
                 account: 'Account'
                 arrives_by: 'Arrives by'
                 elsewhere: 'Not in the inbox'
-                elsewhere_hint: 'Spam and mail a filter filed elsewhere: how many, and their typical delay. Providers only announce inbox mail, so the rest waits for the schedule.'
+                elsewhere_hint: 'Spam and mail a filter filed elsewhere: how many, and their typical delay. Push only announces inbox mail; the mail check finds the rest on Gmail and Outlook, and elsewhere it waits for the schedule.'
                 max: 'Longest'
                 median: 'Typical delay'
                 messages: 'Inbox mail'
                 p95: '95% within'
             footnote: 'From the time the provider accepted a message to the time plMail stored it, for mail that landed in the inbox. Mail brought in by an import, and mail sent from plMail itself, is not counted.'
             heading: 'How late mail arrives'
-            lead: 'Seconds means the provider is telling plMail about new mail as it lands. Minutes means the account is being checked on the quarter-hourly schedule instead.'
+            lead: 'Seconds means the provider is telling plMail about new mail as it lands. Minutes means the account is being checked on a schedule instead: every 30 seconds for the inbox of a Gmail or Outlook account without push, every quarter of an hour for everything else.'
             no_accounts: 'No active accounts.'
             provider:
                 google: 'Gmail'
@@ -798,6 +820,7 @@ admin:
                     idle: 'IDLE'
                     manual: 'Sync button'
                     poll: 'Schedule'
+                    probe: 'Mail check'
                     push: 'Push'
                     unknown: '—'
                 col:
@@ -810,7 +833,7 @@ admin:
                     underway: 'Already under way for'
                     underway_hint: 'From the date the message carries to the provider accepting it: a sender that queued it, or dated it early. Nothing plMail could have shortened.'
                 empty: 'No mail arrived in this period.'
-                footnote: 'Slowest first. Mail outside the inbox is never announced by the provider, so up to fifteen minutes there is the schedule working as intended. What brought a message in is recorded from this version on.'
+                footnote: 'Slowest first. Mail outside the inbox is never announced by push, so on an account without the mail check up to fifteen minutes there is the schedule working as intended. What brought a message in is recorded from this version on.'
                 heading: 'The slowest in this period'
                 in:
                     elsewhere: 'Elsewhere'
