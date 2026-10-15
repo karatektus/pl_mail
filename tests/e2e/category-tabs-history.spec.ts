@@ -3,21 +3,23 @@ import { test, expect, devices } from "./support/test";
 import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
 
 /**
- * Switching a category tab on a phone replaces the history entry.
+ * Switching a category tab replaces the history entry, at every width.
  *
- * Every tab is a frame navigation, and a frame navigation pushes an entry by
- * default, so on a phone the system Back gesture walked back through every tab
- * the user had merely looked at. Below md the tab's link asks Turbo for
- * `replace` instead; at md and up it keeps `advance`, which is what a desktop
- * user expects from a tab bar that sits beside a list they will open rows from.
+ * Every tab is a frame navigation, and the list frame asks Turbo to `advance`,
+ * so every tab the user had merely looked at became one more Back step before
+ * Back left the inbox. The tab links now ask for `replace`, as Gmail's tabs
+ * behave: the URL still follows the tab, the history does not grow.
  *
  * The invariant these guard is the reading pane's remembered list URL: after a
  * switch, opening a row and pressing the in-app Back must land on the tab that
  * was switched to, because that URL is read from the page once the frame has
  * loaded, and a replaced entry is the page's address from then on.
  *
- * The mobile cases assert the viewport width, so a device that stopped being a
- * phone would fail loudly rather than pass for the desktop case.
+ * Most cases run on a phone, where the system Back gesture made the extra
+ * entries most noticeable; the desktop block checks the same holds there, and
+ * that Back really leaves for the page before the inbox. The mobile cases
+ * assert the viewport width, so a device that stopped being a phone would fail
+ * loudly rather than pass for the desktop case.
  */
 test.use({ ...devices["Pixel 5"] });
 
@@ -66,12 +68,9 @@ test("on a phone, switching tabs does not add a history entry", async ({ page })
 });
 
 test.describe("on a desktop window", () => {
-    // Presence companion for the phone case above: the same click must still
-    // add an entry at md and up, or "no entry" passes for a click that did
-    // nothing at all.
     test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
 
-    test("switching tabs adds exactly one history entry", async ({ page }) => {
+    test("switching tabs does not add a history entry either", async ({ page }) => {
         await page.goto("/mail/inbox");
 
         expect(page.viewportSize()!.width).toBeGreaterThanOrEqual(768);
@@ -81,7 +80,24 @@ test.describe("on a desktop window", () => {
         await page.locator(SOCIAL).click();
         await expect(page.locator(CURRENT)).toHaveAttribute("href", /tab=social/);
 
-        expect(await historyLength(page)).toBe(before + 1);
+        expect(new URL(page.url()).search).toContain("tab=social");
+        expect(await historyLength(page)).toBe(before);
+    });
+
+    // The behaviour the issue asked for, end to end: after looking through
+    // tabs, one Back leaves the inbox for wherever the user was before it.
+    test("after switching tabs, Back leaves the inbox", async ({ page }) => {
+        await page.goto("/mail/drafts");
+        await page.goto("/mail/inbox");
+
+        for (const tab of ["social", "promotions", "updates"]) {
+            await page.locator(`${TABS}[href*='tab=${tab}']`).click();
+            await expect(page.locator(CURRENT)).toHaveAttribute("href", new RegExp(`tab=${tab}`));
+        }
+
+        await page.goBack();
+
+        await expect.poll(() => new URL(page.url()).pathname).toBe("/mail/drafts");
     });
 });
 

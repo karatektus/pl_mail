@@ -53,6 +53,8 @@ it and from the account's other folders beside it.
                     <a
                         href="{{ path('app_mail_account', {account: account.id}|merge(tabQuery)|merge({tab: tabCase.value})) }}"
                         data-turbo-frame="inbox-list-frame"
+                        {# `replace`, as on the Inbox's strip: see the note there. #}
+                        data-turbo-action="replace"
                         {% if isActive %}aria-current="page" data-ui--scroll-active-target="current"{% endif %}
                         class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                     >

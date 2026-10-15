@@ -130,8 +130,7 @@
        since a strip that opens on Forums with Forums off-screen says nothing. #}
     <div class="border-b border-line px-1">
         <nav class="relative flex text-sm overflow-x-auto overflow-y-hidden pb-px -mb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-             data-controller="ui--scroll-active ui--tab-history"
-             data-action="click->ui--tab-history#choose">
+             data-controller="ui--scroll-active">
             {% for tabCase in tabs %}
                 {% set isActive = tab is not null and tabCase.value == tab.value %}
                 {% set tabName = tabCase.isCustom ? tabCase.name : ('tabs.' ~ tabCase.value)|trans %}
@@ -171,9 +170,18 @@
                    accepting it would remove the row from the list and put it
                    back on the next refresh, which reads as a glitch rather than
                    as "nothing to do". #}
+                {# `replace`, overriding the frame's `advance`: a tab switch is not a
+                   page of its own, so it takes the current history entry rather
+                   than adding one, as Gmail's tabs do. Otherwise every tab merely
+                   looked at was one more Back step before Back left the inbox.
+                   The URL still follows the tab, so a reload or a copied link
+                   opens it. Rendered by the server rather than set from script,
+                   because the strip is morphed on every list refresh and a morph
+                   drops any attribute the server did not render. #}
                 <a
                     href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value})) }}"
                     data-turbo-frame="inbox-list-frame"
+                    data-turbo-action="replace"
                     {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}
                     {% if isActive %}data-ui--scroll-active-target="current"{% endif %}
                     class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"

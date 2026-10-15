@@ -108,6 +108,25 @@ final class AccountInboxTabsTest extends WebTestCase
         self::assertStringNotContainsString('/mail/inbox?tab=', $html);
     }
 
+    /**
+     * A tab switch takes the current history entry rather than adding one, as
+     * on the Inbox's strip (#150), so Back leaves the page instead of walking
+     * through the tabs. The browser side is category-tabs-history.spec.ts.
+     */
+    public function testTheTabLinksReplaceTheHistoryEntry(): void
+    {
+        $this->thread(self::PRIMARY, MessageCategory::Primary);
+        $this->thread(self::PROMOTION, MessageCategory::Promotions);
+
+        $links = $this->crawl()->filter('nav a[href*="/mail/account/"][href*="tab="]');
+
+        self::assertGreaterThan(1, $links->count());
+        self::assertSame(
+            array_fill(0, $links->count(), 'replace'),
+            $links->each(static fn (Crawler $link): ?string => $link->attr('data-turbo-action')),
+        );
+    }
+
     /** Mail of one category only: nothing to choose between, so no strip. */
     public function testWithOneCategoryThereIsNoStrip(): void
     {
