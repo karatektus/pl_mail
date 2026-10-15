@@ -20,7 +20,7 @@ Firebase, are still told about every change: they ask what moved. **Migration:**
 on `jmap_push_subscription`, false by default; devices registered through the in-app toggle (an id
 starting `web-`) are switched to the new behaviour once, so nobody has to turn notifications off and
 on. Reversible.
-[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
+[#162](https://github.com/karatektus/pl_mail/pull/162), by @Flouss.
 
 **Outlook mailboxes stop reporting moves that did not happen.** Microsoft sends a message again
 whenever anything about it changes — plMail marking it read is enough — and each of those was
@@ -28,7 +28,7 @@ written to the change log as a move into the folder the message was already in. 
 whose folder actually changed is recorded now. The effect runs one way: a JMAP client, and an
 Android phone through Firebase, are told about fewer Email and Thread changes from an Outlook
 mailbox, and none that describe nothing. No migration.
-[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
+[#162](https://github.com/karatektus/pl_mail/pull/162), by @Flouss.
 
 **Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
 inbox or on an account's page, replaces the current entry, as Gmail does, so the browser's Back
