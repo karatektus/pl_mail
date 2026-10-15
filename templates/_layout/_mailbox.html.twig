@@ -300,9 +300,14 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                            row so fifty rows are one report, and here rather than
                            inside the frame so it survives a fragment swap and
                            watches for one. #}
+                        {# One data-controller attribute: a second one is dropped by the parser. The
+                           pull gesture is outside the frame, so a refresh cannot take it away, and
+                           it reaches the topbar's sync button by lookup, not by DOM position. #}
                         {% if app.user %}
-                            data-controller="mail--new-marker"
+                            data-controller="mail--new-marker mail--pull-to-refresh"
                             data-mail--new-marker-url-value="{{ path('app_mail_threads_listed') }}"
+                        {% else %}
+                            data-controller="mail--pull-to-refresh"
                         {% endif %}
                         {# @container, so the rows below switch to their stacked
                            layout on the LIST's width. They used to switch on the
@@ -310,8 +315,16 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                            the calendar pane is docked: a 1440px window with a
                            wide pane leaves the list narrower than a phone, and
                            every row stayed on one line and truncated to nothing. #}
-                        class="@container flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
+                        class="@container relative flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
+                        {# The pull to refresh indicator. Here, beside the frame and not inside it, so a
+                           refresh never replaces it. Its words are the visual states only: the sync
+                           toast is what announces the run, so this stays out of the accessibility tree. #}
+                        <div data-mail--pull-to-refresh-target="indicator" data-state="idle" aria-hidden="true" class="mail-pull-indicator">
+                            <i class="fa-solid fa-rotate" data-mail--pull-to-refresh-target="icon" aria-hidden="true"></i>
+                            <span data-label-for="pulling">{{ 'pull_to_refresh.pull'|trans }}</span>
+                            <span data-label-for="release">{{ 'pull_to_refresh.release'|trans }}</span>
+                        </div>
                         {{ block('list_frame') }}
                     </div>
 

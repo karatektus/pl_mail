@@ -2623,6 +2623,9 @@ sync_now:
     still_running: 'Sync is still running in the background.'
     complete: 'Sync complete.'
     session_expired: 'Your session has expired — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Pull down to sync'
+    release: 'Release to sync'
 search:
     empty:
         or_keyword: or just type a keyword.

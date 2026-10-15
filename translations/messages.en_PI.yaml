@@ -2483,6 +2483,9 @@ sync_now:
     still_running: 'Still haulin'' below decks.'
     complete: 'All hands aboard — sync complete.'
     session_expired: 'Yer watch has ended — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Heave down to haul in the post'
+    release: 'Let go, and haul in the post'
 search:
     empty:
         or_keyword: or just bellow a keyword.

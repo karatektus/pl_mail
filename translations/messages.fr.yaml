@@ -2636,6 +2636,9 @@ sync_now:
     still_running: 'La synchronisation se poursuit en arrière-plan.'
     complete: 'Synchronisation terminée.'
     session_expired: 'Votre session a expiré — rechargez la page pour vous reconnecter.'
+pull_to_refresh:
+    pull: 'Tirez vers le bas pour synchroniser'
+    release: 'Relâchez pour synchroniser'
 search:
     empty:
         or_keyword: ou tapez simplement un mot-clé.

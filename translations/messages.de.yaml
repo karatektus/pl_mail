@@ -2609,6 +2609,9 @@ sync_now:
     still_running: 'Die Synchronisierung läuft im Hintergrund weiter.'
     complete: 'Synchronisierung abgeschlossen.'
     session_expired: 'Deine Sitzung ist abgelaufen – lade die Seite neu, um dich wieder anzumelden.'
+pull_to_refresh:
+    pull: 'Zum Synchronisieren nach unten ziehen'
+    release: 'Loslassen zum Synchronisieren'
 search:
     empty:
         or_keyword: oder tippe einfach ein Stichwort.

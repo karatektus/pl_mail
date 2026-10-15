@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:aafa725dd0343a8e15a1cb0e8f4ad13942ae2b05 -->
+<!-- translated-from: features/mail.md sha1:1aee1ecf391427b1e6c35fd4f36b0f59ba68da1e -->
 
 # Mail
 
@@ -684,6 +684,12 @@ und als sonst nichts — wo die Nachricht danach landet, ist Sache des Anbieters
 **Aktualisieren** in der Werkzeugleiste reiht für jedes deiner aktiven Konten eine
 Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
 
+Auf dem Telefon ist dieselbe Synchronisierung ein Ziehen: Zieh die Liste vom oberen Rand nach
+unten, über den Hinweis *Loslassen zum Synchronisieren* hinaus, und lass los. Der Synchronisieren-
+Knopf oben auf dem Bildschirm dreht sich, solange er läuft, und der Hinweis dreht sich mit. Ohne
+Berührung ist der Knopf der Ersatz: ein benannter Knopf für Tastatur und Bildschirmleser, und die
+Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
+
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
@@ -1304,3 +1310,9 @@ keine Zeit. Auf dem Radar wird sie fünfzehn Minuten nach Eingang der Mail angeb
 dann, damit ein Code von letzter Woche nicht lesbar dort stehen bleibt; die Karte über der Mail
 selbst behält ihn. plMail erfindet keine zehn Minuten, also kann die Karte dir nicht sagen, ob der
 Code noch geht — das kann nur die Mail, aus der er stammt.
+
+**Ziehen zum Aktualisieren gibt es nur mit dem Finger, und nur ganz oben in der Liste.** Maus,
+Trackpad und jedes Fenster ab der Tablet-Breite ziehen nie. Ein Ziehen beginnt nur, wenn die Liste
+ganz oben steht, und nicht bei offener Seitenleiste; von weiter unten scrollt dieselbe Bewegung nur.
+Reduzierte Bewegung nimmt dem Hinweis das Gleiten und sonst nichts, der Auslösepunkt bleibt gleich.
+

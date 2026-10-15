@@ -19,6 +19,15 @@ the provider still files as drafts are made openable too; one that was sent else
 upgrade is left as it was.
 [#164](https://github.com/karatektus/pl_mail/pull/164), by @Flouss.
 
+**Pull the mail list down to sync it, on a phone.** Reaching for the button at the top of the screen
+is no longer the only way: pulling the mail list down from its top now syncs it, through the same
+sync as that button. Drag past the *Release to sync* indicator and let go, and the sync icon spins
+while the run lasts. It is for a finger on a phone-width screen only. A mouse, a trackpad and wider
+windows behave as before, a list scrolled down scrolls as it always did, and a pull while the
+sidebar is open does nothing. Reduced motion removes the indicator's slide. No schema change, no
+deployment change.
+[#163](https://github.com/karatektus/pl_mail/pull/163), by @Flouss.
+
 **An installed plMail no longer says "New mail" when nothing arrived.** The notification on a phone
 or browser was sent for every change to a message — opening a conversation, marking it read,
 starring, archiving, a spam move, a copy of something you sent — and again a few minutes later when
