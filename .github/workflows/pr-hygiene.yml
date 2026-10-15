@@ -1,7 +1,7 @@
 name: PR hygiene
 
 # Two small checks on every pull request, from CONTRIBUTING.md, "How work gets
-# in": label it by the areas it touches, and say so when it links no issue.
+# in": label it by the areas it touches, and refuse it when it links no issue.
 #
 # pull_request_target rather than pull_request, because most pull requests
 # here come from forks, and a fork's run gets a read-only token that cannot
@@ -12,7 +12,9 @@ name: PR hygiene
 
 on:
     pull_request_target:
-        types: [opened, edited, reopened, synchronize, ready_for_review]
+        # labeled/unlabeled too: labelling a pull request `bug` is what lets a
+        # bug fix through without an issue, and the check has to see it.
+        types: [opened, edited, reopened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
     contents: read
@@ -31,17 +33,23 @@ jobs:
     linked-issue:
         runs-on: ubuntu-latest
         steps:
-            # A WARNING for now, not a failure. A feature is meant to have an
-            # accepted issue before it is built, and a bug fix may come without
-            # one if it describes the bug; this check cannot tell the two apart,
-            # so it says what it sees and leaves the decision to the reviewer.
-            # It becomes required for anything that is not a `bug` once
-            # contributors have had time to see the new flow.
+            # REQUIRED, and a branch-protection check (Settings → Branches).
+            # A feature needs an accepted issue before it is built, so a pull
+            # request has to close one — `Closes #N` in its description. The
+            # exceptions are the kinds of change that need no agreement first:
+            # a bug fix that says what the bug was, upkeep, and Dependabot.
+            # Their labels let them through; a contributor cannot set labels on
+            # a fork's pull request, so a maintainer applies `bug` during
+            # triage, and the check runs again when they do.
+            #
+            # It was a warning for its first day (#131) and became required on
+            # 2026-10-15, once every open pull request had an issue.
             - name: Look for an issue the pull request closes
               env:
                   GH_TOKEN: ${{ github.token }}
                   REPO: ${{ github.repository }}
                   NUMBER: ${{ github.event.pull_request.number }}
+                  LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
               run: |
                   count=$(gh api graphql \
                       -f query='query($owner: String!, $name: String!, $number: Int!) {
@@ -52,11 +60,22 @@ jobs:
                       -f owner="${REPO%/*}" -f name="${REPO#*/}" -F number="$NUMBER" \
                       -q '.data.repository.pullRequest.closingIssuesReferences.totalCount')
 
-                  if [ "$count" = "0" ]; then
-                      message="This pull request links no issue. A feature needs an issue labelled 'accepted' first; a bug fix may skip it if the description says what the bug was. Write 'Closes #N' in the description to link one."
-                      echo "::warning title=No linked issue::$message"
-                      echo "### No linked issue" >> "$GITHUB_STEP_SUMMARY"
-                      echo "$message" >> "$GITHUB_STEP_SUMMARY"
-                  else
+                  if [ "$count" != "0" ]; then
                       echo "Links $count issue(s)." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
                   fi
+
+                  for exempt in bug chore dependencies; do
+                      case ",$LABELS," in
+                          *",$exempt,"*)
+                              echo "No linked issue; labelled \`$exempt\`, which needs none." >> "$GITHUB_STEP_SUMMARY"
+                              exit 0
+                              ;;
+                      esac
+                  done
+
+                  message="This pull request links no issue. Write 'Closes #N' in its description for the issue it finishes. A feature needs an issue labelled 'accepted' first; a bug fix needs none once a maintainer has labelled the pull request 'bug'. See CONTRIBUTING.md, 'How work gets in'."
+                  echo "::error title=No linked issue::$message"
+                  echo "### No linked issue" >> "$GITHUB_STEP_SUMMARY"
+                  echo "$message" >> "$GITHUB_STEP_SUMMARY"
+                  exit 1
