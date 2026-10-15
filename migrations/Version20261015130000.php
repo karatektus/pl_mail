@@ -30,6 +30,10 @@ use Doctrine\Migrations\AbstractMigration;
  * backslash, which isDraft() does not read as a draft, so the builder change
  * does not reach them either.
  *
+ * Containment (@>) rather than jsonb's `?` operator: Doctrine prepares the
+ * statement, and a `?` is a parameter placeholder to it, so `?` would reach
+ * Postgres as `$1` and stop every upgrade at this migration.
+ *
  * The thread's lastMessageAt is not touched. It was raised by the draft's date
  * when the draft was stored; lowering it now would move conversations down the
  * list on upgrade, for no one's benefit.
@@ -47,12 +51,12 @@ final class Version20261015130000 extends AbstractMigration
             UPDATE message m
                SET sent_at = NULL
              WHERE m.sent_at IS NOT NULL
-               AND m.flags::jsonb ? '\Draft'
+               AND m.flags::jsonb @> '["\\Draft"]'
                AND (
                     (
                         m.gmail_id IS NOT NULL
-                        AND m.gmail_label_ids::jsonb ? 'DRAFT'
-                        AND NOT m.gmail_label_ids::jsonb ? 'SENT'
+                        AND m.gmail_label_ids::jsonb @> '["DRAFT"]'
+                        AND NOT m.gmail_label_ids::jsonb @> '["SENT"]'
                     )
                  OR (
                         m.graph_id IS NOT NULL

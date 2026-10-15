@@ -138,8 +138,11 @@ final class SyncedDraftSentAtMigrationTest extends KernelTestCase
         $migration = new Version20261015130000($this->connection, new NullLogger());
         $migration->up(new Schema());
 
+        // Prepared, as Doctrine Migrations runs it, not executed raw: a raw
+        // statement lets a jsonb `?` through that a prepared one reads as a
+        // placeholder, and that difference once broke this migration on upgrade.
         foreach ($migration->getSql() as $query) {
-            $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+            $this->connection->prepare($query->getStatement())->executeStatement();
         }
 
         $this->em->clear();
