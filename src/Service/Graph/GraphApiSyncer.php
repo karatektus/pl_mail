@@ -724,8 +724,15 @@ final class GraphApiSyncer
         // place a draft sent from Outlook (same id under immutable ids) is
         // heard. Trash and Drafts are not it: a draft thrown away or put back
         // is still unsent.
-        if (LabelRole::Sent === $label->role) {
+        //
+        // A settle is a change of its own, even with no move: a draft filed in
+        // Sent Items before settling existed still wears \Draft beside its
+        // Sent label, and the next re-report is the first chance to end that.
+        // It changes the Email's keywords and the list's draft marker, so it
+        // is recorded and announced like a move.
+        if (LabelRole::Sent === $label->role && true === $message->isDraft()) {
             $message->settleAsSent(new DateTimeImmutable());
+            $moved = true;
         }
 
         // A folder move on the Microsoft side changes Email.mailboxIds, which

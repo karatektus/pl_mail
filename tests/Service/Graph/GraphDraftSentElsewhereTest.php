@@ -93,6 +93,30 @@ final class GraphDraftSentElsewhereTest extends KernelTestCase
         self::assertGreaterThanOrEqual($before->getTimestamp(), $draft->thread?->lastMessageAt?->getTimestamp());
     }
 
+    /**
+     * A draft filed in Sent Items before settling existed: it wears the Sent
+     * label already and is still flagged a draft. Its re-report is no move, but
+     * settling it is a change, and a change a JMAP client must hear about, so
+     * the guard that keeps re-reports quiet must not keep this one quiet.
+     */
+    public function testADraftAlreadyFiledInSentIsSettledAndRecordedOnItsReReport(): void
+    {
+        $draft = $this->seedDraft();
+        $draft->removeLabel($this->em->getRepository(Label::class)->findOneBy(['usr' => $this->user, 'role' => LabelRole::Drafts]));
+        $draft->addLabel($this->em->getRepository(Label::class)->findOneBy(['usr' => $this->user, 'role' => LabelRole::Sent]));
+        $this->em->flush();
+
+        $this->syncDelta(self::SENT_FOLDER);
+
+        $this->em->refresh($draft);
+
+        self::assertFalse($draft->isDraft());
+        self::assertSame(1, (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM jmap_change_log WHERE account_id = ? AND object_type = ? AND change_type = ?',
+            [$this->account->id, 'Email', 'updated'],
+        ), 'the settle is announced, though nothing moved');
+    }
+
     public function testADraftStillInDraftsStaysADraft(): void
     {
         $draft = $this->seedDraft();
