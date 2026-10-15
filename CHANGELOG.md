@@ -17,7 +17,7 @@ draft's date, the same as for a draft written here. A draft you then send from O
 recognised as sent, and no longer offered for editing. **Migration:** drafts already stored that
 the provider still files as drafts are made openable too; one that was sent elsewhere before the
 upgrade is left as it was.
-[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
+[#164](https://github.com/karatektus/pl_mail/pull/164), by @Flouss.
 
 **Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
 inbox or on an account's page, replaces the current entry, as Gmail does, so the browser's Back
