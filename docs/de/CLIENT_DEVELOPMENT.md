@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e5b7f30a39d80384afd9adcc2750f854b0792c3d -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1f3b51a6f659a64adbc57fb6125f4885ce518f82 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -236,6 +236,33 @@ Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund wei
 wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
 wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
 daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
+
+### Posteingangs-Tabs (`urn:plmail:params:jmap:inboxtabs`)
+
+Die Tabs so, wie die Nutzerin sie eingerichtet hat: welche eingebauten Kategorien an sind, die Tabs,
+die sie selbst angelegt hat, und die Reihenfolge aller. Angekündigt oben in der Session und an jedem
+Konto; jedes Konto antwortet mit derselben Liste.
+
+- **`InboxTab/get`** (`accountId` nötig) listet jeden Tab, ausgeschaltet oder nicht. Ein InboxTab ist
+  `{ id, name, builtIn, isEnabled, sortOrder }`. `id` ist der Tab-Schlüssel — eine eingebaute
+  Kategorie (`primary`, `social`, `promotions`, `updates`, `forums`) oder `c` und eine Zahl für einen
+  eigenen. `name` ist bei eingebauten null; die benennst du in deiner eigenen Sprache.
+  `isEnabled: false` ist ein ausgeschalteter eingebauter Tab: Lass ihn aus der Leiste weg.
+  `sortOrder` ist die Reihenfolge der Leiste; Allgemein ist immer 0.
+- **`InboxTab/changes`** ist das übliche /changes, und ein Push-`StateChange` trägt einen
+  `InboxTab`-State. Ein Umsortieren meldet jeden Tab als geändert.
+- **`Thread.inboxTab`** ist der Tab, in dem das Web die Konversation zeigt: ein eigener, die
+  eingebaute Kategorie oder `primary`, wenn diese Kategorie ausgeschaltet ist. Zeichne daraus und
+  nicht aus `Thread.category`, wenn du die Capability kennst.
+- **`Email/query` `threadInboxTab: "<key>"`** listet genau, was das Web in diesem Tab listet. Ein
+  ausgeschalteter Tab trifft nichts; ein ungültiger Schlüssel ist `invalidArguments`.
+- **`Thread/set` `{ "inboxTab": "<key>" }`** legt die Konversation in einen Tab, angeheftet, wie ein
+  Drag im Web. Ein Tab, den die Nutzerin nicht hat, kommt in `notUpdated` mit `invalidProperties`
+  zurück.
+
+Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
+`threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
+werden.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
@@ -724,8 +751,9 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | `/get` trägt drei plMail-Erweiterungen: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
+| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |

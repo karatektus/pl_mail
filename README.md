@@ -80,7 +80,7 @@ provider doesn't.
   with what changed since the one they run.
 - **Yours** — two-factor auth, sign-in through Authentik, Keycloak or any other OpenID Connect
   provider, per-app JMAP passwords, 41 themes, ten icons for the tab and the phone's home screen,
-  English, German and Pirate.
+  English, German, French and Pirate.
 
 ## A look around
 

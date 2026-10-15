@@ -22,6 +22,7 @@ use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Mail\InboxTabs;
 use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\PushSubscriptionRepository;
@@ -62,7 +63,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'reading-pane', 'shortcuts', 'disposal', 'calendar-behaviour'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -87,6 +88,7 @@ final class SettingsController extends AbstractController
         private readonly CalendarShareLinkRepository $shareLinkRepository,
         private readonly BookingPageRepository $bookingPageRepository,
         private readonly MailRuleRepository $mailRuleRepository,
+        private readonly InboxTabs $inboxTabs,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly PushSubscriptionRepository $pushSubscriptions,
         private readonly PushDeliveryRepository $pushDeliveries,
@@ -128,14 +130,15 @@ final class SettingsController extends AbstractController
             $section = self::DEFAULT_SECTION;
         }
 
-        // Unread is opt-in: its label is created hidden and switched on in
-        // this list, which it can only be if it exists. No sync and no mail
-        // action has a reason to create it, so it is created the first time
-        // the list is opened.
+        // Unread and All Mail are opt-in: their labels are created hidden and
+        // switched on in this list, which they can only be if they exist. No
+        // sync and no mail action has a reason to create them, so they are
+        // created the first time the list is opened.
         $user = $this->getUser();
 
         if ('labels' === $section && $user instanceof User) {
             $this->labelResolver->userSystemLabel(LabelRole::Unread, $user);
+            $this->labelResolver->userSystemLabel(LabelRole::AllMail, $user);
         }
 
         // The user's own arrangement, not the alphabet.
@@ -155,13 +158,18 @@ final class SettingsController extends AbstractController
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'calendars'          => $this->calendarRepository->findForUser($this->getUser()),
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
+            // Only the Categories section draws them, and every other settings
+            // page would otherwise pay a read for a list it never shows. Every
+            // tab, switched off or not, in the reader's order.
+            'categoryTabs'       => 'categories' === $section && $user instanceof User
+                ? $this->inboxTabs->managedFor($user)
+                : [],
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             // A refused profile save forwards here with its form, so the page
             // comes back whole with the errors on it — see ProfileController.
             ...$this->profileSection->build(
                 $this->getUser(),
-                $request,
                 $request->attributes->get('profileForm') instanceof FormInterface
                     ? $request->attributes->get('profileForm')
                     : null,

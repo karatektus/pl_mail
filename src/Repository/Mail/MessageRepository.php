@@ -1452,6 +1452,22 @@ class MessageRepository extends ServiceEntityRepository
      * up: what is stored against what the provider said the mailbox holds.
      * Asked only while such an import is running.
      */
+    /**
+     * Messages this Gmail mailbox brought in that live on another account:
+     * mail addressed to a connected sibling, stored there, and copies the
+     * sibling already had that took on their Gmail identity. Both point back
+     * through Message::$gmailCarrierAccount.
+     */
+    public function countCarriedBy(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     public function countForAccount(Account $account): int
     {
         return (int) $this->createQueryBuilder('m')

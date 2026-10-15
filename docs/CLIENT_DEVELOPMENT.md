@@ -213,6 +213,31 @@ either way, because mail is still filed in the background, so the category canno
 you draw tabs from it, draw none when `inboxTabs` is `false`. It is read-only here and, like the
 compact `appearance` beside it, a hint that can be stale in a cached Session.
 
+### Inbox tabs (`urn:plmail:params:jmap:inboxtabs`)
+
+The tabs as the user arranged them: which built-in categories are switched on, the tabs they made
+themselves, and the order of all of them. Advertised at the top of the Session and on every
+account; every account answers with the same list.
+
+- **`InboxTab/get`** (`accountId` required) lists every tab, switched off or not. An InboxTab is
+  `{ id, name, builtIn, isEnabled, sortOrder }`. `id` is the tab key — a built-in category
+  (`primary`, `social`, `promotions`, `updates`, `forums`) or `c` and a number for one of the user's
+  own. `name` is null for a built-in, which you name in your own language. `isEnabled: false` is a
+  built-in the user switched off: leave it out of the strip. `sortOrder` is the strip's order;
+  Primary is always 0.
+- **`InboxTab/changes`** is the standard /changes, and push `StateChange` carries an `InboxTab`
+  state. A reorder reports every tab as updated.
+- **`Thread.inboxTab`** is the tab the web shows the conversation in: one of the user's own, the
+  built-in category, or `primary` when that category is switched off. Draw from this, not from
+  `Thread.category`, when you know the capability.
+- **`Email/query` `threadInboxTab: "<key>"`** lists exactly what the web lists in that tab. A
+  switched-off tab matches nothing; a malformed key is `invalidArguments`.
+- **`Thread/set` `{ "inboxTab": "<key>" }`** moves the conversation into a tab, pinned, as a drag on
+  the web does. A tab the user does not have comes back in `notUpdated` with `invalidProperties`.
+
+Creating, renaming, switching and ordering tabs is done on the web today. `Thread.category` and
+`threadCategory` are unchanged, and `inboxTabs` above still says whether to draw tabs at all.
+
 > **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
 > capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `logoMotifs`, `layouts`, `densities`,
@@ -659,8 +684,9 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `PushSubscription/get` / `PushSubscription/set` | No `accountId`; per-user. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | `/get` carries three plMail extensions: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
+| `Thread/get` / `Thread/changes` | `/get` carries four plMail extensions: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
+| `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, `inboxTab`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
+| `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. The user's tabs, the same on every account. See [Inbox tabs](#inbox-tabs-urnplmailparamsjmapinboxtabs). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |

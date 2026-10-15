@@ -17,8 +17,8 @@ use App\Repository\Mail\MessageThreadRepository;
  * receivedAt order, which is exactly how MessageThread::$messages is mapped
  * (#[ORM\OrderBy] on receivedAt then id), so no re-sorting is needed here.
  *
- * Three plMail extensions ride along: `snoozedUntil`, `category` and `isNew`.
- * Standard clients ignore all three.
+ * Four plMail extensions ride along: `snoozedUntil`, `category`, `inboxTab`
+ * and `isNew`. Standard clients ignore all four.
  */
 final class ThreadGetMethod implements JmapMethod
 {
@@ -28,6 +28,7 @@ final class ThreadGetMethod implements JmapMethod
         private readonly AccountResolver $accountResolver,
         private readonly MessageThreadRepository $threadRepository,
         private readonly StateManager $stateManager,
+        private readonly \App\Jmap\Mapper\InboxTabMapper $tabs,
     ) {
     }
 
@@ -117,6 +118,14 @@ final class ThreadGetMethod implements JmapMethod
                 // own inbox query does not, so folding would put mail on the
                 // phone's Primary tab that the browser's does not have.
                 'category' => $thread->category?->value,
+                // plMail extension (urn:plmail:params:jmap:inboxtabs): the tab
+                // the web shows this conversation in — a tab of the reader's
+                // own, the built-in category, or Primary for a category they
+                // switched off. What a client that knows InboxTab draws from;
+                // `category` above stays the built-in category whatever the
+                // reader did, for clients that know only the five. See
+                // InboxTabMapper::tabOf().
+                'inboxTab' => $this->tabs->tabOf($thread, $context->user),
                 // plMail extension, and the one that had no wire surface at
                 // all until a client needed it. Newness is
                 // MessageThread::isNewAt(): never put in front of the user AND

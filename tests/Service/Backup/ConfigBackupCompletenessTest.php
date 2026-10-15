@@ -12,6 +12,7 @@ use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\UserRepository;
@@ -113,6 +114,7 @@ final class ConfigBackupCompletenessTest extends TestCase
             self::createStub(CalendarRepository::class),
             self::createStub(CalendarShareLinkRepository::class),
             self::createStub(BookingPageRepository::class),
+            self::createStub(InboxCategoryRepository::class),
         )->exportUser(new User());
 
         $embedded = array_filter(

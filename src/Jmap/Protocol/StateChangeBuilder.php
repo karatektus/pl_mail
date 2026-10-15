@@ -30,6 +30,9 @@ final class StateChangeBuilder
         JmapObjectType::Email,
         JmapObjectType::Thread,
         JmapObjectType::EmailSubmission,
+        // Rare — a tab made, renamed, switched or moved in Settings — and
+        // exactly what a phone cannot find out any other way.
+        JmapObjectType::InboxTab,
     ];
 
     public function __construct(

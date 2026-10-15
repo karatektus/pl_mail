@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Mail\InboxCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
@@ -370,13 +371,33 @@ final readonly class ThreadStatusUpdater
      *
      * @return bool whether anything changed
      */
-    public function setCategory(MessageThread $thread, MessageCategory $category): bool
+    public function setCategory(MessageThread $thread, MessageCategory|InboxCategory $category): bool
     {
-        if ($category === $thread->category && null !== $thread->categoryPinnedAt) {
-            return false;
+        // TWO COLUMNS, AND A DROP WRITES THE RIGHT ONE. The reader's own tab is
+        // MessageThread::$userCategory and a built-in one is $category, and a
+        // conversation is in exactly one tab, so moving between the two kinds has
+        // to clear the other: a drop onto Primary from "Shipping" that left
+        // $userCategory set would leave it in Shipping, and a drop onto Shipping
+        // leaves the built-in column alone because that one is what JMAP serves.
+        //
+        // "Already there" is therefore a statement about BOTH columns. A
+        // conversation whose built-in category matches the drop but which is
+        // still in one of the reader's tabs is not already there.
+        if ($category instanceof InboxCategory) {
+            if ($category === $thread->userCategory && null !== $thread->categoryPinnedAt) {
+                return false;
+            }
+
+            $thread->userCategory = $category;
+        } else {
+            if ($category === $thread->category && null === $thread->userCategory && null !== $thread->categoryPinnedAt) {
+                return false;
+            }
+
+            $thread->category     = $category;
+            $thread->userCategory = null;
         }
 
-        $thread->category         = $category;
         $thread->categoryPinnedAt = new DateTimeImmutable();
 
         // The thread's own row moved between two tabs; no message changed, so

@@ -100,7 +100,9 @@ security:
             # firewall listener with its own throttle, see below.
             login_throttling:
                 limiter: App\Security\LoginRateLimiter
-            # Opt-in via the "keep me logged in" checkbox on the login form.
+            # Opt-in via the "keep me logged in" checkbox on the login form;
+            # a single sign-on sign-in has no form and asks for it itself, in
+            # App\Security\OidcAuthenticator.
             # Signature-based tokens: no storage, and changing the password
             # invalidates every cookie that was issued for it.
             remember_me:

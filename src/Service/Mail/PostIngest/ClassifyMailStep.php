@@ -78,6 +78,11 @@ final readonly class ClassifyMailStep implements PostIngestStepInterface
                 continue;
             }
 
+            // No model reads Spam or Trash. See Message::isSetAside().
+            if (true === $message->isSetAside()) {
+                continue;
+            }
+
             if (true === $message->isCategoryHeld()) {
                 $held[] = (int) $id;
 

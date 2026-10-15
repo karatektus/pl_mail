@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:2011fd5dbb57811a13d924f3a11665842104a0ad -->
+<!-- translated-from: features/mail.md sha1:aafa725dd0343a8e15a1cb0e8f4ad13942ae2b05 -->
 
 # Mail
 
@@ -22,13 +22,14 @@ gleich, wo es angekommen ist.
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Konversationen, die du archiviert hast |
+| **Alle E-Mails** | Jede Konversation außerhalb von Spam und Papierkorb, Archiviertes, Gesendetes und Entwürfe eingeschlossen — aus, bis du es einschaltest |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
 
 Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürfe**, **Zurückgestellt**,
-**Archiv**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter
-**Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
-Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
-einzige, der ausgeschaltet beginnt.
+**Archiv**, **Alle E-Mails**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat —
+hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
+der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
+**Alle E-Mails** beginnen ausgeschaltet.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -41,6 +42,18 @@ Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die d
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
 Kontos stehen als Ordnerzeilen darunter, einen Klick weiter; die Kontozeile ist kein Archiv über
 alles, was das Konto je enthalten hat.
+
+**Alle E-Mails** ist alles, was du hast, in einer Liste: was angekommen ist, was du gesendet hast,
+deine Entwürfe und vor allem, was du archiviert hast und sonst in keiner Liste durchsehen kannst.
+Nur Spam und Papierkorb bleiben draußen. Es ist Gmails „Alle E-Mails“, und wie dort steht auch deine
+eigene Mail darin. Eingeschaltet ist es eine Zeile neben **Entwürfe** für alle Konten zusammen und
+eine Zeile ganz oben in den Ordnern jedes Kontos für dieses Konto allein; die Kontozeile selbst
+öffnet weiterhin den Posteingang des Kontos. Ein Auge unter **Einstellungen → Labels** zeigt oder
+verbirgt beide. Archivierst du eine Konversation in Alle E-Mails oder stellst sie zurück, bleibt sie
+in der Liste, wo sie weiterhin hingehört; verschiebst du sie in Spam oder den Papierkorb, ist sie
+weg. Eine Konversation mit mehreren Labels steht einmal da, und der Ungelesen-Filter zählt dieselbe
+Liste. Ablegen kannst du darauf nichts — in eine Liste, die schon alles enthält, gibt es nichts zu
+verschieben.
 
 Klappst du unter **Konten** ein Konto auf, siehst du die Labels, die es dort tatsächlich gibt.
 Diese Liste ist absichtlich schmaler als die Label-Liste der Seitenleiste selbst: die
@@ -91,10 +104,24 @@ Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie au
 die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
 Synchronisierung.
 
+Die Tabs gibt es im Posteingang ganz oben, und du kannst sie auch im **Posteingang eines einzelnen
+Kontos** haben (Klick auf das Konto in der Seitenleiste): **Einstellungen → Mail → Kategorien**,
+**Tabs in jedem Konto**. Es ist aus, bis du es einschaltest; dann hat ein Outlook-Konto oder jedes
+andere sie auch, [eigene Tabs](#eigene-tabs) eingeschlossen. Ist es aus, zeigt die Seite eines Kontos
+seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Tabs im Posteingang**
+an ist, und eine Konfigurationssicherung enthält ihn. Ein Tab ist da, solange er Mail enthält, und auf der Seite
+eines Kontos zählt er nur dessen Mail — ein eigener Tab, der nur in einem anderen Konto Mail
+enthält, fehlt auf dieser Seite also. Die Tabs auf
+der Kontoseite sind schlichter: keine „neu“-Markierungen, keine Absenderhinweise und keine
+Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
+beschreiben. Eine Konversation auf einen Tab zu ziehen geht nur im Posteingang ganz oben.
+
+Ein Tab-Wechsel ersetzt den Eintrag im Browser-Verlauf, statt einen neuen anzulegen, so wie in Gmail. Die Zurück-Taste des Browsers verlässt darum den Posteingang, statt dich durch die Tabs zurückzuführen, die du dir angesehen hast. Für die Tabs auf der Seite eines Kontos gilt dasselbe.
+
 ### Ein Posteingang ohne Tabs
 
 Wenn dir eine einzige Liste lieber ist, stelle **Tabs im Posteingang** unter **Einstellungen →
-Allgemein → Kategorien** auf **Eine Liste**. Der Posteingang zeigt dann alles, was
+Kategorien** auf **Eine Liste**. Der Posteingang zeigt dann alles, was
 darin liegt, das Neueste zuerst, und die Tabs sind weg — samt allem, was zu ihnen gehört: die
 „Neu“-Marken, das Ziehen einer Unterhaltung auf einen Tab und die Erklärung, warum eine Nachricht
 dort einsortiert wurde, wo sie ist.
@@ -106,7 +133,7 @@ sagt das, wenn beides zutrifft, und mit **Regeln** hört es auf.
 
 ### Auswählen, was deine Mail einsortiert
 
-Beide Voreinstellungen kannst du ändern, unter **Einstellungen → Allgemein → Kategorien**.
+Beide Voreinstellungen kannst du ändern, unter **Einstellungen → Kategorien**.
 
 **Sortiert nach** legt fest, wer entscheidet. **Regeln** liest Header — einen Mailinglisten-Header,
 einen Abmeldelink, einen Absender, dem du schon geschrieben hast — und antwortet bei derselben
@@ -152,6 +179,55 @@ oder 500 Nachrichten noch einmal.
 Es ist begrenzt, weil es pro Nachricht einen Modell-Aufruf kostet — ein paar hundert sind Minuten
 auf einem warmen Host, ein ganzes Postfach Stunden. Und bei der neuesten Mail fällt ein falscher Tab
 ohnehin zuerst auf. Von allein fragt nichts noch einmal nach, und das ist auch richtig so.
+
+### Die Tabs anordnen
+
+Die Karte **Tabs** auf derselben Seite listet jeden Tab in der Reihenfolge, in der der Posteingang
+sie zeigt. Zieh einen, um ihn zu verschieben, oder nimm die Pfeile daneben, per Tastatur oder am
+Handy. **Allgemein** steht immer vorn und ist immer an: Dort öffnet sich der Posteingang, und dort
+landet die Mail eines Tabs, den du ausschaltest.
+
+Jeden der anderen vier eingebauten Tabs kannst du **Aus**schalten. Foren ist der übliche Kandidat —
+selbst Gmail legt dort kaum etwas ab. Ein ausgeschalteter Tab ist nicht nur versteckt: Es wird nichts
+mehr hineinsortiert, weder von den Regeln noch von Googles Labels noch vom Assistenten, und die Mail,
+die dort gelandet wäre, liegt in Allgemein. Der Bereich **Details** sagt das bei so einer Nachricht
+(„es wäre Foren, und das hast du ausgeschaltet“). Einen Tab aus- oder wieder einzuschalten sortiert
+deine vorhandene Mail im Hintergrund neu, genau wie eine Änderung daran, was deine Mail einsortiert;
+schaltest du ihn wieder ein, ist seine Mail zurück, weil die Kategorie aus dem neu berechnet wird, was
+an jeder Nachricht gespeichert ist. Eine Konversation, die du in einen Tab gezogen hattest, den du
+ausschaltest, wird danach wieder einsortiert wie jede andere.
+
+### Eigene Tabs
+
+Die fünf sind das, was plMail zu erkennen weiß. Willst du einen Tab für etwas, das es nicht
+erkennen kann — Pakete, Belege, die Mail eines Kunden —, leg ihn unten auf der Karte **Tabs** unter
+**Einstellungen → Kategorien** an: ein Name, sonst nichts. Er steht am Ende der Leiste, bis du ihn
+verschiebst. Ein eigener Tab enthält nichts, bis ein
+[Filter](filters.md#in-eigene-tabs-ablegen), dessen Aktion **In Kategorie ablegen** ist, Mail
+hineinlegt, und wie die anderen erscheint er im Posteingang nur, solange er Mail enthält. Ein Filter
+legt auch Gmail-Mail ab: Googles Kategorien haben Vorrang vor plMails eigener Sortierung, solange du
+nichts anderes sagst, aber einen Filter hast du selbst geschrieben, und er hat Vorrang vor beiden.
+
+Mail bleibt in deinem Tab, wenn der Filter, der sie dort abgelegt hat, geändert oder gelöscht wird —
+so wie ein Label an der Mail bleibt, wenn sein Filter geht. Herausziehen oder den Tab löschen ist der
+Weg hinaus.
+
+Eine Konversation steckt in genau einem Tab; Mail, die in einem deiner Tabs abgelegt wird,
+verlässt also den eingebauten Tab, in dem sie sonst gelegen hätte — die Benachrichtigung eines
+Paketdienstes, die früher in Werbung lag, liegt jetzt in Sendungen, und Werbung zählt, zeigt und
+markiert nur noch, was übrig ist. Du kannst eine Konversation auch auf einen eigenen Tab ziehen, oder von einem auf
+einen eingebauten Tab, genau wie zwischen den fünf; eine Konversation, die du von Hand verschoben
+hast, bleibt, wo du sie hingelegt hast.
+
+Der Bereich **Details** einer Nachricht nennt deinen Tab, wenn die Konversation dort liegt, und
+sagt, dass sie von einem deiner Filter dort abgelegt wurde (oder, nach einem Drag, dass du sie
+verschoben hast). Einen Tab umzubenennen benennt ihn überall zugleich um. Einen **zu löschen** legt
+seine Mail in den Tab zurück, in dem sie sonst läge; gelöscht wird nichts.
+
+Die Android-App zeigt deine Tabs wie der Browser — in deiner Reihenfolge, ohne die ausgeschalteten —
+und verschiebt Mail zwischen ihnen. Andere Mail-Apps, die sich per JMAP verbinden, sehen, was sie
+immer gesehen haben: die fünf eingebauten Kategorien, eine Konversation aus deinem Sendungen-Tab in
+dem eingebauten Tab, in dem sie sonst läge. Gmail selbst weiß nichts von deinen Tabs.
 
 ### plMail sagen, dass es danebenlag
 
@@ -765,6 +841,26 @@ zurückbringt, wie du es eingerichtet hattest.
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
+## Externe Bilder
+
+Bilder, die eine Mail von den Servern des Absenders lädt, bleiben blockiert, bis du sie anforderst:
+Ein Bild, das beim Öffnen geladen wird, verrät dem Absender, dass und wann du seine Mail gelesen
+hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an — **Bilder anzeigen**
+nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
+Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
+zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+**Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
+alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail
+geöffnet hast, aber nicht deine Adresse: Die Bilder holt plMail und reicht sie an dich weiter, nie
+dein Browser. Die Absender, denen du einzeln vertraut hast, bleiben so oder so erhalten; schaltest
+du es wieder aus, gilt genau die Liste, die du hattest. Eine Konfigurationssicherung enthält die
+Einstellung.
+
+Mail im **Spam** bleibt blockiert, egal was du wählst, auch von vertrauten Absendern: Eine als Spam
+abgelegte Mail ist dein Anbieter, der bezweifelt, dass sie von dem kommt, der sie zu sein vorgibt.
+**Bilder anzeigen** ist dort trotzdem da, um die Bilder einer Mail von Hand zu laden.
 
 ## Zurückstellen
 

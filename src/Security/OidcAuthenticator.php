@@ -6,6 +6,7 @@ namespace App\Security;
 
 use App\Entity\User\User;
 use App\Service\Oidc\OidcClient;
+use App\Service\Oidc\OidcIdentity;
 use App\Service\Oidc\OidcLoginFailed;
 use App\Service\Oidc\OidcSettings;
 use App\Service\Oidc\OidcUserResolver;
@@ -20,6 +21,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
@@ -45,9 +47,15 @@ use Symfony\Component\Security\Http\Util\TargetPathTrait;
  * lazily through the badge so that the firewall's login throttle runs before
  * an account is linked or created.
  *
- * No RememberMeBadge. "Keep me logged in" is a checkbox on the password form,
- * and there is no form here to tick it on; a lapsed session costs one click
- * through a provider that remembers the person anyway.
+ * Signed in this way is remembered, as "Keep me signed in" does on the password
+ * form. There is no checkbox here to tick, and without the badge the only thing
+ * holding the person in is the PHP session: a cookie that ends with the browser,
+ * kept in a file that is cleaned up after 24 minutes without a request and that
+ * every deploy, which replaces the container, throws away with the rest of its
+ * filesystem. The remember-me token is stored in the database and outlives all
+ * three. The badge carries the parameter the firewall looks for, because the
+ * callback has no form to carry it: set `always_remember_me` instead and the
+ * password form's unticked checkbox would stop meaning anything.
  */
 final class OidcAuthenticator extends AbstractAuthenticator
 {
@@ -81,20 +89,34 @@ final class OidcAuthenticator extends AbstractAuthenticator
             throw $this->refusal($e);
         }
 
+        return $this->passportFor($identity);
+    }
+
+    /**
+     * Split from authenticate() so that what the passport carries can be
+     * looked at without a provider to complete a sign-in against.
+     */
+    public function passportFor(OidcIdentity $identity): Passport
+    {
         // The badge's identifier is what the login throttle keys its
         // per-username limits on. The subject, not the address: it is what
         // identifies the person at the provider, and the address may not
         // have been sent.
-        return new SelfValidatingPassport(new UserBadge(
-            'oidc:' . $identity->subject,
-            function () use ($identity): User {
-                try {
-                    return $this->resolver->resolve($identity);
-                } catch (OidcLoginFailed $e) {
-                    throw $this->refusal($e);
-                }
-            },
-        ));
+        return new SelfValidatingPassport(
+            new UserBadge(
+                'oidc:' . $identity->subject,
+                function () use ($identity): User {
+                    try {
+                        return $this->resolver->resolve($identity);
+                    } catch (OidcLoginFailed $e) {
+                        throw $this->refusal($e);
+                    }
+                },
+            ),
+            // `_remember_me` is the firewall's default remember_me_parameter,
+            // the name the password form's checkbox has.
+            [new RememberMeBadge(['_remember_me' => true])],
+        );
     }
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response

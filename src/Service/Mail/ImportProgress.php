@@ -90,7 +90,21 @@ final readonly class ImportProgress
                     // declines — a draft, a chat — and counting only what was
                     // stored left the line short of its total for good: 21,964
                     // of 24,199 with nothing still to come (#90).
-                    $done = $this->messages->countForAccount($account) + $this->skipped->countForAccount($account);
+                    //
+                    // And dealt with wherever it went. Mail Gmail collected
+                    // from a mailbox that is also connected here is stored on
+                    // that account, not this one; counting only this account's
+                    // rows left a line at 65,010 of 76,018 with the queue
+                    // empty, short by exactly what the other account held.
+                    $done = $this->messages->countForAccount($account)
+                        + $this->messages->countCarriedBy($account)
+                        + $this->skipped->countForAccount($account);
+
+                    // Never past the total. It is Gmail's count when it was
+                    // last asked, and mail that arrived since is stored too.
+                    if (null !== $account->importTotal) {
+                        $done = min($done, $account->importTotal);
+                    }
 
                     $lines[] = new ImportLine(
                         $account,

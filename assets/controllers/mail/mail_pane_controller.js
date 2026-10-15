@@ -224,6 +224,18 @@ export default class extends Controller {
             this._showList();
         };
         document.addEventListener("turbo:frame-load", this._onListSwap);
+        // Turbo swaps the frame's contents and keeps the frame element, with
+        // its data attributes, from the page before. Those name the list — what
+        // a sync refreshes and what a row's buttons tell the server they were
+        // pressed in (list_view.js) — so the incoming list's values are copied
+        // across before it renders, or All Mail would go on describing itself
+        // as whatever was open before it.
+        this._onListRendering = (event) => {
+            if (LIST_FRAME_ID === event.target.id) {
+                this._copyListContext(event.target, event.detail.newFrame);
+            }
+        };
+        document.addEventListener("turbo:before-frame-render", this._onListRendering);
 
         // A refresh that came due while the tab was in the background is held
         // rather than dropped, and taken the moment it is looked at again.
@@ -279,6 +291,7 @@ export default class extends Controller {
         document.removeEventListener("reading-split:layout", this._onSplitLayout);
         this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
+        document.removeEventListener("turbo:before-frame-render", this._onListRendering);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
         // A trailing refresh outlives this controller otherwise: Turbo replaces
@@ -289,6 +302,9 @@ export default class extends Controller {
             clearTimeout(this._refreshTimer);
             this._refreshTimer = null;
         }
+
+        // The same for a refresh queued behind one in flight.
+        this._refreshAgain = null;
     }
 
     /**
@@ -698,10 +714,10 @@ export default class extends Controller {
         // attribute's own note in _layout/_mailbox.html.twig.
         const scope =
             document.getElementById(LIST_FRAME_ID)?.dataset.syncScope || "*";
-        // Unread gathers mail from every folder, so a sync of any of them can
-        // change it — the same answer "*" gives. Without this, new mail put the
-        // badge up and left the list beside it as it was.
-        if (scope === "*" || scope === "unread") {
+        // Unread and All Mail gather mail from every folder, so a sync of any
+        // of them can change them — the same answer "*" gives. Without this,
+        // new mail put the badge up and left the list beside it as it was.
+        if (scope === "*" || scope === "unread" || scope === "all_mail") {
             return true;
         }
 
@@ -768,7 +784,22 @@ export default class extends Controller {
 
         // One at a time: a burst of sync events would otherwise have several
         // responses racing to write the same element.
+        //
+        // But queued, not dropped. The fetch in flight was asked for BEFORE
+        // whatever this request is about, and may well come back without it:
+        // a bulk job's per-chunk nudge starts a refresh, the job finishes while
+        // that fetch is out, and the job's "done" — the one event that is
+        // certain to describe the finished list — arrived here and was thrown
+        // away. The list then went on showing the archived conversations until
+        // something unrelated happened to refresh it. One follow-up is taken
+        // when the current fetch lands, carrying the most urgent of whatever
+        // asked in the meantime.
         if (this._refreshing === true) {
+            this._refreshAgain = {
+                immediate: immediate || (this._refreshAgain?.immediate ?? false),
+                url: url ?? this._refreshAgain?.url ?? null,
+            };
+
             return;
         }
 
@@ -842,14 +873,37 @@ export default class extends Controller {
             // Carried over with the content: the response says whether it
             // actually rendered a list, and _listNeedsRendering() reads it back
             // off the live frame on the next Back.
-            frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
+            this._copyListContext(frame, fresh);
         } catch (error) {
             // A failed refresh is not worth surfacing: the next sync event, or
             // the next navigation, redraws it anyway.
             console.warn("[mail-pane] list refresh failed", error);
         } finally {
             this._refreshing = false;
+
+            const again = this._refreshAgain ?? null;
+
+            this._refreshAgain = null;
+
+            if (again !== null) {
+                this._refreshList(again);
+            }
         }
+    }
+
+    /**
+     * What the frame element says about the list it holds, taken from the
+     * list that has just arrived: whether it rendered one (read back by
+     * _listNeedsRendering() on the next Back), what a sync refreshes it for,
+     * and the value that narrows its scope (list_view.js).
+     *
+     * @param {Element} frame  the live frame
+     * @param {Element} fresh  the frame as the server has just rendered it
+     */
+    _copyListContext(frame, fresh) {
+        frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
+        frame.dataset.syncScope = fresh.dataset.syncScope ?? "*";
+        frame.dataset.listScopeValue = fresh.dataset.listScopeValue ?? "";
     }
 
     /**

@@ -93,6 +93,19 @@ final class Capability
     public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
 
     /**
+     * Vendor extension: the inbox tabs, as the reader arranged them — which
+     * built-in categories are switched on, the tabs they made themselves, and
+     * the order of all of them. InboxTab/get and InboxTab/changes, plus
+     * Thread.inboxTab and Email/query's threadInboxTab.
+     *
+     * On every account rather than at the top level like TEMPLATES, though the
+     * tabs are the user's: Thread.inboxTab is an account-scoped property, and
+     * the change log a phone is pushed from is per account. Every account of a
+     * user answers with the same tabs, the way a label is a Mailbox in each.
+     */
+    public const string INBOX_TABS = 'urn:plmail:params:jmap:inboxtabs';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -112,5 +125,6 @@ final class Capability
         self::SYNC,
         self::CONTACTS,
         self::TEMPLATES,
+        self::INBOX_TABS,
     ];
 }

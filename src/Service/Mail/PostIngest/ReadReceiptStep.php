@@ -42,7 +42,10 @@ final readonly class ReadReceiptStep implements PostIngestStepInterface
 
     public function afterCommit(PostIngestResult $result): void
     {
-        $ids = $this->recent->recentIds($result);
+        // Spam and Trash included, unlike the steps that read mail for its
+        // meaning: this only pairs a receipt with the mail it is about, and a
+        // receipt filtered into Spam is still that mail's receipt.
+        $ids = $this->recent->recentIds($result, includeSetAside: true);
 
         if ([] === $ids) {
             return;

@@ -10,6 +10,7 @@ use App\Entity\Insight\MailInsight;
 use App\Entity\Integration\Integration;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
@@ -79,6 +80,7 @@ final class OwnershipVoter extends Voter
         return $subject instanceof Account
             || $subject instanceof Calendar
             || $subject instanceof CalendarEvent
+            || $subject instanceof InboxCategory
             || $subject instanceof Integration
             || $subject instanceof Label
             || $subject instanceof MailInsight
@@ -136,6 +138,7 @@ final class OwnershipVoter extends Voter
             $subject instanceof Account        => $subject->usr,
             $subject instanceof Calendar       => $subject->usr,
             $subject instanceof CalendarEvent  => $subject->usr,
+            $subject instanceof InboxCategory  => $subject->usr,
             $subject instanceof Integration    => $subject->usr,
             $subject instanceof Label          => $subject->usr,
             // Through the account, like Message: an insight belongs to whoever

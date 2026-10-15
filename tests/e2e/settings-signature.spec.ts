@@ -77,7 +77,31 @@ async function removeAlias(
     await expect(row).toHaveCount(0);
 }
 
+/**
+ * Take the account's own signature away again.
+ *
+ * The worker's user is shared by every spec that runs on that worker, and a
+ * signature left behind is in every compose window they open — which is how a
+ * test here once made compose-formatting.spec.ts's exact-text assertion fail
+ * whenever the two happened to share a worker.
+ */
+async function clearSignature(page: import("@playwright/test").Page): Promise<void> {
+    await page.goto("/settings?section=signature");
+
+    const block = accountBlock(page);
+    const source = block.getByRole("textbox", { name: /as HTML/ }).first();
+
+    await block.getByRole("button", { name: "HTML", exact: true }).first().click();
+    await source.fill("");
+    await block.getByRole("button", { name: "Save signature" }).first().click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+}
+
 test.describe("signature settings", () => {
+    test.afterEach(async ({ page }) => {
+        await clearSignature(page);
+    });
+
     test("is its own section, reachable from the nav", async ({ page }) => {
         await page.goto("/settings?section=accounts");
 

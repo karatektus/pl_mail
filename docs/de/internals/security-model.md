@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:02e1f043b3db59408b1066bfaa0316f8f503e092 -->
+<!-- translated-from: internals/security-model.md sha1:ec9aeaf511daaa02fb59138c5e65e3b6a0c5e7f1 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -719,6 +719,14 @@ Das Spam-Banner ist davon getrennt und braucht gar keine Heuristik: Die Nachrich
 Label mit der Rolle Spam. Eine vertraute Absenderin bekommt im Spam **keine** Bilder — die
 Positivliste hält eine Überzeugung über eine Absenderin fest, und eine Nachricht im Spam ist der
 Widerspruch der Anbieterin dagegen, dass dies wirklich jene Absenderin ist.
+
+**Einstellungen → Mail → Bilder** kann die Positivliste auf alle Absender ausweiten
+(`images.always_show` in den Einstellungen der Person, aus, bis es eingeschaltet wird, #124). Es
+wird in `MessageRenderer` neben der Positivliste gelesen und endet, wo sie endet: Spam gewinnt
+weiterhin, und Bilder laufen weiterhin über den Proxy, sodass eine Absenderin erfährt, dass eine
+Nachricht geöffnet wurde, aber nicht die Adresse der Leserin. Es ist absichtlich von der
+Positivliste getrennt, damit keine „Nicht mehr anzeigen“-Zeile für eine Absenderin erscheint, der
+niemand vertraut hat, und damit Ausschalten die Einträge pro Absender so lässt, wie sie waren.
 
 ## Fallstricke
 

@@ -392,6 +392,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
             $container->get(HeldMailReleaser::class),
             $this->em,
             new NullLogger(),
+            $container->get(\App\Jmap\State\StateManager::class),
         );
     }
 

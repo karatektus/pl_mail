@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:2388fc922f8d8c7960cf50a0a591a781ad13a6a0 -->
+<!-- translated-from: features/calendar-invitations.md sha1:ac003e74ee2c24e2b32f0a4a85c2b20bac368a6c -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -232,9 +232,12 @@ Eine Nachricht kommt nur in Betracht, wenn **alle** diese Punkte zutreffen:
 - Nichts daran wurde zuvor abgelehnt.
 
 Und der Text selbst muss eindeutig sein. Gelesen werden ausdrückliche und halb ausdrückliche Formen
-auf Deutsch und Englisch — `04.08.2026 um 14 Uhr`, `4. August 2026, 14:00`, `2026-08-04 14:00`,
-`Samstag um 15 Uhr`, `Saturday at 3pm`, `tomorrow at 9`, `next Tuesday 10:30` — mit einer Dauer,
-sofern die Mail eine nennt (`2 Stunden`, `90 Minuten`, `2 hours`).
+auf Deutsch, Englisch und Französisch, egal in welcher Sprache du plMail benutzt —
+`04.08.2026 um 14 Uhr`, `4. August 2026, 14:00`, `2026-08-04 14:00`, `Samstag um 15 Uhr`,
+`Saturday at 3pm`, `tomorrow at 9`, `next Tuesday 10:30`, `le 1er août à 14h30`,
+`mardi prochain à 10h`, `demain à 9h` — mit einer Dauer, sofern die Mail eine nennt (`2 Stunden`,
+`90 Minuten`, `2 hours`, `2 heures`). Ein Datum mit Schrägstrichen wie `04/08/2026` wird auf Deutsch
+und Französisch mit dem Tag zuerst gelesen, auf Englisch mit dem Monat zuerst.
 
 Drei Regeln prägen das Lesen:
 

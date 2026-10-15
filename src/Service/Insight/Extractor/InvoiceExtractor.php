@@ -17,7 +17,7 @@ use DateTimeZone;
  *
  * Two things have to be true before anything is emitted, and neither on its
  * own is enough. The mail has to TALK like a bill — "Rechnung", "invoice",
- * "Zahlungsaufforderung", "amount due" — and it has to NAME A SUM in a
+ * "facture", "Zahlungsaufforderung", "amount due" — and it has to NAME A SUM in a
  * currency. A newsletter announcing "unsere Rechnung für den Sommer" states
  * no money; a shop confirmation full of prices is not a demand for payment.
  * Only the pair is a bill, and a card that says "you owe something" without
@@ -55,6 +55,7 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
     private const array SUBJECT_WORDS = [
         'rechnung', 'invoice', 'zahlungsaufforderung', 'zahlungserinnerung',
         'mahnung', 'amount due', 'payment due', 'bill', 'faktura', 'quittung',
+        'facture', 'rappel de paiement', 'avis d’échéance', "avis d'échéance",
     ];
 
     /**
@@ -69,17 +70,22 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
         'rechnung', 'invoice', 'zahlungsaufforderung', 'zahlungserinnerung',
         'mahnung', 'amount due', 'payment due', 'betrag', 'gesamtbetrag',
         'total', 'fällig', 'faellig', 'due date', 'zu zahlen', 'zahlbar',
+        'facture', 'montant', 'à payer', 'échéance', 'à régler',
     ];
 
     /**
      * Words that introduce the sum that matters, as opposed to a line item.
      * A bill lists parts and then states its total; the amount standing next
      * to one of these is the one the card owes.
+     *
+     * The first of them in the mail wins, which is why French has no bare
+     * "montant" and "total" refuses a following "HT": a French bill states the
+     * sum before tax first ("Montant HT", "Total HT") and what is owed after it.
      */
-    private const string TOTAL_WORDS = '~gesamtbetrag|gesamtsumme|rechnungsbetrag|zu zahlender betrag|zu zahlen|amount due|total due|total amount|grand total|\btotal\b|\bbetrag\b~iu';
+    private const string TOTAL_WORDS = '~gesamtbetrag|gesamtsumme|rechnungsbetrag|zu zahlender betrag|zu zahlen|amount due|total due|total amount|grand total|net à payer|montant à payer|montant dû|montant total|total ttc|\btotal\b(?!\s*h\.?t\b)|\bbetrag\b~iu';
 
     /** Words that promise a deadline; a date elsewhere is not one. */
-    private const string DUE_WORDS = '~fällig am|fällig bis|faellig am|faellig bis|fälligkeit|faelligkeit|zahlbar bis|zahlbar am|zahlung bis|bitte bis|due date|due on|due by|payable by|pay by~iu';
+    private const string DUE_WORDS = '~fällig am|fällig bis|faellig am|faellig bis|fälligkeit|faelligkeit|zahlbar bis|zahlbar am|zahlung bis|bitte bis|due date|due on|due by|payable by|pay by|date d.échéance|échéance|à régler avant|à payer avant|payable avant|à régler au plus tard~iu';
 
     /**
      * The amount shapes, in both conventions and with the currency on either
@@ -112,7 +118,7 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
     ];
 
     /**
-     * Month names, spelled and abbreviated, in both languages — written out
+     * Month names, spelled and abbreviated, in all three languages — written out
      * rather than derived from ICU for the same reason ParcelExtractor writes
      * them out: the parse must give the same answer on every machine.
      *
@@ -131,6 +137,17 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
         'oktober' => 10, 'october' => 10, 'okt' => 10, 'oct' => 10,
         'november' => 11, 'nov' => 11,
         'dezember' => 12, 'december' => 12, 'dez' => 12, 'dec' => 12,
+        'janvier' => 1, 'janv' => 1,
+        'février' => 2, 'fevrier' => 2, 'févr' => 2, 'fevr' => 2,
+        'mars' => 3,
+        'avril' => 4, 'avr' => 4,
+        'juin' => 6,
+        'juillet' => 7, 'juil' => 7,
+        'août' => 8, 'aout' => 8,
+        'septembre' => 9,
+        'octobre' => 10,
+        'novembre' => 11,
+        'décembre' => 12, 'decembre' => 12,
     ];
 
     public static function key(): string
@@ -356,7 +373,7 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
      */
     private function invoiceNumberIn(string $whole): ?string
     {
-        $pattern = '~(?:rechnungsnummer|rechnungs-?nr\.?|rechnung\s+nr\.?|invoice\s*(?:number\b|no\b\.?|#)|belegnummer)\s*[:#]?\s*([A-Z0-9][A-Z0-9/\-]{2,29})~iu';
+        $pattern = '~(?:rechnungsnummer|rechnungs-?nr\.?|rechnung\s+nr\.?|invoice\s*(?:number\b|no\b\.?|#)|belegnummer|num[ée]ro de facture|n°\s*de\s*facture|facture\s*n°)\s*[:#]?\s*([A-Z0-9][A-Z0-9/\-]{2,29})~iu';
 
         if (1 !== preg_match($pattern, $whole, $match)) {
             return null;
@@ -470,10 +487,10 @@ final readonly class InvoiceExtractor implements InsightExtractorInterface
 
         $months = implode('|', array_keys(self::MONTHS));
 
-        // 24. Dezember [2026] — the month name removes the day/month
-        // ambiguity, which is what lets the year be optional here and not in
-        // the numeric forms.
-        if (1 === preg_match(sprintf('~\b(\d{1,2})\.?\s*(%s)\b(?:\s*,?\s*(\d{4}))?~iu', $months), $window, $m)) {
+        // 24. Dezember [2026], 1er décembre — the month name removes the
+        // day/month ambiguity, which is what lets the year be optional here
+        // and not in the numeric forms.
+        if (1 === preg_match(sprintf('~\b(\d{1,2})(?:\.|er)?\s*(%s)\b(?:\s*,?\s*(\d{4}))?~iu', $months), $window, $m)) {
             return $this->dateFrom(
                 (int) $m[1],
                 self::MONTHS[$this->monthKey($m[2])],

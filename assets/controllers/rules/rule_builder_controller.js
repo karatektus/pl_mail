@@ -53,6 +53,7 @@ export default class extends Controller {
         conditions: Object,
         actions: Array,
         labels: Array,
+        categories: Array,
         integrations: Array,
         previewUrl: String,
         csrf: String,
@@ -304,6 +305,10 @@ export default class extends Controller {
                     this.actions[i].integrationId = this.integrationsValue[0]?.id
                 }
 
+                if (select.value === "fileInCategory") {
+                    this.actions[i].categoryId = this.categoriesValue[0]?.id
+                }
+
                 this.renderActions()
                 this.serialise()
                 this.schedulePreview()
@@ -332,6 +337,36 @@ export default class extends Controller {
                 })
 
                 row.append(label)
+            }
+
+            if (action.type === "fileInCategory") {
+                if (0 === this.categoriesValue.length) {
+                    // Every category was deleted since this rule was written.
+                    // Said plainly rather than rendering an empty select that
+                    // would store no target and file nothing at run time.
+                    const warn = document.createElement("span")
+                    warn.className = "text-xs text-danger"
+                    warn.textContent = this._t("no_categories")
+                    row.append(warn)
+                } else {
+                    const target = this._selectElement("flex-1 min-w-[9rem]")
+
+                    for (const category of this.categoriesValue) {
+                        const o = document.createElement("option")
+                        o.value = String(category.id)
+                        o.textContent = category.name
+                        o.selected = Number(action.categoryId) === category.id
+                        target.append(o)
+                    }
+
+                    target.addEventListener("change", () => {
+                        this.actions[i].categoryId = Number(target.value)
+                        this.serialise()
+                        this.schedulePreview()
+                    })
+
+                    row.append(target)
+                }
             }
 
             if (action.type === "saveToIntegration") {

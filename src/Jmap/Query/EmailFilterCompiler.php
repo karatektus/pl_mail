@@ -155,6 +155,8 @@ final class EmailFilterCompiler
             'listId' => $this->header('list-id', $value, $parameters),
             // plMail extension; see threadCategory() and src/Jmap/README.md.
             'threadCategory' => $this->threadCategory($value, $parameters),
+            // plMail extension; see threadInboxTab().
+            'threadInboxTab' => $this->threadInboxTab($value, $parameters),
             default => throw new MethodException('unsupportedFilter', sprintf('Filter condition "%s" is not supported.', $property)),
         };
     }
@@ -275,6 +277,65 @@ final class EmailFilterCompiler
         return sprintf(
             'EXISTS (SELECT 1 FROM message_thread mt WHERE mt.id = m.thread_id AND mt.category = :%s)',
             $name,
+        );
+    }
+
+    /**
+     * The tab the web shows the conversation in — `urn:plmail:params:jmap:inboxtabs`.
+     *
+     * threadCategory() above, for a client that knows the reader's tabs: the
+     * same conversations the web lists under the same key
+     * (MessageThreadRepository::narrowToCategory()), and so the same rules.
+     *
+     *  - One of the reader's own tabs ("c12") holds what is filed there. No
+     *    ownership check is needed in PHP: a category is filed into only by
+     *    its owner's filters and drops, so another person's id matches none of
+     *    this reader's conversations.
+     *  - A built-in tab holds its category, minus what was filed into one of
+     *    the reader's own tabs.
+     *  - Primary also holds the categories the reader switched off, and a
+     *    switched-off tab holds nothing — read from the reader's settings in
+     *    the same statement, so this compiler stays free of who is asking.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function threadInboxTab(mixed $value, array &$parameters): string
+    {
+        if (false === is_string($value)) {
+            throw new MethodException('invalidArguments', '"threadInboxTab" must be a string.');
+        }
+
+        if (1 === preg_match('/^c([1-9][0-9]*)$/', $value, $match)) {
+            $name = $this->bind((int) $match[1], $parameters);
+
+            return sprintf(
+                'EXISTS (SELECT 1 FROM message_thread mt WHERE mt.id = m.thread_id AND mt.user_category_id = :%s)',
+                $name,
+            );
+        }
+
+        $category = MessageCategory::tryFrom($value);
+
+        if (null === $category) {
+            throw new MethodException('invalidArguments', sprintf(
+                '"%s" is not a tab key. Use an id from InboxTab/get: one of %s, or "c" and the id of one of your own.',
+                $value,
+                implode(', ', array_column(MessageCategory::cases(), 'value')),
+            ));
+        }
+
+        $name = $this->bind($category->value, $parameters);
+
+        // jsonb_exists() rather than the `?` operator, which PDO would read as
+        // a positional placeholder.
+        $condition = MessageCategory::Primary === $category
+            ? sprintf('(mt.category = :%1$s OR jsonb_exists(u.category_disabled::jsonb, mt.category))', $name)
+            : sprintf('mt.category = :%1$s AND NOT jsonb_exists(u.category_disabled::jsonb, :%1$s)', $name);
+
+        return sprintf(
+            'EXISTS (SELECT 1 FROM message_thread mt JOIN account ta ON ta.id = mt.account_id JOIN "user" u ON u.id = ta.usr_id'
+            . ' WHERE mt.id = m.thread_id AND mt.user_category_id IS NULL AND %s)',
+            $condition,
         );
     }
 

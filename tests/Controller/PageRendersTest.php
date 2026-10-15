@@ -55,6 +55,7 @@ final class PageRendersTest extends WebTestCase
         yield 'settings security enrolling' => ['/settings?section=security&enrol=1'];
         yield 'settings general' => ['/settings?section=general'];
         yield 'settings disposal' => ['/settings?section=disposal'];
+        yield 'settings images' => ['/settings?section=images'];
         // The AI section renders whether or not an administrator has switched
         // anything on: a feature that is off is a row with a sentence instead
         // of a switch, and that branch is the one nothing else walks.

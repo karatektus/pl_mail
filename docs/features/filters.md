@@ -58,6 +58,7 @@ how "label everything arriving in this account" is written.
 | **Move to trash** | |
 | **Mark as spam** | |
 | **Save attachments to** | Uploads the message's attachments to a connected service |
+| **File in category** | Files the mail under one of your own inbox tabs. Only offered once you have made one — see [Filing into your own tabs](#filing-into-your-own-tabs) |
 
 At least one action is required; a filter with none would do nothing, and the editor says so rather
 than saving it.
@@ -131,9 +132,64 @@ messages**, or **Run stopped partway — N messages were done** if something fai
 A filter already running refuses to start again: re-running mid-flight would double-count progress
 and race the handler's writes.
 
+## Filing into your own tabs
+
+A filter can put mail into an inbox tab of your own. Make the tab first, under **Settings → General
+→ Your own tabs**; then add a filter whose action is **File in category** and pick it. Any
+condition works. For "everything from my parcel carriers" it is **Sender's domain is**, one row per
+carrier, inside an **Any** group:
+
+```
+All of the following
+  Any of the following
+    Sender's domain is mondialrelay.fr
+    Sender's domain is chronopost.fr
+    Sender's domain is dhl.de
+  None of the following
+    Sender's domain is e-mail.mondialrelay.fr
+    Subject contains satisfaction
+→ File in category Shipping
+```
+
+**Keeping marketing out is the second group.** A carrier's newsletters often come from another
+address than its delivery notices, but nothing in the headers tells the two apart — a real
+delivery notice can carry an unsubscribe link just as a newsletter does — so you say it in the
+filter. Mail the **None of** group excludes is simply not filed by this filter. It is sorted the way
+it would have been anyway, so the newsletter stays in Promotions. The live count of matching mail
+and the sentence under the editor read the whole thing back before you save it — a wrong **None of**
+is easy to see there and hard to see afterwards.
+
+What the action will and will not file:
+
+- **Only mail whose sender passes authentication.** The receiving mail server records whether the
+  message really came from the domain in its From line, and plMail reads that verdict (the same one
+  that decides whether a calendar invitation may be applied without asking). A forged "your parcel
+  is waiting" from a carrier's domain is therefore not filed by this filter — it stays where the
+  ordinary rules put it, instead of sitting in your Shipping tab beside the real ones. Mail that
+  fails the check is not filed, and neither is mail plMail cannot check; see "Things that bite" for
+  what this does and does not guarantee.
+- **On Gmail accounts too.** Google's categories outrank plMail's own sorting unless you say
+  otherwise, but a filter is an instruction you wrote, and it outranks both.
+- **Nothing but a tab.** The action does not touch labels, does not archive, does not move anything
+  to Spam and does not mark anything read. The Android app shows your tabs; other mail apps that
+  connect over JMAP keep seeing the five built-in categories.
+
+A conversation is in **one** tab. It is in yours when its newest message was filed there, so a
+newer message no filter claims takes it back out, the way a newer Promotions message takes a
+conversation out of Updates. A conversation you drag onto a tab stays there whatever a filter says.
+
+When two filters would file the same message, the one that runs **last** decides; **Stop after this
+filter** on the earlier one is how you keep its choice.
+
+Deleting a tab puts its mail back in the tab it would otherwise be in. No mail is deleted, and a
+filter that filed into it keeps its place and reads **(deleted category)** until you point it
+somewhere else.
+
 ## Where to read further
 
 - [Mail](mail.md) — labels, search, and the operations these actions perform.
+- [Tabs of your own](mail.md#tabs-of-your-own) — making them, dragging into them, and what the
+  message panel says about them.
 - [Files and integrations](integrations.md) — connecting the services **Save attachments to**
   offers.
 - [Mail ingest](../internals/mail-ingest.md) — where in the pipeline filters sit.
@@ -166,3 +222,27 @@ same pass; it is not a permanent mark on the message.
 **Ticking "Save attachments to" for a service that can only be read from is impossible by
 construction** — the list only offers upload-capable connections. If the one you want is missing,
 that is why.
+
+**"File in category" files nothing on an account whose receiving server plMail cannot identify.**
+It trusts only the authentication verdict a server it can tell is yours wrote into the message — for
+an IMAP account, one whose name is on the same domain as the account's IMAP host. On a mailbox
+where that cannot be told (a host that stamps nothing, or stamps under another name), a filter
+that files into a tab matches, runs and files nothing. That is the price of a tab that cannot be
+filled with forgeries, and it is chosen, not a bug.
+
+**The check is about the message, and it only helps if the filter names the sender.** A filter whose
+conditions do not pin the sender — "Subject contains parcel", say — files any sender whose own
+domain passes authentication, a lookalike domain included: authentication proves a message came from
+the domain it claims, not that the domain is the one you meant. Pin the sender with **Sender's
+domain is**. And a tab holds conversations, not messages: a forged message that replies into a
+genuine conversation (the same sender address, a "Re:" subject) can join it, and a conversation you
+dragged into a tab stays there whatever joins it afterwards.
+
+**A filing is remembered, and editing or deleting the filter does not undo it.** Like every other
+action, it acts on mail and leaves the result: mail a filter filed stays filed. To re-file, change
+the filter and press **Apply to existing mail**; to empty a tab, drag its conversations out or
+delete the tab.
+
+**The last filter to file a message wins** — the opposite of what the order of a list of rules
+usually suggests. Put a broad filter above the specific ones, or give a specific one **Stop after
+this filter**.

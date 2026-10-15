@@ -67,6 +67,7 @@ final class MessageCategorizer
             true === $sorting?->overrideProvider,
             true === $sorting?->ignoresAi(),
             true === $sorting?->assistantFirst(),
+            $sorting?->switchedOff() ?? [],
         )['category'];
     }
 
@@ -132,6 +133,15 @@ final class MessageCategorizer
      *     the message view offers both answers side by side, so the difference
      *     is something to look at rather than something to discover later.
      *
+     * @param list<MessageCategory> $switchedOff
+     *     Categories the reader switched off (CategorySorting::$disabled).
+     *     Whatever the cascade would file under one of them — a header rule,
+     *     Google's label, the assistant — is in Primary instead, with the
+     *     reason `switched_off` and the category it would have been as the
+     *     signal. Applied to the ANSWER rather than by skipping steps: "Forums
+     *     is off" means a mailing list is ordinary mail, not that the next
+     *     rule down gets to call it Promotions for its List-Unsubscribe.
+     *
      * @return array{category: MessageCategory, reason: string, signal: string|null}
      */
     public function explain(
@@ -140,6 +150,34 @@ final class MessageCategorizer
         bool $ignoreProviderLabels = false,
         bool $ignoreAi = false,
         bool $aiFirst = false,
+        array $switchedOff = [],
+    ): array {
+        $decided = $this->decide($message, $correspondentEmails, $ignoreProviderLabels, $ignoreAi, $aiFirst);
+
+        if (true === in_array($decided['category'], $switchedOff, true) && MessageCategory::Primary !== $decided['category']) {
+            return [
+                'category' => MessageCategory::Primary,
+                'reason'   => 'switched_off',
+                'signal'   => $decided['category']->value,
+            ];
+        }
+
+        return $decided;
+    }
+
+    /**
+     * The cascade itself, before the reader's switched-off tabs are applied.
+     *
+     * @param array<string,true> $correspondentEmails
+     *
+     * @return array{category: MessageCategory, reason: string, signal: string|null}
+     */
+    private function decide(
+        Message $message,
+        array $correspondentEmails,
+        bool $ignoreProviderLabels,
+        bool $ignoreAi,
+        bool $aiFirst,
     ): array {
         $gmailLabelIds = $message->gmailLabelIds;
 

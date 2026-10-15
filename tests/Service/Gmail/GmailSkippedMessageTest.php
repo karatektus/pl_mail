@@ -7,6 +7,7 @@ namespace App\Tests\Service\Gmail;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\GmailSkippedMessage;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SyncGmailMessageBatchHandler;
@@ -73,10 +74,10 @@ final class GmailSkippedMessageTest extends KernelTestCase
         parent::tearDown();
     }
 
-    /** A draft: no Sent label, addressed to somebody else, never delivered anywhere. */
+    /** A chat: in the mailbox, and not mail. The one kind that is still declined. */
     public function testADeclinedMessageIsRecordedWithWhatTheDecisionWasMadeOn(): void
     {
-        $this->handle(['DRAFT'], to: 'Rike <rike@elsewhere.test>');
+        $this->handle(['CHAT'], to: 'Rike <rike@elsewhere.test>');
 
         self::assertSame(0, $this->storedCount(), 'declined, as before');
 
@@ -85,7 +86,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame(self::GMAIL_ID, $rows[0]->gmailId);
         self::assertSame(GmailSkipReason::Unattributable, $rows[0]->reason);
-        self::assertSame(['DRAFT'], $rows[0]->labelIds);
+        self::assertSame(['CHAT'], $rows[0]->labelIds);
         self::assertSame('Rike <rike@elsewhere.test>', $rows[0]->headers['to'] ?? null);
         self::assertSame('sender@example.test', $rows[0]->headers['from'] ?? null);
         self::assertArrayNotHasKey('subject', $rows[0]->headers, 'why it was declined, not a copy of the mail');
@@ -94,11 +95,11 @@ final class GmailSkippedMessageTest extends KernelTestCase
     /** The point of the record: the listing's next batch does not ask Gmail for it at all. */
     public function testADeclinedMessageIsNotFetchedAgainByTheNextListing(): void
     {
-        $this->handle(['DRAFT'], to: 'rike@elsewhere.test', onlyMissing: true);
+        $this->handle(['CHAT'], to: 'rike@elsewhere.test', onlyMissing: true);
 
         self::assertSame(1, $this->requests);
 
-        $this->handle(['DRAFT'], to: 'rike@elsewhere.test', onlyMissing: true);
+        $this->handle(['CHAT'], to: 'rike@elsewhere.test', onlyMissing: true);
 
         self::assertSame(1, $this->requests, 'nothing was asked for the second time');
         self::assertSame(1, $this->skipped->countForAccount($this->account));
@@ -107,8 +108,8 @@ final class GmailSkippedMessageTest extends KernelTestCase
     /** A label change re-fetches it deliberately; that must not write a second row. */
     public function testDecliningTheSameMessageTwiceIsOneRecord(): void
     {
-        $this->handle(['DRAFT'], to: 'rike@elsewhere.test');
-        $this->handle(['DRAFT', 'STARRED'], to: 'rike@elsewhere.test');
+        $this->handle(['CHAT'], to: 'rike@elsewhere.test');
+        $this->handle(['CHAT', 'STARRED'], to: 'rike@elsewhere.test');
 
         self::assertSame(2, $this->requests);
         self::assertSame(1, $this->skipped->countForAccount($this->account));
@@ -126,17 +127,125 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertSame([], $rows[0]->headers);
     }
 
-    /** Declined once is not declined for good: when it can be attributed after all, it is stored and the record goes. */
+    /**
+     * Declined once is not declined for good. A message recorded under the
+     * old rule — which dropped anything whose headers did not name this
+     * account — is stored when it is next looked at, and its record goes.
+     * This is the upgrade path for every mailbox the old rule ran over.
+     */
     public function testAMessageThatBecomesAttributableIsStoredAndComesOffTheRecord(): void
     {
+        $this->em->persist(new GmailSkippedMessage($this->account, self::GMAIL_ID, GmailSkipReason::Unattributable, ['INBOX']));
+        $this->em->flush();
+
         $this->handle(['INBOX'], to: 'somebody-else@elsewhere.test');
-
-        self::assertSame(1, $this->skipped->countForAccount($this->account));
-
-        $this->handle(['INBOX'], to: 'gmail@example.test');
 
         self::assertSame(1, $this->storedCount());
         self::assertSame(0, $this->skipped->countForAccount($this->account));
+    }
+
+    // ── who a message belongs to (#90) ───────────────────────────────────────
+
+    /**
+     * The four kinds `app:gmail:skipped` found on a real mailbox, which the
+     * old rule dropped and none of which belongs to any other account.
+     *
+     * @return iterable<string, array{0: list<string>, 1: string, 2: string, 3: ?string}>
+     */
+    public static function mailInThisMailbox(): iterable
+    {
+        yield 'sent from a "send mail as" address' => [['SENT'], 'me@work.test', 'client@elsewhere.test', null];
+        yield 'delivered to a forwarding address not connected here' => [['INBOX'], 'sender@example.test', 'me@old-isp.test', 'me@old-isp.test'];
+        yield 'addressed to the googlemail spelling of the account' => [['INBOX'], 'sender@example.test', 'gmail@googlemail.com', null];
+        yield 'with no recipient headers at all' => [['INBOX'], 'sender@example.test', '', null];
+    }
+
+    /**
+     * @param list<string> $labelIds
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('mailInThisMailbox')]
+    public function testMailInThisMailboxThatNoOtherAccountClaimsIsThisAccounts(array $labelIds, string $from, string $to, ?string $deliveredTo): void
+    {
+        $this->handle($labelIds, to: $to, from: $from, deliveredTo: $deliveredTo);
+
+        self::assertSame(1, $this->storedCount());
+        self::assertSame(0, $this->skipped->countForAccount($this->account));
+    }
+
+    public function testMailToTheGooglemailSpellingOfAGmailAddressIsThatAddresses(): void
+    {
+        $filter = self::getContainer()->get(\App\Service\Gmail\GmailAddressFilter::class);
+
+        self::assertSame($filter->normalise('Kara.Tektus@gmail.com'), $filter->normalise('karatektus@googlemail.com'));
+        self::assertNotSame($filter->normalise('karatektus@gmail.com'), $filter->normalise('karatektus@googlemail.de'));
+    }
+
+    /**
+     * The duplicate the new rule could otherwise make. Gmail collected this
+     * from another connected account — a Bcc'd newsletter, with nothing of
+     * that address left in its headers — and that account's own sync holds
+     * it already. It names nobody, so it would have been stored here as
+     * well; it is merged into the copy that exists instead.
+     */
+    public function testAnUnclaimedMessageAnotherAccountAlreadyHoldsIsMergedNotStoredTwice(): void
+    {
+        $sibling                = new Account();
+        $sibling->usr           = $this->user;
+        $sibling->name          = 'Work';
+        $sibling->email         = 'me@work.test';
+        $sibling->username      = uniqid('work-', true);
+        $sibling->authType      = AuthType::Password->value;
+        $sibling->imapHost      = 'imap.work.test';
+        $sibling->isActive      = true;
+        $this->em->persist($sibling);
+
+        // On a conversation of its own account, as every stored message is:
+        // that is how a copy is found (findOneForAccountByMessageId).
+        $thread                    = new \App\Entity\Mail\MessageThread();
+        $thread->account           = $sibling;
+        $thread->subject           = 'Newsletter';
+        $thread->normalizedSubject = 'newsletter';
+        $thread->threadingMethod   = \App\Domain\Enum\Mail\ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new DateTimeImmutable('-1 hour');
+        $thread->unreadCount       = 0;
+        $this->em->persist($thread);
+
+        $copy              = new Message();
+        $copy->account     = $sibling;
+        $copy->thread      = $thread;
+        $copy->subject     = 'Newsletter';
+        $copy->fromAddress = 'news@list.test';
+        $copy->messageId   = 'gmail-skipped-1@example.test';
+        $copy->receivedAt  = new DateTimeImmutable('-1 hour');
+        $copy->hasAttachments = false;
+        $copy->flags       = [];
+        $this->em->persist($copy);
+        $this->em->flush();
+
+        $this->handle(['INBOX'], to: 'list-members@list.test', from: 'news@list.test');
+
+        self::assertSame(0, $this->storedCount(), 'not a second copy on the Gmail account');
+
+        $this->em->refresh($copy);
+
+        self::assertSame(self::GMAIL_ID, $copy->gmailId, 'the copy that exists learns its Gmail id instead');
+
+        // And the import line counts it: it is in, just not on this account.
+        $this->account->importTotal = 1;
+        $this->em->flush();
+
+        self::assertSame(1, self::getContainer()->get(ImportProgress::class)->forUser($this->user)[0]->done);
+    }
+
+    /** A Gmail draft is a draft here: in Drafts, flagged as one. */
+    public function testAGmailDraftIsStoredAsADraft(): void
+    {
+        $this->handle(['DRAFT'], to: 'rike@elsewhere.test');
+
+        $draft = $this->em->getRepository(Message::class)->findOneBy(['account' => $this->account]);
+
+        self::assertNotNull($draft);
+        self::assertTrue($draft->isDraft());
     }
 
     /**
@@ -152,7 +261,7 @@ final class GmailSkippedMessageTest extends KernelTestCase
 
         self::assertSame(0, $progress->forUser($this->user)[0]->done);
 
-        $this->handle(['DRAFT'], to: 'rike@elsewhere.test');
+        $this->handle(['CHAT'], to: 'rike@elsewhere.test');
 
         self::assertSame(1, $progress->forUser($this->user)[0]->done);
     }
@@ -171,8 +280,14 @@ final class GmailSkippedMessageTest extends KernelTestCase
      *
      * @param list<string> $labelIds
      */
-    private function handle(array $labelIds, string $to, int $status = 200, bool $onlyMissing = false): void
-    {
+    private function handle(
+        array $labelIds,
+        string $to,
+        int $status = 200,
+        bool $onlyMissing = false,
+        string $from = 'sender@example.test',
+        ?string $deliveredTo = null,
+    ): void {
         $payload = json_encode([
             'id'           => self::GMAIL_ID,
             'threadId'     => 'gmail-skipped-thread',
@@ -182,8 +297,9 @@ final class GmailSkippedMessageTest extends KernelTestCase
                 'headers' => array_values(array_filter([
                     ['name' => 'Message-ID', 'value' => '<gmail-skipped-1@example.test>'],
                     ['name' => 'Subject', 'value' => 'About the invoice'],
-                    ['name' => 'From', 'value' => 'sender@example.test'],
+                    ['name' => 'From', 'value' => $from],
                     '' === $to ? null : ['name' => 'To', 'value' => $to],
+                    null === $deliveredTo ? null : ['name' => 'Delivered-To', 'value' => $deliveredTo],
                 ])),
             ],
         ], JSON_THROW_ON_ERROR);

@@ -103,6 +103,33 @@ final class InvoiceExtractorTest extends TestCase
                 ]],
             ],
 
+            'french: a numbered bill, spaced thousands, and an échéance' => [
+                [
+                    'from'     => 'factures@energie-exemple.fr',
+                    'fromName' => 'Énergie Exemple',
+                    'subject'  => 'Votre facture de novembre 2026',
+                    'body'     => "Bonjour,\n\n"
+                        . "Numéro de facture : FA-2026-0042\n"
+                        . "Montant HT : 1 037,13 €\n"
+                        . "Total HT : 1 037,13 €\n"
+                        . "TVA 20 % : 207,42 €\n"
+                        . "Net à payer : 1 244,55 €\n\n"
+                        . 'Date d’échéance : 5 décembre 2026.',
+                ],
+                true,
+                [[
+                    'title'     => 'Énergie Exemple · 1 244,55 €',
+                    'dedupeKey' => 'FA-2026-0042',
+                    'payload'   => [
+                        'amount'        => '1 244,55',
+                        'currency'      => 'EUR',
+                        'invoiceNumber' => 'FA-2026-0042',
+                        'issuer'        => 'Énergie Exemple',
+                    ],
+                    'happensAt' => '2026-12-05 12:00',
+                ]],
+            ],
+
             'english: dollars, and a due date written with a month name' => [
                 [
                     'from'     => 'billing@acme-beispiel.com',

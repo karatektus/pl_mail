@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:f344fbe7df852e520da9a62793d6cf5febeb3cc9 -->
+<!-- translated-from: features/filters.md sha1:446ac513f7e197133acae2b0794ff92ec911c1d4 -->
 
 # Filter
 
@@ -65,6 +65,7 @@ eintrifft“.
 | **In den Papierkorb** | |
 | **Als Spam markieren** | |
 | **Anhänge speichern in** | Lädt die Anhänge der Nachricht in einen verbundenen Dienst hoch |
+| **In Kategorie ablegen** | Legt die Mail in einem deiner eigenen Posteingangs-Tabs ab. Wird erst angeboten, sobald du einen angelegt hast — siehe [In eigene Tabs ablegen](#in-eigene-tabs-ablegen) |
 
 Mindestens eine Aktion ist Pflicht; ein Filter ohne Aktion täte nichts, und der Editor sagt das
 lieber, als ihn zu speichern.
@@ -150,9 +151,69 @@ Ein bereits laufender Filter verweigert einen zweiten Start: Mitten im Lauf erne
 würde den Fortschritt doppelt zählen und mit den Schreibvorgängen des Handlers ins Rennen
 gehen.
 
+## In eigene Tabs ablegen
+
+Ein Filter kann Mail in einen Posteingangs-Tab ablegen, den du selbst angelegt hast. Leg den Tab
+zuerst an, unter **Einstellungen → Allgemein → Deine eigenen Tabs**; dann füge einen Filter hinzu,
+dessen Aktion **In Kategorie ablegen** ist, und wähle ihn aus. Jede Bedingung funktioniert. Für
+„alles von meinen Paketdiensten“ ist es **Absender-Domain ist**, eine Zeile je Paketdienst, in einer
+**Beliebige**-Gruppe:
+
+```
+Alle der folgenden
+  Beliebige der folgenden
+    Absender-Domain ist mondialrelay.fr
+    Absender-Domain ist chronopost.fr
+    Absender-Domain ist dhl.de
+  Keine der folgenden
+    Absender-Domain ist e-mail.mondialrelay.fr
+    Betreff enthält satisfaction
+→ In Kategorie ablegen Sendungen
+```
+
+**Werbung draußen zu halten ist die zweite Gruppe.** Die Newsletter eines Paketdienstes kommen oft
+von einer anderen Adresse als seine Zustellbenachrichtigungen, aber nichts in den Headern
+unterscheidet die beiden — eine echte Zustellbenachrichtigung kann einen Abmeldelink tragen, genau
+wie ein Newsletter —, also sagst du es im Filter. Mail, die die **Keine**-Gruppe ausschließt, wird
+von diesem Filter schlicht nicht abgelegt. Sie wird so einsortiert, wie sie es ohnehin würde; der
+Newsletter bleibt also in Werbung. Die Live-Zahl der passenden Mail und der Satz unter dem Editor
+lesen dir das Ganze vor dem Speichern vor — ein falsches **Keine** sieht man dort leicht und
+hinterher kaum.
+
+Was die Aktion ablegt und was nicht:
+
+- **Nur Mail, deren Absender die Authentifizierung besteht.** Der empfangende Mailserver hält
+  fest, ob die Nachricht wirklich von der Domain in ihrer Absenderzeile kam, und plMail liest dieses
+  Urteil (dasselbe, das entscheidet, ob eine Kalendereinladung ohne Nachfrage übernommen werden
+  darf). Ein gefälschtes „Ihr Paket wartet“ von der Domain eines Paketdienstes wird deshalb von
+  diesem Filter nicht abgelegt — es bleibt, wo die gewöhnlichen Regeln es hinlegen, statt neben den
+  echten in deinem Sendungen-Tab zu sitzen. Mail, die die Prüfung nicht besteht, wird nicht
+  abgelegt, und Mail, die plMail nicht prüfen kann, ebenso wenig; siehe „Fallstricke“ dafür, was das
+  zusichert und was nicht.
+- **Auch bei Gmail-Konten.** Googles Kategorien haben Vorrang vor plMails eigener Sortierung,
+  solange du nichts anderes sagst, aber ein Filter ist eine Anweisung, die du geschrieben hast, und
+  hat Vorrang vor beiden.
+- **Nichts außer einem Tab.** Die Aktion fasst keine Labels an, archiviert nicht, verschiebt nichts
+  in Spam und markiert nichts als gelesen. Die Android-App zeigt deine Tabs; andere Mail-Apps, die
+  sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien.
+
+Eine Konversation steckt in **einem** Tab. Sie steckt in deinem, wenn ihre neueste Nachricht dort
+abgelegt wurde; eine neuere Nachricht, die kein Filter beansprucht, nimmt sie also wieder heraus,
+so wie eine neuere Nachricht aus Werbung eine Konversation aus Benachrichtigungen herausnimmt. Eine Konversation,
+die du per Drag auf einen Tab gezogen hast, bleibt dort, was auch immer ein Filter sagt.
+
+Würden zwei Filter dieselbe Nachricht ablegen, entscheidet der, der **zuletzt** läuft; **Nach
+diesem Filter aufhören** beim früheren ist der Weg, seine Wahl zu behalten.
+
+Einen Tab zu löschen legt seine Mail in den Tab zurück, in dem sie sonst läge. Es wird keine Mail
+gelöscht, und ein Filter, der dort ablegte, behält seinen Platz und liest **(gelöschte Kategorie)**,
+bis du ihn auf etwas anderes zeigen lässt.
+
 ## Wo du weiterliest
 
 - [Mail](mail.md) — Labels, Suche und die Operationen, die diese Aktionen ausführen.
+- [Eigene Tabs](mail.md#eigene-tabs) — sie anlegen, Konversationen hineinziehen, und was der
+  Nachrichten-Bereich über sie sagt.
 - [Dateien und Integrationen](integrations.md) — die Dienste verbinden, die **Anhänge speichern
   in** anbietet.
 - [Mail-Ingest](../internals/mail-ingest.md) — wo im Ablauf die Filter sitzen.
@@ -189,3 +250,29 @@ Nachricht.
 **„Anhänge speichern in“ für einen Dienst anzuhaken, aus dem sich nur lesen lässt, ist
 konstruktionsbedingt unmöglich** — die Liste bietet ausschließlich Verbindungen an, die
 hochladen können. Fehlt die gewünschte, ist das der Grund.
+
+**„In Kategorie ablegen“ legt in einem Konto nichts ab, dessen empfangenden Server plMail nicht
+erkennen kann.** Es vertraut nur dem Authentifizierungs-Urteil, das ein Server in die Nachricht
+geschrieben hat, von dem es weiß, dass er deiner ist — bei einem IMAP-Konto einer, dessen Name auf
+derselben Domain liegt wie der IMAP-Host des Kontos. Bei einem Postfach, wo sich das nicht sagen
+lässt (ein Host, der nichts einträgt oder unter anderem Namen einträgt), trifft ein Filter, der in
+einen Tab ablegt, zu, läuft und legt nichts ab. Das ist der Preis für einen Tab, der sich nicht
+mit Fälschungen füllen lässt, und er ist gewählt, kein Fehler.
+
+**Die Prüfung betrifft die Nachricht, und sie hilft nur, wenn der Filter den Absender nennt.** Ein
+Filter, dessen Bedingungen den Absender nicht festlegen — etwa „Betreff enthält Paket“ —, legt jeden
+Absender ab, dessen eigene Domain die Authentifizierung besteht, auch eine ähnlich klingende Domain:
+Authentifizierung belegt, dass eine Nachricht von der Domain kam, die sie angibt, nicht dass es die
+Domain ist, die du meintest. Lege den Absender mit **Absender-Domain ist** fest. Und ein Tab enthält
+Konversationen, nicht Nachrichten: Eine gefälschte Nachricht, die in eine echte Konversation
+antwortet (dieselbe Absenderadresse, ein „Re:“-Betreff), kann ihr beitreten, und eine Konversation,
+die du in einen Tab gezogen hast, bleibt dort, was auch immer ihr danach beitritt.
+
+**Ein Ablegen wird gemerkt, und den Filter zu ändern oder zu löschen macht es nicht rückgängig.**
+Wie jede andere Aktion wirkt sie auf Mail und lässt das Ergebnis stehen: Was ein Filter abgelegt
+hat, bleibt abgelegt. Um neu abzulegen, ändere den Filter und drücke **Auf vorhandene Mail
+anwenden**; um einen Tab zu leeren, zieh seine Konversationen heraus oder lösche den Tab.
+
+**Der letzte Filter, der eine Nachricht ablegt, gewinnt** — das Gegenteil dessen, was die
+Reihenfolge einer Regelliste sonst nahelegt. Setze einen breiten Filter über die spezifischen, oder
+gib einem spezifischen **Nach diesem Filter aufhören**.

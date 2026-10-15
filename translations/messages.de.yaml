@@ -1177,6 +1177,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Keine Mail außerhalb von Spam und Papierkorb."
+
 alias:
     added: 'Adresse hinzugefügt.'
     catch_all_added: 'Catch-all-Domain hinzugefügt.'
@@ -2172,16 +2177,21 @@ integration:
         # den er später speichert — für Mail, die noch gar nicht da ist.
         choose_for_filter: 'Wähle, wohin dieser Filter Anhänge speichert.'
         choose_here: 'Diesen Ordner wählen'
+        choose_tag: 'Tag für %file% wählen'
         choose_this: Wählen
         create: Erstellen
         folder_name: 'Ordnername'
         library: 'Mediathek (kein Album)'
         new_album: 'Neues Album'
         new_folder: 'Neuer Ordner'
+        new_tag: 'Neuer Tag'
         no_albums: 'Noch keine Alben.'
         no_subfolders: 'Keine Ordner hier.'
+        no_tag: 'Kein Tag'
+        no_tags: 'Noch keine Tags.'
         save_here: 'Hier speichern'
         start_over: 'Von vorn beginnen'
+        tag_name: 'Tag-Name'
     picker:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
@@ -2190,6 +2200,7 @@ integration:
         link: Link
         more: 'Mehr anzeigen'
         no_results: 'Nichts gefunden für „%query%“.'
+        not_an_image: 'Keine Bilddatei'
         search: Suchen
         search_placeholder:
             dropbox: 'Dropbox durchsuchen'
@@ -2209,6 +2220,7 @@ integration:
             skipped: 'Übersprungen: %files%'
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
+        use_as_avatar: 'Als Profilbild verwenden'
 
 jobs:
     button:
@@ -2332,6 +2344,7 @@ message:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             ai_differs: 'die Regeln sehen das anders'
             awaiting_resort: 'Wird neu einsortiert — du hast geändert, wie Mail sortiert wird, und diese hier ist noch nicht umgezogen.'
+            own_filter: 'dort von einem deiner Filter abgelegt'
             gmail_overruled: 'wird nicht benutzt — du hast plMail gebeten, selbst zu sortieren'
             in_force: 'das hier entscheidet'
             ai_no_answer: 'gefragt, keine brauchbare Antwort'
@@ -2343,6 +2356,7 @@ message:
             pinned: 'du hast sie hierher verschoben'
             promotion: 'ein Massenmail-Header: '
             social: 'die Absenderdomain '
+            switched_off: "es wäre %category%, und das hast du ausgeschaltet"
             thread_differs: 'Diese Nachricht allein wäre %category% — eine Unterhaltung übernimmt die Kategorie ihrer neuesten Nachricht.'
             update: 'ein Hinweis auf automatischen Versand: '
         category: Kategorie
@@ -3129,6 +3143,7 @@ settings:
         action:
             applyLabel: Label vergeben
             archive: Posteingang überspringen
+            fileInCategory: In Kategorie ablegen
             markRead: Als gelesen markieren
             markSpam: Als Spam markieren
             removeLabel: Label entfernen
@@ -3197,6 +3212,7 @@ settings:
             draft: ein Entwurf
             flagged: markiert
             seen: gelesen
+        category_missing: '(gelöschte Kategorie)'
         integration_missing: '(getrennter Dienst)'
         label_missing: '(gelöschtes Label)'
         move_down: '"%name%" nach hinten'
@@ -3206,6 +3222,7 @@ settings:
         new_title: Neuer Filter
         no: Nein
         no_actions: Noch keine Aktionen
+        no_categories: 'Noch keine Kategorien — leg zuerst eine an.'
         no_integrations: 'Keine Dienste verbunden — zuerst unter Integrationen einrichten.'
         of_the_following: der folgenden
         op:
@@ -3765,6 +3782,17 @@ settings:
         'off': Aus
         'on': An
         subheading: Wie Mail endgültig weggeworfen wird.
+    images:
+        always_show: Externe Bilder immer anzeigen
+        always_show_hint: >-
+            Lädt die Bilder in jeder Mail, ohne vorher zu fragen. Absender können
+            dann sehen, dass und wann du ihre Mail geöffnet hast, aber nicht deine
+            Adresse: Die Bilder kommen weiterhin über plMail zu dir. Mail im Spam
+            bleibt so oder so blockiert. Aus, bis du es einschaltest.
+        heading: Bilder
+        'off': Aus
+        'on': An
+        subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
     nav:
         accounts: E-Mail-Konten
         ai: 'Assistent'
@@ -3773,6 +3801,7 @@ settings:
         appearance: Darstellung
         calendar_behaviour: Verhalten
         calendars: Kalender
+        categories: "Kategorien"
         disposal: Entsorgen
         filters: Filter
         general: Allgemein
@@ -3783,6 +3812,7 @@ settings:
             mail: E-Mail
             personal: Persönlich
         health: 'Zustand der Konten'
+        images: Bilder
         insights: Radar
         integrations: Integrationen
         labels: Labels
@@ -3981,13 +4011,45 @@ settings:
             rendered: 'Darstellung'
             toggle: 'Ansicht der Signatur'
         subheading: 'Was am Ende der Nachrichten steht, die du schreibst.'
+    categories:
+        add: Hinzufügen
+        built_in: "Eingebaut"
+        built_in_off: "Eingebaut · ausgeschaltet — die Mail liegt in Allgemein"
+        created: 'Kategorie „%name%“ angelegt.'
+        delete: Kategorie löschen
+        delete_confirm: 'Kategorie „%name%“ löschen? Die dort abgelegte Mail kommt zurück in den Tab, in dem sie sonst wäre. Es wird keine Mail gelöscht.'
+        deleted: 'Kategorie „%name%“ gelöscht.'
+        error:
+            empty: 'Eine Kategorie braucht einen Namen.'
+            reserved: 'Dieser Name gehört zu einem der eingebauten Tabs.'
+            taken: 'Du hast bereits eine Kategorie mit diesem Namen.'
+            too_long: 'Dieser Name ist zu lang (höchstens 40 Zeichen).'
+        filters_link: 'Einstellungen → Filter.'
+        heading: "Tabs"
+        hint: "Ein eigener Tab erscheint im Posteingang, solange er Mail enthält. Mail kommt über einen Filter mit der Aktion „In Kategorie ablegen“ hinein — richte einen ein unter"
+        move_down: "%tab% nach unten"
+        move_up: "%tab% nach oben"
+        name_label: Name
+        off: "Aus"
+        on: "An"
+        placeholder: 'z. B. Sendungen'
+        primary_fixed: "Immer zuerst und immer an — Mail aus einem Tab, den du ausschaltest, landet hier."
+        rename: Umbenennen
+        renamed: 'Umbenannt in „%name%“.'
+        reorder: "Zum Umsortieren ziehen"
+        subheading: "Schalte die eingebauten Tabs ein oder aus, leg eigene an und zieh sie in die Reihenfolge, die du willst."
     sorting:
+        account_tabs:
+            hint: Zeigt die Tabs auch im eigenen Posteingang eines Kontos, wenn du das Konto in der Seitenleiste anklickst. Aus zeigt den ganzen Posteingang dieses Kontos als eine Liste.
+            label: Tabs in jedem Konto
+            'off': Aus
+            'on': An
         again:
             button: Nochmal fragen
             hint: Der Assistent antwortet einmal pro Nachricht und behält die Antwort. Frag noch einmal, wenn sich Modell, Anweisung oder eine plMail-Version geändert haben — es kostet einen Modell-Aufruf pro Nachricht und gilt deshalb nur für deine neueste Mail.
             label: Neueste Mail neu einsortieren
         applies_to_new: Wenn du hier etwas änderst, wird deine vorhandene Mail im Hintergrund neu einsortiert — bei einem großen Postfach dauert das ein paar Minuten, gib den Tabs also einen Moment. Gespräche, die du selbst in einen Tab geschoben hast, bleiben, wo sie sind.
-        heading: Kategorien
+        heading: "Sortierung"
         override:
             hint: Ein Gmail-Konto kommt bereits von Google sortiert an. Hier entscheidest du, ob plMail das so lässt oder selbst antwortet.
             label: Bei Gmail-Konten
@@ -4159,6 +4221,7 @@ sidebar:
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
+        all_mail: Alle E-Mails
         archive: Archiv
         calendar: Kalender
         drafts: Entwürfe

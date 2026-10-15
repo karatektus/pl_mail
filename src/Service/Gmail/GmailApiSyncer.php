@@ -47,6 +47,15 @@ final class GmailApiSyncer
     /** Seconds before an unfinished backfill lists again. */
     private const int BACKFILL_COOLDOWN = 3600;
 
+    /**
+     * Seconds before it lists again when everything Gmail counts is already
+     * accounted for. The hour is for batches still draining; once the
+     * mailbox is all in, what is left is one listing to confirm it, and an
+     * hour of "Importing · 100%" in front of it says something that is not
+     * true.
+     */
+    private const int CONFIRM_COOLDOWN = 600;
+
     /** Hourly listings before an unfinished backfill stops retrying. */
     private const int BACKFILL_MAX_ATTEMPTS = 24;
 
@@ -187,7 +196,14 @@ final class GmailApiSyncer
             // the time a later one is handled costs a lookup and no fetch.
             $ranAt = $account->backfillRanAt;
 
-            if (null !== $ranAt && $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::BACKFILL_COOLDOWN))) {
+            if (
+                null !== $ranAt
+                && $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::BACKFILL_COOLDOWN))
+                && (
+                    $ranAt > new \DateTimeImmutable(sprintf('-%d seconds', self::CONFIRM_COOLDOWN))
+                    || false === $this->isAccountedFor($account)
+                )
+            ) {
                 return GmailBackfillStep::Waiting;
             }
 
@@ -202,8 +218,17 @@ final class GmailApiSyncer
             $this->em->flush();
         }
 
-        // No labelIds filter — fetch all mail (inbox, sent, spam, trash, …).
-        $listed = $this->apiClient->listMessagesPage($account, ['maxResults' => self::PAGE_SIZE], $pageToken);
+        // No labelIds filter — all mail — and Spam and Trash asked for by
+        // name. The comment here said "inbox, sent, spam, trash", and the
+        // request never included the last two: messages.list leaves both out
+        // unless includeSpamTrash is set. getProfile's messagesTotal, which
+        // the progress line counts towards, includes them, so an import of a
+        // mailbox with a full Trash could never reach its own total.
+        $listed = $this->apiClient->listMessagesPage(
+            $account,
+            ['maxResults' => self::PAGE_SIZE, 'includeSpamTrash' => 'true'],
+            $pageToken,
+        );
 
         $pending = $this->newGmailIds($account, $listed['messages']);
 
@@ -570,6 +595,34 @@ final class GmailApiSyncer
      * @param list<array{id?: string}> $refs
      * @return list<string>
      */
+    /**
+     * Whether everything in the mailbox is here, by count: stored on this
+     * account, stored on the account it was addressed to, or looked at and
+     * declined — measured against Gmail's total as it is now, not as it was
+     * when the import began, since mail has arrived in the meantime.
+     *
+     * Only ever a reason to list sooner. The listing is still what decides
+     * the import is finished; a count can be fooled where a list of ids
+     * cannot.
+     */
+    private function isAccountedFor(Account $account): bool
+    {
+        $profile = $this->apiClient->getProfile($account);
+
+        if (false === isset($profile['messagesTotal'])) {
+            return false;
+        }
+
+        $account->importTotal = (int) $profile['messagesTotal'];
+        $this->em->flush();
+
+        $done = $this->messageRepository->countForAccount($account)
+            + $this->messageRepository->countCarriedBy($account)
+            + $this->skipped->countForAccount($account);
+
+        return $done >= $account->importTotal;
+    }
+
     private function newGmailIds(Account $account, array $refs): array
     {
         // "Not here yet" means neither stored nor already looked at and

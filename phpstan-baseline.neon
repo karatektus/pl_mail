@@ -622,11 +622,6 @@ parameters:
 			count: 1
 			path: tests/Infrastructure/Encryption/EncryptorTest.php
 
-		-
-			message: '#^Call to an undefined method App\\Repository\\Mail\\MessageRepository\:\:method\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: tests/Service/Gmail/GmailApiSyncerBackfillTest.php
 
 		-
 			message: '#^Using nullsafe property access on non\-nullable type App\\Entity\\Mail\\MessageThread\. Use \-\> instead\.$#'

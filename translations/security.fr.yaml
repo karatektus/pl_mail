@@ -1,0 +1,14 @@
+# Échecs de connexion, dans le domaine où Symfony les résout. Voir
+# security.en.yaml pour le pourquoi de chaque entrée.
+account.deactivated: Votre compte a été désactivé par un administrateur. Demandez-lui de le réactiver — rien de ce qui vous appartient n’a été supprimé.
+account.removed: Ce compte a été supprimé et ne peut plus servir à se connecter.
+
+# Authentification unique via un fournisseur OpenID Connect.
+oidc.unavailable: L’authentification unique ne fonctionne pas pour le moment. Connectez-vous avec votre mot de passe, ou demandez à votre administrateur de consulter les journaux.
+oidc.denied: Le fournisseur de connexion ne vous a pas laissé entrer dans plMail.
+oidc.failed: La connexion via votre fournisseur n’a pas pu aboutir. Réessayez.
+oidc.no_email: 'Votre fournisseur de connexion n’a pas communiqué votre adresse e-mail à plMail : il n’y a donc aucun compte auquel vous connecter.'
+oidc.email_unverified: Votre fournisseur de connexion n’a pas confirmé votre adresse e-mail, plMail ne la liera donc à aucun compte. Adressez-vous à votre administrateur.
+oidc.ambiguous: Plusieurs comptes ici ont votre adresse e-mail. Demandez à votre administrateur de régler cela.
+oidc.no_account: Il n’existe pas encore de compte plMail pour vous. Demandez à votre administrateur d’en créer un avec votre adresse e-mail.
+oidc.linked_elsewhere: Le compte qui a votre adresse e-mail est déjà lié à quelqu’un d’autre chez votre fournisseur de connexion. Adressez-vous à votre administrateur.

@@ -21,6 +21,13 @@ export default class extends Controller {
         url: String,
         draft: Number,
         token: String,
+        /**
+         * 'attach' (compose) or 'avatar' (Settings → Profile). In avatar mode one
+         * file is chosen and handed back rather than attached to a draft.
+         */
+        mode: { type: String, default: "attach" },
+        /** The connection being browsed, for the avatar hand-back. */
+        integration: String,
         /** The status line's words, translated in _picker.html.twig. */
         i18n: { type: Object, default: {} },
     };
@@ -168,11 +175,37 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * One file only, in avatar mode.
+     *
+     * Rows are a radio group each, so the browser keeps just one *per file*
+     * and nothing stops a second tick; tiles are checkboxes. A profile has one
+     * picture, so choosing another lets go of the last — and it has to hold
+     * across pages, which the paging script appends into the same container.
+     */
+    changed(event) {
+        if ("avatar" !== this.modeValue || true !== event.target.checked) {
+            return;
+        }
+
+        this.modeTargets.forEach((input) => {
+            if (input !== event.target) {
+                input.checked = false;
+            }
+        });
+    }
+
     async attach() {
         const chosen = this.modeTargets.filter((input) => input.checked);
 
         if (0 === chosen.length) {
             this._status(this._t("nothingSelected"));
+
+            return;
+        }
+
+        if ("avatar" === this.modeValue) {
+            this._chooseAvatar(chosen[0]);
 
             return;
         }
@@ -235,6 +268,27 @@ export default class extends Controller {
 
             return;
         }
+
+        this.dispatch("close", { prefix: "ui--modal" });
+    }
+
+    /**
+     * Hand the chosen picture to the profile form, which posts it.
+     *
+     * Nothing is saved here: the picker and the form sit in different Turbo
+     * frames, so the event is the seam, as it is for attachments. The file id
+     * is read back out of the input's name (`mode[<id>]`) rather than through a
+     * Stimulus param, for the reason destination_picker_controller gives — a
+     * service's id is an opaque string and a typecast would change it.
+     */
+    _chooseAvatar(input) {
+        const fileId = input.name.replace(/^mode\[(.*)\]$/, "$1");
+
+        document.dispatchEvent(
+            new CustomEvent("plmail:avatar-picked", {
+                detail: { integrationId: this.integrationValue, fileId },
+            }),
+        );
 
         this.dispatch("close", { prefix: "ui--modal" });
     }

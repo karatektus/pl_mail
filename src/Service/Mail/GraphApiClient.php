@@ -114,8 +114,20 @@ final class GraphApiClient
      */
     private array $inviteSelectUnsupported = [];
 
-    /** Light projection used while planning — ids only, no bodies. */
-    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';
+    /**
+     * Light projection a folder's delta is followed with — no bodies.
+     *
+     * isRead and flag are in it because a message delta reports a change only
+     * in the properties it was asked for. Without them Exchange sends no entry
+     * at all for a message that was merely read, unread, flagged or unflagged,
+     * so mail handled in Outlook or on a phone never reached plMail.
+     *
+     * The $select is sent once, on the call that begins the chain, and is the
+     * chain's from then on: the delta link carries it. Widening this therefore
+     * changes nothing for a link already stored — see the migration that
+     * hands every folder back to the import, and keep the two in step.
+     */
+    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId,isRead,flag';
 
     public function __construct(
         // The scoped client from framework.yaml, not the default one: it

@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:b6811f7a30b83e84b3cfb2b3c0ad17b3588dc65f -->
+<!-- translated-from: install/configuration.md sha1:36fbde6417fb06182490da96905fdce7da065fae -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -113,7 +113,7 @@ sie direkt, wenn er `DATABASE_URL` zusammensetzt.
 | `POSTGRES_PASSWORD` | Datenbankpasswort. | leer — 24 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Wird von `app:reset` nie gewechselt: Postgres wurde damit initialisiert und behält seine eigene Kopie, ein neues sperrt die Anwendung also aus der Datenbank aus, die sie gerade zurückgesetzt hat. |
 | `POSTGRES_HOST` | Host in der zusammengesetzten DSN. Wird nur vom Entrypoint gelesen. | `database` | Nur relevant, wenn plMail außerhalb dieser Compose-Datei läuft. |
 | `POSTGRES_CHARSET` | `charset` in der zusammengesetzten DSN. Nur Entrypoint. | `utf8` | — |
-| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. `truenas.compose.yaml` verschiebt beides unter einen Bind-Mount. |
+| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. Die TrueNAS-App verschiebt beides unter einen Bind-Mount. |
 | `NTFY_PORT` | Host-Port für den optionalen ntfy-Container. | `8090` | Wird nur unter dem Profil `push` verwendet. |
 | `NTFY_BASE_URL` | Basis-URL, die ntfy in Push-Endpunkten ausgibt. | `http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}` | Wird in jeden ausgegebenen Endpunkt eingebacken; eine spätere Änderung macht daher jedes bestehende Abonnement ungültig, und jedes Gerät muss sich neu registrieren. |
 | `NTFY_AUTH_DEFAULT_ACCESS` | ntfys Standard-Zugriffsrichtlinie. | `read-write` | Bewusst offen — UnifiedPush-Topics sind nicht erratbar und Nutzdaten sind für das Gerät verschlüsselt —, aber setz sie auf `deny-all` und leg einen Benutzer an, wenn das hier im Internet steht statt über ein VPN erreicht zu werden. |
@@ -223,8 +223,8 @@ die Umgebung, solange er nicht leer ist:
 | Welche Dateiintegrationen überhaupt angeboten werden | Administration → Integrationen |
 | Basis-URLs der Integrationsanbieter (das SSRF-Festlegen von oben) | Administration → Integrationen |
 
-Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert und auf den
-`truenas.compose.yaml` verweist, denn dort wird die exakte Redirect-URI angezeigt, die in die
+Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert, und der
+empfohlene, denn dort wird die exakte Redirect-URI angezeigt, die in die
 Konsole des Anbieters einzufügen ist.
 
 **Der typische Fehlerfall ist ein halb ausgefüllter Eintrag.** Ein gespeicherter Wert überdeckt die

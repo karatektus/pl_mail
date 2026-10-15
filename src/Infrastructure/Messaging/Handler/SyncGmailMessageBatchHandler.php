@@ -243,6 +243,27 @@ final readonly class SyncGmailMessageBatchHandler
                 $nowStored[] = $gmailId;
             }
 
+            // ── Claimed by nobody: is it another account's copy? ──────────────
+            // A message whose headers name neither this account nor any other
+            // is this account's — it is in its mailbox. But Gmail may have
+            // fetched it from another connected account whose own sync holds
+            // it already: a newsletter Bcc'd to that address, collected by
+            // Gmail with nothing of the address left in its headers. Stored
+            // here as well, it would be listed twice. So before it is taken
+            // as this account's, the user's other accounts are asked for the
+            // same Message-ID, and a copy found there is enriched instead,
+            // exactly as a Gmailify sibling's is below.
+            if ($targetAccount === $account && false === $this->namesCarrier($labelIds, $headers, $account)) {
+                $copy = $this->copyOnAnotherAccount($headers, $siblingAccounts);
+
+                if (null !== $copy) {
+                    $this->enrichExisting($copy, $labelIds, $gmailId, $copy->account, $account, false);
+                    $enriched++;
+                    $affectedAccounts[(int) $copy->account->id] = $copy->account;
+                    continue;
+                }
+            }
+
             // ── Gmailify dedup: merge, don't skip ─────────────────────────────
             // When the sibling's own IMAP sync already holds this message
             // (same canonical RFC Message-ID), the IMAP row keeps ownership of
@@ -537,20 +558,32 @@ final readonly class SyncGmailMessageBatchHandler
     /**
      * Determine which account owns this message.
      *
-     * Received mail (no SENT label):
-     *   - Without Gmailify attribution: only mail genuinely addressed to
-     *     this account is considered.
-     *   - With it: GmailAddressFilter::resolveReceivedAccount decides
-     *     between carrier and siblings, To/Cc outranking a
-     *     carrier-matching Delivered-To (Gmail stamps its own address on
-     *     fetched mail). The loop then decides between enriching the
-     *     sibling's existing IMAP row and importing a new one.
+     * The message is in THIS account's Gmail mailbox, so it is this account's
+     * unless another connected account has a better claim to it. That is the
+     * rule; everything below is the "better claim".
      *
-     * Sent mail (SENT label):
-     *   - From matches this account's own address        → this account.
-     *   - From matches a Gmailify sibling AND the carrier has
-     *     gmailSyncGmailifyEnabled                       → the sibling.
-     *   - Otherwise skip (return null).
+     * It used to be the other way round: a message was stored only when its
+     * headers named this account, and anything else was dropped. Measured on
+     * a real mailbox (#90, `app:gmail:skipped`), what that dropped was 202
+     * messages from the user's own Sent — written from "send mail as"
+     * addresses — 89 delivered to a forwarding address that is not connected
+     * here, 43 drafts and 4 addressed to the `googlemail.com` spelling of the
+     * account. All of it is in Gmail, in the folders the user would look for
+     * it in, and none of it belongs to any other account.
+     *
+     * Received mail (no SENT, no DRAFT label):
+     *   - With Gmailify attribution, GmailAddressFilter::resolveReceivedAccount
+     *     picks a sibling when one is named; the carrier otherwise.
+     *   - Without it, mail genuinely addressed to this account only. Switching
+     *     Gmailify attribution off is a deliberate "only what was sent to this
+     *     address", and it stays that.
+     *
+     * Sent mail and drafts (SENT or DRAFT):
+     *   - From a Gmailify sibling, with attribution on → the sibling.
+     *   - Otherwise → this account. A message in this account's Sent was sent
+     *     by its owner, whichever of their addresses it went out as.
+     *
+     * Chats (CHAT) → nobody. A chat is not mail and has nowhere to go here.
      *
      * @param list<string>          $labelIds
      * @param array<string,string>  $headers          lower-cased header name → value
@@ -562,41 +595,83 @@ final readonly class SyncGmailMessageBatchHandler
         Account $account,
         array   $siblingAccounts,
     ): ?Account {
-        $isSent           = true === in_array('SENT', $labelIds, true);
+        if (true === in_array('CHAT', $labelIds, true)) {
+            return null;
+        }
+
+        $written          = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
         $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
 
-        if (false === $isSent) {
+        if (false === $written) {
             if (false === $gmailifyEnabled) {
-                if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
-                    return $account;
-                }
-
-                return null;
+                return true === $this->addressFilter->isAddressedToAccount($headers, $account) ? $account : null;
             }
 
-            return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts);
+            return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts) ?? $account;
         }
 
-        // Sent mail — check From against this account first.
-        if (true === $this->addressFilter->isSentByAccount($headers, $account)) {
+        if (true === $this->addressFilter->isSentByAccount($headers, $account) || false === $gmailifyEnabled) {
             return $account;
-        }
-
-        // Gmailify sent: check if From matches a sibling account.
-        if (false === $gmailifyEnabled) {
-            return null;
         }
 
         $from = $headers['from'] ?? '';
 
-        if ('' === $from) {
+        if ('' !== $from) {
+            $normFrom = $this->addressFilter->normalise($from);
+
+            if (true === isset($siblingAccounts[$normFrom])) {
+                return $siblingAccounts[$normFrom];
+            }
+        }
+
+        return $account;
+    }
+
+    /**
+     * Whether the headers themselves tie the message to this account, as
+     * opposed to its having landed here because nobody else claimed it.
+     *
+     * @param list<string>         $labelIds
+     * @param array<string,string> $headers
+     */
+    private function namesCarrier(array $labelIds, array $headers, Account $account): bool
+    {
+        $written = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
+
+        return true === $written
+            ? $this->addressFilter->isSentByAccount($headers, $account)
+            : $this->addressFilter->isAddressedToAccount($headers, $account);
+    }
+
+    /**
+     * The same message already stored on another of the user's accounts, by
+     * RFC Message-ID, or null.
+     *
+     * @param array<string,string>  $headers
+     * @param array<string,Account> $siblingAccounts normalisedEmail → Account; one account can appear under several keys
+     */
+    private function copyOnAnotherAccount(array $headers, array $siblingAccounts): ?Message
+    {
+        $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
+
+        if ('' === $rfcMessageId) {
             return null;
         }
 
-        $normFrom = $this->addressFilter->normalise($from);
+        $asked = [];
 
-        if (true === isset($siblingAccounts[$normFrom])) {
-            return $siblingAccounts[$normFrom];
+        foreach ($siblingAccounts as $sibling) {
+            if (true === isset($asked[(int) $sibling->id])) {
+                continue;
+            }
+
+            $asked[(int) $sibling->id] = true;
+
+            $existing = $this->messageRepository->findOneForAccountByMessageId($sibling, $rfcMessageId);
+
+            if (null !== $existing) {
+                return $existing;
+            }
         }
 
         return null;

@@ -39,10 +39,8 @@ The clone is for `compose.yaml` and nothing else — the application code lives 
 would rather not clone, copying `compose.yaml` on its own is enough, as long as you also create a
 `.env` beside it or accept every default in the [configuration reference](configuration.md).
 
-**The failure mode is a stray `compose.override.yaml`.** Compose loads that file automatically
-whenever it exists, and the one in this repository switches every service from the published image
-to a locally built dev image with the source bind-mounted. It is untracked for exactly that reason;
-only `compose.override.yaml.dist` is committed. Do not copy it unless you are developing.
+**Do not add `-f compose.dev.yaml` unless you are developing.** It switches every service from the
+published image to a locally built dev image with the source bind-mounted.
 
 ## Starting it
 
@@ -191,10 +189,9 @@ The compose file declares ten named volumes:
 
 The three blob volumes were missing until recently, and the failure was silent in an instructive
 way. The Dockerfile deliberately has no `VOLUME /app/var/` — an anonymous volume there gave every
-container its own copy — and the durable paths are instead declared per service. The two
-deployment files that people actually edited, `compose.override.yaml.dist` and
-`truenas.compose.yaml`, both declared them. The stock `compose.yaml`, which is the file the README
-tells an operator to run, did not. So attachments written by a sync worker were invisible to the
+container its own copy — and the durable paths are instead declared per service. The development
+stack and the TrueNAS deployment both declared them. The stock `compose.yaml`, which is the file the
+README tells an operator to run, did not. So attachments written by a sync worker were invisible to the
 web container serving the download, and both copies died with the next `docker compose up` that
 recreated a container. Nothing errored: mail synced, the list rendered, and the download 404'd.
 
@@ -203,8 +200,8 @@ recreated a container. Nothing errored: mail synced, the list rendered, and the 
 Mounting an empty volume over a directory hides what is inside it — nothing is deleted, but the
 files stop being visible until they are copied across.
 
-`truenas.compose.yaml` takes a different approach: it sets `APP_STORAGE_DIR=var/data` and binds one
-host directory at `/app/var/data`, so attachments, raw messages, uploads and the secrets all land
+The TrueNAS app takes a different approach: it sets `APP_STORAGE_DIR` to one data directory and binds
+one host path there, so attachments, raw messages, uploads and the secrets all land
 under a single path — one thing to snapshot and one thing to back up.
 
 ## Everyday operation
@@ -238,19 +235,12 @@ file for exactly that case. `docker run` against the image on its own is not.
 
 ## Things that bite
 
-**`docker compose up` picks up `compose.override.yaml` whether you meant it or not.** A copy left
-behind from a development experiment silently switches the whole stack to a locally built image
-with no application code baked in — the entrypoint then falls into its `symfony/skeleton` branch and
-the container crash-loops.
+**`docker compose up` picks up a `compose.override.yaml` whether you meant it or not.** plMail does
+not ship one, so if one exists, someone put it there. Delete it unless you know what it does.
 
 **Every app service must mount `app_secrets`.** A service missing that mount mints its own
 `APP_ENCRYPTION_KEY` and stops being able to read what the others wrote. `EncryptionKeyProbe`
 catches it at boot and refuses to start the server rather than save accounts nothing else can read.
-
-**`compose.prod.yaml` builds from source and demands `APP_SECRET`.** It sets
-`target: frankenphp_prod` and `APP_SECRET: ${APP_SECRET}` with no default, so it fails outright when
-that variable is unset — and setting it switches off generation for that value. It exists for
-people who build their own image, not as the normal path.
 
 **A first sync queues thousands of jobs, and that is not a fault.** `/healthz` only calls the queue
 backed up past 5000 pending messages, precisely so a legitimate first sync does not report an

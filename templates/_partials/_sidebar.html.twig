@@ -557,6 +557,33 @@ controller instead — the scroll position and which trees are open.
         </a>
         {% endif %}
 
+        {# Every conversation outside Spam and the bin, in one list. Opt-in like
+           Unread: its label is created hidden and switched on in label
+           settings (LabelRole::AllMail), and the rows under each account follow
+           the same switch (mail/_account_folder_rows.html.twig).
+
+           Up here rather than under More, beside the lists people read, because
+           finding archived mail in one click is what it is for. No badge: a
+           count of everything is not news, and its unread share is the Unread
+           row's job. Takes no drops — there is nothing to move into a list that
+           already holds everything. #}
+        {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').AllMail) %}
+        {% set _href = path('app_mail_all') %}
+        <a href="{{ _href }}"
+           {{ macros.list_frame() }}
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.all_mail'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-layer-group w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'sidebar.nav.all_mail'|trans }}</span>
+            </span>
+        </a>
+        {% endif %}
+
         {# Drawer only. On a wide screen the calendar is a panel that slides in
            beside the mail, and a control for that is not a destination — as a
            nav row it read as a link that did not navigate. It lives in the

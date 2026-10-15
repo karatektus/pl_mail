@@ -1163,6 +1163,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "No mail outside Spam and the bin."
+
 alias:
     added: 'Address added.'
     catch_all_added: 'Catch-all domain added.'
@@ -2171,16 +2176,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choose where this filter saves attachments.'
         choose_here: 'Choose this folder'
+        choose_tag: 'Choose a tag for %file%'
         choose_this: Choose
         create: Create
         folder_name: 'Folder name'
         library: 'Library (no album)'
         new_album: 'New album'
         new_folder: 'New folder'
+        new_tag: 'New tag'
         no_albums: 'No albums yet.'
         no_subfolders: 'No folders here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet.'
         save_here: 'Save here'
         start_over: 'Start over'
+        tag_name: 'Tag name'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'
@@ -2189,6 +2199,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Nothing found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2208,6 +2219,7 @@ integration:
             skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
+        use_as_avatar: 'Use as profile picture'
 
 jobs:
     button:
@@ -2334,6 +2346,7 @@ message:
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
             awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            own_filter: 'filed there by one of your filters'
             gmail_overruled: 'not used — you asked plMail to sort this itself'
             in_force: 'this one decides'
             # Asked, and what came back was not one of the five categories. Kept
@@ -2350,6 +2363,7 @@ message:
             pinned: 'you moved it here'
             promotion: 'a bulk-mail header: '
             social: 'the sender domain '
+            switched_off: "it would be %category%, which you switched off"
             # A conversation takes ONE category, from its newest message, so a
             # reply can carry the whole thread out of the tab this message
             # belongs in. Said outright, because without it the panel reads as
@@ -3135,6 +3149,7 @@ settings:
         action:
             applyLabel: Apply label
             archive: Skip inbox
+            fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
             removeLabel: Remove label
@@ -3205,6 +3220,7 @@ settings:
             draft: a draft
             flagged: starred
             seen: read
+        category_missing: '(deleted category)'
         integration_missing: '(disconnected service)'
         label_missing: '(deleted label)'
         move_down: Move "%name%" later
@@ -3214,6 +3230,7 @@ settings:
         new_title: New filter
         no: No
         no_actions: No actions yet
+        no_categories: 'No categories yet — create one first.'
         no_integrations: 'No services connected — set one up in Integrations first.'
         of_the_following: of the following
         op:
@@ -3752,6 +3769,17 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: How mail is thrown away for good.
+    images:
+        always_show: Always show remote images
+        always_show_hint: >-
+            Loads the pictures in every message without asking first. Senders
+            can then tell that and when you opened their mail, though not your
+            address: images still come to you through plMail. Mail in Spam stays
+            blocked either way. Off until you turn it on.
+        heading: Images
+        'off': 'Off'
+        'on': 'On'
+        subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -3760,6 +3788,7 @@ settings:
         appearance: Appearance
         calendar_behaviour: Behaviour
         calendars: Calendars
+        categories: "Categories"
         disposal: Disposal
         filters: Filters
         general: General
@@ -3770,6 +3799,7 @@ settings:
             mail: Mail
             personal: Personal
         health: 'Account health'
+        images: Images
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -3962,13 +3992,45 @@ settings:
             rendered: 'Rendered'
             toggle: 'Signature view'
         subheading: 'What is added to the bottom of the messages you write.'
+    categories:
+        add: Add
+        built_in: "Built in"
+        built_in_off: "Built in · switched off — its mail is in Primary"
+        created: 'Created "%name%".'
+        delete: Delete category
+        delete_confirm: 'Delete "%name%"? Mail filed there goes back to the tab it would otherwise be in. No mail is deleted.'
+        deleted: 'Deleted "%name%".'
+        error:
+            empty: 'A category needs a name.'
+            reserved: 'That name belongs to one of the built-in tabs.'
+            taken: 'You already have a category with that name.'
+            too_long: 'That name is too long (40 characters at most).'
+        filters_link: 'Settings → Filters.'
+        heading: "Tabs"
+        hint: "A tab of your own shows in the inbox while it holds mail. Mail goes into it through a filter whose action is \"File in category\" — set one up under"
+        move_down: "Move %tab% down"
+        move_up: "Move %tab% up"
+        name_label: Name
+        off: "Off"
+        on: "On"
+        placeholder: 'e.g. Shipping'
+        primary_fixed: "Always first and always on — mail from a tab you switch off lands here."
+        rename: Rename
+        renamed: 'Renamed to "%name%".'
+        reorder: "Drag to reorder"
+        subheading: "Switch the built-in tabs on or off, add your own, and drag them into the order you want."
     sorting:
+        account_tabs:
+            hint: Shows the tabs on an account's own inbox too, when you click the account in the sidebar. Off shows that account's whole inbox as one list.
+            label: Tabs on each account
+            'off': 'Off'
+            'on': 'On'
         again:
             button: Ask again
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
             label: Sort recent mail again
         applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
-        heading: Categories
+        heading: "Sorting"
         override:
             hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.
             label: On Gmail accounts
@@ -4140,6 +4202,7 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
+        all_mail: All Mail
         archive: Archive
         calendar: Calendar
         drafts: Drafts

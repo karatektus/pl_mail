@@ -1,0 +1,38 @@
+{#
+mail/all_mail.html.twig — one account's All Mail.
+─────────────────────────────────────────────────────────────────────────────
+The row under an account in the sidebar, beside its folders. Every
+conversation of this account outside Spam and the bin; the account's own row
+still opens its Inbox (mail/account.html.twig).
+
+Shown in the sidebar while the All Mail label is (LabelRole::AllMail), the
+same switch as the list across every account (mail/unified_all_mail.html.twig).
+Scope `all_mail` with this account's id as its value — see AllMailView.
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block list_scope %}all_mail{% endblock %}
+
+{% block list_scope_value %}{{ account.id }}{% endblock %}
+
+{% block title %}{{ 'sidebar.nav.all_mail'|trans }} · {{ account.displayAddress }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.all_mail'|trans }}</h2>
+        <span class="text-xs text-ink-faint truncate">{{ account.displayAddress }}</span>
+    </div>
+{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
+            {{ 'all_mail.empty'|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {# Every row here is the same account, so the dot would say nothing. #}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: false } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}
