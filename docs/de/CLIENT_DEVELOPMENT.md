@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:5fd7a5bbb81ccdbec381ba28943880f345abd8cb -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1f3b51a6f659a64adbc57fb6125f4885ce518f82 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -236,6 +236,33 @@ Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund wei
 wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
 wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
 daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
+
+### Posteingangs-Tabs (`urn:plmail:params:jmap:inboxtabs`)
+
+Die Tabs so, wie die Nutzerin sie eingerichtet hat: welche eingebauten Kategorien an sind, die Tabs,
+die sie selbst angelegt hat, und die Reihenfolge aller. Angekündigt oben in der Session und an jedem
+Konto; jedes Konto antwortet mit derselben Liste.
+
+- **`InboxTab/get`** (`accountId` nötig) listet jeden Tab, ausgeschaltet oder nicht. Ein InboxTab ist
+  `{ id, name, builtIn, isEnabled, sortOrder }`. `id` ist der Tab-Schlüssel — eine eingebaute
+  Kategorie (`primary`, `social`, `promotions`, `updates`, `forums`) oder `c` und eine Zahl für einen
+  eigenen. `name` ist bei eingebauten null; die benennst du in deiner eigenen Sprache.
+  `isEnabled: false` ist ein ausgeschalteter eingebauter Tab: Lass ihn aus der Leiste weg.
+  `sortOrder` ist die Reihenfolge der Leiste; Allgemein ist immer 0.
+- **`InboxTab/changes`** ist das übliche /changes, und ein Push-`StateChange` trägt einen
+  `InboxTab`-State. Ein Umsortieren meldet jeden Tab als geändert.
+- **`Thread.inboxTab`** ist der Tab, in dem das Web die Konversation zeigt: ein eigener, die
+  eingebaute Kategorie oder `primary`, wenn diese Kategorie ausgeschaltet ist. Zeichne daraus und
+  nicht aus `Thread.category`, wenn du die Capability kennst.
+- **`Email/query` `threadInboxTab: "<key>"`** listet genau, was das Web in diesem Tab listet. Ein
+  ausgeschalteter Tab trifft nichts; ein ungültiger Schlüssel ist `invalidArguments`.
+- **`Thread/set` `{ "inboxTab": "<key>" }`** legt die Konversation in einen Tab, angeheftet, wie ein
+  Drag im Web. Ein Tab, den die Nutzerin nicht hat, kommt in `notUpdated` mit `invalidProperties`
+  zurück.
+
+Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
+`threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
+werden.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
@@ -724,8 +751,9 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | `/get` trägt drei plMail-Erweiterungen: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
+| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
@@ -1105,6 +1133,63 @@ voreingestellt ist das primäre: Die `identityId` einer Submission entscheidet �
 Absenderadresse, mit der die Nachricht tatsächlich hinausgeht, und eine, die keine Identität
 dieses Kontos ist, wird mit `forbiddenFrom` abgelehnt, statt auf die Kontoadresse
 zurückzufallen.
+
+**Welche Identität eine Nachricht beantwortet**, sagt der Server, und zwar in `replyFrom` — einer
+plMail-Eigenschaft von `Email/get`. Frag sie namentlich an, wenn du die Nachricht holst, aus der
+eine Antwort oder eine Weiterleitung gebaut wird; bei einem Get ohne `properties` fehlt sie, weil
+sie eine Signatur mitbringt:
+
+```json
+["Email/get", {"accountId": "1", "ids": ["42"], "properties": ["subject", "from", "to", "replyFrom"]}, "g"]
+```
+
+```json
+"replyFrom": {
+  "id": "addr-eW9Ac2hvcC5leGFtcGxl", "name": "John Smith", "email": "yo@shop.example",
+  "replyTo": null, "bcc": null, "textSignature": "", "htmlSignature": "", "mayDelete": false
+}
+```
+
+Es ist eine vollständige Identität oder `null`. Öffne die Antwort damit — Absender, Name und
+Signatur — und gib ihre `id` als `identityId` der Submission mit; bei `null`, oder gegenüber einem
+Server, der die Eigenschaft nicht kennt und sie weglässt, bleibst du bei der primären Identität.
+Es ist die Adresse, an die die Nachricht ging: dieselbe Antwort, mit der auch der Web-Editor eine
+Antwort öffnet — leite sie also nicht selbst aus An und Cc ab.
+
+- Bei einer Nachricht, die für einen Alias ankam, ist es die Identität dieses Alias, mit der `id`,
+  die sie in `Identity/get` hat.
+- Bei einer Nachricht, die für eine Adresse an einer der **Catch-all-Domains** des Kontos ankam,
+  ist es eine Identität, die `Identity/get` nicht auflistet — es gibt eine pro Adresse, an die je
+  jemand schreibt. Ihre `id` gilt in `EmailSubmission/set` wie jede andere, solange das Konto die
+  Domain noch hat; danach gibt es `forbiddenFrom`. Zeig sie für diese eine Nachricht in deinem
+  Von-Auswahlfeld neben den aufgelisteten, und speichere sie nicht als etwas, das du bei der
+  nächsten wieder anbietest.
+- Bei einem Entwurf ist es die Adresse, von der der Entwurf bereits geschrieben ist — damit
+  öffnest du ihn wieder.
+
+**Sag beim Speichern, von welcher Identität ein Entwurf geschrieben ist.** RFC 8621 nennt die
+Identität nur an der Submission; ein Entwurf hätte sonst bis zum Senden keinen Absender, und einer,
+der von einem Alias geschrieben wurde, käme aus den Entwürfen mit der primären Adresse zurück.
+plMail nimmt `identityId` auch in `Email/set` an, beim Anlegen und im Patch eines Updates:
+
+```json
+["Email/set", {"accountId": "1", "update": {"87": {"identityId": "addr-eW9Ac2hvcC5leGFtcGxl", "subject": "Re: Order"}}}, "s"]
+```
+
+Der Entwurf wird dann von dieser Adresse gespeichert, `from` und `replyFrom` melden sie, und mit
+ihr öffnet sich der Entwurf wieder, auf jedem Gerät. Schick die id bei jedem Speichern mit, und
+nimm sie in das auf, was entscheidet, ob ein Entwurf ungespeicherte Änderungen hat — ein
+Von-Auswahlfeld, das sonst nichts ändert, muss trotzdem speichern.
+
+- Die ids sind die, die `EmailSubmission/set` annimmt, eine Adress-Identität eingeschlossen.
+- Eine id, unter der das Konto nicht senden darf, wird **ignoriert**, und der Rest des Speicherns
+  geht durch: Das hier ist ein automatisches Speichern, und den Text wegen des Absenders zu
+  verlieren, wäre der schlimmere Fehler. Die Submission nennt ihre Identität weiterhin selbst, und
+  dort wird mit `forbiddenFrom` geantwortet.
+- **Prüf zuerst die Session.** Ein Server, der die Eigenschaft kennt, sagt das mit
+  `"draftIdentity": true` in der `urn:ietf:params:jmap:mail`-Capability des Kontos. Einer, der sie
+  nicht kennt, lehnt den ganzen Update-Patch als `invalidPatch` ab, weil er eine Eigenschaft nennt,
+  die er nicht ändern kann — lass den Schlüssel dort also weg.
 
 ### Vorlagen
 
@@ -1540,7 +1625,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Einstellungen**
 - Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
-  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`,
+  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
   den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.

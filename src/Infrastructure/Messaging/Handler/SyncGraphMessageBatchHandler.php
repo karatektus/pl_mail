@@ -20,7 +20,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
+use App\Service\Graph\GraphApiSyncer;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 /**
  * Imports one chunk of Graph messages.
@@ -206,7 +208,23 @@ final readonly class SyncGraphMessageBatchHandler
         }
 
         try {
-            return $this->apiClient->batchListAttachments($account, $withAttachments);
+            $listed = $this->apiClient->batchListAttachments($account, $withAttachments);
+
+            // Graph said these messages carry attachments and the listing has
+            // nothing at all for them: a sub-request failed. Stored as it is
+            // the message shows no attachment and nothing says why, which is
+            // how a rejected $select went unseen across a whole mailbox.
+            $unlisted = array_values(array_diff($withAttachments, array_keys($listed)));
+
+            if (count($unlisted) > 0) {
+                $this->logger->warning('SyncGraphMessageBatch: attachment listing returned nothing', [
+                    'accountId' => $account->id,
+                    'count'     => count($unlisted),
+                    'graphIds'  => $unlisted,
+                ]);
+            }
+
+            return $listed;
         } catch (\Throwable $e) {
             $this->logger->error('SyncGraphMessageBatch: attachment listing failed', [
                 'accountId' => $account->id,
@@ -232,9 +250,18 @@ final readonly class SyncGraphMessageBatchHandler
             'count'     => count($throttled),
         ]);
 
+        // A retry goes back where the batch came from. Left to the routing
+        // table it lands on the live queue, and while an account is importing
+        // nearly every throttled batch is the import's.
+        $stamps = [new DelayStamp(self::RETRY_DELAY_MS)];
+
+        if (true === $account->needsGraphImport()) {
+            $stamps[] = new TransportNamesStamp([GraphApiSyncer::IMPORT_QUEUE]);
+        }
+
         $this->bus->dispatch(
             new SyncGraphMessageBatchMessage((int) $account->id, $throttled, $this->origin->current()),
-            [new DelayStamp(self::RETRY_DELAY_MS)],
+            $stamps,
         );
     }
 }

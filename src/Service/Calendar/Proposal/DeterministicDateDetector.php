@@ -10,12 +10,15 @@ use DateTimeZone;
 /**
  * Stage two: the dates a person can write down without ambiguity, read exactly.
  *
- * Explicit and semi-explicit forms in German and English, because this user's
- * mail is both and a parser that handled one of them would be wrong half the
- * time rather than right half the time. `04.08.2026 um 14 Uhr`,
- * `4. August 2026, 14:00`, `2026-08-04 14:00`, `Samstag um 15 Uhr`,
- * `Saturday at 3pm`, `tomorrow at 9`, `next Tuesday 10:30`, with durations where
- * the mail states one — `2 Stunden`, `2 hours`, `90 Minuten`.
+ * Explicit and semi-explicit forms in German, English and French, because a
+ * mailbox is rarely in one language and a parser that handled one of them would
+ * be wrong half the time rather than right half the time. The interface
+ * language says nothing about the language of the mail, so all three are read
+ * for every user. `04.08.2026 um 14 Uhr`, `4. August 2026, 14:00`,
+ * `2026-08-04 14:00`, `Samstag um 15 Uhr`, `Saturday at 3pm`, `tomorrow at 9`,
+ * `next Tuesday 10:30`, `le 1er août à 14h30`, `mardi prochain à 10h`,
+ * `demain à 9h`, with durations where the mail states one — `2 Stunden`,
+ * `2 hours`, `2 heures`, `90 Minuten`.
  *
  * Three rules shape all of it, and each exists because the alternative fails
  * quietly rather than loudly.
@@ -53,7 +56,8 @@ use DateTimeZone;
  *   a real date the answer is no, not the other reading. Trying the other way
  *   round is right nine times and a week out on the tenth, silently.
  *   A bare hour that no `um`/`at` introduces. "Room 3, seats 12" is not half
- *   past midday.
+ *   past midday. French `à 9` is refused for the same reason — `à 3 km` — and
+ *   read once it says `9h`.
  *
  * Hours are read on a 24-hour clock unless a meridiem says otherwise, so
  * `tomorrow at 9` is nine in the morning. Deciding that a lone small number
@@ -136,18 +140,22 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
         // "On <date> … wrote" / "Am <Datum> schrieb <Name>:" — the German verb
         // comes before the name it introduces, so anchoring on the end of the
         // line reads "Am 06.08.2026 um 12:56 schrieb Paul:" as an appointment.
-        '~^\s*(?:on|am)\s+.{0,200}\b(?:wrote|schrieb)\b~iu',
+        // French, "Le 6 août 2026 à 12:56, Paul <…> a écrit :", is the English
+        // shape with its own words.
+        '~^\s*(?:on|am|le)\s+.{0,200}(?:\bwrote\b|\bschrieb\b|\ba\s+écrit)~iu',
         // The same attribution when the verb wrapped onto the next line.
-        '~\b(?:wrote|schrieb)\s*:\s*$~iu',
-        '~^\s*(?:on|am)\s+.{0,200}<[^>]+@[^>]+>~iu',
-        // The header block a forward echoes.
-        '~^\s*(?:from|von|sent|gesendet|to|an|cc|subject|betreff|reply-to)\s*:~iu',
+        '~(?:\bwrote|\bschrieb|\ba\s+écrit)\s*:\s*$~iu',
+        '~^\s*(?:on|am|le)\s+.{0,200}<[^>]+@[^>]+>~iu',
+        // The header block a forward echoes. French puts a space before the
+        // colon ("Objet :"), which the \s* already allows.
+        '~^\s*(?:from|von|de|sent|gesendet|envoy[ée]|to|an|à|cc|subject|betreff|objet|reply-to)\s*:~iu',
         // And the separator above it.
-        '~^\s*-{2,}\s*(?:original|forwarded|urspr|weitergeleitete)~iu',
+        '~^\s*-{2,}\s*(?:original|forwarded|urspr|weitergeleitete|message transf|message d.origine)~iu',
     ];
 
     /**
-     * Month names, spelled and abbreviated, in both languages.
+     * Month names, spelled and abbreviated, in all three languages, with the
+     * French accents optional because they are as often typed without.
      *
      * Written out rather than derived from IntlDateFormatter: the parse must
      * give the same answer on every machine, and the ICU data behind a
@@ -169,10 +177,24 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
         'oktober' => 10, 'october' => 10, 'okt' => 10, 'oct' => 10,
         'november' => 11, 'nov' => 11,
         'dezember' => 12, 'december' => 12, 'dez' => 12, 'dec' => 12,
+        'janvier' => 1, 'janv' => 1,
+        'février' => 2, 'fevrier' => 2, 'févr' => 2, 'fevr' => 2,
+        'mars' => 3,
+        'avril' => 4, 'avr' => 4,
+        'juin' => 6,
+        'juillet' => 7, 'juil' => 7,
+        'août' => 8, 'aout' => 8,
+        'septembre' => 9,
+        'octobre' => 10,
+        'novembre' => 11,
+        'décembre' => 12, 'decembre' => 12, 'déc' => 12,
     ];
 
     /**
      * Weekday names to their ISO-8601 number, Monday = 1.
+     *
+     * The French names only in full: their abbreviations are words — "mar" is
+     * March here already and "mer" is the sea.
      *
      * @var array<string,int>
      */
@@ -184,7 +206,17 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
         'freitag' => 5, 'friday' => 5, 'fri' => 5,
         'samstag' => 6, 'sonnabend' => 6, 'saturday' => 6, 'sat' => 6,
         'sonntag' => 7, 'sunday' => 7, 'sun' => 7,
+        'lundi' => 1, 'mardi' => 2, 'mercredi' => 3, 'jeudi' => 4,
+        'vendredi' => 5, 'samedi' => 6, 'dimanche' => 7,
     ];
+
+    /**
+     * The languages whose readers put the day first in 04/08/2026. Everybody
+     * else here is reading English, and English as plMail ships it is American.
+     *
+     * @var list<string>
+     */
+    private const array DAY_FIRST = ['de', 'fr'];
 
     public function name(): string
     {
@@ -301,20 +333,20 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
         $match = $this->firstMatch('~\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b~u', $sentence);
 
         if (null !== $match) {
-            $isGerman = 'de' === $context->language;
+            $dayFirst = in_array($context->language, self::DAY_FIRST, true);
 
             return $this->stated(
                 $local,
-                (int) ($isGerman ? $match[1][0] : $match[2][0]),
-                (int) ($isGerman ? $match[2][0] : $match[1][0]),
+                (int) ($dayFirst ? $match[1][0] : $match[2][0]),
+                (int) ($dayFirst ? $match[2][0] : $match[1][0]),
                 (int) $match[3][0],
                 $match,
             );
         }
 
-        // 4. August 2026, 4 August, 4th August 2026.
+        // 4. August 2026, 4 August, 4th August 2026, 1er août 2026.
         $match = $this->firstMatch(
-            sprintf('~\b(\d{1,2})(?:\.|st|nd|rd|th)?\s*(%s)\b(?:\s*,?\s*(\d{4}))?~iu', $months),
+            sprintf('~\b(\d{1,2})(?:\.|st|nd|rd|th|er)?\s*(%s)\b(?:\s*,?\s*(\d{4}))?~iu', $months),
             $sentence,
         );
 
@@ -347,37 +379,44 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
         // übermorgen before morgen, always: PCRE's \b is ASCII-only here, so
         // the boundary between "ü" and "m" is a real one and `\bmorgen\b`
         // matches inside "übermorgen" — which would move every day-after-
-        // tomorrow appointment twenty-four hours earlier.
-        $match = $this->firstMatch('~übermorgen~iu', $sentence);
+        // tomorrow appointment twenty-four hours earlier. "après-demain"
+        // carries "demain" behind a hyphen, the same trap in French.
+        $match = $this->firstMatch('~übermorgen|apr(?:è|e)s[- ]demain~iu', $sentence);
 
         if (null !== $match) {
             return $this->relative($local->modify('+2 days'), $match, rollsForward: false);
         }
 
-        $match = $this->firstMatch('~\b(?:morgen|tomorrow)\b~iu', $sentence);
+        $match = $this->firstMatch('~\b(?:morgen|tomorrow|demain)\b~iu', $sentence);
 
         if (null !== $match) {
             return $this->relative($local->modify('+1 day'), $match, rollsForward: false);
         }
 
-        $match = $this->firstMatch('~\b(?:heute|today|tonight)\b~iu', $sentence);
+        $match = $this->firstMatch('~\b(?:heute|today|tonight|aujourd[\'’]hui|ce soir)\b~iu', $sentence);
 
         if (null !== $match) {
             return $this->relative($local, $match, rollsForward: false);
         }
 
-        // "nächsten Dienstag" / "next Tuesday": the first such weekday strictly
-        // after the day the mail was sent. On any day but that weekday it is
-        // the same answer as the bare name; on that weekday it is the only
-        // reading available, since "next Tuesday" cannot mean today.
+        // "nächsten Dienstag" / "next Tuesday" / "mardi prochain": the first
+        // such weekday strictly after the day the mail was sent. On any day but
+        // that weekday it is the same answer as the bare name; on that weekday
+        // it is the only reading available, since "next Tuesday" cannot mean
+        // today. French puts the word after the day as often as before it.
         $match = $this->firstMatch(
-            sprintf('~\b(?:n(?:ä|ae)chste[nrs]?|kommende[nrs]?|next)\s+(%s)\b~iu', $days),
+            sprintf(
+                '~\b(?:n(?:ä|ae)chste[nrs]?|kommende[nrs]?|next|prochain)\s+(%1$s)\b|\b(%1$s)\s+prochain\b~iu',
+                $days,
+            ),
             $sentence,
         );
 
         if (null !== $match) {
+            $day = '' !== ($match[1][0] ?? '') ? $match[1][0] : $match[2][0];
+
             return $this->relative(
-                $this->weekday($local, self::WEEKDAYS[$this->key($match[1][0])], strictlyAfter: true),
+                $this->weekday($local, self::WEEKDAYS[$this->key($day)], strictlyAfter: true),
                 $match,
                 rollsForward: true,
             );
@@ -440,6 +479,38 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
             return $this->time((int) $match[1][0], (int) ($match[2][0] ?? 0), $match);
         }
 
+        // 14h30, 14 h 30 — how French writes a time of day. The closing \b
+        // is what keeps "2 heures" and "2 hrs" out: a letter after the h makes
+        // it a word, not a time.
+        $match = $this->firstMatch('~\b(\d{1,2})\s?h\s?(\d{2})\b~iu', $sentence);
+
+        if (null !== $match) {
+            return $this->time((int) $match[1][0], (int) $match[2][0], $match);
+        }
+
+        // 14h, "à 9h", "vers 9 heures". A bare single-digit "2h" is not read:
+        // in English and German that is how long something takes, and next
+        // to a date it would become an appointment at two in the morning. A
+        // preposition says it is a time; so does a two-digit hour, which
+        // nobody uses for a length of anything a calendar holds. `à` is not
+        // an ASCII word character, so it is fenced by a lookbehind, not \b.
+        $match = $this->firstMatch(
+            '~(?<!\pL)(?:à|vers|dès)\s+(\d{1,2})\s?(?:h|heures?)\b|\b(\d{2})\s?h\b~iu',
+            $sentence,
+        );
+
+        if (null !== $match) {
+            return $this->time((int) ('' !== ($match[1][0] ?? '') ? $match[1][0] : $match[2][0]), 0, $match);
+        }
+
+        // "midi". Not the one in "après-midi", which is an afternoon and no
+        // particular hour of it.
+        $match = $this->firstMatch('~(?<!-)\bmidi\b~iu', $sentence);
+
+        if (null !== $match) {
+            return $this->time(12, 0, $match);
+        }
+
         // "um 9", "at 9", "gegen 18". The preposition is what makes a lone
         // number a time rather than a house number or a seat count.
         $match = $this->firstMatch('~\b(?:um|at|ab|gegen|around)\s+(\d{1,2})\b(?![:.]\d)~iu', $sentence);
@@ -462,9 +533,9 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
     {
         $candidates = [];
 
-        // "2 Stunden", "1,5 hours", "2 hrs".
+        // "2 Stunden", "1,5 hours", "2 hrs", "2 heures".
         $match = $this->firstMatch(
-            '~\b(\d{1,3})(?:[.,](\d))?\s*(?:stunden|stunde|std\.?|hours|hour|hrs|hr)\b~iu',
+            '~\b(\d{1,3})(?:[.,](\d))?\s*(?:stunden|stunde|std\.?|hours|hour|hrs|hr|heures|heure)\b~iu',
             $text,
         );
 
@@ -481,8 +552,8 @@ final readonly class DeterministicDateDetector implements ProposalDetectorInterf
             $candidates[$match[0][1]] = (int) $match[1][0];
         }
 
-        // "eine Stunde", "an hour".
-        $match = $this->firstMatch('~\b(?:eine|einer|an|one)\s+(?:stunde|hour)\b~iu', $text);
+        // "eine Stunde", "an hour", "une heure".
+        $match = $this->firstMatch('~\b(?:eine|einer|an|one|une)\s+(?:stunde|hour|heure)\b~iu', $text);
 
         if (null !== $match) {
             $candidates[$match[0][1]] = 60;

@@ -290,6 +290,11 @@ final class MessageThreader
         $thread->category = true === $message->isCategoryHeld()
             ? null
             : $message->category ?? MessageCategory::Primary;
+        // A held message's thread is in no tab at all, and that includes the
+        // reader's own: the filter that would file it has not run yet either.
+        $thread->userCategory = true === $message->isCategoryHeld()
+            ? null
+            : $message->ruleCategory;
         $thread->attachmentCount = 0;
 
         // The new-mail marker starts null — nobody has been shown this row yet
@@ -477,6 +482,15 @@ final class MessageThreader
 
         if (null !== $category) {
             $thread->category = $category;
+
+            // The reader's own tab follows the same rule and moves in the same
+            // breath, including BACK to none: a newer message no filter claimed
+            // takes the conversation out of "Shipping" exactly as a newer
+            // Promotions message takes it out of Updates. Only a message that
+            // has a category counts — an uncategorised draft is not an opinion
+            // about where the conversation belongs. See
+            // MessageThread::$userCategory.
+            $thread->userCategory = $message->ruleCategory;
         }
     }
 }

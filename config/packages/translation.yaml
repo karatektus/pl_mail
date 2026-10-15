@@ -1,7 +1,7 @@
 framework:
     default_locale: en
     # Keep in sync with App\Domain\Enum\AppLocale and translations/messages.*.yaml.
-    enabled_locales: ['en', 'de', 'en_PI']
+    enabled_locales: ['en', 'de', 'fr', 'en_PI']
     translator:
         default_path: '%kernel.project_dir%/translations'
         providers:

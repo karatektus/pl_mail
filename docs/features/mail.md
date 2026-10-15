@@ -84,10 +84,20 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
 
+The tabs are on the top-level Inbox, and you can have them on **an account's own inbox** too (click
+the account in the sidebar): **Settings → Mail → Categories**, **Tabs on each account**. It is off
+until you turn it on, and then an Outlook or any other account has them, [tabs of your
+own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
+is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
+account's mail — so a tab of yours that holds mail only in another account is not on this one. The
+account page's tabs are plainer: no
+"new" pills, sender hints or unread tint, because those add up every account and would describe the
+wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
+
 ### An inbox without tabs
 
-If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings → General
-→ Categories**. The inbox then shows everything in it, newest first, and the tabs are
+If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings →
+Categories**. The inbox then shows everything in it, newest first, and the tabs are
 gone along with what belongs to them: the "new" pills, dragging a conversation onto a tab, and the
 panel that explains why a message was filed where it was.
 
@@ -98,7 +108,7 @@ choosing **Rules** stops it.
 
 ### Choosing what sorts your mail
 
-Both of those defaults are yours to change, under **Settings → General → Categories**.
+Both of those defaults are yours to change, under **Settings → Categories**.
 
 **Sorted by** picks what decides. **Rules** reads headers — a mailing-list header, an unsubscribe
 link, a sender you have written to before — and answers the same way every time for the same
@@ -143,6 +153,49 @@ It is bounded because it costs a model call each — a few hundred is minutes on
 mailbox is hours. Recent mail is where a wrong tab gets noticed anyway. Nothing asks again on its
 own, and nothing should.
 
+### Arranging the tabs
+
+The **Tabs** card on the same page lists every tab in the order the inbox shows them. Drag one to
+move it, or use the arrows beside it from a keyboard or on a phone. **Primary** is always first and
+always on: it is where the inbox opens and where mail from a tab you switch off goes.
+
+Any of the other four built-in tabs can be switched **Off**. Forums is the usual candidate — Gmail
+itself rarely puts anything there. A tab that is off is not just hidden: nothing sorts into it any
+more, not the rules, not Google's labels and not the assistant, and the mail that would have gone
+there is in Primary. The **Details** panel says so on such a message ("it would be Forums, which you
+switched off"). Switching a tab off or back on re-files the mail you already have, in the
+background, the same way changing what sorts your mail does; switching it back on brings its mail
+back, because the category is worked out again from what is stored on each message. A conversation
+you had dragged into a tab you switch off goes back to being sorted like any other.
+
+### Tabs of your own
+
+The five are what plMail knows how to recognise. If you want a tab for something it cannot — parcels,
+receipts, one client's mail — add it at the bottom of the **Tabs** card under **Settings →
+Categories**: a name, and nothing else. It goes to the end of the strip until you move it. A tab of your own holds nothing until a [filter](filters.md#filing-into-your-own-tabs)
+whose action is **File in category** puts mail into it, and like the others it only shows in the
+inbox while it holds mail. A filter files Gmail mail too: Google's categories outrank plMail's own
+sorting unless you say otherwise, but a filter is something you wrote, and it outranks both.
+
+Mail stays in your tab when the filter that put it there is changed or deleted, as a label stays on
+mail when its filter goes. Dragging the conversation out, or deleting the tab, is how it leaves.
+
+A conversation is in exactly one tab, so mail filed into yours leaves the built-in tab it would
+otherwise have been in — a carrier's notice that used to sit in Promotions is in Shipping now, and
+Promotions counts, shows and badges only what is left. You can also drag a conversation onto a tab
+of your own, or off one onto a built-in tab, exactly as between the five; a conversation you moved
+by hand stays where you put it.
+
+The message's **Details** panel names your tab when that is where the conversation is, and says it
+was filed there by one of your filters (or, after a drag, that you moved it). Renaming a tab renames
+it everywhere at once. **Deleting** one puts its mail back in the tab it would otherwise be in;
+nothing is deleted.
+
+The Android app shows your tabs as the browser does — in your order, without the ones you switched
+off — and moves mail between them. Other mail apps that connect over JMAP see what they always did:
+the five built-in categories, with a conversation in your Shipping tab under the built-in tab it
+would otherwise be in. Gmail itself knows nothing of your tabs.
+
 ### Telling plMail it got one wrong
 
 Open a message's **to …** dropdown and the bottom row asks whether it is in the wrong tab. Pick where
@@ -169,15 +222,21 @@ messages reports from. You can close the settings page; it carries on.
 
 Each tab reads the way Gmail's do: an icon — filled in on the tab you are on — and, while a
 category holds mail you have never been shown, a **"3 new"** pill in that category's colour with
-a second line naming who that new mail is from, newest arrival first. That is deliberately the
-only number on a tab: unread already has the sidebar badge and the bold rows, so the tab keeps
-the one thing only it can say. The strip is live — pill and sender names update in place when
-mail arrives, without waiting for a reload, and a hint is retired the moment you look at its tab.
+a second line naming who that new mail is from, newest arrival first. "New" and "unread" are
+different questions, so a tab carries two numbers: the pill says what arrived that you have never
+been shown, and a plain **unread count** beside the tab's name says how many conversations in that
+category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
+to it; it shows on every tab including the one you are on, and is hidden at zero. It can be
+switched off under **Settings → Appearance → Message list**. (Earlier
+versions kept this number off the tabs, on the argument that the badge and the bold rows already
+say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,
+nothing on the strip pointed at the tab holding the mail.) The strip is live — pills, counts and
+sender names update in place when mail arrives, without waiting for a reload, and a hint is
+retired the moment you look at its tab.
 
 A tab holding unread mail also wears its category's colour on the icon. Not the tab you are on —
 its mail is already in the list underneath it, and the tint is there to point at what you
-*cannot* see. Still no second number: the colour says *there is something here* and the list
-header says how much.
+*cannot* see. The colour says *there is something here*; the count beside the name says how much.
 
 It matters most under **Unread only**, where the strip is otherwise mute — every row on screen
 is unread, so boldness no longer separates anything, and the sidebar's Inbox badge is a single
@@ -238,6 +297,18 @@ delivery day promised in words rather than digits ("arriving today", "Arriving M
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did.
 
+The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
+GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
+like the other Amazon shops. A parcel waiting at a relay point or a locker is its own stage, **Ready
+for pickup**, neither on its way nor delivered, and once its recipient has collected it ("Votre
+colis a été retiré", "récupéré par son destinataire") it is **Delivered**. The Pickup relay network
+(network1.pickup.fr, network2.pickup.fr) is read too, but it hands over the parcels of several
+carriers, so its address names none of them: a card takes its carrier from the sender's name when
+that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
+link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
+satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
+card back into something else.
+
 ### The strip above the mail list
 
 Dated insights also appear as a band directly above the mail list — up to three of them, soonest
@@ -277,7 +348,8 @@ One-time codes are the one source with an expiry rather than an occurrence. A co
 the moment the mail says the code stops working — "valid for 10 minutes", "gültig bis 09:30" — so
 it drops off the radar when it goes dead instead of sitting there looking usable. When the mail
 states no lifetime, the card carries no time at all: guessing ten minutes would either retire a
-code that still works or, worse, keep a dead one looking fresh.
+code that still works or, worse, keep a dead one looking fresh. The radar still offers such a code,
+but only for fifteen minutes after its mail arrived; the card above the mail itself keeps it.
 
 ### Reporting a mail the radar missed
 
@@ -396,8 +468,8 @@ something whose reach it has not mentioned.
 
 ### Move to
 
-The folder button beside the label button — in the toolbar above a selection, and in an open
-conversation — files mail under one label in a single step: **the label you pick goes on, and the
+The folder button — beside **Delete** in the toolbar above a selection, and beside the label
+button in an open conversation — files mail under one label in a single step: **the label you pick goes on, and the
 label of the list you were looking at comes off.** Every other label stays.
 
 | Where you are | What "Move to *Receipts*" does |
@@ -522,7 +594,9 @@ added rather than immediately; see [Accounts and aliases](accounts.md).
 
 ## Acting on mail
 
-Row buttons and the toolbar do the same things, the toolbar over everything selected. **Select
+Row buttons and the toolbar do the same things, the toolbar over everything selected. Above a
+selection it shows **Archive**, **Delete** and **Move to**; star, mark as read or unread, snooze,
+label and spam are behind **More** beside them. **Select
 all** has a menu beside it offering **All**, **None**, **Read**, **Unread** and **Starred**.
 
 A selection belongs to the list, not to the page: what you tick stays ticked when you go to the
@@ -565,12 +639,12 @@ nothing where that button is not offered — there is no Archive in the bin, so 
 Keys are left alone while you are typing into anything, while a dialog or a menu is open, and
 whenever Ctrl, Alt or ⌘ is held.
 
-They are on for everyone. **Settings → General → Keyboard shortcuts** switches them off for you.
+They are on for everyone. **Settings → Keyboard shortcuts** switches them off for you.
 
 ### Mark as spam
 
 The spam button sits beside **Delete**: among a row's buttons, in the toolbar of an open
-conversation, and in the toolbar above a selection. On one conversation it opens a short menu:
+conversation, and under **More** above a selection. On one conversation it opens a short menu:
 
 | Choice | What it does |
 |---|---|
@@ -600,11 +674,113 @@ Moving mail to spam tells plMail nothing about the next message. plMail has no s
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter
 is how you make it stick here.
 
+### Deleting spam for good
+
+Mail in Spam, and in the bin, can be deleted for good — the only deletion in plMail that is not a
+move. There is no Undo, so the buttons that do it are **off until you turn them on**: **Settings →
+Mail → Disposal**, **Delete-now buttons**. It is a choice you make for your own account, and a
+config backup carries it.
+
+With it on, each row in Spam and the bin has a **Delete forever** button (the flame) beside **Move
+to inbox**, and it asks first. Nothing else can be deleted for good: a conversation in the inbox or
+the archive has to be thrown away once before this is offered, because there is no Undo to catch a
+slip.
+
+In **Spam** and in the bin, the toolbar above a selection has the same **Delete forever** in place of
+**Delete**. In Spam that makes a page of spam one click and one question rather than a trip to the
+bin and a second deletion there; in the bin a Delete could only trash mail that was already
+trashed, so it would take the rows off the list and leave the mail where it was. The question says
+how many conversations it is about. It is removed from the mail server too,
+not only from plMail, and it cannot be brought back — **Move to inbox** is the way out beforehand.
+
+With it off, Spam keeps its ordinary **Delete**, which moves the mail to the bin, and the bin has no
+**Delete** above a selection at all: mail already in the bin cannot be trashed again, and **Move to
+inbox** is the way out of it. Switching it off again takes the buttons away at once. The server
+refuses a request to delete for good while it is off as well, so it is the choice that decides, not
+only what is drawn.
+
+To empty Spam or the bin, tick **All**, take the **Select all N** it offers, and press **Delete
+forever**. The question then names the whole count, not the rows on the page. A folder is emptied in
+the background, with the same progress indicator as any other action over a whole view, and a
+conversation moved back to the inbox before the job reaches it is left alone. Only Spam and the bin
+can be emptied this way; a search or a label cannot.
+
+`#` presses **Delete**. With the switch on, that button is not there above a selection in Spam or the
+bin, so `#` does nothing in those places; the flame, with its question, is the one way to delete a
+selection there. With it off, `#` works in Spam as it does elsewhere, and does nothing in the bin,
+which has no **Delete**.
+
+## The reading pane
+
+**Settings → Reading pane** decides where the message you open goes: **Off** or **Right**. Off is how plMail
+has always worked — the list and the open message take turns on the same space, and the back arrow
+returns you to the list. Right puts the message beside the list, so you can read one conversation
+and see the rest of the mailbox at the same time. Off is the default, and nothing about your
+mailbox changes until you pick Right.
+
+With the pane on the right, the list stays where it is when you open something. The open row is
+marked with a tint and a bar on its leading edge, and the area beside the list says
+*Select a conversation to read it here* until you open one. The back arrow closes the message and
+leaves the list as it was.
+
+The open message also stays put while you move around the list. Choosing another folder, switching
+a category tab, turning the page, sorting or searching changes what the list shows and leaves the
+conversation you were reading where it is, so you can look for the next one without losing this one.
+No row is marked while the list shows a folder the message is not in, and the mark comes back when
+you return to its folder. The back arrow then closes the message and leaves you on the folder you
+switched to. With one pane at a time (see below) the message has covered the list, so choosing a
+folder closes it and shows the new list, as it always did.
+
+**The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
+focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
+default. What is stored is the message's share of the **mail card** — the list and the message
+together, without the sidebar or a docked calendar — as a percentage between 25 and 75, 55 to
+begin with. It is a percentage rather than a width in pixels because the card changes size whenever
+the calendar pane opens, closes or is dragged, and a share keeps its meaning across all of those.
+It is remembered for your account, not for the browser. It is set on the mailbox itself, against
+real mail, and there is no slider for it in Settings.
+
+**It steps aside when there is no room.** Right is a preference, not a promise: it is drawn only
+while the mail card is at least 52rem (832 pixels at the default text size) wide. A narrow window,
+a phone, or a wide window with the calendar docked beside the mail all fall back to one pane at a
+time, with no setting to change. Each pane also keeps a minimum width, so a share of 75% on a card
+only just wide enough gives way before the list becomes a sliver.
+
+The reading pane is not part of an exported theme, although it changes how the mailbox looks: where
+a message is drawn is a decision about the mailbox, not part of a look somebody might share, and
+importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** on the Appearance page
+leaves it alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
+you had it.
+
+**Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
+together. A key still goes to the selection first: `e` with two rows ticked archives those two and
+leaves the conversation you are reading open.
+
+## Remote images
+
+Pictures that a message loads from the sender's servers are blocked until you ask for them: a
+picture fetched when you open a message tells its sender that, and when, you read it. The message
+says how many it held back, with two ways to show them — **Show images** for this message only, and
+**Always show images from** the sender, which remembers that sender for your account. A trusted
+sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
+yourself shows its pictures without asking.
+
+**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
+your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
+senders you trusted one by one are kept either way, so switching it off again brings back exactly
+the list you had. A config backup carries the choice.
+
+Mail in **Spam** stays blocked whatever you choose, trusted senders included: a message filed as
+spam is your provider doubting it comes from who it says, and **Show images** is still there to
+load one message's pictures by hand.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,
 not only in plMail's view of it — gains the Snoozed label, and comes back when its time is up. The
-clock button is on every row, above a selection and in the toolbar of an open conversation.
+clock button is on every row and in the toolbar of an open conversation; above a selection it is
+under **More**.
 
 The menu offers **Later today**, **Tomorrow**, **This weekend**, **Next week**, **Pick a date and
 time**, and **Unsnooze** on something already snoozed. Later today is 18:00 and is offered only
@@ -670,7 +846,8 @@ attachment has never touched plMail's disk; it is materialised on first access.
 **Compose** opens a window docked at the bottom right. Replying from inside a thread opens the
 editor at the foot of the conversation instead, on a wide screen; below that it falls back to the
 dock. Either way the window offers rich text, contact autocomplete on the address fields, and a
-**From** selector listing every active account and every sending alias on it.
+**From** selector listing every active account and every sending alias on it. A reply opens on the
+address the mail was sent to; see [Accounts and aliases](accounts.md#sending-aliases).
 
 Autocomplete only ever offers **your own** harvested contacts. On an install with more than one
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
@@ -745,6 +922,24 @@ on, and the caret starts in the **To** row, since the recipient is the one thing
 leave without; **Insert signature** adds the block when you want it. That button replaces the block
 in place instead of adding a second one, and so does changing the **From** account: the signature
 block is swapped and a paragraph you have already typed survives the change.
+
+**A signature you already have as HTML** — from a generator, a brand guide, another mail client —
+goes in through the **HTML** view of the editor. **Rendered** and **HTML** above the field switch
+between the two: HTML is the signature as source, to paste or edit; Rendered is the signature as it
+will be stored. Switching to Rendered is not the browser drawing what you pasted. The source goes to
+the server, through the same clean-up every signature is saved through, and what comes back is what
+you see — so the rendered view cannot look better than what recipients get. A line under the editor
+names anything that was taken out: typically a `<style>` block and the `class` attributes that
+pointed into it, since most mail clients ignore both. Put the styling on the elements themselves
+(`style="…"`), which is kept. Saving from either view stores the same thing.
+
+**Images in a signature are stored in the signature.** A picture referenced by address
+(`<img src="https://…">`) is fetched when you render or save and kept inside the signature
+itself. It then travels with every mail as an attached inline image — the recipient sees your logo
+without being asked to load remote content, and it keeps working after the web address stops. An
+image stays a plain reference instead when it cannot be fetched over https, is not a PNG, JPEG, GIF
+or WebP, or is larger than 256 KB (768 KB for one signature in all); the line under the editor
+counts those, and they do not show in the editor, which loads no images from elsewhere.
 
 Writing inside a conversation gets a **reduced header**: the **To** field itself, typable, with
 From, Cc, Bcc and the subject folded away behind the chevron beside it. Replying rarely means
@@ -920,11 +1115,10 @@ the search box says how far it has got, and until it says nothing at all, "meani
 from this view" — the dialog is a shortcut to the same operation, across every account, nested labels
 included.
 
-**A signature image cannot be an inline image.** A picture placed in a *signature* is stored as an
-ordinary image reference, not as a `cid:` part: the sanitiser every signature is written through
-drops the marker attribute that would make it one, deliberately, so a signature cannot smuggle in
-something that looks like one of the message's own inline pictures. Inline images work in the
-message body, where you put them.
+**A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
+inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see
+[Signature](#signature). Anything larger, an SVG, or an image that could not be fetched stays a
+reference to its web address, which recipients may have to allow before it shows.
 
 **"New" is not "unread", and losing the badge is not reading anything.** Scrolling past a row in the
 inbox retires its New badge, because the row was put in front of you. The conversation stays unread
@@ -972,6 +1166,8 @@ administrator can read and download it. That is what makes a new extractor writa
 the dialog says so before you send. On an installation you do not run yourself, report the mail
 whose shape you want recognised — not one whose contents you would rather keep.
 
-**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time,
-and it stays until you dismiss it. plMail will not invent ten minutes, so the card cannot tell you
-whether the code still works — the mail it came from is the only thing that can.
+**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time. On
+the radar it is offered for fifteen minutes after its mail arrived and then goes, so a code from
+last week is not left there readable; the card above the mail itself keeps it. plMail will not
+invent ten minutes, so the card cannot tell you whether the code still works — the mail it came
+from is the only thing that can.

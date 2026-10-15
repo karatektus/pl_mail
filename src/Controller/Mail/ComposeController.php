@@ -137,7 +137,7 @@ class ComposeController extends AbstractController
         }
 
         $form = $this->formFactory->create($message, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($account));
+        $form->get('account')->setData($this->senders->tokenFor($message, $account));
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
@@ -252,7 +252,7 @@ class ComposeController extends AbstractController
     private function composeWindow(ComposeContext $ctx, Message $draft, Account $account): Response
     {
         $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($account));
+        $form->get('account')->setData($this->senders->tokenFor($draft, $account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
         return $this->renderWindow($form, $draft, $ctx);
@@ -280,7 +280,7 @@ class ComposeController extends AbstractController
         $ctx = $ctx->withMode(ComposeContext::MODE_FORWARD);
 
         $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($account));
+        $form->get('account')->setData($this->senders->tokenFor($draft, $account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
         return $this->renderWindow($form, $draft, $ctx);
@@ -547,7 +547,7 @@ class ComposeController extends AbstractController
         }
 
         $form = $this->formFactory->create($message, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($message->account));
+        $form->get('account')->setData($this->senders->tokenFor($message, $message->account));
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         // Inline: pull the message back out of the thread and re-open the

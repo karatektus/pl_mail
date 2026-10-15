@@ -326,9 +326,25 @@ test.describe("emoji", () => {
 
         await editor.click();
 
-        // What the body held before a key was pressed. Clicking the editor
-        // puts the caret at the end of whatever is already there, so typing
-        // appends — and the assertion below can therefore be exact about the
+        // The caret goes to the very end of the body, explicitly. A click puts
+        // it wherever the click lands, and with a signature in the body that
+        // is the empty line above it — the typed text then went in before the
+        // signature and the exact assertion below failed, whenever the worker's
+        // user had a signature left on it by another spec.
+        await editor.evaluate((element) => {
+            const range = document.createRange();
+
+            range.selectNodeContents(element);
+            range.collapse(false);
+
+            const selection = window.getSelection();
+
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+        });
+
+        // What the body held before a key was pressed. Typing appends at the
+        // caret placed above, so the assertion below can be exact about the
         // WHOLE body without needing it to have started empty.
         //
         // It used to just say `toBe(typed)`, which quietly also asserted that

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\MessageThread;
@@ -13,6 +14,8 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\ListViewResolver;
+use App\Service\Mail\MailPlacement;
+use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -93,6 +96,8 @@ final readonly class RunBulkStatusHandler
         private ThreadStatusUpdater     $status,
         private ThreadSnoozeService     $snooze,
         private MoveToService           $moveTo,
+        private MessagePurger           $purger,
+        private MailPlacement           $placement,
         private LabelRepository         $labels,
         private JobNotifier             $notifier,
         private EntityManagerInterface  $em,
@@ -202,6 +207,14 @@ final readonly class RunBulkStatusHandler
 
     private function run(BackgroundJob $job): void
     {
+        // The switch again, here where the mail is destroyed. The controller
+        // checked it when the job was started; a job waits in a queue, and
+        // somebody who has switched deleting for good off since then has said
+        // what they want.
+        if (JobKind::Purge === $job->kind && false === $job->usr->deleteNowButtons) {
+            throw new \LogicException('Deleting for good was switched off before this job ran.');
+        }
+
         $threads = $this->views->threadsIn(
             $job->usr,
             (string) $job->view['scope'],
@@ -421,6 +434,37 @@ final readonly class RunBulkStatusHandler
                     $this->moveTo->plan($owned[0]->account->usr, $target, $view['scope'], $view['value']),
                 );
             }
+
+            $this->em->clear();
+
+            return;
+        }
+
+        // DELETE FOR GOOD. Conversation by conversation, and only one whose
+        // every message is still in Spam or the bin: the view was resolved when
+        // the job began, and mail moved back to the inbox since then — or a
+        // conversation with one message elsewhere — is left exactly where it
+        // is. Skipped rather than refused, unlike the inline path: that one
+        // answers a person who can read the refusal, and this one has already
+        // deleted the chunks before it.
+        if ('purge' === $action) {
+            $doomed = [];
+
+            foreach ($owned as $thread) {
+                $messages = array_values($thread->messages->toArray());
+
+                foreach ($messages as $message) {
+                    if (false === $this->placement->isDiscarded($message)) {
+                        continue 2;
+                    }
+                }
+
+                array_push($doomed, ...$messages);
+            }
+
+            // One call for the chunk, so the mail server is asked once per
+            // account and not once per conversation.
+            $this->purger->purge($doomed);
 
             $this->em->clear();
 

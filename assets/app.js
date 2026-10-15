@@ -5,6 +5,7 @@ import './motion.js';
 import './confirm.js';
 import './client_errors.js';
 import './request_errors.js';
+import { watchForMailChanges } from './mail_writes.js';
 /*
  * The stylesheets are NOT imported here, and their absence is deliberate.
  *
@@ -26,3 +27,7 @@ import './request_errors.js';
  * instead, which is what the AssetMapper documentation recommends for CSS
  * anyway. See App\Security\Csp\ContentSecurityPolicyListener.
  */
+
+// Every response the server marks as having changed mail re-reads the sidebar
+// counts. Installed once, here, so no feature has to remember to ask.
+watchForMailChanges();

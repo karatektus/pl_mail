@@ -12,6 +12,7 @@ use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\OpenAiClient;
 use App\Service\Ai\PromptLibrary;
 use App\Service\Ai\WritingAssistant;
 use Doctrine\DBAL\Connection;
@@ -350,6 +351,7 @@ final class WritingStreamTest extends KernelTestCase
         $ai = new AiAssistant(
             $this->settings,
             new OllamaClient($http, new NullLogger()),
+            new OpenAiClient($http, new NullLogger()),
             $this->recorder(),
             new NullLogger(),
         );

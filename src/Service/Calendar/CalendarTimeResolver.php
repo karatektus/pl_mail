@@ -57,12 +57,26 @@ final readonly class CalendarTimeResolver
      * gutter it is read against, and a new event proposed at the next full UTC
      * hour, which for a Berlin user in summer is a slot already an hour past.
      * Neither looks like an error; both are just wrong by the offset.
+     *
+     * **A mirrored calendar does not get to pick the clock.** Its zone was copied
+     * from the remote account when it was subscribed, and for a shared Google
+     * calendar that is routinely UTC — a choice somebody made for a different
+     * purpose, not this reader's. Letting it win drew the whole page in UTC the
+     * moment such a calendar became the default: an 11:30 Europe/Paris
+     * appointment, stored correctly as 09:30 UTC, was printed as 09:30. Only a
+     * calendar this install owns (isSynced() false) carries a zone somebody chose
+     * for reading it. The guard does NOT cover a mirrored calendar whose owner
+     * wants it read in its remote zone — there is no setting for that yet.
      */
     public function zoneFor(User $user): DateTimeZone
     {
         $calendar = $this->calendars->findDefaultForUser($user);
 
-        return $this->safeZone($calendar->timeZone ?? $this->timezones->nameFor($user));
+        if (null === $calendar || true === $calendar->isSynced()) {
+            return $this->safeZone($this->timezones->nameFor($user));
+        }
+
+        return $this->safeZone($calendar->timeZone);
     }
 
     /**

@@ -25,8 +25,16 @@ self-contained: no {% extends %}, no block dependencies.
    mail-sheet utility in assets/styles/app.css). #}
 <div class="mail-sheet flex flex-col flex-1 min-h-0">
 
-{# ── Toolbar ─────────────────────────────────────────────────────────────── #}
-<div class="flex items-center gap-1 px-3 py-2 border-b border-line flex-shrink-0">
+{# ── Toolbar ───────────────────────────────────────────────────────────────
+   As tall as the list's toolbar, to the pixel: `--pane-header-h` of controls
+   inside `py-1`, which is how _list_toolbar builds its bar. This one used to
+   be `py-2` around 32px buttons, four pixels shorter — invisible while the two
+   took turns on the same space, and a step in the rule under them the moment
+   the reading pane put them side by side. A wrapper for the row rather than a
+   min-height on the bar, because the bar's border counts toward its own
+   height and the list's row carries none. #}
+<div class="px-3 py-1 border-b border-line flex-shrink-0">
+<div class="flex items-center gap-1 min-h-[var(--pane-header-h)]">
     <button
         type="button"
         data-action="click->mail--mail-pane#close"
@@ -121,6 +129,7 @@ self-contained: no {% extends %}, no block dependencies.
         {{ thread.subject ?: ('thread.no_subject'|trans) }}
     </span>
 </div>
+</div>{# /toolbar #}
 
 {# ── Conversation ────────────────────────────────────────────────────────── #}
 <div class="flex-1 overflow-y-auto"

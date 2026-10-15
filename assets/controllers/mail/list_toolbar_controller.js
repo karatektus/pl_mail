@@ -13,6 +13,7 @@ import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { clearSelection, enterView, restoreSelection, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
+import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 
 // Classes applied to the checkbox button in each state
@@ -186,6 +187,24 @@ export default class extends Controller {
     }
 
     /**
+     * A row of the "More" menu that is itself a menu: Snooze, Label.
+     *
+     * The row closes "More" (its own second action) and this opens the panel
+     * it names, by pressing that panel's trigger — laid unseen over the same
+     * button, and also what the `b` and `l` keys press.
+     *
+     * A tick later, not now. This click is still on its way up the document,
+     * and to a menu opened in the middle of it it is a click outside: both
+     * menus close on one, so the panel would open and shut in the same event.
+     */
+    openFlyout(event) {
+        const { flyout } = event.params;
+        const trigger = this.element.querySelector(`[data-toolbar-flyout="${flyout}"]`);
+
+        setTimeout(() => trigger?.click(), 0);
+    }
+
+    /**
      * The toolbar's spam button: the selection goes to Spam, and that is all.
      *
      * The same move "Move to → Spam" makes, without opening the picker. No
@@ -210,6 +229,36 @@ export default class extends Controller {
         }
 
         await this._bulkPost("star");
+    }
+
+    /**
+     * Deletes the ticked conversations for good — offered only in Spam, where
+     * it stands in for Delete.
+     *
+     * Asks first, here and not through `data-turbo-confirm`, for the reason the
+     * row's button does (see mail--message-row#purge): this posts with fetch(),
+     * which Turbo never consults. The question names how many, because a
+     * selection can run past what is on screen.
+     *
+     * A whole-view selection is how Spam or the bin is emptied: the count in
+     * the question is then the view's total, and the server hands the work to
+     * a background job (BulkStatusController::PURGEABLE_VIEWS).
+     */
+    async purgeSelected() {
+        const count = true === this.#allInView ? this.totalValue : this._selectedIds().length;
+
+        if (0 === count) {
+            return;
+        }
+
+        const i18n     = this.i18nValue ?? {};
+        const question = (1 === count ? i18n.purgeConfirmOne : i18n.purgeConfirmMany) ?? "";
+
+        if (false === await askConfirm(question.replace("%count%", String(count)))) {
+            return;
+        }
+
+        await this._bulkPost("purge");
     }
 
     async markReadSelected() {
@@ -340,7 +389,7 @@ export default class extends Controller {
     /**
      * One request for the whole selection.
      *
-     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze | move-to
+     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze | move-to | star | purge
      * @param {object} body   - optional JSON body (e.g. { read: true }, { until }, { labelId } or { role })
      *
      * It used to be one request per conversation, fired in parallel. That is

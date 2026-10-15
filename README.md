@@ -61,12 +61,13 @@ provider doesn't.
   the foot of the sidebar with the next thing coming up.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud, Immich and Paperless-ngx.
-- **A language model, if you want one** — point plMail at an Ollama box on your own network and it
-  can search by meaning, draft replies, summarise a thread and sort mail into tabs. A long thread is
-  summarised from as much of it as fits, and says so; ask for the whole conversation and it runs as a
-  job with a context window to match. What it has been told about how you write is editable in the
-  composer, for one attempt at a time. Off by default, each of the four switched on separately, and
-  nothing ever leaves your network.
+- **A language model, if you want one** — point plMail at an Ollama box on your own network, or at
+  any OpenAI-compatible endpoint, and it can search by meaning, draft replies, summarise a thread
+  and sort mail into tabs. A long thread is summarised from as much of it as fits, and says so; ask
+  for the whole conversation and it runs as a job with a context window to match. What it has been told about how you write is editable in the
+  composer, for one attempt at a time. Off by default, each of the four switched on separately. Mail
+  goes to the model host you name and nowhere else, so with a model on your own machine nothing
+  leaves your network.
 - **You decide what sorts your mail** — header rules that answer the same way every time, or the
   model reading each message; and on Gmail, whether either of them is allowed to disagree with
   Google. Change your mind and the mailbox re-sorts itself in the background. Every message's
@@ -79,8 +80,9 @@ provider doesn't.
 - **And when there is something newer** — follow releases or the main branch, and the
   administrators hear about each new build once: on their devices and at the top of the admin area,
   with what changed since the one they run.
-- **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, ten icons for the tab and the
-  phone's home screen, English, German and Pirate.
+- **Yours** — two-factor auth, sign-in through Authentik, Keycloak or any other OpenID Connect
+  provider, per-app JMAP passwords, 41 themes, ten icons for the tab and the phone's home screen,
+  English, German, French and Pirate.
 
 ## A look around
 

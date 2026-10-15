@@ -6,11 +6,13 @@ use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Service\Mail\MailPresetProvider;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -60,14 +62,12 @@ class AccountType extends AbstractType
                 'label'       => 'Email address',
                 'constraints' => [new NotBlank()],
             ])
-            ->add('password', PasswordType::class, [
+            ->add('password', SecretType::class, [
                 'attr' => [
                     'placeholder' => '••••••••',
                     'class' => 'form-input',
-                    'autocomplete' => 'new-password',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
                 'label' => 'Password',
-                'always_empty' => true,
                 'required' => $options['require_password'],
             ])
             ->add('imapHost', TextType::class, [
@@ -124,7 +124,67 @@ class AccountType extends AbstractType
                     'class' => 'form-select',
                     ],
                 'label' => 'SMTP encryption',
+            ])
+            // ── A second password, for sending ─────────────────────────────
+            // Two fields, and the first is the one that decides. A server that
+            // wants a different password to send is rare, so the form shows
+            // one password field and a button; the button ticks this box and
+            // reveals the second field (see settings--smtp-password and
+            // account/_fields.html.twig).
+            //
+            // The box is what is believed, not the field. A password manager
+            // will fill a password input it can find whether or not it is on
+            // screen, and a blank field on the edit form means "keep what is
+            // stored" — so neither "has a value" nor "is blank" says whether
+            // this account is meant to have a second password. The box does.
+            ->add('separateSmtpPassword', CheckboxType::class, [
+                'mapped'   => false,
+                'required' => false,
+                'label'    => 'account.form.smtp.separate',
+            ])
+            ->add('smtpPassword', SecretType::class, [
+                'attr' => [
+                    'placeholder'  => '••••••••',
+                    'class'        => 'form-input',
+                ],
+                'label'        => 'account.form.smtp.password',
+                'required'     => false,
             ]);
+
+        // What the account had before the form wrote on it: `always_empty`
+        // submits a blank for an untouched field, and by POST_SUBMIT that
+        // blank is already on the entity.
+        $stored = null;
+
+        $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event) use (&$stored): void {
+            $account = $event->getData();
+            $stored  = $account instanceof Account ? $account->smtpPassword : null;
+
+            $event->getForm()->get('separateSmtpPassword')->setData(null !== $stored && '' !== $stored);
+        });
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use (&$stored): void {
+            $account = $event->getData();
+
+            if (false === $account instanceof Account) {
+                return;
+            }
+
+            // Box clear: one password for both, whatever the hidden field
+            // was sent with.
+            if (true !== $event->getForm()->get('separateSmtpPassword')->getData()) {
+                $account->smtpPassword = null;
+
+                return;
+            }
+
+            // Box ticked, field blank: keep the stored one — the same rule the
+            // password above it follows on the edit form. On a new account
+            // there is none, and the account simply has no second password.
+            if (null === $account->smtpPassword || '' === $account->smtpPassword) {
+                $account->smtpPassword = $stored;
+            }
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

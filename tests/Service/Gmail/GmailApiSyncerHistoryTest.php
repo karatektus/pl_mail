@@ -496,6 +496,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             new NullLogger(),
             $eraser,
             new \App\Service\Mail\SyncOrigin(),
+            $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
         );
     }
 

@@ -136,7 +136,11 @@ final readonly class PostIngestPipeline
             // The category written one line up stays — it is the rules' answer,
             // and it is what the message is filed under if the model never
             // replies. See ClassificationHold and Message::$categoryHeldAt.
+            // Spam and Trash are not held: the hold keeps a message out of the
+            // inbox tabs until its verdict arrives, and there is no verdict
+            // coming for mail no model is asked about. See Message::isSetAside().
             if (true === $holding
+                && false === $message->isSetAside()
                 && true === $this->hold->shouldHold($message, $item->account, $correspondents, $user?->categorySorting)) {
                 $message->categoryHeldAt = new DateTimeImmutable();
             }

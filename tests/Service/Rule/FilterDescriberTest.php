@@ -7,6 +7,7 @@ namespace App\Tests\Service\Rule;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\InboxCategory;
 use App\Entity\User\User;
 use App\Service\Rule\FilterDescriber;
 use Doctrine\DBAL\Connection;
@@ -166,6 +167,62 @@ final class FilterDescriberTest extends KernelTestCase
         // would be inventing one.
         self::assertStringContainsString('Home cloud', $withoutFolder);
         self::assertStringNotContainsString('Mail/Invoices', $withoutFolder);
+    }
+
+    /**
+     * The sentence is how a reader checks that a "Shipping" filter files into
+     * Shipping and not into the category beside it, so the name has to be the
+     * category's own — and a category that has since been removed has to read as
+     * removed, not as a bare number.
+     */
+    public function testAFilingActionNamesTheCategoryAndSaysWhenItIsGone(): void
+    {
+        $category       = new InboxCategory();
+        $category->usr  = $this->user;
+        $category->name = 'Shipping';
+        $this->em->persist($category);
+        $this->em->flush();
+
+        $named = $this->describer->describe(
+            ['fromDomain' => 'mondialrelay.fr'],
+            [['type' => 'fileInCategory', 'categoryId' => $category->id]],
+            $this->user,
+        );
+
+        self::assertStringContainsString('File in category Shipping', $named);
+
+        $gone = $this->describer->describe(
+            ['fromDomain' => 'mondialrelay.fr'],
+            [['type' => 'fileInCategory', 'categoryId' => (int) $category->id + 1000]],
+            $this->user,
+        );
+
+        self::assertStringContainsString('(deleted category)', $gone);
+        self::assertStringNotContainsString('Shipping', $gone);
+    }
+
+    /**
+     * One reader's category name must never be read out in another's sentence.
+     * The id is a plain integer in the stored action, so the lookup is what
+     * keeps it private.
+     */
+    public function testAnotherReadersCategoryIsNotNamed(): void
+    {
+        $stranger         = $this->seedUser();
+        $theirs           = new InboxCategory();
+        $theirs->usr      = $stranger;
+        $theirs->name     = 'Private to them';
+        $this->em->persist($theirs);
+        $this->em->flush();
+
+        $sentence = $this->describer->describe(
+            [],
+            [['type' => 'fileInCategory', 'categoryId' => $theirs->id]],
+            $this->user,
+        );
+
+        self::assertStringContainsString('(deleted category)', $sentence);
+        self::assertStringNotContainsString('Private to them', $sentence);
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────

@@ -23,5 +23,12 @@ readonly class SyncGmailMessageBatchMessage
         // What started the sync that planned this batch, carried along so the
         // messages it stores can say so. `??` when reading: see SyncAccountMessage.
         public ?SyncTrigger $trigger = null,
+        // Fetch only the ids that are not stored yet. Set for a batch a
+        // listing planned, where an id already here is one an earlier batch
+        // brought in; left off for a sync's batch, which names stored ids on
+        // purpose because their labels changed. `??` when reading, as above,
+        // which is also why it is nullable: a job queued before this existed
+        // has no such property at all.
+        public ?bool $onlyMissing = false,
     ) {}
 }

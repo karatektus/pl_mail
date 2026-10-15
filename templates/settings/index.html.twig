@@ -71,12 +71,22 @@
                                 {# Grouped by what the setting is about, not by when it was
                                    added — thirteen equal-weight links in one column is a list
                                    nobody reads, they scan it for a word they already have in
-                                   mind. Four groups, in the order someone new meets them:
-                                   themselves, their mail, their calendar, and finally what
+                                   mind. Five groups, in the order someone new meets them:
+                                   themselves, their mail, their calendar, the ways of
+                                   working that can be switched on or off, and finally what
                                    else can reach the account. Security closes the list rather
                                    than sitting third: it is the section people arrive at
                                    deliberately, and it has the two neighbours it belongs with
                                    — app passwords and integrations are the other two ways in.
+
+                                   Features is for what the app DOES differently when asked,
+                                   as opposed to how it looks or whose mail it reads: the
+                                   reading pane beside the list, the keyboard shortcuts. Each
+                                   gets a page of its own although it is one card, because
+                                   that is what makes it findable — the reading pane began as
+                                   the last control on Appearance and the shortcuts as the
+                                   fifth card on General, and neither was where anybody
+                                   looked.
 
                                    Sharing stays next to Calendars rather than moving to that
                                    last group: a shared link and a booking page are calendar
@@ -142,8 +152,11 @@
                                         { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'templates',     icon: 'fa-regular fa-file-lines' },
+                                        { section: 'categories',    icon: 'fa-solid fa-inbox' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
+                                        { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
+                                        { section: 'images',        icon: 'fa-regular fa-image' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
                                     ]|merge(ai_settings_available() or section == 'ai'
                                             ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
@@ -152,7 +165,12 @@
                                     ]) },
                                     { label: 'settings.nav.group.calendar', items: [
                                         { section: 'calendars',     icon: 'fa-regular fa-calendar' },
+                                        { section: 'calendar-behaviour', icon: 'fa-solid fa-arrows-left-right', label: 'settings.nav.calendar_behaviour' },
                                         { section: 'sharing',       icon: 'fa-solid fa-share-nodes' },
+                                    ] },
+                                    { label: 'settings.nav.group.features', items: [
+                                        { section: 'reading-pane',  icon: 'fa-solid fa-table-columns', label: 'settings.nav.reading_pane' },
+                                        { section: 'shortcuts',     icon: 'fa-regular fa-keyboard' },
                                     ] },
                                     { label: 'settings.nav.group.access', items: [
                                         { section: 'integrations',  icon: 'fa-solid fa-plug' },
@@ -161,9 +179,9 @@
                                     ] },
                                 ] %}
 
-                                {# Not a <nav> per group: it is one navigation with four
-                                   labelled parts, and four landmarks would be read out as
-                                   four separate menus. The headings are presentational —
+                                {# Not a <nav> per group: it is one navigation with five
+                                   labelled parts, and five landmarks would be read out as
+                                   five separate menus. The headings are presentational —
                                    aria-hidden, with the same word given to the list it
                                    labels — so a screen reader hears "Mail, list, 5 items"
                                    once instead of the word twice. #}
@@ -382,17 +400,14 @@
                                                 {% endblock %}
                                             {% endembed %}
 
-                                            {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.shortcuts.heading'|trans,
-                                                subheading: 'settings.shortcuts.subheading'|trans,
-                                            } %}
-                                                {% block body %}
-                                                    {% include 'settings/_shortcuts.html.twig' with {
-                                                        enabled: app.user.keyboardShortcuts,
-                                                    } only %}
-                                                {% endblock %}
-                                            {% endembed %}
-
+                                        </div>
+                                    {% elseif section == 'categories' %}
+                                        {# Everything about the inbox tabs on one page: what sorts
+                                           mail into them, then the tabs themselves — which built-in
+                                           ones are on, the reader's own, and the order of all of
+                                           them. The sorting card used to sit under General, and the
+                                           tabs it sorts into were a second card beside it. #}
+                                        <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {
                                                 heading:    'settings.sorting.heading'|trans,
                                                 subheading: 'settings.sorting.subheading'|trans,
@@ -403,10 +418,78 @@
                                                         overrideProvider: app.user.categorySorting.overrideProvider,
                                                         assistantOffered: ai_categorisation_enabled(),
                                                         tabs:             app.user.categorySorting.tabs,
+                                                        accountTabs:      app.user.accountInboxTabs,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.categories.heading'|trans,
+                                                subheading: 'settings.categories.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_inbox_tabs.html.twig' with {
+                                                        tabs:        categoryTabs,
+                                                        switchedOff: app.user.categorySorting.switchedOff(),
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>
+                                    {% elseif section == 'reading-pane' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.reading_pane.heading'|trans,
+                                            subheading: 'settings.reading_pane.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_reading_pane.html.twig' with {
+                                                    mode: app.user.readingPaneMode,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'calendar-behaviour' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.calendar_behaviour.heading'|trans,
+                                            subheading: 'settings.calendar_behaviour.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_calendar_behaviour.html.twig' with {
+                                                    skip: app.user.calendarSwitchSkip,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'disposal' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.disposal.heading'|trans,
+                                            subheading: 'settings.disposal.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_disposal.html.twig' with {
+                                                    deleteNow: app.user.deleteNowButtons,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'images' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.images.heading'|trans,
+                                            subheading: 'settings.images.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_images.html.twig' with {
+                                                    alwaysShow: app.user.alwaysShowImages,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'shortcuts' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.shortcuts.heading'|trans,
+                                            subheading: 'settings.shortcuts.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_shortcuts.html.twig' with {
+                                                    enabled: app.user.keyboardShortcuts,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {

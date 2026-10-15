@@ -8,6 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
@@ -146,6 +147,16 @@ class ThreadStatusController extends AbstractController
     #[Route('/purge', name: 'purge', methods: ['POST'])]
     public function purge(Request $request, string $type, int $id): Response
     {
+        // The user's switch (Settings → Mail → Disposal), enforced here and not
+        // only by the templates that draw the button: a switch that merely hid
+        // the flame would leave this route answering a hand-made POST.
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (false === $user->deleteNowButtons) {
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+        }
+
         $messages = $this->resolveMessages($request, $type, $id);
 
         foreach ($messages as $message) {

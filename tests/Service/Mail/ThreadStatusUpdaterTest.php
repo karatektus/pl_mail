@@ -13,6 +13,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Jmap\State\StateManager;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\DBAL\Connection;
@@ -302,6 +303,49 @@ final class ThreadStatusUpdaterTest extends KernelTestCase
         }
 
         self::assertSame(3, $thread->unreadCount);
+    }
+
+    /**
+     * Opening a conversation marks it read every time, and most conversations
+     * opened have been read before. Those calls used to be written all the
+     * same: seenAt replaced, the provider told again, a JMAP change recorded —
+     * which woke every phone and every open tab over numbers that had not
+     * moved.
+     */
+    public function testMarkingReadWhatIsAlreadyReadChangesAndAnnouncesNothing(): void
+    {
+        $thread   = $this->inboxThread(2);
+        $messages = $thread->messages->toArray();
+        $state    = self::getContainer()->get(StateManager::class);
+
+        $this->updater->markRead($messages, true);
+
+        $firstSeen = $messages[0]->seenAt;
+        $this->transport()->reset();
+        $state->drainDirty();
+
+        $this->updater->markRead($messages, true);
+
+        self::assertSame($firstSeen, $messages[0]->seenAt, 'read on Monday and looked at on Friday is read on Monday');
+        self::assertCount(0, $this->transport()->getSent(), 'the provider is not told what it already knows');
+        self::assertFalse($state->hasDirty(), 'and nothing is recorded for a phone or a tab to re-read');
+    }
+
+    /** The other direction of the same rule: a real change is still all three. */
+    public function testMarkingUnreadWhatWasReadIsRecordedAndPropagated(): void
+    {
+        $thread   = $this->inboxThread(1);
+        $messages = $thread->messages->toArray();
+        $state    = self::getContainer()->get(StateManager::class);
+
+        $this->updater->markRead($messages, true);
+        $this->transport()->reset();
+        $state->drainDirty();
+
+        $this->updater->markRead($messages, false);
+
+        self::assertGreaterThan(0, count($this->transport()->getSent()));
+        self::assertTrue($state->hasDirty());
     }
 
     // ── account resolution ───────────────────────────────────────────────────

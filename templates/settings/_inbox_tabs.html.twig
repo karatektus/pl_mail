@@ -1,0 +1,152 @@
+{#
+settings/_inbox_tabs.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Every inbox tab on one list, in the order the inbox draws them: the built-in
+ones with a switch, the reader's own with rename and delete, and all of them
+but Primary in an order the reader drags into place.
+
+ONE LIST, NOT TWO. The strip is one row of tabs whichever kind each one is, so
+arranging it is one list too — a reader's "Shipping" belongs between Updates
+and Promotions if that is where they look for it.
+
+PRIMARY IS NOT IN THE SORTABLE LIST. It is always first and cannot be switched
+off: it is the tab the inbox opens on and where a switched-off tab's mail goes.
+A row that looked like the others but refused to move would be a puzzle; a row
+above the list that says why it stays is not.
+
+A switch posts on change, like every other switch on these pages, and
+re-sorts the mailbox (InboxCategoryController::switch). The order is written as
+one JSON list after every move (settings--tab-order). Rename, delete and add
+are plain posts that come back to this page.
+
+What fills a tab of the reader's own is a filter's "File in category" action,
+so the card says so and links there: a tab with nothing filing into it stays
+out of the strip, and a card that did not explain that would look broken the
+first time somebody made one.
+
+Accepts:
+  tabs         InboxTab[]          every tab, switched off or not, in order
+  switchedOff  MessageCategory[]   the built-ins switched off
+#}
+{% set segText = 'flex h-full items-center justify-center px-2.5 py-1 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+{% set moveButton = 'w-5 h-4 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed' %}
+
+<div class="px-4 py-3">
+    <p class="text-[11px] text-ink-faint">
+        {{ 'settings.categories.hint'|trans }}
+        <a href="{{ path('app_settings_index', { section: 'filters' }) }}" class="text-accent hover:underline">{{ 'settings.categories.filters_link'|trans }}</a>
+    </p>
+
+    <div class="mt-3 rounded-pane border border-line">
+        {% set primary = tabs|first %}
+        <div class="flex items-center gap-3 px-3 py-2.5 border-b border-line" data-tab-fixed="{{ primary.value }}">
+            <span class="w-5 shrink-0 flex justify-center text-ink-faint" aria-hidden="true">
+                <i class="fa-solid fa-thumbtack text-[10px]"></i>
+            </span>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-ink">{{ ('tabs.' ~ primary.value)|trans }}</p>
+                <p class="text-[11px] text-ink-faint">{{ 'settings.categories.primary_fixed'|trans }}</p>
+            </div>
+        </div>
+
+        <ul class="divide-y divide-line"
+            data-controller="settings--tab-order"
+            data-settings--tab-order-url-value="{{ path('app_settings_categories_order') }}"
+            data-settings--tab-order-csrf-value="{{ csrf_token('settings-categories') }}"
+            data-settings--tab-order-target="list">
+            {% for tab in tabs|slice(1) %}
+                {% set label = tab.builtIn ? ('tabs.' ~ tab.value)|trans : tab.name %}
+                {% set isOff = tab.builtIn and tab.builtIn in switchedOff %}
+                <li class="flex items-center gap-3 px-3 py-2.5" data-tab-key="{{ tab.value }}">
+                    {# Buttons as well as a handle, as on the account list: a drag
+                       is unreachable from a keyboard and fiddly on a phone. #}
+                    <div class="flex flex-col items-center shrink-0">
+                        <button type="button" data-action="settings--tab-order#move" data-direction="up"
+                                class="{{ moveButton }}" {{ loop.first ? 'disabled' : '' }}
+                                aria-label="{{ 'settings.categories.move_up'|trans({ '%tab%': label }) }}">
+                            <i class="fa-solid fa-chevron-up text-[9px]" aria-hidden="true"></i>
+                        </button>
+                        <span class="tab-drag-handle w-5 h-4 flex items-center justify-center text-ink-faint hover:text-ink-muted cursor-grab active:cursor-grabbing touch-none"
+                              title="{{ 'settings.categories.reorder'|trans }}" aria-hidden="true">
+                            <i class="fa-solid fa-grip-vertical text-[10px]"></i>
+                        </span>
+                        <button type="button" data-action="settings--tab-order#move" data-direction="down"
+                                class="{{ moveButton }}" {{ loop.last ? 'disabled' : '' }}
+                                aria-label="{{ 'settings.categories.move_down'|trans({ '%tab%': label }) }}">
+                            <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    {% if tab.builtIn %}
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-medium {{ isOff ? 'text-ink-faint' : 'text-ink' }}">{{ label }}</p>
+                            <p class="text-[11px] text-ink-faint">
+                                {{ (isOff ? 'settings.categories.built_in_off' : 'settings.categories.built_in')|trans }}
+                            </p>
+                        </div>
+
+                        <form method="post" action="{{ path('app_settings_categories_switch') }}" data-turbo="false" data-controller="ui--auto-submit" class="shrink-0">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
+                            <input type="hidden" name="key" value="{{ tab.value }}">
+                            <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
+                                 role="radiogroup" aria-label="{{ label }}">
+                                {% for on in [true, false] %}
+                                    <label>
+                                        <input type="radio" name="on" class="peer sr-only"
+                                               value="{{ on ? '1' : '0' }}"
+                                               data-action="change->ui--auto-submit#submit"
+                                               {{ isOff != on ? 'checked' : '' }}>
+                                        <span class="{{ segText }}">{{ (on ? 'settings.categories.on' : 'settings.categories.off')|trans }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </form>
+                    {% else %}
+                        <form method="post" action="{{ path('app_settings_categories_rename', { id: tab.categoryId }) }}"
+                              data-turbo="false" class="flex min-w-0 flex-1 items-center gap-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
+                            <input type="text" name="name" value="{{ tab.name }}" required maxlength="40"
+                                   aria-label="{{ 'settings.categories.name_label'|trans }}"
+                                   class="min-w-0 flex-1 h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+                            <button type="submit"
+                                    class="shrink-0 h-8 px-2.5 rounded-pane border border-line text-xs text-ink-muted hover:text-ink hover:bg-hover cursor-pointer transition-colors">
+                                {{ 'settings.categories.rename'|trans }}
+                            </button>
+                        </form>
+
+                        {# Through Turbo, unlike the forms above: data-turbo-confirm is
+                           Turbo's, and with Turbo off the tab was deleted without
+                           the question being asked. #}
+                        <form method="post" action="{{ path('app_settings_categories_delete', { id: tab.categoryId }) }}"
+                              class="shrink-0"
+                              data-turbo-confirm="{{ 'settings.categories.delete_confirm'|trans({ '%name%': tab.name }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
+                            <button type="submit"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-hover cursor-pointer transition-colors"
+                                    aria-label="{{ 'settings.categories.delete'|trans }}"
+                                    title="{{ 'settings.categories.delete'|trans }}">
+                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <form method="post" action="{{ path('app_settings_categories_create') }}" data-turbo="false" class="mt-3 flex items-center gap-2">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
+        <input type="text" name="name" required maxlength="40"
+               placeholder="{{ 'settings.categories.placeholder'|trans }}"
+               aria-label="{{ 'settings.categories.name_label'|trans }}"
+               class="min-w-0 flex-1 h-8 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+        <button type="submit"
+                class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.categories.add'|trans }}
+        </button>
+    </form>
+</div>

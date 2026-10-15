@@ -167,6 +167,66 @@ test.describe("sidebar section collapse (desktop)", () => {
         await expect(section(page, LABELS)).not.toHaveAttribute("open", "");
         await expect(summary).toHaveAttribute("aria-expanded", "false");
     });
+
+    // The "+" is quiet until you are on its row, and the row is the heading
+    // (the summary), not the section: hovering a label further down the list
+    // must not light up the Labels "+". Both headings are covered because the
+    // two buttons are written out separately in the template.
+    for (const [key, name] of [
+        [LABELS, /create label/i],
+        [ACCOUNTS, /add account/i],
+    ] as const) {
+        test(`the ${key} "+" shows only while its heading row is hovered or focused`, async ({
+            page,
+        }) => {
+            await page.goto("/mail/inbox");
+
+            const summary = section(page, key).locator("> summary");
+            const add = summary.getByRole("button", { name });
+
+            // Absence needs its presence companion in the same test: hidden
+            // at rest, and visible once the row is hovered.
+            await page.mouse.move(0, 0);
+            await expect(add).toHaveCSS("opacity", "0");
+
+            await summary.hover();
+            await expect(add).toHaveCSS("opacity", "1");
+
+            await page.mouse.move(0, 0);
+            await expect(add).toHaveCSS("opacity", "0");
+
+            // Keyboard users have no hover: reaching the button shows it.
+            await add.focus();
+            await page.keyboard.press("Shift+Tab");
+            await page.keyboard.press("Tab");
+            await expect(add).toBeFocused();
+            await expect(add).toHaveCSS("opacity", "1");
+        });
+    }
+});
+
+test.describe("sidebar section collapse (touch)", () => {
+    // No hover to reveal it with, so the "+" must stay in plain sight —
+    // otherwise a phone has no way to create a label or add an account.
+    test.use({ viewport: MOBILE, hasTouch: true, isMobile: true });
+
+    test("the heading \"+\" buttons are visible without a hover", async ({
+        page,
+    }) => {
+        await page.goto("/mail/inbox");
+        await page
+            .getByRole("button", { name: /show or hide the sidebar/i })
+            .first()
+            .click();
+
+        for (const key of [LABELS, ACCOUNTS]) {
+            await expect(
+                section(page, key, "#sidebar-drawer-inner")
+                    .locator("> summary")
+                    .getByRole("button"),
+            ).toHaveCSS("opacity", "1");
+        }
+    });
 });
 
 test.describe("sidebar section collapse (mobile drawer)", () => {

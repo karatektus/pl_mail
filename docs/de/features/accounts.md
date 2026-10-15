@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:3c63f9c65f0a7e82c8dd84517d821aa08ddc9aa6 -->
+<!-- translated-from: features/accounts.md sha1:e3b70a077702b079166c724d88537caef5fba35f -->
 
 # Konten und Aliase
 
@@ -30,7 +30,16 @@ daran, aber ein Konto, das sauber abgelegt wird und sich nicht anmelden kann, is
 Fehler, den man lieber jetzt als bei der ersten Synchronisierung findet — deshalb läuft die
 Prüfung beim Speichern noch einmal, und ihr Ergebnis bleibt am Konto vermerkt.
 
-Die erste Synchronisierung startet sofort. Danach hält plMail eine IMAP-IDLE-Verbindung zu
+Die erste Synchronisierung startet sofort, und die vorhandene Mail des Kontos wird danach
+hereingeholt, die neueste zuerst: das Jüngste aus dem Posteingang binnen etwa einer Minute, dann
+der Rest des Posteingangs, dann Gesendet, Entwürfe und deine eigenen Ordner, das Archiv und
+zuletzt Spam und Papierkorb. Mail, die währenddessen ankommt, wird davon nicht aufgehalten. Neben
+dem Suchfeld steht **Import läuft**, solange ein Konto importiert — ein Klick darauf zeigt den
+Stand je Konto und den Ordner, an dem es gerade ist; bewegt sich eine Weile nichts, steht dort
+**Wartet darauf, weiterzumachen**, und ein Konto, das nicht erreichbar ist, erscheint unter
+**Zustand der Konten**.
+
+Danach hält plMail eine IMAP-IDLE-Verbindung zu
 jedem Postfach und synchronisiert in dem Moment, in dem sich etwas ändert, mit einem geplanten
 Durchlauf alle fünfzehn Minuten dahinter.
 
@@ -54,7 +63,7 @@ Google abgelehnt werden und beim nächsten Abgleich wieder verschwinden. Ein Mic
 dieselben Rechte per Richtlinie zurückhalten.
 
 plMail vergleicht jetzt, was es bekommen hat, mit dem, wonach es gefragt hat, und zeigt bei einem
-Unterschied eine Karte unter **Kontozustand** — mit einem Knopf, um das Konto neu zu verbinden und
+Unterschied eine Karte unter **Zustand der Konten** — mit einem Knopf, um das Konto neu zu verbinden und
 den Rest zu erteilen. Wenn du ein Konto verbunden hast, bevor es das gab, erscheint die Karte beim
 ersten Erneuern der Anmeldung oder sobald eine Änderung zum ersten Mal abgelehnt wird.
 
@@ -86,18 +95,28 @@ Bildschirm etwas davon stand. Zwei Entscheidungen, zwei Bedienelemente.
 
 Der farbige Punkt neben jedem Konto ist dessen **Kennfarbe**: derselbe Ton, den die Nachrichten
 dieses Kontos in den gemeinsamen Listen tragen, damit sich zwei Konten dort auf einen Blick
-unterscheiden lassen. Sie wird beim Hinzufügen vergeben und wandert danach nie wieder — die Liste
-umzusortieren färbt nichts um —, und sie ist **keine** Statusanzeige. Ob ein Konto tatsächlich
-funktioniert, beantwortet [Zustand der Konten](health.md), die einzige Stelle, die den Anspruch
-erhebt, das zu beantworten.
+unterscheiden lassen. Sie wird beim Hinzufügen vergeben — die erste von acht Farben, die noch nicht
+in Gebrauch ist — und ändert sich danach nur, wenn du sie änderst. Die Liste umzusortieren färbt
+nichts um, und sie ist **keine** Statusanzeige. Ob ein Konto tatsächlich funktioniert, beantwortet
+[Zustand der Konten](health.md), die einzige Stelle, die den Anspruch erhebt, das zu beantworten.
+
+Ändern kannst du sie mit dem Farbfeld in der Zeile des Kontos, das die Palette mit den acht Farben
+öffnet. Dieses Bedienelement gibt es bei **jedem** Konto, auch bei Gmail- und Outlook-Konten — deshalb
+ist es kein Feld in **Konto bearbeiten**: Dieses Formular ist für sie gesperrt. Der Punkt in der
+Seitenleiste ändert sich sofort, und jede Liste, die du danach öffnest, zeigt die neue Farbe an den
+Nachrichten des Kontos; eine Liste, die schon in einem anderen Tab offen ist, wird beim Neuladen
+umgefärbt. Eine Farbe zu wählen, die ein anderes Konto schon trägt, ist erlaubt — so lassen sich
+zwei Konten zu einem Paar machen.
 
 Jede Zeile bietet:
 
 | Bedienelement | Wirkung |
 |---|---|
+| **Farbfeld** | Öffnet die Palette; die gewählte Farbe gehört dem Konto von da an — bei jedem Konto |
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
+| **Zu synchronisierende Ordner wählen** | Schaltet einzelne IMAP-Ordner ein oder aus — nur bei IMAP-Konten; siehe [Zu synchronisierende Ordner](#zu-synchronisierende-ordner) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -187,6 +206,23 @@ Aktualisierungen, die im Hintergrund laufen.
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
+### Zu synchronisierende Ordner
+
+**Zu synchronisierende Ordner wählen** öffnet die Ordner des Kontos, jeweils mit einem Schalter.
+Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nicht mehr ab: Die
+bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
+weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
+Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+
+Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
+zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der
+Liste, sein Schalter aus und gesperrt: Der Server lässt ihn nicht öffnen, also gibt es nichts
+abzurufen.
+
+Es erscheint nur bei IMAP-Konten. Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
+Anbieters und hat keine Ordner zur Auswahl. Ein Ordner, den der Server nicht mehr auflistet, wird
+nicht angezeigt.
+
 ## Absendeadressen
 
 **Einstellungen → Aliase** listet die Adressen auf, unter denen jedes Konto sendet und
@@ -200,6 +236,47 @@ Schreibfenster nicht mehr angeboten.
 
 Die **From**-Auswahl im Schreibfenster listet Konten und Aliase gemeinsam auf, sodass das Senden
 unter einer Aliasadresse eine Wahl ist und nicht zwei.
+
+Eine **Antwort** öffnet sich mit der Adresse, an die die Mail gerichtet war. Was für einen Alias
+ankam, wird von diesem Alias beantwortet, ohne dass du ihn auswählst; eine Mail, die keine Adresse
+des Kontos nennt — eine Liste, ein Bcc, von dem der Server keine Spur gelassen hat — wird von der
+primären beantwortet. Antwortest du auf eine Mail, die du selbst geschickt hast, bleibt die
+Adresse, von der du sie geschickt hast. Die Auswahl ist weiterhin da, um das zu ändern.
+
+### Der Name, unter dem eine Adresse sendet
+
+Unter jeder Adresse steht ein Feld für den **Absendernamen**: das, was die Empfängerin neben der
+Adresse sieht. Bleibt es leer, sendet die Adresse unter dem Namen des Kontos, und genau den zeigt
+das Feld ausgegraut. Eine Familienadresse in einem privaten Konto kann „Herr und Frau Schmidt“
+heißen, während das Konto „Jan Schmidt“ bleibt. Die From-Auswahl zeigt denselben Namen, mit dem die
+Mail hinausgeht.
+
+### Catch-all-Domains
+
+Wenn dein Anbieter **jede** Adresse einer Domain in dieses Postfach zustellt, trag die Domain unter
+**Catch-all-Domains** ein. plMail behandelt dann jede Adresse dieser Domain beim Antworten als
+deine: Eine Antwort auf eine Mail an `irgendwas@example.com` geht von `irgendwas@example.com` aus,
+mit dem Namen und der Signatur des Kontos, und in deinem eigenen „Allen antworten“ stehst du nicht
+selbst. Eine Termineinladung an eine solche Adresse ist deine, und deine Antwort geht von ihr aus
+zurück. Du musst vorher keinen Alias anlegen, und an eingehender Mail ändert sich nichts.
+
+**Nicht jede Adresse der Domain gilt als du.** Ein Catch-all fängt auf, was kein eigenes Postfach
+hat, und auf einer Familien- oder Firmendomain haben andere eines: `anna@example.com` liegt auf
+deiner Catch-all-Domain und ist jemand anderes. Eine Adresse zählt deshalb nur bei einer Mail als
+deine, mit der sie dich erreicht hat — die Adresse, an die dein Server sie laut seinem Vermerk
+zugestellt hat, oder, wenn der Server keinen hinterlassen hat, die Adressen dieser Domain in An und
+Cc. Anna bleibt in deinem „Allen antworten“, ihre Mail wird an sie beantwortet und nicht als sie,
+und eine Einladung, die sie nennt, wird dir nicht angeboten. Nennt eine Mail euch beide und trägt
+keinen Zustellvermerk, kann plMail nicht unterscheiden, welche deine war, und behandelt beide als
+dich.
+
+Drei Dinge tut es nicht. Es gilt für genau eine Domain — `example.com` deckt `mail.example.com`
+nicht ab. Es gilt für Antworten und Weiterleitungen; eine neue Nachricht geht weiterhin von einer
+Adresse aus der Liste oben aus. Und für Gmail- und Outlook-Konten wird es nicht angeboten, denn die
+senden nur über Adressen, die der Anbieter selbst kennt, und schreiben jede andere um oder lehnen
+sie ab. plMail prüft nicht, ob die Domain wirklich ein Catch-all ist oder ob dein Anbieter dich von
+dort senden lässt: Das ist eine Sache zwischen dir und dem Anbieter, und ein falscher Eintrag zeigt
+sich bei der ersten Antwort als abgelehnter oder umgeschriebener Absender.
 
 Einen Vorbehalt nennt plMail auf der Seite selbst: **Outlook versendet unabhängig von deiner
 Wahl hier immer über den primären Alias des Kontos.** Das ist Microsofts Verhalten, geändert
@@ -261,3 +338,11 @@ Lösung ist, erneut zu verbinden und das Häkchen gesetzt zu lassen.
 **Ein fehlgeschlagener Push ist kein Fehlerzustand.** Eine selbst gehostete Installation hat
 womöglich überhaupt keine öffentlich erreichbare HTTPS-Adresse. Eine gescheiterte Registrierung
 heißt „bleib beim Abrufen“, und der Durchlauf alle fünfzehn Minuten bleibt davon unberührt.
+
+**Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
+sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte
+Mail aus plMail verschwinden lässt, schaut nur in die eingeschalteten Ordner; eine Nachricht, die
+anderswo in einen Ordner abgelegt wird, den plMail nicht abruft, verschwindet deshalb hier, obwohl
+sie auf dem Server noch existiert. Das ist genau, was der Schalter verspricht, und es geht nichts
+verloren: Schalte den Ordner ein, und plMail ruft die Nachricht wieder ab. Verschiebst du in plMail
+selbst, ist es anders — plMail weiß, wohin es die Nachricht gelegt hat, und behält seine Kopie.

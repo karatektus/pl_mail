@@ -3,7 +3,9 @@
 namespace App\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -46,6 +48,13 @@ use Symfony\Component\Validator\Constraints\DateTime;
 // for the one address that can still collide — `deleted-<id>@invalid`, which
 // the admin delete action writes and which nothing stops someone typing.
 #[UniqueEntity(fields: ['email'], message: 'user.email_taken')]
+// One account per provider identity. Two rows holding the same pair would make
+// a sign-in through the provider land on whichever Postgres returned first.
+// Both columns are null on every account that never used the provider, and
+// Postgres does not consider nulls equal, so those never collide. Issuer
+// first because that is how the one query that reads it asks — both columns,
+// by equality — and an install has one issuer and many subjects.
+#[ORM\UniqueConstraint(name: 'uniq_user_oidc_identity', columns: ['oidc_issuer', 'oidc_subject'])]
 class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
     use TimestampableTrait;
@@ -307,6 +316,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public bool $isDeactivated {
         get => null !== $this->deactivatedAt;
     }
+
+    /**
+     * The OpenID Connect identity this account signs in as, if it has one.
+     *
+     * Issuer and subject together, because that pair is the only thing OIDC
+     * promises is stable: `sub` is unique per issuer and nowhere else, and the
+     * address an identity provider reports can be edited there at any time.
+     * Matching on the address on every sign-in would let whoever can change
+     * their own address at the provider walk into any account here that holds
+     * the new one. The address is used once, to link an existing account the
+     * first time, and only when the provider vouches for it — see
+     * App\Service\Oidc\OidcUserResolver.
+     *
+     * The issuer is kept rather than assumed so that pointing the install at a
+     * different provider does not hand the new provider's `sub` values the
+     * old provider's accounts: a row linked to another issuer is relinked by
+     * address, never matched by subject.
+     *
+     * Cleared by the admin delete action, so a removed account cannot be
+     * signed into through the provider and does not hold the identity against
+     * a new account for the same person.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcIssuer = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcSubject = null;
 
     /**
      * @var Collection<int, Account>
@@ -652,6 +688,43 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
 
     /**
+     * Whether the open message sits beside the message list, and how much of the
+     * mail card it takes — see ReadingPaneMode.
+     *
+     * The settings bag for the reasons the calendar pane's keys are: rendered
+     * into the first paint, the same at every desk, no migration. And its own
+     * keys rather than a place in the Appearance embeddable, which is what a
+     * theme export, a JMAP appearance method and the config backup all read:
+     * where the message is drawn is a layout choice about THIS screen, not part
+     * of a palette somebody might share, and importing a colour scheme must not
+     * rearrange the mailbox it lands in.
+     *
+     * The width is a PERCENTAGE of the mail card — the list and the message
+     * together, without the sidebar or a docked calendar — and not pixels. The
+     * card changes width whenever the calendar pane opens, closes or is dragged,
+     * and a pixel figure remembered from one of those states is wrong in the
+     * next: 520px is a comfortable half of a wide card and most of a narrow one.
+     * A share keeps its meaning across all of them.
+     */
+    public const string SETTING_READING_PANE_MODE = 'reading.pane_mode';
+    public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
+
+    /**
+     * The range the divider can be dragged through, in percent of the mail card.
+     *
+     * Matches the clamp in mail--reading-split; the server is what enforces it.
+     * The ends are 25 and 75 rather than something tighter because a share
+     * outside them leaves one pane too narrow to read or to click a row in on
+     * the card widths this layout is drawn at, and the pixel floors in app.css
+     * take over before these figures are ever the limit on a small card.
+     */
+    public const int READING_PANE_MIN_PCT = 25;
+    public const int READING_PANE_MAX_PCT = 75;
+
+    /** A little over half: the message is the thing being read, the list is how it was found. */
+    public const int READING_PANE_DEFAULT_PCT = 55;
+
+    /**
      * Insight extractors this user has switched OFF, as a list of extractor
      * keys. Disabled rather than enabled, so an extractor shipped next
      * release starts working without every user finding a new toggle — the
@@ -779,6 +852,40 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_READING_PANE_MODE.
+     *
+     * Off until somebody chooses, so an upgrade changes nothing about a
+     * mailbox anybody already uses.
+     */
+    public ReadingPaneMode $readingPaneMode {
+        get => ReadingPaneMode::fromSetting($this->getSetting(self::SETTING_READING_PANE_MODE));
+        set (ReadingPaneMode $mode) {
+            $this->setSetting(self::SETTING_READING_PANE_MODE, $mode->value);
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_READING_PANE_WIDTH.
+     *
+     * Clamped on the way out as well as on the way in. The endpoint clamps what
+     * it stores, but the bag is JSON that a restore or an older build may have
+     * written, and a value outside the range here is a divider nobody can reach.
+     * Anything that is not an integer reads as the default rather than being
+     * coerced: a stored "60" is a value nobody on this build wrote.
+     */
+    public int $readingPaneWidthPct {
+        get {
+            $share = $this->getSetting(self::SETTING_READING_PANE_WIDTH, self::READING_PANE_DEFAULT_PCT);
+
+            if (false === is_int($share)) {
+                return self::READING_PANE_DEFAULT_PCT;
+            }
+
+            return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
         }
     }
 
@@ -913,6 +1020,118 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         get => false !== $this->getSetting(self::SETTING_KEYBOARD_SHORTCUTS, true);
         set(bool $on) {
             $this->setSetting(self::SETTING_KEYBOARD_SHORTCUTS, $on ? null : false);
+        }
+    }
+
+    /**
+     * Whether the buttons that delete mail for good are offered: the flame on a
+     * row in Spam and the bin, and the same button above a selection there.
+     *
+     * OFF unless somebody switches it on — the opposite of the shortcuts above,
+     * and for the opposite reason. This is the one action in plMail with no
+     * Undo, and nothing that cannot be taken back should be one stray click
+     * away for somebody who never asked for it. Only a stored true is on, so
+     * the key is absent for nearly everybody, and routes that delete for good
+     * refuse with a 403 while it is, not only the templates that draw the
+     * button: a switch that only hid the flame would leave a hand-made POST
+     * working. Per USER, like every setting in this bag — Settings → Mail →
+     * Disposal.
+     */
+    public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
+
+    /** Virtual, out of the settings bag — see SETTING_DISPOSAL_DELETE_NOW. */
+    public bool $deleteNowButtons {
+        get => true === $this->getSetting(self::SETTING_DISPOSAL_DELETE_NOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_DISPOSAL_DELETE_NOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether remote images load in every message without the "Show images"
+     * bar, as if every sender were on the allowlist (#124).
+     *
+     * OFF unless somebody switches it on. The block is what keeps a sender's
+     * tracking pixel from learning that, when and where a message was opened,
+     * and that protection is worth most to the people who never thought to ask
+     * for it. Somebody who has weighed it and would rather not click every time
+     * can say so once. Only a stored true is on, so the key is absent for
+     * nearly everybody.
+     *
+     * Spam is still blocked with this on — MessageRenderer reads a message in
+     * Spam as the provider disputing who sent it, and no standing permission
+     * outranks that. Images still come through the proxy, so a sender learns
+     * that the message was opened but not the reader's address. Per USER, like
+     * the allowlist it widens — Settings → Mail → Images.
+     */
+    public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
+
+    /** Virtual, out of the settings bag — see SETTING_IMAGES_ALWAYS_SHOW. */
+    public bool $alwaysShowImages {
+        get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether an account's own inbox (the account row in the sidebar) is shown
+     * in the category tabs as well as the unified Inbox (#55).
+     *
+     * OFF unless somebody switches it on. With it on, clicking an account opens
+     * its Primary tab, and its Social or Promotions mail is one more click
+     * away; off, the account page is the account's whole inbox, which is what
+     * it always was and what the account's own "Inbox" folder row still lists.
+     * Turning a familiar page into a narrower one is a change somebody should
+     * ask for, not one that arrives with an upgrade.
+     *
+     * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
+     * somebody who chose One list gets one list everywhere, whatever this says.
+     * Only a stored true is on, so the key is absent for nearly everybody.
+     * Per USER — Settings → Mail → Categories.
+     */
+    public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
+
+    /** Virtual, out of the settings bag — see SETTING_ACCOUNT_INBOX_TABS. */
+    public bool $accountInboxTabs {
+        get => true === $this->getSetting(self::SETTING_ACCOUNT_INBOX_TABS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_ACCOUNT_INBOX_TABS, $on ? true : null);
+        }
+    }
+
+    /**
+     * Which position the topbar's calendar button leaves out — Settings →
+     * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
+     * is what the button has always done, and a person who has learned it
+     * should not find it moved.
+     *
+     * One value, the enum's own, and absent for the default like every setting
+     * in the bag. It was two booleans at first, "skip the split" and "skip the
+     * full width", which could both be true and then had to be kept apart by
+     * the setters and read as neither when a backup held both anyway. One value
+     * cannot say "skip both", so none of that is here.
+     */
+    public const string SETTING_CALENDAR_SWITCH_SKIP = 'calendar.switch_skip';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CALENDAR_SWITCH_SKIP.
+     * Anything stored that is not one of the enum's values, a hand-edited
+     * backup say, reads as the default cycle.
+     */
+    public CalendarSwitchSkip $calendarSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CALENDAR_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? CalendarSwitchSkip::tryFrom($stored) ?? CalendarSwitchSkip::None
+                : CalendarSwitchSkip::None;
+        }
+        set (CalendarSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CALENDAR_SWITCH_SKIP,
+                CalendarSwitchSkip::None === $skip ? null : $skip->value,
+            );
         }
     }
 

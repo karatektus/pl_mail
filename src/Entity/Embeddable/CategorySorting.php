@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Embeddable;
 
 use App\Domain\Enum\Mail\CategorySource;
+use App\Domain\Enum\Mail\MessageCategory;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -83,6 +84,89 @@ class CategorySorting
     #[ORM\Column(name: 'tabs', type: 'boolean', options: ['default' => true])]
     public bool $tabs = true;
 
+    /**
+     * The built-in categories this person has switched off, by value.
+     *
+     * A FOURTH DECISION, AND UNLIKE $tabs IT MOVES MAIL. Gmail's Forums is a
+     * tab most people never see anything in, and Promotions is one some would
+     * rather not have at all. A switched-off category is not merely hidden:
+     * nothing sorts into it — not the header rules, not Google's labels, not
+     * the assistant — and what would have gone there is in Primary instead
+     * (MessageCategorizer). Switching it back on re-sorts, and the mail is
+     * back, because every answer is recomputed from stored data.
+     *
+     * Primary cannot be switched off: it is where everything else falls back
+     * to, and the tab the inbox opens on. A stored "primary" is ignored rather
+     * than trusted, whoever wrote it.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'disabled', type: 'json', options: ['default' => '[]'])]
+    public array $disabled = [];
+
+    /**
+     * The order of the tabs after Primary, as tab keys — a built-in's value or
+     * a category of the person's own (InboxTab).
+     *
+     * One list across both kinds, because the person arranges one strip.
+     * Primary is not in it: it always comes first. A key that names nothing
+     * any more is skipped, and a tab the list does not name goes after the
+     * ones it does — built-ins in their usual order, then the person's own
+     * oldest first — so an empty list is exactly the strip as it shipped.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'tab_order', type: 'json', options: ['default' => '[]'])]
+    public array $tabOrder = [];
+
+    /**
+     * The built-in categories switched off, as cases. Never Primary, and
+     * nothing this build does not know.
+     *
+     * @return list<MessageCategory>
+     */
+    public function switchedOff(): array
+    {
+        $off = [];
+
+        foreach ($this->disabled as $value) {
+            $category = MessageCategory::tryFrom((string) $value);
+
+            if (null !== $category && MessageCategory::Primary !== $category && false === in_array($category, $off, true)) {
+                $off[] = $category;
+            }
+        }
+
+        return $off;
+    }
+
+    public function isSwitchedOff(MessageCategory $category): bool
+    {
+        return true === in_array($category, $this->switchedOff(), true);
+    }
+
+    /**
+     * @param list<MessageCategory> $categories
+     */
+    public function switchOff(array $categories): void
+    {
+        $this->disabled = array_values(array_unique(array_map(
+            static fn (MessageCategory $category): string => $category->value,
+            array_filter($categories, static fn (MessageCategory $category): bool => MessageCategory::Primary !== $category),
+        )));
+    }
+
+    /**
+     * @param list<string> $keys
+     */
+    public function arrange(array $keys): void
+    {
+        $this->tabOrder = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $key): string => (string) $key, $keys),
+            static fn (string $key): bool => '' !== $key && MessageCategory::Primary->value !== $key,
+        )));
+    }
+
     public function sourceEnum(): CategorySource
     {
         return CategorySource::from_($this->source);
@@ -133,10 +217,14 @@ class CategorySorting
     public function toArray(): array
     {
         return [
-            'version'          => 1,
+            'version'          => 2,
             'source'           => $this->source,
             'overrideProvider' => $this->overrideProvider,
             'tabs'             => $this->tabs,
+            'disabled'         => $this->disabled,
+            // Custom keys carry the category ids of the installation that wrote
+            // them; ConfigBackupUserRestorer rewrites them to the new rows.
+            'tabOrder'         => $this->tabOrder,
         ];
     }
 
@@ -164,6 +252,19 @@ class CategorySorting
 
         if (true === isset($data['tabs'])) {
             $this->tabs = self::boolean($data['tabs']);
+        }
+
+        // Through the same filters the settings page writes through, so a
+        // hand-edited file cannot switch Primary off or store a non-string.
+        if (true === isset($data['disabled']) && true === is_array($data['disabled'])) {
+            $this->switchOff(array_values(array_filter(array_map(
+                static fn (mixed $value): ?MessageCategory => is_string($value) ? MessageCategory::tryFrom($value) : null,
+                $data['disabled'],
+            ))));
+        }
+
+        if (true === isset($data['tabOrder']) && true === is_array($data['tabOrder'])) {
+            $this->arrange(array_values(array_filter($data['tabOrder'], 'is_string')));
         }
 
         return $this;

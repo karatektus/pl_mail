@@ -33,10 +33,10 @@ use Symfony\UX\Turbo\TurboBundle;
  * already-signed-in session is not enough on its own.
  *
  * Every session but this one is ended, and that is the point of a password
- * change rather than a side effect of it: the firewall's remember-me tokens are
- * signature-based over the password hash, so the sixty-day cookies stop
- * verifying the moment the hash changes. Somebody changing their password
- * because a laptop went missing has actually withdrawn it.
+ * change rather than a side effect of it: the firewall's remember-me tokens
+ * carry a digest of the password hash they were issued under, so the sixty-day
+ * cookies stop verifying the moment the hash changes. Somebody changing their
+ * password because a laptop went missing has actually withdrawn it.
  */
 #[Route('/settings/password', name: 'app_settings_password_')]
 #[IsGranted('ROLE_USER')]

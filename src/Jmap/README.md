@@ -78,7 +78,9 @@ rather than leaking.
   `update`, mirroring the web composer. Both go through one attachment path.
 - `Mail/IdentityResolver` — the identities an account may send as. Read by
   `Identity/get` (which publishes them) *and* `EmailSubmission/set` (which
-  spends one), so an id the server offered is exactly an id it accepts.
+  spends one), so an id the server offered is exactly an id it accepts. Also
+  read by `Email/get` for `replyFrom`, the identity that answers a mail, which
+  for an address at a catch-all domain is one the list does not contain.
 - `Mail/SubmissionEnvelope` — the FUTURERELEASE parameters off a submission's
   envelope, and the ceiling the session advertises. `Mail/QueuedSubmission` is
   what a passed submission carries to the dispatch after the flush.
@@ -232,6 +234,28 @@ Get these wrong and things fail quietly rather than loudly.
   did not is the failure this whole layer is careful about. `app:backfill
   category` is what fills those in, and re-running it after a change to
   `MessageCategorizer` needs no resync — it reads only persisted data.
+
+  **The tabs as the reader arranged them are a second, separate surface:
+  `urn:plmail:params:jmap:inboxtabs`.** The five stay a closed vocabulary on
+  `Thread.category` and `threadCategory`, because a sixth value would break
+  every client that has never heard of it. A client that knows the extension
+  reads `InboxTab/get` instead — every tab in the reader's order, the built-in
+  ones with `isEnabled`, the reader's own with their `name` — and draws from
+  `Thread.inboxTab`, filters with `threadInboxTab`, and moves a conversation
+  with `Thread/set { inboxTab }`. Those three follow the web exactly: a
+  conversation filed in a tab of the reader's own is in that tab and in no
+  built-in one, a category the reader switched off is listed under Primary,
+  and a switched-off tab is no tab (`threadInboxTab` matches nothing,
+  `Thread/set` refuses it). `InboxTabMapper` is where that rule is written for
+  JMAP and `MessageThreadRepository::narrowToCategory()` for the web.
+
+  The tabs are the user's, and JMAP state is per account, so a change is
+  recorded in every account's change log (`InboxTabChanges`) — the way a label
+  is a Mailbox in each account — and every account answers `InboxTab/get`
+  with the same list. A re-sort that moves conversations between tabs records
+  each one it moved as a Thread change, so `Thread/changes` tells a phone; it
+  used to rewrite the column and tell nobody.
+
 - **A JMAP CalendarEvent id is a `calendar_event` id — the series.** The query
   that finds events is a `tsrange &&` overlap over `calendar_event_occurrence`,
   so the ids the database hands back are *occurrence* ids and
@@ -393,6 +417,13 @@ Get these wrong and things fail quietly rather than loudly.
   where `MessageSendService` reads the From header from. An id that resolves to
   nothing is refused with `forbiddenFrom` — never sent as the account's own
   address, which is what this did while it ignored the property.
+- **One kind of Identity id is in no list: `addr-<base64url of an address>`.**
+  `Email/get`'s `replyFrom` hands it out for mail that came in for an address
+  at a catch-all domain, where there is no alias row to have an id. It is a
+  spelling of the address and nothing more — `IdentityResolver::addressFor()`
+  decodes it and asks `Account::maySendAs()` on every submission — so a client
+  can compute one for any address and it resolves only for those the account
+  may send as. `EmailReplyFromTest` is the pin, the refusals included.
 - **A submission's send is dispatched after the flush, not where it is
   decided.** The worker reads the From off the row, so an envelope handed to
   the bus before the transaction commits races it, and the mail that loses the
@@ -501,6 +532,12 @@ Answered with `created.s1 = {id, sendAt, undoStatus: "pending"}`, the id being
 the Email id. An `identityId` that is not a sendable alias of that account comes
 back in `notCreated` as `forbiddenFrom`. Omitting it leaves the draft's own From
 untouched, which is what a draft saved by the web composer already carries.
+
+For a reply or a forward the id to use is not the client's to work out:
+`Email/get` with `"replyFrom"` among its `properties` answers with the Identity
+the original should be answered as — the address it was sent to, an alias or an
+address at a catch-all domain — or `null` for "the primary". It is only returned
+when named.
 
 **When it leaves** — RFC 8621 §7 has no scheduling property; it carries the SMTP
 FUTURERELEASE extension (RFC 4865) as envelope parameters:

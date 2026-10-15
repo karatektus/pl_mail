@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Domain\Enum\Mail\SenderVerdict;
@@ -528,7 +529,7 @@ final readonly class EventReconciler
             return false;
         }
 
-        $owned   = $message->account->ownedAddresses;
+        $owned   = OwnAddressHelper::forMessage($message);
         $sender  = AddressHelper::email($message->fromAddress);
         $verdict = $this->authentication->verdict($message);
 
@@ -565,7 +566,7 @@ final readonly class EventReconciler
         // Read off the CLAIM's object rather than the event's: the event still
         // holds the previous revision until write() merges the overlay below,
         // and the answer being decided here is the one this message states.
-        $incoming = $this->participation->resolve($claim->jscalendar, $message->account->ownedAddresses);
+        $incoming = $this->participation->resolve($claim->jscalendar, OwnAddressHelper::forMessage($message));
 
         // A confirmed claim is one the reader has already said yes to; it is
         // not offered to them a second time.

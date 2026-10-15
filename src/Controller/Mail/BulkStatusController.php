@@ -8,13 +8,16 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\InboxTabs;
+use App\Service\Mail\MailPlacement;
+use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\StatusUndoService;
 use App\Service\Mail\ThreadSnoozeService;
@@ -48,7 +51,7 @@ final class BulkStatusController extends AbstractController
     /**
      * The actions that refuse a whole-view selection.
      *
-     * Every one of them is a drop target and nothing else: a drag names the
+     * Most of them are a drop target and nothing else: a drag names the
      * rows it is carrying, so "everything in this view" is not a shape any of
      * them can arrive in. Spelled as a list rather than inline so the guard
      * below and this reasoning stay in one place as they are joined.
@@ -58,9 +61,25 @@ final class BulkStatusController extends AbstractController
      * purpose: it is a toolbar button, the toolbar can select a whole view,
      * and JobKind::MoveTo runs it.
      *
+     * `purge` is not in it either: emptying Spam or the bin is a whole view
+     * by definition. What it may be a whole view OF is PURGEABLE_VIEWS below.
+     *
      * @var list<string>
      */
     private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
+
+    /**
+     * The views a delete for good may take whole.
+     *
+     * Spam and the bin, and nothing else: they are the two lists that hold only
+     * mail already thrown away once, so "everything in this view" cannot reach
+     * mail that was not. A search, a label or the inbox can, which is why an
+     * explicit selection there is checked message by message and a whole view
+     * is refused before a job exists.
+     *
+     * @var list<string>
+     */
+    private const array PURGEABLE_VIEWS = ['spam', 'trash'];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -71,6 +90,10 @@ final class BulkStatusController extends AbstractController
         private readonly ThreadSnoozeService     $snoozeService,
         private readonly MoveToService           $moveTo,
         private readonly StatusUndoService       $undo,
+        private readonly MessagePurger           $purger,
+        private readonly MailPlacement           $placement,
+        private readonly InboxTabs               $inboxTabs,
+        private readonly InboxCategoryRepository $inboxCategories,
     ) {
     }
 
@@ -92,13 +115,20 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|purge'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
 
         /** @var User $user */
         $user = $this->getUser();
+
+        // Delete forever is the user's switch (Settings → Mail → Disposal),
+        // enforced here and not only by the toolbar that draws the button: the
+        // same rule ThreadStatusController::purge keeps for a single row.
+        if ('purge' === $action && false === $user->deleteNowButtons) {
+            throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
+        }
 
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
@@ -113,6 +143,16 @@ final class BulkStatusController extends AbstractController
             throw $this->createAccessDeniedException(
                 sprintf('The "%s" action takes an explicit list of conversations.', $action),
             );
+        }
+
+        // Emptying Spam or the bin, and only those — see PURGEABLE_VIEWS. The
+        // worker checks each conversation again before it removes one, so this
+        // is the legible refusal and not the only one.
+        if ('purge' === $action
+            && true === ($body['all'] ?? false)
+            && false === in_array((string) ($body['scope'] ?? ''), self::PURGEABLE_VIEWS, true)
+        ) {
+            throw $this->createAccessDeniedException('Only Spam and the bin can be emptied for good.');
         }
 
         // Resolved and refused ahead of the whole-view hand-off below as well
@@ -174,10 +214,13 @@ final class BulkStatusController extends AbstractController
         $destination = null;
 
         if ('category' === $action) {
-            $category = MessageCategory::tryFrom((string) ($body['category'] ?? ''));
+            // Resolved against THIS reader's own tabs as well as the five, and
+            // a key that is somebody else's category is refused exactly like a
+            // made-up one: see InboxTabs::resolve().
+            $category = $this->inboxTabs->resolve($user, (string) ($body['category'] ?? ''));
 
-            // tryFrom and a refusal, where MailController falls back to Primary
-            // on the same input. The difference is what the two are: `?tab=` is
+            // A refusal, where MailController falls back to Primary on the same
+            // input. The difference is what the two are: `?tab=` is
             // a URL somebody may have mistyped, and showing them the inbox is
             // the kind answer. This is a write, and "filed it under Primary
             // because I did not recognise what you asked for" is not something
@@ -241,6 +284,37 @@ final class BulkStatusController extends AbstractController
                 'count'   => 0,
                 'threads' => [],
                 'leaves'  => false,
+            ]);
+        }
+
+        // DELETE FOR GOOD — the only action here that destroys mail.
+        //
+        // The single-row route (ThreadStatusController::purge) is the rule and
+        // this is the same rule over a selection: only mail already thrown away
+        // once, in the bin or in Spam, because "delete forever" one click from
+        // "archive" has no undo to catch the mistake.
+        //
+        // Every message is checked before any is removed, so a selection that
+        // holds one conversation it should not is refused whole. Trimming it to
+        // the allowed part would delete mail the person was never told about,
+        // on the strength of a list the browser sent.
+        if ('purge' === $action) {
+            foreach ($selected as $message) {
+                if (false === $this->placement->isDiscarded($message)) {
+                    throw $this->createAccessDeniedException(
+                        'Only mail already in the trash or in spam can be deleted for good.',
+                    );
+                }
+            }
+
+            // Before the purge, not after: a purged thread has no id left, and
+            // the stream that removes its row is addressed by it.
+            $threadIds = array_map(static fn ($thread): ?int => $thread->id, $threads);
+
+            $this->purger->purge($selected);
+
+            return $this->renderTurboStream('thread/status/_bulk_purge.stream.html.twig', [
+                'threadIds' => $threadIds,
             ]);
         }
 
@@ -331,8 +405,18 @@ final class BulkStatusController extends AbstractController
         // strip counts — so this one is applied to the threads directly and
         // returns before the grouping it has no use for.
         if ('category' === $action) {
+            // The entity for one of the reader's own tabs, the enum for a
+            // built-in one: setCategory() writes whichever column it names.
+            $target = true === $category->isCustom()
+                ? $this->inboxCategories->find((int) $category->categoryId)
+                : $category->builtIn;
+
+            if (null === $target) {
+                throw $this->createAccessDeniedException('Unknown inbox category.');
+            }
+
             foreach ($threads as $thread) {
-                $this->status->setCategory($thread, $category);
+                $this->status->setCategory($thread, $target);
             }
 
             return $this->renderTurboStream('thread/status/_category.stream.html.twig', [
@@ -440,9 +524,9 @@ final class BulkStatusController extends AbstractController
             // requirement and forgets this arm, a silent no-op is the worst
             // possible answer for an action that says it deleted things.
             //
-            // move, move-to, label, category and star are not here on purpose:
-            // each is handled by a branch of its own above, which is where the
-            // payload they need is resolved.
+            // move, move-to, label, category, star and purge are not here on
+            // purpose: each is handled by a branch of its own above, which is
+            // where the payload they need is resolved.
                 default   => throw $this->createNotFoundException(sprintf('Unknown bulk action "%s".', $action)),
             };
         }

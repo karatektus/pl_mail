@@ -38,7 +38,9 @@ to strand an account on whatever the first run happened to fetch.
 **Graph has no account-level cursor.** There is no equivalent of a single `historyId`, so
 delta state is per folder, stored as a `folderId => deltaLink` map on the `Account`. A delta
 query with no stored link enumerates the folder and hands back one; the same call with a link
-returns only changes, so one code path covers both the initial and the incremental case.
+returns only changes. To Graph that is one operation. To plMail it is two: following a folder
+that has a link is the sync's, and the enumeration that earns the link is the import's — see
+"A first import is not a sync" below.
 
 Graph's folder moves are the sharp edge. Moving a message out of a folder appears as
 `@removed` on the source folder's delta and as an addition on the destination's, and the two
@@ -53,6 +55,83 @@ Batch handlers deduplicate in PHP before inserting, but that check is a read on 
 The guard that actually holds when batches overlap across runs or retries is
 `uniq_message_gmail_id_account` and its Graph counterpart on `message`, with the provider id
 leading the column list so the index also serves the id-only lookups.
+
+### A first import is not a sync
+
+A sync used to bring in an account's history as well as its new mail: one job that read every
+IMAP folder from its oldest message to its newest, or listed every Gmail message id before
+fetching one. On an account of twenty thousand messages that job held the `ingest` queue for
+as long as it took, showed an empty Inbox for most of it, and put every other account's new
+mail behind it.
+
+The two are separate now. A sync arranges for new mail to be seen and stops; the history is
+`App\Service\Mail\MailImporter`'s, on the `ingest_backlog` queue with a worker of its own.
+
+- **One message is one page.** `ImportMailMessage` carries an account id and nothing else; its
+  handler brings in one page and dispatches the next. There is no long job anywhere in it, so
+  several accounts' pages interleave on the queue and each gets a usable Inbox before any gets
+  its archive.
+- **IMAP reads each folder from the top down.** On first contact `ImapImportPlan` puts
+  `lastSeenUid` at the top of the folder and `importFloorUid` just above it. New mail is
+  everything above the first; history is everything below the second, and
+  `ImapMailboxImporter` walks that down fifty messages at a call. A page is found by asking
+  the server which UIDs exist below the floor and taking out the ones already stored, so a
+  message that is here is never fetched twice.
+- **Folders are read in the order somebody would ask for:** Inbox, Sent, Drafts, a person's own
+  folders, the archive, and Spam and the bin last. `MailboxSpecialUse::importRank()` is the
+  rule.
+- **Gmail asks for the Inbox by name first,** then pages the whole-mailbox listing one request
+  at a time, with the page token kept on the account between jobs.
+- **Gmail's quota is learnt, not configured.** Google allows one user a number of quota units
+  a minute and does not say how many until it refuses a request. `GmailQuotaPacer` starts from
+  15,000, reads the limit out of the first refusal (a project created since May 2026 has
+  6,000) and paces every account to 85% of it from then on, five messages to a request — Google
+  refuses a minute's worth spent in one second — and more slowly for a while after any refusal
+  at a limit it already knows. A message is counted at 60 units: Google's table says 20, which
+  is what a fetch without the body costs; `app:gmail:quota-probe` measured 60 for the `full`
+  and `raw` formats. A learnt limit is forgotten after a day so a raised one is found again. What an account has spent and when it was last
+  refused are in a database-backed cache pool, so every worker draws on one allowance. A
+  refusal is not an error anywhere on this path: a batch, an import page or a sync that meets
+  one is put back to run when the account's minute is over.
+- **A Gmail message belongs to the mailbox it is in.** The batch handler gives a message to
+  another connected account only when that account has the better claim (Gmailify: a sibling
+  named in its headers); everything else in the mailbox is the Gmail account's, including mail
+  sent from a "send mail as" address, mail forwarded in from an address not connected here and
+  Gmail drafts, which arrive as drafts. The listing asks for Spam and Trash as well
+  (`includeSpamTrash`), which `messages.list` otherwise leaves out and `messagesTotal` counts.
+- **A Gmail message that is looked at and not stored is written down.** The batch handler
+  declines a chat — the one kind left with nowhere to go — and cannot store a message Gmail
+  lists and answers 404 for. Each gets a row
+  in `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) with the reason, its labels
+  and its address headers. The listing treats a recorded id like a stored one, so the message
+  is not fetched again every hour and an import whose every outstanding message has an answer
+  finishes on that pass instead of at its attempt ceiling; the progress line counts it as done,
+  since Google's total includes it. `app:gmail:skipped` prints the record grouped by kind, and
+  `--forget` clears it for an account so the next listing asks again. A row is removed when its
+  message is stored after all.
+- **Microsoft reads each folder's first delta round a page at a time.** A folder without a
+  delta link is planned on the account (`Account::$graphImport`) instead of being enumerated
+  by the sync, and `GraphApiSyncer::importPage()` walks that round fifty messages at a call,
+  newest first, in the same folder order by `LabelRole::importRank()`. The page that ends the
+  round carries the folder's delta link, and from then on the sync follows it. Until then the
+  sync asks such a folder only for what it received since it was planned. A delta link that
+  expires hands its folder back to the import rather than being re-enumerated in the sync.
+- **A message that will not store costs itself.** The floor stays where it is and the page is
+  asked for again; after five tries the floor moves past it and the folder goes on.
+
+Every ordinary sync ends in `MailImporter::ensureRunning()`, which starts an import that has
+work and has gone quiet for five minutes. That is what starts a new account's import and what
+restarts one whose chain of messages broke.
+
+"Is this account still importing" is `InitialImportState`, and for IMAP it is read off the
+folders' `importFloorUid`: a folder's `syncedAt` no longer says so, because its first sync now
+ends at once with the history still to come. A Microsoft account is importing for as long as
+`Account::$graphImport` lists a folder.
+
+One thing a Microsoft import changes about the sync: a message removed from one folder is a
+deletion only if it arrived in no other, and a folder still being read cannot say. Such
+removals are kept on the account (`Account::$graphRemovals`) and judged by the first sync
+whose every folder answered.
 
 ## The post-ingest pipeline
 
@@ -83,6 +162,25 @@ Then, once for the whole batch: `MailRuleEngine::applyToBatch()` (one query per 
 threading, so archive and trash actions can reach each message's thread), a flush, a second
 pass collecting thread ids per account for `MailChangeRecorder::threadsTouched()`, and a
 second flush for the change-log rows.
+
+A filter's **File in category** action runs in that same pass and is the one action that writes
+a category. It does not write `Message::$category`: five things recompute that column from stored
+data (arrival, `app:backfill category`, the re-sort a settings change queues, the assistant's
+release, Gmail enrichment), and every one would erase a verdict kept there. The verdict goes in
+`Message::$ruleCategory` instead, which nothing recomputes, and `RuleCategoryFiler` then has the
+thread re-resolve through `MessageThreader::refreshCategory()` — most-recent-wins, pin-aware, hold-aware,
+like the built-in category. `MessageThread::$userCategory` is the thread's side, resolved by the same
+two recompute statements as `category`. A message is filed only when `SenderAuthentication` says
+`Pass`; see its docblock for whose verdict is believed. The filter files Gmail-labelled mail too:
+the provider's categories outrank plMail's own sorting, not an instruction the reader wrote.
+
+A built-in category the reader switched off (`CategorySorting::$disabled`) takes no mail.
+`MessageCategorizer::explain()` maps whatever the cascade decided — header rule, Gmail label or
+the assistant — to Primary with the reason `switched_off`, rather than consulting the next rule, so
+"Forums is off" never turns a mailing list into Promotions. Switching a category off or on queues
+the same re-sort as the other sorting choices. Both recompute statements write only the
+conversations whose tab changes and return them, and every caller records those as JMAP Thread
+changes, so a phone hears about a re-sort.
 
 `PostIngestResult` is what comes back — messages in ingest order, owning accounts by id, and
 thread ids by owning account — because the three callers do not finish the same way: IMAP
@@ -137,8 +235,8 @@ tasks (`app:backfill insights`, `event-extraction`, …) are how history is read
 wants it.
 
 **Live.** `App\Service\Mail\InitialImportState` says whether an account is still bringing in its
-mailbox for the first time: Gmail by `needsBackfill()`, Graph by having a delta link at all,
-IMAP by every sync-enabled folder having a `syncedAt`. The pipeline asks once per batch and
+mailbox for the first time: Gmail by `needsBackfill()`, Graph by having a delta link and no folder
+left to read, IMAP by no sync-enabled folder having history still to fetch. The pipeline asks once per batch and
 carries the answer on `PostIngestResult::$live`; `EnrichmentRouter` turns it into a
 `TransportNamesStamp`. Mail of a finished account goes to `enrich_live`, whose worker never has
 import work in front of it. It errs towards "still importing" — a Gmail backfill settles up to

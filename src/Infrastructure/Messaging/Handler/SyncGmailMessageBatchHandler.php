@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Repository\Mail\GmailSkippedMessageRepository;
+use App\Entity\Mail\GmailSkippedMessage;
+use App\Domain\Enum\Mail\GmailSkipReason;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Helper\MessageIdHelper;
@@ -15,7 +18,9 @@ use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
+use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailMessageBuilder;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\HarvestContactsService;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Imap\MessageThreader;
@@ -30,11 +35,16 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 #[AsMessageHandler]
 final readonly class SyncGmailMessageBatchHandler
 {
-    /** Delay before re-fetching sub-requests that hit the rate limit. */
+    /**
+     * Delay before re-fetching sub-requests that failed for a reason other
+     * than quota — a 5xx, a part missing from the response. One refused on
+     * quota waits as long as the pacer says the account is being left alone.
+     */
     private const int RETRY_DELAY_MS = 30000;
 
     public function __construct(
@@ -55,6 +65,8 @@ final readonly class SyncGmailMessageBatchHandler
         private MessageCategorizer      $categorizer,
         private MessageThreader         $messageThreader,
         private SyncOrigin              $origin,
+        private GmailQuotaPacer         $pacer,
+        private GmailSkippedMessageRepository $skipped,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -96,9 +108,41 @@ final readonly class SyncGmailMessageBatchHandler
         // below looks each id up before building, and enriches when it finds a
         // row. A redelivered batch therefore costs one re-fetch and updates
         // instead of inserting, which is what it should always have done.
-        $toFetch = array_values($message->gmailIds);
+        $toFetch     = array_values($message->gmailIds);
+        $onlyMissing = true === ($message->onlyMissing ?? false);
+
+        // EXCEPT A LISTING'S BATCH, which names what was missing when the
+        // listing ran and has nothing to say about labels. An import that
+        // takes longer than the hour between listings has every outstanding
+        // id on the queue once per listing: seventy thousand messages named a
+        // second time, a third, each fetched in full again at sixty quota
+        // units apiece on the quota the import was already short of (#90).
+        if (true === $onlyMissing) {
+            // And not what has been looked at and declined, for the same
+            // reason: a listing that ran before the first of these batches
+            // was handled named those too. See GmailSkippedMessage.
+            $stored  = array_flip([
+                ...$this->messageRepository->findStoredGmailIdsForUser($account->usr, $toFetch),
+                ...$this->skipped->findGmailIdsAmong($account, array_map(strval(...), $toFetch)),
+            ]);
+            $toFetch = array_values(array_filter(
+                $toFetch,
+                static fn (string|int $id): bool => false === isset($stored[(string) $id]),
+            ));
+        }
 
         if (count($toFetch) === 0) {
+            return;
+        }
+
+        // Google has just refused this account, here or in another process.
+        // Asking now is a request that will be refused too and counted
+        // against the minute all the same, so the batch is put back whole to
+        // come round when the refusal has cleared. Not an error and not a
+        // retry: nothing went wrong, and there is no ladder to climb.
+        if ($this->pacer->waitSeconds($account) > 0) {
+            $this->putBack($account, $toFetch, $onlyMissing);
+
             return;
         }
 
@@ -109,11 +153,31 @@ final readonly class SyncGmailMessageBatchHandler
         // Every id we asked for is either processed below, re-queued (transient
         // sub-request failure — typically 429 mid-batch on initial syncs), or
         // logged as permanently gone. Nothing gets dropped silently.
+        // What this account has already declined among the ids in hand: one
+        // read, so a message is neither recorded twice nor left on the record
+        // once it is stored after all.
+        $alreadySkipped = array_flip($this->skipped->findGmailIdsAmong($account, array_map(strval(...), $toFetch)));
+        $nowStored      = [];
+        $newlySkipped   = 0;
+
         if (count($fetch['gone']) > 0) {
             $this->logger->warning('SyncGmailMessageBatch: messages permanently unfetchable, skipping', [
                 'accountId' => $account->id,
                 'gmailIds'  => $fetch['gone'],
             ]);
+
+            // Written down, so the next listing does not name them again. A
+            // message Gmail lists and answers 404 for is not going to arrive
+            // by being asked for every hour.
+            foreach ($fetch['gone'] as $goneId) {
+                $goneId = (string) $goneId;
+
+                if ('' !== $goneId && false === isset($alreadySkipped[$goneId])) {
+                    $this->em->persist(new GmailSkippedMessage($account, $goneId, GmailSkipReason::Unfetchable));
+                    $alreadySkipped[$goneId] = true;
+                    ++$newlySkipped;
+                }
+            }
         }
 
         if (count($fetch['retryable']) > 0) {
@@ -122,10 +186,7 @@ final readonly class SyncGmailMessageBatchHandler
                 'count'     => count($fetch['retryable']),
             ]);
 
-            $this->bus->dispatch(
-                new SyncGmailMessageBatchMessage($account->id, $fetch['retryable'], $this->origin->current()),
-                [new DelayStamp(self::RETRY_DELAY_MS)],
-            );
+            $this->putBack($account, $fetch['retryable'], $onlyMissing);
         }
 
         /** @var list<array{message: Message, account: Account}> $built */
@@ -153,7 +214,54 @@ final readonly class SyncGmailMessageBatchHandler
                     'gmailId'   => '' !== $gmailId ? $gmailId : '(unknown)',
                     'accountId' => $account->id,
                 ]);
+
+                // The debug line above used to be the only trace, and nothing
+                // reads a debug line. The import knew a message only as
+                // stored or missing, so this one stayed missing: listed again
+                // every hour, fetched again in full, declined again (#90).
+                // With what the decision was made on, so `app:gmail:skipped`
+                // can say what kind of message it was.
+                if ('' !== $gmailId && false === isset($alreadySkipped[$gmailId])) {
+                    $this->em->persist(new GmailSkippedMessage(
+                        $account,
+                        $gmailId,
+                        GmailSkipReason::Unattributable,
+                        $labelIds,
+                        $headers,
+                    ));
+                    $alreadySkipped[$gmailId] = true;
+                    ++$newlySkipped;
+                }
+
                 continue;
+            }
+
+            // Declined once and attributable now — another account has been
+            // connected since, or the rule has changed. It is about to be
+            // stored or merged, so it comes off the record.
+            if (true === isset($alreadySkipped[$gmailId])) {
+                $nowStored[] = $gmailId;
+            }
+
+            // ── Claimed by nobody: is it another account's copy? ──────────────
+            // A message whose headers name neither this account nor any other
+            // is this account's — it is in its mailbox. But Gmail may have
+            // fetched it from another connected account whose own sync holds
+            // it already: a newsletter Bcc'd to that address, collected by
+            // Gmail with nothing of the address left in its headers. Stored
+            // here as well, it would be listed twice. So before it is taken
+            // as this account's, the user's other accounts are asked for the
+            // same Message-ID, and a copy found there is enriched instead,
+            // exactly as a Gmailify sibling's is below.
+            if ($targetAccount === $account && false === $this->namesCarrier($labelIds, $headers, $account)) {
+                $copy = $this->copyOnAnotherAccount($headers, $siblingAccounts);
+
+                if (null !== $copy) {
+                    $this->enrichExisting($copy, $labelIds, $gmailId, $copy->account, $account, false);
+                    $enriched++;
+                    $affectedAccounts[(int) $copy->account->id] = $copy->account;
+                    continue;
+                }
             }
 
             // ── Gmailify dedup: merge, don't skip ─────────────────────────────
@@ -229,7 +337,16 @@ final readonly class SyncGmailMessageBatchHandler
             }
         }
 
+        $this->skipped->forget($account, $nowStored);
+
         if (count($built) === 0 && 0 === $enriched) {
+            // Nothing to store, but possibly something to remember: a batch
+            // made up entirely of messages that were declined still has to
+            // write that down, or it is fetched again in an hour.
+            if ($newlySkipped > 0) {
+                $this->em->flush();
+            }
+
             return;
         }
 
@@ -262,6 +379,45 @@ final readonly class SyncGmailMessageBatchHandler
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Queue these ids to be fetched later: after the account's quota refusal
+     * has cleared, if it is under one, and after a short pause otherwise.
+     *
+     * A few seconds are added to a quota wait, and not the same few for every
+     * batch. An import has dozens of batches queued behind the one that was
+     * refused, each of which is put back in turn; all given the same delay
+     * they would all come due in the same second.
+     *
+     * Back onto the queue this kind of work belongs on. Left to the routing
+     * table it lands on the live queue, and while an account is importing
+     * that is its history jumping in front of the mail arriving now.
+     *
+     * @param list<string> $gmailIds
+     */
+    private function putBack(Account $account, array $gmailIds, bool $onlyMissing): void
+    {
+        $wait  = $this->pacer->waitSeconds($account);
+        $delay = $wait > 0 ? 1000 * ($wait + random_int(1, 15)) : self::RETRY_DELAY_MS;
+
+        $stamps = [new DelayStamp($delay)];
+
+        if (true === $account->needsBackfill()) {
+            $stamps[] = new TransportNamesStamp([GmailApiSyncer::IMPORT_QUEUE]);
+        }
+
+        $this->bus->dispatch(
+            new SyncGmailMessageBatchMessage((int) $account->id, $gmailIds, $this->origin->current(), $onlyMissing),
+            $stamps,
+        );
+
+        $this->logger->info('SyncGmailMessageBatch: put back to be fetched later', [
+            'accountId'    => $account->id,
+            'count'        => count($gmailIds),
+            'delaySeconds' => intdiv($delay, 1000),
+            'quota'        => $wait > 0,
+        ]);
+    }
 
     /**
      * Merge the Gmail copy's knowledge onto an existing row: gmailId (covers it
@@ -402,20 +558,32 @@ final readonly class SyncGmailMessageBatchHandler
     /**
      * Determine which account owns this message.
      *
-     * Received mail (no SENT label):
-     *   - Without Gmailify attribution: only mail genuinely addressed to
-     *     this account is considered.
-     *   - With it: GmailAddressFilter::resolveReceivedAccount decides
-     *     between carrier and siblings, To/Cc outranking a
-     *     carrier-matching Delivered-To (Gmail stamps its own address on
-     *     fetched mail). The loop then decides between enriching the
-     *     sibling's existing IMAP row and importing a new one.
+     * The message is in THIS account's Gmail mailbox, so it is this account's
+     * unless another connected account has a better claim to it. That is the
+     * rule; everything below is the "better claim".
      *
-     * Sent mail (SENT label):
-     *   - From matches this account's own address        → this account.
-     *   - From matches a Gmailify sibling AND the carrier has
-     *     gmailSyncGmailifyEnabled                       → the sibling.
-     *   - Otherwise skip (return null).
+     * It used to be the other way round: a message was stored only when its
+     * headers named this account, and anything else was dropped. Measured on
+     * a real mailbox (#90, `app:gmail:skipped`), what that dropped was 202
+     * messages from the user's own Sent — written from "send mail as"
+     * addresses — 89 delivered to a forwarding address that is not connected
+     * here, 43 drafts and 4 addressed to the `googlemail.com` spelling of the
+     * account. All of it is in Gmail, in the folders the user would look for
+     * it in, and none of it belongs to any other account.
+     *
+     * Received mail (no SENT, no DRAFT label):
+     *   - With Gmailify attribution, GmailAddressFilter::resolveReceivedAccount
+     *     picks a sibling when one is named; the carrier otherwise.
+     *   - Without it, mail genuinely addressed to this account only. Switching
+     *     Gmailify attribution off is a deliberate "only what was sent to this
+     *     address", and it stays that.
+     *
+     * Sent mail and drafts (SENT or DRAFT):
+     *   - From a Gmailify sibling, with attribution on → the sibling.
+     *   - Otherwise → this account. A message in this account's Sent was sent
+     *     by its owner, whichever of their addresses it went out as.
+     *
+     * Chats (CHAT) → nobody. A chat is not mail and has nowhere to go here.
      *
      * @param list<string>          $labelIds
      * @param array<string,string>  $headers          lower-cased header name → value
@@ -427,41 +595,83 @@ final readonly class SyncGmailMessageBatchHandler
         Account $account,
         array   $siblingAccounts,
     ): ?Account {
-        $isSent           = true === in_array('SENT', $labelIds, true);
+        if (true === in_array('CHAT', $labelIds, true)) {
+            return null;
+        }
+
+        $written          = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
         $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
 
-        if (false === $isSent) {
+        if (false === $written) {
             if (false === $gmailifyEnabled) {
-                if (true === $this->addressFilter->isAddressedToAccount($headers, $account)) {
-                    return $account;
-                }
-
-                return null;
+                return true === $this->addressFilter->isAddressedToAccount($headers, $account) ? $account : null;
             }
 
-            return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts);
+            return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts) ?? $account;
         }
 
-        // Sent mail — check From against this account first.
-        if (true === $this->addressFilter->isSentByAccount($headers, $account)) {
+        if (true === $this->addressFilter->isSentByAccount($headers, $account) || false === $gmailifyEnabled) {
             return $account;
-        }
-
-        // Gmailify sent: check if From matches a sibling account.
-        if (false === $gmailifyEnabled) {
-            return null;
         }
 
         $from = $headers['from'] ?? '';
 
-        if ('' === $from) {
+        if ('' !== $from) {
+            $normFrom = $this->addressFilter->normalise($from);
+
+            if (true === isset($siblingAccounts[$normFrom])) {
+                return $siblingAccounts[$normFrom];
+            }
+        }
+
+        return $account;
+    }
+
+    /**
+     * Whether the headers themselves tie the message to this account, as
+     * opposed to its having landed here because nobody else claimed it.
+     *
+     * @param list<string>         $labelIds
+     * @param array<string,string> $headers
+     */
+    private function namesCarrier(array $labelIds, array $headers, Account $account): bool
+    {
+        $written = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
+
+        return true === $written
+            ? $this->addressFilter->isSentByAccount($headers, $account)
+            : $this->addressFilter->isAddressedToAccount($headers, $account);
+    }
+
+    /**
+     * The same message already stored on another of the user's accounts, by
+     * RFC Message-ID, or null.
+     *
+     * @param array<string,string>  $headers
+     * @param array<string,Account> $siblingAccounts normalisedEmail → Account; one account can appear under several keys
+     */
+    private function copyOnAnotherAccount(array $headers, array $siblingAccounts): ?Message
+    {
+        $rfcMessageId = MessageIdHelper::normalise($headers['message-id'] ?? '');
+
+        if ('' === $rfcMessageId) {
             return null;
         }
 
-        $normFrom = $this->addressFilter->normalise($from);
+        $asked = [];
 
-        if (true === isset($siblingAccounts[$normFrom])) {
-            return $siblingAccounts[$normFrom];
+        foreach ($siblingAccounts as $sibling) {
+            if (true === isset($asked[(int) $sibling->id])) {
+                continue;
+            }
+
+            $asked[(int) $sibling->id] = true;
+
+            $existing = $this->messageRepository->findOneForAccountByMessageId($sibling, $rfcMessageId);
+
+            if (null !== $existing) {
+                return $existing;
+            }
         }
 
         return null;

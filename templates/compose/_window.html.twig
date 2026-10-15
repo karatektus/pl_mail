@@ -883,7 +883,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     <div data-controller="ui--dropdown compose--emoji-picker"
                          data-action="ui--dropdown:opened->compose--emoji-picker#build"
                          data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
-                         data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale starts with 'de' ? 'de' : 'en') ~ '/data.json') }}"
+                         data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale|split('_')|first in ['de', 'fr'] ? app.request.locale|split('_')|first : 'en') ~ '/data.json') }}"
                          data-compose--emoji-picker-i18n-value="{{ {
                              categoriesLabel:         'compose.emoji.categories'|trans,
                              emojiUnsupportedMessage: 'compose.emoji.unsupported'|trans,

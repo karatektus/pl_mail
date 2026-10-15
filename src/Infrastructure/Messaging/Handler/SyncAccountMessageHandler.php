@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Mail\MailImporter;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Throwable;
 
 #[AsMessageHandler]
@@ -33,6 +37,8 @@ final readonly class SyncAccountMessageHandler
         #[AutowireIterator('app.account_syncer')]
         private iterable            $syncers,
         private SyncOrigin          $origin,
+        private MailImporter        $importer,
+        private MessageBusInterface $bus,
     ) {}
 
     public function __invoke(SyncAccountMessage $message): void
@@ -55,6 +61,23 @@ final readonly class SyncAccountMessageHandler
             $this->logger->info('Account inactive', ['accountId' => $message->accountId]);
             return;
         }
+
+        // Asked for the same thing a sync has since done. The poll, a push and
+        // the Sync button each queue one of these, and behind a sync that took
+        // a while they used to run one after another, each over a mailbox the
+        // one before had just read. See SyncAccountMessage::$requestedAt.
+        $requestedAt = $message->requestedAt ?? null;
+
+        if (null !== $requestedAt && true === $account->isSyncedSince($requestedAt)) {
+            $this->logger->debug('Sync skipped: a later one has already gone through', [
+                'accountId' => $message->accountId,
+            ]);
+
+            return;
+        }
+
+        $account->syncBeganAt = new \DateTimeImmutable();
+        $this->entityManager->flush();
 
         $syncer = $this->resolveSyncer($account);
 
@@ -102,6 +125,42 @@ final readonly class SyncAccountMessageHandler
             ]);
 
             return;
+        } catch (GmailThrottledException $throttled) {
+            // NOT A FAILURE, and so neither recorded on the account nor
+            // rethrown.
+            //
+            // Google has refused this account on quota, which while a mailbox
+            // is being imported is expected — it is how the import learns
+            // what the quota is (see GmailQuotaPacer). Rethrown, it was a
+            // warning with two stack traces on each of five retries a minute
+            // apart, and then the sync was dropped: twenty of those an hour
+            // on an install that was working as designed (#90).
+            //
+            // The same sync is asked for again once the refusal has cleared,
+            // carrying the moment it was first asked for, so a sync that got
+            // through in the meantime makes it redundant like any other.
+            $seconds = max(1, $throttled->getRetryAfterSeconds() ?? 60);
+
+            $this->bus->dispatch(
+                new SyncAccountMessage($message->accountId, $message->trigger ?? null, $message->requestedAt ?? null),
+                [new DelayStamp(1000 * $seconds)],
+            );
+
+            $this->logger->info('Sync put back: waiting for Gmail quota', [
+                'accountId'    => $message->accountId,
+                'delaySeconds' => $seconds,
+            ]);
+
+            // And the import is still looked after. This used to be reached
+            // only by a sync that went through, so an import whose chain had
+            // stopped stayed stopped for as long as the syncs were refused.
+            $account = $this->accountRepository->find($message->accountId);
+
+            if (null !== $account) {
+                $this->importer->ensureRunning($account);
+            }
+
+            return;
         } catch (Throwable $failure) {
             // Recorded and RETHROWN. The rethrow is what keeps Messenger's
             // retry ladder intact — this is a note in passing, not a decision
@@ -128,6 +187,12 @@ final readonly class SyncAccountMessageHandler
         // indistinguishable from one that synced a minute ago.
         $account->recordSyncSuccess();
         $this->entityManager->flush();
+
+        // The sync brings in what is new and plans what is old; the old is
+        // fetched elsewhere, a page at a time. This starts that for an account
+        // that has just been planned, and restarts it for one whose import
+        // went quiet. See MailImporter.
+        $this->importer->ensureRunning($account);
 
         foreach ($mailboxIds as $mailboxId) {
             $mailbox = $this->mailboxRepository->find($mailboxId);

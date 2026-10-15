@@ -50,6 +50,14 @@ final readonly class HarvestContactsService
         $rows = [];
 
         foreach ($messages as $message) {
+            // A spammer is not a correspondent. Their addresses would come up
+            // in autocomplete and count as "somebody you write to" for the
+            // categoriser and the hold. Trash is harvested: mail somebody
+            // deleted was still mail from somebody they know.
+            if (true === $message->isSpam()) {
+                continue;
+            }
+
             $rows[] = [
                 'fromAddress'  => $message->fromAddress,
                 'fromName'     => $message->fromName,

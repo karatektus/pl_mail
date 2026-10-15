@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Repository\Mail\AccountRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -33,6 +34,32 @@ final readonly class SenderResolver
     public function token(Account $account): string
     {
         return sprintf('%d|%s', $account->id, $account->displayAddress ?? $account->email ?? '');
+    }
+
+    /**
+     * The token a window editing this draft opens on: the address the draft
+     * already carries, when the account may still send as it.
+     *
+     * A draft has an opinion about its From in two cases — a reply, which
+     * ReplyDraftBuilder addresses from whichever of the account's addresses
+     * the original was sent to, and a draft saved earlier with an alias
+     * picked. Both used to reopen on the primary address, because every window
+     * was pre-set from the account alone: the alias the user had chosen was
+     * silently swapped back, and the next autosave stored the swap.
+     *
+     * Checked against Account::maySendAs() rather than trusted, so an alias
+     * disabled since the draft was written falls back to the primary address
+     * instead of offering an option the selector no longer has.
+     */
+    public function tokenFor(Message $draft, Account $account): string
+    {
+        $address = strtolower(trim((string) $draft->fromAddress));
+
+        if ($draft->account === $account && true === $account->maySendAs($address)) {
+            return sprintf('%d|%s', $account->id, $address);
+        }
+
+        return $this->token($account);
     }
 
     /**

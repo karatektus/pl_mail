@@ -45,6 +45,34 @@
             {# Card #}
             <div class="bg-surface rounded-pane shadow-sm border border-line p-8">
 
+                {# Single sign-on, above the password form because on an
+                   install that has it, it is how most people are meant to come
+                   in. A plain link: the provider's page is a full navigation
+                   anyway, and Turbo would only try to fetch it. #}
+                {% if oidc.isEnabled %}
+                    <a href="{{ path('app_login_oidc') }}"
+                       data-turbo="false"
+                       class="flex items-center justify-center gap-2 w-full border border-line bg-surface hover:bg-hover
+                              text-ink text-sm font-medium py-2 rounded-lg transition-colors
+                              focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface">
+                        <i class="fa-solid fa-key" aria-hidden="true"></i>
+                        {% if oidc.label is not null %}
+                            {{ 'login.oidc.button_named'|trans({'%provider%': oidc.label}) }}
+                        {% else %}
+                            {{ 'login.oidc.button'|trans }}
+                        {% endif %}
+                    </a>
+
+                    {# No role="separator": that role makes its content
+                       presentational, and a screen reader would then skip the
+                       word that says the form below is the other way in. #}
+                    <div class="flex items-center gap-3 my-6 text-xs text-ink-faint">
+                        <span class="flex-1 border-t border-line"></span>
+                        {{ 'login.oidc.or'|trans }}
+                        <span class="flex-1 border-t border-line"></span>
+                    </div>
+                {% endif %}
+
                 {# Full page load on submit: Turbo swaps the <body> only, so the
                    appearance the server renders onto <html> would be ignored
                    until the next real navigation. #}

@@ -28,6 +28,11 @@ connection to come up, and about the handful of settings providers genuinely dis
 5. **Outgoing — SMTP** takes the same three, and all of it is optional. A mailbox with no SMTP
    settings is a mailbox you can read and not send from, which is a legitimate thing to want for an
    archive.
+
+   The one password is used for both directions. Where the server wants a different one to send —
+   Zoho issues an app password per protocol, and some hosts put a relay with its own credentials in
+   front of SMTP — **Use a different password for sending** under the SMTP fields reveals a second
+   field. The username stays shared. **Use the same password for sending** takes it away again.
 6. **Test connection** probes IMAP and SMTP separately and reports each one, so a working mailbox
    with a wrong SMTP port says so instead of failing at the first send.
 
@@ -149,3 +154,8 @@ late" rather than anything that looks broken.
 **Flags travel outward only.** Marking a message read or starred in plMail is pushed to the server,
 but the reverse is not implemented yet — reading a message in another client does not currently
 mark it read here.
+
+**Gmail over IMAP lists a `[Gmail]` folder that is not one.** It is a placeholder that groups All
+Mail, Sent Mail, Drafts and the rest. Gmail marks it `\Noselect` and refuses to open it, so plMail
+creates it with sync switched off and never polls it; the folders underneath are ordinary and sync as
+usual. A folder the server later makes selectable is not switched back on by itself.

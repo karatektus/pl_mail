@@ -51,4 +51,24 @@ final readonly class AiWarmUp
     {
         return new self(false, $milliseconds, $reason, $params);
     }
+
+    /**
+     * The reason's parameters, spelled the way a translation names them.
+     *
+     * {@see AiProbe::placeholders()}, which is the same conversion for the same
+     * reason: the keys here are bare and a translation's are wrapped in percent
+     * signs, and Symfony replaces by exact key.
+     *
+     * @return array<string, string|int>
+     */
+    public function placeholders(): array
+    {
+        $wrapped = [];
+
+        foreach ($this->reasonParams as $key => $value) {
+            $wrapped['%' . $key . '%'] = $value;
+        }
+
+        return $wrapped;
+    }
 }

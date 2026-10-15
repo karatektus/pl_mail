@@ -174,6 +174,12 @@ final class DefaultController extends AbstractController
         // hash no password can produce — which is the intent, since this is
         // what makes the row unable to authenticate.
         $user->password = '';
+        // The single sign-on link goes for the same reason the password does,
+        // and for the address's reason too: the identity is unique, so a link
+        // left on the tombstone would stop the same person being linked to an
+        // account added back for them later.
+        $user->oidcIssuer = null;
+        $user->oidcSubject = null;
         $user->deletedAt = $now;
 
         $this->entityManager->flush();

@@ -68,7 +68,18 @@ security:
         main:
             lazy: true
             provider: app_user_provider
-            custom_authenticator: App\Security\LoginFormAuthenticator
+            # The password form, and single sign-on through an OpenID Connect
+            # provider when one is set up under Admin → SSO or in the OIDC_*
+            # variables — see App\Security\OidcAuthenticator, which declines
+            # every request while neither is. Both end in the same token for the same User,
+            # so the user checker, the login throttle and two-factor below
+            # apply to either way in.
+            custom_authenticators:
+                - App\Security\LoginFormAuthenticator
+                - App\Security\OidcAuthenticator
+            # Two authenticators means Symfony has to be told which one sends
+            # a signed-out visitor somewhere. The login page, which offers both.
+            entry_point: App\Security\LoginFormAuthenticator
             # Refuses an account an administrator has suspended or removed, and
             # does it after the password has been verified rather than before —
             # the class says why at length. A session that was already open is
@@ -89,13 +100,29 @@ security:
             # firewall listener with its own throttle, see below.
             login_throttling:
                 limiter: App\Security\LoginRateLimiter
-            # Opt-in via the "keep me logged in" checkbox on the login form.
+            # Opt-in via the "keep me logged in" checkbox on the login form;
+            # a single sign-on sign-in has no form and asks for it itself, in
+            # App\Security\OidcAuthenticator.
             # Signature-based tokens: no storage, and changing the password
             # invalidates every cookie that was issued for it.
             remember_me:
                 lifetime: 5184000 # 60 days
                 secure: auto
                 samesite: lax
+                # Kept on the server, one row per device (`rememberme_token`),
+                # rather than a cookie that only carries its own signature.
+                #
+                # A signed cookie is valid until it expires, whatever happened
+                # since, and signing out only asks the browser to delete it. Any
+                # request already on its way with it — the page's own background
+                # fetches, which are many — reached the server after the sign-out
+                # and signed the person straight back in. With the token stored,
+                # signing out deletes this device's row, and a cookie that names
+                # it opens nothing. Other devices stay signed in. Parallel
+                # requests that rotate the token are reconciled by Symfony's
+                # CacheTokenVerifier, so they are not mistaken for theft.
+                token_provider:
+                    doctrine: true
             # Password first, then TOTP if the account has it switched on. The
             # RememberMeToken is listed in scheb_2fa.yaml's security_tokens, so
             # a remember-me cookie is challenged too — see the note there.

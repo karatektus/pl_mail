@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Proposal;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Calendar\EventProposal;
@@ -326,7 +327,7 @@ final readonly class EventProposer
      */
     private function isAddressedTo(Message $message): bool
     {
-        $owned = $message->account->ownedAddresses;
+        $owned = OwnAddressHelper::forMessage($message);
 
         if ([] === $owned) {
             return false;

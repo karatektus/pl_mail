@@ -140,6 +140,33 @@ async function shiftTimesBy(modal: Locator, hours: number) {
     await setWhen(ends, localValue(movedEnd));
 }
 
+/**
+ * Put a new event at noon for an hour, on the day the editor offered.
+ *
+ * The editor offers the next full hour, so without this the recurring cases
+ * below test a different event depending on when the suite runs — and the
+ * agenda they count chips in is thirty days long, which is long enough to reach
+ * a daylight-saving change for two months of every year. Run late in the
+ * evening in October, the series sat at 00:00 and "moving all events" put it at
+ * 02:00 to 03:00: on the last Sunday of the month that hour happens twice, the
+ * occurrence runs from the first 02:00 to the second, and its chip reads
+ * "2:00 – 2:00" among twenty-eight that read "2:00 – 3:00". That is the right
+ * hour-long event and one label too many for a case that asserts they all match.
+ * In March the same hour does not exist and the chip moves to 3:00 instead.
+ *
+ * Noon, and the 14:00 the cases shift it to, are hours no zone changes its
+ * clock in, so every occurrence of the series carries the same label whatever
+ * the date and whatever the time of day.
+ */
+async function moveToMidday(modal: Locator) {
+    const starts = modal.locator("#event-starts");
+    const day    = (await starts.inputValue()).slice(0, 10);
+
+    // The start first, for the reason shiftTimesBy() gives.
+    await setWhen(starts, `${day}T12:00`);
+    await setWhen(modal.locator("#event-ends"), `${day}T13:00`);
+}
+
 test.describe("calendar", () => {
     test.afterEach(async ({ page }) => {
         // Delete anything this spec created, so a second run starts where the
@@ -360,6 +387,7 @@ test.describe("calendar", () => {
         await expect(modal.getByLabel("Title")).toHaveValue("");
 
         await modal.getByLabel("Title").fill(TITLE);
+        await moveToMidday(modal);
         await choose(modal, "Repeat", REPEAT[repeat]);
         await submit(page, modal, "Save");
 
@@ -427,6 +455,52 @@ test.describe("a meeting on two calendars", () => {
         await page.goto("/calendar/agenda");
 
         await expect(meetingChips(page)).toHaveCount(1);
+    });
+
+    /**
+     * The mark of a merged chip is split between its calendars' colours, and
+     * the split runs ALONG the mark. In a month cell wide enough for the title
+     * the mark stands upright and is split top to bottom; in one too narrow
+     * for words the chip is the mark alone, lying flat — and split top to
+     * bottom there it was two hairlines stacked in a bar a few pixels tall,
+     * where the two colours belong side by side. Reported from a phone-width
+     * month.
+     */
+    test("splits a flat month bar's colours side by side, an upright one's top to bottom", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        const mark = () => meetingChips(page).first().locator("span[aria-hidden='true'][style*='gradient']");
+        const split = async () =>
+            mark().evaluate((el) => {
+                const box = el.getBoundingClientRect();
+
+                return {
+                    flat: box.width > box.height,
+                    image: getComputedStyle(el).backgroundImage,
+                };
+            });
+
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto("/calendar/month");
+        await expect(meetingChips(page).first()).toBeVisible();
+
+        const upright = await split();
+
+        expect(upright.flat, "beside a title the mark stands upright").toBe(false);
+        // Top to bottom is a gradient's default, and a browser reports the
+        // computed value without it — so upright is "a gradient, not to the
+        // right" rather than a literal `to bottom`.
+        expect(upright.image).toContain("linear-gradient(");
+        expect(upright.image).not.toContain("to right");
+
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto("/calendar/month");
+        await expect(mark()).toBeVisible();
+
+        const flat = await split();
+
+        expect(flat.flat, "in a cell too narrow for words the mark lies flat").toBe(true);
+        expect(flat.image).toContain("to right");
     });
 
     test("ticks every calendar it is on, and disables the one that takes no changes", async ({ page }) => {
@@ -936,7 +1010,10 @@ test.describe("calendar pane", () => {
      * rendering one-line rows, truncated to nothing.
      */
     test("stacks the mail rows once the pane has taken enough width", async ({ page }) => {
-        await page.setViewportSize({ width: 1440, height: 900 });
+        // 1600, not 1440: one line starts at a 75rem list now, and a 1440px
+        // window gives one just short of that, so the first assertion below
+        // found a row that was never one line to begin with.
+        await page.setViewportSize({ width: 1600, height: 900 });
         await ensurePaneClosed(page);
 
         // The content block is what changes shape: a column when the list is

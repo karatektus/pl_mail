@@ -377,6 +377,22 @@ final class Appearance
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     public bool $listAvatars = true;
 
+    /**
+     * The unread count beside each inbox tab's name.
+     *
+     * ON by default, because it answers a question nothing else on the strip
+     * can: the sidebar's Inbox badge says there is unread mail and not which
+     * tab it is in. OPTIONAL, for the same reason the account corner is: it is
+     * one more number on a strip that already carries the "3 new" pill, and
+     * the person who reads the pill and the bold rows and wants nothing else
+     * is one click from not having it.
+     *
+     * Off hides the number and nothing else. The tint on a tab's icon and the
+     * pill are separate statements and stay.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    public bool $tabUnreadCount = true;
+
     #[ORM\Column(type: 'smallint', options: ['default' => 1])]
     public int $previewLines = 1 {
         set {
@@ -491,6 +507,7 @@ final class Appearance
             'mainAlpha' => $this->mainAlpha,
             'accountCorner' => $this->accountCorner,
             'listAvatars' => $this->listAvatars,
+            'tabUnreadCount' => $this->tabUnreadCount,
             'previewLines' => $this->previewLines,
             'unreadEmphasis' => $this->unreadEmphasis->value,
             'fontFamily' => $this->fontFamily->value,
@@ -609,6 +626,10 @@ final class Appearance
 
         if (true === isset($data['listAvatars'])) {
             $this->listAvatars = self::boolean($data['listAvatars']);
+        }
+
+        if (true === isset($data['tabUnreadCount'])) {
+            $this->tabUnreadCount = self::boolean($data['tabUnreadCount']);
         }
 
         if (true === isset($data['previewLines'])) {

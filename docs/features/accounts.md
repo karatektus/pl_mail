@@ -24,7 +24,15 @@ which is what nearly every provider wants.
 but an account that stores cleanly and cannot log in is the failure worth catching now rather than
 at the first sync, so the probe runs again on save and its outcome is remembered on the account.
 
-The first sync starts immediately. After that, plMail holds an IMAP IDLE connection to each
+The first sync starts immediately, and the account's existing mail is then brought in newest
+first: the most recent of the Inbox within a minute or so, the rest of the Inbox after it, then
+Sent, Drafts and your own folders, the archive, and Spam and the bin last. Mail that arrives
+while this runs is not held up by it. A chip beside the search box says **Importing** for as long
+as an account is, and opens a list with how much of each is in and which folder it is on; if nothing
+has moved for a while it says **Waiting to continue**, and an account that cannot be reached is
+listed under **Account health**.
+
+After that, plMail holds an IMAP IDLE connection to each
 mailbox and syncs the moment something changes, with a scheduled sweep every fifteen minutes
 behind it.
 
@@ -73,17 +81,27 @@ send from, with nothing on screen saying so. Two decisions, two controls.
 
 The coloured dot beside each account is its **identity colour**: the same tone that account's
 messages wear in the unified lists, so two accounts can be told apart at a glance in a list that
-mixes them. It is handed out when the account is added and never moves again — reordering the list
-does not repaint it, and it is **not** a status light. Whether an account is actually working is
-answered on [Account health](health.md), which is the one place that claims to answer it.
+mixes them. It is handed out when the account is added — the first of eight colours not already in
+use — and from then on it changes only when you change it. Reordering the list does not repaint it,
+and it is **not** a status light. Whether an account is actually working is answered on
+[Account health](health.md), which is the one place that claims to answer it.
+
+You change it with the coloured swatch on the account's row, which opens the palette of eight.
+That control is on **every** account, Gmail and Outlook ones included, which is why it is not a
+field in **Edit account**: that form is closed to them. The sidebar dot changes at once, and every
+list you open afterwards wears the new colour on that account's messages; a list already open in
+another tab repaints when it reloads. Choosing a colour another account already wears is allowed,
+so two accounts can be made a pair.
 
 Each row offers:
 
 | Control | Effect |
 |---|---|
+| **Colour swatch** | Opens the palette; the colour you pick is the account's from then on — on any account |
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
+| **Choose which folders to sync** | Switches individual IMAP folders on or off — IMAP accounts only; see [Folders to sync](#folders-to-sync) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -165,6 +183,20 @@ therefore means thousands of updates, sent in the background.
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
 
+### Folders to sync
+
+**Choose which folders to sync** opens the account's folders, each with a switch. Every folder starts
+on. Switching one off stops plMail fetching it: the mail already stored stays where it is, and
+switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
+that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
+
+Nested folders are indented under their parent. A folder that only groups others and holds no mail
+of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
+the server will not open it, so there is nothing to fetch.
+
+It appears only for IMAP accounts. A Gmail or Microsoft account syncs through its provider's API and
+has no folders to choose between. A folder the server has stopped listing is not shown.
+
 ## Sending aliases
 
 **Settings → Aliases** lists the addresses each account sends and receives as. **Refresh from
@@ -176,6 +208,42 @@ Disabled addresses stay on the list and stop being offered in the compose window
 
 The **From** selector in the compose window lists accounts and aliases together, so sending as an
 alias is one choice rather than two.
+
+A **reply** opens on the address the mail was sent to. Mail that came in for an alias is answered
+from that alias, without you picking it; mail that names none of the account's addresses — a list, a
+Bcc the server left no trace of — is answered from the primary one. Answering mail you sent yourself
+keeps the address you sent it from. The selector is still there to change it.
+
+### The name an address sends under
+
+Under each address is a field for the **sender name**: what the recipient sees beside the address.
+Left empty, the address sends under the account's name, which is what the field shows greyed out. A
+family address on a personal account can be "Mr and Mrs Smith" while the account stays "John
+Smith". The From selector shows the same name the mail goes out with.
+
+### Catch-all domains
+
+If your provider delivers **every** address at a domain to this mailbox, add the domain under
+**Catch-all domains**. plMail then treats any address at that domain as yours for answering: a
+reply to mail sent to `anything@example.com` goes out from `anything@example.com`, with the
+account's name and signature, and you are left out of your own reply-all. A meeting invitation sent
+to such an address is yours to answer, and the answer goes back from it. No alias has to be added
+first, and nothing changes for mail that arrives.
+
+**Not every address at the domain is treated as you.** A catch-all catches what has no mailbox of
+its own, and on a family or company domain other people have one: `anna@example.com` is at your
+catch-all domain and is somebody else. So an address counts as yours only for a mail it reached you
+by — the address your server recorded delivering it to, or, where the server recorded none, the
+addresses at that domain in To and Cc. Anna stays in your reply-all, her mail is answered to her
+rather than as her, and an invitation naming her is not offered to you. Where a mail names both of
+you and carries no delivery record, plMail cannot tell which was yours and treats both as you.
+
+Three things it does not do. It is one domain exactly — `example.com` does not cover
+`mail.example.com`. It applies to replies and forwards; a new message is still sent from an address
+on the list above. And it is not offered for Gmail or Outlook accounts, which send only as addresses
+the provider itself knows about and rewrite or refuse any other. plMail does not check that the
+domain really is a catch-all, or that your provider lets you send from it: that is between you and
+the provider, and a wrong entry shows up as a refused or rewritten sender on the first reply.
 
 One caveat plMail states on the page itself: **Outlook sends as the account's primary alias
 regardless of what you choose here.** That is Microsoft's behaviour, changed in your Microsoft
@@ -233,3 +301,10 @@ connects, mail works, and no calendars appear. Reconnecting with the box left ti
 **Push failing is not an error state.** A self-hosted install may have no publicly reachable HTTPS
 address at all. Registration failing means "stay on polling", and the fifteen-minute sweep is
 unaffected.
+
+**A message moved in another mail client into a folder that is switched off looks, to plMail, like
+one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only
+looks in the folders that are switched on, so a message filed elsewhere into a folder plMail is not
+fetching disappears here although it still exists on the server. That is the switch doing what it
+says, and nothing is lost: switch the folder on and plMail fetches the message again. A move made
+inside plMail is different — plMail knows where it put the message and keeps its copy.

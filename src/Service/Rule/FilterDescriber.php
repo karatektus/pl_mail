@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Rule\MailRule;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -40,6 +41,9 @@ final class FilterDescriber implements ResetInterface
     /** @var array<int, array<int,string>> userId => (integrationId => name) */
     private array $integrationNames = [];
 
+    /** @var array<string, array<int,string>> user identifier => (categoryId => name) */
+    private array $categoryNames = [];
+
     /** Whose labels the sentence currently being built may name. */
     private ?UserInterface $subject = null;
 
@@ -47,12 +51,14 @@ final class FilterDescriber implements ResetInterface
         private readonly TranslatorInterface $translator,
         private readonly LabelRepository       $labelRepository,
         private readonly IntegrationRepository $integrationRepository,
+        private readonly InboxCategoryRepository $categoryRepository,
     ) {}
 
     public function reset(): void
     {
         $this->labelNames       = [];
         $this->integrationNames = [];
+        $this->categoryNames    = [];
         $this->subject          = null;
     }
 
@@ -236,6 +242,10 @@ final class FilterDescriber implements ResetInterface
             return $described . ' ' . $this->labelName($action['labelId']);
         }
 
+        if (true === array_key_exists('categoryId', $action)) {
+            return $described . ' ' . $this->categoryName($action['categoryId']);
+        }
+
         if (true === array_key_exists('integrationId', $action)) {
             $described .= ' ' . $this->integrationName($action['integrationId']);
 
@@ -287,6 +297,35 @@ final class FilterDescriber implements ResetInterface
 
         return $this->integrationNames[$userId][$id]
             ?? $this->translator->trans('settings.filters.integration_missing');
+    }
+
+    /**
+     * A category named the way a label is, and missing the same way: removed out
+     * from under a rule it reads as missing rather than as a bare id.
+     */
+    private function categoryName(mixed $id): string
+    {
+        $missing = $this->translator->trans('settings.filters.category_missing');
+
+        if (null === $this->subject) {
+            return $missing;
+        }
+
+        // Keyed by the user identifier rather than by an id: all that is known
+        // here is a UserInterface, which has no id to read.
+        $userId = $this->subject->getUserIdentifier();
+
+        if (false === array_key_exists($userId, $this->categoryNames)) {
+            $map = [];
+
+            foreach ($this->categoryRepository->findForUserOrdered($this->subject) as $category) {
+                $map[(int) $category->id] = $category->name;
+            }
+
+            $this->categoryNames[$userId] = $map;
+        }
+
+        return $this->categoryNames[$userId][(int) $id] ?? $missing;
     }
 
     private function labelName(mixed $id): string

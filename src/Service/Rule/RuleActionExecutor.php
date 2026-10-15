@@ -39,6 +39,7 @@ final readonly class RuleActionExecutor
     public const string TRASH = 'trash';
     public const string MARK_SPAM = 'markSpam';
     public const string SAVE_TO_INTEGRATION = 'saveToIntegration';
+    public const string FILE_IN_CATEGORY = 'fileInCategory';
 
     public const array TYPES = [
         self::APPLY_LABEL,
@@ -49,6 +50,7 @@ final readonly class RuleActionExecutor
         self::TRASH,
         self::MARK_SPAM,
         self::SAVE_TO_INTEGRATION,
+        self::FILE_IN_CATEGORY,
     ];
 
     public function __construct(
@@ -59,6 +61,7 @@ final readonly class RuleActionExecutor
         private IntegrationRepository   $integrationRepository,
         private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
+        private RuleCategoryFiler       $categoryFiler,
     ) {}
 
     public function execute(MailRule $rule, Message $message): void
@@ -150,6 +153,15 @@ final readonly class RuleActionExecutor
 
             case self::SAVE_TO_INTEGRATION:
                 $this->queueUpload($action, $message, $rule);
+
+                return false;
+
+            case self::FILE_IN_CATEGORY:
+                // A tab, not a label: nothing about the message's labels or its
+                // place at the provider changes, so there is no propagator call
+                // and no thread label re-sync to ask for. Whether it is allowed
+                // to file at all is RuleCategoryFiler's decision.
+                $this->categoryFiler->file($rule, $message, $action);
 
                 return false;
 

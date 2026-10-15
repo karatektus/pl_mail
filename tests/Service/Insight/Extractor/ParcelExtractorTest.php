@@ -48,6 +48,72 @@ final class ParcelExtractorTest extends TestCase
     #[DataProvider('mails')]
     public function testItReadsParcelsAndRefusesTheRest(array $mail, bool $supports, array $drafts): void
     {
+        $this->assertReads($mail, $supports, $drafts);
+    }
+
+    /**
+     * The French carriers and shops, a table of their own: the shapes and the
+     * phrasing differ from the German ones above. Every number in it is made
+     * up — each only has to be the SHAPE a real one has.
+     *
+     * @param array<string, ?string>                                                                           $mail
+     * @param list<array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}> $drafts
+     */
+    #[DataProvider('frenchMails')]
+    public function testItReadsFrenchParcels(array $mail, bool $supports, array $drafts): void
+    {
+        $this->assertReads($mail, $supports, $drafts);
+    }
+
+    /**
+     * A mail synced through Microsoft Graph stores a 255-character preview as
+     * its text, so a number that sits further down was invisible to every
+     * extractor for as long as the text was what they read. This is the mail
+     * as the sync stores it: the number is in the HTML and not in the preview.
+     *
+     * Expected, by hand: the sender is Colissimo's notification domain, so the
+     * carrier is `colissimo`; "6A12345678901" is a digit, a letter and eleven
+     * digits, which is Colissimo's shape; neither the subject nor the body
+     * names a stage or promises a date, so the status is `announced` and there
+     * is no ETA; and La Poste's page is the tracking link.
+     */
+    public function testAGraphMailsNumberBeyondTheCutOffPreviewIsStillFound(): void
+    {
+        $lines = str_repeat('Lorem ipsum dolor sit amet. ', 12);
+        $plain = rtrim($lines) . "\nN° du colis 6A12345678901";
+
+        $message = self::message([
+            'from'     => 'noreply@notif-colissimo-laposte.info',
+            'fromName' => 'La Poste-Colissimo',
+            'subject'  => 'Votre colis arrive !',
+            'body'     => mb_substr($plain, 0, 255),
+            'html'     => '<p>' . rtrim($lines) . '</p><p>N° du colis 6A12345678901</p>',
+            'graphId'  => 'AAMkAD-colissimo',
+        ]);
+
+        self::assertStringNotContainsString('6A12345678901', (string) $message->bodyText, 'the fixture must hide the number from the preview');
+
+        $found = $this->extractor->extract($message);
+
+        self::assertCount(1, $found);
+        self::assertSame('Colissimo · 6A12345678901', $found[0]->title);
+        self::assertSame('6A12345678901', $found[0]->dedupeKey);
+        self::assertSame([
+            'carrier'        => 'colissimo',
+            'trackingNumber' => '6A12345678901',
+            'trackingUrl'    => 'https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901',
+            'merchant'       => null,
+            'status'         => 'announced',
+        ], $found[0]->payload);
+        self::assertNull($found[0]->happensAt);
+    }
+
+    /**
+     * @param array<string, ?string>                                                                           $mail
+     * @param list<array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}> $drafts
+     */
+    private function assertReads(array $mail, bool $supports, array $drafts): void
+    {
         $message = self::message($mail);
 
         self::assertSame($supports, $this->extractor->supports($message), 'the supports() gate');
@@ -538,6 +604,30 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            'gls: a twelve-digit number under DHL-looking context words is still the sender\'s parcel' => [
+                [
+                    'from'     => 'noreply@gls-pakete.de',
+                    'fromName' => 'GLS',
+                    'subject'  => 'Ihre Sendung ist unterwegs',
+                    'body'     => 'Sendungsnummer: 123456789012',
+                ],
+                true,
+                [[
+                    // "Sendungsnummer" makes the shape read as DHL's; the
+                    // sender, who knows itself better, turns it into GLS's.
+                    'title'     => 'GLS · 123456789012',
+                    'dedupeKey' => '123456789012',
+                    'payload'   => [
+                        'carrier'        => 'gls',
+                        'trackingNumber' => '123456789012',
+                        'trackingUrl'    => 'https://gls-group.eu/track/123456789012',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
             'amazon marketing mail without a shipping subject' => [
                 [
                     'from'     => 'store-news@amazon.de',
@@ -547,6 +637,1189 @@ final class ParcelExtractorTest extends TestCase
                 ],
                 false,
                 [],
+            ],
+        ];
+    }
+
+    /**
+     * Receipt time is the default of message(): Tuesday 2026-11-10 08:00 UTC.
+     * Every date below is derived from that by hand, in the row's comment.
+     *
+     * @return array<string, array{0: array<string, ?string>, 1: bool, 2: list<array<string, mixed>>}>
+     */
+    public static function frenchMails(): array
+    {
+        $laPoste = 'https://www.laposte.fr/outils/suivre-vos-envois?code=';
+
+        return [
+            'colissimo: "arrive" says nothing, the body says delivered today' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis arrive !',
+                    'body'     => "Bonjour,\n\nVotre colis 6A12345678901 sera livré aujourd'hui à l'adresse indiquée.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'out_for_delivery',
+                    ],
+                    // "aujourd'hui" is the day of the mail, at noon.
+                    'happensAt' => '2026-11-10 12:00',
+                ]],
+            ],
+
+            'colissimo: delivered, and no eta because nothing promises one' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis a bien été livré !',
+                    'body'     => "Votre colis 6A12345678901 a bien été livré.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'colissimo: waiting at the pickup point is not delivered, and a pickup deadline is not an eta' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis vous attend !',
+                    'body'     => "Votre colis 6A12345678901 est disponible dans votre point de retrait.\n"
+                        . "À retirer avant le 14/11/2026.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'ready_for_pickup',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'colissimo: a future "sera livré" is a promise, never a delivery, and a slash date is day first' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis est en chemin',
+                    'body'     => "Votre colis 6A12345678901 sera livré le : 14/11\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    // 14/11 is the 14th of November, in the mail's own year.
+                    'happensAt' => '2026-11-14 12:00',
+                ]],
+            ],
+
+            'colissimo: a failed attempt says "pas été livré" and must not read as delivered' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => "Nous n'avons pas pu vous remettre votre colis.",
+                    'body'     => "Votre colis 6A12345678901 n'a pas été livré.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        // No stage of its own for a failed attempt yet — the
+                        // honest answer is the neutral one, not "delivered".
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'colissimo: après-demain is two days on, not one' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis est en chemin',
+                    'body'     => "Votre colis 6A12345678901 sera livré après-demain.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    // Tuesday the 10th + 2 days.
+                    'happensAt' => '2026-11-12 12:00',
+                ]],
+            ],
+
+            'colissimo: "sous un jour ouvré" promises no date' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis est en chemin',
+                    'body'     => "Votre colis 6A12345678901 sera livré sous un jour ouvré.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'chronopost: arrived at the relay point is ready for pickup, whatever the word for it' => [
+                [
+                    'from'     => 'no-reply@chronopost.fr',
+                    'fromName' => 'Chronopost',
+                    'subject'  => 'Votre colis XW123456789FR est arrivé dans votre relais',
+                    'body'     => "Numéro de suivi : XW123456789FR\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XW123456789FR',
+                        'merchant'       => null,
+                        'status'         => 'ready_for_pickup',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'colissimo: a typographic apostrophe reads like the plain one' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis arrive !',
+                    'body'     => "Votre colis 6A12345678901 sera livré aujourd’hui.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => '2026-11-10 12:00',
+                ]],
+            ],
+
+            'colissimo: an app-store line saying "est disponible" is not a parcel waiting at a relay' => [
+                [
+                    'from'     => 'noreply@notif-colissimo-laposte.info',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Information sur votre colis',
+                    'body'     => "Votre colis 6A12345678901 est entre nos mains.\n"
+                        . "L'application La Poste est disponible sur l'App Store.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'chronopost: the s10 shape, overruled to the carrier that sent it' => [
+                [
+                    'from'     => 'no-reply@chronopost.fr',
+                    'fromName' => 'Chronopost',
+                    'subject'  => 'Votre colis est en cours de livraison XW123456789FR',
+                    'body'     => "Votre colis AMAZON est en cours de livraison.\n"
+                        . "Numéro de suivi : XW123456789FR\n"
+                        . "Livraison prévue aujourd'hui entre 9:00 et 12:00.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XW123456789FR',
+                        'merchant'       => null,
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => '2026-11-10 12:00',
+                ]],
+            ],
+
+            // ── The Pickup relay network ───────────────────────────────────
+            // network1/network2.pickup.fr forward the parcels of several
+            // carriers, so the sender domain names none of them; the display
+            // name sometimes does. Every number here is invented, and only has
+            // to be an S10 shape. The 'XM…TS' ending is neither "FR" nor "DE":
+            // it is the case the Deutsche Post default would have claimed.
+            'pickup relay: a display name that is a listed carrier names the carrier' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Votre colis a bien été déposé dans votre point Pickup.\n"
+                        . "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XM123456789TS',
+                        // The display name named the carrier: it is not a shop.
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: the other listed carrier, from the other relay host' => [
+                [
+                    'from'     => 'noreply@network1.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a display name that is no carrier names none, and the card says Pickup' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a carrier\'s name inside a longer display name is not the carrier' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Colissimo Mode',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Colissimo Mode',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: a carrier\'s name is a whole word, not the start of a longer one' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimotrade Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Colissimotrade Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // A parcel its recipient has collected is as delivered as a parcel
+            // put through the door; read as "announced" it would sit on the
+            // radar for good.
+            'pickup relay: "a été retiré" in the subject is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Votre colis a été retiré',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: the number between "colis" and "a été retiré" in the body is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Information sur votre colis',
+                    'body'     => "Votre colis XM123456789TS a bien été retiré par vos soins.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: "récupéré par son destinataire" is delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis a été récupéré par son destinataire',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // The negated forms say the opposite, and one of them contains the
+            // phrase above whole.
+            'pickup relay: "n\'a pas été récupéré par son destinataire" is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Colissimo',
+                    'subject'  => 'Votre colis n\'a pas été récupéré par son destinataire',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => $laPoste . 'XM123456789TS',
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // "colis" has to be near the phrase: the same words about something
+            // else in the same mail are not a parcel's stage.
+            'pickup relay: "a été retiré" about something other than the parcel is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XM123456789TS\n\n"
+                        . "Votre adresse e-mail a été retiré de notre liste de diffusion.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: "n\'a pas été retiré" is not delivered' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Votre colis n\'a pas été retiré',
+                    'body'     => "Numéro de colis : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Pickup · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => null,
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // What the number itself states is still read. The French
+            // issuing country is a fact about an S10 number, not a guess about
+            // the mailbox, and a Colissimo-shaped number is Colissimo's.
+            'pickup relay: an unnamed carrier does not hide what the number states: FR is La Poste' => [
+                [
+                    'from'     => 'noreply@network2.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Confirmation du dépôt de votre colis',
+                    'body'     => "Numéro de colis : XW123456789FR\n",
+                ],
+                true,
+                [[
+                    'title'     => 'La Poste · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'la-poste',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => $laPoste . 'XW123456789FR',
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'pickup relay: an unnamed carrier does not hide what the number states: Colissimo shape' => [
+                [
+                    'from'     => 'noreply@network1.pickup.fr',
+                    'fromName' => 'Boutique Exemple Pickup',
+                    'subject'  => 'Votre colis 6A12345678901 est arrivé en relais Pickup',
+                    'body'     => "Votre colis 6A12345678901 est arrivé en relais Pickup.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Colissimo · 6A12345678901',
+                    'dedupeKey' => '6A12345678901',
+                    'payload'   => [
+                        'carrier'        => 'colissimo',
+                        'trackingNumber' => '6A12345678901',
+                        'trackingUrl'    => $laPoste . '6A12345678901',
+                        'merchant'       => 'Boutique Exemple Pickup',
+                        'status'         => 'ready_for_pickup',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // The companion of the rows above: the display-name list belongs
+            // to the relay network. A shop that merely calls itself
+            // "Chronopost Pickup" is still a shop, and an S10 number from a
+            // sender nobody vouches for is still read the way it always was.
+            'pickup relay: the display-name list does not apply to any other sender' => [
+                [
+                    'from'     => 'noreply@shop.example',
+                    'fromName' => 'Chronopost Pickup',
+                    'subject'  => 'Votre colis est expédié',
+                    'body'     => "Numéro de suivi : XM123456789TS\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Deutsche Post · XM123456789TS',
+                    'dedupeKey' => 'XM123456789TS',
+                    'payload'   => [
+                        'carrier'        => 'deutsche-post',
+                        'trackingNumber' => 'XM123456789TS',
+                        'trackingUrl'    => null,
+                        'merchant'       => 'Chronopost Pickup',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'chronopost: its mail names DPD, and that must not turn a fourteen-digit run into a second parcel' => [
+                [
+                    'from'     => 'no-reply@chronopost.fr',
+                    'fromName' => 'Chronopost',
+                    'subject'  => 'Votre colis est en chemin XW123456789FR',
+                    'body'     => "Un partenaire du groupe DPD prend votre colis en charge.\n"
+                        . "Numéro de suivi : XW123456789FR\n"
+                        . "Référence interne : 01234567890123\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XW123456789FR',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'chronopost: a mention of FedEx does not turn a fifteen-digit run into a second parcel' => [
+                [
+                    'from'     => 'no-reply@chronopost.fr',
+                    'fromName' => 'Chronopost',
+                    'subject'  => 'Votre colis est en chemin XW123456789FR',
+                    'body'     => "Livraison en partenariat avec FedEx.\n"
+                        . "Numéro de suivi : XW123456789FR\n"
+                        . "Référence interne : 123456789012345\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Chronopost · XW123456789FR',
+                    'dedupeKey' => 'XW123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'chronopost',
+                        'trackingNumber' => 'XW123456789FR',
+                        'trackingUrl'    => 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XW123456789FR',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'dpd france: fourteen digits, and "sera livré le" is a promise that must not read delivered' => [
+                [
+                    'from'     => 'predict@information.dpd.fr',
+                    'fromName' => 'DPD France',
+                    'subject'  => 'Livraison de votre colis BOUTIQUE',
+                    'body'     => "Votre colis 10012345678901 sera livré le 14.11.2026.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'DPD · 10012345678901',
+                    'dedupeKey' => '10012345678901',
+                    'payload'   => [
+                        'carrier'        => 'dpd',
+                        'trackingNumber' => '10012345678901',
+                        'trackingUrl'    => 'https://tracking.dpd.de/status/de_DE/parcel/10012345678901',
+                        'merchant'       => null,
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => '2026-11-14 12:00',
+                ]],
+            ],
+
+            'mondial relay: eight digits after the word colis, from Mondial Relay itself' => [
+                [
+                    'from'     => 'noreply@mondialrelay.fr',
+                    'fromName' => 'Mondial Relay',
+                    'subject'  => 'Votre colis 12345678 est disponible !',
+                    'body'     => "Bonjour,\n\nVotre colis 12345678 est disponible dans votre Point Relais®.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Mondial Relay · 12345678',
+                    'dedupeKey' => '12345678',
+                    'payload'   => [
+                        'carrier'        => 'mondial-relay',
+                        'trackingNumber' => '12345678',
+                        // Its tracking page asks for a postcode as well, so no
+                        // link can be built from the number alone.
+                        'trackingUrl'    => null,
+                        'merchant'       => null,
+                        'status'         => 'ready_for_pickup',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'mondial relay marketing: an eight-digit promo code is not a parcel' => [
+                [
+                    'from'     => 'news@e-mail.mondialrelay.fr',
+                    'fromName' => 'Mondial Relay',
+                    'subject'  => 'Vos colis en Point Relais®',
+                    'body'     => "Votre premier envoi à -50 % avec le code 12345678.\n",
+                ],
+                true,
+                [],
+            ],
+
+            'eight digits after "colis" from a shop that is not Mondial Relay stay an order number' => [
+                [
+                    'from'     => 'service@boutique-exemple.fr',
+                    'fromName' => 'Boutique',
+                    'subject'  => 'Votre colis 12345678 est expédié',
+                    'body'     => "Votre colis 12345678 est expédié.\n",
+                ],
+                true,
+                [],
+            ],
+
+            'colis privé: the number is only in a link of the html part' => [
+                [
+                    'from'     => 'notification@notification.colisprive.com',
+                    'fromName' => 'Colis Privé',
+                    'subject'  => 'Votre colis est en route !',
+                    'body'     => "Votre colis est en route.\nSuivez-le depuis votre espace.\n",
+                    'html'     => '<p>Votre colis est en route.</p>'
+                        . '<a href="https://suivi.example.test/colis?c=12345678901234567&amp;l=fr">Suivre</a>',
+                ],
+                true,
+                [[
+                    'title'     => 'Colis Privé · 12345678901234567',
+                    'dedupeKey' => '12345678901234567',
+                    'payload'   => [
+                        'carrier'        => 'colis-prive',
+                        'trackingNumber' => '12345678901234567',
+                        'trackingUrl'    => null,
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'colis privé: "en cours de livraison" alone is out for delivery' => [
+                [
+                    'from'     => 'notification@notification.colisprive.com',
+                    'fromName' => 'Colis Privé',
+                    'subject'  => 'Votre colis est en cours de livraison',
+                    'body'     => "Bonjour,\n\nVotre colis arrive.\n",
+                    'html'     => '<a href="https://suivi.example.test/colis?c=12345678901234567">Suivre</a>',
+                ],
+                true,
+                [[
+                    'title'     => 'Colis Privé · 12345678901234567',
+                    'dedupeKey' => '12345678901234567',
+                    'payload'   => [
+                        'carrier'        => 'colis-prive',
+                        'trackingNumber' => '12345678901234567',
+                        'trackingUrl'    => null,
+                        'merchant'       => null,
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // Seventeen digits in a row are also a tracking pixel's id and a
+            // timestamp in an image address. Only an href is where the number
+            // is put for a person to follow; the row above is the companion
+            // that shows the link itself is still read.
+            'colis privé: seventeen digits outside a link are not a parcel' => [
+                [
+                    'from'     => 'notification@notification.colisprive.com',
+                    'fromName' => 'Colis Privé',
+                    'subject'  => 'Votre colis est en cours de livraison',
+                    'body'     => "Bonjour,\n\nVotre colis arrive.\n",
+                    'html'     => '<img src="https://px.example.test/o.gif?id=99999999999999999" width="1" height="1">'
+                        . '<p data-ts="20261110080000123">Votre colis arrive.</p>'
+                        . '<a href="https://suivi.example.test/aide">Aide</a>',
+                ],
+                true,
+                [],
+            ],
+
+            'the same link from a shop that is not Colis Privé is not a parcel' => [
+                [
+                    'from'     => 'newsletter@boutique-exemple.fr',
+                    'fromName' => 'Boutique',
+                    'subject'  => 'Votre colis est en route !',
+                    'body'     => "Votre colis est en route.\n",
+                    'html'     => '<p>Votre colis est en route.</p>'
+                        . '<a href="https://suivi.example.test/colis?c=12345678901234567&amp;l=fr">Suivre</a>',
+                ],
+                true,
+                [],
+            ],
+
+            'cainiao: four letters, thirteen digits, two letters' => [
+                [
+                    'from'     => 'noreply@eu-service.cainiao.com',
+                    'fromName' => 'Cainiao',
+                    'subject'  => 'Colis plateforme e-commerce CNFR1234567890123HD – Ma livraison est en cours',
+                    'body'     => "Votre colis CNFR1234567890123HD est en route.\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Cainiao · CNFR1234567890123HD',
+                    'dedupeKey' => 'CNFR1234567890123HD',
+                    'payload'   => [
+                        'carrier'        => 'cainiao',
+                        'trackingNumber' => 'CNFR1234567890123HD',
+                        'trackingUrl'    => null,
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'a french s10 number from a shop is La Poste, not Deutsche Post' => [
+                [
+                    'from'     => 'contact@boutique-exemple.fr',
+                    'fromName' => 'Boutique',
+                    'subject'  => 'Votre commande est expédiée',
+                    'body'     => "Suivi de votre colis : CB123456789FR\n",
+                ],
+                true,
+                [[
+                    'title'     => 'La Poste · CB123456789FR',
+                    'dedupeKey' => 'CB123456789FR',
+                    'payload'   => [
+                        'carrier'        => 'la-poste',
+                        'trackingNumber' => 'CB123456789FR',
+                        'trackingUrl'    => $laPoste . 'CB123456789FR',
+                        'merchant'       => 'Boutique',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'amazon.fr dispatched: the order number, a link to amazon.fr, and a promised day in words' => [
+                [
+                    'from'     => 'expedition-commande@amazon.fr',
+                    'fromName' => 'Amazon.fr',
+                    'subject'  => 'Votre commande Amazon.fr (#406-1234567-7654321) a été expédiée.',
+                    'body'     => "Bonjour,\n\nVotre commande 406-1234567-7654321 a été expédiée.\n"
+                        . "Arrivée prévue : vendredi 20 novembre\n\nSuivre le colis\n"
+                        . 'https://www.amazon.fr/progress-tracker/package?_encoding=UTF8&orderId=406-1234567-7654321&packageIndex=0&shipmentId=AbCd1234&vt=NOTIFICATIONS',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 406-1234567-7654321',
+                    'dedupeKey' => '406-1234567-7654321#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '406-1234567-7654321',
+                        'shipmentId'     => 'AbCd1234',
+                        'trackingUrl'    => 'https://www.amazon.fr/progress-tracker/package?orderId=406-1234567-7654321&packageIndex=0&shipmentId=AbCd1234',
+                        'merchant'       => 'Amazon.fr',
+                        'status'         => 'in_transit',
+                    ],
+                    // "20 novembre", no year: the mail's own, 2026. The weekday
+                    // beside it would say the 13th (the next Friday after
+                    // Tuesday the 10th) — the date written out has to win.
+                    'happensAt' => '2026-11-20 12:00',
+                ]],
+            ],
+
+            'amazon.fr delivered: "Livré :" opens the subject, and no shipment id sends the button to the order' => [
+                [
+                    'from'     => 'order-update@amazon.fr',
+                    'fromName' => 'Amazon.fr',
+                    'subject'  => 'Livré : Votre commande Amazon.fr n° 406-1234567-7654321',
+                    'body'     => "Votre colis a été livré.\nNuméro de commande 406-1234567-7654321\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 406-1234567-7654321',
+                    'dedupeKey' => '406-1234567-7654321#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '406-1234567-7654321',
+                        'shipmentId'     => null,
+                        'trackingUrl'    => 'https://www.amazon.fr/gp/your-account/order-details?orderID=406-1234567-7654321',
+                        'merchant'       => 'Amazon.fr',
+                        'status'         => 'delivered',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // GLS France states no number a shape could find: its "match code"
+            // is eight letters and digits, printed under the label "Numéro de
+            // colis", and the sender is what says whose it is. The codes below
+            // are invented: one that starts with a letter, one with leading
+            // zeros.
+            'gls france: the match code under "Numéro de colis", and a day-first date from "sera livré"' => [
+                [
+                    'from'       => 'no_reply@gls-france.com',
+                    'fromName'   => 'GLS France',
+                    'subject'    => 'Votre colis arrive bientôt',
+                    'receivedAt' => '2026-08-27 14:09:12',
+                    'body'       => "Bonjour, votre colis est en route\n"
+                        . "Votre colis Boutique Exemple est en cours d'acheminement et sera livré le 28/08.\n"
+                        . "GLS prend soin de votre colis.\n"
+                        . "Numéro de colis\n"
+                        . "Q7XK2M4P\n"
+                        . "Expéditeur\n"
+                        . 'Boutique Exemple',
+                ],
+                true,
+                [[
+                    // "arrive bientôt" in the subject is a stage (in transit);
+                    // "sera livré le 28/08" is a promise read day first, in the
+                    // year of the mail because 28 August is not two months
+                    // behind 27 August; and the page is GLS France's own.
+                    'title'     => 'GLS · Q7XK2M4P',
+                    'dedupeKey' => 'Q7XK2M4P',
+                    'payload'   => [
+                        'carrier'        => 'gls',
+                        'trackingNumber' => 'Q7XK2M4P',
+                        'trackingUrl'    => 'https://moncolis.gls-france.com/fr/Q7XK2M4P',
+                        'merchant'       => null,
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => '2026-08-28 12:00',
+                ]],
+            ],
+
+            'gls france: a code that starts with zeros, on the label\'s own line, out for delivery' => [
+                [
+                    'from'     => 'no_reply@gls-france.com',
+                    'fromName' => 'GLS France',
+                    'subject'  => 'GLS France | Votre colis est en cours de livraison',
+                    'body'     => "Votre colis sera livré aujourd'hui.\nNuméro de colis : 00AB1C2D\nExpéditeur\nBoutique Exemple",
+                ],
+                true,
+                [[
+                    // "en cours de livraison" in the subject settles the stage,
+                    // and "aujourd'hui" after "sera livré" is the mail's own day
+                    // (the default receivedAt, 2026-11-10 08:00, at noon).
+                    'title'     => 'GLS · 00AB1C2D',
+                    'dedupeKey' => '00AB1C2D',
+                    'payload'   => [
+                        'carrier'        => 'gls',
+                        'trackingNumber' => '00AB1C2D',
+                        'trackingUrl'    => 'https://moncolis.gls-france.com/fr/00AB1C2D',
+                        'merchant'       => null,
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => '2026-11-10 12:00',
+                ]],
+            ],
+
+            'gls france: eight digits are not a match code, since Mondial Relay\'s numbers look like that' => [
+                [
+                    'from'     => 'no_reply@gls-france.com',
+                    'subject'  => 'Votre colis arrive bientôt',
+                    'body'     => "Numéro de colis\n12345678\nExpéditeur\nBoutique Exemple",
+                ],
+                true,
+                [],
+            ],
+
+            // "domicile" is eight letters, so only the capitals rule keeps it
+            // from being a code: a word of any other length is refused by the
+            // length alone, which would leave that rule untested.
+            'gls france: a lower-case eight-letter word after the label is a word and not a code' => [
+                [
+                    'from'     => 'no_reply@gls-france.com',
+                    'subject'  => 'Votre colis arrive bientôt',
+                    'body'     => "Numéro de colis\ndomicile\nExpéditeur\nBoutique Exemple",
+                ],
+                true,
+                [],
+            ],
+
+            'gls france: eight letters and digits that no label introduces are not a code' => [
+                [
+                    'from'     => 'no_reply@gls-france.com',
+                    'subject'  => 'Votre colis arrive bientôt',
+                    'body'     => "Référence interne ABCD1234\nExpéditeur\nBoutique Exemple",
+                ],
+                true,
+                [],
+            ],
+
+            'a shop that prints the same label is not GLS: the sender is what makes the code one' => [
+                [
+                    'from'     => 'service@boutique-exemple.test',
+                    'subject'  => 'Votre colis est parti',
+                    'body'     => "Numéro de colis\nQ7XK2M4P\nExpéditeur\nBoutique Exemple",
+                ],
+                true,
+                [],
+            ],
+        ];
+    }
+
+    /**
+     * After the parcel is delivered the carrier asks how it went, quoting the
+     * very number the card is keyed on. The harvester lets the NEWEST mail
+     * overwrite a card's status, and a survey names no stage — so one that got
+     * through would turn "delivered" back into "announced". Each row pairs the
+     * refusal with a mail of the same sender that must still be accepted.
+     *
+     * @param array<string, ?string> $survey
+     * @param array<string, ?string> $parcel
+     */
+    #[DataProvider('mailsThatAreAboutTheServiceNotTheParcel')]
+    public function testItRefusesSurveysAndCancellationsButNotTheParcelMailOfTheSameSender(array $survey, array $parcel): void
+    {
+        self::assertFalse($this->extractor->supports(self::message($survey)), 'the refused mail');
+        self::assertTrue($this->extractor->supports(self::message($parcel)), 'the accepted companion');
+    }
+
+    /**
+     * @return array<string, array{0: array<string, ?string>, 1: array<string, ?string>}>
+     */
+    public static function mailsThatAreAboutTheServiceNotTheParcel(): array
+    {
+        return [
+            'gls france' => [
+                [
+                    'from'    => 'no_reply@gls-france.com',
+                    'subject' => 'Donnez votre avis sur votre livraison',
+                    'body'    => "Numéro de colis\nQ7XK2M4P",
+                ],
+                [
+                    'from'    => 'no_reply@gls-france.com',
+                    'subject' => 'Votre colis arrive bientôt',
+                    'body'    => "Numéro de colis\nQ7XK2M4P",
+                ],
+            ],
+
+            'chronopost' => [
+                [
+                    'from'    => 'no-reply@chronopost.fr',
+                    'subject' => 'Suite à votre livraison Chronopost',
+                    'body'    => 'Numéro de suivi : XW123456789FR',
+                ],
+                [
+                    'from'    => 'no-reply@chronopost.fr',
+                    'subject' => 'Votre colis est en chemin XW123456789FR',
+                    'body'    => 'Numéro de suivi : XW123456789FR',
+                ],
+            ],
+            'dpd' => [
+                [
+                    'from'    => 'noreply@voc.dpd.fr',
+                    'subject' => 'Quel est votre niveau de satisfaction concernant votre livraison du 03/02/2026 ?',
+                    'body'    => 'Colis 10012345678901',
+                ],
+                [
+                    'from'    => 'predict@information.dpd.fr',
+                    'subject' => 'Livraison de votre colis BOUTIQUE',
+                    'body'    => 'Colis 10012345678901',
+                ],
+            ],
+            'mondial relay' => [
+                [
+                    'from'    => 'noreply@mondialrelay.fr',
+                    'subject' => 'Votre experience avec Mondial Relay nous intéresse.',
+                    'body'    => 'Votre colis 12345678',
+                ],
+                [
+                    'from'    => 'noreply@mondialrelay.fr',
+                    'subject' => 'Votre colis 12345678 a été pris en charge',
+                    'body'    => 'Votre colis 12345678',
+                ],
+            ],
+            'gls' => [
+                [
+                    'from'    => 'noreply@gls-france.com',
+                    'subject' => 'Donnez votre avis sur votre livraison',
+                    'body'    => 'Merci',
+                ],
+                [
+                    'from'    => 'noreply@gls-france.com',
+                    'subject' => 'GLS France | Votre colis arrive bientôt',
+                    'body'    => 'Merci',
+                ],
+            ],
+            // "avis" is only a survey in "votre avis nous intéresse"; an "avis
+            // de passage" is the notice of a missed delivery, which a card
+            // should state.
+            'colissimo: a survey, but not an avis de passage' => [
+                [
+                    'from'    => 'noreply@notif-colissimo-laposte.info',
+                    'subject' => 'Votre avis nous intéresse !',
+                    'body'    => 'Colis 6A12345678901',
+                ],
+                [
+                    'from'    => 'noreply@notif-colissimo-laposte.info',
+                    'subject' => 'Votre avis de passage',
+                    'body'    => 'Colis 6A12345678901',
+                ],
+            ],
+            // The gate is asked of every mail before the sender is, and a
+            // shop's subject quotes what was bought. "Experience" as a word in
+            // a title is not a survey; with its possessive it is.
+            'a survey says YOUR experience; a product called one is still a parcel' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'How was your experience with DHL?',
+                    'body'    => 'Sendungsnummer 00340434161094042557',
+                ],
+                [
+                    'from'    => 'shipment-tracking@amazon.com',
+                    'subject' => 'Shipped: "The Experience Machine" and 1 more item',
+                    'body'    => 'Your order 112-1234567-7654321 has shipped.',
+                ],
+            ],
+            'amazon.fr cancellation' => [
+                [
+                    'from'    => 'commande@amazon.fr',
+                    'subject' => 'Votre commande a été annulée',
+                    'body'    => 'Votre commande 406-1234567-7654321 a été annulée.',
+                ],
+                [
+                    'from'    => 'commande@amazon.fr',
+                    'subject' => 'Votre commande Amazon.fr (#406-1234567-7654321) a été expédiée.',
+                    'body'    => 'Votre commande 406-1234567-7654321 a été expédiée.',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Two digits, a slash and two digits are a date in French mail and several
+     * other things elsewhere. Read day-first in every language, "expected 3/4"
+     * in an American mail became the third of April and a "24/7" in the line
+     * after "estimated" became a delivery on the 24th of July.
+     *
+     * @param array<string, ?string> $mail
+     */
+    #[DataProvider('slashesThatAreNotFrenchDates')]
+    public function testASlashDateIsOnlyReadDayFirstAfterAFrenchPromise(array $mail, ?string $happensAt): void
+    {
+        $found = $this->extractor->extract(self::message($mail));
+
+        self::assertCount(1, $found, 'the parcel is read either way; only its day is in question');
+        self::assertSame($happensAt, $found[0]->happensAt?->format('Y-m-d H:i'));
+    }
+
+    /**
+     * @return array<string, array{0: array<string, ?string>, 1: ?string}>
+     */
+    public static function slashesThatAreNotFrenchDates(): array
+    {
+        return [
+            'english: "24/7" after "estimated" is not the 24th of July' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'Your parcel has shipped',
+                    'body'    => "Tracking 00340434161094042557\nEstimated delivery: soon. Our 24/7 support is here.\n",
+                ],
+                null,
+            ],
+            'english: a month-first "3/4" is not read as the third of April' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'Your parcel has shipped',
+                    'body'    => "Tracking 00340434161094042557\nExpected 3/4.\n",
+                ],
+                null,
+            ],
+            // Presence: the same digits after a French word are the date.
+            'french: "prévue le 3/4" is the third of April' => [
+                [
+                    'from'       => 'noreply@notif-colissimo-laposte.info',
+                    'subject'    => 'Votre colis est en chemin',
+                    'body'       => "Votre colis 6A12345678901 : livraison prévue le 3/4.\n",
+                    'receivedAt' => '2026-03-30 08:00:00',
+                ],
+                '2026-04-03 12:00',
+            ],
+            // A slash pair that is no day of any month is passed over, and the
+            // month name further along the same window is still found.
+            'french: "32/15" is skipped and the written month wins' => [
+                [
+                    'from'    => 'noreply@notif-colissimo-laposte.info',
+                    'subject' => 'Votre colis est en chemin',
+                    'body'    => "Votre colis 6A12345678901 : livraison prévue (réf 32/15) le 14 novembre.\n",
+                ],
+                '2026-11-14 12:00',
             ],
         ];
     }
@@ -606,6 +1879,7 @@ final class ParcelExtractorTest extends TestCase
         $message->subject = $mail['subject'] ?? null;
         $message->bodyText = $mail['body'] ?? null;
         $message->bodyHtml = $mail['html'] ?? null;
+        $message->graphId = $mail['graphId'] ?? null;
         $message->receivedAt = new DateTimeImmutable(
             $mail['receivedAt'] ?? '2026-11-10 08:00:00',
             new DateTimeZone('UTC'),

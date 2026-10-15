@@ -16,6 +16,7 @@ use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Security\Voter\OwnershipVoter;
@@ -54,6 +55,7 @@ final class MailRuleController extends AbstractController
         private readonly LabelRepository        $labelRepository,
         private readonly IntegrationRepository  $integrationRepository,
         private readonly AccountRepository      $accountRepository,
+        private readonly InboxCategoryRepository $categoryRepository,
         private readonly FilterAstValidator     $validator,
         private readonly EmailFilterCompiler    $compiler,
         private readonly RuleActionExecutor     $executor,
@@ -299,6 +301,8 @@ final class MailRuleController extends AbstractController
      */
     private function editor(MailRule $rule, array $errors = [], ?Request $request = null, int $status = Response::HTTP_OK): Response
     {
+        $categories = $this->categoryRepository->findForUserOrdered($this->getUser());
+
         return $this->render('settings/filters/_editor.html.twig', [
             'rule' => $rule,
             'errors' => $errors,
@@ -312,7 +316,13 @@ final class MailRuleController extends AbstractController
             // The user's own arrangement, as everywhere else mail accounts are
             // offered to pick from — see findActiveForUserOrdered().
             'accounts' => $this->accountRepository->findForUserOrdered($this->getUser()),
-            'actionTypes' => RuleActionExecutor::TYPES,
+            'actionTypes' => $this->offeredActionTypes($rule, $categories),
+            // What "File in category" can file into, as the editor needs it to
+            // draw the choice: id and name, nothing else.
+            'categories' => array_map(
+                static fn ($category): array => ['id' => $category->id, 'name' => $category->name],
+                $categories,
+            ),
             // Upload-capable only: a rule cannot save an attachment to a
             // service that can only be read from.
             'integrations' => $this->integrationRepository->findSupportingForUser(
@@ -320,6 +330,36 @@ final class MailRuleController extends AbstractController
                 Capability::Upload,
             ),
         ], new Response(status: $status));
+    }
+
+    /**
+     * The action types the editor's dropdown offers.
+     *
+     * "File in category" is left out for somebody with no category of their own:
+     * there is nothing for it to file into, and an editor that offered it anyway
+     * would be a different editor for every user who never asked for categories.
+     * It stays in when the rule being edited already carries one — the category
+     * may have been deleted since, and a dropdown that no longer lists the
+     * action's own type would show some other action while the form went on
+     * submitting this one.
+     *
+     * @param list<\App\Entity\Mail\InboxCategory> $categories
+     *
+     * @return list<string>
+     */
+    private function offeredActionTypes(MailRule $rule, array $categories): array
+    {
+        $carriesOne = [] !== array_filter(
+            $rule->actions,
+            static fn (mixed $action): bool => true === is_array($action)
+                && RuleActionExecutor::FILE_IN_CATEGORY === ($action['type'] ?? null),
+        );
+
+        if ([] !== $categories || true === $carriesOne) {
+            return RuleActionExecutor::TYPES;
+        }
+
+        return array_values(array_diff(RuleActionExecutor::TYPES, [RuleActionExecutor::FILE_IN_CATEGORY]));
     }
 
     private function listStream(?string $toastMessage): Response
@@ -390,6 +430,25 @@ final class MailRuleController extends AbstractController
                 }
 
                 $entry['labelId'] = $labelId;
+            }
+
+            if (RuleActionExecutor::FILE_IN_CATEGORY === $type) {
+                $categoryId = $action['categoryId'] ?? null;
+
+                if (false === is_int($categoryId)) {
+                    continue;
+                }
+
+                // Same ownership check as labels and integrations: an id from
+                // another person's categories must not be storable, although
+                // RuleCategoryFiler checks it again at run time.
+                $category = $this->categoryRepository->find($categoryId);
+
+                if (null === $category || false === $this->isGranted(OwnershipVoter::OWN, $category)) {
+                    continue;
+                }
+
+                $entry['categoryId'] = $categoryId;
             }
 
             if (RuleActionExecutor::SAVE_TO_INTEGRATION === $type) {

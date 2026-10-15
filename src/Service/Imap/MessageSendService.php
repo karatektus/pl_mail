@@ -15,6 +15,7 @@ use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\Mime\DataImageEmbedder;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use App\Domain\Interface\MailSenderInterface;
@@ -44,6 +45,7 @@ class MessageSendService
         private readonly MessageThreader         $threader,
         private readonly ThreadLabelSynchronizer $threadLabels,
         private readonly LoggerInterface         $logger = new NullLogger(),
+        private readonly DataImageEmbedder       $dataImages = new DataImageEmbedder(),
     ) {
     }
 
@@ -278,11 +280,6 @@ class MessageSendService
 
     private function buildEmail(Message $message, Account $account): Email
     {
-        $fromName = $account->name;
-        if (null === $fromName) {
-            $fromName = '';
-        }
-
         $subject = $message->subject;
         if (null === $subject) {
             $subject = '';
@@ -293,6 +290,13 @@ class MessageSendService
         if (null === $fromAddress || '' === $fromAddress) {
             $fromAddress = $account->displayAddress ?? $account->email ?? '';
         }
+
+        // After the address, because the name depends on it: an alias with a
+        // display name of its own sends under that, and only one without falls
+        // back to the account's. This read the account's name unconditionally,
+        // so the From selector offered "Mr and Mrs Smith <family@…>" and the
+        // mail went out as the account holder.
+        $fromName = $account->senderNameFor($fromAddress) ?? '';
 
         $email = new Email()
             ->from(new Address($fromAddress, $fromName))
@@ -323,7 +327,9 @@ class MessageSendService
         }
 
         if ($message->bodyHtml) {
-            $email->html($message->bodyHtml);
+            // `data:` images become inline parts on the way out — most mail
+            // clients do not draw a data URI. See DataImageEmbedder.
+            $email->html($this->dataImages->embed($email, $message->bodyHtml));
         }
 
         if ($message->bodyText) {

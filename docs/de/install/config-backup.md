@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:9b19dac8e3efc0f076350b7bfa6b3915ba0cc396 -->
+<!-- translated-from: install/config-backup.md sha1:b466a9cfc5309749518af761ea47cbb63c3659ec -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -32,7 +32,7 @@ Betreibers und sie überschreibt niemals eine Person.
 | **Die Datei mit den erzeugten Geheimnissen** | `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`APP_SECRET` und `MERCURE_JWT_SECRET` liegen ebenfalls hier, bleiben aber außerhalb der Sicherung — jede Maschine behält ihre eigenen) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
 | **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
 | **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter, die Assistenten-Konfiguration, die gewählte Log-Stufe — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
-| **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
+| **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Posteingangs-Tabs, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
 
 **Das ist nicht dieselbe Aussage, die plMail früher gemacht hat.** Frühere Versionen führten jeden
 Umgebungswert als etwas auf, das nur der Betreiber setzen kann, und druckten zwei Dutzend Zeilen zum
@@ -179,9 +179,15 @@ Mailkonten           IMAP-/SMTP-Host, Port und Verschlüsselung, Benutzername,
                      Lesebestätigungs-Vorgabe, wo du eine gesetzt hast
 Integrationen        je Verbindung: Anbieter, Basis-URL, Benutzername, Secret oder
                      OAuth-Token, der Einstellungs-Bag
-Filter               Bedingungen und Aktionen; die Label-, Konto- und
-                     Integrations-IDs darin werden beim Import umgeschrieben
+Filter               Bedingungen und Aktionen; die Label-, Konto-,
+                     Integrations- und Kategorie-IDs darin werden beim Import
+                     umgeschrieben
 Labels               der ganze Baum: Namen, Rollen, Farben, Eltern, Reihenfolge
+Posteingangs-Tabs    die Tabs, die du selbst angelegt hast, die Reihenfolge
+                     aller Tabs und welche eingebauten ausgeschaltet sind.
+                     Welche Mail darin abgelegt ist, wird nicht mitgenommen
+                     — das ist Mail, und ein Filter, der dort ablegt, füllt
+                     den Tab wieder
 Kalender             Name, Farbe, Zeitzone, Rolle und von welchem Mailkonto oder
                      welcher Integration er eine Spiegelung ist
 veröffentlichte      Kalender-Freigabelinks und Buchungsseiten, über ihren
@@ -383,7 +389,7 @@ Zugeordnet über die E-Mail-Adresse. Es gibt genau zwei Ausgänge und keinen dri
 
 - **Die Adresse gibt es hier nicht** → die Person wird angelegt, mit Passwort-Hash, zweitem Faktor,
   Wiederherstellungscodes, App-Passwörtern, Postfächern, Aliassen, Integrationen, Filtern, Labels,
-  Kalendern und veröffentlichten Links. Sie kann sich sofort mit dem Passwort anmelden, das sie schon
+  Posteingangs-Tabs, Kalendern und veröffentlichten Links. Sie kann sich sofort mit dem Passwort anmelden, das sie schon
   kennt, ihre Authenticator-App funktioniert weiter, und ihre bestehenden App-Passwörter halten ihre
   JMAP-Clients verbunden.
 - **Die Adresse gibt es hier** → es passiert nichts. Nicht das Passwort, nicht der zweite Faktor,
@@ -413,8 +419,8 @@ besser, hol dir die eine Sache, die du brauchst, von Hand aus dem entschlüsselt
 
 **Die IDs innerhalb eines Filters werden umgeschrieben.** Eine Regel, die „wende Label 41 an“ sagt,
 meint Zeile 41 der *Quell*-Datenbank. Beim Import wird jeder Verweis — das Konto, auf das eine Regel
-eingegrenzt ist, die Bedingungen `hasLabel` und `notLabel`, `labelId` und `integrationId` in den
-Aktionen, der Kalender, in den eine Buchungsseite schreibt — auf die Zeile gezeigt, die an ihre
+eingegrenzt ist, die Bedingungen `hasLabel` und `notLabel`, `labelId`, `integrationId` und
+`categoryId` in den Aktionen, der Kalender, in den eine Buchungsseite schreibt — auf die Zeile gezeigt, die an ihre
 Stelle getreten ist. Ein Verweis auf etwas, das die Datei nicht mitgebracht hat, wird verworfen statt
 geraten: Ein Filter, der eine Sache weniger prüft, ist ein viel kleineres Übel als einer, der das
 Label von jemand anderem anwendet.
@@ -444,8 +450,8 @@ Jeder andere Name hat den Export verlassen, weil er die Maschine beschreibt. Die
 gegangen wegen dem, was eine wiederhergestellte Kopie *tut*.
 
 Man nehme die Bestandsaufnahme dessen, was plMail tatsächlich aus `APP_SECRET` ableitet.
-„Angemeldet bleiben“ nutzt Symfonys signaturbasierten Handler, das Sechzig-Tage-Cookie ist also
-damit signiert. Sitzungen und CSRF-Token hängen an einer Sitzung, die eine Wiederherstellung
+„Angemeldet bleiben“ nutzte Symfonys signaturbasierten Handler, als das entschieden wurde, das
+Sechzig-Tage-Cookie war also damit signiert. Sitzungen und CSRF-Token hängen an einer Sitzung, die eine Wiederherstellung
 ohnehin nicht überlebt. JMAP-Token werden mit dem JWT-Schlüsselpaar signiert, dessen Inhalt separat
 mitreist. URI-Signierung und uuid47 werden nicht verwendet. Nichts auf der Platte und nichts in der
 Datenbank ist damit verschlüsselt — das ist die Aufgabe von `APP_ENCRYPTION_KEY`, und der reist mit.
@@ -457,6 +463,12 @@ Signatur deckt das App-Secret und den Passwort-Hash des Benutzers ab, und Benutz
 angemeldet, ohne dass das jemand entschieden hätte. Zwei Stacks auf einem Host machen das konkret,
 denn Cookies sind nicht nach Port getrennt: `localhost:80` und `localhost:8002` würden sich
 gegenseitig die Browser durchreichen.
+
+„Angemeldet bleiben“ hängt inzwischen nicht mehr daran: Seine Tokens sind jetzt Zeilen auf dem
+Server (`rememberme_token`), und eine Sicherung nimmt sie nicht mit, ein Cookie der
+Quell-Installation nennt also eine Zeile, die das Ziel nicht hat. Damit schützt `APP_SECRET` nichts
+mehr, was eine Wiederherstellung brauchen könnte — ein Grund mehr, ihn zurückzulassen, und keiner,
+ihn wieder mitzunehmen.
 
 Das Ziel behält das Secret, das es beim ersten Start erzeugt hat. Nichts, was es schützt, ist älter
 als diese Installation, es gibt für die Kopie aus der Sicherung also nichts aufzuschließen außer

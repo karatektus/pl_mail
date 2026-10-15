@@ -80,6 +80,7 @@ final readonly class ClassifyMailHandler
         private HeldMailReleaser       $releaser,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
+        private \App\Jmap\State\StateManager $stateManager,
     ) {
     }
 
@@ -235,7 +236,11 @@ final readonly class ClassifyMailHandler
         // for mail the timed release has already shown.
         $this->releaser->release($mail);
 
-        $this->threads->recomputeCategoriesForThreads(array_keys($threadIds));
+        foreach ($this->threads->recomputeCategoriesForThreads(array_keys($threadIds)) as $accountId => $moved) {
+            $this->stateManager->recordThreadsTouched($accountId, $moved);
+        }
+
+        $this->entityManager->flush();
 
         // And the ones the timed release got to first. They were shown under
         // the rules' answer and have just been moved, which an open inbox has

@@ -1,3 +1,11 @@
 # Sign-in failures, in the domain Symfony resolves them in. See security.en.yaml.
 account.deactivated: Yer berth be locked by th' cap'n. Ask 'em t' unlock it — none o' yer booty be thrown overboard.
 account.removed: This berth be struck from th' articles an' cannot sign aboard.
+oidc.unavailable: Th' fleet's seal be broken fer now. Board with yer password, or ask th' cap'n t' read th' log.
+oidc.denied: Yer fleet wouldn't let ye aboard plMail.
+oidc.failed: Boardin' through yer fleet came t' naught. Try again.
+oidc.no_email: Yer fleet never told plMail yer bottle address, so there be no berth t' put ye in.
+oidc.email_unverified: Yer fleet never vouched fer yer bottle address, so plMail won't tie it t' a berth. Ask th' cap'n.
+oidc.ambiguous: More than one berth here holds yer bottle address. Ask th' cap'n t' sort it.
+oidc.no_account: There be no berth fer ye yet. Ask th' cap'n t' make one with yer bottle address.
+oidc.linked_elsewhere: Th' berth with yer bottle address be tied t' another sailor in yer fleet. Ask th' cap'n.

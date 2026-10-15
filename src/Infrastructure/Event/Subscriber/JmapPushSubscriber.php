@@ -6,6 +6,7 @@ namespace App\Infrastructure\Event\Subscriber;
 
 use App\Jmap\Push\PushDispatcher;
 use App\Jmap\State\StateManager;
+use App\Service\Mail\MailChangeNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
@@ -32,6 +33,7 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
     public function __construct(
         private StateManager $stateManager,
         private PushDispatcher $dispatcher,
+        private MailChangeNotifier $browsers,
         private LoggerInterface $logger,
     ) {
     }
@@ -62,6 +64,10 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
         if (0 === count($changed)) {
             return;
         }
+
+        // The open tabs first, and on their own: it catches what it throws,
+        // so a hub that is down cannot keep the phones from hearing.
+        $this->browsers->publish($changed);
 
         try {
             $this->dispatcher->dispatch($changed);

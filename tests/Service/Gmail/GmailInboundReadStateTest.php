@@ -150,6 +150,26 @@ final class GmailInboundReadStateTest extends KernelTestCase
     }
 
     /**
+     * And its opposite, for a batch an import's listing planned. That one
+     * names what was missing when the listing ran; a mailbox that takes
+     * longer than the hour between listings is named again by each, and an id
+     * an earlier batch has brought in by then must not be fetched a second
+     * time on the quota the import is short of (#90).
+     */
+    public function testAListingsBatchDoesNotFetchWhatIsAlreadyStored(): void
+    {
+        $message = $this->seedMessage(seen: false);
+
+        $requests = $this->handle(['INBOX'], onlyMissing: true);
+
+        self::assertSame(0, $requests, 'nothing was asked of Gmail');
+
+        $this->em->refresh($message);
+
+        self::assertNull($message->seenAt, 'and the row is as it was');
+    }
+
+    /**
      * The echo race, on Gmail. The guard lives in ThreadStatusUpdater, so it
      * covers this provider without Gmail having to implement it again.
      */
@@ -210,7 +230,7 @@ final class GmailInboundReadStateTest extends KernelTestCase
      *
      * @return int how many HTTP requests the client made
      */
-    private function handle(array $labelIds): int
+    private function handle(array $labelIds, bool $onlyMissing = false): int
     {
         $requests = 0;
 
@@ -270,9 +290,11 @@ final class GmailInboundReadStateTest extends KernelTestCase
             $container->get('App\Service\Mail\MessageCategorizer'),
             $container->get('App\Service\Imap\MessageThreader'),
             new \App\Service\Mail\SyncOrigin(),
+            new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()),
+            $container->get(\App\Repository\Mail\GmailSkippedMessageRepository::class),
         );
 
-        $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID]));
+        $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID], null, $onlyMissing));
 
         $this->em->flush();
 

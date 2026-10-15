@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:9d9ac77d8ed5aee02d91bc7f6b86cdaf94b4297f -->
+<!-- translated-from: features/appearance.md sha1:963b5496c55b39c78ef14815a4c3c0e5b2ae8f78 -->
 
 # Darstellung
 
@@ -96,6 +96,7 @@ die Liste schon vor diesen Bedienelementen tat — es bewegt sich also nichts, b
 |---|---|
 | **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
 | **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
+| **Ungelesen-Zahl auf den Posteingangs-Tabs** | Die Zahl neben dem Namen jedes Kategorie-Tabs: in wie vielen Unterhaltungen darin Ungelesenes liegt. Standardmäßig an. Aus blendet nur die Zahl aus; die Farbe auf dem Symbol eines Tabs und das Fähnchen „3 neu“ bleiben |
 | **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext unter dem Betreff |
 | **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
 
@@ -280,7 +281,7 @@ wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem l
 wird. Deine Mail bleibt genau so, wie sie geschrieben wurde — es wird nichts übersetzt und
 nichts umgeschrieben.
 
-plMail liefert **English**, **Deutsch** und **Pirate English** mit. Eine Änderung lädt die
+plMail liefert **English**, **Deutsch**, **Français** und **Pirate English** mit. Eine Änderung lädt die
 Seite neu, statt sie nachzubessern, denn jede Zeichenkette auf dem Bildschirm muss neu
 gerendert werden.
 

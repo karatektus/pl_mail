@@ -5,3 +5,14 @@
 # roh auf dem Bildschirm.
 account.deactivated: Dein Konto wurde von der Administration abgeschaltet. Wende dich an sie, wenn es wieder eingeschaltet werden soll — gelöscht wurde nichts.
 account.removed: Dieses Konto wurde entfernt und kann sich nicht mehr anmelden.
+
+# Single Sign-on über einen OpenID-Connect-Anbieter, geworfen von
+# App\Security\OidcAuthenticator. Siehe security.en.yaml.
+oidc.unavailable: Single Sign-on funktioniert gerade nicht. Melde dich mit deinem Passwort an, oder bitte die Administration, ins Log zu schauen.
+oidc.denied: Dein Anmeldeanbieter hat dich nicht zu plMail durchgelassen.
+oidc.failed: Die Anmeldung über deinen Anbieter konnte nicht abgeschlossen werden. Versuch es noch einmal.
+oidc.no_email: Dein Anmeldeanbieter hat plMail deine E-Mail-Adresse nicht mitgeteilt, also gibt es kein Konto, in das du angemeldet werden könntest.
+oidc.email_unverified: Dein Anmeldeanbieter hat deine E-Mail-Adresse nicht bestätigt, deshalb verknüpft plMail sie mit keinem Konto. Wende dich an die Administration.
+oidc.ambiguous: Hier gibt es mehr als ein Konto mit deiner E-Mail-Adresse. Bitte die Administration, das zu klären.
+oidc.no_account: Für dich gibt es noch kein plMail-Konto. Bitte die Administration, eins mit deiner E-Mail-Adresse anzulegen.
+oidc.linked_elsewhere: Das Konto mit deiner E-Mail-Adresse ist bereits mit jemand anderem bei deinem Anmeldeanbieter verknüpft. Wende dich an die Administration.

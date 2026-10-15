@@ -10,6 +10,7 @@ use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
+use App\Jmap\State\StateManager;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +52,7 @@ final readonly class ResortMailboxHandler
         private EntityManagerInterface  $em,
         private ProcessHeartbeatService $heartbeats,
         private LoggerInterface         $logger,
+        private StateManager            $stateManager,
     ) {
     }
 
@@ -101,7 +103,14 @@ final readonly class ResortMailboxHandler
             $fresh = $this->accounts->find($accountId);
 
             if (null !== $fresh) {
-                $this->threads->recomputeCategoriesForAccount($fresh);
+                // Told to JMAP, conversation by conversation: a phone draws its
+                // tabs from Thread.category and its own tab, and a re-sort that
+                // moved them silently left it drawing the old ones.
+                $this->stateManager->recordThreadsTouched(
+                    $accountId,
+                    $this->threads->recomputeCategoriesForAccount($fresh),
+                );
+                $this->em->flush();
             }
         }
 

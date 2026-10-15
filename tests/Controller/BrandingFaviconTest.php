@@ -58,6 +58,29 @@ final class BrandingFaviconTest extends WebTestCase
         }
     }
 
+    /**
+     * A page links ONE tab icon, and it is the route's.
+     *
+     * Firefox files an SVG tab icon under width 65535 and a PNG under its
+     * declared size, then answers "which icon for a 16px tab" with the smallest
+     * one that is big enough, so a 192px PNG always beat the SVG. The PNG is a
+     * static file and wears the product default, so every account saw the wax
+     * seal in its tabs whatever it had chosen. The home-screen and install
+     * icons keep their PNGs (apple-touch-icon, the manifest); only the tab
+     * icon must not have a second candidate.
+     */
+    public function testNoRasterTabIconCompetesWithTheChosenOne(): void
+    {
+        $client = static::createClient();
+
+        $icons = $client->request('GET', '/login')->filter('link[rel~="icon"]');
+
+        // The presence companion: with no tab icon at all the check below would
+        // pass on an empty head.
+        self::assertCount(1, $icons, 'exactly one tab icon is linked');
+        self::assertSame('image/svg+xml', $icons->attr('type'), 'and it is the per-account SVG route');
+    }
+
     public function testTheTabIconWearsTheUsersChoice(): void
     {
         [$client, $user] = $this->signedIn();

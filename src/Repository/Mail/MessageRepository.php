@@ -1446,6 +1446,39 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many messages are stored for an account.
+     *
+     * For the progress line of a Gmail import, which has no folders to add
+     * up: what is stored against what the provider said the mailbox holds.
+     * Asked only while such an import is running.
+     */
+    /**
+     * Messages this Gmail mailbox brought in that live on another account:
+     * mail addressed to a connected sibling, stored there, and copies the
+     * sibling already had that took on their Gmail identity. Both point back
+     * through Message::$gmailCarrierAccount.
+     */
+    public function countCarriedBy(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countForAccount(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * What this mailbox's rows currently say about their flags, and nothing
      * else about them.
      *
@@ -1791,6 +1824,50 @@ class MessageRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * A few of an account's Gmail ids, newest first: something to fetch again
+     * for the quota probe without asking Gmail what there is.
+     *
+     * @return list<string>
+     */
+    public function findSomeGmailIdsForAccount(Account $account, int $limit): array
+    {
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.gmailId')
+            ->where('m.account = :account')
+            ->andWhere('m.gmailId IS NOT NULL')
+            ->setParameter('account', $account)
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Which of these Gmail ids the owner already has, as ids and nothing
+     * else: what a listing's batch asks before it fetches.
+     *
+     * @param list<string> $gmailIds
+     *
+     * @return list<string>
+     */
+    public function findStoredGmailIdsForUser(User $user, array $gmailIds): array
+    {
+        if (0 === count($gmailIds)) {
+            return [];
+        }
+
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.gmailId')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId IN (:gmailIds)')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailIds', $gmailIds)
+            ->getQuery()
+            ->getSingleColumnResult());
     }
 
     /**
@@ -2441,8 +2518,17 @@ class MessageRepository extends ServiceEntityRepository
                 'm.sentAt',
                 'm.createdAt',
                 'm.submissionSendAt',
+                // Whether the message is filed under Sent or Drafts, for
+                // ThreadRowMessage::$filedAsSent. A count in the same statement
+                // rather than a join: a join would repeat the row per label,
+                // and a second statement would be one more query on every list
+                // page for a column most rows never have read.
+                '(SELECT COUNT(sentLabel.id) FROM ' . Message::class . ' filed
+                    JOIN filed.labels sentLabel
+                    WHERE filed.id = m.id AND sentLabel.role IN (:sentRoles)) AS filedAsSent',
             )
             ->where('m.thread IN (:threads)')
+            ->setParameter('sentRoles', [LabelRole::Sent, LabelRole::Drafts])
             ->setParameter('threads', $threadIds)
             ->addOrderBy('m.receivedAt', 'ASC')
             ->addOrderBy('m.id', 'ASC')

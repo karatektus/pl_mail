@@ -65,8 +65,8 @@ final readonly class AccountCreator
         $existing = $this->accounts->findForUserOrdered($user);
 
         // The colour is picked BEFORE the account joins the list, from the
-        // colours already in use — it is the account's own from here on and
-        // never moves again.
+        // colours already in use — it is the account's own from here on, and
+        // only the user changes it (AccountController::colour()).
         $account->colorIndex = $this->freeColorIndex($existing);
 
         // Appended, then the whole list renumbered, so sortOrder stays the
@@ -211,7 +211,7 @@ final readonly class AccountCreator
      *
      * @param iterable<Account> $existing
      */
-    private function freeColorIndex(iterable $existing): int
+    public function freeColorIndex(iterable $existing): int
     {
         $taken = [];
 

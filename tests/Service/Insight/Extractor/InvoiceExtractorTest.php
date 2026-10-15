@@ -103,6 +103,33 @@ final class InvoiceExtractorTest extends TestCase
                 ]],
             ],
 
+            'french: a numbered bill, spaced thousands, and an échéance' => [
+                [
+                    'from'     => 'factures@energie-exemple.fr',
+                    'fromName' => 'Énergie Exemple',
+                    'subject'  => 'Votre facture de novembre 2026',
+                    'body'     => "Bonjour,\n\n"
+                        . "Numéro de facture : FA-2026-0042\n"
+                        . "Montant HT : 1 037,13 €\n"
+                        . "Total HT : 1 037,13 €\n"
+                        . "TVA 20 % : 207,42 €\n"
+                        . "Net à payer : 1 244,55 €\n\n"
+                        . 'Date d’échéance : 5 décembre 2026.',
+                ],
+                true,
+                [[
+                    'title'     => 'Énergie Exemple · 1 244,55 €',
+                    'dedupeKey' => 'FA-2026-0042',
+                    'payload'   => [
+                        'amount'        => '1 244,55',
+                        'currency'      => 'EUR',
+                        'invoiceNumber' => 'FA-2026-0042',
+                        'issuer'        => 'Énergie Exemple',
+                    ],
+                    'happensAt' => '2026-12-05 12:00',
+                ]],
+            ],
+
             'english: dollars, and a due date written with a month name' => [
                 [
                     'from'     => 'billing@acme-beispiel.com',
@@ -124,6 +151,104 @@ final class InvoiceExtractorTest extends TestCase
                         'issuer'        => 'Acme Inc',
                     ],
                     'happensAt' => '2026-12-05 12:00',
+                ]],
+            ],
+
+            // The companions of the two rows below: the words still announce a
+            // number when they stand alone. The subject says nothing here, so
+            // the body's own "no." and "number:" are the only way to the number.
+            'an invoice no. in the body, and nothing in the subject, is read' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice from Acme',
+                    'body'     => "Invoice no. 4711\nAmount due: \$16.00",
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => '4711',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => '4711',
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'an invoice number: in the body, and nothing in the subject, is read' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice from Acme',
+                    'body'     => "Invoice number: inv-2026-001\nAmount due: \$16.00",
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'INV-2026-001',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => 'INV-2026-001',
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // "invoice no" and "invoice number" are announcing words only as
+            // WORDS. A footer line like "Manage invoice notifications" begins
+            // with "invoice no", and read as a prefix it handed the rest of the
+            // word to the number: "tifications". It sits in every such mail's
+            // footer, so every bill of a sender got the same identity and the
+            // second of them overwrote the first. No number is the right
+            // answer, and the card then keys on sender, sum and deadline.
+            'a footer about "invoice notifications" is not an invoice number' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice is available',
+                    'body'     => "Your invoice for November is available.\n"
+                        . "Amount due: \$16.00\n"
+                        . 'Manage invoice notifications in your account settings.',
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'acme-beispiel.com|16.00 USD|-',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => null,
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'a footer about "invoice numbering" is not an invoice number either' => [
+                [
+                    'from'     => 'billing@acme-beispiel.com',
+                    'fromName' => 'Acme Inc',
+                    'subject'  => 'Your invoice is available',
+                    'body'     => "Your invoice for November is available.\n"
+                        . "Amount due: \$16.00\n"
+                        . 'Invoice numbering follows your account settings.',
+                ],
+                true,
+                [[
+                    'title'     => 'Acme Inc · $16.00',
+                    'dedupeKey' => 'acme-beispiel.com|16.00 USD|-',
+                    'payload'   => [
+                        'amount'        => '16.00',
+                        'currency'      => 'USD',
+                        'invoiceNumber' => null,
+                        'issuer'        => 'Acme Inc',
+                    ],
+                    'happensAt' => null,
                 ]],
             ],
 

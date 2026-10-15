@@ -95,6 +95,65 @@ final class RadarPanelTest extends WebTestCase
     }
 
     /**
+     * "Also spotted" sits to the right of what is coming up, not under it.
+     *
+     * Both sections are direct flex children of the one radar scope, which is
+     * what lets the main column take the whole width when the last undated card
+     * is dismissed and the controller removes its section — an empty wrapper
+     * around it would leave a dead column behind. The dated section lives INSIDE
+     * the main column, so it must not be a direct child.
+     */
+    public function testAlsoSpottedSitsBesideTheMainColumn(): void
+    {
+        $client = $this->signIn();
+
+        $this->parcel();
+        $this->pullRequest();
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        self::assertResponseIsSuccessful();
+
+        $scope = '[data-controller="insight--radar"]';
+
+        self::assertCount(1, $crawler->filter($scope . '[class~="md:flex"]'));
+
+        $beside = $crawler->filter($scope . ' > [data-insight-section]');
+        self::assertCount(1, $beside, 'only "Also spotted" is a direct child of the scope');
+        self::assertCount(1, $beside->filter('[data-insight-kind="github-pr"]'));
+        self::assertCount(0, $beside->filter('[data-insight-kind="parcel"]'));
+        self::assertNotNull($beside->attr('class'));
+        self::assertStringContainsString('md:w-96', (string) $beside->attr('class'));
+
+        // The dated section is in the main column, which is the other child.
+        self::assertCount(1, $crawler->filter(
+            $scope . ' > .min-w-0 [data-insight-section] [data-insight-kind="parcel"]',
+        ));
+    }
+
+    /**
+     * With nothing in the main column there is nothing to sit beside: "Also
+     * spotted" then has the panel to itself, rather than a 24rem strip down the
+     * right with an empty left.
+     */
+    public function testAloneAlsoSpottedTakesTheWholePanel(): void
+    {
+        $client = $this->signIn();
+
+        $this->pullRequest();
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        self::assertResponseIsSuccessful();
+
+        $section = $crawler->filter('[data-controller="insight--radar"] > [data-insight-section]');
+        self::assertCount(1, $section);
+        self::assertCount(1, $section->filter('[data-insight-kind="github-pr"]'));
+        self::assertStringNotContainsString('md:w-96', (string) $section->attr('class'));
+        self::assertCount(0, $crawler->filter('[data-controller="insight--radar"] > .min-w-0'));
+    }
+
+    /**
      * A parcel with no ETA is still a parcel.
      *
      * Reported as "from your repos has dhl links". The undated section was

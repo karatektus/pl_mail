@@ -46,6 +46,29 @@ final readonly class AiProbe
         return new self(false, [], $reason, $params);
     }
 
+    /**
+     * The reason's parameters, spelled the way a translation names them.
+     *
+     * The parameters are built with bare keys — `status`, `error` — because
+     * that is what a caller reads them back by. A translation writes
+     * `%status%`, and Symfony replaces by exact key: handed the bare ones it
+     * finds the word inside the placeholder and leaves the percent signs
+     * standing, so "HTTP %status%" came out as "HTTP %403%". Wrapped here, once,
+     * rather than at each place a reason is turned into a sentence.
+     *
+     * @return array<string, string|int>
+     */
+    public function placeholders(): array
+    {
+        $wrapped = [];
+
+        foreach ($this->reasonParams as $key => $value) {
+            $wrapped['%' . $key . '%'] = $value;
+        }
+
+        return $wrapped;
+    }
+
     public function hasModel(string $name): bool
     {
         foreach ($this->models as $model) {

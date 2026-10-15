@@ -19,6 +19,7 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -147,10 +148,36 @@ final readonly class ConfigBackupUsers
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
         User::SETTING_APPEARANCE_PREVIEW_WIDTH,
+        // Whether the open message sits beside the list, and how much of the mail
+        // card it takes. In the backup for the reason the calendar pane's mode
+        // and width are: it is a preference somebody set about their own screen,
+        // it costs a short string and a number, and a restore that put the
+        // mailbox back to one pane at a time would be the kind of small
+        // wrongness that makes a restore feel like a different installation.
+        // Neither holds an id, and a percentage means the same on any install.
+        User::SETTING_READING_PANE_MODE,
+        User::SETTING_READING_PANE_WIDTH,
         User::SETTING_INSIGHTS_DISABLED,
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
         User::SETTING_COMPOSE_SEND_FEEDBACK,
+        // Whether the buttons that delete mail for good are offered. In the
+        // backup because a restore that quietly took the flame away, or worse
+        // put it back for somebody who had switched it off, is a change to a
+        // choice about irreversible deletion. A boolean, no id, means the same
+        // on any install.
+        User::SETTING_DISPOSAL_DELETE_NOW,
+        // Whether remote images load without being asked for. A choice about
+        // what senders may learn of one's reading, so a restore must not
+        // quietly undo it in either direction. A boolean, no id.
+        User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Whether an account's own inbox has the category tabs. How the
+        // mailbox is drawn, like the reading pane above; a boolean, no id.
+        User::SETTING_ACCOUNT_INBOX_TABS,
+        // How the topbar's calendar button moves between views. One enum
+        // value, no id, the same on any install, and a preference about one's
+        // own screen like the pane's mode and width above.
+        User::SETTING_CALENDAR_SWITCH_SKIP,
     ];
 
     /**
@@ -179,6 +206,10 @@ final readonly class ConfigBackupUsers
         // allowlist silently stops carrying anything that ships after it.
         Account::SETTING_SIGNATURE,
         Account::SETTING_READ_RECEIPT_DEFAULT,
+        // A list of domain names, with nothing in it that belongs to one
+        // host: the mailbox is a catch-all for the same domains wherever
+        // plMail reads it from.
+        Account::SETTING_CATCH_ALL_DOMAINS,
     ];
 
     /**
@@ -209,6 +240,13 @@ final readonly class ConfigBackupUsers
         Account::SETTING_BACKFILL_RAN_AT => 'a counter about a sync that happened on the other host',
         Account::SETTING_BACKFILL_ATTEMPTS => 'the same, and resetting it on the target is the correct start',
         Account::SETTING_BACKFILL_TARGET => 'how much mail the OTHER host still had to fetch; carried, a settled 0 tells Gmail on the target that its empty mailbox is complete and the existing mail is never imported',
+        Account::SETTING_BACKFILL_PAGE_TOKEN => 'a place in a listing the other host was walking; the target starts its own from the first page',
+        Account::SETTING_BACKFILL_PENDING => 'what that listing had found so far, which is nothing on a host that has not listed',
+        Account::SETTING_SYNC_BEGAN_AT => 'when the other host last started a sync; here it would make a sync nobody has run look done',
+        Account::SETTING_IMPORT_BEAT_AT => 'when the other host\'s import last moved; here it would hold a new import back as though one were running',
+        Account::SETTING_GRAPH_IMPORT => 'the folders the OTHER host had still to read, by ids and page links that mean nothing to a mailbox connected afresh; the target plans its own on its first sync',
+        Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
+        Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
     ];
 
     public function __construct(
@@ -221,6 +259,7 @@ final readonly class ConfigBackupUsers
         private CalendarRepository          $calendars,
         private CalendarShareLinkRepository $shareLinks,
         private BookingPageRepository       $bookingPages,
+        private InboxCategoryRepository     $inboxCategories,
     ) {
     }
 
@@ -346,6 +385,7 @@ final readonly class ConfigBackupUsers
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
+            'inboxCategories' => $this->exportInboxCategories($user),
             'rules'        => $this->exportRules($user),
             'calendars'    => $this->exportCalendars($user),
             'shareLinks'   => $this->exportShareLinks($user),
@@ -420,10 +460,11 @@ final readonly class ConfigBackupUsers
                 'email'             => $account->email,
                 'sortOrder'         => $account->sortOrder,
                 'isPrimary'         => $account->isPrimary,
-                // The account's dot colour, which is assigned at creation and
-                // is not recoverable from anything else in this file — restore
-                // it and every account keeps the mark the user recognises it
-                // by; leave it out and they all come back sharing colour 0.
+                // The account's dot colour — handed out at creation, then
+                // whatever the user picked — which is not recoverable from
+                // anything else in this file: restore it and every account
+                // keeps the mark the user recognises it by; leave it out and
+                // they all come back sharing colour 0.
                 'colorIndex'        => $account->colorIndex,
                 'imapHost'          => $account->imapHost,
                 'imapPort'          => $account->imapPort,
@@ -433,6 +474,7 @@ final readonly class ConfigBackupUsers
                 'smtpEncryption'    => $account->smtpEncryption,
                 'username'          => $account->username,
                 'password'          => $account->password,
+                'smtpPassword'      => $account->smtpPassword,
                 'authType'          => $account->authType,
                 'oauthProvider'     => $account->oauthProvider,
                 'oauthAccessToken'  => $account->oauthAccessToken,
@@ -566,6 +608,31 @@ final readonly class ConfigBackupUsers
                 'color'     => $label->color,
                 'isVisible' => $label->isVisible,
                 'sortOrder' => $label->sortOrder,
+            ];
+        }
+
+        return $exported;
+    }
+
+    /**
+     * The inbox tabs the person made themselves, in the order their strip draws
+     * them.
+     *
+     * With each one's id, for the reason labels carry theirs: a filter's "File in
+     * category" action names a category by that number, and the restorer rewrites
+     * it to the id the new row is given. Without these rows the filter would file
+     * into nothing, which is why they travel BEFORE the rules in the document.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportInboxCategories(User $user): array
+    {
+        $exported = [];
+
+        foreach ($this->inboxCategories->findForUserOrdered($user) as $category) {
+            $exported[] = [
+                'id'   => $category->id,
+                'name' => $category->name,
             ];
         }
 

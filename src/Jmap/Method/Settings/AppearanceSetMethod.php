@@ -228,7 +228,7 @@ final class AppearanceSetMethod implements JmapMethod
                 // Nullable: null is the value meaning "follow the global
                 // density", not an omission — see AppearanceMapper.
                 'sidebarDensity', 'listDensity', 'readingDensity' => $this->requireEnum(Density::class, $value, $property, true),
-                'accountCorner', 'listAvatars' => $this->requireBool($value, $property),
+                'accountCorner', 'listAvatars', 'tabUnreadCount' => $this->requireBool($value, $property),
                 default => null,
             };
         }

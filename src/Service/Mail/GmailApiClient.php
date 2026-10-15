@@ -41,6 +41,12 @@ final class GmailApiClient
      */
     private const int IDS_PER_BATCH = 1000;
 
+    /**
+     * How many messages.get go into one batch request. See getMessages() for
+     * why it is not the fifty a caller hands over.
+     */
+    private const int MESSAGES_PER_REQUEST = 5;
+
     private const array TRANSIENT_REASONS = [
         'rateLimitExceeded',
         'userRateLimitExceeded',
@@ -81,28 +87,14 @@ final class GmailApiClient
      */
     public function listMessages(Account $account, array $params = []): array
     {
-        $token    = $this->tokenManager->getValidAccessToken($account);
         $messages = [];
         $page     = null;
 
         do {
-            $query = $params;
+            $listed = $this->listMessagesPage($account, $params, $page);
+            $page   = $listed['nextPageToken'];
 
-            if (null !== $page) {
-                $query['pageToken'] = $page;
-            }
-
-            $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
-
-            $response = $this->httpClient->request('GET', self::BASE . '/messages', [
-                'auth_bearer' => $token,
-                'query'       => $query,
-            ]);
-
-            $body = $this->decode($response, 'messages.list');
-            $page = $body['nextPageToken'] ?? null;
-
-            foreach ($body['messages'] ?? [] as $m) {
+            foreach ($listed['messages'] as $m) {
                 $messages[] = $m;
             }
         } while (null !== $page);
@@ -111,10 +103,47 @@ final class GmailApiClient
     }
 
     /**
+     * One page of a message listing, and the token for the page after it.
+     *
+     * listMessages() above walks every page before it answers, which for a
+     * mailbox of twenty thousand is forty requests and several minutes inside
+     * whichever job asked — the first thing a new account did, before a single
+     * message was fetched (#42). An import asks for a page, acts on it, and
+     * comes back for the next.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return array{messages: list<array<string, mixed>>, nextPageToken: ?string}
+     */
+    public function listMessagesPage(Account $account, array $params = [], ?string $pageToken = null): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        if (null !== $pageToken) {
+            $params['pageToken'] = $pageToken;
+        }
+
+        $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/messages', [
+            'auth_bearer' => $token,
+            'query'       => $params,
+        ]);
+
+        $body = $this->decode($account, $response, 'messages.list');
+        $next = $body['nextPageToken'] ?? null;
+
+        return [
+            'messages'      => array_values($body['messages'] ?? []),
+            'nextPageToken' => is_string($next) && '' !== $next ? $next : null,
+        ];
+    }
+
+    /**
      * Fetch multiple messages (format=full) using the Gmail Batch API.
      *
-     * Packs up to 100 individual messages.get sub-requests into a single
-     * multipart/mixed HTTP POST. This avoids hammering the per-user per-second
+     * Packs individual messages.get sub-requests into multipart/mixed HTTP
+     * POSTs, a few to each. This avoids hammering the per-user per-second
      * quota with individual concurrent requests and dramatically reduces
      * round-trips for large initial syncs.
      *
@@ -128,21 +157,62 @@ final class GmailApiClient
      * empty would let the Messenger message ack and silently drop every id
      * in the batch.
      *
-     * @param list<string> $messageIds  Maximum 100 per call (enforced by caller via BATCH_SIZE)
+     * EXCEPT A QUOTA REFUSAL, which is not a failure. Whether Google refuses
+     * the whole request or some of its parts, the answer is the same: those
+     * ids come back as `retryable`, and the pacer has been told, so the
+     * caller can ask it how long to wait before trying them again.
+     *
+     * @param list<string> $messageIds  Maximum 50 per call (enforced by caller via BATCH_SIZE)
      * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>}
      */
     public function getMessages(Account $account, array $messageIds): array
     {
-        if (count($messageIds) === 0) {
-            return [
-                'payloads'  => [],
-                'retryable' => [],
-                'gone'      => [],
-            ];
+        $fetched = [
+            'payloads'  => [],
+            'retryable' => [],
+            'gone'      => [],
+        ];
+
+        // A FEW AT A TIME, with the pacer asked before each few.
+        //
+        // The limit is "units a minute", but Google does not let a minute's
+        // worth be spent in a second: fifty messages in one request are half
+        // a minute's worth at once on a project allowed 6,000 a minute, and
+        // Google refused part of every such batch — one batch, a refusal, a
+        // minute's wait, and the next batch refused the same way (#90). Five
+        // messages are three seconds' worth there, which is a burst Google
+        // lets through, and the pacer's wait between requests is what keeps
+        // the rate under the limit.
+        $chunks = array_chunk(array_values($messageIds), self::MESSAGES_PER_REQUEST);
+
+        foreach ($chunks as $index => $chunk) {
+            $part = $this->getMessagesInOneRequest($account, $chunk);
+
+            $fetched['payloads'] += $part['payloads'];
+            $fetched['retryable'] = [...$fetched['retryable'], ...$part['retryable']];
+            $fetched['gone']      = [...$fetched['gone'], ...$part['gone']];
+
+            if (true === $part['refused']) {
+                // Not asked for at all: what is left would only be refused
+                // too, and counted against the minute all the same.
+                foreach (array_slice($chunks, $index + 1) as $rest) {
+                    $fetched['retryable'] = [...$fetched['retryable'], ...$rest];
+                }
+
+                break;
+            }
         }
 
-        // The one call here that can spend a minute's quota on its own, so it
-        // is the one that is paced. See GmailQuotaPacer.
+        return $fetched;
+    }
+
+    /**
+     * @param list<string> $messageIds at most MESSAGES_PER_REQUEST
+     *
+     * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>, refused: bool}
+     */
+    private function getMessagesInOneRequest(Account $account, array $messageIds): array
+    {
         $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_MESSAGE * count($messageIds));
 
         $token    = $this->tokenManager->getValidAccessToken($account);
@@ -158,7 +228,18 @@ final class GmailApiClient
         ]);
 
         try {
+            // Classified first, so the whole request being refused on quota
+            // is recognised as that and not as "the batch request failed".
+            $this->assertSuccess($account, $response, 'messages.get(batch)');
+
             $rawBody = $response->getContent();
+        } catch (GmailThrottledException) {
+            return [
+                'payloads'  => [],
+                'retryable' => array_values($messageIds),
+                'gone'      => [],
+                'refused'   => true,
+            ];
         } catch (HttpException $e) {
             throw new \RuntimeException(
                 'Gmail batch request failed: ' . $e->getMessage(),
@@ -168,6 +249,11 @@ final class GmailApiClient
         }
 
         $parsed    = $this->parseBatchResponse($rawBody);
+
+        if (null !== $parsed['refusal']) {
+            $this->pacer->refused($account, $parsed['refusal']['limitName'], $parsed['refusal']['limitValue']);
+        }
+
         $payloads  = $parsed['payloads'];
         $retryable = [];
         $gone      = [];
@@ -197,9 +283,9 @@ final class GmailApiClient
             'payloads'  => $payloads,
             'retryable' => $retryable,
             'gone'      => $gone,
+            'refused'   => null !== $parsed['refusal'],
         ];
     }
-
 
     /**
      * Fetch a single message in full format.
@@ -219,7 +305,7 @@ final class GmailApiClient
             ],
         );
 
-        return $this->decode($response, 'messages.get');
+        return $this->decode($account, $response, 'messages.get');
     }
 
     /**
@@ -242,7 +328,7 @@ final class GmailApiClient
             ],
         );
 
-        $body = $this->decode($response, 'messages.get(raw)');
+        $body = $this->decode($account, $response, 'messages.get(raw)');
         $raw  = (string) ($body['raw'] ?? '');
 
         if ('' === $raw) {
@@ -280,7 +366,7 @@ final class GmailApiClient
                 'query'       => $query,
             ]);
 
-            $body = $this->decode($response, 'history.list');
+            $body = $this->decode($account, $response, 'history.list');
             $page = $body['nextPageToken'] ?? null;
 
             if (true === isset($body['historyId'])) {
@@ -316,7 +402,7 @@ final class GmailApiClient
             ],
         ]);
 
-        return $this->decode($response, 'watch');
+        return $this->decode($account, $response, 'watch');
     }
 
     /**
@@ -344,7 +430,7 @@ final class GmailApiClient
             'auth_bearer' => $token,
         ]);
 
-        return $this->decode($response, 'getProfile');
+        return $this->decode($account, $response, 'getProfile');
     }
 
     /**
@@ -407,7 +493,7 @@ final class GmailApiClient
             ['auth_bearer' => $token],
         );
 
-        $body = $this->decode($response, 'attachments.get');
+        $body = $this->decode($account, $response, 'attachments.get');
         $data = (string) ($body['data'] ?? '');
 
         return base64_decode(strtr($data, '-_', '+/'));
@@ -454,7 +540,10 @@ final class GmailApiClient
      * by a JSON body. 200 parts are decoded into payloads; every part's
      * status is recorded so the caller can classify failures per id.
      *
-     * @return array{payloads: array<string,array<string,mixed>>, statuses: array<string,int>}
+     * `refusal` is the first part Google refused on quota, read the way a
+     * refused response of its own would be; null when no part was.
+     *
+     * @return array{payloads: array<string,array<string,mixed>>, statuses: array<string,int>, refusal: ?array{limitName: string, limitValue: ?int}}
      */
     private function parseBatchResponse(string $rawBody): array
     {
@@ -467,12 +556,14 @@ final class GmailApiClient
             return [
                 'payloads' => [],
                 'statuses' => [],
+                'refusal'  => null,
             ];
         }
 
         $boundary = $m[1];
         $payloads = [];
         $statuses = [];
+        $refusal  = null;
 
         // Split on the boundary lines, drop the preamble and epilogue.
         $parts = preg_split('/\r?\n--' . preg_quote($boundary, '/') . '(?:--)?(?:\r?\n|$)/', $rawBody);
@@ -481,6 +572,7 @@ final class GmailApiClient
             return [
                 'payloads' => [],
                 'statuses' => [],
+                'refusal'  => null,
             ];
         }
 
@@ -524,11 +616,20 @@ final class GmailApiClient
             if (null !== $contentId && null !== $status) {
                 $statuses[$contentId] = $status;
             }
+
+            if (null === $refusal && true === in_array($status, [403, 429], true)) {
+                $failure = $this->describeErrorBody($json);
+
+                if (429 === $status || true === in_array($failure['reason'], self::TRANSIENT_REASONS, true)) {
+                    $refusal = ['limitName' => $failure['limitName'], 'limitValue' => $failure['limitValue']];
+                }
+            }
         }
 
         return [
             'payloads' => $payloads,
             'statuses' => $statuses,
+            'refusal'  => $refusal,
         ];
     }
     // ── labels ────────────────────────────────────────────────────────────────
@@ -544,7 +645,7 @@ final class GmailApiClient
             'auth_bearer' => $token,
         ]);
 
-        $body = $this->decode($response, 'labels.list');
+        $body = $this->decode($account, $response, 'labels.list');
 
         return $body['labels'] ?? [];
     }
@@ -581,7 +682,7 @@ final class GmailApiClient
             'json'        => $payload,
         ]);
 
-        return $this->decode($response, 'labels.create');
+        return $this->decode($account, $response, 'labels.create');
     }
 
     /**
@@ -599,7 +700,7 @@ final class GmailApiClient
             'json'        => ['name' => $name],
         ]);
 
-        return $this->decode($response, 'labels.patch');
+        return $this->decode($account, $response, 'labels.patch');
     }
 
     /**
@@ -623,7 +724,7 @@ final class GmailApiClient
             return;
         }
 
-        $this->assertSuccess($response, 'labels.delete');
+        $this->assertSuccess($account, $response, 'labels.delete');
     }
 
     /**
@@ -679,7 +780,7 @@ final class GmailApiClient
                 'json'        => $payload,
             ]);
 
-            $this->assertSuccess($response, 'messages.batchModify');
+            $this->assertSuccess($account, $response, 'messages.batchModify');
         }
     }
 
@@ -720,7 +821,7 @@ final class GmailApiClient
                 'json'        => ['ids' => $chunk],
             ]);
 
-            $this->assertSuccess($response, 'messages.batchDelete');
+            $this->assertSuccess($account, $response, 'messages.batchDelete');
         }
     }
 
@@ -737,9 +838,9 @@ final class GmailApiClient
      *
      * @return array<string,mixed>
      */
-    private function decode(ResponseInterface $response, string $operation): array
+    private function decode(Account $account, ResponseInterface $response, string $operation): array
     {
-        $this->assertSuccess($response, $operation);
+        $this->assertSuccess($account, $response, $operation);
 
         // throw=false so this stays the only place that decides what a failure
         // means. Left at true, a status assertSuccess() deliberately let past
@@ -760,8 +861,12 @@ final class GmailApiClient
      * did before. The status stays in the message text as well as on the
      * exception because it is the only part of a failure that always survives
      * into a log line.
+     *
+     * A quota rejection is also reported to the pacer before it is thrown,
+     * which is what makes it known to every other job for this account and
+     * not only to the one that met it. See GmailQuotaPacer::refused().
      */
-    private function assertSuccess(ResponseInterface $response, string $operation): void
+    private function assertSuccess(Account $account, ResponseInterface $response, string $operation): void
     {
         $status = $response->getStatusCode();
 
@@ -783,11 +888,18 @@ final class GmailApiClient
         // 429 is in here for completeness only — Gmail answers 403 for quota,
         // which is the entire reason the reason has to be read.
         if (429 === $status || (403 === $status && true === in_array($reason, self::TRANSIENT_REASONS, true))) {
+            $retryAfter = $this->retryAfterSeconds($response);
+
+            $this->pacer->refused($account, $failure['limitName'], $failure['limitValue'], $retryAfter);
+
+            // The pacer's answer rather than the header's: it is the header
+            // when there was one, and otherwise how long the account is being
+            // left alone, which is when a retry is worth making.
             throw new GmailThrottledException(
                 $message,
                 $status,
                 $reason,
-                $this->retryAfterSeconds($response),
+                max(1, $this->pacer->waitSeconds($account)),
             );
         }
 
@@ -819,7 +931,7 @@ final class GmailApiClient
      * all of which would otherwise turn a clean 403 into a JsonException that
      * says nothing about what went wrong.
      *
-     * @return array{reason: string, message: string}
+     * @return array{reason: string, message: string, limitName: string, limitValue: ?int}
      */
     private function describeFailure(ResponseInterface $response): array
     {
@@ -828,9 +940,35 @@ final class GmailApiClient
         } catch (HttpException) {
             // The body never arrived — a truncated or reset stream. The status
             // is still worth reporting on its own.
-            return ['reason' => '', 'message' => ''];
+            return ['reason' => '', 'message' => '', 'limitName' => '', 'limitValue' => null];
         }
 
+        return $this->describeErrorBody($raw);
+    }
+
+    /**
+     * The same reading of an error body, for the two places one turns up: a
+     * response of its own, and one part of a batch response.
+     *
+     * ## The limit, when the refusal names it
+     *
+     * A quota rejection carries, beside the reason, an ErrorInfo detail whose
+     * metadata says which limit was hit and what it is:
+     *
+     *     "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo",
+     *                  "reason": "RATE_LIMIT_EXCEEDED",
+     *                  "metadata": {"quota_limit": "…PerMinutePerUser",
+     *                               "quota_limit_value": "6000", …}}]
+     *
+     * That number is the only place this application can learn its own quota
+     * from — see GmailQuotaPacer. A body without the detail still names the
+     * limit in its sentence ("… and limit 'Units per minute per user' of
+     * service …"), which is enough to know WHICH limit and not what it is.
+     *
+     * @return array{reason: string, message: string, limitName: string, limitValue: ?int}
+     */
+    private function describeErrorBody(string $raw): array
+    {
         $decoded = json_decode($raw, true);
         $error   = true === is_array($decoded) ? ($decoded['error'] ?? null) : null;
 
@@ -838,7 +976,7 @@ final class GmailApiClient
             // Not a Google error envelope — an empty body, a truncated one, or
             // an HTML page from a proxy in front of the API. A short excerpt
             // beats discarding it: the proxy page at least names the proxy.
-            return ['reason' => '', 'message' => trim(substr($raw, 0, 200))];
+            return ['reason' => '', 'message' => trim(substr($raw, 0, 200)), 'limitName' => '', 'limitValue' => null];
         }
 
         $errors = $error['errors'] ?? null;
@@ -849,10 +987,38 @@ final class GmailApiClient
         // "PERMISSION_DENIED") is what newer Google endpoints send instead.
         $reason ??= $error['status'] ?? null;
         $detail   = $error['message'] ?? null;
+        $message  = true === is_scalar($detail) ? (string) $detail : '';
+
+        $limitName  = '';
+        $limitValue = null;
+
+        foreach (true === is_array($error['details'] ?? null) ? $error['details'] : [] as $entry) {
+            $metadata = true === is_array($entry) ? ($entry['metadata'] ?? null) : null;
+
+            if (false === is_array($metadata)) {
+                continue;
+            }
+
+            if (true === is_scalar($metadata['quota_limit'] ?? null)) {
+                $limitName = (string) $metadata['quota_limit'];
+            }
+
+            if (true === is_numeric($metadata['quota_limit_value'] ?? null)) {
+                $limitValue = (int) $metadata['quota_limit_value'];
+            }
+        }
+
+        if ('' === $limitName && 1 === preg_match("/limit '([^']+)'/", $message, $named)) {
+            // "Units per minute per user" → "unitsperminuteperuser", so both
+            // spellings answer the one question asked of them: per user or not.
+            $limitName = str_replace(' ', '', $named[1]);
+        }
 
         return [
-            'reason'  => true === is_scalar($reason) ? (string) $reason : '',
-            'message' => true === is_scalar($detail) ? (string) $detail : '',
+            'reason'     => true === is_scalar($reason) ? (string) $reason : '',
+            'message'    => $message,
+            'limitName'  => $limitName,
+            'limitValue' => $limitValue,
         ];
     }
 

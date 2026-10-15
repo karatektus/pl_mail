@@ -47,6 +47,9 @@ final class EmailPatchApplier
     private const array DRAFT_PROPERTIES = [
         'subject', 'to', 'cc', 'bcc', 'textBody', 'htmlBody', 'bodyValues',
         'inReplyTo', 'references', 'attachments',
+        // plMail's own: the identity the draft is written from. See
+        // JmapDraftWriter::senderFor().
+        'identityId',
     ];
 
     /**

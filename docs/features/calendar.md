@@ -26,6 +26,23 @@ up.
 On a desktop the pane starts open. Until you move the switch, the calendar sits beside your mail,
 so the two are side by side from the first visit. Close it and plMail remembers that.
 
+### The calendar button
+
+By default the button is a three-way switch: mail, then the calendar beside the mail, then the
+calendar full width, and round again. **Settings → Calendar → Behaviour** has one choice,
+**Calendar button**, that can turn it into a two-way one:
+
+- **All three**: the three-way switch, which is the default.
+- **Full width only**: one press from the mail opens the calendar full width, the next goes back
+  to the mail. Clicking a mail link while the calendar is full width returns to the mail rather
+  than to a split.
+- **Split only**: one press from the mail opens the calendar beside it, the next goes back to the
+  mail.
+
+The position the button leaves out is not removed. A split or a full-width calendar you
+already have stays until the first press, which closes it to the mail, and the drag handle still
+reaches both ends.
+
 Below 1024px wide the row cannot hold a sidebar, a readable message list and a readable calendar at
 once, so the pane takes the whole row and the mail steps aside. It is the same pane and the same
 toggle — closing it puts the mail back exactly as it was, with no navigation in between. A phone
@@ -116,7 +133,9 @@ and the time a new event is proposed at when you double-click empty space all fo
 Where a calendar carries a time zone of its own it wins for the events on it, as it always has; what
 changed is the fallback, which used to be the container's own idea of the time — UTC — so the
 current-time line could sit an hour or two away from the labels beside it and a new event was
-proposed at a slot already in the past.
+proposed at a slot already in the past. A calendar you subscribe to from Google or a CalDAV server
+is the exception: its zone is the one the remote account holds for it, often UTC for a shared
+calendar, so when such a calendar is your default the grid still follows your own zone.
 
 Three things about the grid are worth knowing:
 

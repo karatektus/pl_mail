@@ -27,7 +27,7 @@ oppositely — it overwrites the operator's settings and it never overwrites a p
 | **The generated secrets file** | `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`APP_SECRET` and `MERCURE_JWT_SECRET` live here too but stay out of the backup — each machine keeps its own) | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings, the assistant configuration, the chosen log level — everything an admin typed into a form rather than into a file | **Yes**, immediately |
-| **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
+| **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, inbox tabs, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
 
 **This is not the same claim plMail used to make.** Earlier versions listed every environment value
 as something only the operator could set, and printed two dozen lines to paste into `.env.local`.
@@ -166,9 +166,13 @@ mail accounts        IMAP/SMTP host, port and encryption, username, password,
                      signature and read-receipt default where you set one
 integrations         per connection: provider, base URL, username, secret or
                      OAuth tokens, the settings bag
-filters              conditions and actions, with the label, account and
-                     integration ids inside them rewritten on import
+filters              conditions and actions, with the label, account,
+                     integration and category ids inside them rewritten on import
 labels               the whole tree: names, roles, colours, parents, order
+inbox tabs           the tabs you made yourself, the order of every tab and
+                     which built-in ones are switched off. Which mail is
+                     filed in them is not carried — that is mail, and a
+                     filter that files into one fills it again
 calendars            name, colour, time zone, role, and which mail account or
                      integration each one is a mirror of
 published links      calendar share links and booking pages, by token digest —
@@ -356,8 +360,8 @@ the way out first rather than framing an empty list as work.
 Matched by email address. There are exactly two outcomes and no third.
 
 - **The address is not here** → the person is created, with their password hash, second factor,
-  recovery codes, app passwords, mailboxes, aliases, integrations, filters, labels, calendars and
-  published links. They can sign in immediately with the password they already know, their
+  recovery codes, app passwords, mailboxes, aliases, integrations, filters, labels, inbox tabs,
+  calendars and published links. They can sign in immediately with the password they already know, their
   authenticator app keeps working, and their existing app passwords keep their JMAP clients
   connected.
 - **The address is here** → nothing happens. Not the password, not the second factor, not the
@@ -384,7 +388,7 @@ document by hand (see [Opening one without plMail](#opening-one-without-plmail))
 
 **The ids inside a filter are rewritten.** A rule that says "apply label 41" refers to row 41 of the
 *source* database. On import every reference — the account a rule is scoped to, the `hasLabel` and
-`notLabel` conditions, the `labelId` and `integrationId` on the actions, the calendar a booking page
+`notLabel` conditions, the `labelId`, `integrationId` and `categoryId` on the actions, the calendar a booking page
 writes into — is pointed at the row that replaced it. A reference to something the file did not carry
 is dropped rather than guessed at: a filter that tests one thing fewer is a much smaller wrong than
 one that applies somebody else's label.
@@ -411,9 +415,9 @@ it belongs in the compose file you copy across, not in this file.
 Every other name left the export because it describes the machine. This one left because of what a
 restored copy would *do*.
 
-Take the inventory of what plMail actually derives from `APP_SECRET`. Remember-me uses Symfony's
-signature-based handler, so the sixty-day cookie is signed with it. Sessions and CSRF tokens are
-bound to a session, which does not survive a restore in any case. JMAP's tokens are signed with the
+Take the inventory of what plMail actually derives from `APP_SECRET`. Remember-me used Symfony's
+signature-based handler when this was decided, so the sixty-day cookie was signed with it. Sessions
+and CSRF tokens are bound to a session, which does not survive a restore in any case. JMAP's tokens are signed with the
 JWT keypair, whose contents travel separately. URI signing and uuid47 are not used. Nothing on disk
 and nothing in the database is encrypted under it — that is `APP_ENCRYPTION_KEY`'s job, and that
 one does travel.
@@ -424,6 +428,11 @@ app secret and the user's password hash, and users now travel — so a browser t
 the machine the backup came from was signed in to the machine it was restored onto, without anybody
 deciding that. Two stacks on one host make it concrete, because cookies are not scoped by port:
 `localhost:80` and `localhost:8002` would hand each other's browsers straight through.
+
+Remember-me no longer depends on it: its tokens are rows on the server now (`rememberme_token`),
+and a backup does not carry them, so a cookie from the source install names a row the target does
+not have. That leaves `APP_SECRET` protecting nothing a restore could want, which is one more reason
+for it to stay behind rather than a reason to bring it back.
 
 The target keeps the secret it generated at first boot. Nothing it protects is older than that
 install, so there is nothing for the backup's copy to unlock but somebody else's cookies. An old

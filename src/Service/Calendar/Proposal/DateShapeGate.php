@@ -21,8 +21,8 @@ namespace App\Service\Calendar\Proposal;
  * away, which nobody ever notices because nothing was displayed. It answers
  * "possibly" and "certainly not", and only the second answer is acted on.
  *
- * German and English in one alternation rather than one pass per language,
- * because this user's mail is both and no message says which it is.
+ * German, English and French in one alternation rather than one pass per
+ * language, because a mailbox mixes them and no message says which it is.
  *
  * Every name is listed in full rather than as a stem with a wildcard. The first
  * version used `(?:mon|die|sam|mai)[a-zäöü]*`, which matches "money", "die",
@@ -36,7 +36,7 @@ namespace App\Service\Calendar\Proposal;
 final readonly class DateShapeGate
 {
     /**
-     * Anything that could be a date or a time, in either language.
+     * Anything that could be a date or a time, in any of the three languages.
      *
      * Assembled from commented fragments rather than written as one literal, so
      * a form can be added without counting brackets in a two-hundred-character
@@ -47,19 +47,23 @@ final readonly class DateShapeGate
         . '\b\d{1,4}[./-]\d{1,2}[./-]\d{2,4}\b'
         // 14:00, 9:30.
         . '|\b\d{1,2}:\d{2}\b'
-        // 3pm, 3 p.m., 14 Uhr.
-        . '|\b\d{1,2}\s*(?:am|pm|a\.m\.|p\.m\.|uhr)\b'
-        // A month, spelled or abbreviated, in either language.
+        // 3pm, 3 p.m., 14 Uhr, 14h, 14h30, 14 heures.
+        . '|\b\d{1,2}\s*(?:am|pm|a\.m\.|p\.m\.|uhr|heures?)\b'
+        . '|\b\d{1,2}\s?h(?:\s?\d{2})?\b'
+        // A month, spelled or abbreviated, in any of the three.
         . '|\b(?:jan|januar|january|feb|februar|february|mar|march|apr|april'
         . '|mai|may|jun|juni|june|jul|juli|july|aug|august|sep|sept|september'
-        . '|okt|oct|oktober|october|nov|november|dez|dec|dezember|december)\b'
-        . '|märz'
-        // A weekday, spelled or abbreviated, in either language.
+        . '|okt|oct|oktober|october|nov|november|dez|dec|dezember|december'
+        . '|janvier|janv|fevrier|févr|fevr|mars|avril|avr|juin|juillet|juil|aout|août'
+        . '|septembre|octobre|novembre|decembre|déc)\b'
+        . '|märz|février|décembre'
+        // A weekday, spelled or abbreviated, in any of the three.
         . '|\b(?:mon|monday|montag|tue|tues|tuesday|dienstag|wed|wednesday'
         . '|mittwoch|thu|thur|thurs|thursday|donnerstag|fri|friday|freitag'
-        . '|sat|saturday|samstag|sonnabend|sun|sunday|sonntag)\b'
+        . '|sat|saturday|samstag|sonnabend|sun|sunday|sonntag'
+        . '|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b'
         // The relative words that name a day without naming a date.
-        . '|\b(?:heute|morgen|today|tomorrow|tonight)\b'
+        . '|\b(?:heute|morgen|today|tomorrow|tonight|demain|aujourd|midi)\b'
         . '|übermorgen'
         . ')~iu';
 

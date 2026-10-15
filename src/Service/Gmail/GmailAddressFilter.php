@@ -13,6 +13,7 @@ use App\Entity\Mail\Account;
  *   1. Lowercase the entire address.
  *   2. Strip the +tag suffix from the local part  (foo+bar@gmail.com → foo).
  *   3. Remove all dots from the local part        (f.o.o@gmail.com  → foo).
+ *   4. Read googlemail.com as gmail.com           (foo@googlemail.com → foo@gmail.com).
  *
  * After normalisation karatektus@gmail.com, kara.te.ktus@gmail.com and
  * karatektus+newsletter@gmail.com all reduce to the same canonical form.
@@ -170,6 +171,14 @@ final class GmailAddressFilter
 
         $local  = substr($raw, 0, $atPos);
         $domain = substr($raw, $atPos + 1);
+
+        // One mailbox, two spellings: Gmail delivers to name@googlemail.com
+        // and name@gmail.com alike, and accounts from where the googlemail
+        // domain was the only one still receive on it. Compared as different
+        // addresses, mail to the old spelling belonged to nobody (#90).
+        if ('googlemail.com' === $domain) {
+            $domain = 'gmail.com';
+        }
 
         // Strip +tag
         $plusPos = strpos($local, '+');

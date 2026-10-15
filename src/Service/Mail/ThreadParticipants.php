@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -45,7 +46,7 @@ final class ThreadParticipants
     {
         $messages = is_array($messages) ? $messages : iterator_to_array($messages, false);
         $owned    = $this->ownedAddresses($account);
-        $names    = $this->senders($messages, $owned, $me);
+        $names    = $this->senders($messages, $owned, $me, $account);
 
         // A thread nobody else has written in — a sent mail, or a draft. Its
         // recipients are the interesting party; falling back to "me" alone
@@ -67,7 +68,7 @@ final class ThreadParticipants
      *
      * @return list<string>
      */
-    private function senders(array $messages, array $owned, string $me): array
+    private function senders(array $messages, array $owned, string $me, ?Account $account = null): array
     {
         $names = [];
 
@@ -78,12 +79,40 @@ final class ThreadParticipants
                 continue;
             }
 
-            $names[$address] ??= true === in_array($address, $owned, true)
+            $names[$address] ??= true === $this->isMine($message, $address, $owned, $account)
                 ? $me
                 : $this->displayName($message->fromName, $address);
         }
 
         return $this->collapse(array_values($names));
+    }
+
+    /**
+     * Whether the reader wrote this message.
+     *
+     * An owned address in From is the whole answer for nearly every message,
+     * and costs a look in a list already in memory. The second half is for a
+     * reply sent from an address at a catch-all domain, which is in no list:
+     * it is the reader's when the message is filed under Sent or Drafts, and
+     * a colleague's — somebody with a mailbox of their own at that domain —
+     * when it is not. Without it the reader's own reply showed their account
+     * name in the column as though a third person had joined the thread.
+     *
+     * @param list<string> $owned
+     */
+    private function isMine(Message|ThreadRowMessage $message, string $address, array $owned, ?Account $account): bool
+    {
+        if (true === in_array($address, $owned, true)) {
+            return true;
+        }
+
+        if (null === $account || false === $account->catchesAddress($address)) {
+            return false;
+        }
+
+        return $message instanceof ThreadRowMessage
+            ? $message->filedAsSent
+            : OwnAddressHelper::sentByAccount($message);
     }
 
     /**

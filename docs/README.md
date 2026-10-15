@@ -66,6 +66,7 @@ Each page names the exact console, the exact checkboxes and the exact redirect U
 | [IMAP and SMTP](providers/imap-smtp.md) | Plain mailboxes, IDLE, and the settings servers disagree about |
 | [CalDAV](providers/caldav.md) | Discovery, app passwords, and the servers that have been tested |
 | [ICS feeds](providers/ics-feeds.md) | Subscribing to a published calendar by URL, and why some addresses are refused |
+| [Single sign-on](providers/oidc.md) | Signing in to plMail through Authentik, Keycloak or another OpenID Connect provider: setup, account linking, and auto-creation |
 
 ## How it works
 

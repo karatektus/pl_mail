@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:a28933caed23a0f78b04e26e2affeb017f027765 -->
+<!-- translated-from: features/calendar.md sha1:122f0e14aa2280cfe38b171539644284c35d7c38 -->
 
 # Kalender
 
@@ -28,6 +28,23 @@ schon beim ersten Zeichnen die richtige Breite hat und nicht springt, sobald der
 Auf dem Desktop ist die Fläche von Anfang an offen. Bis du den Schalter bewegst, steht der Kalender
 neben deiner Mail, die beiden sind also schon beim ersten Besuch Seite an Seite. Schließt du ihn,
 merkt sich plMail das.
+
+### Die Kalenderschaltfläche
+
+Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
+dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender → Verhalten**
+hat eine Auswahl, **Kalenderschaltfläche**, die daraus einen Zweifachschalter machen kann:
+
+- **Alle drei**: der Dreifachschalter, das ist die Voreinstellung.
+- **Nur volle Breite**: Ein Druck aus der Mail öffnet den Kalender in voller Breite, der nächste
+  geht zurück zur Mail. Ein Klick auf einen Mail-Link bei vollbreitem Kalender führt zur Mail
+  zurück statt in die geteilte Ansicht.
+- **Nur geteilt**: Ein Druck aus der Mail öffnet den Kalender neben ihr, der nächste geht zurück
+  zur Mail.
+
+Die Position, die die Schaltfläche auslässt, wird nicht entfernt. Eine
+geteilte Ansicht oder ein vollbreiter Kalender, den du schon hast, bleibt bis zum ersten Druck, der
+ihn zur Mail schließt, und der Ziehgriff erreicht weiterhin beide Enden.
 
 Unter 1024 Pixeln Breite trägt die Zeile keine Seitenleiste, keine lesbare Nachrichtenliste und
 keinen lesbaren Kalender mehr auf einmal, also nimmt die Fläche die ganze Zeile und die Mail tritt
@@ -131,7 +148,10 @@ dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird. Träg
 eigene Zeitzone, gilt sie für seine Termine, wie eh und je; geändert hat sich der Rückfall, der
 früher die Vorstellung des Containers von der Zeit war — UTC —, sodass die Linie der aktuellen Zeit
 ein bis zwei Stunden neben ihren eigenen Beschriftungen sitzen konnte und ein neuer Termin für einen
-bereits vergangenen Zeitpunkt vorgeschlagen wurde.
+bereits vergangenen Zeitpunkt vorgeschlagen wurde. Ein Kalender, den du von Google oder einem
+CalDAV-Server abonnierst, ist die Ausnahme: Seine Zone ist die, die das entfernte Konto für ihn
+führt, bei einem geteilten Kalender oft UTC; ist so ein Kalender dein Standardkalender, folgt das
+Raster trotzdem deiner eigenen Zone.
 
 Drei Dinge über das Raster sind es wert, gewusst zu werden:
 

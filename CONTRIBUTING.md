@@ -313,11 +313,16 @@ working copy to prepare such a change in, and is behind upstream after every rel
 ## README screenshots
 
 `tests/e2e/screenshots.spec.ts` regenerates the images in `docs/screenshots/`. It asserts nothing and
-is not part of the regression suite — run it deliberately, against a stack seeded with demo data:
+is not part of the regression suite — run it deliberately, against the E2E stack:
 
 ```bash
-npx playwright test screenshots.spec.ts --project=chromium --workers=1
+npm run test:e2e:screenshots -- --project=chromium --workers=1
 ```
+
+It seeds the demo mailbox onto two users of its own, `e2e-demo-w0@plmail.test` and
+`e2e-demo-admin-w0@plmail.test`, and never onto the users the regression suite signs in as:
+`app:test:seed-demo` replaces a user's calendar, contacts and labels, and refuses anyone who
+already owns a mailbox.
 
 Never point it at a stack holding real mail.
 
@@ -854,11 +859,14 @@ php bin/mirror-wiki.php --check
 | `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |
 | `app:graph:diagnose` | Probe Microsoft Graph access for one account and report what works |
+| `app:gmail:quota-probe [account] [--mode=all] [--count=30]` | Without an account, list the Gmail accounts and ask which. Fetch a fixed number of stored Gmail messages one way per minute (batched as an import does, or singly in each format), holding the account's import meanwhile, so the cost Google charges for each can be read off the Cloud console's quota chart. Stores and changes nothing |
+| `app:gmail:skipped [account] [--list=N] [--forget]` | Show the Gmail messages an import looked at and did not store. Without an account, one line per Gmail account: stored, skipped, Gmail's own total. With one, the skipped messages grouped by kind (chat, draft, sent from another address, delivered to another address, unfetchable), by Gmail label and by address, and with `--list` the messages themselves. Reads only what was recorded when each message was looked at; asks Gmail nothing. `--forget` deletes the record for the account so the next listing asks for those messages again |
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
 | `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:user:password <email> [--password=…]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
+| `app:user:oidc-unlink <email>` | Forget the single sign-on identity an account is linked to, so its next sign-in through the provider links it again by address. For somebody deleted and re-added at the provider, who comes back with a new subject and is refused as a second person claiming the account. Console-only like the two above: an unlinked account is one the next identity with its address can claim |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
 | `app:jmap:prune-changes [--days=N]` | Prune JMAP change-log rows older than the retention window (60 days by default), keeping the newest row per account and object type so no state token goes backwards. Runs nightly at 05:20. A client away longer than the window gets `cannotCalculateChanges` and resyncs |
 | `app:jobs:reap [--stale-seconds=N] [--dry-run]` | Fail background jobs that have stopped reporting progress, so the topbar indicator stops showing work whose worker died. Runs every 5 minutes; a job counts as abandoned after 15 minutes without a chunk |

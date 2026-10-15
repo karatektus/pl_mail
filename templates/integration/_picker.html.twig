@@ -118,7 +118,14 @@ gap under the shortcuts row.
                 <div class="flex-1 min-w-0 min-h-0 px-6 overflow-y-auto overscroll-contain"
                      data-integration--integration-picker-target="scroller">
                     <div class="py-3">
-                        {% if listing.entries is empty %}
+                        {# "Empty" only when nothing follows. A driver may leave
+                           entries out of a page — Immich's hidden Live Photo
+                           clips — and still hand on the cursor, so a first page
+                           can be empty with more behind it. Saying "empty"
+                           there also left no results container, and the
+                           controller appends into that container: every later
+                           page was fetched and thrown away. #}
+                        {% if listing.entries is empty and listing.nextCursor is null %}
                             <p class="py-8 text-center text-sm text-ink-faint italic">
                                 {{ query ? 'integration.picker.no_results'|trans({ '%query%': query })
                                          : 'integration.picker.empty'|trans }}

@@ -7,12 +7,12 @@ namespace App\Form\Integration;
 use App\Domain\Enum\Account\MailProvider;
 use App\Entity\Integration\MailProviderConfig;
 use App\Form\PasswordManagerIgnore;
+use App\Form\SecretType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -45,20 +45,18 @@ final class MailProviderConfigType extends AbstractType
                 'attr'     => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
             ])
             // Not a password anyone signs in with — it is a value pasted out
-            // of a provider's console. `new-password` invited password managers
-            // to offer generation, and in a wizard that renders one provider at
-            // a time, to fill fields that were not on screen. There is no
-            // standard way to say "this is not a login", hence the vendor hints.
-            ->add('clientSecret', PasswordType::class, [
+            // of a provider's console — hence SecretType, which is not a password
+            // input and so gives a browser or a password manager nothing to
+            // mistake for a login.
+            ->add('clientSecret', SecretType::class, [
                 'label'    => 'admin.integrations.field.client_secret',
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete' => 'off',
                     'placeholder'  => $config instanceof MailProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
             ]);
 
         // Offered only when there is something to clear, so the option cannot
@@ -81,17 +79,16 @@ final class MailProviderConfigType extends AbstractType
                     'data'     => $config instanceof MailProviderConfig ? $config->pubsubTopic : null,
                     'attr'     => ['placeholder' => 'projects/your-project-id/topics/gmail-push'] + PasswordManagerIgnore::ATTR,
                 ])
-                ->add('pushVerificationToken', PasswordType::class, [
+                ->add('pushVerificationToken', SecretType::class, [
                     'label'    => 'admin.integrations.field.push_token',
                     'required' => false,
                     'mapped'   => false,
                     'help'     => 'admin.integrations.field.push_token_help',
                     'attr'     => [
-                        'autocomplete' => 'off',
                         'placeholder'  => $config instanceof MailProviderConfig && null !== $config->pushVerificationToken
                             ? 'admin.integrations.secret_unchanged'
                             : 'admin.integrations.secret_none',
-                    ] + PasswordManagerIgnore::SECRET,
+                    ],
                 ]);
         }
 

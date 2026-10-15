@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jmap\State;
 
+use Symfony\Component\Security\Core\User\UserInterface;
+use App\Entity\Mail\Account;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -41,6 +43,30 @@ final class ChangeLogRepository extends ServiceEntityRepository
         }
 
         return (int) $result;
+    }
+
+    /**
+     * The highest sequence recorded for any of one user's accounts, whatever
+     * the object type, or 0 when nothing has been.
+     *
+     * One number for "how far along is this user's mail", which is what the
+     * sidebar needs to tell a change it has already counted from one it has
+     * not — see SidebarCounts::changeSequence() and MailChangeNotifier. The
+     * sequence is one series across the whole table, so the largest of it is
+     * comparable between accounts and types.
+     *
+     * One query, the accounts found in a subquery rather than handed in: this
+     * runs on every page that draws the sidebar, and listing the accounts
+     * first would make it two.
+     */
+    public function latestSequenceForUser(UserInterface $user): int
+    {
+        $result = $this->getEntityManager()->createQuery(
+            'SELECT MAX(c.sequence) FROM ' . ChangeLog::class . ' c
+             WHERE c.accountId IN (SELECT a.id FROM ' . Account::class . ' a WHERE a.usr = :user)',
+        )->setParameter('user', $user)->getSingleScalarResult();
+
+        return null === $result ? 0 : (int) $result;
     }
 
     /**

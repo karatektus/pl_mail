@@ -27,6 +27,10 @@ Variables:
     {% set integrationNames = integrationNames|merge({ ('id' ~ integration.id): integration.name }) %}
 {% endfor %}
 
+{# id => name for the reader's own categories, the same shape and for the same
+   reason as the two maps above. #}
+{% set categoryNames = inbox_category_names() %}
+
 <div data-controller="rules--rule-run" data-rules--rule-run-busy-value="{{ anyRunning ? 'true' : 'false' }}"></div>
 
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
@@ -125,10 +129,14 @@ Variables:
                                         'trash':       'fa-trash',
                                         'markSpam':    'fa-ban',
                                         'saveToIntegration': 'fa-cloud-arrow-up',
+                                        'fileInCategory': 'fa-folder',
                                     }[action.type] ?? 'fa-bolt' }} text-[9px]" aria-hidden="true"></i>
                                     {{ ('settings.filters.action.' ~ action.type)|trans }}
                                     {%- if action.labelId is defined and labelNames['id' ~ action.labelId] is defined %}
                                         <span class="font-medium" data-action-label>{{ labelNames['id' ~ action.labelId] }}</span>
+                                    {%- endif %}
+                                    {%- if action.categoryId is defined %}
+                                        <span class="font-medium">{{ categoryNames['id' ~ action.categoryId] ?? 'settings.filters.category_missing'|trans }}</span>
                                     {%- endif %}
                                     {%- if action.integrationId is defined %}
                                         <span class="font-medium">{{ integrationNames['id' ~ action.integrationId] ?? 'settings.filters.integration_missing'|trans }}</span>

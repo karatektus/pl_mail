@@ -387,6 +387,56 @@ final class SignatureSectionTest extends WebTestCase
      * id — see SignatureController — so one lookup answers for every state the
      * row can be in, including the inheriting one that has no editor.
      */
+    // ── HTML source and its rendering ────────────────────────────────────────
+
+    /**
+     * The "Rendered" view asks the server what the source turns into, and the
+     * answer is what a save would keep — nothing is stored by asking.
+     */
+    public function testThePreviewReturnsWhatASaveWouldKeepAndStoresNothing(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'source@joder.dev');
+
+        $crawler = $client->request('GET', '/settings?section=signature');
+        $form    = $crawler->filter(sprintf('form[action="/account/%d/signature"]', $account->id));
+
+        self::assertSame(1, $form->filter('textarea[data-settings--signature-source-target="source"]')->count());
+        self::assertSame(
+            sprintf('/account/%d/signature/preview', $account->id),
+            $form->attr('data-settings--signature-source-url-value'),
+        );
+
+        $client->request('POST', (string) $form->attr('data-settings--signature-source-url-value'), [
+            '_token'    => (string) $form->attr('data-settings--signature-source-token-value'),
+            'signature' => '<style>.s{color:red}</style><p class="s">Ada</p><script>alert(1)</script>',
+        ]);
+
+        self::assertResponseIsSuccessful();
+
+        $preview = json_decode((string) $client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertSame('<p>Ada</p>', $preview['html']);
+        self::assertSame(['script', 'style'], $preview['removedElements']);
+        self::assertSame(['class'], $preview['removedAttributes']);
+        self::assertNull($this->reload($account)->getSetting(Account::SETTING_SIGNATURE));
+    }
+
+    public function testThePreviewRefusesARequestWithoutItsToken(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'source@joder.dev');
+
+        $client->request('POST', sprintf('/account/%d/signature/preview', $account->id), [
+            '_token'    => 'not-the-token',
+            'signature' => '<p>Ada</p>',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     private function aliasToken(KernelBrowser $client, int $aliasId): string
     {
         $crawler = $client->request('GET', '/settings?section=signature');

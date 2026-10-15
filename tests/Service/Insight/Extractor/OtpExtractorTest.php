@@ -117,6 +117,39 @@ final class OtpExtractorTest extends TestCase
                 ]],
             ],
 
+            'french: the code follows the context word' => [
+                [
+                    'from'     => 'securite@banque-exemple.fr',
+                    'fromName' => 'Banque Exemple',
+                    'subject'  => 'Votre code de vérification',
+                    'body'     => "Bonjour,\n\nVotre code de vérification est 582014. Il est valable 10 minutes.\n\nNe le communiquez à personne.",
+                ],
+                true,
+                [[
+                    'title'     => 'Banque Exemple · 582014',
+                    'dedupeKey' => 'banque-exemple.fr|582014',
+                    'payload'   => [
+                        'code'             => '582014',
+                        'issuer'           => 'Banque Exemple',
+                        'expiresInMinutes' => 10,
+                    ],
+                    'happensAt' => '2026-11-10 08:10',
+                ]],
+            ],
+
+            // A French order number is still not a login code, however close
+            // to the word "code" it sits.
+            'french: an order number beside the word code is refused' => [
+                [
+                    'from'     => 'commandes@boutique-exemple.fr',
+                    'fromName' => 'Boutique Exemple',
+                    'subject'  => 'Code de connexion et commande',
+                    'body'     => "Votre numéro de commande 774412 est confirmé.",
+                ],
+                true,
+                [],
+            ],
+
             'a mixed alphanumeric code, with the expiry written as a wall clock' => [
                 [
                     'from'     => 'no-reply@beispiel.de',

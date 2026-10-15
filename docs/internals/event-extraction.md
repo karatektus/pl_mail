@@ -293,8 +293,9 @@ message the parser could have read that the gate threw away, which nobody notice
 nothing was displayed. It answers "possibly" and "certainly not", and only the second answer
 is acted on.
 
-German and English are in one alternation rather than one pass per language, because this
-user's mail is both and no message says which it is. Every weekday and month name is listed
+German, English and French are in one alternation rather than one pass per language, because
+a mailbox mixes them and no message says which it is — the interface language says nothing
+about the language of the mail, so all three are read for every user. Every weekday and month name is listed
 in **full** rather than as a stem with a wildcard: the first version used
 `(?:mon|die|sam|mai)[a-zäöü]*`, which matches "money", "die", "same" and "mail" — the German
 definite article and the word "mail" appear in essentially every message, so the gate passed

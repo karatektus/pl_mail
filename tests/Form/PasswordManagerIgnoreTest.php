@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Form;
 
+use App\Entity\Oidc\OidcConfig;
+use App\Form\Admin\OidcConfigType;
 use App\Form\Setup\FirstAdminType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -100,6 +102,95 @@ final class PasswordManagerIgnoreTest extends KernelTestCase
 
         self::assertStringContainsString('data-bwignore', $html);
         self::assertStringContainsString('data-form-type', $html);
+        // Bitwarden opened its menu in exactly the text fields that had no
+        // `autocomplete` at all, and left alone the ones that said `off`.
+        self::assertStringContainsString('autocomplete="off"', $html);
+    }
+
+    /**
+     * A pasted secret is not a password input, and nothing in src/Form may make
+     * one of it again.
+     *
+     * Three attempts at talking browsers and password managers out of a
+     * `type="password"` field each fixed one symptom: `off` is ignored by
+     * Chrome, which filled the administrator's own login into Admin → SSO;
+     * `new-password` stopped that and had Bitwarden offer to generate a
+     * password into the field and Chrome list every saved one on a click. The
+     * field is a SecretType now — text, drawn as dots — so there is no password
+     * input left to classify.
+     */
+    public function testAPastedSecretIsAMaskedTextFieldThatComesBackEmpty(): void
+    {
+        self::bootKernel();
+
+        $container = self::getContainer();
+
+        $form = $container->get(FormFactoryInterface::class)
+            ->create(OidcConfigType::class, new OidcConfig(), ['csrf_protection' => false]);
+        $form->submit(['issuer' => 'https://auth.example.com/', 'clientSecret' => ' typed-secret ']);
+
+        self::assertSame(' typed-secret ', $form->get('clientSecret')->getData(), 'a secret is taken as pasted, spaces included');
+
+        $html = $container->get(Environment::class)
+            ->createTemplate('{{ form_widget(field) }}')
+            ->render(['field' => $form->createView()['clientSecret']]);
+
+        self::assertStringContainsString('type="text"', $html);
+        self::assertStringContainsString('autocomplete="off"', $html);
+        self::assertStringContainsString('secret-masked', $html);
+        self::assertStringContainsString('data-bwignore', $html);
+        self::assertStringNotContainsString('typed-secret', $html, 'what was typed is not rendered back, even after a refusal');
+    }
+
+    /**
+     * The only password inputs left are the ones somebody signs in with or
+     * sets a login password through. Anything else in a form is a SecretType.
+     */
+    public function testOnlyLoginPasswordsArePasswordInputs(): void
+    {
+        $logins = ['FirstAdminType.php', 'UserFormType.php', 'ChangePasswordType.php'];
+        $others = [];
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(\dirname(__DIR__, 2) . '/src/Form')) as $file) {
+            if (false === $file->isFile() || 'php' !== $file->getExtension() || in_array($file->getFilename(), $logins, true)) {
+                continue;
+            }
+
+            // Not preceded by a letter, so ChangePasswordType::class is not it.
+            if (1 === preg_match('/(?<![A-Za-z])PasswordType::class/', (string) file_get_contents($file->getPathname()))) {
+                $others[] = $file->getFilename();
+            }
+        }
+
+        self::assertSame([], $others, 'These forms use a password input for something that is not this site\'s login. Use App\Form\SecretType, or a browser fills in the saved login.');
+    }
+
+    /**
+     * Nothing follows an input as a sibling — its help text least of all.
+     *
+     * Bitwarden takes the text after a field as part of the field's label. The
+     * help text was the next element after the input, so a help that explained
+     * the `email` scope made Scopes an identity's email address to it, and it
+     * opened its menu there whatever the field's own attributes said.
+     */
+    public function testHelpTextIsNotTheInputsNextSibling(): void
+    {
+        self::bootKernel();
+
+        $container = self::getContainer();
+
+        $form = $container->get(FormFactoryInterface::class)
+            ->create(OidcConfigType::class, new OidcConfig(), ['csrf_protection' => false])
+            ->createView();
+
+        $html = $container->get(Environment::class)
+            ->createTemplate('{{ form_row(field) }}')
+            ->render(['field' => $form['scopes']]);
+
+        $crawler = new \Symfony\Component\DomCrawler\Crawler($html);
+
+        self::assertGreaterThan(0, $crawler->filter('p')->count(), 'the field under test has to have help text');
+        self::assertSame(0, $crawler->filter('input')->nextAll()->count());
     }
 
     private static function renderField(string $field): string

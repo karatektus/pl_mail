@@ -20,6 +20,7 @@ use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
 use App\Service\Mail\PostIngestPipeline;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -55,7 +56,21 @@ class MessageSyncer
         private readonly VanishedMessageReconciler $vanished,
         private readonly GhostMessageReaper $ghosts,
         private readonly ManagerRegistry $registry,
+        private readonly ImapPagedFetch $pagedFetch,
+        private readonly ImapImportPlan $importPlan,
+        private readonly ProcessHeartbeatService $heartbeats,
     ) {}
+
+    /**
+     * Whether the page being stored is history rather than new mail — set for
+     * the length of storeImportPage() and at no other time.
+     *
+     * State on a service, which this class otherwise has none of, because the
+     * one thing it changes is four calls down: how a message that would not
+     * store is held (see holdForRetry()). Carried as an argument it would be a
+     * parameter on five signatures to reach one `if`.
+     */
+    private bool $importing = false;
 
     /**
      * A UID range as a search criterion the library will not quote.
@@ -72,7 +87,7 @@ class MessageSyncer
      * generate_query() appends verbatim. A single UID would have been fine
      * either way, which is why this never showed up in a first sync of one.
      */
-    private static function uidRangeCriteria(string $uidRange): string
+    public static function uidRangeCriteria(string $uidRange): string
     {
         return 'CUSTOM UID '.$uidRange;
     }
@@ -117,6 +132,16 @@ class MessageSyncer
         // it only lists a folder every SWEEP_INTERVAL_MINUTES.
         $this->vanished->sweep($mailbox, $client);
 
+        // A folder nobody has looked at yet: put the mark at its top, so what
+        // follows asks for new mail only, and leave everything below to the
+        // importer, which brings it in newest first on its own queue. Without
+        // this the range below was `1:*` — the whole folder, oldest first, in
+        // this one job (#42). A server that will not say where its top is
+        // leaves the folder unplanned, and it is read that old way.
+        if (null === $mailbox->importFloorUid) {
+            $this->importPlan->begin($mailbox, $client);
+        }
+
         $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
 
@@ -148,14 +173,17 @@ class MessageSyncer
         $lowestSkippedUid = null;
 
         try {
-            $folder->messages()
-                ->where(self::uidRangeCriteria($uidRange))
-                ->chunked(function ($batch) use ($mailboxId, $accountId, $lastSeenUid, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
-                    $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence);
-                    $synced += count($batch);
-                    $this->startNextBatch();
-                    $this->logger->info(sprintf('Synced %d messages so far', $synced));
-                }, self::BATCH_SIZE);
+            // Not the library's chunked(): one message it cannot parse ends
+            // that loop for the whole folder, on every sync. See ImapPagedFetch.
+            $query = $folder->messages()->where(self::uidRangeCriteria($uidRange));
+
+            foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
+                $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
+                $synced += count($batch);
+                $this->startNextBatch();
+                $this->heartbeats->beatWhileBusy();
+                $this->logger->info(sprintf('Synced %d messages so far', $synced));
+            }
 
             $mailbox = $this->mailboxRepository->find($mailboxId);
 
@@ -193,10 +221,74 @@ class MessageSyncer
     }
 
     /**
+     * Store one page of a folder's history, fetched by ImapMailboxImporter.
+     *
+     * The same path new mail takes — processBatch(), the post-ingest pipeline
+     * and all — so an imported message is in every way a message. What differs
+     * is the bookkeeping around it: the page is below the high-water mark by
+     * definition, so the mark is not what says "already here" (nothing is
+     * passed as already synced; the importer asked only for what is missing),
+     * and a message that will not store is reported back rather than counted
+     * on the mailbox.
+     *
+     * @param iterable<ImapMessage>  $batch
+     * @param array<int, \Throwable> $unreadable as for processBatch()
+     *
+     * @return int|null the lowest UID of the page that was held back, or null
+     *                  when every message of it was dealt with
+     */
+    public function storeImportPage(Mailbox $mailbox, iterable $batch, array $unreadable): ?int
+    {
+        $syncedUids = [];
+        $lowestHeld = null;
+        $presence   = new ImapUidPresence($mailbox->account, $this->connections, $this->logger);
+
+        $this->importing = true;
+
+        try {
+            $this->processBatch(
+                $batch,
+                (int) $mailbox->id,
+                (int) $mailbox->account->id,
+                0,
+                $syncedUids,
+                $lowestHeld,
+                $presence,
+                $unreadable,
+            );
+        } finally {
+            $this->importing = false;
+            $presence->close();
+        }
+
+        $this->startNextBatch();
+
+        return $lowestHeld;
+    }
+
+    /**
+     * A set of UIDs as a search criterion: `UID 912,915:917,930`.
+     *
+     * For the importer, which asks for exactly the messages a folder is
+     * missing rather than for a range. Through the same escape hatch as
+     * uidRangeCriteria(), for the same reason.
+     *
+     * @param list<int> $uids
+     */
+    public static function uidSetCriteria(array $uids): string
+    {
+        return self::uidRangeCriteria(implode(',', $uids));
+    }
+
+    /**
      * @param array<int,bool> $syncedUids  passed by reference so new UIDs are
      *                                      registered within the same sync run
      *                                      (guards against duplicates inside a
      *                                      single chunked call)
+     * @param array<int, \Throwable> $unreadable  the UIDs of this page the
+     *                                      library could not build a message
+     *                                      from, and what it threw — see
+     *                                      ImapPagedFetch
      * @param int|null        $lowestSkippedUid  the run-wide lowest UID held
      *                                      back for a retry; the high-water
      *                                      mark is clamped below it
@@ -209,6 +301,7 @@ class MessageSyncer
         array            &$syncedUids,
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
+        array            $unreadable = [],
     ): void {
         // The run as it stood before this batch. A batch the database refuses
         // is decided again from here, one message at a time.
@@ -217,7 +310,7 @@ class MessageSyncer
 
         try {
             [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
-                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, false,
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, false, $unreadable,
             );
         } catch (\Throwable $refused) {
             // Only a refused write closes the manager. Anything else, the
@@ -260,7 +353,7 @@ class MessageSyncer
             }
 
             [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
-                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true,
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true, $unreadable,
             );
         }
 
@@ -334,6 +427,7 @@ class MessageSyncer
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
         bool             $oneAtATime,
+        array            $unreadable = [],
     ): array {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
@@ -342,13 +436,39 @@ class MessageSyncer
         $rawBodies = [];
         $maxUid   = 0;
 
-        // Pass 1 — build + persist Message rows (no threading yet)
-        foreach ($batch as $imapMessage) {
+        // The page in UID order, with the messages the library could not
+        // build standing where they would have stood. The order is not
+        // tidiness: holdForRetry() counts the LOWEST failure of a run, and
+        // decides which that is by the order it is told of them. Handed the
+        // unreadable ones before or after the rest, two poison messages would
+        // take the counter from each other on every sync and neither would
+        // ever reach the attempt that lets it go.
+        /** @var array<int, ImapMessage|\Throwable> $page */
+        $page = $unreadable;
+
+        foreach ($batch as $fetched) {
             // Cast because webklex only declares it in a docblock
             // (`@method integer getUid()`), which static analysis cannot read
             // as an int. The value always is one: holdForRetry() takes it as
             // one and would have thrown.
-            $uid = (int) $imapMessage->getUid();
+            $page[(int) $fetched->getUid()] = $fetched;
+        }
+
+        ksort($page);
+
+        // Pass 1 — build + persist Message rows (no threading yet)
+        foreach ($page as $uid => $imapMessage) {
+            if ($imapMessage instanceof \Throwable) {
+                if (true === $this->holdUnreadable($mailbox, $uid, $imapMessage, $lastSeenUid, $syncedUids, $lowestSkippedUid)) {
+                    $maxUid = max($maxUid, $uid);
+                }
+
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                continue;
+            }
 
             // A `lastSeenUid+1:*` range still returns the highest-UID message when
             // nothing newer exists (`*` clamps to it), so every run re-delivers the
@@ -518,6 +638,55 @@ class MessageSyncer
     }
 
     /**
+     * A message the library could not build from what the server sent: held
+     * for a retry like one that would not store, and let go on the same count.
+     *
+     * These never used to get here. The library threw while it was fetching
+     * the page, the page never arrived, and the retry-then-skip below was
+     * never told there was anything to count — which is how one message with
+     * a header the parser disliked stopped a folder for good (#45).
+     *
+     * A UID this folder already holds is not a failure, whatever the library
+     * made of it this time: `lastSeenUid+1:*` re-delivers the newest message
+     * on every run, and a message that is stored was once read.
+     *
+     * @param array<int,bool> $syncedUids
+     *
+     * @return bool whether the mark may pass this UID — it is already held, or
+     *              it has failed often enough to be given up
+     */
+    private function holdUnreadable(
+        Mailbox    $mailbox,
+        int        $uid,
+        \Throwable $reason,
+        int        $lastSeenUid,
+        array      $syncedUids,
+        ?int       &$lowestSkippedUid,
+    ): bool {
+        if ($uid <= $lastSeenUid || true === isset($syncedUids[$uid])) {
+            return true;
+        }
+
+        $retrying = $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+
+        $this->logger->error(
+            true === $retrying
+                ? 'Could not read a message the server sent; it is asked for again next sync'
+                : 'Could not read a message the server sent, too many times; skipping it for good',
+            [
+                'uid'       => $uid,
+                'mailboxId' => $mailbox->id,
+                'mailbox'   => $mailbox->fullPath,
+                'attempts'  => $mailbox->failedUidAttempts,
+                'error'     => $reason->getMessage(),
+                'exception' => $reason,
+            ],
+        );
+
+        return false === $retrying;
+    }
+
+    /**
      * Keep a UID that could not be stored inside the next sync's range — up to
      * a point.
      *
@@ -537,6 +706,19 @@ class MessageSyncer
      */
     private function holdForRetry(Mailbox $mailbox, int $uid, ?int &$lowestSkippedUid): bool
     {
+        // A page of history keeps no count here. The counter on the mailbox
+        // belongs to the top of the folder, where new mail arrives, and the
+        // importer is reading the bottom of the same folder from another
+        // worker: one ledger between them and a message failing at each end
+        // would take the count from the other on every pass. The importer
+        // counts by the page instead — see ImapMailboxImporter — and all it
+        // needs from here is to be told that something was held.
+        if (true === $this->importing) {
+            $lowestSkippedUid = null === $lowestSkippedUid ? $uid : min($lowestSkippedUid, $uid);
+
+            return true;
+        }
+
         if (null !== $lowestSkippedUid && $lowestSkippedUid < $uid) {
             return true;
         }
@@ -789,9 +971,15 @@ class MessageSyncer
 
         $message->priority = $this->priorityOf($message->headers);
 
-        // Body
-        $message->bodyText = $imapMessage->getTextBody() ?? '';
-        $message->bodyHtml = $imapMessage->getHTMLBody() ?? '';
+        // Body. Past the guard although Utf8AwareMessageDecoder already ends
+        // in it, because the decoder is not always asked: webklex skips
+        // convertEncoding() for a part labelled us-ascii, on the reasoning
+        // that ASCII is UTF-8 already. The label is the sender's claim and not
+        // a fact — "charset=us-ascii" over 8-bit German text is what a mailer
+        // writes when nobody configured it — so a raw 0xFC went to the column
+        // as it came and the INSERT was refused (#81).
+        $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
+        $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
 
         // Attachments
         $attachments = $imapMessage->getAttachments();
@@ -974,14 +1162,21 @@ class MessageSyncer
 
         $part = new MessagePart();
         $part->message     = $message;
-        $part->contentType = $attachment->getContentType() ?? 'application/octet-stream';
+        // Both of these are tokens a mailer writes and neither is decoded by
+        // anything on the way here, so a raw 8-bit byte in one refused the
+        // part's INSERT, and the message with it (#81). The id is repaired
+        // before it is compared with the body, which went through the same
+        // repair, so a `cid:` reference still finds its part.
+        $part->contentType = CharsetHelper::ensureUtf8($attachment->getContentType() ?? 'application/octet-stream');
         $part->filename    = $filename;
         $part->size        = strlen($content);
         $part->storagePath = $storagePath;
 
         // getId() falls back to a content hash when the part has no Content-ID,
         // so it only counts as a cid when the HTML body actually references it.
-        $normalizedCid = $this->inlineDetector->normalizeContentId((string) $attachment->getId());
+        $normalizedCid = $this->inlineDetector->normalizeContentId(
+            CharsetHelper::ensureUtf8((string) $attachment->getId()),
+        );
         $isInline      = $this->inlineDetector->isInline(
             $attachment->getDisposition(),
             $normalizedCid,

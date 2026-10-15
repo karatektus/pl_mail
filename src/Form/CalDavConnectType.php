@@ -9,7 +9,6 @@ use App\Entity\Mail\Account;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -99,15 +98,14 @@ final class CalDavConnectType extends AbstractType
             // Write-only, like every other credential field here: blank keeps
             // what is stored, so renaming a connection does not require
             // re-pasting an app password the user no longer has.
-            ->add('secret', PasswordType::class, [
+            ->add('secret', SecretType::class, [
                 'label'    => 'settings.calendars.caldav.field.secret',
                 'help'     => 'settings.calendars.caldav.field.secret_help',
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
-                    'autocomplete' => 'off',
                     'placeholder'  => true === $isNew ? '' : 'settings.integrations.field.secret_unchanged',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
             ]);
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->assertCredential(...));
