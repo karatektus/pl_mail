@@ -1,0 +1,68 @@
+# Area labels for pull requests, from the files they touch — applied by
+# pr-hygiene.yml. So that somebody who knows the Gmail sync can find the
+# pull requests that change it without reading every title.
+#
+# Broad on purpose: a label that is sometimes one too many is cheap, one that
+# is missing is how a change slips past the person who would have caught it.
+# `area: mobile` is not here — what is "mobile" is a question about layout,
+# not about a directory — and is set by hand.
+
+"area: mail":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Controller/Mail/**
+                - src/Service/Mail/**
+                - src/Repository/Mail/**
+                - src/Entity/Mail/**
+                - templates/mail/**
+                - templates/thread/**
+                - assets/controllers/mail/**
+
+"area: calendar":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/**/Calendar/**
+                - templates/calendar/**
+                - assets/controllers/calendar/**
+
+"area: gmail":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Service/Gmail/**
+                - src/**/Gmail*
+
+"area: outlook":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Service/Graph/**
+                - src/**/Graph*
+
+"area: imap":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Service/Imap/**
+                - src/**/Imap*
+
+"area: settings":
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Controller/Settings/**
+                - templates/settings/**
+                - assets/controllers/settings/**
+
+"area: install":
+    - changed-files:
+          - any-glob-to-any-file:
+                - Dockerfile
+                - compose*.yaml
+                - truenas.compose.yaml
+                - docker/**
+                - docs/install/**
+                - .github/workflows/docker.yml
+
+documentation:
+    - changed-files:
+          - any-glob-to-any-file:
+                - docs/**
+                - README.md
+                - CONTRIBUTING.md

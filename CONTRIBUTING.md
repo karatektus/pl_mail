@@ -3,6 +3,43 @@
 Development setup, test suites and console reference. For installing and running plMail, see the
 [README](README.md).
 
+## How work gets in
+
+**Issue first, then code.** Every change starts as an issue somebody agreed to, and every pull
+request says which one it finishes. Pull requests used to arrive as code with no agreed problem
+behind them, and some had to be redone or closed because the problem had been solved another way
+in the meantime. An issue costs a paragraph; a rejected pull request costs the work in it.
+
+1. **Open an issue** with the Bug or Feature form. Questions about running plMail go to
+   [Discussions](https://github.com/karatektus/pl_mail/discussions). A new issue is labelled
+   `needs-triage`.
+2. **A maintainer triages it**: `accepted` means it may be worked on, `needs-info` means a question
+   is waiting for you, `wontfix` means no, with the reason. Accepted work gets a milestone, or stays
+   in the backlog, which is having none.
+3. **Say you are taking it**, in a comment, so two people do not build the same thing.
+4. **Open a pull request** against `main` that says `Closes #N`. The template lists what review
+   checks; CONTRIBUTING's sections below say how to run each.
+
+**A feature needs an `accepted` issue before it is built.** That is where it is agreed whether
+plMail wants it, where it lives, and whether it is a setting. A setting that changes how plMail
+behaves for everybody starts off. **A bug fix may come straight as a pull request** if its
+description says what the bug was; an issue is still welcome. A large feature — a new provider, a
+new section of the app — gets a short design in its issue before any code.
+
+**Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
+an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue
+it closes. A release is a milestone with nothing left open, closed when it is tagged (see
+[Releasing](#releasing)).
+
+**Labels**: one type — `bug`, `enhancement`, `documentation`, `chore` — a status from triage, and
+one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
+Pull requests get their area labels from the files they touch
+(`.github/labeler.yml`), and a check notes a pull request that links no issue.
+
+**`main` is protected.** Everything reaches it through a pull request with green checks, the
+maintainers' own changes included, and is squash-merged. The production image follows `main`, so
+this is what keeps an unreviewed commit off running installs.
+
 ## Stack
 
 | Layer | Technology |
@@ -287,9 +324,12 @@ That makes the tag the only gate there is, and two things have to be true before
   for: pull one onto the production install, let the migrations run against real data, and read
   mail with it. The suites start from an empty database every time; an upgrade never does.
 
-Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date`, commit it as
-`Release vX.Y.Z`, tag that commit and push both. The release commit changes the changelog and
-nothing else, so what was tested is what is tagged.
+Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date` in a pull
+request titled `Release vX.Y.Z` — `main` is protected, so the release commit goes through one like
+everything else — merge it, tag the commit it made on `main` and push the tag. The release commit
+changes the changelog and nothing else, so what was tested is what is tagged. Then close the
+milestone of that name, moving anything still open in it to the next one (see
+[How work gets in](#how-work-gets-in)).
 
 Things that steer what the catalogue receives:
 
@@ -897,21 +937,7 @@ each.
 
 ## Roadmap
 
-- [x] Complete the label-based architecture refactor (Label as the user-facing concept; Mailbox demoted to IMAP sync infrastructure)
-- [x] Sanitize rendered HTML bodies
-- [x] Full-text search
-- [x] Microsoft OAuth2 / Graph send support
-- [x] Nested label UI — `Label::$parent`, `LabelRepository::findVisibleTreeForUser()`, and the recursive tree in `_partials/_sidebar.html.twig`
-- [x] Snooze — `ThreadSnoozeService`, `app:mail:wake-snoozed`, and the `Thread/set` JMAP extension
-- [x] Calendar alerts — RFC 8984 `alerts` on the event, `app:calendar:alerts` every minute, delivered over the existing Web Push stack or as mail; see "Calendar alerts"
-- [ ] Gmail-native `threadId` threading (the id is carried on `Message`, but threading is still RFC Message-ID based)
-- [ ] Incoming IMAP flag sync over the IDLE stream — flags currently travel outward only, so marking a message read in another client does not reflect back
-- [ ] Avatar fetching (partially done: `Service/User/AvatarFromIntegration.php`; still needs OAuth avatar scopes)
-- [ ] Per-identity signatures — no `signature` field exists on `User`, `Account` or `EmailAlias`
-- [ ] Password reset for somebody who cannot sign in (still console-only, `app:user:password`, which is why
-      the login form offers no link). Changing your own password from Settings → Security is done — that is a
-      different problem, and finishing it does not tick this one
-
-> Keep this honest. Three items above were finished long before anyone ticked
-> them, and a roadmap that under-reports is worse than none — it is the document
-> a contributor reads to decide what to pick up.
+The roadmap is the issue tracker: open issues labelled `accepted`, by
+[milestone](https://github.com/karatektus/pl_mail/milestones), and the backlog with none. It used
+to be a checklist here, which three finished items sat unticked in for months; the items still open
+moved to issues #126–#130.
