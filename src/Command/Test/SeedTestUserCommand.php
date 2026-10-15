@@ -59,7 +59,8 @@ final class SeedTestUserCommand extends Command
             ->addOption('admin', null, InputOption::VALUE_NONE, 'Seed with ROLE_ADMIN as well')
             ->addOption('pending-onboarding', null, InputOption::VALUE_NONE, 'Leave setup unfinished so the wizard opens on first page load')
             ->addOption('stretched', null, InputOption::VALUE_NONE, 'Store the password as an already-moved account would: stretched here, as a browser would')
-            ->addOption('change-required', null, InputOption::VALUE_NONE, 'Flag the password as chosen by somebody else, so the first sign-in asks for a new one');
+            ->addOption('change-required', null, InputOption::VALUE_NONE, 'Flag the password as chosen by somebody else, so the first sign-in asks for a new one')
+            ->addOption('without-password', null, InputOption::VALUE_NONE, 'No usable password, as single sign-on creates an account: the keyring then hangs off an encryption passphrase');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -119,6 +120,16 @@ final class SeedTestUserCommand extends Command
             );
         } else {
             $user->useServerHashedPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+        }
+
+        // An account single sign-on made: the empty hash OidcUserResolver
+        // writes, and an identity at a provider that does not exist. Such an
+        // account is signed in through `app:test:remember-me`, since the form
+        // cannot sign it in.
+        if (true === $input->getOption('without-password')) {
+            $user->password    = '';
+            $user->oidcIssuer  = 'https://sso.plmail.test';
+            $user->oidcSubject = $email;
         }
 
         // Off unless asked for: the stored login the other specs share has to

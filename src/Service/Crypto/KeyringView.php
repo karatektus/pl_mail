@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Crypto;
 
 use App\Domain\DTO\Crypto\WkdEntry;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\AddressKeyBinding;
 use App\Entity\Crypto\SmimeCertificate;
@@ -15,6 +16,7 @@ use App\Repository\Crypto\AddressKeyRepository;
 use App\Repository\Crypto\SmimeCertificateRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
+use App\Security\PasswordKdf;
 use App\Service\Demo\DemoMode;
 use DateTimeInterface;
 
@@ -23,10 +25,11 @@ use DateTimeInterface;
  * addresses keys may be made for.
  *
  * Handed only to the person it belongs to, and holding nothing the server can
- * open — the user keys are wrapped under the password, the address keys under
- * passphrases wrapped under those, the S/MIME keys directly under the user
- * keys. Sending all of it on every load is what lets any browser the person
- * signs in on open the keyring with no more than the password.
+ * open — the user keys are wrapped under the password (or the encryption
+ * passphrase, see KeyringRoot), the address keys under passphrases wrapped
+ * under those, the S/MIME keys directly under the user keys. Sending all of it
+ * on every load is what lets any browser the person signs in on open the
+ * keyring with no more than that one secret.
  */
 final readonly class KeyringView
 {
@@ -38,6 +41,7 @@ final readonly class KeyringView
         private SmimeCertificateRepository $smimeCertificates,
         private WkdDirectory               $wkd,
         private DemoMode                   $demoMode,
+        private PasswordKdf                $kdf,
     ) {
     }
 
@@ -53,6 +57,12 @@ final readonly class KeyringView
             'kdf'               => true === $user->hasClientDerivedPassword()
                 ? ['salt' => $user->kdfSalt, 'iterations' => $user->kdfIterations]
                 : null,
+            // Which secret opens the keyring, and how to stretch it — so a
+            // browser or an app knows whether to ask for the password or the
+            // encryption passphrase, and can derive the key from either the
+            // same way. See rootKdf() for the shapes.
+            'root'              => $user->keyringRootInEffect->value,
+            'rootKdf'           => $this->rootKdf($user),
             'addresses'         => $this->keyring->ownedAddresses($user),
             'userKeys'          => array_map($this->userKey(...), $this->userKeys->findForUser($user)),
             'copies'            => array_map($this->copy(...), $this->copies->findForUser($user)),
@@ -63,6 +73,29 @@ final readonly class KeyringView
             // the directory from outside. Public facts, unlike the rest.
             'wkd'               => array_map($this->wkdEntry(...), $this->wkd->entriesFor($user)),
         ];
+    }
+
+    /**
+     * The KDF parameters of the root in effect.
+     *
+     * On the password, what `kdf` holds: null while the stored hash is still
+     * of the password itself, which the prelogin answers for instead. On the
+     * passphrase, its own salt and count once it is set up; before that a
+     * null salt, and the iteration count setting it up has to use.
+     *
+     * @return array{salt: ?string, iterations: int}|null
+     */
+    private function rootKdf(User $user): ?array
+    {
+        if (KeyringRoot::Password === $user->keyringRootInEffect) {
+            return true === $user->hasClientDerivedPassword()
+                ? ['salt' => $user->kdfSalt, 'iterations' => (int) $user->kdfIterations]
+                : null;
+        }
+
+        return KeyringRoot::Passphrase === $user->keyringRoot && null !== $user->passphraseSalt
+            ? ['salt' => $user->passphraseSalt, 'iterations' => (int) $user->passphraseIterations]
+            : ['salt' => null, 'iterations' => $this->kdf->iterations];
     }
 
     /** @return array<string, mixed> */

@@ -2,12 +2,13 @@ import { PURPOSE, hasSubtle, open, randomBytes, seal, toBase64 } from "./aead.js
 import { deviceKey, deviceLabel } from "./device.js";
 import { newPhrase, phraseKey } from "./recovery_phrase.js";
 import * as session from "./session.js";
-import { derivePasswordSecrets } from "../password_kdf.js";
+import { derivePasswordSecrets, newSalt } from "../password_kdf.js";
 
 /**
  * A person's keyring, opened in their browser.
  *
- *     user key   32 random bytes, wrapped under the password-derived wrap key
+ *     user key   32 random bytes, wrapped under the wrap key derived from the
+ *                root: the password, or an encryption passphrase
  *     address    OpenPGP keys, each locked with a random passphrase ("token")
  *     keys       that is wrapped under the user key
  *     copies     the user key wrapped under a recovery phrase or a device key
@@ -25,6 +26,14 @@ import { derivePasswordSecrets } from "../password_kdf.js";
  * passed in by URL, and nothing in this phase is slow enough to block the page
  * — generating a Curve25519 key takes milliseconds. Decrypting large mail in
  * phase 3 is when a worker earns its keep.
+ *
+ * The root (state.root) is the login password for every account that has one,
+ * and an encryption passphrase for an account that signs in only through
+ * single sign-on (phase 6e). Both are stretched the same way, each with its own
+ * salt; only the password can be checked by the server. Nothing is asked at
+ * sign-in on a session the password form did not open: the keyring stays shut
+ * until something needs it, and requireOpen() then asks once, through the
+ * shared dialog (crypto/unlock_dialog.js), for whichever secret applies.
  *
  * One instance per page: keyring() below.
  */
@@ -49,7 +58,11 @@ export class Keyring {
     /** @type {object|null} the server's KeyringView */
     state = null;
 
-    /** @type {"disabled"|"insecure"|"locked"|"open"|"broken"|"unknown"} */
+    /**
+     * "unset": an account on the passphrase that has not set encryption up.
+     *
+     * @type {"disabled"|"insecure"|"unset"|"locked"|"open"|"broken"|"unknown"}
+     */
     status = "unknown";
 
     #config;
@@ -64,6 +77,8 @@ export class Keyring {
     #openedSmimeKeys = new Map();
     /** @type {Promise|null} the one ensure() of this page */
     #ensuring = null;
+    /** @type {Promise<boolean>|null} the dialog requireOpen() is waiting on */
+    #asking = null;
 
     constructor(config) {
         this.#config = { ...config };
@@ -124,23 +139,152 @@ export class Keyring {
             return this.#settle("insecure");
         }
 
+        // Made on purpose, in Settings → Encryption, and nowhere else: a
+        // passphrase is something the person chooses, and until they have
+        // there is nothing to open and nothing to say about it.
+        if ("passphrase" === this.root && 0 === this.state.userKeys.length) {
+            return this.#settle("unset");
+        }
+
         this.#wrapKey ??= await session.recall(this.#config.unlockUrl);
 
-        if (null === this.#wrapKey || null === this.state.kdf) {
+        // On the password, a session whose hash is still of the password
+        // itself has nothing a stored wrap key could have come from.
+        if (null === this.#wrapKey || ("password" === this.root && null === this.state.kdf)) {
             return this.#settle("locked");
         }
 
         return this.#afterUnlock();
     }
 
+    /** What the keyring hangs off: "password" or "passphrase". */
+    get root() {
+        return this.state?.root ?? "password";
+    }
+
     /**
-     * Opens the keyring with the password, for a session the sign-in did not
-     * leave unlocked — a remember-me cookie, the install wizard.
+     * The keyring, open — asking for the password or the passphrase if this
+     * session has not opened it yet. For whatever needs it now: an encrypted
+     * message, a draft about to be sealed, Settings → Encryption, pairing.
      *
-     * @param {string} password
+     * One dialog however many ask at once: a thread of five encrypted
+     * messages asks once, and all five wait on the answer. Cancelling it
+     * resolves them all with the keyring still shut, which each shows the way
+     * it always showed a locked keyring.
+     *
      * @returns {Promise<{status: string, created: boolean, recovered: number}>}
      */
-    async unlock(password) {
+    async requireOpen() {
+        let result;
+
+        try {
+            result = await this.ensure();
+        } catch {
+            return this.#settle("broken");
+        }
+
+        if ("locked" !== result.status) {
+            return result;
+        }
+
+        this.#asking ??= import("./unlock_dialog.js")
+            .then(({ askToUnlock }) => askToUnlock(this))
+            .catch(() => false)
+            .finally(() => { this.#asking = null; });
+
+        await this.#asking;
+
+        return "open" === this.status ? this.#ensuring : result;
+    }
+
+    /**
+     * Opens the keyring with its root's secret, for a session the sign-in did
+     * not leave unlocked — a remember-me cookie, single sign-on, the install
+     * wizard. Throws "wrong_password", "wrong_passphrase" or "rate_limited".
+     *
+     * @param {string} secret the password, or the encryption passphrase
+     * @returns {Promise<{status: string, created: boolean, recovered: number}>}
+     */
+    async unlock(secret) {
+        if (null === this.state) {
+            await this.refresh();
+        }
+
+        return this.#opened("passphrase" === this.root ? this.#unlockWithPassphrase(secret) : this.#unlockWithPassword(secret));
+    }
+
+    /**
+     * Sets encryption up on an account without a password: the first keyring,
+     * wrapped under a key stretched from the passphrase chosen here, with a
+     * salt of its own. The passphrase goes nowhere; the server gets the salt,
+     * the iteration count and the wrapped key, and keeps the session's half
+     * of the unlock so the person is not asked again for the rest of it.
+     *
+     * @param {string} passphrase
+     * @returns {Promise<{status: string, created: boolean, recovered: number}>}
+     */
+    async setUpPassphrase(passphrase) {
+        await this.refresh();
+
+        if ("passphrase" !== this.root || 0 < this.state.userKeys.length || null !== this.state.rootKdf?.salt) {
+            throw new Error("already_set_up");
+        }
+
+        const salt = newSalt();
+        const iterations = this.state.rootKdf.iterations;
+        const { wrapKey } = await derivePasswordSecrets(passphrase, salt, iterations);
+
+        return this.#opened((async () => {
+            this.#wrapKey = wrapKey;
+            await this.#create({ salt, iterations });
+            await this.#keepForSession(wrapKey);
+
+            return { ...await this.#afterUnlock(), created: true };
+        })());
+    }
+
+    /**
+     * A new encryption passphrase: every active user key opened with the
+     * current one and wrapped under the new one, here, and sent with the new
+     * salt. The login is not touched. Throws "wrong_passphrase" when the
+     * current one opens nothing.
+     *
+     * @param {string} current
+     * @param {string} next
+     */
+    async changePassphrase(current, next) {
+        await this.refresh();
+
+        const kdf = this.state.rootKdf;
+
+        if ("passphrase" !== this.root || null === kdf?.salt) {
+            throw new Error("no_passphrase");
+        }
+
+        const { wrapKey: oldKey } = await derivePasswordSecrets(current, kdf.salt, kdf.iterations);
+        const salt = newSalt();
+        const { wrapKey: newKey } = await derivePasswordSecrets(next, salt, kdf.iterations);
+        const rewrapped = {};
+
+        for (const userKey of this.#activeUserKeys()) {
+            let bytes;
+
+            try {
+                bytes = await open(oldKey, userKey.wrapped, PURPOSE.userKey);
+            } catch {
+                throw new Error("wrong_passphrase");
+            }
+
+            rewrapped[userKey.id] = await seal(newKey, bytes, PURPOSE.userKey);
+        }
+
+        await this.#post(this.#url("passphrase"), { passphrase: { salt, iterations: kdf.iterations }, rewrapped });
+
+        this.#wrapKey = newKey;
+        await session.replace(newKey, this.#config.unlockUrl);
+    }
+
+    async #unlockWithPassword(password) {
         const params = await this.#kdfParameters();
         const { authHash, wrapKey } = await derivePasswordSecrets(password, params.salt, params.iterations);
         const unlockKey = await session.remember(wrapKey);
@@ -160,6 +304,76 @@ export class Keyring {
         await this.refresh();
 
         return this.#afterUnlock();
+    }
+
+    /**
+     * There is no hash of the passphrase anywhere to check it against: it is
+     * right when it opens an active user key (AES-GCM refuses anything else),
+     * and only then is the session's half registered.
+     */
+    async #unlockWithPassphrase(passphrase) {
+        await this.refresh();
+
+        const kdf = this.state.rootKdf;
+
+        if (null === kdf?.salt) {
+            throw new Error("wrong_passphrase");
+        }
+
+        const { wrapKey } = await derivePasswordSecrets(passphrase, kdf.salt, kdf.iterations);
+        let opens = false;
+
+        for (const userKey of this.#activeUserKeys()) {
+            try {
+                await open(wrapKey, userKey.wrapped, PURPOSE.userKey);
+                opens = true;
+                break;
+            } catch {
+                // Not this one; a wrong passphrase opens none.
+            }
+        }
+
+        if (false === opens) {
+            throw new Error("wrong_passphrase");
+        }
+
+        await this.#keepForSession(wrapKey);
+        this.#wrapKey = wrapKey;
+
+        return this.#afterUnlock();
+    }
+
+    /**
+     * The session's half of the unlock for a keyring on the passphrase, which
+     * the server keeps without a proof — see UnlockController::session().
+     */
+    async #keepForSession(wrapKey) {
+        const unlockKey = await session.remember(wrapKey);
+        const response = await this.#post(`${this.#config.unlockUrl}/session`, { unlockKey }, false);
+
+        if (false === response.ok) {
+            session.forget();
+
+            throw new Error("unlock_refused");
+        }
+    }
+
+    /**
+     * An unlock that worked becomes this page's ensure() — every later caller
+     * gets the open keyring rather than the "locked" the page started with —
+     * and is announced, so what gave up on a shut keyring (the background
+     * decrypter, a message that showed it was locked) can try again.
+     */
+    async #opened(unlocking) {
+        const result = await unlocking;
+
+        this.#ensuring = Promise.resolve(result);
+
+        if ("open" === result.status) {
+            window.dispatchEvent(new CustomEvent("crypto:keyring", { detail: result }));
+        }
+
+        return result;
     }
 
     async refresh() {
@@ -573,7 +787,10 @@ export class Keyring {
      * rather than taken from memory, so a tab that never unlocked can still
      * change the password without losing a key.
      *
-     * @returns {Promise<Record<number, string>>}
+     * Null for a keyring on the passphrase: nothing hangs off the password,
+     * so its change carries no key and leaves the session's wrap key alone.
+     *
+     * @returns {Promise<Record<number, string>|null>}
      */
     async rewrapFor(currentPassword, newWrapKey) {
         // The page's own ensure() first: right after a first sign-in it may
@@ -582,6 +799,10 @@ export class Keyring {
         // a moment later, would rightly refuse.
         await this.ensure().catch(() => undefined);
         await this.refresh();
+
+        if ("passphrase" === this.root) {
+            return null;
+        }
 
         const active = this.#activeUserKeys();
 
@@ -616,6 +837,11 @@ export class Keyring {
             // wrong wrap key, and a new keyring would orphan the real one.
             if (0 < this.#activeUserKeys().length) {
                 return this.#settle("broken");
+            }
+
+            // Never by itself on the passphrase: setUpPassphrase() makes it.
+            if ("passphrase" === this.root) {
+                return this.#settle("unset");
             }
 
             await this.#create();
@@ -698,9 +924,12 @@ export class Keyring {
 
     /**
      * The first keyring: a user key, a key for every address, and this
-     * browser as a known device where it can be one.
+     * browser as a known device where it can be one. With the passphrase's
+     * salt and iteration count when the keyring hangs off one.
+     *
+     * @param {{salt: string, iterations: number}|null} passphrase
      */
-    async #create() {
+    async #create(passphrase = null) {
         const bytes = randomBytes(32);
         const wrapped = await seal(this.#wrapKey, bytes, PURPOSE.userKey);
         const addressKeys = [];
@@ -716,6 +945,7 @@ export class Keyring {
             addressKeys,
             deviceCopy: null === device ? null : await seal(device, bytes, PURPOSE.device),
             deviceLabel: null === device ? null : deviceLabel(),
+            ...(null === passphrase ? {} : { passphrase }),
         });
 
         const created = this.state.userKeys.find((userKey) => userKey.wrapped === wrapped);

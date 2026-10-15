@@ -2312,6 +2312,24 @@ encryption:
         saved: "Deine Recovery-Phrase ist eingerichtet. Erstelle eine neue, falls die alte jemand gesehen haben könnte."
         shown_once: "Schreib diese Wörter auf oder lade sie jetzt herunter — sie werden nur dieses eine Mal angezeigt. Wer sie hat, kann deine Schlüssel öffnen."
         subheading: "Zwölf Wörter, die deine Schlüssel öffnen, falls du dein Passwort vergisst. Ohne sie gehen verschlüsselte Mails mit dem Passwort verloren."
+    passphrase:
+        heading: "Verschlüsselungs-Passphrase"
+        subheading: "Sie öffnet deine Schlüssel. Deine Anmeldung bleibt unberührt, wenn du sie änderst."
+        current: "Aktuelle Passphrase"
+        new: "Neue Passphrase"
+        repeat: "Neue Passphrase wiederholen"
+        submit: "Passphrase ändern"
+        done: "Passphrase geändert. Ab jetzt gilt die neue."
+    setup:
+        heading: "Verschlüsselung einrichten"
+        intro: "Wähle eine Verschlüsselungs-Passphrase. Sie schützt deine Schlüssel und wird einmal pro Sitzung abgefragt, wenn etwas sie zum ersten Mal braucht. Sie ist nicht das Passwort deines Anmeldedienstes und verlässt diesen Browser nie."
+        warning: "plMail kann diese Passphrase nicht zurücksetzen. Vergisst du sie, öffnet nur deine Recovery-Phrase — erstelle sie gleich danach — oder ein Browser, den du schon benutzt hast, deine verschlüsselten Mails wieder. Ohne beides sind diese Mails verloren."
+        passphrase: "Verschlüsselungs-Passphrase"
+        repeat: "Passphrase wiederholen"
+        submit: "Verschlüsselung einrichten"
+        too_short: "Mindestens %min% Zeichen."
+        mismatch: "Die beiden Passphrasen stimmen nicht überein."
+        done: "Die Verschlüsselung ist eingerichtet. Erstelle als Nächstes eine Recovery-Phrase."
     status:
         broken: "Deine Schlüssel ließen sich nicht öffnen. Melde dich ab und wieder an; hilft das nicht, findet eine Administratorin den Grund im Log."
         disabled: "Auf dieser Installation nicht verfügbar."
@@ -2320,13 +2338,23 @@ encryption:
         key_count: "Aktive Schlüssel: %keys% · Adressen: %addresses%"
         loading: "Deine Schlüssel werden geöffnet …"
         locked: "In diesem Browser gesperrt. Gib dein Passwort ein, um sie zu entsperren."
+        locked_passphrase: "In diesem Browser gesperrt. Gib deine Verschlüsselungs-Passphrase ein, um sie zu entsperren."
         open: "Eingerichtet und in diesem Browser entsperrt."
         subheading: "Mails, die nur du und die Menschen lesen können, denen du schreibst — nicht dieser Server und nicht dein Mail-Anbieter."
+        unset: "Noch nicht eingerichtet. Du meldest dich über Single Sign-on an, deshalb brauchen deine Schlüssel eine eigene Passphrase — wähle unten eine."
     unlock:
-        label: "Passwort"
         rate_limited: "Zu viele Versuche. Warte ein paar Minuten und versuche es dann noch einmal."
         submit: "Entsperren"
         wrong_password: "Das ist nicht dein Passwort."
+    unlock_dialog:
+        heading: "Schlüssel entsperren"
+        password_intro: "Dafür werden deine Schlüssel gebraucht. Gib dein Passwort ein, um sie zu öffnen — einmal, für den Rest dieser Sitzung."
+        passphrase_intro: "Dafür werden deine Schlüssel gebraucht. Gib deine Verschlüsselungs-Passphrase ein, um sie zu öffnen — einmal, für den Rest dieser Sitzung. Sie ist nicht das Passwort deines Anmeldedienstes."
+        password_label: "Passwort"
+        passphrase_label: "Verschlüsselungs-Passphrase"
+        wrong_passphrase: "Diese Passphrase öffnet deine Schlüssel nicht."
+        cancel: "Nicht jetzt"
+        submit: "Entsperren"
 
 errors:
     page:

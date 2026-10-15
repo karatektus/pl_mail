@@ -8,6 +8,11 @@ key for any address that lacks one — then, at most once per tab, says what is
 changed under the person: keys reopened from this browser, or old keys only a
 phrase can reopen. A missing phrase is said on Settings → Encryption instead.
 
+Silent on a session the password form did not open: the keyring simply
+stays shut, and the first thing that needs it asks through the unlock dialog
+included below (crypto/_unlock_dialog.html.twig). An account on the encryption
+passphrase that has not set encryption up gets nothing here at all.
+
 Not on a demo, and not while a password somebody else chose is waiting to be
 replaced: a keyring hung off that password would be one the chooser could open.
 #}
@@ -26,6 +31,8 @@ replaced: a keyring hung off that password would be one the chooser could open.
              recovered:     'encryption.nag.recovered'|trans,
              action:        'encryption.nag.action'|trans,
          }|json_encode }}"></div>
+
+    {% include 'crypto/_unlock_dialog.html.twig' %}
 
     {# For a person with an account that keeps decrypted mail on the server:
        decrypts that account's encrypted mail in the background and hands it

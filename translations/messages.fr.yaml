@@ -2322,6 +2322,24 @@ encryption:
         saved: Votre phrase de récupération est en place. Créez-en une nouvelle si l’ancienne a pu être vue.
         shown_once: Notez ces mots ou téléchargez-les maintenant — ils ne sont affichés qu’une fois. Quiconque les possède peut ouvrir vos clés.
         subheading: Douze mots qui ouvrent vos clés si vous oubliez un jour votre mot de passe. Sans eux, le courrier chiffré est perdu avec le mot de passe.
+    passphrase:
+        heading: "Phrase de passe de chiffrement"
+        subheading: "Elle ouvre vos clés. La changer ne change rien à votre connexion."
+        current: "Phrase de passe actuelle"
+        new: "Nouvelle phrase de passe"
+        repeat: "Répétez la nouvelle phrase de passe"
+        submit: "Changer la phrase de passe"
+        done: "Phrase de passe changée. Utilisez désormais la nouvelle."
+    setup:
+        heading: "Configurer le chiffrement"
+        intro: "Choisissez une phrase de passe de chiffrement. Elle protège vos clés et vous est demandée une fois par session, lorsque quelque chose en a besoin pour la première fois. Ce n’est pas le mot de passe de votre fournisseur d’identité, et elle ne quitte jamais ce navigateur."
+        warning: "plMail ne peut pas réinitialiser cette phrase de passe. Si vous l’oubliez, seule votre phrase de récupération — créez-la juste après — ou un navigateur déjà utilisé rouvre votre courrier chiffré. Sans l’une ni l’autre, ce courrier est perdu."
+        passphrase: "Phrase de passe de chiffrement"
+        repeat: "Répétez la phrase de passe"
+        submit: "Configurer le chiffrement"
+        too_short: "Au moins %min% caractères."
+        mismatch: "Les deux phrases de passe ne correspondent pas."
+        done: "Le chiffrement est configuré. Créez maintenant une phrase de récupération."
     status:
         broken: Vos clés n’ont pas pu être ouvertes. Déconnectez-vous puis reconnectez-vous ; si cela ne suffit pas, un administrateur trouvera la raison dans le journal.
         disabled: Non disponible sur cette installation.
@@ -2330,13 +2348,23 @@ encryption:
         key_count: 'Clés actives : %keys% · Adresses : %addresses%'
         loading: Ouverture de vos clés…
         locked: Verrouillé dans ce navigateur. Saisissez votre mot de passe pour le déverrouiller.
+        locked_passphrase: "Verrouillé dans ce navigateur. Saisissez votre phrase de passe de chiffrement pour le déverrouiller."
         open: Configuré, et déverrouillé dans ce navigateur.
         subheading: Du courrier que seuls vous et vos correspondants pouvez lire — ni ce serveur, ni votre fournisseur de messagerie.
+        unset: "Pas encore configuré. Vous vous connectez par authentification unique ; vos clés ont donc besoin d’une phrase de passe à elles — choisissez-en une ci-dessous."
     unlock:
-        label: Mot de passe
         rate_limited: Trop de tentatives. Patientez quelques minutes et réessayez.
         submit: Déverrouiller
         wrong_password: Ce n’est pas votre mot de passe.
+    unlock_dialog:
+        heading: "Déverrouiller vos clés"
+        password_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre mot de passe pour les ouvrir — une seule fois, pour le reste de cette session."
+        passphrase_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre phrase de passe de chiffrement pour les ouvrir — une seule fois, pour le reste de cette session. Ce n’est pas le mot de passe de votre fournisseur d’identité."
+        password_label: "Mot de passe"
+        passphrase_label: "Phrase de passe de chiffrement"
+        wrong_passphrase: "Cette phrase de passe n’ouvre pas vos clés."
+        cancel: "Pas maintenant"
+        submit: "Déverrouiller"
 
 errors:
     page:

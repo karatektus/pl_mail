@@ -79,6 +79,29 @@ final class KeysCapabilityTest extends JmapTestCase
         $this->method(KeyringGetMethod::class)->handle(['accountId' => $this->accountId()], $this->context());
     }
 
+    /**
+     * The app has to know which secret to ask for (phase 6e): the password,
+     * or — on an account single sign-on made — the encryption passphrase,
+     * with the salt and count to stretch it with.
+     */
+    public function testKeyringGetNamesTheRootAndHowToStretchIt(): void
+    {
+        $keyring = $this->method(KeyringGetMethod::class)->handle([], $this->context())['list'][0];
+
+        self::assertSame('password', $keyring['root']);
+        self::assertSame($keyring['kdf'], $keyring['rootKdf']);
+
+        $salt = base64_encode(random_bytes(16));
+        $this->user->password = '';
+        $this->user->usePassphraseRoot($salt, 700000);
+        $this->em->flush();
+
+        $keyring = $this->method(KeyringGetMethod::class)->handle([], $this->context())['list'][0];
+
+        self::assertSame('passphrase', $keyring['root']);
+        self::assertSame(['salt' => $salt, 'iterations' => 700000], $keyring['rootKdf']);
+    }
+
     public function testContactKeysAreListedAndLookedUp(): void
     {
         $contact = new Gpg('friend@example.test');

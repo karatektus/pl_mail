@@ -2307,6 +2307,24 @@ encryption:
         saved: "Your recovery phrase is set up. Make a new one if the old one may have been seen."
         shown_once: "Write these words down or download them now — they are shown only once. Anyone who has them can open your keys."
         subheading: "Twelve words that open your keys if you ever forget your password. Without them, encrypted mail is lost with the password."
+    passphrase:
+        heading: "Encryption passphrase"
+        subheading: "What opens your keys. Changing it does not change how you sign in."
+        current: "Current passphrase"
+        new: "New passphrase"
+        repeat: "Repeat the new passphrase"
+        submit: "Change passphrase"
+        done: "Passphrase changed. Use the new one from now on."
+    setup:
+        heading: "Set up encryption"
+        intro: "Choose an encryption passphrase. It protects your keys and is asked for once per session, when something first needs them. It is not the password of your sign-in provider, and it never leaves this browser."
+        warning: "plMail cannot reset this passphrase. If you forget it, only your recovery phrase — create one right after this — or a browser you used before opens your encrypted mail again. Without either, that mail is lost."
+        passphrase: "Encryption passphrase"
+        repeat: "Repeat the passphrase"
+        submit: "Set up encryption"
+        too_short: "At least %min% characters."
+        mismatch: "The two passphrases do not match."
+        done: "Encryption is set up. Create a recovery phrase next."
     status:
         broken: "Your keys could not be opened. Sign out and in again; if that does not help, an administrator finds the reason in the log."
         disabled: "Not available on this installation."
@@ -2315,13 +2333,23 @@ encryption:
         key_count: "Active keys: %keys% · Addresses: %addresses%"
         loading: "Opening your keys…"
         locked: "Locked in this browser. Enter your password to unlock it."
+        locked_passphrase: "Locked in this browser. Enter your encryption passphrase to unlock it."
         open: "Set up, and unlocked in this browser."
         subheading: "Mail only you and the people you write to can read — not this server, not your mail provider."
+        unset: "Not set up yet. You sign in through single sign-on, so your keys need a passphrase of their own — choose one below."
     unlock:
-        label: "Password"
         rate_limited: "Too many attempts. Wait a few minutes and try again."
         submit: "Unlock"
         wrong_password: "That is not your password."
+    unlock_dialog:
+        heading: "Unlock your encryption keys"
+        password_intro: "This needs your encryption keys. Enter your password to open them — once, for the rest of this session."
+        passphrase_intro: "This needs your encryption keys. Enter your encryption passphrase to open them — once, for the rest of this session. It is not the password of your sign-in provider."
+        password_label: "Password"
+        passphrase_label: "Encryption passphrase"
+        wrong_passphrase: "That passphrase does not open your keys."
+        cancel: "Not now"
+        submit: "Unlock"
 
 errors:
     page:

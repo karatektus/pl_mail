@@ -24,6 +24,7 @@ use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Backup\ConfigBackupDatabase;
 use App\Service\Backup\ConfigBackupUsers;
+use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Embedded;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -110,24 +111,7 @@ final class ConfigBackupCompletenessTest extends TestCase
      */
     public function testEveryUserEmbeddableIsCarried(): void
     {
-        $exported = new ConfigBackupUsers(
-            self::createStub(UserRepository::class),
-            self::createStub(AccountRepository::class),
-            self::createStub(ApiTokenRepository::class),
-            self::createStub(IntegrationRepository::class),
-            self::createStub(LabelRepository::class),
-            self::createStub(MailRuleRepository::class),
-            self::createStub(CalendarRepository::class),
-            self::createStub(CalendarShareLinkRepository::class),
-            self::createStub(BookingPageRepository::class),
-            self::createStub(InboxCategoryRepository::class),
-            self::createStub(UserKeyRepository::class),
-            self::createStub(UserKeyCopyRepository::class),
-            self::createStub(AddressKeyRepository::class),
-            self::createStub(ContactKeyRepository::class),
-            self::createStub(SmimeCertificateRepository::class),
-            self::createStub(ContactCertificateRepository::class),
-        )->exportUser(new User());
+        $exported = $this->exporter()->exportUser(new User());
 
         $embedded = array_filter(
             new ReflectionClass(User::class)->getProperties(),
@@ -148,6 +132,55 @@ final class ConfigBackupCompletenessTest extends TestCase
                 ),
             );
         }
+    }
+
+    /**
+     * Everything a browser needs to derive the key a keyring hangs off
+     * travels: the password's KDF salt and count, the root (phase 6e), and
+     * the encryption passphrase's salt and count.
+     *
+     * Discovered by column name rather than listed, because the defect this
+     * guards against is a fourth column of the same kind added next to these
+     * and never carried — and its cost is not a missing preference but a
+     * keyring, restored blob for blob, that no browser can open again. Each
+     * column gets a value no other has, and the value has to be somewhere in
+     * the exported document.
+     */
+    public function testEveryColumnAKeyringIsDerivedFromIsCarried(): void
+    {
+        $user = new User();
+        $user->useClientDerivedPassword('a-hash', 'a2RmLXNhbHQta2RmLXNhbHQ=', 600001);
+        $user->usePassphraseRoot('cGhyYXNlLXNhbHQtcGhyYXNl', 700001);
+
+        $exported = json_encode($this->exporter()->exportUser($user), JSON_THROW_ON_ERROR);
+        $columns  = 0;
+
+        foreach (new ReflectionClass(User::class)->getProperties() as $property) {
+            $column = $property->getAttributes(Column::class)[0] ?? null;
+            $name   = $column?->getArguments()['name'] ?? null;
+
+            if (false === is_string($name) || 1 !== preg_match('/^(kdf|passphrase|keyring)_/', $name)) {
+                continue;
+            }
+
+            ++$columns;
+            $value = $property->getValue($user);
+            $value = $value instanceof \BackedEnum ? $value->value : $value;
+
+            self::assertStringContainsString(
+                json_encode($value, JSON_THROW_ON_ERROR),
+                $exported,
+                sprintf(
+                    'User::$%s (%s) is part of how a keyring is opened, and a config backup does not carry it. '
+                    . 'Export it in ConfigBackupUsers::exportUser() and restore it in ConfigBackupUserRestorer, '
+                    . 'or a restored keyring is one nobody can open.',
+                    $property->getName(),
+                    $name,
+                ),
+            );
+        }
+
+        self::assertSame(5, $columns, 'the keyring columns on User changed — is the name pattern still right?');
     }
 
     /**
@@ -190,6 +223,33 @@ final class ConfigBackupCompletenessTest extends TestCase
                 . 'because a section that does not exist produces no row on the review page.',
                 $key,
             ),
+        );
+    }
+
+    /**
+     * The exporter over stubs: exportUser() reads the user off the entity, and
+     * every repository it also consults answers "none" for a user that was
+     * never persisted — which is the right answer.
+     */
+    private function exporter(): ConfigBackupUsers
+    {
+        return new ConfigBackupUsers(
+            self::createStub(UserRepository::class),
+            self::createStub(AccountRepository::class),
+            self::createStub(ApiTokenRepository::class),
+            self::createStub(IntegrationRepository::class),
+            self::createStub(LabelRepository::class),
+            self::createStub(MailRuleRepository::class),
+            self::createStub(CalendarRepository::class),
+            self::createStub(CalendarShareLinkRepository::class),
+            self::createStub(BookingPageRepository::class),
+            self::createStub(InboxCategoryRepository::class),
+            self::createStub(UserKeyRepository::class),
+            self::createStub(UserKeyCopyRepository::class),
+            self::createStub(AddressKeyRepository::class),
+            self::createStub(ContactKeyRepository::class),
+            self::createStub(SmimeCertificateRepository::class),
+            self::createStub(ContactCertificateRepository::class),
         );
     }
 

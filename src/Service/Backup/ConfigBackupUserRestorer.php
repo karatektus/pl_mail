@@ -9,6 +9,7 @@ use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyStatus;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Crypto\SmimeCertificateStatus;
 use App\Domain\Enum\Crypto\PgpScheme;
 use App\Domain\Enum\Crypto\RecipientPolicy;
@@ -280,6 +281,16 @@ final readonly class ConfigBackupUserRestorer
         }
 
         $user->passwordChangeRequired = true === ($document['passwordChangeRequired'] ?? false);
+
+        // Absent from documents written before the passphrase existed, whose
+        // keyrings all hang off the password — the default this leaves.
+        $root = $this->map($document, 'keyringRoot');
+
+        $user->restoreKeyringRoot(
+            KeyringRoot::tryFrom((string) $this->text($root, 'root')) ?? KeyringRoot::Password,
+            $this->text($root, 'salt'),
+            $this->number($root, 'iterations'),
+        );
         $user->locale   = $this->text($document, 'locale');
         // The set hook drops an identifier this build does not recognise, which
         // is the right answer for a backup from a host with a newer tzdata.

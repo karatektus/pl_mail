@@ -12,8 +12,11 @@ use App\Service\Crypto\KeyringView;
  * "Keyring/get" — plMail extension, `urn:plmail:params:jmap:keys`.
  *
  * The person's keyring as the browser keeps it, for a native client to open
- * with what it holds: the user keys wrapped under the password-derived key
- * (with the KDF parameters, for a client that is given the password once),
+ * with what it holds: the user keys wrapped under the key derived from the
+ * keyring's root — `root` says whether that is the password or an encryption
+ * passphrase, and `rootKdf` how to stretch it, for a client that is given the
+ * secret once (a passphrase-rooted keyring is one a single sign-on account
+ * set up, and the app must ask for the passphrase, never the password),
  * and the address keys with their tokens wrapped under a user key. Nothing in
  * it is readable here; the constants to open it are in the Session's
  * capability object. One object, id `singleton`, like the browser's GET

@@ -1,4 +1,4 @@
-<!-- translated-from: features/security.md sha1:9c124ba17052d63d61cd430345f2458ab8a2f764 -->
+<!-- translated-from: features/security.md sha1:a9dd9de5842bda4bb6ab750d8a60c40989b62cf9 -->
 
 # Sicherheit
 
@@ -112,15 +112,21 @@ Angemeldet-bleiben-Cookie auf einmal.
 
 **Dein Passwort verlässt den Browser nicht.** Bevor etwas gesendet wird, streckt das
 Anmeldeformular es (PBKDF2-SHA256, 600 000 Runden) und schickt nur das Ergebnis; der Server prüft
-das und sieht das Passwort selbst nie. Das ist die Grundlage für die Ende-zu-Ende-Verschlüsselung,
-deren Schlüssel mit demselben Passwort entsperrt werden — ein Server, der es nie sieht, kann sie
-auch nicht entsperren. Dafür wird JavaScript gebraucht, und das Anmeldeformular sagt es, wenn es
+das und sieht das Passwort selbst nie. Daran hängt die Ende-zu-Ende-Verschlüsselung: Deine
+Schlüssel werden mit demselben Passwort entsperrt — ein Server, der es nie sieht, kann sie auch
+nicht entsperren. Dafür wird JavaScript gebraucht, und das Anmeldeformular sagt es, wenn es
 fehlt. Auf einer Installation, die über reines `http://` erreicht wird, schaltet der Browser seine
 eigene Kryptografie ab; das Strecken dauert dann ein bis zwei Sekunden statt eines Augenblicks.
 
 Bei der ersten Anmeldung nach diesem Update schickt das Formular dein Passwort ein letztes Mal mit,
 damit der gespeicherte Hash umgestellt werden kann. Diese Anmeldung beendet einmalig deine anderen
 Sitzungen — siehe *Fallstricke*.
+
+**Anmelden ist nicht Entsperren.** Nur eine Anmeldung über dieses Formular entsperrt deine
+Verschlüsselungsschlüssel gleich mit. Eine Sitzung, die **Angemeldet bleiben** oder Single Sign-on
+geöffnet hat, fragt bei der Anmeldung nichts; das Erste, was die Schlüssel braucht, fragt einmal nach
+deinem Passwort — oder, bei einem Konto, das sich nur über Single Sign-on anmeldet, nach deiner
+Verschlüsselungs-Passphrase. Siehe [Verschlüsselung](encryption.md#du-entsperrst-einmal).
 
 **Es gibt keinen Ablauf zum Zurücksetzen des Passworts.** Das Anmeldeformular sagt das, statt
 einen Link anzubieten, der ins Leere führt: Die Wiederherstellung läuft über die

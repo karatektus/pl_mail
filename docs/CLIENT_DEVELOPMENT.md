@@ -1235,11 +1235,25 @@ with the transfer key (`purposes.pairingTransfer`) to get JSON
 `{"v": 1, "userKeys": [{"id": 3, "key": "<base64, 32 bytes>"}]}`. Store the user keys under a
 Keystore key of your own. A QR code without `#k=` pairs without keys.
 
-**Fallback — the password, once.** `Keyring/get` (no `accountId`, one object with id `singleton`)
-returns `kdf: {salt, iterations}` and `userKeys: [{id, wrapped, status}]`. Derive
-`masterKey = PBKDF2-SHA256(password, salt, iterations, 32 bytes)` and
+**Fallback — the keyring's secret, once.** `Keyring/get` (no `accountId`, one object with id
+`singleton`) returns `root`, `rootKdf: {salt, iterations}` and `userKeys: [{id, wrapped, status}]`.
+`root` says which secret the keyring hangs off, and so what to ask the person for:
+
+- `password` — their plMail password. `rootKdf` is the same as `kdf`, the login's own parameters.
+  It is null while the account's stored hash is still of the password itself; such an account has
+  no keyring yet.
+- `passphrase` — their **encryption passphrase**, on an account that signs in only through single
+  sign-on and has no plMail password. Ask for the passphrase, never for a password, and say it is
+  not the sign-in provider's password. A `rootKdf.salt` of null means encryption is not set up yet:
+  there is nothing to open, and setting it up is done in the web app (Settings → Encryption), not
+  through JMAP.
+
+Either way, derive `masterKey = PBKDF2-SHA256(secret, rootKdf.salt, rootKdf.iterations, 32 bytes)`
+(the secret NFC-normalised, UTF-8) and
 `wrapKey = HKDF-SHA256(masterKey, salt = empty, info = kdf.wrapKeyInfo, 32 bytes)`, then open each
-active `wrapped` with `purposes.userKey`.
+active `wrapped` with `purposes.userKey`. A secret that opens none is wrong — for a passphrase that is
+the only check there is; the server holds nothing to compare it with. The passphrase can change in
+the web app; when a cached `wrapKey` stops opening the user keys, ask again.
 
 **Address keys.** `Keyring/get` also returns `addressKeys: [{id, userKeyId, fingerprint, publicKey,
 privateKey, token, status, addresses: [{email, primary}]}]`. Open `token` with the user key

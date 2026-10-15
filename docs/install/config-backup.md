@@ -159,8 +159,10 @@ two-factor           the TOTP secret, its confirmation date, and the unused
                      recovery codes (already SHA-256 digests)
 encryption keys      the keyring, blob for blob: user keys, recovery copies,
                      address keys and the addresses they serve — all wrapped
-                     under the person's password, so nothing in them opens
-                     without it
+                     under the person's password, or their encryption
+                     passphrase on an account that signs in through single
+                     sign-on, so nothing in them opens without it — and what
+                     it hangs off, with the passphrase's salt and iterations
 app passwords        name, hint and hash per credential, with lastUsedAt and
                      revokedAt. These are what keeps JMAP clients signed in
 mail accounts        IMAP/SMTP host, port and encryption, username, password,

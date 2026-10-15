@@ -6,6 +6,7 @@ namespace App\Controller\Crypto;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
+use App\Service\Crypto\Keyring;
 use App\Security\Crypto\SessionUnlock;
 use App\Security\PasswordKdfUpgrader;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,6 +34,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * An account whose hash is still of the password itself proves it with the
  * password, once, and is moved over in the same breath — that is the only way
  * its browser can get a key to open anything with.
+ *
+ * A keyring that hangs off an encryption passphrase (KeyringRoot) has nothing
+ * here to prove it against, and keeps its half through session() instead,
+ * which asks for no proof — see there for why that gives nothing away.
  */
 #[Route('/keyring/unlock', name: 'app_keyring_unlock_')]
 #[IsGranted('ROLE_USER')]
@@ -45,6 +50,7 @@ final class UnlockController extends AbstractController
         private readonly UserPasswordHasherInterface $hasher,
         private readonly PasswordKdfUpgrader         $upgrader,
         private readonly RateLimiterFactoryInterface $keyringUnlockLimiter,
+        private readonly Keyring                     $keyring,
     ) {
     }
 
@@ -87,6 +93,52 @@ final class UnlockController extends AbstractController
 
         if (false === $proven) {
             return new JsonResponse(['error' => 'wrong_password'], Response::HTTP_FORBIDDEN);
+        }
+
+        $this->sessionUnlock->store($unlockKey);
+
+        return new JsonResponse(['unlocked' => true], headers: ['Cache-Control' => 'no-store']);
+    }
+
+    /**
+     * The session's half, for a keyring on the encryption passphrase: kept
+     * without a proof, because there is none the server could check — it
+     * holds no hash of the passphrase, and must not, or it would be one more
+     * thing to guess against offline.
+     *
+     * Safe without one, because the half opens nothing on its own. It is a
+     * random key the browser made, which wraps the passphrase-derived key in
+     * that browser's localStorage; the server never sees what it wraps. A
+     * session that registers a half of its own has a key that unwraps nothing
+     * it does not already hold — getting the wrap key still takes the
+     * passphrase, checked where it can be checked, by the user key opening
+     * under it (AES-GCM) in the browser. The wrapped user keys themselves go
+     * to the session on every GET /keyring regardless, so nothing reachable
+     * changes either. What a proof buys on the password — POST above — is the
+     * server checking a secret it already holds a hash of, throttled, and that
+     * check has no counterpart here.
+     *
+     * Refused for a keyring on the password, which proves it above, and before
+     * there is a keyring at all: the half would wrap a key that opens nothing.
+     */
+    #[Route('/session', name: 'session', methods: ['POST'])]
+    public function session(Request $request, #[CurrentUser] User $user): JsonResponse
+    {
+        $this->assertCsrf($request, 'keyring');
+
+        if (true === $user->keyringRootInEffect->isLoginSecret()) {
+            return new JsonResponse(['error' => 'proof_required'], Response::HTTP_FORBIDDEN);
+        }
+
+        if (false === $this->keyring->hasActiveKeys($user)) {
+            return new JsonResponse(['error' => 'no_keyring'], Response::HTTP_CONFLICT);
+        }
+
+        $body      = json_decode($request->getContent(), true);
+        $unlockKey = is_array($body) ? ($body['unlockKey'] ?? null) : null;
+
+        if (false === is_string($unlockKey) || false === SessionUnlock::isWellFormed($unlockKey)) {
+            return new JsonResponse(['error' => 'malformed'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->sessionUnlock->store($unlockKey);

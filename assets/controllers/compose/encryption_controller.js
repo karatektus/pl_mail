@@ -52,6 +52,13 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * send, sealUploads()/isSealing() before a file goes up — and otherwise
  * leaves it alone. A window whose person has no open keyring behaves as it
  * always did, unless a draft or a recipient needs encryption it cannot give.
+ *
+ * Opening the window asks nothing. The keyring is asked open (the shared
+ * unlock dialog, Keyring.requireOpen()) only when this window cannot go on
+ * without it: a sealed draft or an encrypted quote to open, a draft about to
+ * be sealed, a message about to be built encrypted or signed. Cancelled, the
+ * draft is not sealed and not saved, and an autosave does not ask again in
+ * this window — a send does, since that is the person asking for it.
  */
 export default class extends Controller {
     static targets = ["indicator", "hint", "fields", "encryptToggle", "encryptButton", "signToggle", "aiAssist"];
@@ -81,6 +88,9 @@ export default class extends Controller {
     #signMode = "auto";
     #timer = null;
     #onChange = null;
+    #onKeyring = null;
+    /** The person cancelled the dialog an autosave raised; autosaves stop asking. */
+    #declined = false;
 
     connect() {
         this.#ring = keyring(this.keyringValue);
@@ -95,11 +105,22 @@ export default class extends Controller {
         };
         this.element.addEventListener("change", this.#onChange);
 
+        // Opened by something else on the page — the reading pane, another
+        // window: this one stops treating the keyring as shut.
+        this.#onKeyring = (event) => {
+            if ("open" === event.detail?.status && "open" !== this.#status && "pending" !== this.#status) {
+                this.#status = "open";
+                this.#scheduleRefresh();
+            }
+        };
+        window.addEventListener("crypto:keyring", this.#onKeyring);
+
         this.#start();
     }
 
     disconnect() {
         this.element.removeEventListener("change", this.#onChange);
+        window.removeEventListener("crypto:keyring", this.#onKeyring);
         clearTimeout(this.#timer);
     }
 
@@ -129,7 +150,7 @@ export default class extends Controller {
             return true;
         }
 
-        if ("open" !== this.#status) {
+        if ("open" !== this.#status && (true === this.#declined || false === await this.#requireOpen())) {
             this.#note(this.messagesValue.lockedNotSaved, true);
 
             return false;
@@ -165,7 +186,8 @@ export default class extends Controller {
             throw Object.assign(new Error(plan.blocked.reason), { emails: plan.blocked.emails });
         }
 
-        if ("open" !== this.#status && ("encrypted" === plan.kind || "signed" === plan.kind || true === this.#sealed)) {
+        if ("open" !== this.#status && ("encrypted" === plan.kind || "signed" === plan.kind || true === this.#sealed)
+            && false === await this.#requireOpen()) {
             throw new Error("locked");
         }
 
@@ -344,9 +366,31 @@ export default class extends Controller {
         await this.#refresh(false);
     }
 
+    /**
+     * Asks for the keyring through the shared dialog, and says whether it is
+     * open now.
+     */
+    async #requireOpen() {
+        if ("open" === this.#status) {
+            return true;
+        }
+
+        try {
+            this.#status = (await this.#ring.requireOpen()).status;
+        } catch {
+            this.#status = "broken";
+        }
+
+        // Said no (or the dialog could not be shown): autosaves in this
+        // window stop asking; a send still does.
+        this.#declined = "open" !== this.#status;
+
+        return "open" === this.#status;
+    }
+
     /** The sealed draft, back into the editor. Nothing is saved until it is. */
     async #openSealedDraft() {
-        if ("open" !== this.#status) {
+        if (false === await this.#requireOpen()) {
             this.#note(this.messagesValue.lockedDraft, true);
 
             return;
@@ -377,7 +421,7 @@ export default class extends Controller {
     async #openSealedQuotes() {
         const markers = this.#editor().querySelectorAll("[data-quote-sealed]");
 
-        if (0 === markers.length || "open" !== this.#status) {
+        if (0 === markers.length || false === await this.#requireOpen()) {
             return;
         }
 

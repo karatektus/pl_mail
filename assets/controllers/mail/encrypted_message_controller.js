@@ -13,6 +13,12 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  * collapsed or not, and decrypting forty of them on load is forty raw fetches
  * nobody asked for.
  *
+ * A shut keyring is asked open here (Keyring.requireOpen(), the shared unlock
+ * dialog) — this is the moment a session the password form did not open finds
+ * out it needs the password or the passphrase. Cancelled, the message says it
+ * is locked and offers to ask again; opened anywhere else on the page in the
+ * meantime (crypto:keyring), it opens by itself.
+ *
  * Values:
  *   rawUrl     — the message's byte-exact source (MessageSourceController::raw)
  *   senderKeysUrl — the keys the person holds for the sender
@@ -21,7 +27,7 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  *                means (ContactKeyController::smimeSigner)
  *   document   — the frame document, with `<!--plmail:body-->` where the body goes
  *   keyring    — the keyring's config: stateUrl, unlockUrl, preloginUrl, csrf, userId, email
- *   settingsUrl — Settings → Encryption, for a locked keyring
+ *   settingsUrl — Settings → Encryption, for a keyring not set up yet
  *   messages   — translated: decrypting, locked, noKey, noCertificate,
  *                unsupported, noSource, failed,
  *                signature.{valid, invalid, unknown_key, untrusted, key_changed, unchecked}
@@ -56,9 +62,19 @@ export default class extends Controller {
 
     #observer = null;
     #opened = false;
+    #locked = false;
     #urls = [];
+    #onKeyring = null;
 
     connect() {
+        this.#onKeyring = (event) => {
+            if (true === this.#locked && "open" === event.detail?.status) {
+                this.#opened = false;
+                this.#open();
+            }
+        };
+        window.addEventListener("crypto:keyring", this.#onKeyring);
+
         this.#observer = new IntersectionObserver((entries) => {
             if (entries.some((entry) => entry.isIntersecting)) {
                 this.#observer.disconnect();
@@ -103,6 +119,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        window.removeEventListener("crypto:keyring", this.#onKeyring);
         this.#observer?.disconnect();
         this.#urls.forEach((url) => URL.revokeObjectURL(url));
         this.#urls = [];
@@ -116,19 +133,26 @@ export default class extends Controller {
         }
 
         this.#opened = true;
+        this.#locked = false;
         this.#say(this.messagesValue.decrypting, false);
 
         const ring = keyring(this.keyringValue);
-        let status;
-
-        try {
-            status = (await ring.ensure()).status;
-        } catch {
-            status = "broken";
-        }
+        const { status } = await ring.requireOpen();
 
         if ("open" !== status) {
-            this.#say(this.messagesValue.locked, true, this.settingsUrlValue);
+            this.#locked = true;
+
+            // Shut because the person said no: one press asks again. Shut
+            // because there is nothing to open yet, or nothing that could:
+            // Settings → Encryption is where that is put right.
+            if ("locked" === status) {
+                this.#say(this.messagesValue.locked, true, null, () => {
+                    this.#opened = false;
+                    this.#open();
+                });
+            } else {
+                this.#say(this.messagesValue.locked, true, this.settingsUrlValue);
+            }
 
             return;
         }
@@ -229,7 +253,7 @@ export default class extends Controller {
         }).catch(() => undefined);
     }
 
-    #say(message, isProblem, link = null) {
+    #say(message, isProblem, link = null, retry = null) {
         this.statusTarget.replaceChildren(document.createTextNode(message));
         this.statusTarget.className = `text-sm ${isProblem ? "text-danger" : "text-ink-muted"}`;
         this.statusTarget.hidden = false;
@@ -241,6 +265,16 @@ export default class extends Controller {
             anchor.className = "ml-1 font-medium text-link hover:underline";
             anchor.textContent = this.messagesValue.openSettings;
             this.statusTarget.append(anchor);
+        }
+
+        if (null !== retry) {
+            const button = document.createElement("button");
+
+            button.type = "button";
+            button.className = "ml-1 font-medium text-link hover:underline cursor-pointer";
+            button.textContent = this.messagesValue.openSettings;
+            button.addEventListener("click", retry, { once: true });
+            this.statusTarget.append(button);
         }
     }
 

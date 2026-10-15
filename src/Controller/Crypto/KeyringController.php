@@ -63,6 +63,24 @@ final class KeyringController extends AbstractController
                 $this->list($body['addressKeys'] ?? null),
                 isset($body['deviceCopy']) ? (string) $body['deviceCopy'] : null,
                 isset($body['deviceLabel']) ? (string) $body['deviceLabel'] : null,
+                isset($body['passphrase']) && is_array($body['passphrase']) ? $body['passphrase'] : null,
+            );
+        });
+    }
+
+    /**
+     * A new encryption passphrase for a keyring that hangs off one: its salt
+     * and iteration count, and every active user key re-wrapped under it. The
+     * passphrase itself never comes here. See Keyring::changePassphrase().
+     */
+    #[Route('/passphrase', name: 'passphrase_change', methods: ['POST'])]
+    public function changePassphrase(Request $request, #[CurrentUser] User $user): JsonResponse
+    {
+        return $this->write($request, $user, function (array $body) use ($user): void {
+            $this->keyring->changePassphrase(
+                $user,
+                is_array($body['passphrase'] ?? null) ? $body['passphrase'] : [],
+                is_array($body['rewrapped'] ?? null) ? $body['rewrapped'] : [],
             );
         });
     }

@@ -398,6 +398,15 @@ final readonly class ConfigBackupUsers
             ],
             // A one-time password an administrator chose stays one-time.
             'passwordChangeRequired' => $user->passwordChangeRequired,
+            // What the keyring hangs off, and for a keyring on the encryption
+            // passphrase how the browser stretches it. The keyring travels
+            // blob for blob below; without these its user keys would be
+            // wrapped under a key no restored browser knows how to derive.
+            'keyringRoot' => [
+                'root'       => $user->keyringRoot->value,
+                'salt'       => $user->passphraseSalt,
+                'iterations' => $user->passphraseIterations,
+            ],
             'locale'     => $user->locale,
             'timezone'   => $user->timezone,
             'appearance' => $user->appearance->toArray(),

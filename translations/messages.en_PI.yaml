@@ -2191,6 +2191,24 @@ encryption:
         saved: "Yer treasure words be set. Make new ones if th' old may have been spied."
         shown_once: "Write these words down or haul 'em off now — they be shown but once. Whoever holds 'em can open yer keys."
         subheading: "Twelve words that open yer keys should ye forget yer secret word. Without 'em, sealed letters sink with th' word."
+    passphrase:
+        heading: "Cipher phrase"
+        subheading: "What opens yer keys. Changin' it leaves how ye come aboard alone."
+        current: "Current cipher phrase"
+        new: "New cipher phrase"
+        repeat: "Say th' new one again"
+        submit: "Change cipher phrase"
+        done: "Cipher phrase changed. Use th' new one from now on."
+    setup:
+        heading: "Rig yer sealed letters"
+        intro: "Pick a cipher phrase. It guards yer keys an' be asked for once a voyage, when somethin' first needs 'em. It ain't th' password o' yer fleet's seal, an' it never leaves this spyglass."
+        warning: "plMail can't reset this cipher phrase. Forget it, an' only yer treasure words — make 'em right after — or a spyglass ye used before opens yer sealed letters again. Without either, them letters be lost to Davy Jones."
+        passphrase: "Cipher phrase"
+        repeat: "Say it again"
+        submit: "Rig sealed letters"
+        too_short: "At least %min% characters, matey."
+        mismatch: "Them two cipher phrases don't match."
+        done: "Sealed letters be rigged. Make yer treasure words next."
     status:
         broken: "Yer keys would not open. Go ashore an' come aboard again; if that fails, th' quartermaster finds th' reason in th' log."
         disabled: "Not to be had on this ship."
@@ -2199,13 +2217,23 @@ encryption:
         key_count: "Active keys: %keys% · Addresses: %addresses%"
         loading: "Openin' yer keys…"
         locked: "Locked in this spyglass. Say yer secret word to unlock it."
+        locked_passphrase: "Locked in this spyglass. Say yer cipher phrase to unlock it."
         open: "Rigged, an' unlocked in this spyglass."
         subheading: "Letters only ye an' yer correspondents can read — not this ship, not yer mail harbour."
+        unset: "Not rigged yet. Ye come aboard with yer fleet's seal, so yer keys need a cipher phrase o' their own — pick one below."
     unlock:
-        label: "Secret word"
         rate_limited: "Too many tries. Wait a few minutes an' try again."
         submit: "Unlock"
         wrong_password: "That be not yer secret word."
+    unlock_dialog:
+        heading: "Unlock yer keys"
+        password_intro: "This needs yer keys. Say yer secret word to open 'em — once, for th' rest o' this voyage."
+        passphrase_intro: "This needs yer keys. Say yer cipher phrase to open 'em — once, for th' rest o' this voyage. It ain't th' password o' yer fleet's seal."
+        password_label: "Secret word"
+        passphrase_label: "Cipher phrase"
+        wrong_passphrase: "That cipher phrase opens nothin'."
+        cancel: "Not now"
+        submit: "Unlock"
 
 errors:
     page:

@@ -19,12 +19,49 @@ the server keeps is your keys in locked form: wrapped under a key your browser d
 password, which the server cannot derive because it never sees the password (see
 [Security](security.md#signing-in)).
 
-## You sign in once
+If you sign in only through single sign-on, you have no plMail password, and nothing is made until
+you choose an encryption passphrase — see below.
 
-Signing in unlocks your keys for the whole session, in every tab, without being asked again. When a
-session ends — you sign out, or it expires — they are locked. A session opened by **Keep me logged
-in**, rather than by typing your password, starts locked: the settings page asks for your password
-once to unlock it.
+## You unlock once
+
+Signing in with your password unlocks your keys for the whole session, in every tab, without being
+asked again. When a session ends — you sign out, or it expires — they are locked.
+
+A session opened any other way — by **Keep me logged in**, or through single sign-on — starts with
+your keys locked, and nothing asks you anything when you sign in. The first time something needs
+them, one dialog asks for your password (or your encryption passphrase, see below):
+
+- opening an encrypted message, or replying to one;
+- a draft that is about to be encrypted, or opening an encrypted draft;
+- **Settings → Encryption**;
+- pairing a device, so your keys can come along.
+
+Unlock once and the keys stay open for the rest of the session, in every tab. **Not now** leaves
+them locked: the message says so and offers to ask again, and a draft that should be encrypted is
+not saved until they are open. Mail you keep decrypted on this server is caught up in the
+background as soon as your keys are open, without asking by itself.
+
+## Signing in with single sign-on
+
+An account that signs in only through your organisation's sign-in provider has no plMail password —
+and the provider's password never reaches plMail, so it cannot open anything here either. Your keys
+hang off an **encryption passphrase** of their own instead.
+
+**Settings → Encryption** offers **Set up encryption** until you have done so. Type a passphrase
+twice — at least as long as a password has to be — and your keys are made, exactly as everybody
+else's are, and unlocked for this session. Nothing is generated before that, and nothing reminds you.
+
+From then on the passphrase is what the unlock dialog asks for, once per session. Like a password,
+it is stretched in your browser and never sent to the server; whether it is right shows only in
+whether your keys open. **Change it** under *Encryption passphrase* on the same page: your keys are
+re-wrapped under the new one in your browser, and your sign-in is not affected.
+
+Make a [recovery phrase](#the-recovery-phrase) straight after setting it up. plMail cannot reset an
+encryption passphrase: forgotten, it is recovered the way a forgotten password is — with the
+recovery phrase, or on a [known device](#known-devices).
+
+If you are later given a plMail password as well, nothing changes for your keys: the passphrase
+stays what opens them, and the password only signs you in.
 
 ## The recovery phrase
 
@@ -261,7 +298,8 @@ Pairing the plMail app (Settings → App passwords → **Pair a device**) brings
 this browser has them open — the line under the QR code says so. They travel sealed: the key that
 opens them is in the QR code itself, which is drawn by your browser and never sent to the server.
 Encrypted mail then opens in the app without a password. A device paired without them can be given
-your keys once with your plMail password.
+your keys once with your plMail password — or, if you set encryption up with a passphrase, with
+that passphrase. A browser whose keys are locked asks for them first when you pair.
 
 ## Keeping decrypted mail on this server
 
@@ -298,8 +336,17 @@ had what opens them. Make the phrase.
 to keep using, import it then: plMail drops its own key for that address only while nobody has
 seen it.
 
-**A session reopened by Keep me logged in starts locked.** Your mail is all there; only your keys
-wait for your password, once.
+**A session reopened by Keep me logged in, or opened through single sign-on, starts locked.** Your
+mail is all there; the first encrypted message asks for your password or passphrase, once per
+session. Cancelling leaves it locked, nothing else.
+
+**A forgotten encryption passphrase without a recovery phrase loses your encrypted mail.** Nobody
+can reset it — not an administrator, not your sign-in provider — because nobody but you ever knew
+it. A known device still opens your keys; otherwise make the phrase the day you set encryption up.
+
+**The encryption passphrase is not your sign-in provider's password.** Changing the one does not
+change the other, and plMail never asks the provider about it. A password manager may offer your
+sign-in password in the dialog; it will not open your keys.
 
 **Encryption needs HTTPS.** On a plain `http://` address — a LAN IP, say — the browser offers no
 cryptography of its own, so no keys are made or opened there, and Settings → Encryption says so.
@@ -384,8 +431,9 @@ before that — text typed before the last recipient with a key was added — wa
 the next save replaced it. Add the recipients first, or press the lock before you write.
 
 **While your keys are locked in this browser, a message that is to be encrypted is neither saved nor
-sent.** Saving it would leave it readable on the server. The compose window says so; open your keys
-in Settings → Encryption, or switch encryption off for that message.
+sent.** Saving it would leave it readable on the server. The compose window asks to unlock them the
+first time it needs to; after **Not now** it says so and stops asking on every save, but sending
+asks again. Or switch encryption off for that message.
 
 **The subject is encrypted; the sender, the recipients and the date are not.** Mail needs those on
 the outside to be delivered. An encrypted message's subject travels inside the encryption, and the

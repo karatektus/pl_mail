@@ -13,7 +13,12 @@ import { openEncrypted } from "../../crypto/message.js";
  * and does nothing until the keyring is open. One message at a time, with a
  * breath between them so the page stays responsive: the crypto runs on the
  * page's own thread (the importmap is not available to workers). It asks
- * again every few minutes and whenever the tab comes back into view.
+ * again every few minutes, whenever the tab comes back into view, and the
+ * moment the keyring is opened (crypto:keyring).
+ *
+ * It never asks for the keyring itself. On a session the password form did
+ * not open, a dialog appearing out of nowhere for work nobody asked to see
+ * would be the wrong moment; it waits, quietly, for something that does ask.
  *
  * One loop per tab, whatever Turbo does: the state lives in the module, not
  * in the controller, which connects again on every visit.
@@ -32,6 +37,7 @@ export default class extends Controller {
 
     #timer = null;
     #onVisible = null;
+    #onKeyring = null;
 
     connect() {
         this.#onVisible = () => {
@@ -40,6 +46,12 @@ export default class extends Controller {
             }
         };
         document.addEventListener("visibilitychange", this.#onVisible);
+        this.#onKeyring = (event) => {
+            if ("open" === event.detail?.status) {
+                this.#run(true);
+            }
+        };
+        window.addEventListener("crypto:keyring", this.#onKeyring);
         this.#timer = setInterval(() => this.#run(false), EVERY_MS);
 
         this.#run(false);
@@ -47,6 +59,7 @@ export default class extends Controller {
 
     disconnect() {
         document.removeEventListener("visibilitychange", this.#onVisible);
+        window.removeEventListener("crypto:keyring", this.#onKeyring);
         clearInterval(this.#timer);
     }
 

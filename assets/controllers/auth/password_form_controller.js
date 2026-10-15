@@ -24,7 +24,8 @@ import { replace as replaceSessionKey } from "../../crypto/session.js";
  * on Settings the browser re-wraps every one under the new password and sends
  * them with the change (`rewrappedKeys`); the server refuses a change that
  * leaves one behind. Once the change has gone through, the session's stored
- * wrap key is replaced too, or the next page could not open the keyring.
+ * wrap key is replaced too, or the next page could not open the keyring. A
+ * keyring on the encryption passphrase (phase 6e) does not ride along at all.
  *
  * Values:
  *   keyringUrl          — optional; the keyring endpoint, on Settings only
@@ -142,8 +143,11 @@ export default class extends Controller {
             if (true === this.hasRewrappedKeysTarget && "" !== this.keyringUrlValue) {
                 const rewrapped = await this.#keyring().rewrapFor(this.currentPasswordTarget.value, wrapKey);
 
-                this.rewrappedKeysTarget.value = JSON.stringify(rewrapped);
-                pendingWrapKey = { wrapKey, unlockUrl: this.unlockUrlValue };
+                // Null: the keyring hangs off the encryption passphrase, so
+                // nothing rides along and the session's wrap key — the
+                // passphrase's — must stay what it is.
+                this.rewrappedKeysTarget.value = JSON.stringify(rewrapped ?? {});
+                pendingWrapKey = null === rewrapped ? null : { wrapKey, unlockUrl: this.unlockUrlValue };
             }
         } catch {
             this.#release();

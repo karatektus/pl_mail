@@ -5,6 +5,7 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
@@ -166,6 +167,59 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     #[ORM\Column(name: 'kdf_iterations', nullable: true)]
     public private(set) ?int $kdfIterations = null;
+
+    /**
+     * What the keyring of issue #28 hangs off — see KeyringRoot. The password
+     * for every account until one without a usable password sets encryption
+     * up with a passphrase of its own; read $keyringRootInEffect rather than
+     * this to know which applies before that.
+     *
+     * private(set), with the two passphrase columns below, for the reason
+     * $kdfSalt gives: the root, its salt and its iteration count change
+     * together through usePassphraseRoot() or not at all.
+     */
+    #[ORM\Column(name: 'keyring_root', length: 16, enumType: KeyringRoot::class, options: ['default' => 'password'])]
+    public private(set) KeyringRoot $keyringRoot = KeyringRoot::Password;
+
+    /**
+     * The salt the browser stretches the encryption passphrase with, base64.
+     * Null unless $keyringRoot is the passphrase. Its own salt, not $kdfSalt:
+     * an account that later gets a login password must not have the two
+     * secrets stretched alike, or a password equal to the passphrase would
+     * hand the server — which sees the password's auth hash — the very bytes
+     * the passphrase's auth hash would have been.
+     */
+    #[ORM\Column(name: 'passphrase_salt', length: 64, nullable: true)]
+    public private(set) ?string $passphraseSalt = null;
+
+    /**
+     * PBKDF2 iterations for $passphraseSalt, per user for the reason
+     * $kdfIterations gives.
+     */
+    #[ORM\Column(name: 'passphrase_iterations', nullable: true)]
+    public private(set) ?int $passphraseIterations = null;
+
+    /**
+     * Whether a password could sign this person in at all. Empty is the hash
+     * no password produces, which OidcUserResolver writes for an account it
+     * creates and the admin delete action writes for a removed one.
+     */
+    public bool $hasUsablePassword {
+        get => '' !== (string) $this->password;
+    }
+
+    /**
+     * The root that applies now: the passphrase once it is set up, and also
+     * before — for an account with no usable password, which has nothing else
+     * a keyring could hang off and is offered "Set up encryption" instead. An
+     * account that gets a password before it sets anything up is a password
+     * account like any other.
+     */
+    public KeyringRoot $keyringRootInEffect {
+        get => KeyringRoot::Passphrase === $this->keyringRoot || false === $this->hasUsablePassword
+            ? KeyringRoot::Passphrase
+            : KeyringRoot::Password;
+    }
 
     /**
      * The current password was chosen by somebody else, and this person has to
@@ -461,6 +515,30 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function hasClientDerivedPassword(): bool
     {
         return null !== $this->kdfSalt;
+    }
+
+    /**
+     * The keyring hangs off an encryption passphrase from now on, stretched
+     * with this salt and iteration count — or with new ones, when the
+     * passphrase changes. The login, whatever it is, is not touched.
+     */
+    public function usePassphraseRoot(string $salt, int $iterations): void
+    {
+        $this->keyringRoot          = KeyringRoot::Passphrase;
+        $this->passphraseSalt       = $salt;
+        $this->passphraseIterations = $iterations;
+    }
+
+    /**
+     * The root a config backup recorded, as it was. Only the restore calls
+     * this: switching a keyring between roots is not something plMail does,
+     * and a passphrase salt left on a password row would be read by nothing.
+     */
+    public function restoreKeyringRoot(KeyringRoot $root, ?string $salt, ?int $iterations): void
+    {
+        $this->keyringRoot          = $root;
+        $this->passphraseSalt       = KeyringRoot::Passphrase === $root ? $salt : null;
+        $this->passphraseIterations = KeyringRoot::Passphrase === $root ? $iterations : null;
     }
 
     /**

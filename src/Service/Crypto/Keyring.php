@@ -6,6 +6,7 @@ namespace App\Service\Crypto;
 
 use App\Domain\DTO\Crypto\AddressKeyInput;
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Domain\Enum\Crypto\UserKeyCopyKind;
 use App\Domain\Enum\Crypto\UserKeyStatus;
@@ -19,6 +20,7 @@ use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Security\Crypto\Wrapped;
+use App\Security\PasswordKdf;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 
@@ -32,9 +34,18 @@ use Symfony\Component\Clock\ClockInterface;
  * every other tab too: one primary key per address, keys only for addresses
  * the person owns, a password change that re-wraps every key the person can
  * still open, and nothing half-written. Every write is one flush.
+ *
+ * The keyring hangs off one secret, its root (KeyringRoot): the login password,
+ * or — for an account with no password, which signs in through single sign-on
+ * — an encryption passphrase. Each rule that concerns "the password" here
+ * applies only to keyrings on the password; a passphrase is changed through
+ * its own call and nothing that happens to the login reaches it.
  */
 final readonly class Keyring
 {
+    /** Ten million PBKDF2 rounds: well past any sensible setting, short of absurd. */
+    private const int MAX_ITERATIONS = 10_000_000;
+
     public function __construct(
         private UserKeyRepository      $userKeys,
         private UserKeyCopyRepository  $copies,
@@ -42,6 +53,7 @@ final readonly class Keyring
         private AccountRepository      $accounts,
         private EntityManagerInterface $entityManager,
         private ClockInterface         $clock,
+        private PasswordKdf            $kdf,
     ) {
     }
 
@@ -77,15 +89,32 @@ final readonly class Keyring
      * same moment would otherwise both make one, and the second would leave
      * the first one's keys orphaned under a key nobody remembers making.
      *
-     * @param list<mixed> $addressKeys
+     * $passphrase is the salt and iteration count the browser stretched an
+     * encryption passphrase with, and is what setting encryption up on an
+     * account without a password sends. It is required there and refused
+     * everywhere else: a password account's keyring hangs off its password,
+     * and a passphrase beside it would be a second secret nothing asks for.
+     * The root is written in the same flush as the key it wraps.
+     *
+     * @param list<mixed>       $addressKeys
+     * @param array<mixed>|null $passphrase  {salt, iterations}
      */
-    public function create(User $user, string $wrappedUserKey, array $addressKeys, ?string $deviceCopy, ?string $deviceLabel): UserKey
+    public function create(User $user, string $wrappedUserKey, array $addressKeys, ?string $deviceCopy, ?string $deviceLabel, ?array $passphrase = null): UserKey
     {
         if ([] !== $this->userKeys->findActiveForUser($user)) {
             throw new KeyringRefused('This account already has a keyring.');
         }
 
-        if (false === $user->hasClientDerivedPassword()) {
+        if (KeyringRoot::Passphrase === $user->keyringRootInEffect) {
+            if (null === $passphrase) {
+                throw new KeyringRefused('An account without a password sets encryption up with a passphrase.');
+            }
+
+            [$salt, $iterations] = $this->passphraseParameters($passphrase);
+            $user->usePassphraseRoot($salt, $iterations);
+        } elseif (null !== $passphrase) {
+            throw new KeyringRefused('This keyring hangs off the password; it takes no passphrase.');
+        } elseif (false === $user->hasClientDerivedPassword()) {
             throw new KeyringRefused('The password has to be stretched in the browser before a keyring can hang off it.');
         }
 
@@ -228,6 +257,11 @@ final readonly class Keyring
      * under a password that no longer exists, which is a lost key — so a
      * missing one refuses the whole change, and the password stays as it was.
      *
+     * Nothing to do for a keyring on the passphrase: no key hangs off the
+     * password, so there is nothing to re-wrap and nothing to refuse over.
+     * The browser sends nothing for one, and anything it did send is ignored
+     * rather than written over keys the passphrase opens.
+     *
      * Not flushed: PasswordChanger writes the new password in the same flush,
      * so a key and the password it is wrapped under can never disagree.
      *
@@ -235,15 +269,40 @@ final readonly class Keyring
      */
     public function applyPasswordChange(User $user, array $rewrapped): void
     {
-        foreach ($this->userKeys->findActiveForUser($user) as $userKey) {
-            $wrapped = $rewrapped[$userKey->id] ?? null;
-
-            if (false === Wrapped::isWellFormed($wrapped)) {
-                throw new KeyringRefused(sprintf('User key %d was not re-wrapped for the new password.', $userKey->id));
-            }
-
-            $userKey->rewrap($wrapped);
+        if (KeyringRoot::Password !== $user->keyringRootInEffect) {
+            return;
         }
+
+        $this->rewrapAll($user, $rewrapped, 'password');
+    }
+
+    /**
+     * A new encryption passphrase, for a keyring that hangs off one: its salt
+     * and iteration count, and every active user key re-wrapped under it by
+     * the browser, which opened them with the old one.
+     *
+     * The same all-or-nothing rule as a password change, and for the same
+     * reason. The login is not touched — it is not what this is.
+     *
+     * @param array<mixed>             $passphrase {salt, iterations}
+     * @param array<int|string, mixed> $rewrapped  user key id => wrapped
+     */
+    public function changePassphrase(User $user, array $passphrase, array $rewrapped): void
+    {
+        if (KeyringRoot::Passphrase !== $user->keyringRoot) {
+            throw new KeyringRefused('This keyring does not hang off a passphrase.');
+        }
+
+        if (false === $this->hasActiveKeys($user)) {
+            throw new KeyringRefused('There is no keyring to re-wrap; set encryption up instead.');
+        }
+
+        [$salt, $iterations] = $this->passphraseParameters($passphrase, $user->passphraseIterations);
+
+        $this->rewrapAll($user, $rewrapped, 'passphrase');
+        $user->usePassphraseRoot($salt, $iterations);
+
+        $this->entityManager->flush();
     }
 
     /**
@@ -252,12 +311,21 @@ final readonly class Keyring
      * key wrapped under the old password is locked, not deleted — a recovery
      * phrase or a known device opens it again.
      *
+     * None is, on a keyring that hangs off the passphrase: nothing there was
+     * wrapped under the password being replaced, and the person who set the
+     * passphrase still knows it. Giving an account that signs in through
+     * single sign-on a password as well is exactly this case.
+     *
      * Not flushed, for the reason applyPasswordChange() gives.
      *
      * @return int how many keys were locked
      */
     public function lockAll(User $user): int
     {
+        if (KeyringRoot::Password !== $user->keyringRootInEffect) {
+            return 0;
+        }
+
         $locked = 0;
 
         foreach ($this->userKeys->findActiveForUser($user) as $userKey) {
@@ -286,6 +354,50 @@ final readonly class Keyring
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * @param array<int|string, mixed> $rewrapped
+     */
+    private function rewrapAll(User $user, array $rewrapped, string $secret): void
+    {
+        foreach ($this->userKeys->findActiveForUser($user) as $userKey) {
+            $wrapped = $rewrapped[$userKey->id] ?? null;
+
+            if (false === Wrapped::isWellFormed($wrapped)) {
+                throw new KeyringRefused(sprintf('User key %d was not re-wrapped for the new %s.', $userKey->id, $secret));
+            }
+
+            $userKey->rewrap($wrapped);
+        }
+    }
+
+    /**
+     * The salt and iteration count of a passphrase, as the browser sent them.
+     *
+     * At least the count the installation stretches passwords with, so a
+     * browser cannot talk the server into a cheaper root — or the count the
+     * passphrase already has, so raising the configured number later does not
+     * refuse a change made with the one the keyring was set up under. Bounded
+     * above only so that a typo cannot make every unlock take an hour.
+     *
+     * @param array<mixed> $passphrase
+     *
+     * @return array{string, int}
+     */
+    private function passphraseParameters(array $passphrase, ?int $current = null): array
+    {
+        $salt       = $passphrase['salt'] ?? null;
+        $iterations = $passphrase['iterations'] ?? null;
+        $acceptable = is_int($iterations)
+            && $iterations <= self::MAX_ITERATIONS
+            && ($iterations >= $this->kdf->iterations || $iterations === $current);
+
+        if (false === is_string($salt) || false === $this->kdf->isSalt($salt) || false === $acceptable) {
+            throw new KeyringRefused('Expected the salt and iteration count the passphrase was stretched with.');
+        }
+
+        return [$salt, $iterations];
+    }
 
     /**
      * @param list<mixed> $addressKeys

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Backup;
 
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\PromptSlot;
@@ -46,6 +47,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
 
     /** Shapes the keyring checks for; nothing ever opens them. */
     private const string KDF_SALT      = 'c2FsdHNhbHRzYWx0c2FsdA==';
+    private const string PASSPHRASE_SALT = 'cGhyYXNlcGhyYXNlcGhyYQ==';
     private const string WRAPPED_KEY   = 'v1.AAAAAAAAAAAAAAAA.c29tZSB3cmFwcGVkIHVzZXIga2V5IGJ5dGVz';
     private const string ADDRESS_FPR   = '0123456789abcdef0123456789abcdef01234567';
     private const string CONTACT_FPR   = 'fedcba9876543210fedcba9876543210fedcba98';
@@ -177,6 +179,11 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
 
         $this->check('user.kdfSalt', self::KDF_SALT, $user->kdfSalt);
         $this->check('user.kdfIterations', 600000, $user->kdfIterations);
+        // A keyring set up with a passphrase on an account that later got a
+        // password too (phase 6e): the passphrase stays what opens it.
+        $this->check('user.keyringRoot', KeyringRoot::Passphrase, $user->keyringRoot);
+        $this->check('user.passphraseSalt', self::PASSPHRASE_SALT, $user->passphraseSalt);
+        $this->check('user.passphraseIterations', 700000, $user->passphraseIterations);
 
         // ── The keyring ───────────────────────────────────────────────────
         $userKeys = $container->get(\App\Repository\Crypto\UserKeyRepository::class)->findForUser($user);
@@ -428,6 +435,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->nameFirst = 'Anna';
         $user->nameLast  = 'Beispiel';
         $user->useClientDerivedPassword(self::PASSWORD_HASH, self::KDF_SALT, 600000);
+        $user->usePassphraseRoot(self::PASSPHRASE_SALT, 700000);
         $user->roles     = [User::ROLE_ADMIN];
         $user->locale    = 'de';
         $user->timezone  = 'Europe/Berlin';

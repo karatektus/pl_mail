@@ -99,14 +99,20 @@ once.
 
 **Your password never leaves the browser.** Before anything is sent, the login form stretches it
 (PBKDF2-SHA256, 600 000 rounds) and sends only the result; the server checks that and never sees the
-password itself. This is the groundwork for end-to-end encryption, whose keys will be unlocked by
-the same password — a server that never sees it cannot unlock them either. It needs JavaScript, and
+password itself. End-to-end encryption hangs off it: your keys are unlocked by the same password —
+a server that never sees it cannot unlock them either. It needs JavaScript, and
 the login form says so when it is missing. On an install reached over plain `http://`, where the
 browser's own cryptography is switched off, the stretching takes a second or two instead of a blink.
 
 The first time you sign in after this arrived, the form sends your password one last time so the
 stored hash can be swapped over. That sign-in ends your other sessions once — see *Things that
 bite*.
+
+**Signing in is not unlocking.** Only a sign-in through this form unlocks your encryption keys on
+the way in. A session opened by **Keep me logged in** or through single sign-on asks nothing at
+sign-in; the first thing that needs the keys asks for your password once — or, on an account that
+signs in only through single sign-on, for your encryption passphrase. See
+[Encryption](encryption.md#you-unlock-once).
 
 **There is no password reset flow.** The login form says so rather than offering a link that goes
 nowhere: recovery runs from the server console, and an administrator can set a new password there.

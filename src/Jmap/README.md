@@ -907,7 +907,10 @@ statement that creates the need for it.
   `decryptedOnServer`, `sealedDraft`. `Keyring/get` carries the person's S/MIME
   certificates (`smimeCertificates`) and which of their addresses the Web Key
   Directory publishes (`wkd`), and `ContactKey/lookup` each recipient's
-  (`smime`). See docs/CLIENT_DEVELOPMENT.md.
+  (`smime`). `Keyring/get` also names what the keyring hangs off — `root`,
+  `password` or `passphrase` (an account single sign-on made, which has no
+  password) — and `rootKdf`, the salt and iterations to stretch that secret
+  with, so an app asks for the right one. See docs/CLIENT_DEVELOPMENT.md.
 - Not implemented: `Email/copy|parse`, `VacationResponse/*`, `Blob/copy`.
 
 ---

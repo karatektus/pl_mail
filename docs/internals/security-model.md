@@ -233,6 +233,64 @@ change — locks every key instead. Removing a person deletes their keyring.
 nothing in this phase is slow enough to block the page. Decrypting large mail is when a worker
 earns its keep.
 
+### Two roots
+
+Phase 6e. `wrapKey` is derived from one secret, the keyring's **root** (`User::$keyringRoot`,
+`KeyringRoot`):
+
+```
+password    masterKey = PBKDF2-SHA256(password,   kdfSalt,        kdfIterations)
+passphrase  masterKey = PBKDF2-SHA256(passphrase, passphraseSalt, passphraseIterations)
+            wrapKey   = HKDF-SHA256(masterKey, "plmail/user-key-wrap")   // either way
+```
+
+The password for every account that has one. An account without a usable password — the empty
+hash `OidcUserResolver` writes for an account single sign-on creates — has nothing to hang a
+keyring off: the provider's password never reaches plMail, and a keyring hung off the provider's
+say-so would be one the provider could open. Its root is an **encryption passphrase**, chosen in
+Settings → Encryption and stretched exactly like a password, with its own salt and count
+(`passphrase_salt`, `passphrase_iterations`). Its own salt so that a passphrase equal to a later
+password never stretches to the bytes whose auth hash the server sees. No auth hash is ever derived
+from the passphrase, so the server has nothing to check it against; whether it is right shows only
+in whether a user key opens (AES-GCM). Everything below `wrapKey` — address keys, copies, S/MIME,
+pairing, sealed drafts — is the same on both.
+
+`User::$keyringRootInEffect` is the passphrase once set up, and also before for an account without
+a usable password; `Keyring::create()` writes the root in the same flush as the first user key,
+requires the passphrase's parameters on that root and refuses them on the password. Its iteration
+count is at least the installation's password count, so a browser cannot talk the server into a
+cheaper root.
+
+**The roots never cross.** Everything that happens to the login applies only to a keyring on the
+password: `applyPasswordChange()` and `lockAll()` do nothing on the passphrase, so a password
+change neither re-wraps nor refuses over it, and giving a single sign-on account a password
+(`app:user:password`, then the forced change) locks nothing. The passphrase changes through `POST
+/keyring/passphrase` (`Keyring::changePassphrase()`), with every active user key re-wrapped and the
+same all-or-nothing rule. Switching an existing keyring from one root to the other is not offered.
+
+### Unlocking when needed
+
+Only the login form opens the keyring on the way in. Every other session — remember-me, single
+sign-on (always remembered, see `OidcAuthenticator`), an account without a password — starts shut
+and is asked nothing at sign-in. `Keyring.requireOpen()` asks through one shared dialog
+(`crypto/_unlock_dialog.html.twig`, `assets/crypto/unlock_dialog.js`) when something needs the open
+keyring: an encrypted message or quote, a draft about to be sealed or built, a sealed draft,
+Settings → Encryption, pairing. One dialog however many ask at once; after it, the open keyring is
+announced (`crypto:keyring`) so the background decrypter — which never asks itself — and messages
+that showed themselves locked carry on. The split unlock then holds for the session as before.
+
+**How the session's half is kept depends on the root.** On the password, `POST /keyring/unlock`
+checks the stretched password like a sign-in, throttled by `keyring_unlock`. On the passphrase,
+`POST /keyring/unlock/session` keeps the browser's random unlock key **without a proof**, once a
+keyring exists (`UnlockController::session()`). That is safe because the half opens nothing on its
+own: it wraps the passphrase-derived key in that browser's localStorage, and the server never sees
+what it wraps. A session that registers a half of its own gets a key that unwraps nothing it did not
+already hold; reaching `wrapKey` still takes the passphrase, checked by the user key opening in the
+browser. The wrapped user keys go to every session through `GET /keyring` anyway, so an offline
+guess at the passphrase is exactly as possible as an offline guess at the password — the proof on the
+password is the server checking a secret it holds a hash of, which has no counterpart here. A
+keyring on the password cannot use the proof-free route: it would bypass the throttle.
+
 ## Reading encrypted and signed mail
 
 Phase 3 of issue #28. `MessageCryptoDetector` classifies every message in each provider's builder,
@@ -431,6 +489,11 @@ Phase 6 of issue #28: `urn:plmail:params:jmap:keys` gives an app password what t
 has — the keyring still wrapped (`Keyring/get`, without the recovery copies), contacts' keys and the
 composer's lookup (`RecipientKeys`, shared with the web), the decrypted-mail hand-over
 (`DecryptedMail`, same rules) — and Email gets its crypto fields. Nothing readable is added.
+
+**`Keyring/get` names the root** (`root`: `password` | `passphrase`) and how to stretch it
+(`rootKdf`: `salt`, `iterations`; a null salt on the passphrase means it is not set up yet), so an
+app asks for the passphrase on an account single sign-on made — never for a password it does not
+have.
 
 **Pairing hands over the user keys without the server seeing them.** The browser seals them under a
 fresh 32-byte transfer key (AES-GCM, purpose `plmail/pairing-transfer`), posts only the sealed copy,
@@ -1023,6 +1086,19 @@ path at once.
 **A cancelled-booking flag plus a plain unique index is a slot nobody can ever rebook.** The
 entity says this explicitly: adding `cancelled_at` later means making the index partial —
 `WHERE cancelled_at IS NULL` — and that is the sentence to remember.
+
+**A new place that needs the keyring must ask through `requireOpen()`, not `ensure()`.** `ensure()`
+opens only what the session can open silently; on a remember-me or single sign-on session that is
+nothing, and the feature would look broken to exactly the people who never typed a password. The
+background decrypter is the one deliberate exception: a dialog nobody asked for is worse than mail
+decrypted a little later.
+
+**The proof-free session route must stay passphrase-only.** Letting a password keyring register its
+half there would skip the throttle `POST /keyring/unlock` puts on guessing the password.
+
+**Anything that acts on "the password" must check the root.** A key locked or re-wrapped because the
+login changed, on a keyring that hangs off the passphrase, is a person locked out of their mail for
+having been given a password.
 
 **An aborted request is not a lost session.** `session.js` clears its stored half only when the
 server answers 404 for the unlock key. Clearing on any failure locked the keyring of everybody

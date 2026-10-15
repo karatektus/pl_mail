@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:f2cef454f9d291df422cf3cddd751cd0534150f2 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:8b3fd7a4004f1a4cee9bdc58d47cc012a80ff503 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1357,11 +1357,27 @@ Antwort beim Einlösen (`POST /device/pair`) hat dann neben `secret` und `userna
 `{"v": 1, "userKeys": [{"id": 3, "key": "<base64, 32 Bytes>"}]}`. Leg die User-Keys unter einem
 eigenen Keystore-Schlüssel ab. Ein QR-Code ohne `#k=` koppelt ohne Schlüssel.
 
-**Notlösung — einmal das Passwort.** `Keyring/get` (ohne `accountId`, ein Objekt mit der id
-`singleton`) liefert `kdf: {salt, iterations}` und `userKeys: [{id, wrapped, status}]`. Leite
-`masterKey = PBKDF2-SHA256(passwort, salt, iterations, 32 Bytes)` und
+**Notlösung — einmal das Geheimnis des Schlüsselbunds.** `Keyring/get` (ohne `accountId`, ein
+Objekt mit der id `singleton`) liefert `root`, `rootKdf: {salt, iterations}` und
+`userKeys: [{id, wrapped, status}]`. `root` sagt, an welchem Geheimnis der Schlüsselbund hängt, und
+damit, wonach du die Person fragst:
+
+- `password` — ihr plMail-Passwort. `rootKdf` ist dasselbe wie `kdf`, die Parameter der Anmeldung.
+  Es ist null, solange der gespeicherte Hash des Kontos noch vom Passwort selbst stammt; ein solches
+  Konto hat noch keinen Schlüsselbund.
+- `passphrase` — ihre **Verschlüsselungs-Passphrase**, bei einem Konto, das sich nur über Single
+  Sign-on anmeldet und kein plMail-Passwort hat. Frag nach der Passphrase, nie nach einem Passwort,
+  und sag dazu, dass es nicht das Passwort des Anmeldedienstes ist. Ein `rootKdf.salt` von null
+  heißt, die Verschlüsselung ist noch nicht eingerichtet: Es gibt nichts zu öffnen, und eingerichtet
+  wird sie in der Web-App (Einstellungen → Verschlüsselung), nicht über JMAP.
+
+In beiden Fällen leite `masterKey = PBKDF2-SHA256(geheimnis, rootKdf.salt, rootKdf.iterations,
+32 Bytes)` (das Geheimnis NFC-normalisiert, UTF-8) und
 `wrapKey = HKDF-SHA256(masterKey, salt = leer, info = kdf.wrapKeyInfo, 32 Bytes)` ab und öffne damit
-jedes aktive `wrapped` mit `purposes.userKey`.
+jedes aktive `wrapped` mit `purposes.userKey`. Ein Geheimnis, das keinen öffnet, ist falsch — bei
+einer Passphrase ist das die einzige Prüfung, die es gibt; der Server hat nichts, womit er sie
+vergleichen könnte. Die Passphrase kann sich in der Web-App ändern; öffnet ein zwischengespeicherter
+`wrapKey` die User-Keys nicht mehr, frag erneut.
 
 **Adress-Keys.** `Keyring/get` liefert außerdem `addressKeys: [{id, userKeyId, fingerprint,
 publicKey, privateKey, token, status, addresses: [{email, primary}]}]`. Öffne `token` mit dem

@@ -8,6 +8,23 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Encryption for single sign-on accounts, and no password prompt at sign-in — phase 6e of
+end-to-end encryption.** An account that signs in only through single sign-on has no plMail
+password for its keys to hang off, so it could not use encryption at all. It now sets encryption up
+under Settings → Encryption with an **encryption passphrase** of its own: stretched in the browser
+like a password, never sent to the server, and changed on the same page without touching the
+sign-in. Giving such an account a password later locks nothing; the passphrase stays what opens its
+keys. And a session the password form did not open — *Keep me logged in*, or single sign-on — is no
+longer asked anything at sign-in: one dialog asks for the password or the passphrase the first time
+something needs the keys (an encrypted message, a draft about to be encrypted, Settings →
+Encryption, pairing a device), once per session, and **Not now** just leaves them locked. The inline
+unlock form on Settings → Encryption is replaced by that dialog. `Keyring/get` names which secret
+applies (`root`, `rootKdf`), and the config backup carries it. The migration adds three columns to
+the user table (`keyring_root`, defaulting to the password, and the passphrase's salt and
+iterations); it is reversible, but going down leaves passphrase keyrings openable only with their
+recovery phrase or a known device.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Your key, findable by your address — phase 6d of end-to-end encryption.** plMail can publish
 people's OpenPGP keys through the Web Key Directory, so Thunderbird, Proton, GnuPG
 (`gpg --locate-keys`) and other plMail installations find them on their own. Off until an

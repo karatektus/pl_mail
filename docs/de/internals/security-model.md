@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:50dd08302faf6786559797239abf074086952d5e -->
+<!-- translated-from: internals/security-model.md sha1:69fe449c13ec15cb176cada76f59f4d986f25c5a -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -258,6 +258,71 @@ entfernt wird, verliert seinen Schlüsselbund.
 nichts in dieser Phase ist langsam genug, um die Seite zu blockieren. Große Mails zu entschlüsseln
 ist der Punkt, an dem sich ein Worker lohnt.
 
+### Zwei Wurzeln
+
+Phase 6e. `wrapKey` wird aus einem Geheimnis abgeleitet, der **Wurzel** des Schlüsselbunds
+(`User::$keyringRoot`, `KeyringRoot`):
+
+```
+password    masterKey = PBKDF2-SHA256(password,   kdfSalt,        kdfIterations)
+passphrase  masterKey = PBKDF2-SHA256(passphrase, passphraseSalt, passphraseIterations)
+            wrapKey   = HKDF-SHA256(masterKey, "plmail/user-key-wrap")   // in beiden Fällen
+```
+
+Das Passwort für jedes Konto, das eins hat. Ein Konto ohne nutzbares Passwort — der leere Hash, den
+`OidcUserResolver` für ein per Single Sign-on angelegtes Konto schreibt — hat nichts, woran ein
+Schlüsselbund hängen könnte: Das Passwort des Anbieters erreicht plMail nie, und ein Schlüsselbund,
+der am Wort des Anbieters hinge, wäre einer, den der Anbieter öffnen könnte. Seine Wurzel ist eine
+**Verschlüsselungs-Passphrase**, gewählt unter Einstellungen → Verschlüsselung und genau wie ein
+Passwort gestreckt, mit eigenem Salt und eigener Rundenzahl (`passphrase_salt`,
+`passphrase_iterations`). Ein eigenes Salt, damit eine Passphrase, die einem späteren Passwort
+gleicht, nie zu den Bytes gestreckt wird, deren Auth-Hash der Server sieht. Aus der Passphrase wird
+nie ein Auth-Hash abgeleitet, der Server hat also nichts, woran er sie prüfen könnte; ob sie stimmt,
+zeigt sich nur daran, ob sich ein User-Key öffnet (AES-GCM). Alles unter `wrapKey` — Adress-
+Schlüssel, Kopien, S/MIME, Kopplung, versiegelte Entwürfe — ist bei beiden gleich.
+
+`User::$keyringRootInEffect` ist die Passphrase, sobald sie eingerichtet ist, und auch schon vorher
+bei einem Konto ohne nutzbares Passwort; `Keyring::create()` schreibt die Wurzel im selben Flush wie
+den ersten User-Key, verlangt auf dieser Wurzel die Parameter der Passphrase und verweigert sie auf
+dem Passwort. Ihre Rundenzahl ist mindestens die Passwort-Rundenzahl der Installation, damit ein
+Browser dem Server keine billigere Wurzel unterschieben kann.
+
+**Die Wurzeln kreuzen sich nie.** Alles, was mit der Anmeldung geschieht, gilt nur für einen
+Schlüsselbund am Passwort: `applyPasswordChange()` und `lockAll()` tun an der Passphrase nichts, ein
+Passwortwechsel verpackt dort also weder neu noch verweigert er sich ihretwegen, und einem
+Single-Sign-on-Konto ein Passwort zu geben (`app:user:password`, danach der erzwungene Wechsel),
+sperrt nichts. Die Passphrase wechselt über `POST /keyring/passphrase`
+(`Keyring::changePassphrase()`), mit jedem aktiven User-Key neu verpackt und derselben
+Alles-oder-nichts-Regel. Einen bestehenden Schlüsselbund von einer Wurzel auf die andere
+umzustellen, wird nicht angeboten.
+
+### Entsperren, wenn es gebraucht wird
+
+Nur das Anmeldeformular öffnet den Schlüsselbund gleich mit. Jede andere Sitzung — Angemeldet
+bleiben, Single Sign-on (immer gemerkt, siehe `OidcAuthenticator`), ein Konto ohne Passwort —
+beginnt verschlossen und wird bei der Anmeldung nichts gefragt. `Keyring.requireOpen()` fragt über
+einen gemeinsamen Dialog (`crypto/_unlock_dialog.html.twig`, `assets/crypto/unlock_dialog.js`),
+wenn etwas den offenen Schlüsselbund braucht: eine verschlüsselte Mail oder ein Zitat daraus, ein
+Entwurf, der gleich versiegelt oder gebaut wird, ein versiegelter Entwurf, Einstellungen →
+Verschlüsselung, die Kopplung. Ein Dialog, egal wie viele gleichzeitig fragen; danach wird der
+offene Schlüsselbund angekündigt (`crypto:keyring`), damit der Hintergrund-Entschlüssler — der nie
+selbst fragt — und Mails, die sich als gesperrt gezeigt haben, weitermachen. Die geteilte
+Entsperrung hält dann wie bisher für die Sitzung.
+
+**Wie die Sitzungshälfte gehalten wird, hängt von der Wurzel ab.** Am Passwort prüft `POST
+/keyring/unlock` das gestreckte Passwort wie eine Anmeldung, gedrosselt durch `keyring_unlock`. An
+der Passphrase hält `POST /keyring/unlock/session` den zufälligen Entsperr-Schlüssel des Browsers
+**ohne Beweis**, sobald ein Schlüsselbund existiert (`UnlockController::session()`). Das ist sicher,
+weil die Hälfte allein nichts öffnet: Sie verpackt den aus der Passphrase abgeleiteten Schlüssel im
+localStorage dieses Browsers, und der Server sieht nie, was sie verpackt. Eine Sitzung, die eine
+eigene Hälfte registriert, bekommt einen Schlüssel, der nichts entpackt, was sie nicht schon hatte;
+an `wrapKey` kommt man weiterhin nur mit der Passphrase, geprüft dadurch, dass sich der User-Key im
+Browser öffnet. Die verpackten User-Keys bekommt jede Sitzung über `GET /keyring` ohnehin, ein
+Offline-Rateversuch an der Passphrase ist also genauso möglich wie an einem Passwort — der Beweis am
+Passwort ist der Server, der ein Geheimnis prüft, dessen Hash er hat, und dafür gibt es hier kein
+Gegenstück. Ein Schlüsselbund am Passwort kann den beweisfreien Weg nicht nehmen: Er würde die
+Drosselung umgehen.
+
 ## Verschlüsselte und signierte Mails lesen
 
 Phase 3 von Issue #28. `MessageCryptoDetector` ordnet jede Nachricht im Builder des jeweiligen
@@ -473,6 +538,11 @@ hat — den Schlüsselbund weiterhin verpackt (`Keyring/get`, ohne die Recovery-
 und die Suche des Schreibfensters (`RecipientKeys`, mit dem Web geteilt), die Übergabe entschlüsselter
 Mails (`DecryptedMail`, dieselben Regeln) —, und Email bekommt ihre Krypto-Felder. Nichts Lesbares
 kommt dazu.
+
+**`Keyring/get` nennt die Wurzel** (`root`: `password` | `passphrase`) und wie sie gestreckt wird
+(`rootKdf`: `salt`, `iterations`; ein leeres Salt an der Passphrase heißt, sie ist noch nicht
+eingerichtet), damit eine App bei einem per Single Sign-on angelegten Konto nach der Passphrase fragt
+— nie nach einem Passwort, das es nicht hat.
 
 **Die Kopplung übergibt die User-Keys, ohne dass der Server sie sieht.** Der Browser versiegelt sie
 unter einem frischen 32-Byte-Übertragungsschlüssel (AES-GCM, Zweck `plmail/pairing-transfer`),
@@ -1127,6 +1197,20 @@ ein einziges Feld, öffnet alle Pfade auf einmal wieder.
 wieder jemand buchen kann.** Die Entität sagt das ausdrücklich: `cancelled_at` später zu ergänzen
 heißt, den Index partiell zu machen — `WHERE cancelled_at IS NULL` —, und das ist der Satz, den
 du dir merken solltest.
+
+**Eine neue Stelle, die den Schlüsselbund braucht, muss über `requireOpen()` fragen, nicht über
+`ensure()`.** `ensure()` öffnet nur, was die Sitzung still öffnen kann; in einer Angemeldet-bleiben-
+oder Single-Sign-on-Sitzung ist das nichts, und die Funktion sähe genau für die kaputt aus, die nie
+ein Passwort getippt haben. Der Hintergrund-Entschlüssler ist die eine bewusste Ausnahme: Ein Dialog,
+um den niemand gebeten hat, ist schlimmer als eine Mail, die etwas später entschlüsselt wird.
+
+**Der beweisfreie Sitzungsweg muss der Passphrase vorbehalten bleiben.** Registrierte ein
+Schlüsselbund am Passwort seine Hälfte dort, umginge er die Drosselung, die `POST /keyring/unlock`
+dem Raten des Passworts auferlegt.
+
+**Alles, was auf „das Passwort“ reagiert, muss die Wurzel prüfen.** Ein Schlüssel, der gesperrt oder
+neu verpackt wird, weil sich die Anmeldung geändert hat, an einem Schlüsselbund, der an der
+Passphrase hängt, ist ein Mensch, der aus seinen Mails ausgesperrt wird, weil er ein Passwort bekam.
 
 **Eine abgebrochene Anfrage ist keine verlorene Sitzung.** `session.js` löscht seine gespeicherte
 Hälfte nur, wenn der Server für den Entsperr-Schlüssel 404 antwortet. Bei jedem Fehlschlag zu

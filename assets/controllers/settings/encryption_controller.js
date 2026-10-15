@@ -11,6 +11,7 @@ import { showToast } from "../../toast.js";
  * Values:
  *   stateUrl, unlockUrl, preloginUrl, csrf, userId, email — the keyring's config
  *   locale     — for dates
+ *   minLength  — User::PASSWORD_MIN_LENGTH, the floor for a passphrase too
  *   messages   — translated strings, keyed as in the template
  *
  * Targets: see the template; every one is optional so that a part of the page
@@ -18,7 +19,9 @@ import { showToast } from "../../toast.js";
  */
 export default class extends Controller {
     static targets = [
-        "status", "unlockForm", "unlockPassword", "unlockError", "openOnly",
+        "status", "unlockForm", "openOnly",
+        "setupForm", "setupPassphrase", "setupRepeat", "setupError",
+        "passphraseCard", "passphraseCurrent", "passphraseNew", "passphraseRepeat", "passphraseResult",
         "phraseState", "phraseCreate", "phraseBox", "phraseWords", "recoverForm", "recoverWords", "recoverResult",
         "devices", "rememberDevice", "keys",
         "importFile", "importText", "importPassphrase", "importResult", "exportPassphrase",
@@ -33,6 +36,7 @@ export default class extends Controller {
         userId: String,
         email: String,
         locale: String,
+        minLength: { type: Number, default: 12 },
         messages: Object,
     };
 
@@ -49,28 +53,67 @@ export default class extends Controller {
             email: this.emailValue,
         });
 
-        try {
-            await this.#ring.ensure();
-        } catch {
-            this.#ring.status = "broken";
-        }
+        // The page that is all about the keyring: a shut one is asked open
+        // straight away, through the shared dialog.
+        await this.#ring.requireOpen();
 
         this.#render();
     }
 
     // ── Actions ─────────────────────────────────────────────────────────────
 
+    /** The status card's button, for asking again after the dialog was cancelled. */
     async unlock(event) {
+        await this.#busy(event.currentTarget, () => this.#ring.requireOpen());
+    }
+
+    clearValidity(event) {
+        event.target.setCustomValidity("");
+    }
+
+    /**
+     * Encryption, set up with a passphrase, on an account that has no password
+     * for it to hang off. See Keyring.setUpPassphrase().
+     */
+    async setUp(event) {
         event.preventDefault();
+
+        if (false === this.#acceptable(this.setupPassphraseTarget, this.setupRepeatTarget)) {
+            return;
+        }
 
         await this.#busy(event.submitter, async () => {
             try {
-                await this.#ring.unlock(this.unlockPasswordTarget.value);
-                this.unlockPasswordTarget.value = "";
-                this.unlockErrorTarget.hidden = true;
+                await this.#ring.setUpPassphrase(this.setupPassphraseTarget.value);
+                this.setupPassphraseTarget.value = "";
+                this.setupRepeatTarget.value = "";
+                this.setupErrorTarget.hidden = true;
+                showToast(this.messagesValue.setupDone, { type: "success" });
             } catch (error) {
-                this.unlockErrorTarget.textContent = "rate_limited" === error.message ? this.messagesValue.rateLimited : this.messagesValue.wrongPassword;
-                this.unlockErrorTarget.hidden = false;
+                console.warn("Keyring:", error);
+                this.setupErrorTarget.textContent = this.messagesValue.failed;
+                this.setupErrorTarget.hidden = false;
+            }
+        });
+    }
+
+    /** A new encryption passphrase. See Keyring.changePassphrase(). */
+    async changePassphrase(event) {
+        event.preventDefault();
+
+        if (false === this.#acceptable(this.passphraseNewTarget, this.passphraseRepeatTarget)) {
+            return;
+        }
+
+        await this.#busy(event.submitter, async () => {
+            try {
+                await this.#ring.changePassphrase(this.passphraseCurrentTarget.value, this.passphraseNewTarget.value);
+                this.passphraseCurrentTarget.value = "";
+                this.passphraseNewTarget.value = "";
+                this.passphraseRepeatTarget.value = "";
+                this.#say(this.passphraseResultTarget, this.messagesValue.passphraseChanged, false);
+            } catch (error) {
+                this.#say(this.passphraseResultTarget, "wrong_passphrase" === error.message ? this.messagesValue.wrongRootPassphrase : this.messagesValue.failed, true);
             }
         });
     }
@@ -271,6 +314,14 @@ export default class extends Controller {
             this.unlockFormTarget.hidden = "locked" !== ring.status;
         }
 
+        if (true === this.hasSetupFormTarget) {
+            this.setupFormTarget.hidden = "unset" !== ring.status;
+        }
+
+        if (true === this.hasPassphraseCardTarget) {
+            this.passphraseCardTarget.hidden = false === open || "passphrase" !== ring.root;
+        }
+
         if (false === open) {
             return;
         }
@@ -288,7 +339,8 @@ export default class extends Controller {
         const state = this.#ring.state;
         const [icon, text] = {
             open: ["fa-solid fa-lock text-emerald-500", this.messagesValue.statusOpen],
-            locked: ["fa-solid fa-lock text-amber-500", this.messagesValue.statusLocked],
+            locked: ["fa-solid fa-lock text-amber-500", "passphrase" === this.#ring.root ? this.messagesValue.statusLockedPassphrase : this.messagesValue.statusLocked],
+            unset: ["fa-solid fa-circle-minus text-ink-faint", this.messagesValue.statusUnset],
             disabled: ["fa-solid fa-circle-minus text-ink-faint", this.messagesValue.statusDisabled],
             insecure: ["fa-solid fa-circle-minus text-amber-500", this.messagesValue.statusInsecure],
             broken: ["fa-solid fa-triangle-exclamation text-danger", this.messagesValue.statusBroken],
@@ -455,6 +507,29 @@ export default class extends Controller {
 
             return row;
         }));
+    }
+
+    /**
+     * The floor and the agreement, checked here because the server never sees
+     * a passphrase to check them on. Characters, not UTF-16 units, as the
+     * password form counts them.
+     */
+    #acceptable(input, repeat) {
+        if (Array.from(input.value).length < this.minLengthValue) {
+            input.setCustomValidity(this.messagesValue.tooShort);
+            input.reportValidity();
+
+            return false;
+        }
+
+        if (input.value !== repeat.value) {
+            repeat.setCustomValidity(this.messagesValue.mismatch);
+            repeat.reportValidity();
+
+            return false;
+        }
+
+        return true;
     }
 
     #button(label, action, params) {

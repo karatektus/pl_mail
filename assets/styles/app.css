@@ -4906,7 +4906,8 @@ emoji-picker {
    not dim the page at all. What a modal does to the page behind it is the app's
    decision, not a preference.
    ───────────────────────────────────────────────────────────────────────── */
-#confirm-dialog {
+#confirm-dialog,
+#keyring-unlock-dialog {
     position: fixed;
     inset: 0;
     margin: auto;
@@ -4923,7 +4924,8 @@ emoji-picker {
     overflow-y: auto;
 }
 
-#confirm-dialog::backdrop {
+#confirm-dialog::backdrop,
+#keyring-unlock-dialog::backdrop {
     background-color: rgb(0 0 0 / 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);

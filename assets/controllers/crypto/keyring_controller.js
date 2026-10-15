@@ -12,6 +12,11 @@ import { showToast } from "../../toast.js";
  * survives visits, and the body this sits in does not. The `booted` flag below
  * is the module's, for the same reason.
  *
+ * Silent on a session it cannot open — remember-me, single sign-on, an account
+ * on the encryption passphrase that has not set it up: nothing is asked at
+ * sign-in, and whatever needs the keyring later asks through
+ * Keyring.requireOpen().
+ *
  * It also forgets the session's stored half of the unlock on sign-out, which
  * is a form submission the browser makes and no Stimulus controller owns.
  *

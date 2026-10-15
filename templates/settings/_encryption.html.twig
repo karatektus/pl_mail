@@ -11,6 +11,14 @@ known only once the browser has opened it. The markup is the frame, in Twig so
 its words come from the catalogues; the script fills the parts that depend on
 the keyring and shows the forms that apply.
 
+An account that signs in only through single sign-on has no password for
+the keyring to hang off (phase 6e): the status card offers it "Set up
+encryption" with a passphrase of its own instead, and once that is done a
+card to change the passphrase follows the status. Neither is shown to anybody
+whose keyring hangs off the password. A session whose keyring is shut is
+asked through the shared unlock dialog (crypto/_unlock_dialog.html.twig),
+here as everywhere else; the status card keeps a button to ask again.
+
 Four cards, most comfortable first: whether it works, the recovery phrase,
 the devices that can reopen it on their own, and — folded away — the keys
 themselves for whoever wants to import, export or replace one. Then the
@@ -36,9 +44,17 @@ Accepts nothing: what it needs is the signed-in user and the routes.
      data-settings--encryption-user-id-value="{{ app.user.id }}"
      data-settings--encryption-email-value="{{ app.user.email }}"
      data-settings--encryption-locale-value="{{ app.request.locale }}"
+     data-settings--encryption-min-length-value="{{ constant('App\\Entity\\User\\User::PASSWORD_MIN_LENGTH') }}"
      data-settings--encryption-messages-value="{{ {
          statusOpen:        'encryption.status.open'|trans,
          statusLocked:      'encryption.status.locked'|trans,
+         statusLockedPassphrase: 'encryption.status.locked_passphrase'|trans,
+         statusUnset:       'encryption.status.unset'|trans,
+         setupDone:         'encryption.setup.done'|trans,
+         tooShort:          'encryption.setup.too_short'|trans({ '%min%': constant('App\\Entity\\User\\User::PASSWORD_MIN_LENGTH') }),
+         mismatch:          'encryption.setup.mismatch'|trans,
+         passphraseChanged: 'encryption.passphrase.done'|trans,
+         wrongRootPassphrase: 'encryption.unlock_dialog.wrong_passphrase'|trans,
          statusDisabled:    'encryption.status.disabled'|trans,
          statusInsecure:    'encryption.status.insecure'|trans,
          statusBroken:      'encryption.status.broken'|trans,
@@ -112,18 +128,62 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                 {{ 'encryption.status.loading'|trans }}
             </p>
 
-            <form hidden class="mt-4 max-w-md" data-settings--encryption-target="unlockForm"
-                  data-action="submit->settings--encryption#unlock">
-                <label for="encryption-unlock" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.unlock.label'|trans }}</label>
-                <div class="flex items-end gap-2">
-                    <input type="password" id="encryption-unlock" required autocomplete="current-password"
-                           data-settings--encryption-target="unlockPassword" class="{{ field }}">
-                    <button type="submit" class="{{ primaryButton }} shrink-0">{{ 'encryption.unlock.submit'|trans }}</button>
-                </div>
-                <p hidden class="mt-2 text-xs text-danger" data-settings--encryption-target="unlockError" role="alert"></p>
+            {# The dialog asks by itself when this page opens; this is for asking
+               again after it was cancelled. #}
+            <div hidden class="mt-4" data-settings--encryption-target="unlockForm">
+                <button type="button" class="{{ primaryButton }}" data-action="click->settings--encryption#unlock">{{ 'encryption.unlock.submit'|trans }}</button>
+            </div>
+
+            {# An account without a password, before it has a keyring: the
+               passphrase everything else will hang off. Checked here for
+               length and agreement, because the server never sees it. #}
+            <form hidden class="mt-4 max-w-md" data-settings--encryption-target="setupForm"
+                  data-action="submit->settings--encryption#setUp" novalidate>
+                <h3 class="text-sm font-semibold text-ink mb-1">{{ 'encryption.setup.heading'|trans }}</h3>
+                <p class="text-xs text-ink-muted mb-2">{{ 'encryption.setup.intro'|trans }}</p>
+                <p class="text-xs text-danger mb-3" role="note">
+                    <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ 'encryption.setup.warning'|trans }}
+                </p>
+                <label for="encryption-setup-passphrase" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.setup.passphrase'|trans }}</label>
+                <input type="password" id="encryption-setup-passphrase" required autocomplete="new-password"
+                       data-settings--encryption-target="setupPassphrase" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                <label for="encryption-setup-repeat" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.setup.repeat'|trans }}</label>
+                <input type="password" id="encryption-setup-repeat" required autocomplete="new-password"
+                       data-settings--encryption-target="setupRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                <button type="submit" class="{{ primaryButton }} mt-3">{{ 'encryption.setup.submit'|trans }}</button>
+                <p hidden class="mt-2 text-xs text-danger" data-settings--encryption-target="setupError" role="alert"></p>
             </form>
         {% endblock %}
     {% endembed %}
+
+    {# ── Encryption passphrase ───────────────────────────────────────────── #}
+    {# Only for a keyring that hangs off a passphrase, and only while it is
+       open: the current passphrase opens the keys, the new one wraps them, all
+       in the browser. Changing the sign-in password never comes near this. #}
+    <div hidden data-settings--encryption-target="passphraseCard">
+        {% embed 'settings/_card.html.twig' with {
+            heading:    'encryption.passphrase.heading'|trans,
+            subheading: 'encryption.passphrase.subheading'|trans,
+            padded:     true,
+            class:      'mb-6',
+        } %}
+            {% block body %}
+                <form class="max-w-md" data-action="submit->settings--encryption#changePassphrase" novalidate>
+                    <label for="encryption-passphrase-current" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.passphrase.current'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-current" required autocomplete="off"
+                           data-settings--encryption-target="passphraseCurrent" class="{{ field }}">
+                    <label for="encryption-passphrase-new" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.passphrase.new'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-new" required autocomplete="new-password"
+                           data-settings--encryption-target="passphraseNew" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                    <label for="encryption-passphrase-repeat" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.passphrase.repeat'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-repeat" required autocomplete="new-password"
+                           data-settings--encryption-target="passphraseRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                    <button type="submit" class="{{ button }} mt-3">{{ 'encryption.passphrase.submit'|trans }}</button>
+                    <p hidden class="mt-2 text-xs" data-settings--encryption-target="passphraseResult" role="status"></p>
+                </form>
+            {% endblock %}
+        {% endembed %}
+    </div>
 
     {# ── Recovery phrase ─────────────────────────────────────────────────── #}
     {% embed 'settings/_card.html.twig' with {

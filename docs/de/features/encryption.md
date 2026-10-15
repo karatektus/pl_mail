@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:d2ed83ce2c787a6c8a4da44d27660502881ed480 -->
+<!-- translated-from: features/encryption.md sha1:e1720855395005a32c3b26fbcbb035996756ebfd -->
 
 # Verschlüsselung
 
@@ -22,12 +22,54 @@ von beiden. Was der Server aufbewahrt, sind deine Schlüssel in verschlossener F
 einem Schlüssel, den dein Browser aus deinem Passwort ableitet und den der Server nicht ableiten
 kann, weil er das Passwort nie sieht (siehe [Sicherheit](security.md#anmelden)).
 
-## Du meldest dich einmal an
+Meldest du dich nur über Single Sign-on an, hast du kein plMail-Passwort, und es wird nichts
+erstellt, bis du eine Verschlüsselungs-Passphrase wählst — siehe unten.
 
-Die Anmeldung entsperrt deine Schlüssel für die ganze Sitzung, in jedem Tab, ohne erneute Frage.
-Endet eine Sitzung — du meldest dich ab, oder sie läuft aus —, sind sie wieder gesperrt. Eine
-Sitzung, die **Angemeldet bleiben** geöffnet hat statt eines getippten Passworts, beginnt gesperrt:
-Die Einstellungsseite fragt dann einmal nach deinem Passwort.
+## Du entsperrst einmal
+
+Die Anmeldung mit deinem Passwort entsperrt deine Schlüssel für die ganze Sitzung, in jedem Tab,
+ohne erneute Frage. Endet eine Sitzung — du meldest dich ab, oder sie läuft aus —, sind sie wieder
+gesperrt.
+
+Eine Sitzung, die anders geöffnet wurde — durch **Angemeldet bleiben** oder über Single Sign-on —,
+beginnt mit gesperrten Schlüsseln, und bei der Anmeldung fragt dich nichts. Sobald etwas sie zum
+ersten Mal braucht, fragt ein Dialog nach deinem Passwort (oder deiner Verschlüsselungs-Passphrase,
+siehe unten):
+
+- eine verschlüsselte Mail öffnen oder auf sie antworten;
+- ein Entwurf, der gleich verschlüsselt wird, oder ein verschlüsselter Entwurf, den du öffnest;
+- **Einstellungen → Verschlüsselung**;
+- ein Gerät koppeln, damit deine Schlüssel mitkommen.
+
+Einmal entsperrt, bleiben die Schlüssel für den Rest der Sitzung offen, in jedem Tab. **Nicht jetzt**
+lässt sie gesperrt: Die Mail sagt es und bietet an, noch einmal zu fragen, und ein Entwurf, der
+verschlüsselt werden soll, wird erst gespeichert, wenn sie offen sind. Mails, die du entschlüsselt
+auf diesem Server behältst, werden im Hintergrund nachgeholt, sobald deine Schlüssel offen sind —
+ohne von sich aus zu fragen.
+
+## Mit Single Sign-on anmelden
+
+Ein Konto, das sich nur über den Anmeldedienst deiner Organisation anmeldet, hat kein
+plMail-Passwort — und das Passwort des Anmeldedienstes erreicht plMail nie, kann hier also auch
+nichts öffnen. Deine Schlüssel hängen stattdessen an einer eigenen **Verschlüsselungs-Passphrase**.
+
+**Einstellungen → Verschlüsselung** bietet **Verschlüsselung einrichten** an, bis du es getan hast.
+Tippe eine Passphrase zweimal — mindestens so lang, wie ein Passwort sein muss —, und deine Schlüssel
+werden erstellt, genau wie bei allen anderen, und für diese Sitzung entsperrt. Vorher wird nichts
+erzeugt, und nichts erinnert dich daran.
+
+Ab dann fragt der Entsperr-Dialog nach der Passphrase, einmal pro Sitzung. Wie ein Passwort wird sie
+in deinem Browser gestreckt und nie an den Server geschickt; ob sie stimmt, zeigt sich nur daran, ob
+sich deine Schlüssel öffnen. **Ändern** kannst du sie unter *Verschlüsselungs-Passphrase* auf
+derselben Seite: Deine Schlüssel werden in deinem Browser unter der neuen neu verpackt, und deine
+Anmeldung bleibt unberührt.
+
+Erstelle gleich nach dem Einrichten eine [Recovery-Phrase](#die-recovery-phrase). plMail kann eine
+Verschlüsselungs-Passphrase nicht zurücksetzen: Vergessen, wird sie so wiederhergestellt wie ein
+vergessenes Passwort — mit der Recovery-Phrase oder auf einem [bekannten Gerät](#bekannte-geräte).
+
+Bekommst du später zusätzlich ein plMail-Passwort, ändert sich für deine Schlüssel nichts: Die
+Passphrase öffnet sie weiterhin, und das Passwort meldet dich nur an.
 
 ## Die Recovery-Phrase
 
@@ -288,7 +330,9 @@ Wenn du die plMail-App koppelst (Einstellungen → App-Passwörter → **Gerät 
 Schlüssel mit, sofern sie in diesem Browser offen sind — die Zeile unter dem QR-Code sagt es. Sie
 reisen versiegelt: Der Schlüssel, der sie öffnet, steckt im QR-Code selbst, den dein Browser zeichnet
 und nie an den Server schickt. Verschlüsselte Mails öffnen sich dann in der App ohne Passwort. Ein
-Gerät, das ohne sie gekoppelt wurde, bekommt deine Schlüssel einmal mit deinem plMail-Passwort.
+Gerät, das ohne sie gekoppelt wurde, bekommt deine Schlüssel einmal mit deinem plMail-Passwort —
+oder, wenn du die Verschlüsselung mit einer Passphrase eingerichtet hast, mit dieser Passphrase. Ein
+Browser, dessen Schlüssel gesperrt sind, fragt beim Koppeln zuerst nach ihnen.
 
 ## Entschlüsselte Mails auf diesem Server behalten
 
@@ -328,8 +372,18 @@ jemand hatte, was sie öffnet. Erstelle die Phrase.
 Schlüssel, den du weiter benutzen willst, importiere ihn dann: plMail verwirft seinen eigenen
 Schlüssel für diese Adresse nur, solange ihn niemand gesehen hat.
 
-**Eine Sitzung, die „Angemeldet bleiben“ wieder geöffnet hat, beginnt gesperrt.** Deine Mails sind
-alle da; nur deine Schlüssel warten einmal auf dein Passwort.
+**Eine Sitzung, die „Angemeldet bleiben“ wieder geöffnet hat oder die über Single Sign-on geöffnet
+wurde, beginnt gesperrt.** Deine Mails sind alle da; die erste verschlüsselte Mail fragt einmal pro
+Sitzung nach deinem Passwort oder deiner Passphrase. Abbrechen lässt sie gesperrt, sonst nichts.
+
+**Eine vergessene Verschlüsselungs-Passphrase ohne Recovery-Phrase kostet deine verschlüsselten
+Mails.** Niemand kann sie zurücksetzen — keine Administratorin, nicht dein Anmeldedienst —, weil
+niemand außer dir sie je kannte. Ein bekanntes Gerät öffnet deine Schlüssel noch; sonst erstelle die
+Phrase an dem Tag, an dem du die Verschlüsselung einrichtest.
+
+**Die Verschlüsselungs-Passphrase ist nicht das Passwort deines Anmeldedienstes.** Das eine zu ändern
+ändert das andere nicht, und plMail fragt den Anmeldedienst nie danach. Ein Passwortmanager bietet
+im Dialog vielleicht dein Anmeldepasswort an; es öffnet deine Schlüssel nicht.
 
 **Verschlüsselung braucht HTTPS.** Unter einer reinen `http://`-Adresse — etwa einer IP im LAN —
 bietet der Browser keine eigene Kryptografie an, also werden dort keine Schlüssel erstellt oder
@@ -426,8 +480,9 @@ das Schloss, bevor du schreibst.
 
 **Solange deine Schlüssel in diesem Browser gesperrt sind, wird eine Nachricht, die verschlüsselt
 werden soll, weder gespeichert noch gesendet.** Gespeichert läge sie lesbar auf dem Server. Das
-Schreibfenster sagt es dir; öffne deine Schlüssel unter Einstellungen → Verschlüsselung oder schalte
-die Verschlüsselung für diese Nachricht aus.
+Schreibfenster bittet beim ersten Mal, wenn es sie braucht, ums Entsperren; nach **Nicht jetzt** sagt
+es das und fragt nicht bei jedem Speichern wieder, beim Senden aber schon. Oder schalte die
+Verschlüsselung für diese Nachricht aus.
 
 **Der Betreff wird verschlüsselt; Absender, Empfänger und Datum nicht.** Die braucht eine Mail außen,
 um zugestellt zu werden. Der Betreff einer verschlüsselten Nachricht reist innerhalb der

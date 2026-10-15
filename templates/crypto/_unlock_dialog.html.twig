@@ -1,0 +1,76 @@
+{#
+crypto/_unlock_dialog.html.twig — the one dialog that opens the keyring when
+something needs it (phase 6e of issue #28).
+
+A session the password form did not open — a remember-me cookie, a single
+sign-on sign-in, an account that has no password at all — starts with the
+keyring shut and is asked nothing at sign-in. The first thing that needs the
+keys asks here: an encrypted message, a draft about to be sealed, Settings →
+Encryption, pairing a device. The reading pane, the composer and the settings
+page share this one dialog rather than each growing a form, and the keyring
+asks through it at most once at a time (Keyring.requireOpen()). After one
+unlock the session keeps its half (SessionUnlock), and nothing asks again.
+
+It asks for whichever secret the keyring hangs off: the password, or the
+encryption passphrase of an account that signs in through single sign-on.
+Both variants are here, in Twig so their words come from the catalogues;
+crypto/unlock_dialog.js shows the one that applies.
+
+A <dialog>, like _partials/_confirm_dialog.html.twig and for its reasons, and
+with its geometry: see `#keyring-unlock-dialog` beside `#confirm-dialog` in
+app.css. Accepts nothing.
+#}
+<dialog id="keyring-unlock-dialog"
+        aria-labelledby="keyring-unlock-dialog-title"
+        data-enter="pop"
+        data-testid="keyring-unlock-dialog"
+        class="pane-flat shadow-float text-ink">
+    <form class="flex flex-col gap-4 p-6" data-keyring-unlock-form novalidate>
+        <h2 id="keyring-unlock-dialog-title" class="text-base font-semibold text-ink">
+            {{ 'encryption.unlock_dialog.heading'|trans }}
+        </h2>
+
+        <p class="text-sm leading-relaxed text-ink-soft" data-root="password">{{ 'encryption.unlock_dialog.password_intro'|trans }}</p>
+        <p class="text-sm leading-relaxed text-ink-soft" data-root="passphrase" hidden>{{ 'encryption.unlock_dialog.passphrase_intro'|trans }}</p>
+
+        <div>
+            <label for="keyring-unlock-secret" class="block text-[11px] text-ink-faint mb-1">
+                <span data-root="password">{{ 'encryption.unlock_dialog.password_label'|trans }}</span>
+                <span data-root="passphrase" hidden>{{ 'encryption.unlock_dialog.passphrase_label'|trans }}</span>
+            </label>
+            <input type="password" id="keyring-unlock-secret" required autocomplete="current-password"
+                   data-keyring-unlock-secret
+                   class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors">
+            {# Every reason it did not open, translated, for the script to pick
+               from — there is no request to render a message into. #}
+            <p hidden class="mt-2 text-xs text-danger" role="alert" data-keyring-unlock-error
+               data-wrong-password="{{ 'encryption.unlock.wrong_password'|trans }}"
+               data-wrong-passphrase="{{ 'encryption.unlock_dialog.wrong_passphrase'|trans }}"
+               data-rate-limited="{{ 'encryption.unlock.rate_limited'|trans }}"
+               data-failed="{{ 'encryption.failed'|trans }}"></p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" data-keyring-unlock-cancel
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft
+                           bg-field
+                           border border-field
+                           hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">
+                {{ 'encryption.unlock_dialog.cancel'|trans }}
+            </button>
+
+            <button type="submit" data-keyring-unlock-submit
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-accent-ink
+                           bg-accent hover:bg-accent-strong active:bg-accent-strong
+                           disabled:opacity-60 disabled:cursor-not-allowed
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">
+                {{ 'encryption.unlock_dialog.submit'|trans }}
+            </button>
+        </div>
+    </form>
+</dialog>
