@@ -8,12 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-**Pull the mail list down to sync it, on a phone.** Reaching for the button at the top of the
-screen is no longer the only way: pulling the mail list down from its top now syncs it, through the same sync as that button: drag
-past the *Release to sync* indicator and let go, and the sync icon spins while the run lasts. It is
-for a finger on a phone-width screen only. A mouse, a trackpad and wider windows behave as before, a
-list scrolled down scrolls as it always did, and a pull while the sidebar is open does nothing.
-Reduced motion removes the indicator's slide. No schema change, no deployment change.
+**Pull the mail list down to sync it, on a phone.** Reaching for the button at the top of the screen
+is no longer the only way: pulling the mail list down from its top now syncs it, through the same
+sync as that button. Drag past the *Release to sync* indicator and let go, and the sync icon spins
+while the run lasts. It is for a finger on a phone-width screen only. A mouse, a trackpad and wider
+windows behave as before, a list scrolled down scrolls as it always did, and a pull while the
+sidebar is open does nothing. Reduced motion removes the indicator's slide. No schema change, no
+deployment change.
 [#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
 
 **Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
