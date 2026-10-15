@@ -400,6 +400,100 @@ final class GraphFolderMoveTest extends KernelTestCase
         );
     }
 
+    // ── re-reported, not moved ───────────────────────────────────────────────
+
+    /**
+     * Graph re-sends a message in its folder's delta whenever anything about it
+     * changes, and most of those changes are not a move. Writing a change-log
+     * row for a message that did not move makes the server announce new mail
+     * to the phone, so a message already wearing its folder's label must leave
+     * no trace in the change log at all.
+     */
+    public function testAMessageAlreadyInItsFolderWritesNoChangeLog(): void
+    {
+        $message = $this->seedMessage($this->trash);
+
+        $this->syncFolder(self::TRASH_FOLDER, $message->graphId);
+
+        self::assertSame(['Trash'], $this->labelNamesOf($message));
+        self::assertSame(0, $this->changeLogRows('Email', 'updated'));
+        self::assertSame(0, $this->changeLogRows('Thread', 'updated'));
+    }
+
+    /**
+     * The production shape, not the tidy one. A delta entry for a message plMail
+     * has just marked read carries `isRead` alongside its folder, and the flag
+     * state that comes with it is already what plMail stores for an unread
+     * message, so nothing moved and nothing changed.
+     */
+    public function testAReReportedMessageWithAnUnchangedReadStateWritesNoChangeLog(): void
+    {
+        $message = $this->seedMessage($this->trash);
+
+        $this->syncFolders([self::TRASH_FOLDER => [[
+            'id'             => $message->graphId,
+            'parentFolderId' => self::TRASH_FOLDER,
+            'isRead'         => false,
+        ]]]);
+
+        self::assertSame(['Trash'], $this->labelNamesOf($message));
+        self::assertSame(0, $this->changeLogRows('Email', 'updated'));
+        self::assertSame(0, $this->changeLogRows('Thread', 'updated'));
+    }
+
+    /**
+     * The counterpart to the two tests above: the same syncer, the same
+     * assertion helper, a real move. Without it, zero rows could mean the
+     * counting query never sees the table.
+     */
+    public function testAMessageThatMovedWritesOneEmailAndOneThreadChangeLogRow(): void
+    {
+        $message = $this->seedMessage($this->drafts);
+
+        $this->syncFolder(self::TRASH_FOLDER, $message->graphId);
+
+        self::assertSame(1, $this->changeLogRows('Email', 'updated'));
+        self::assertSame(1, $this->changeLogRows('Thread', 'updated'));
+    }
+
+    /**
+     * A removal reported under a folder the message is not in is a stale or
+     * misdirected delta entry. There is nothing to take off, so nothing may be
+     * written and the message stays where it is.
+     */
+    public function testARemovalFromAFolderTheMessageIsNotInWritesNoChangeLog(): void
+    {
+        $message = $this->seedMessage($this->trash);
+        $rowId   = (int) $message->id;
+
+        $this->syncFolders([self::DRAFTS_FOLDER => [$this->removedItem($message->graphId)]]);
+
+        self::assertNotNull($this->em->find(Message::class, $rowId));
+        self::assertSame(['Trash'], $this->labelNamesOf($message));
+        self::assertSame(0, $this->changeLogRows('Email', 'updated'));
+        self::assertSame(0, $this->changeLogRows('Thread', 'updated'));
+    }
+
+    /**
+     * The counterpart to the removal test above: the message does wear the
+     * label being removed, and it still has another folder label to keep it
+     * from being read as a deletion, so this is a real change and must be
+     * recorded.
+     */
+    public function testARemovalFromAFolderTheMessageIsInWritesAChangeLogRow(): void
+    {
+        $message = $this->seedMessage($this->drafts, $this->trash);
+        $rowId   = (int) $message->id;
+
+        $this->syncFolders([
+            self::DRAFTS_FOLDER => [$this->removedItem($message->graphId)],
+            self::TRASH_FOLDER  => [['id' => $message->graphId, 'parentFolderId' => self::TRASH_FOLDER]],
+        ]);
+
+        self::assertNotNull($this->em->find(Message::class, $rowId));
+        self::assertGreaterThanOrEqual(1, $this->changeLogRows('Email', 'updated'));
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
 
     /**
@@ -528,6 +622,18 @@ final class GraphFolderMoveTest extends KernelTestCase
         sort($names);
 
         return $names;
+    }
+
+    /**
+     * How many change-log rows this account has of one object type and change.
+     * The fixtures write none, so after a sync the count is what the sync wrote.
+     */
+    private function changeLogRows(string $objectType, string $changeType): int
+    {
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM jmap_change_log WHERE account_id = ? AND object_type = ? AND change_type = ?',
+            [$this->account->id, $objectType, $changeType],
+        );
     }
 
     /**

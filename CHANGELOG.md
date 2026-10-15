@@ -17,6 +17,28 @@ sidebar is open does nothing. Reduced motion removes the indicator's slide. No s
 deployment change.
 [#163](https://github.com/karatektus/pl_mail/pull/163), by @Flouss.
 
+**An installed plMail no longer says "New mail" when nothing arrived.** The notification on a phone
+or browser was sent for every change to a message — opening a conversation, marking it read,
+starring, archiving, a spam move, a copy of something you sent — and again a few minutes later when
+Outlook reported your own reading back, and it always read "New mail". A device switched on under
+Settings → Notifications is now told when mail arrives in the Inbox of a mailbox that has finished
+importing, and about nothing else. Spam, drafts, sent copies and an import in progress no longer
+notify, and neither does a message whose arrival time plMail cannot work out from its headers. Reminders from Calendar alerts and the update notice for administrators
+are separate pushes and unchanged. Apps that register through JMAP, and an Android phone through
+Firebase, are still told about every change: they ask what moved. **Migration:** one boolean column
+on `jmap_push_subscription`, false by default; devices registered through the in-app toggle (an id
+starting `web-`) are switched to the new behaviour once, so nobody has to turn notifications off and
+on. Reversible.
+[#162](https://github.com/karatektus/pl_mail/pull/162), by @Flouss.
+
+**Outlook mailboxes stop reporting moves that did not happen.** Microsoft sends a message again
+whenever anything about it changes — plMail marking it read is enough — and each of those was
+written to the change log as a move into the folder the message was already in. Only a message
+whose folder actually changed is recorded now. The effect runs one way: a JMAP client, and an
+Android phone through Firebase, are told about fewer Email and Thread changes from an Outlook
+mailbox, and none that describe nothing. No migration.
+[#162](https://github.com/karatektus/pl_mail/pull/162), by @Flouss.
+
 **Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
 inbox or on an account's page, replaces the current entry, as Gmail does, so the browser's Back
 leaves the inbox instead of stepping back through every tab you looked at. The address still follows

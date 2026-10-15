@@ -32,6 +32,21 @@ final class StateManager
      */
     private array $dirty = [];
 
+    /**
+     * Accounts on which mail ARRIVED since the last drain, keyed by account id
+     * so a batch of a hundred messages is one entry.
+     *
+     * A separate buffer rather than a flag on $dirty, because an Email being
+     * CREATED is not the same question as mail ARRIVING: drafts, sent copies
+     * and imported history are creates too. $dirty answers "did anything
+     * change" for every JMAP client; this answers "is there new mail" for the
+     * one device that is only interested in that. Keeping them apart is what
+     * lets that device be told less without any other client being told less.
+     *
+     * @var array<int,bool>
+     */
+    private array $arrivals = [];
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ChangeLogRepository $changeLogRepository,
@@ -95,6 +110,34 @@ final class StateManager
         // so the set is collapsed here and drained once at the end of the
         // request or handler by JmapPushSubscriber.
         $this->dirty[$accountId][$type->value] = true;
+    }
+
+    /**
+     * Record that mail arrived in this account's Inbox. Idempotent per account
+     * within one drain. Writes no change-log row: the Email's own create is
+     * recorded separately, by the same caller.
+     *
+     * Callers must be sure the message is genuinely new mail, not merely a
+     * created Email. See PostIngestPipeline, the one place that decides.
+     */
+    public function recordArrival(int $accountId): void
+    {
+        $this->arrivals[$accountId] = true;
+    }
+
+    /**
+     * The accounts on which mail arrived since the last drain, emptying that
+     * buffer. Independent of drainDirty(): draining one leaves the other.
+     *
+     * @return list<int>
+     */
+    public function drainArrivals(): array
+    {
+        $arrived = array_map('intval', array_keys($this->arrivals));
+
+        $this->arrivals = [];
+
+        return array_values($arrived);
     }
 
     /**

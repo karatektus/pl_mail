@@ -106,6 +106,18 @@ endpoint provably reaches this user's device.
 Re-subscribing from the same browser replaces its registration rather than piling up dead endpoints
 — browsers rotate the endpoint URL, and plMail keys on an id the browser keeps.
 
+**What it notifies about.** A device registered here is told when mail **arrives in the Inbox** of a
+mailbox that has finished importing, and about nothing else: not reading, starring, archiving or
+moving something, not spam, not a draft or a copy of something you sent, and not mail being
+imported. The notification says only "New mail"; it carries no sender or subject. A message whose
+arrival time plMail cannot work out from its headers is not announced.
+
+Two other kinds of push go to the same devices and are not affected: a reminder from
+[Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is
+available. Apps that register through JMAP (`PushSubscription/set`), and an Android phone through
+Firebase, are different too: they are told about every change, because they ask what moved and
+decide for themselves what to show.
+
 **Registered devices** lists every device on the account below the toggle, not just this one: the
 phone app, the tablet, the other laptop. Each line says which transport it uses (Web Push or
 Firebase), whether the verification handshake completed, and what happened the last time something

@@ -720,7 +720,14 @@ final class GraphApiSyncer
         // A folder move on the Microsoft side changes Email.mailboxIds, which
         // is the single most visible thing a JMAP client watches for. Without
         // this the message silently moves in Outlook and never in ltt.rs.
-        $this->recordMoved($account, $message);
+        //
+        // Only when it did move. Graph re-sends a message in its folder's
+        // delta for reasons that are not a move — plMail marking it read is
+        // one — and recording a change for a message that is already where it
+        // should be announces nothing true to a JMAP client.
+        if (true === $moved) {
+            $this->recordMoved($account, $message);
+        }
 
         // A list shows the thread's labels, and a thread wears a folder while
         // any of its messages does. Adding the destination alone left the
@@ -750,6 +757,12 @@ final class GraphApiSyncer
         }
 
         $wasThere = $message->hasLabel($label);
+
+        // A removal for a folder the message is not in changes nothing, and
+        // recording it would announce a move that did not happen.
+        if (false === $wasThere) {
+            return false;
+        }
 
         $message->removeLabel($label);
         $this->recordMoved($account, $message);
