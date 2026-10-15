@@ -12,13 +12,13 @@ use App\Service\System\AppVersion;
  * Which release notes a person has not seen, and whether to show them (#165).
  *
  * ── The version that counts ──────────────────────────────────────────────────
- * Only a release: AppVersion's label when it is `vX.Y.Z`, which is what the
- * image build stamps from the tag. A `main` or `sha-…` image, and a checkout
- * whose label is a `git describe`, answer null, and with no running release
- * nothing opens by itself and the dot never shows. What those builds hold is
- * either a release's notes plus unreleased work, or not plMail's history at
- * all, and "New in 0.3.6" over code that is not 0.3.6 would be wrong in both
- * directions.
+ * A release build is the release its tag names: AppVersion's label when it is
+ * `vX.Y.Z`, which the image build stamps from the tag. Anything else — a
+ * `main` or `sha-…` image, a checkout whose label is a `git describe` — is the
+ * newest tagged release in its own CHANGELOG.md: it holds every release up to
+ * that one, and its unreleased work is never shown. That matters because
+ * installs follow `main` on purpose, the owner's among them, and "only on a
+ * tag" left them without the dialog for good.
  *
  * ── Where somebody starts ────────────────────────────────────────────────────
  * The release they last saw, kept in the user's settings bag. After an update,
@@ -44,14 +44,17 @@ final readonly class WhatsNew
     ) {
     }
 
-    /** The running release as `0.3.6`, or null for anything that is not one. */
+    /**
+     * The release this build counts as, `0.3.6`: its own tag, or the newest
+     * release in its changelog. Null only when the changelog has none.
+     */
     public function running(): ?string
     {
-        if (1 !== preg_match('/^v?(\d+\.\d+\.\d+)$/', trim($this->appVersion->label()), $m)) {
-            return null;
+        if (1 === preg_match('/^v?(\d+\.\d+\.\d+)$/', trim($this->appVersion->label()), $m)) {
+            return $m[1];
         }
 
-        return $m[1];
+        return $this->changelog->releases()[0]->version ?? null;
     }
 
     /**
@@ -83,7 +86,7 @@ final readonly class WhatsNew
 
     /**
      * Releases after $since and up to the running one, newest first. Empty
-     * when no release is running.
+     * when the changelog holds no release at all.
      *
      * @return list<ChangelogRelease>
      */
@@ -104,8 +107,8 @@ final readonly class WhatsNew
 
     /**
      * Releases at or below the running one — every release a running install
-     * has — newest first. With no running release, all of them: a checkout is
-     * where the notes get written and read back.
+     * has — newest first. All of them when the changelog holds no release,
+     * which is the only way there is no running one.
      *
      * @return list<ChangelogRelease>
      */

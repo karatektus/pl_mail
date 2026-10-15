@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:d349985a9ac85af50a2b96c5a566a80c16495651 -->
+<!-- translated-from: install/upgrading.md sha1:86de4574a5dd3df515000f98f4e2ababc44d535e -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -172,9 +172,10 @@ etwas Ungesehenes gibt, und dem ganzen Änderungsprotokoll unter **Vollständige
   angelegt oder später hinzugefügt wird, beginnt bei der Version, die bei der ersten Anmeldung lief.
   Alle, die es schon gab, als der Dialog kam, beginnen bei 0.3.1 und sehen beim ersten Mal jede
   Version seitdem.
-- **Nur Release-Builds.** Ein `main`- oder `sha-…`-Image oder ein Checkout öffnet ihn nie von selbst
-  und zeigt keinen Punkt: Es gibt keine Version, die neu wäre. Über das **?** sind die Hinweise
-  trotzdem da.
+- **Ein `main`-Image zählt als seine neueste Version.** Ein `main`- oder `sha-…`-Image oder ein
+  Checkout gilt als die neueste getaggte Version in seinem eigenen `CHANGELOG.md`, also sieht eine
+  Installation, die `main` folgt, den Dialog, sobald diese Version getaggt ist. Änderungen, die noch
+  in keiner Version sind, werden nie gezeigt.
 - **Migrationshinweise sind für Administratoren.** Zeilen mit `**Migration:**` und Abschnitte
   *Before you upgrade* stehen in einem Kasten, den nur Administratoren sehen; alle anderen lesen, was
   sich für sie geändert hat.

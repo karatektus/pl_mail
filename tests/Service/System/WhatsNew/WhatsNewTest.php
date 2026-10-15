@@ -17,7 +17,8 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
  *
  * The rules the owner set: after an update and never on an install; everybody
  * who was here before starts at 0.3.1; "Don't show this after updates" is
- * silence, dot included; and only a release build counts.
+ * silence, dot included; and a build that is not a tag counts as the newest
+ * release in its changelog.
  */
 final class WhatsNewTest extends TestCase
 {
@@ -60,13 +61,13 @@ final class WhatsNewTest extends TestCase
     {
         yield 'a release tag'      => ['v0.3.6', '0.3.6'];
         yield 'without the v'      => ['0.3.6', '0.3.6'];
-        yield 'the main image'     => ['main', null];
-        yield 'a commit image'     => ['sha-1a2b3c4', null];
-        yield 'a checkout'         => ['v0.3.5-12-g1a2b3c4-dirty', null];
+        yield 'the main image'     => ['main', '0.3.6'];
+        yield 'a commit image'     => ['sha-1a2b3c4', '0.3.6'];
+        yield 'a checkout'         => ['v0.3.5-12-g1a2b3c4-dirty', '0.3.6'];
     }
 
     #[DataProvider('labels')]
-    public function testOnlyAReleaseBuildHasARunningRelease(string $label, ?string $expected): void
+    public function testABuildIsItsTagOrTheNewestReleaseItHolds(string $label, ?string $expected): void
     {
         self::assertSame($expected, $this->whatsNew($label)->running());
     }
@@ -94,15 +95,18 @@ final class WhatsNewTest extends TestCase
         self::assertFalse($news->startIfNew($user), 'once, and never again');
     }
 
-    public function testABuildThatIsNotAReleaseRecordsNothingAndAnnouncesNothing(): void
+    /** An install that follows main: the dialog is about the newest tagged release, never about Unreleased. */
+    public function testAMainBuildAnnouncesItsNewestReleaseAndNothingUnreleased(): void
     {
-        $user = $this->user(null);
         $news = $this->whatsNew('main');
 
-        self::assertFalse($news->startIfNew($user));
-        self::assertNull($user->whatsNewSeenVersion);
-        self::assertFalse($news->shouldAnnounce($this->user('0.3.1')));
-        self::assertSame(['0.3.6', '0.3.5', '0.3.2', '0.3.1'], $this->versions($news->history()), 'the ? still shows the notes');
+        self::assertSame(['0.3.6', '0.3.5', '0.3.2'], $this->versions($news->since('0.3.1')));
+        self::assertTrue($news->shouldAnnounce($this->user('0.3.1')));
+        self::assertFalse($news->shouldAnnounce($this->user('0.3.6')));
+
+        $new = $this->user(null);
+        self::assertTrue($news->startIfNew($new));
+        self::assertSame('0.3.6', $new->whatsNewSeenVersion);
     }
 
     public function testQuietMeansNoAnnouncementThoughThereIsNews(): void

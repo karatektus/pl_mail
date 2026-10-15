@@ -23,10 +23,9 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
  * which a fifth path would not have.
  *
  * Writes once per person and then never again: after the first request the
- * key is there and startIfNew() returns before touching anything. A build
- * that is not a release writes nothing, so somebody created on one starts on
- * the first release they see instead of on a version string that means
- * nothing.
+ * key is there and startIfNew() returns before touching anything. On a
+ * `main` or commit build the running release is the newest one in its
+ * changelog (WhatsNew::running()), so somebody created there starts on that.
  */
 final readonly class WhatsNewFirstSighting implements EventSubscriberInterface
 {

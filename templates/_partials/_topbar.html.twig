@@ -509,9 +509,9 @@
            opening by itself. Each item is a trigger for the shared dialog, like
            "Run setup again" in the user menu. #}
         {% set whatsNewDot = whatsNew.hasDot %}
-        <div class="relative" data-controller="ui--dropdown" data-whats-new-menu>
+        <div class="relative" data-controller="ui--user-menu" data-whats-new-menu>
             <button type="button"
-                    data-action="click->ui--dropdown#toggle"
+                    data-action="click->ui--user-menu#toggle"
                     aria-haspopup="true"
                     aria-label="{{ 'whats_new.menu.label'|trans }}"
                     title="{{ 'whats_new.menu.label'|trans }}"
@@ -525,16 +525,20 @@
                 {% endif %}
             </button>
 
-            <div data-ui--dropdown-target="menu" hidden
+            {# In the top layer, through the user menu's controller, for the reason
+               spelt out on #user-menu below: the header is a z-20 stacking
+               context, and the calendar's day headings painted over this menu
+               while it was an ordinary dropdown inside it. #}
+            <div popover="manual" data-enter="slide-down" data-ui--user-menu-target="menu"
                  role="menu"
                  aria-label="{{ 'whats_new.menu.label'|trans }}"
-                 class="absolute top-full mt-1 right-0 z-30 w-56 popover py-1">
+                 class="hidden absolute right-0 mt-2 w-56 popover py-1 z-[200]">
                 <button type="button" role="menuitem"
                         data-controller="ui--modal"
                         data-ui--modal-src-value="{{ path('app_whats_new') }}"
                         data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
                         data-ui--modal-size-value="split"
-                        data-action="click->ui--dropdown#close click->ui--modal#open"
+                        data-action="click->ui--modal#open click->ui--user-menu#toggle"
                         class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
                     <i class="fa-regular fa-star w-4 text-center text-ink-faint" aria-hidden="true"></i>
                     <span class="flex-1">{{ 'whats_new.title'|trans }}</span>
@@ -548,7 +552,7 @@
                             data-ui--modal-src-value="{{ path('app_whats_new', { pane: 'feedback' }) }}"
                             data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
                             data-ui--modal-size-value="split"
-                            data-action="click->ui--dropdown#close click->ui--modal#open"
+                            data-action="click->ui--modal#open click->ui--user-menu#toggle"
                             class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
                         <i class="fa-regular fa-comment w-4 text-center text-ink-faint" aria-hidden="true"></i>
                         {{ 'whats_new.feedback.title'|trans }}
