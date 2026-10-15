@@ -15,7 +15,7 @@ while the run lasts. It is for a finger on a phone-width screen only. A mouse, a
 windows behave as before, a list scrolled down scrolls as it always did, and a pull while the
 sidebar is open does nothing. Reduced motion removes the indicator's slide. No schema change, no
 deployment change.
-[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @Flouss.
+[#163](https://github.com/karatektus/pl_mail/pull/163), by @Flouss.
 
 **Switching category tabs no longer adds an entry to the browser's history.** A tab switch, in the
 inbox or on an account's page, replaces the current entry, as Gmail does, so the browser's Back
