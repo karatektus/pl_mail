@@ -21,7 +21,7 @@ were on; a copy stays in your Sent folder. It goes to `feedback@pluetzner.de`, o
 `APP_FEEDBACK_TO` where that is set. **Migration:** everybody who already has an account is recorded
 as having seen 0.3.1, so their first look is every release since; nothing else changes in the
 schema.
-[#PRNUM](https://github.com/karatektus/pl_mail/pull/PRNUM), by @karatektus.
+[#166](https://github.com/karatektus/pl_mail/pull/166), by @karatektus.
 
 <!-- highlight -->
 **Drafts from Outlook and Gmail open in the editor.**
