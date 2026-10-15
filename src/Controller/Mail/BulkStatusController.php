@@ -15,6 +15,7 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\AllMailView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -132,6 +133,14 @@ final class BulkStatusController extends AbstractController
 
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
+
+        // Started from All Mail (LabelRole::AllMail): archived or snoozed, a
+        // conversation is still in that list, so its row is redrawn rather
+        // than taken away — and drawn with the account dot only in the list
+        // across every account. Presentation only; every thread below is
+        // authorised on its own.
+        $fromAllMail = AllMailView::names((string) ($body['scope'] ?? ''));
+        $unifiedRows = false === $fromAllMail || AllMailView::isUnified((string) ($body['value'] ?? ''));
 
         // Only a drag posts move, label, category or star, and a drag carries
         // the rows it picked up. There is no "select every conversation in this view and
@@ -374,8 +383,8 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
-                'unified' => 'all_mail' !== ($body['scope'] ?? ''),
-                'leaves'  => !in_array($body['scope'] ?? '', ['all_mail', 'all_mail_unified'], true),
+                'unified' => $unifiedRows,
+                'leaves'  => false === $fromAllMail,
             ]);
         }
 
@@ -392,7 +401,7 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
-                'unified' => 'all_mail' !== ($body['scope'] ?? ''),
+                'unified' => $unifiedRows,
                 'leaves'  => false,
             ]);
         }
@@ -534,12 +543,13 @@ final class BulkStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
             'count'   => count($threads),
             'threads' => $threads,
-            'unified' => 'all_mail' !== ($body['scope'] ?? ''),
+            'unified' => $unifiedRows,
             // Whether the conversation is still in the list it was acted on
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
-            // it draws.
-            'leaves'    => 'read' !== $action && !('archive' === $action && in_array($body['scope'] ?? '', ['all_mail', 'all_mail_unified'], true)),
+            // it draws. All Mail holds archived mail too, so archiving there
+            // leaves it in place.
+            'leaves'    => 'read' !== $action && false === ('archive' === $action && $fromAllMail),
             'undoToken' => $undoToken,
             'undoToast' => 'toast.archived',
         ]);

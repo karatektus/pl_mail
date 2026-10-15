@@ -13,6 +13,7 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\AllMailView;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
@@ -41,19 +42,6 @@ class ThreadStatusController extends AbstractController
     use ChecksCsrf;
     use RendersTurboStreams;
 
-    /** A view descriptor changes presentation only; message ownership is checked first. */
-    private function allMailOrigin(Request $request, ?MessageThread $thread): bool
-    {
-        $body = $request->getPayload()->all();
-
-        if ('all_mail_unified' === ($body['scope'] ?? '') && '' === ($body['value'] ?? '')) {
-            return null !== $thread && true === $thread->account?->isActive;
-        }
-
-        return 'all_mail' === ($body['scope'] ?? '')
-            && null !== $thread && (string) $thread->account?->id === (string) ($body['value'] ?? '');
-    }
-
     public function __construct(
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $threadRepository,
@@ -63,6 +51,7 @@ class ThreadStatusController extends AbstractController
         private readonly MessagePurger          $purger,
         private readonly MailPlacement          $placement,
         private readonly StatusUndoService      $undo,
+        private readonly AllMailView            $allMail,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -93,8 +82,7 @@ class ThreadStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
             $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
             'undoToken' => $undoToken,
-            'stays' => $this->allMailOrigin($request, $messages[0]->thread),
-            'unified' => 'all_mail' !== ($request->getPayload()->all()['scope'] ?? ''),
+            ...$this->allMailRow($request, $messages[0]->thread),
         ]);
     }
 
@@ -258,8 +246,7 @@ class ThreadStatusController extends AbstractController
 
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,
-            'stays' => $this->allMailOrigin($request, $thread),
-            'unified' => 'all_mail' !== ($request->getPayload()->all()['scope'] ?? ''),
+            ...$this->allMailRow($request, $thread),
         ]);
     }
 
@@ -358,5 +345,34 @@ class ThreadStatusController extends AbstractController
         foreach ($messages as $message) {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
+    }
+
+    /**
+     * How a row acted on from All Mail is redrawn: archived or snoozed, it is
+     * still in that list (LabelRole::AllMail), so it is replaced rather than
+     * removed — and drawn with the account dot only in the list across every
+     * account, as the unified Inbox draws it.
+     *
+     * The list names itself in the request body, as it does for Move to.
+     * Read after the action has been authorised on the messages themselves,
+     * and only ever deciding what the row looks like.
+     *
+     * @return array{stays: bool, unified: bool}
+     */
+    private function allMailRow(Request $request, ?MessageThread $thread): array
+    {
+        $body  = $request->getPayload()->all();
+        $scope = (string) ($body['scope'] ?? '');
+        $value = (string) ($body['value'] ?? '');
+        $user  = $this->getUser();
+
+        if (false === AllMailView::names($scope) || null === $thread || false === $user instanceof User) {
+            return ['stays' => false, 'unified' => true];
+        }
+
+        return [
+            'stays'   => $this->allMail->holds($thread, $user, $value),
+            'unified' => AllMailView::isUnified($value),
+        ];
     }
 }

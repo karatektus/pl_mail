@@ -19,12 +19,13 @@ label you made shows everything carrying it, wherever it arrived.
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
 | **Archive** | Conversations you archived |
+| **All Mail** | Every conversation outside Spam and the bin, archived mail, sent mail and drafts included — off until you switch it on |
 | **Accounts** | One row per account; clicking it opens that account's inbox |
 
-Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**,
-and **Spam** where an account has a junk folder — has an eye in **Settings → Labels**: switch one off
-and its row leaves the sidebar, switch it back on and it returns, both straight away. **Unread** is
-the one that starts off.
+Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **All
+Mail**, **Trash**, and **Spam** where an account has a junk folder — has an eye in **Settings →
+Labels**: switch one off and its row leaves the sidebar, switch it back on and it returns, both
+straight away. **Unread** and **All Mail** are the ones that start off.
 
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
@@ -36,10 +37,15 @@ Clicking an account opens **its inbox** — the same question the top-level Inbo
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
 click further; the account row is not an archive of everything the account has ever held.
 
-**All Mail** opens one list of incoming, sent and archived conversations, including drafts,
-without requiring an Inbox label. Spam and Trash are excluded. It is available both across
-accounts and underneath each account; an account entry still opens its Inbox. Multiple Gmail
-labels do not duplicate a conversation, and unread counts use the same scope as the list.
+**All Mail** is everything you have, in one list: what arrived, what you sent, your drafts, and
+above all what you archived, which otherwise has no list to be browsed in. Only Spam and the bin
+are left out. It is Gmail's All Mail, and like Gmail's it holds your own mail too. Switched on, it
+is a row beside **Drafts** for all your accounts together, and a row at the top of each account's
+folders for that account alone; the account row itself still opens the account's inbox. One eye in
+**Settings → Labels** shows or hides both. Archiving or snoozing a conversation from All Mail
+leaves it in the list, where it still belongs; moving it to Spam or the bin takes it out. A
+conversation carrying several labels is listed once, and the unread filter counts the same list.
+Nothing can be dropped on it — there is nothing to move into a list that already holds everything.
 
 Under **Accounts**, expanding an account shows the labels that actually exist on it. That list is
 narrower than the sidebar's own label list on purpose: the sidebar means "across every account",

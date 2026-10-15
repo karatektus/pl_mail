@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:467de1be7853aa79cbd44450ca11755edf0843c1 -->
+<!-- translated-from: features/mail.md sha1:b428fb2515e88b031a0c96177c0c01b48a94b76e -->
 
 # Mail
 
@@ -22,13 +22,14 @@ gleich, wo es angekommen ist.
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Konversationen, die du archiviert hast |
+| **Alle E-Mails** | Jede Konversation außerhalb von Spam und Papierkorb, Archiviertes, Gesendetes und Entwürfe eingeschlossen — aus, bis du es einschaltest |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
 
 Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürfe**, **Zurückgestellt**,
-**Archiv**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter
-**Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
-Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
-einzige, der ausgeschaltet beginnt.
+**Archiv**, **Alle E-Mails**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat —
+hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
+der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
+**Alle E-Mails** beginnen ausgeschaltet.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -41,6 +42,18 @@ Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die d
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
 Kontos stehen als Ordnerzeilen darunter, einen Klick weiter; die Kontozeile ist kein Archiv über
 alles, was das Konto je enthalten hat.
+
+**Alle E-Mails** ist alles, was du hast, in einer Liste: was angekommen ist, was du gesendet hast,
+deine Entwürfe und vor allem, was du archiviert hast und sonst in keiner Liste durchsehen kannst.
+Nur Spam und Papierkorb bleiben draußen. Es ist Gmails „Alle E-Mails“, und wie dort steht auch deine
+eigene Mail darin. Eingeschaltet ist es eine Zeile neben **Entwürfe** für alle Konten zusammen und
+eine Zeile ganz oben in den Ordnern jedes Kontos für dieses Konto allein; die Kontozeile selbst
+öffnet weiterhin den Posteingang des Kontos. Ein Auge unter **Einstellungen → Labels** zeigt oder
+verbirgt beide. Archivierst du eine Konversation in Alle E-Mails oder stellst sie zurück, bleibt sie
+in der Liste, wo sie weiterhin hingehört; verschiebst du sie in Spam oder den Papierkorb, ist sie
+weg. Eine Konversation mit mehreren Labels steht einmal da, und der Ungelesen-Filter zählt dieselbe
+Liste. Ablegen kannst du darauf nichts — in eine Liste, die schon alles enthält, gibt es nichts zu
+verschieben.
 
 Klappst du unter **Konten** ein Konto auf, siehst du die Labels, die es dort tatsächlich gibt.
 Diese Liste ist absichtlich schmaler als die Label-Liste der Seitenleiste selbst: die
@@ -82,11 +95,6 @@ Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt 
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
-
-**All Mail** zeigt eingehende, gesendete und archivierte Konversationen einschließlich Entwürfen.
-Spam und Trash sind ausgeschlossen. Die Liste gibt es kontoübergreifend und unter jedem Konto;
-der Kontoeintrag öffnet weiterhin den Posteingang. Mehrere Gmail-Labels erzeugen keine doppelten
-Konversationen, und der Zähler ungelesener Konversationen verwendet denselben Bereich wie die Liste.
 
 ## Tabs
 

@@ -1084,6 +1084,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Not a bottle aboard outside Spam an' the bin."
+
 alias:
     added: 'Address added, arr!'
     catch_all_added: 'Catch-all harbour added, arr!'
@@ -3988,6 +3993,7 @@ sidebar:
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:
+        all_mail: Every bottle aboard
         archive: The hold
         calendar: Almanac
         drafts: Scrolls in the works
@@ -4195,5 +4201,3 @@ templates:
         sender_email: 'Yer address'
         sender_name: 'Yer name'
         signature: 'Mark'
-
-sidebar.nav.all_mail: All Mail

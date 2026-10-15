@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**All Mail, if you want it: every conversation outside Spam and the bin, in one list (#57).**
+Archived mail had no list of its own to be browsed in, only search. All Mail holds it, together
+with what arrived, what you sent and your drafts, as Gmail's All Mail does, leaving out only Spam
+and the bin. It is off until you switch it on with its eye in Settings → Mail → Labels; then it is
+a row beside Drafts for every account together, and a row at the top of each account's folders for
+that account alone. Archiving or snoozing from it leaves the conversation in the list. A
+conversation with several labels is listed once. No migration.
+
 **Remote images can be shown in every message without asking (#124).**
 Settings → Mail → Images has one switch, **Always show remote images**, off until you turn it on.
 With it on, no message asks before loading its pictures; they still come through plMail's image
@@ -584,10 +592,6 @@ row, and does exactly what the button it stands for does. Nothing happens while 
 while a dialog or menu is open. On for everyone; Settings → Keyboard shortcuts switches
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
-
-**Archived mail is now one click away.** All Mail lists incoming, sent, archived and draft
-conversations across accounts or within one account, excluding Spam and Trash. Inbox stays
-a separate view. Counts and pagination deduplicate Gmail labels. No schema change.
 
 `a` replies on a message that has only one recipient, where there is no Reply to all to press. The
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with

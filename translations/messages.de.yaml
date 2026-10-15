@@ -1177,6 +1177,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Keine Mail außerhalb von Spam und Papierkorb."
+
 alias:
     added: 'Adresse hinzugefügt.'
     catch_all_added: 'Catch-all-Domain hinzugefügt.'
@@ -4209,6 +4214,7 @@ sidebar:
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
+        all_mail: Alle E-Mails
         archive: Archiv
         calendar: Kalender
         drafts: Entwürfe
@@ -4419,5 +4425,3 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
-
-sidebar.nav.all_mail: Alle E-Mails

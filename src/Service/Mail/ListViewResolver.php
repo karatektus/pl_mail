@@ -10,7 +10,6 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
-use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageThreadRepository;
 
 /**
@@ -63,13 +62,14 @@ final readonly class ListViewResolver
         private MessageThreadRepository $threads,
         private LabelRepository         $labels,
         private InboxTabs               $tabs,
-        private ?AccountRepository      $accounts = null,
+        private AllMailView             $allMail,
     ) {
     }
 
     /**
      * @param string $scope one of `inbox`, `archive`, `trash`, `spam`, `sent`,
-     *                      `drafts`, `snoozed`, `starred`, `unread`, `label`
+     *                      `drafts`, `snoozed`, `starred`, `unread`, `all_mail`,
+     *                      `label`
      * @param string $value the category for `inbox`, the label id for `label`,
      *                      ignored otherwise
      *
@@ -102,20 +102,17 @@ final readonly class ListViewResolver
      */
     private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
-        if ('all_mail_unified' === $scope) {
-            return '' === $value ? $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly) : [];
-        }
+        // All Mail is not a label either: nothing wears it, the list is a
+        // query. The value narrows it to one account, or to none for the list
+        // across every account; one that is not the reader's selects nothing.
+        if (true === AllMailView::names($scope)) {
+            $account = $this->allMail->account($user, $value);
 
-        if ('all_mail' === $scope) {
-            if (!ctype_digit($value)) {
-                return [];
-            }
-            $account = $this->accounts?->find((int) $value);
-            if (null === $account || $account->usr?->id !== $user->id) {
-                return [];
-            }
-
-            return $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly);
+            return match (true) {
+                false === $account => [],
+                null === $account  => $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                default            => $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
+            };
         }
 
         if ('inbox' === $scope) {

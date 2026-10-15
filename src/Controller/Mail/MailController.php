@@ -531,41 +531,71 @@ final class MailController extends AbstractController
         ]);
     }
 
+    /**
+     * All Mail across the reader's accounts: every conversation outside Spam
+     * and the bin, archived mail included. See LabelRole::AllMail.
+     *
+     * Rendered whether or not its sidebar row is switched on, as Unread is:
+     * a bookmark should not stop working because somebody tidied their
+     * sidebar.
+     */
     #[Route('/all', name: 'all')]
     public function allMail(Request $request): Response
     {
         /** @var User $user */
-        $user = $this->getUser();
+        $user       = $this->getUser();
         $unreadOnly = $this->unreadOnly($request);
-        $total = $this->threadRepository->countForUnifiedAllMail($user, $unreadOnly);
-        $page = $this->pageOrRedirect($request, $total);
-        if ($page instanceof RedirectResponse) return $page;
-        $sort = $this->listSort($request);
+        $total      = $this->threadRepository->countForUnifiedAllMail($user, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForUnifiedAllMail($user, $page, self::PER_PAGE, $sort, $unreadOnly);
+
         $this->threadRows->preload($threads);
+
         return $this->renderList($request, 'mail/unified_all_mail.html.twig', $threads, [
-            'page' => $page, 'total' => $total, 'per_page' => self::PER_PAGE,
-            'list_sort' => $sort, 'unread_only' => $unreadOnly,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 
+    /**
+     * One account's All Mail — the row under the account in the sidebar,
+     * shown while the All Mail label is. Reachable either way, like the
+     * unified list above.
+     */
     #[Route('/account/{account}/all', name: 'account_all', requirements: ['account' => '\d+'])]
     public function accountAllMail(Account $account, Request $request): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
         $unreadOnly = $this->unreadOnly($request);
-        $total = $this->threadRepository->countForAccountAllMail($account, $unreadOnly);
-        $page = $this->pageOrRedirect($request, $total);
+        $total      = $this->threadRepository->countForAccountAllMail($account, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
+
         if ($page instanceof RedirectResponse) {
             return $page;
         }
-        $sort = $this->listSort($request);
+
+        $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForAccountAllMail($account, $page, self::PER_PAGE, $sort, $unreadOnly);
+
         $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/all_mail.html.twig', $threads, [
-            'account' => $account, 'page' => $page, 'total' => $total,
-            'per_page' => self::PER_PAGE, 'list_sort' => $sort, 'unread_only' => $unreadOnly,
+            'account'     => $account,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 

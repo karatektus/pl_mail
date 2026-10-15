@@ -568,11 +568,11 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * All conversations in one account, including archived, unlabelled and
-     * snoozed mail. Drafts belong here too: Gmail's All Mail includes drafts.
-     * Labels are a thread union, so any Spam/Trash label excludes the whole
-     * conversation. No outer label join means multiple labels cannot duplicate
-     * rows or hide old unlabelled mail.
+     * One account's All Mail: every conversation outside Spam and the bin.
+     *
+     * Archived, unlabelled, snoozed, sent and draft mail all included — Gmail's
+     * All Mail holds drafts and sent mail too, and archived mail is what this
+     * list exists to make browsable. See LabelRole::AllMail and AllMailView.
      *
      * @return list<MessageThread>
      */
@@ -581,42 +581,75 @@ class MessageThreadRepository extends ServiceEntityRepository
         $qb = $this->allMailQuery($account, $unreadOnly)
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
+
         $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
 
+    /** Same query as findForAccountAllMail(), so the pager counts what it lists. */
     public function countForAccountAllMail(Account $account, bool $unreadOnly = false): int
     {
         return (int) $this->allMailQuery($account, $unreadOnly)
-            ->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
-    /** All eligible threads across the current user's active accounts. */
+    /**
+     * All Mail across the reader's accounts — the active ones, as the unified
+     * Inbox lists: a switched-off account's mail is still reachable from its
+     * own row in the sidebar.
+     *
+     * @return list<MessageThread>
+     */
     public function findForUnifiedAllMail(User $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
-        $qb = $this->allMailQuery($user, $unreadOnly)->setFirstResult(($page - 1) * $perPage)->setMaxResults($perPage);
+        $qb = $this->allMailQuery($user, $unreadOnly)
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
         $sort->applyTo($qb);
+
         return $qb->getQuery()->getResult();
     }
 
+    /** Same query as findForUnifiedAllMail(). */
     public function countForUnifiedAllMail(User $user, bool $unreadOnly = false): int
     {
-        return (int) $this->allMailQuery($user, $unreadOnly)->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
+        return (int) $this->allMailQuery($user, $unreadOnly)
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
+    /**
+     * The one definition of All Mail, for one account or for a user's.
+     *
+     * Spam and the bin are left out by a subquery rather than by a join on
+     * the labels. Labels are per thread and a thread can wear several, so a
+     * join would list a conversation once per label — and would lose old mail
+     * that wears no label at all, which is precisely the archived mail this
+     * view is for. Any Spam or Trash label takes the whole conversation out,
+     * the rule every other list follows.
+     */
     private function allMailQuery(Account|User $owner, bool $unreadOnly): QueryBuilder
     {
         $qb = $this->createQueryBuilder('t')
             ->andWhere('t.id NOT IN (SELECT excluded.id FROM ' . MessageThread::class
                 . ' excluded JOIN excluded.labels excludedLabel WHERE excludedLabel.role IN (:excludedRoles))')
             ->setParameter('excludedRoles', [LabelRole::Spam, LabelRole::Trash]);
+
         if ($owner instanceof Account) {
-            $qb->andWhere('t.account = :account')->setParameter('account', $owner);
+            $qb->andWhere('t.account = :account')
+                ->setParameter('account', $owner);
         } else {
-            $qb->join('t.account', 'allAccount')->andWhere('allAccount.usr = :user')
-                ->andWhere('allAccount.isActive = true')->setParameter('user', $owner);
+            $qb->join('t.account', 'allAccount')
+                ->andWhere('allAccount.usr = :user')
+                ->andWhere('allAccount.isActive = true')
+                ->setParameter('user', $owner);
         }
+
         $this->narrowToUnread($qb, $unreadOnly);
 
         return $qb;
