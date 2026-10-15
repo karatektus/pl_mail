@@ -90,4 +90,73 @@ test.describe("What's new", () => {
         await expect(page.locator("#modal [data-whats-new-notes]")).toBeVisible();
         await expect(item).toBeHidden();
     });
+
+    /**
+     * A refusal from something in front of plMail — here a proxy's 413 for a
+     * large body — is said in the form, and the dialog stays. It used to be
+     * visited as a page by Turbo, which closed the dialog and said nothing.
+     */
+    test("a refused feedback request says so and the dialog stays", async ({ page }) => {
+        await page.route("**/whats-new/feedback", (route) => route.fulfill({
+            status: 413,
+            contentType: "text/html",
+            body: "<html><body><h1>413 Request Entity Too Large</h1></body></html>",
+        }));
+
+        await page.goto("/settings?section=general");
+        await page.locator("[data-whats-new-menu] > button").click();
+
+        const feedback = page.getByRole("menuitem", { name: "Send feedback" });
+        test.skip(0 === (await feedback.count()), "the fixture user has no account to send from");
+        await feedback.click();
+
+        const form = page.locator("#modal [data-whats-new-feedback]");
+        await form.locator("textarea[name=message]").fill("Hello");
+        await form.getByLabel("Attach a screenshot of the page you were on").check();
+        await expect(form.locator("input[name=screenshot]")).not.toHaveValue("", { timeout: 15_000 });
+
+        await form.getByRole("button", { name: "Send feedback" }).click();
+
+        await expect(form.getByRole("alert")).toContainText("413");
+        await expect(page.locator("#modal-backdrop")).toBeVisible();
+        await expect(form.locator("textarea[name=message]")).toHaveValue("Hello");
+    });
+
+    /**
+     * Sent with a screenshot: the answer is drawn in the dialog and the
+     * dialog stays. The server's side of a real send is WhatsNewTest's; the
+     * answer here is the one it gives, so this proves the page's side.
+     */
+    test("feedback with a screenshot ends on the sent screen, in the dialog", async ({ page }) => {
+        let body = "";
+
+        await page.route("**/whats-new/feedback", async (route) => {
+            body = route.request().postData() ?? "";
+
+            await route.fulfill({
+                status: 200,
+                contentType: "text/html",
+                body: '<turbo-frame id="modal"><div role="status" data-whats-new-feedback-sent><h3>Feedback sent.</h3></div></turbo-frame>',
+            });
+        });
+
+        await page.goto("/mail/inbox");
+        await page.locator("[data-whats-new-menu] > button").click();
+
+        const feedback = page.getByRole("menuitem", { name: "Send feedback" });
+        test.skip(0 === (await feedback.count()), "the fixture user has no account to send from");
+        await feedback.click();
+
+        const form = page.locator("#modal [data-whats-new-feedback]");
+        await form.locator("textarea[name=message]").fill("With a picture");
+        await form.getByLabel("Attach a screenshot of the page you were on").check();
+        await expect(form.locator("input[name=screenshot]")).toHaveValue(/^data:image\/jpeg;base64,/, { timeout: 15_000 });
+
+        await form.getByRole("button", { name: "Send feedback" }).click();
+
+        await expect(page.locator("#modal [data-whats-new-feedback-sent]")).toBeVisible();
+        await expect(page.locator("#modal-backdrop")).toBeVisible();
+        expect(body).toContain("data:image/jpeg;base64,");
+    });
 });
+

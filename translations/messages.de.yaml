@@ -4456,6 +4456,7 @@ whats_new:
             empty: 'Schreib eine Nachricht oder sag, wie es mit plMail läuft.'
             screenshot: 'Der Screenshot ließ sich nicht anhängen. Nimm den Haken heraus und sende noch einmal.'
             send: 'Die Mail konnte nicht gesendet werden. Dein Text ist noch da; versuch es gleich noch einmal.'
+            transport: 'Nicht gesendet: Der Server hat mit %status% statt mit plMail geantwortet. Versuch es ohne den Screenshot oder frag, wer diese Installation betreibt.'
         from: 'Senden von'
         message:
             label: 'Deine Nachricht'

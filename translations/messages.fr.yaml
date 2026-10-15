@@ -4486,6 +4486,7 @@ whats_new:
             empty: 'Écrivez un message, ou dites comment plMail se porte.'
             screenshot: 'La capture d’écran n’a pas pu être jointe. Décochez-la et envoyez à nouveau.'
             send: 'Le courrier n’a pas pu être envoyé. Votre texte est toujours là ; réessayez dans un instant.'
+            transport: 'Non envoyé : le serveur a répondu %status% au lieu de plMail. Réessayez sans la capture, ou demandez à la personne qui gère cette installation.'
         from: 'Envoyer depuis'
         message:
             label: 'Votre message'

@@ -4232,6 +4232,7 @@ whats_new:
             empty: 'Scrawl a message, or say how plMail be sailin''.'
             screenshot: 'The likeness couldn''t be lashed on. Untick it an'' send again.'
             send: 'The bottle couldn''t be sent. Yer words be still here; try again in a moment.'
+            transport: 'Not sent: the harbour answered %status% instead o'' plMail. Try again without the likeness, or ask whoever captains this ship.'
         from: 'Send from'
         message:
             label: 'Yer message'

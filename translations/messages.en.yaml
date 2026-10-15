@@ -4461,6 +4461,7 @@ whats_new:
             empty: 'Write a message, or say how plMail is doing.'
             screenshot: 'The screenshot could not be attached. Untick it and send again.'
             send: 'The mail could not be sent. Your text is still here; try again in a moment.'
+            transport: 'Not sent: the server answered %status% instead of plMail. Try again without the screenshot, or ask whoever runs this install.'
         from: 'Send from'
         message:
             label: 'Your message'

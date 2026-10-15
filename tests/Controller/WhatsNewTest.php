@@ -230,7 +230,7 @@ final class WhatsNewTest extends WebTestCase
         $page = $this->client->submit($form, ['message' => '   ']);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertCount(1, $page->filter('form[action="/whats-new/feedback"] [role="alert"]'));
+        self::assertCount(1, $page->filter('form[action="/whats-new/feedback"] [role="alert"]:not([hidden])'));
         self::assertCount(0, $this->sent());
     }
 
