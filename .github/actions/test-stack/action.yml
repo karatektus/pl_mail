@@ -64,8 +64,9 @@ runs:
     # directory inside a root-owned one ever failed, and a directory that
     # already exists is never created by Docker.
     #
-    # vendor/ and assets/vendor/ are left alone on purpose. Containers write
-    # them as root and no runner-user step reads or writes either.
+    # vendor/ is left alone on purpose: containers write it as root and no
+    # runner-user step reads or writes it. assets/vendor/ is only READ by one,
+    # the cache save below, which is the tar case above.
     - name: Prepare the paths containers write through
       shell: bash
       run: mkdir -p ~/.cache/composer var/log public/assets
@@ -109,6 +110,23 @@ runs:
         key: composer-${{ hashFiles('**/composer.lock') }}
         restore-keys: composer-
 
+    # The importmap's packages, which `composer install` fetches from
+    # cdn.jsdelivr.net in its post-install scripts (importmap:install) — six
+    # jobs, every package, every run. jsDelivr builds a package's `+esm` bundle
+    # on request, and now and then one of those requests times out, which
+    # failed a whole job before a single test ran. importmap:install fetches
+    # only what assets/vendor/ does not already hold at the version
+    # importmap.php names, so with this the CDN is asked once per change to
+    # the importmap rather than about 270 times per run. A stale restore is
+    # harmless for the same reason: what changed is fetched, the rest stays.
+    - name: Cache importmap packages
+      if: inputs.stack == 'true'
+      uses: actions/cache@v6
+      with:
+        path: assets/vendor
+        key: importmap-${{ hashFiles('importmap.php') }}
+        restore-keys: importmap-
+
     # In a container, with the project's own PHP, rather than a setup-php on the
     # runner. That is the whole point of the rework this replaced: there is one
     # PHP in this job and it is the one the app ships with, so a version or
@@ -122,12 +140,25 @@ runs:
     - name: Install PHP dependencies
       if: inputs.stack == 'true'
       shell: bash
+      # Three tries, for the CDN fetch above when the cache cannot answer:
+      # a second `composer install` finds vendor/ in place and only reruns the
+      # scripts, so a retry costs seconds. A real dependency problem fails all
+      # three and fails the job as before.
       run: |
-        docker compose -f compose.test.yaml run --rm --no-deps \
-          --volume "$HOME/.cache/composer:/composer-cache" \
-          --env COMPOSER_CACHE_DIR=/composer-cache \
-          --entrypoint docker-php-entrypoint \
-          app composer install --prefer-dist --no-progress --no-interaction
+        for attempt in 1 2 3; do
+          docker compose -f compose.test.yaml run --rm --no-deps \
+            --volume "$HOME/.cache/composer:/composer-cache" \
+            --env COMPOSER_CACHE_DIR=/composer-cache \
+            --entrypoint docker-php-entrypoint \
+            app composer install --prefer-dist --no-progress --no-interaction && break
+
+          if [ "$attempt" = 3 ]; then
+            exit 1
+          fi
+
+          echo "::warning::composer install failed (attempt $attempt of 3), usually a CDN fetch in importmap:install; retrying in 15 s"
+          sleep 15
+        done
 
     # `npm run test:env:up` without the --build it would otherwise do, because
     # the image is already built and loaded above.

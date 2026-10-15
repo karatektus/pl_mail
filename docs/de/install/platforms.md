@@ -1,4 +1,4 @@
-<!-- translated-from: install/platforms.md sha1:cbd335ac28924bc30eb4ee08fcf9053374524a3d -->
+<!-- translated-from: install/platforms.md sha1:dce16f9c1eabb5de1efada87ad7bc87a7a4ec7a2 -->
 # Plattform-Hinweise
 
 plMail führt überall dieselben Container aus, deshalb geht es auf dieser Seite fast nur um die
@@ -45,9 +45,8 @@ tauschst, was du tun wirst, wenn die Mail auf einer bestimmten Platte liegen sol
 - **Postgres läuft als uid 70** in `postgres:18-alpine` — 999 gehört zum Debian-Image.
   Es kann sein Datenverzeichnis nicht in einem root-eigenen Elternverzeichnis anlegen, dieses
   Elternverzeichnis muss also mit den richtigen Besitzrechten existieren, bevor der Container
-  startet. `truenas.compose.yaml` löst das, indem `secrets-init` das Postgres-Unterverzeichnis
-  anlegt und per `chown -R 70:70` überträgt, bevor irgendetwas anderes läuft; dieses Muster lässt
-  sich auf jede Bind-Mount-Installation übertragen.
+  startet: Leg das Postgres-Unterverzeichnis an und übertrage es per `chown -R 70:70` vor dem
+  ersten `up`, oder aus einem einmaligen Dienst, der zuerst läuft.
 - **ACLs werden nicht gebraucht.** ZFS, NFS und alles andere mit NFSv4-ACLs lehnen `setfacl` mit
   "Operation not supported" ab. plMail ruft es beim Start nicht mehr auf, es gibt also nichts
   abzulehnen.
@@ -111,26 +110,25 @@ Punkte hat hier bereits etwas kaputtgemacht.
 
 ## NAS-Geräte
 
-Ein NAS ist genau die Art Maschine, für die plMail gedacht ist, und das Repository liefert
-`truenas.compose.yaml` als ausgearbeitetes Beispiel mit — lies es auch dann, wenn dein NAS kein
-TrueNAS ist, denn jede Entscheidung darin ist eine, vor der du ebenfalls stehen wirst.
+Ein NAS ist genau die Art Maschine, für die plMail gedacht ist. Auf TrueNAS installierst du plMail
+aus dem App-Katalog. Überall sonst sind das die Entscheidungen, vor denen du stehen wirst.
 
 **Ports.** Ein NAS, dessen eigene Verwaltungsoberfläche bereits 80 und 443 belegt, verlangt, dass
 plMail umzieht. Setze `HTTP_PORT` und `HTTPS_PORT` (und `HTTP3_PORT`, falls du HTTP/3 direkt
-ausliefern willst), oder mach es wie die TrueNAS-Datei: Gib dem Dienst `php`
-`SERVER_NAME: ":80"`, damit FrankenPHP schlichtes HTTP ausliefert, leg das auf einen hohen Port —
-dort `30080` — und terminiere TLS davor. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md).
+ausliefern willst), oder mach es wie die TrueNAS-App: Gib dem Dienst `php`
+`SERVER_NAME: ":80"`, damit FrankenPHP schlichtes HTTP ausliefert, leg das auf einen hohen Port
+und terminiere TLS davor. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md).
 
-**Ein Verzeichnis statt sechs.** `truenas.compose.yaml` setzt `APP_STORAGE_DIR=var/data` und legt
-`APP_SECRETS_DIR` und `APP_SECRETS_FILE` in denselben Baum, um dann auf jedem Dienst einen einzigen
-Host-Pfad auf `/app/var/data` zu binden. Das Ergebnis ist ein einziges Verzeichnis mit den
+**Ein Verzeichnis statt sechs.** Setz `APP_STORAGE_DIR=var/data`, leg `APP_SECRETS_DIR` und
+`APP_SECRETS_FILE` in denselben Baum und binde auf jedem Dienst einen einzigen Host-Pfad auf
+`/app/var/data`. Das Ergebnis ist ein einziges Verzeichnis mit den
 Geheimnissen, Anhängen, Rohnachrichten, Uploads und dem Postgres-Cluster — eine Sache zum
 Snapshotten, eine Sache zum Sichern, und jeder Dienst sieht nachweislich denselben
 Verschlüsselungsschlüssel. Richte es auf ein Dataset statt auf ein einfaches Verzeichnis, wenn du
 Snapshots deiner Mail willst.
 
-**Wieder Besitzrechte.** Das `secrets-init` jener Datei legt die Unterverzeichnisse an, überträgt
-das Postgres-Verzeichnis per `chown -R 70:70` und tut dann etwas Nachahmenswertes:
+**Wieder Besitzrechte.** Neben `chown -R 70:70` auf das Postgres-Unterverzeichnis muss uid 70 auch
+in das Datenverzeichnis selbst wechseln können:
 
 ```sh
 chmod o+x /app/var/data || setfacl -m u:70:--x /app/var/data || true
@@ -141,14 +139,14 @@ Möglichkeit gibt, in das Verzeichnis zu wechseln, in dem ihre eigenen Daten lie
 Ausführungsrecht gewährt genau dieses Wechseln, ohne das Auflisten oder Lesen von irgendetwas zu
 erlauben.
 
-**Interpolation.** Der YAML-Installer von TrueNAS unterstützt `${VAR}` nicht, weshalb jene Datei
-jede Einstellung in einen `x-config`-Block hebt und sie über YAML-Anker referenziert. Hat die
-App-Oberfläche deines NAS dieselbe Einschränkung, gilt derselbe Trick; führt sie echtes
-`docker compose` aus, sind die Standarddatei und eine `.env` daneben einfacher.
+**Interpolation.** Manche NAS-App-Oberflächen nehmen YAML entgegen, ohne `${VAR}` zu unterstützen.
+Dort legst du jede Einstellung in einen `x-config`-Block und referenzierst sie über YAML-Anker.
+Führt dein NAS echtes `docker compose` aus, sind die Standarddatei und eine `.env` daneben
+einfacher.
 
 **Image-Tags zählen hier mehr**, weil eine NAS-App-Seite meist einen "Redeploy"-Knopf und keine
-sichtbare Version hat. `truenas.compose.yaml` setzt `pull_policy: always`, ein Redeploy holt sich
-also einen neueren Build des jeweils gesetzten Tags. Wähle den Tag bewusst — siehe
+sichtbare Version hat. Mit `pull_policy: always` holt sich ein Redeploy einen neueren Build des
+jeweils gesetzten Tags. Wähle den Tag bewusst — siehe
 [Aktualisieren](upgrading.md).
 
 **Android-Push ohne Google** ist der optionale Container, dessen Start sich auf einem NAS am meisten

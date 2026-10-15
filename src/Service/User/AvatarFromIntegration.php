@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Service\User;
 
 use App\Domain\DTO\Integration\Entry;
+use App\Domain\DTO\Integration\Listing;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\AvatarRefusedException;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AvatarStorage;
+use App\Domain\Interface\OriginalFileDriverInterface;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationRepository;
@@ -23,10 +25,13 @@ use finfo;
  * asking someone to download one and upload it again is asking them to do the
  * computer's job.
  *
- * Deliberately not the compose file picker: that one is built around attaching
- * to a draft, and its browse endpoint takes a draft id. What is needed here is
- * narrower — one image, no folders to speak of, no selection modes — so it
- * borrows the drivers rather than the picker.
+ * Settings → Profile chooses through the compose file picker, in its avatar
+ * mode (FilePickerController::browse), and this class only decides what may be
+ * chosen and keeps the result. That replaced a smaller grid of its own, which
+ * listed the first page of a service's root and had no albums, no search and no
+ * paging — it showed whatever happened to be newest and nothing else. browse()
+ * below is that grid's data and is now used only by the setup wizard, whose
+ * profile step is itself inside the modal frame the picker opens in.
  */
 final readonly class AvatarFromIntegration
 {
@@ -85,6 +90,29 @@ final readonly class AvatarFromIntegration
     }
 
     /**
+     * Files on a picker page that cannot become a picture, so the picker can
+     * show them without letting them be chosen.
+     *
+     * The compose picker lists whatever the service holds — a Paperless library
+     * is mostly PDFs — and hiding those would leave an empty-looking page with a
+     * working "show more" under it. Greyed out, it is plain why nothing there
+     * can be picked.
+     *
+     * @return list<string> entry ids
+     */
+    public function refusedIds(?Listing $listing): array
+    {
+        if (null === $listing) {
+            return [];
+        }
+
+        return array_values(array_map(
+            static fn (Entry $entry): string => $entry->id,
+            array_filter($listing->files(), static fn (Entry $entry): bool => false === self::looksLikeAnImage($entry)),
+        ));
+    }
+
+    /**
      * Only what the avatar store will take — PNG, JPEG, GIF, WebP — so nothing
      * is offered that is then refused. A HEIC photograph is an image, but not
      * one this can keep, and offering it was offering an error.
@@ -125,7 +153,14 @@ final readonly class AvatarFromIntegration
     public function apply(User $user, Integration $integration, string $fileId): void
     {
         try {
-            $file = $this->drivers->forIntegration($integration)->download($integration, $fileId);
+            $driver = $this->drivers->forIntegration($integration);
+
+            // The original where the service keeps one apart from what it
+            // serves: the picker listed the file by the original's type, and
+            // the rendition — Paperless's archived PDF — is never a picture.
+            $file = $driver instanceof OriginalFileDriverInterface
+                ? $driver->downloadOriginal($integration, $fileId)
+                : $driver->download($integration, $fileId);
         } catch (IntegrationException $e) {
             throw new AvatarRefusedException(AvatarRefusedException::UNAVAILABLE, $e);
         }

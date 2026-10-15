@@ -254,6 +254,58 @@ final class LabelChangePropagatorTest extends KernelTestCase
         self::assertSame($expected, $this->sentOfType(ApplyImapFlagsMessage::class)[0]->action);
     }
 
+    /** @return iterable<string, array{bool}> */
+    public static function directions(): iterable
+    {
+        yield 'on'  => [true];
+        yield 'off' => [false];
+    }
+
+    /**
+     * The Graph job carries what the user chose. The handler runs on a worker
+     * that may load the row before the caller has flushed it, so deriving the
+     * read state from the row pushed `isRead: false` for a message that had just
+     * been read. IMAP and Gmail already carry their action in the job.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('directions')]
+    public function testMarkReadTellsGraphWhatTheUserDid(bool $read): void
+    {
+        $this->propagator->markRead([$this->graphMessage()], $read);
+
+        $jobs = $this->sentOfType(ApplyGraphChangesMessage::class);
+
+        self::assertCount(1, $jobs, 'Graph was told');
+        self::assertSame($read, $jobs[0]->isRead);
+        self::assertNull($jobs[0]->flagged, 'a read mark says nothing about the star');
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('directions')]
+    public function testStarTellsGraphWhatTheUserDid(bool $starred): void
+    {
+        $this->propagator->star([$this->graphMessage()], $starred);
+
+        $jobs = $this->sentOfType(ApplyGraphChangesMessage::class);
+
+        self::assertCount(1, $jobs, 'Graph was told');
+        self::assertSame($starred, $jobs[0]->flagged);
+        self::assertNull($jobs[0]->isRead, 'a star says nothing about the read state');
+    }
+
+    /**
+     * Archive, trash and the rest change neither, so they say nothing and the
+     * handler derives both from the row as it always did.
+     */
+    public function testArchiveSaysNothingAboutReadStateOrStar(): void
+    {
+        $this->propagator->archive([$this->graphMessage()]);
+
+        $jobs = $this->sentOfType(ApplyGraphChangesMessage::class);
+
+        self::assertCount(1, $jobs, 'Graph was told');
+        self::assertNull($jobs[0]->isRead);
+        self::assertNull($jobs[0]->flagged);
+    }
+
     /** Nothing to say means nothing dispatched — no empty jobs on the queue. */
     public function testAnEmptyMessageListDispatchesNothing(): void
     {
@@ -380,11 +432,17 @@ final class LabelChangePropagatorTest extends KernelTestCase
         return $this->account(AuthType::OAuth2, 'google');
     }
 
+    private function graphMessage(): Message
+    {
+        return $this->messageOn($this->account(AuthType::OAuth2, 'microsoft'), graphId: 'graph-1');
+    }
+
     private function messageOn(
         Account  $account,
         ?Mailbox $mailbox = null,
         ?int     $uid = null,
         ?string  $gmailId = null,
+        ?string  $graphId = null,
     ): Message {
         $thread = new MessageThread();
         $thread->account = $account;
@@ -413,6 +471,10 @@ final class LabelChangePropagatorTest extends KernelTestCase
 
         if (null !== $gmailId) {
             $message->gmailId = $gmailId;
+        }
+
+        if (null !== $graphId) {
+            $message->graphId = $graphId;
         }
 
         $thread->addMessage($message);

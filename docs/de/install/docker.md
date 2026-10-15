@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:77ef18f80d56bea9e0c01c3223e7a745282137ee -->
+<!-- translated-from: install/docker.md sha1:c8f3e6e9877b95c2b2c957eb8f214a0e2b3e3234 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -43,11 +43,8 @@ Der Clone dient allein der `compose.yaml` — der Anwendungscode liegt im Image.
 klonen möchtest, genügt es, nur die `compose.yaml` zu kopieren, sofern du daneben eine `.env`
 anlegst oder jede Vorgabe aus der [Konfigurationsreferenz](configuration.md) akzeptierst.
 
-**Der typische Fehlerfall ist eine herumliegende `compose.override.yaml`.** Compose lädt diese Datei
-automatisch, sobald sie existiert, und die aus diesem Repository schaltet jeden Dienst vom
+**Häng `-f compose.dev.yaml` nicht an, außer du entwickelst.** Es schaltet jeden Dienst vom
 veröffentlichten Image auf ein lokal gebautes Entwicklungs-Image mit eingehängtem Quelltext um.
-Genau deshalb ist sie nicht versioniert; eingecheckt ist nur `compose.override.yaml.dist`. Kopiere
-sie nicht, außer du entwickelst.
 
 ## Starten
 
@@ -208,9 +205,8 @@ Die Compose-Datei deklariert zehn benannte Volumes:
 
 Die drei Blob-Volumes fehlten bis vor Kurzem, und der Fehler war auf lehrreiche Weise lautlos. Das
 Dockerfile hat bewusst kein `VOLUME /app/var/` — ein anonymes Volume dort gab jedem Container seine
-eigene Kopie —, die dauerhaften Pfade werden also pro Dienst deklariert. Die beiden
-Deployment-Dateien, die tatsächlich jemand bearbeitet hat, `compose.override.yaml.dist` und
-`truenas.compose.yaml`, deklarierten sie. Die Standarddatei `compose.yaml`, also genau die Datei,
+eigene Kopie —, die dauerhaften Pfade werden also pro Dienst deklariert. Der Entwicklungs-Stack
+und das TrueNAS-Deployment deklarierten sie. Die Standarddatei `compose.yaml`, also genau die Datei,
 zu der die README greifen lässt, nicht. Anhänge, die ein Sync-Worker schrieb, waren damit für den
 Web-Container unsichtbar, der den Download ausliefern sollte, und beide Kopien starben beim
 nächsten `docker compose up`, das einen Container neu anlegte. Nichts warf einen Fehler: Mail kam
@@ -222,8 +218,8 @@ Deployment-Hinweis in
 Ein leeres Volume über ein Verzeichnis zu hängen verdeckt, was darin liegt — gelöscht wird nichts,
 aber die Dateien sind nicht mehr sichtbar, bis sie herüberkopiert sind.
 
-`truenas.compose.yaml` geht einen anderen Weg: Es setzt `APP_STORAGE_DIR=var/data` und bindet ein
-einziges Host-Verzeichnis an `/app/var/data`, sodass Anhänge, Rohnachrichten, Uploads und die
+Die TrueNAS-App geht einen anderen Weg: Sie setzt `APP_STORAGE_DIR` auf ein Datenverzeichnis und
+bindet dort einen einzigen Host-Pfad, sodass Anhänge, Rohnachrichten, Uploads und die
 Geheimnisse alle unter einem Pfad landen — eine Sache zum Snapshotten und eine zum Sichern.
 
 ## Alltagsbetrieb
@@ -258,20 +254,14 @@ Geheimnisse nicht sieht.** `docker compose exec php …` ist in Ordnung —
 
 ## Fallstricke
 
-**`docker compose up` liest `compose.override.yaml` mit, ob du das wolltest oder nicht.** Eine aus
-einem Entwicklungsexperiment übrig gebliebene Kopie schaltet den gesamten Stack stillschweigend auf
-ein lokal gebautes Image ohne einkompilierten Anwendungscode um — der Entrypoint fällt dann in
-seinen `symfony/skeleton`-Zweig, und der Container gerät in eine Absturzschleife.
+**`docker compose up` liest eine `compose.override.yaml` mit, ob du das wolltest oder nicht.**
+plMail liefert keine mit; liegt eine da, hat sie jemand dort abgelegt. Lösch sie, außer du weißt,
+was sie tut.
 
 **Jeder Anwendungsdienst muss `app_secrets` einhängen.** Ein Dienst ohne diesen Mount erzeugt sich
 ein eigenes `APP_ENCRYPTION_KEY` und kann fortan nicht mehr lesen, was die anderen geschrieben
 haben. `EncryptionKeyProbe` bemerkt das beim Start und verweigert den Start des Servers, statt
 Konten zu speichern, die sonst niemand lesen kann.
-
-**`compose.prod.yaml` baut aus dem Quelltext und verlangt `APP_SECRET`.** Es setzt
-`target: frankenphp_prod` und `APP_SECRET: ${APP_SECRET}` ohne Vorgabewert, scheitert also
-unmittelbar, wenn diese Variable nicht gesetzt ist — und sie zu setzen schaltet die Erzeugung dieses
-Werts ab. Die Datei existiert für Leute, die ihr eigenes Image bauen, nicht als der normale Weg.
 
 **Ein erster Abgleich stellt Tausende Jobs in die Warteschlange, und das ist kein Fehler.**
 `/healthz` bewertet die Warteschlange erst jenseits von 5000 wartenden Nachrichten als überlastet —

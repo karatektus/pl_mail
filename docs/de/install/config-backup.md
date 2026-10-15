@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:b466a9cfc5309749518af761ea47cbb63c3659ec -->
+<!-- translated-from: install/config-backup.md sha1:ce46015f6a5838fda8a25c3071eeda9b4a9b7b15 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -65,11 +65,10 @@ auf einen nichtleeren Vorgabewert fest — die anderen beiden sind `MAILER_DSN` 
 [Warum die DSNs des Betriebs nicht in der Sicherung sind](#warum-die-dsns-des-betriebs-nicht-in-der-sicherung-sind).
 Alles Übrige reicht sie als `${NAME:-}` durch.
 
-`truenas.compose.yaml` ist die Ausnahme, und zwar bewusst: Es ist eine von Hand gepflegte Datei, die
-`APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`, `MERCURE_JWT_SECRET` und den Rest aus
-YAML-Ankern setzt, weil es auf dieser Plattform keine `.env` neben der Compose-Datei gibt. Auf diesem
-Weg verwaltest du diese Werte selbst, und die Prüfung sagt das zu jedem einzelnen — was richtig ist
-und kein Fehlschlag der Wiederherstellung; die zurückgegebenen Zeilen sind die, die in die Anker
+Die Ausnahme ist eine von Hand gepflegte Compose-Datei, die `APP_SECRET`, `APP_ENCRYPTION_KEY`,
+`DATABASE_URL`, `MERCURE_JWT_SECRET` und den Rest direkt setzt. Auf diesem Weg verwaltest du diese
+Werte selbst, und die Prüfung sagt das zu jedem einzelnen — was richtig ist
+und kein Fehlschlag der Wiederherstellung; die zurückgegebenen Zeilen sind die, die in diese Datei
 gehören.
 
 ## Exportieren

@@ -41,9 +41,8 @@ want the mail on a specific disk:
 
 - **Postgres runs as uid 70** in `postgres:18-alpine` — 999 is the Debian image's. It cannot
   create its own data directory inside a root-owned parent, so the parent has to exist with the
-  right ownership before the container starts. `truenas.compose.yaml` solves this by having
-  `secrets-init` lay out and `chown -R 70:70` the Postgres subdirectory before anything else
-  runs; that pattern transplants to any bind-mounted deployment.
+  right ownership before the container starts: create the Postgres subdirectory and
+  `chown -R 70:70` it before the first `up`, or from a one-shot service that runs first.
 - **ACLs are not needed.** ZFS, NFS and anything else using NFSv4 ACLs refuse `setfacl` with
   "Operation not supported". plMail no longer calls it at start, so there is nothing to refuse.
 
@@ -101,25 +100,24 @@ something here.
 
 ## NAS boxes
 
-A NAS is squarely the kind of machine plMail is meant to run on, and the repository ships
-`truenas.compose.yaml` as a worked example — read it even if your NAS is not a TrueNAS, because
-every decision in it is one you will face.
+A NAS is squarely the kind of machine plMail is meant to run on. On TrueNAS, install plMail from the
+apps catalogue. On anything else, these are the decisions you will face.
 
 **Ports.** A NAS whose own management UI already holds 80 and 443 needs plMail moved. Set
 `HTTP_PORT` and `HTTPS_PORT` (and `HTTP3_PORT` if you serve HTTP/3 directly), or do what the
-TrueNAS file does: give the `php` service `SERVER_NAME: ":80"` so FrankenPHP serves plain HTTP, map
-that to a high port — `30080` there — and terminate TLS in front of it. See
+TrueNAS app does: give the `php` service `SERVER_NAME: ":80"` so FrankenPHP serves plain HTTP, map
+that to a high port and terminate TLS in front of it. See
 [Behind a reverse proxy](reverse-proxy.md).
 
-**One directory instead of six.** `truenas.compose.yaml` sets `APP_STORAGE_DIR=var/data` and points
-`APP_SECRETS_DIR` and `APP_SECRETS_FILE` inside the same tree, then binds one host path at
+**One directory instead of six.** Set `APP_STORAGE_DIR=var/data`, point
+`APP_SECRETS_DIR` and `APP_SECRETS_FILE` inside the same tree, and bind one host path at
 `/app/var/data` on every service. The result is a single directory holding the secrets,
 attachments, raw messages, uploads and the Postgres cluster — one thing to snapshot, one thing to
 back up, and every service demonstrably seeing the same encryption key. Point it at a dataset
 rather than a plain directory if you want snapshots of your mail.
 
-**Ownership, again.** That file's `secrets-init` creates the subdirectories, `chown -R 70:70`s the
-Postgres one, and then does something worth copying:
+**Ownership, again.** Besides `chown -R 70:70` on the Postgres subdirectory, the data directory
+itself needs to be traversable by uid 70:
 
 ```sh
 chmod o+x /app/var/data || setfacl -m u:70:--x /app/var/data || true
@@ -129,14 +127,13 @@ A dataset created with the TrueNAS "Apps" preset is `770 apps:apps`, which gives
 traverse into the directory its own data lives in. Execute-only grants traversal without granting
 the ability to list or read anything.
 
-**Interpolation.** TrueNAS's YAML installer does not support `${VAR}`, which is why that file
-hoists every setting into an `x-config` block and aliases it with YAML anchors. If your NAS's app
-UI has the same limitation, the same trick applies; if it runs real `docker compose`, the stock
-file and a `.env` beside it are simpler.
+**Interpolation.** Some NAS app UIs paste YAML without supporting `${VAR}`. There, put every
+setting in an `x-config` block and reference it with YAML anchors. If your NAS runs real
+`docker compose`, the stock file and a `.env` beside it are simpler.
 
 **Image tags matter more here**, because a NAS app page usually has a "redeploy" button and no
-obvious version. `truenas.compose.yaml` sets `pull_policy: always`, so a redeploy picks up a newer
-build of whichever tag is set. Choose the tag deliberately — see [Upgrading](upgrading.md).
+obvious version. With `pull_policy: always`, a redeploy picks up a newer build of whichever tag is
+set. Choose the tag deliberately — see [Upgrading](upgrading.md).
 
 **Android push without Google** is the one optional container most worth starting on a NAS:
 `docker compose --profile push up -d` brings up ntfy, which owns the endpoint URL a UnifiedPush

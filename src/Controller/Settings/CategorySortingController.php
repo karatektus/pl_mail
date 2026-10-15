@@ -106,6 +106,12 @@ final class CategorySortingController extends AbstractController
             $user->categorySorting->tabs = '1' === (string) $request->request->get('tabs');
         }
 
+        // The same: the account page's tabs (#55) are a way of showing the
+        // inbox, not of filing it.
+        if (true === $request->request->has('accountTabs')) {
+            $user->accountInboxTabs = '1' === (string) $request->request->get('accountTabs');
+        }
+
         $em->flush();
 
         if ($before !== [$user->categorySorting->source, $user->categorySorting->overrideProvider]) {

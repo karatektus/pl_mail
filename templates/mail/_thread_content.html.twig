@@ -188,7 +188,10 @@ self-contained: no {% extends %}, no block dependencies.
            the stagger turns "a conversation opened" into a conversation being
            laid out. It costs nothing on the common single-message thread, and
            motion.css caps it at eight so a long one still finishes at once. #}
-        <div id="thread_messages_{{ thread.id }}" data-enter-stagger>
+        {# `.thread-messages` is the container the message headers query: how
+           much room a header has is the width of THIS block, which in the
+           reading pane is the pane's, not the window's. See app.css. #}
+        <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,

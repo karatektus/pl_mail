@@ -60,8 +60,8 @@ Pick deliberately. `latest` is right for most installs. `main` is for running wh
 on, and the changelog will not describe it yet. A pinned version is right when you would rather
 schedule upgrades than receive them.
 
-**The failure mode is `pull_policy: always` on a moving tag.** `truenas.compose.yaml` sets it, so a
-redeploy from the NAS app page picks up whatever that tag now points at — which is convenient on
+**The failure mode is `pull_policy: always` on a moving tag.** With it, a redeploy from a NAS app
+page picks up whatever that tag now points at — which is convenient on
 `latest` and surprising on `main`.
 
 ## Upgrading

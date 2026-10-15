@@ -129,7 +129,7 @@ docker compose exec -T database psql -U app -d app < database.sql
 ```
 
 **5. Put the blobs back** into whatever holds them on this host — the named volumes if you added
-them, or the bind-mounted directory if you followed the `truenas.compose.yaml` pattern. What matters
+them, or the bind-mounted data directory if you use one. What matters
 is that the paths under `APP_STORAGE_DIR` match what they were, because the database stores them
 relative to the project root.
 
