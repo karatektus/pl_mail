@@ -16,6 +16,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Mail\GraphApiClient;
+use App\Tests\Support\Mercure\RecordingHub;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -149,6 +150,8 @@ final class GraphDraftSentElsewhereTest extends KernelTestCase
             $container->get('App\Service\Mail\MessageEraser'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
             new \App\Service\Mail\SyncOrigin(),
+            $container->get('App\Service\Label\ThreadLabelSynchronizer'),
+            new \App\Service\Mail\SyncNotifier(new RecordingHub(), new \Psr\Log\NullLogger()),
         );
 
         $this->account->graphDeltaLinks = [
