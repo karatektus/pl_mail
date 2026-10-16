@@ -25,7 +25,8 @@ use Symfony\Component\HttpFoundation\Request;
  * has, and says where it came from: the lookup form under Contacts' keys, the
  * reading banner's "Look up the key", and the composer's recipient check.
  * (JMAP ContactKey/lookup is in KeysCapabilityTest.) And the person's switch
- * stops all of them from asking.
+ * stops all of them from asking. Phase 6g adds the address that was reported
+ * as not found, through each of them.
  *
  * Through the real container, whose key servers in the test environment are
  * KeyServerStub (config/services.yaml, `when@test`) — the real request rules
@@ -38,6 +39,8 @@ use Symfony\Component\HttpFoundation\Request;
 final class KeyServerCallersTest extends WebTestCase
 {
     use SendsAjaxCsrf;
+
+    private const string REPORTED = 'test@pluetzner.de';
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -170,13 +173,76 @@ final class KeyServerCallersTest extends WebTestCase
         self::assertSame('keys.mailvelope.com', $this->repository()->findCurrent($this->user, $this->address)?->originHost);
     }
 
+    // ── The reported address ─────────────────────────────────────────────────
+    //
+    // test@pluetzner.de (#28, comment 6216185683): no Web Key Directory, a key
+    // on keys.openpgp.org with a confirmed address. Typing the address where
+    // plMail looks a key up has to find it there without another click.
+    // pluetzner.de is a real domain, so the stand-in matters here: its WKD
+    // hosts resolve to nothing in the test environment (KeyServerStub), as a
+    // domain without WKD does, and nothing leaves the machine.
+
+    public function testTheReportedAddressIsFoundByTheLookupForm(): void
+    {
+        $key = $this->publishReported();
+
+        $this->client->request('POST', '/contact-keys/lookup', ['_token' => $this->token('contact-keys'), 'email' => self::REPORTED]);
+        $crawler = $this->client->followRedirect();
+
+        self::assertStringContainsString('Found a key on the key server keys.openpgp.org', $crawler->filter('[data-testid="contact-keys-notice"]')->text());
+        self::assertSame($key->fingerprint, $this->repository()->findCurrent($this->user, self::REPORTED)?->fingerprint);
+    }
+
+    public function testTheReportedAddressIsFoundByTheComposersRecipientCheck(): void
+    {
+        $key = $this->publishReported();
+
+        $this->client->request('POST', '/contact-keys/recipients', server: $this->ajaxCsrf($this->client) + ['CONTENT_TYPE' => 'application/json'], content: (string) json_encode([
+            'emails' => [self::REPORTED],
+            'lookup' => true,
+        ]));
+
+        $recipient = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['recipients'][0];
+
+        self::assertSame($key->fingerprint, $recipient['key']['fingerprint']);
+        self::assertSame('keys.openpgp.org', $recipient['key']['originHost']);
+    }
+
+    public function testTheReportedAddressIsFoundByTheBanner(): void
+    {
+        $key     = $this->publishReported();
+        $message = $this->signedMessage($key, self::REPORTED);
+
+        $this->client->request('POST', sprintf('/contact-keys/message/%d/lookup', $message->id), ['_token' => $this->token('message-key-' . $message->id)], server: [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        self::assertTrue(json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['ok']);
+        self::assertSame('keys.openpgp.org', $this->repository()->findCurrent($this->user, self::REPORTED)?->originHost);
+    }
+
+    /** The composer without a lookup asked for (a shut keyring) leaves the servers alone. */
+    public function testTheRecipientCheckWithoutALookupAsksNobody(): void
+    {
+        $this->publishReported();
+
+        $this->client->request('POST', '/contact-keys/recipients', server: $this->ajaxCsrf($this->client) + ['CONTENT_TYPE' => 'application/json'], content: (string) json_encode([
+            'emails' => [self::REPORTED],
+            'lookup' => false,
+        ]));
+
+        self::assertNull(json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['recipients'][0]['key']);
+        self::assertNull($this->repository()->findCurrent($this->user, self::REPORTED));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     /** A key for the test's address, published on the stand-in for $host. */
-    private function publish(string $host): Gpg
+    private function publish(string $host, ?string $address = null): Gpg
     {
-        $key  = new Gpg($this->address);
-        $path = SeedKeyServerCommand::path(static::getContainer()->getParameter('kernel.project_dir') . '/var/test-key-servers', $host, $this->address);
+        $address ??= $this->address;
+        $key       = new Gpg($address);
+        $path      = SeedKeyServerCommand::path(static::getContainer()->getParameter('kernel.project_dir') . '/var/test-key-servers', $host, $address);
 
         if (false === is_dir(dirname($path))) {
             mkdir(dirname($path), 0o777, true);
@@ -188,10 +254,22 @@ final class KeyServerCallersTest extends WebTestCase
         return $key;
     }
 
-    private function signedMessage(Gpg $key): Message
+    /**
+     * A fresh key for the reported address on keys.openpgp.org. The address is
+     * the same in every run, so what an earlier run's lookups left in
+     * cache.app — found, or not found for an hour — is dropped first.
+     */
+    private function publishReported(): Gpg
+    {
+        SeedKeyServerCommand::forgetLookups(static::getContainer()->get('cache.app'), self::REPORTED);
+
+        return $this->publish('keys.openpgp.org', self::REPORTED);
+    }
+
+    private function signedMessage(Gpg $key, ?string $from = null): Message
     {
         $message = MailFixtures::message($this->em, $this->account);
-        $message->fromAddress = $this->address;
+        $message->fromAddress = $from ?? $this->address;
         $message->crypto      = MessageCrypto::PgpSigned;
         static::getContainer()->get(RawMessageResolver::class)->store($message, $key->signedMessage('Hello.'));
         $this->em->flush();

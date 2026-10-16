@@ -2095,9 +2095,17 @@ encryption:
             not_sign_in_address: "Not hoisted: plMail hoists only the address ye board with, the one the captain gave ye."
         check:
             button: "Check from outside"
-            current: "Found yer current key fer %email%."
-            outdated: "Found a key fer %email%, but not yer current one. Another ship may be answerin' fer the harbour, or a cache still holds the old key."
-            missing: "No key found fer %email%. The harbour may not point to plMail yet — see the setup notes, or ask the captain."
+            heading: "Checked %email% from outside, each way on its own:"
+            method:
+                advanced: "Advanced (openpgpkey.%domain%)"
+                direct: "Direct (%domain%)"
+            result:
+                current: "found yer current key"
+                outdated: "found a key, but not yer current one — another ship may be answerin' fer the harbour, or a cache still holds the old key"
+                missing: "answered, but holds no key fer this address"
+                unreachable: "can't be reached — the name leads nowhere, or the connection or its papers failed"
+            one_good: "Mail programs that try the other way first still find yer key, but mend this way too — some only ever try one."
+            none_good: "Neither way hands out yer current key. The harbour may not point to plMail yet — see the setup notes, or ask the captain."
         setup:
             heading: "Rigging the harbour (captains)"
             enable: "Name the harbours in the APP_WKD_DOMAINS environment variable an' restart plMail:"
@@ -2131,6 +2139,25 @@ encryption:
         passphrase: "Passphrase o' th' key"
         submit: "Bring aboard"
         wrong_passphrase: "That passphrase opens not th' key."
+    publish:
+        button: "Hoist it on %host%"
+        again: "Send the confirmin' link again"
+        refresh: "Look again"
+        saved: "The key harbour answered; below be what it said."
+        confirm: "Hoist this key on %host%? Any sailor will then find it by %addresses%. That ties these addresses to the key fer all the seas to see, and a key harbour don't truly forget. %host% sends each address a link, and the key be found by address only once ye click it."
+        renewed: "Yer old key was hoisted on %host%. Hoist the new key fer %addresses% there too? %host% sends each address a link to confirm it again."
+        state:
+            none: "%email% — not hoisted on %host%"
+            unpublished: "%email% — on %host%, but no sailor can find it by this address yet"
+            pending: "%email% — waitin' on ye: %host% sent this address a link to confirm"
+            published: "%email% — hoisted: any sailor can find it on %host%"
+            revoked: "%email% — struck down on %host%: the harbour hands out the revoked key"
+        unavailable: "Hoistin' on that key harbour be not possible — this ship don't use it, or key harbours be switched off under Contacts' keys."
+        not_active: "Only a key in use can be hoisted."
+        not_found: "That key be gone."
+        not_published: "That key ain't hoisted there."
+        failed: "The key harbour couldn't be reached, or wouldn't take the key. Try again later."
+        not_a_revocation: "That ain't this key's revocation."
     keys:
         advanced: "Show th' keys"
         compromised: "Mark as plundered"
@@ -2526,6 +2553,16 @@ message:
         failed_for: "Ne'er made port at %recipient%."
         reported_at: "Word came back %datetime%"
     crypto:
+        attached_key:
+            heading: "The sender's key be attached"
+            own: "Yer public key be attached"
+            keep: "Keep this key"
+            accept: "Use this key instead"
+            none_hint: "plMail don't hold this key yet. Keep it to check the sender's seals and to lock yer letters to them — compare the fingerprint with the sender to be sure it be theirs."
+            changed_hint: "It differs from the key plMail knows fer this sender. It may be their new key, or a scallywag posin' as them — compare the fingerprint with the sender before ye use it."
+            kept: "Kept the sender's key."
+            kept_changed: "Kept — but it differs from the key plMail knows fer this sender. Compare the fingerprints before ye use it."
+            unusable: "This key can't be kept: it be revoked, expired, or names no user ID fer the sender's address."
         subject: "Subject: %subject%"
         encrypted_kept: "Came aboard in cipher · kept readable on this ship"
         sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."

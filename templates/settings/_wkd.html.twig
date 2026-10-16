@@ -19,6 +19,18 @@ Reads wkd_settings() (App\Twig\WkdExtension).
                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
                   transition-colors cursor-pointer' %}
 {% set host = app.request.host %}
+{# The last check's two verdicts (WkdSettingsController::check()), drawn beside
+   the address they were asked for. #}
+{% set checks = {} %}
+{% for check in app.flashes('wkd_check') %}
+    {% set checks = checks|merge({ (check.email): check }) %}
+{% endfor %}
+{% set verdictTone = {
+    current:     'text-emerald-700 dark:text-emerald-400',
+    outdated:    'text-amber-700 dark:text-amber-400',
+    missing:     'text-danger',
+    unreachable: 'text-danger',
+} %}
 
 <div id="wkd" data-testid="wkd">
     {% for flash in app.flashes('wkd') %}
@@ -67,6 +79,27 @@ Reads wkd_settings() (App\Twig\WkdExtension).
                             <dt class="text-ink-faint">{{ 'encryption.wkd.url_direct'|trans }}</dt>
                             <dd><code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink break-all select-all">{{ entry.urls.direct }}</code></dd>
                         </dl>
+
+                        {% set check = checks[entry.email]|default(null) %}
+                        {% if check %}
+                            {% set domain = entry.email|split('@')|last %}
+                            <div class="mt-2 rounded-lg px-3 py-2 text-xs bg-zinc-500/10 text-ink" role="status" data-testid="wkd-check">
+                                <p class="font-medium">{{ 'encryption.wkd.check.heading'|trans({ '%email%': entry.email }) }}</p>
+                                <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                    {% for method in ['advanced', 'direct'] %}
+                                        <dt class="text-ink-muted">{{ ('encryption.wkd.check.method.' ~ method)|trans({ '%domain%': domain }) }}</dt>
+                                        <dd class="{{ verdictTone[check[method]] }}" data-testid="wkd-check-{{ method }}" data-result="{{ check[method] }}">
+                                            {{ ('encryption.wkd.check.result.' ~ check[method])|trans }}
+                                        </dd>
+                                    {% endfor %}
+                                </dl>
+                                {% if check.advanced != 'current' and check.direct != 'current' %}
+                                    <p class="mt-1 text-ink-muted">{{ 'encryption.wkd.check.none_good'|trans }}</p>
+                                {% elseif check.advanced != 'current' or check.direct != 'current' %}
+                                    <p class="mt-1 text-ink-muted">{{ 'encryption.wkd.check.one_good'|trans }}</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
 
                         <form method="post" action="{{ path('app_settings_wkd_check') }}" data-turbo="false" class="mt-2">
                             <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">

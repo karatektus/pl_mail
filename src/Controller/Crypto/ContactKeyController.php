@@ -86,6 +86,7 @@ final class ContactKeyController extends AbstractController
         private readonly ContactCertificates          $certificates,
         private readonly ContactCertificateRepository $certificateRepository,
         private readonly KeyServerLookup              $keyServers,
+        private readonly PublicKeyReader              $reader,
     ) {
     }
 
@@ -300,6 +301,57 @@ final class ContactKeyController extends AbstractController
             $this->contactKeys->accept($user, (int) $this->signerKey($user, $message)->id);
 
             return ['contact_keys.accepted', []];
+        });
+    }
+
+    /**
+     * The sender's own key, attached to their message (phase 6g): kept for
+     * them ("keep"), or — when it waits beside a different known key — used
+     * from now on ("accept"). The banner offers this only when plMail does
+     * not use that key yet.
+     *
+     * From the stored message for mail the server can read: the attachment
+     * is collected the way ContactKeyCollector does at ingest. For encrypted
+     * mail the key is inside the encryption, so the browser posts it (`key`);
+     * it is held to the same rule — only a key with a user ID for the From
+     * address is taken for the sender, as a message can carry anybody's key.
+     */
+    #[Route('/message/{id}/attached-key', name: 'message_attached_key', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function messageAttachedKey(Request $request, #[CurrentUser] User $user, Message $message): Response
+    {
+        return $this->fromBanner($request, $message, function () use ($request, $user, $message): array {
+            $from        = strtolower(trim((string) $message->fromAddress));
+            $armored     = $request->request->getString('key');
+            $fingerprint = strtolower($request->request->getString('fingerprint'));
+
+            if ('' !== $armored && strlen($armored) <= PublicKeyReader::MAX_BYTES) {
+                foreach ($this->reader->read($armored) as $key) {
+                    if (true === $key->usableFor($from)) {
+                        $this->contactKeys->record($user, $from, $key, ContactKeyOrigin::Attached);
+                        $fingerprint = $key->fingerprint;
+                    }
+                }
+            } else {
+                $this->collector->collect($message);
+            }
+
+            $row = null;
+
+            foreach ($this->repository->findForAddress($user, $from) as $candidate) {
+                $row = $fingerprint === $candidate->fingerprint ? $candidate : $row;
+            }
+
+            if (null === $row) {
+                throw new ContactKeyRefused('message.crypto.attached_key.unusable');
+            }
+
+            if ('accept' === $request->request->getString('action') && false === $row->isCurrent()) {
+                $this->contactKeys->accept($user, (int) $row->id);
+
+                return ['contact_keys.accepted', []];
+            }
+
+            return [true === $row->isCurrent() ? 'message.crypto.attached_key.kept' : 'message.crypto.attached_key.kept_changed', []];
         });
     }
 

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:215846da46ad1ead882c8a69b264e8db44d8f87f -->
+<!-- translated-from: internals/security-model.md sha1:e0ab61b01daf310d9717f50c2dcd70046bb04c5f -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -387,6 +387,20 @@ nur mit einer User-ID für `From`, nie für Mail von den eigenen Adressen der Pe
 kann jedermanns Schlüssel tragen; dass der Absender für seinen eigenen bürgt, ist die einzige
 Aussage, die sie machen kann.
 
+**Der angehängte Schlüssel des Absenders ist kein Anhang** (Phase 6g). Derselbe Schritt markiert den
+angehängten Teil, der der eigene Schlüssel des Absenders ist — eine User-ID für `From`, oder ein
+Fingerprint, den plMail schon für `From` hat (ein Kontaktschlüssel, bei der eigenen Mail der Person
+einer ihrer Adressschlüssel) —, in `message_part.sender_key_fingerprint` und zählt `hasAttachments`
+und den Zähler des Threads ohne ihn neu (`ContactKeyCollector::markAttachedKeys()`). `key_checked`
+markiert einen Teil als angesehen, sodass der Schlüssel eines Kollegen einmal geöffnet wird; Mail von
+vor dieser Phase wird beim ersten Anzeigen angesehen (`AttachedKeyExtension`). Das Banner nennt den
+Schlüssel und seinen Fingerprint und bietet an, ihn zu behalten
+(`POST /contact-keys/message/{id}/attached-key`, mit dem CSRF-Token der Nachricht) — über
+`ContactKeys::record()`, sodass TOFU gilt: ein anderer Schlüssel wartet als `changed`. In
+verschlüsselter Mail wendet der Browser dieselbe Regel an (`senderKeyOf()` in
+`assets/crypto/message.js`) und schickt den gefundenen Schlüssel; der Server nimmt ihn nur mit einer
+User-ID für `From`.
+
 **WKD über den Server** (`WkdLookup`), weil die Seite nur mit ihrem eigenen Ursprung sprechen darf.
 Das ist ein Endpunkt, der URLs abruft, die aus Benutzereingaben abgeleitet sind, also:
 
@@ -435,9 +449,53 @@ haben:
   sagen: `APP_KEY_SERVERS` (standardmäßig beide Server; leer schaltet sie ab) und **Auch auf
   öffentlichen Schlüsselservern suchen** der Person (`crypto.key_servers` in den Einstellungen,
   standardmäßig an, im Konfigurations-Backup). Ist eines aus, wird nichts angefragt.
-- **Tests erreichen nie das Internet.** In der Testumgebung holt `KeyServerLookup` über
-  `App\Tests\Support\Crypto\KeyServerStub` (`when@test` in `config/services.yaml`), der beide APIs
-  aus Dateien beantwortet, die `app:test:seed-key-server` schreibt, und kein DNS fragt.
+- **Jede Suche, keine davon von selbst.** Die vier Stellen, an denen ein Schlüssel gesucht wird — das
+  Suchformular, das Banner beim Lesen, die Prüfung der Empfänger im Schreibfenster (nur bei offenem
+  Schlüsselbund, und pro Empfänger einmal, sobald er offen ist) und JMAP `ContactKey/lookup` mit
+  `lookup: true` —, gehen alle durch `ContactKeys::lookUp()`, also folgen die Schlüsselserver in
+  jeder von ihnen auf WKD. plMail sucht nichts von sich aus: Ein unbekannter Unterzeichner wird mit
+  **Schlüssel suchen** gezeigt, nicht gesucht, denn eine Suche beim Lesen würde der Domain des
+  Absenders und den Schlüsselservern verraten, wessen Mail die Person öffnet, und wann.
+- **Tests erreichen nie das Internet oder DNS.** In der Testumgebung holen `KeyServerLookup`,
+  `WkdLookup` und `KeyPublishing` alle über `App\Tests\Support\Crypto\KeyServerStub`
+  (`when@test` in `config/services.yaml`), der beide Such-APIs, die Upload-API von keys.openpgp.org
+  und das WKD jeder Domain aus Dateien beantwortet, die `app:test:seed-key-server` schreibt, und kein
+  DNS fragt: Ein WKD-Host, den niemand angelegt hat, ist nicht erreichbar, wie bei einer Domain ohne
+  WKD.
+
+**Den eigenen Schlüssel der Person veröffentlichen** (`KeyPublishing`, Phase 6g) auf keys.openpgp.org,
+für Adressen außerhalb der WKD-Domains der Installation:
+
+- **Was übertragen wird.** Nur öffentliche Schlüssel: `POST /vks/v1/upload` mit dem öffentlichen
+  Schlüssel in ASCII-Armor, dann `POST /vks/v1/request-verify` mit dem Token des Uploads und den noch
+  nicht bestätigten Adressen, worauf der Server jeder einen Link schickt. Das Token wird sofort
+  verwendet und nie gespeichert. Bis ein Link angeklickt ist, gibt der Server den Schlüssel nur über
+  den Fingerprint heraus, nie über die Adresse.
+- **Wer entscheidet.** Die Person, pro Schlüssel, nach einer Bestätigung auf der Seite, die sagt,
+  dass die Adresse öffentlich mit dem Schlüssel verbunden wird. Angeboten wird der Server nur, wenn
+  `APP_KEY_SERVERS` ihn nennt und **Auch auf öffentlichen Schlüsselservern suchen** der Person an ist;
+  ist eines aus, wird nichts angeboten oder geschickt. Veröffentlichen lässt sich nur auf einem
+  Server mit `KeyPublisherInterface` (`app.key_publisher`) — heute keys.openpgp.org; die Suche bei
+  Mailvelope wird genutzt, sein Upload nicht.
+- **Wie.** Über `KeyFetcher::post()`: dieselben Regeln wie bei den Suchen — nur HTTPS, keine
+  Weiterleitungen, keine privaten Adressen, Timeout und Größenlimit — und dasselbe Budget pro Person.
+  Geglaubt wird die Antwort nur für den Fingerprint des eigenen Schlüssels.
+- **Was gespeichert wird.** `key_publication`: pro Adressschlüssel, Host und Adresse der Stand, den
+  der Server zuletzt nannte (`unpublished`, `pending`, `published`, `revoked`), und wann. Erneut
+  prüfen lädt denselben Schlüssel noch einmal hoch, was dort nichts ändert und niemandem schreibt,
+  und wird für einen Schlüssel abgelehnt, der dort nie veröffentlicht wurde — es kann nicht zum
+  Veröffentlichen dienen. Im Konfigurations-Backup mit dem Schlüsselbund.
+- **Widerruf.** Wird ein Schlüssel als kompromittiert markiert, schickt der Browser, der den
+  Schlüssel offen hat, dessen öffentliche Hälfte mit der Widerrufssignatur (`revokedKey`); der Server
+  prüft, dass es dieser Schlüssel ist, widerrufen, behält ihn in `address_key.revoked_public_key` und
+  lädt ihn auf jeden Server hoch, auf dem der Schlüssel veröffentlicht war. Das geht auch dann
+  hinaus, wenn die Person Schlüsselserver inzwischen ausgeschaltet hat — einen Server für einen
+  kompromittierten Schlüssel bürgen zu lassen, ist das Schlimmere —, aber nie an einen Server, den
+  die Installation nicht mehr nennt. Ein Server, der nicht erreichbar ist, bekommt ihn beim nächsten
+  Prüfen erneut. Der private Schlüssel verlässt den Browser nie.
+- **Privatsphäre.** Veröffentlichen ist absichtlich öffentlich: Jeder findet den Schlüssel dann über
+  die Adresse, und keys.openpgp.org erfährt, dass dieser Schlüssel zu ihr gehört. plMail entfernt
+  nichts von einem Schlüsselserver; das tut die Person auf der Website des Servers.
 
 ## Verschlüsselte Mails schreiben und senden
 
@@ -628,9 +686,15 @@ findet eine Adresse, also holt ein Hinweis auf jemand anderen nichts von dieser 
 verbergen lässt sich, dass eine veröffentlichte Adresse einen Schlüssel hat; der Limiter `wkd_serve`
 (300 pro Stunde und IP) bremst das Abarbeiten einer Namensliste.
 
-**Die Prüfung in den Einstellungen** (`POST /settings/encryption/wkd/check`) geht durch `WkdLookup`
-mit allen seinen Regeln — nur HTTPS, keine Weiterleitungen, keine privaten Adressen, das Limit pro
-Person — an seinem Cache vorbei. Beide Aktionen in den Einstellungen nehmen eine Adresse aus dem
+**Die Prüfung in den Einstellungen** (`POST /settings/encryption/wkd/check`) geht durch
+`WkdLookup::check()` mit allen seinen Regeln — nur HTTPS, keine Weiterleitungen, keine privaten
+Adressen, das Limit pro Person, eine gezählte Anfrage für beide — und fragt **beide Methoden für
+sich**, am Cache vorbei, den sie danach verwirft, damit die nächste Suche sieht, was die Prüfung sah.
+`KeyFetcher::probe()` hält „nicht erreicht“ (DNS, eine private Adresse, TLS, ein Timeout, eine
+Antwort über dem Limit) von „erreicht, aber nichts da“ getrennt, und `WkdDirectory::check()` gibt
+jeder Methode ihr eigenes Urteil: aktuell, ein anderer Schlüssel, nichts oder nicht erreichbar.
+`WkdLookup::find()` behält seine Reihenfolge — erst erweitert, direkt nur, wenn die erweiterte
+nichts hat —, weil ein Mailprogramm es so macht; nur die Prüfung braucht beide. Beide Aktionen in den Einstellungen nehmen eine Adresse aus dem
 Formular, und beide lehnen eine ab (404), die nicht die eigene der Person auf einer bedienten Domain
 ist.
 
@@ -1323,7 +1387,7 @@ Rückprüfung würde nichts veröffentlichen.
 
 **`MockHttpClient` folgt keiner Weiterleitung, egal was man ihm sagt**, und
 `NoPrivateNetworkHttpClient` folgt ihnen selbst, nie der Client darunter. Ein Test kann nicht zeigen,
-dass `max_redirects: 0` wirkt; die Option in `KeyFetcher::get()` ist der Schutz, und dort steht,
+dass `max_redirects: 0` wirkt; die Option in `KeyFetcher::request()` ist der Schutz, und dort steht,
 warum.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
@@ -1373,3 +1437,17 @@ arbeitet. `tests/e2e/rendering-security.spec.ts` nutzt ein Prädikat
 **Alles, was `bodyHtmlSafe` darstellt, muss über `message_render()` gehen.** Die Twig-Funktion
 gibt es, damit keine Vorlage eine Sicherheitsfrage stellen muss — denn das Vergessen scheitert
 lautlos: Die Mail wird perfekt dargestellt, und die Zählpixel feuern.
+
+**Erneut prüfen darf nie veröffentlichen.** `KeyPublishing::refresh()` lädt nur einen Schlüssel hoch,
+der auf diesem Server schon Zeilen hat; ein Upload ist die Art, nach dem Stand zu fragen, und ohne
+diesen Schutz gäbe ein „erneut prüfen“ bei einem unveröffentlichten Schlüssel ihn dem Server ohne die
+Bestätigung der Person.
+
+**Ein Widerruf wird geprüft, bevor er behalten oder geschickt wird.** Der Browser schickt ihn, also
+liest der Server ihn zurück (`PublicKeyReader`) und nimmt ihn nur als Fingerprint dieses Schlüssels,
+widerrufen. Alles andere wird abgelehnt, und der Schlüssel wird trotzdem als kompromittiert markiert.
+
+**Ein angehängter Schlüssel gehört dem Absender nur über `From`.** Einen Schlüsselteil zu verbergen
+oder einen Schlüssel aus dem Banner zu behalten braucht eine User-ID für `From` oder einen Schlüssel,
+den plMail schon dafür hat — dieselbe Regel wie beim Übernehmen. Ein Schlüssel für jemand anderen
+bleibt ein Anhang und wird nie für den Absender behalten.

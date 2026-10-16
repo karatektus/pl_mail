@@ -2216,9 +2216,17 @@ encryption:
             not_sign_in_address: "Nicht veröffentlicht: plMail veröffentlicht nur die Adresse, mit der du dich anmeldest und die dir ein Admin gegeben hat."
         check:
             button: "Von außen prüfen"
-            current: "Dein aktueller Schlüssel für %email% wurde gefunden."
-            outdated: "Für %email% wurde ein Schlüssel gefunden, aber nicht dein aktueller. Vielleicht antwortet ein anderer Server für die Domain, oder ein Cache hält noch den alten Schlüssel."
-            missing: "Für %email% wurde kein Schlüssel gefunden. Vielleicht zeigt die Domain noch nicht auf plMail — sieh in die Hinweise zur Einrichtung oder frag deinen Admin."
+            heading: "%email% von außen geprüft, jede Methode für sich:"
+            method:
+                advanced: "Erweitert (openpgpkey.%domain%)"
+                direct: "Direkt (%domain%)"
+            result:
+                current: "dein aktueller Schlüssel wurde gefunden"
+                outdated: "ein Schlüssel wurde gefunden, aber nicht dein aktueller — vielleicht antwortet ein anderer Server für die Domain, oder ein Cache hält noch den alten Schlüssel"
+                missing: "antwortet, hat aber keinen Schlüssel für diese Adresse"
+                unreachable: "nicht erreichbar — der Name löst nicht auf, oder die Verbindung oder ihr Zertifikat ist fehlgeschlagen"
+            one_good: "Mailprogramme, die zuerst die andere Methode fragen, finden deinen Schlüssel trotzdem. Richte diese Methode aber auch ein — manche fragen nur eine."
+            none_good: "Keine der beiden Methoden gibt deinen aktuellen Schlüssel heraus. Vielleicht zeigt die Domain noch nicht auf plMail — sieh in die Hinweise zur Einrichtung oder frag deinen Admin."
         setup:
             heading: "Domain einrichten (Admins)"
             enable: "Trag die Domains in die Umgebungsvariable APP_WKD_DOMAINS ein und starte plMail neu:"
@@ -2252,6 +2260,25 @@ encryption:
         passphrase: "Passphrase des Schlüssels"
         submit: "Importieren"
         wrong_passphrase: "Diese Passphrase öffnet den Schlüssel nicht."
+    publish:
+        button: "Auf %host% veröffentlichen"
+        again: "Bestätigungslink erneut schicken"
+        refresh: "Erneut prüfen"
+        saved: "Der Schlüsselserver hat geantwortet; unten steht, was er gesagt hat."
+        confirm: "Diesen Schlüssel auf %host% veröffentlichen? Danach findet ihn jeder über %addresses%. Damit sind diese Adressen öffentlich mit dem Schlüssel verbunden, und ein Schlüsselserver vergisst das nicht wirklich. %host% schickt jeder Adresse einen Link, und erst wenn du ihn anklickst, ist der Schlüssel über die Adresse zu finden."
+        renewed: "Dein bisheriger Schlüssel war auf %host% veröffentlicht. Den neuen Schlüssel für %addresses% dort auch veröffentlichen? %host% schickt jeder Adresse erneut einen Link zur Bestätigung."
+        state:
+            none: "%email% — nicht auf %host% veröffentlicht"
+            unpublished: "%email% — auf %host%, aber noch nicht über diese Adresse zu finden"
+            pending: "%email% — wartet auf dich: %host% hat dieser Adresse einen Bestätigungslink geschickt"
+            published: "%email% — veröffentlicht: jeder findet ihn auf %host%"
+            revoked: "%email% — auf %host% widerrufen: der Server gibt den widerrufenen Schlüssel heraus"
+        unavailable: "Veröffentlichen auf diesem Schlüsselserver ist nicht möglich — die Installation nutzt ihn nicht, oder Schlüsselserver sind unter „Schlüssel deiner Kontakte“ ausgeschaltet."
+        not_active: "Nur ein Schlüssel, der in Gebrauch ist, kann veröffentlicht werden."
+        not_found: "Diesen Schlüssel gibt es nicht mehr."
+        not_published: "Dieser Schlüssel ist dort nicht veröffentlicht."
+        failed: "Der Schlüsselserver war nicht erreichbar oder hat den Schlüssel nicht angenommen. Versuch es später noch einmal."
+        not_a_revocation: "Das ist nicht der Widerruf dieses Schlüssels."
     keys:
         advanced: "Schlüssel anzeigen"
         compromised: "Als kompromittiert markieren"
@@ -2647,6 +2674,16 @@ message:
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
     crypto:
+        attached_key:
+            heading: "Der Schlüssel des Absenders ist angehängt"
+            own: "Dein öffentlicher Schlüssel ist angehängt"
+            keep: "Diesen Schlüssel behalten"
+            accept: "Stattdessen diesen Schlüssel verwenden"
+            none_hint: "plMail hat diesen Schlüssel noch nicht. Behalte ihn, um die Signaturen des Absenders zu prüfen und an ihn zu verschlüsseln — vergleiche den Fingerabdruck mit dem Absender, um sicher zu sein, dass es seiner ist."
+            changed_hint: "Er unterscheidet sich von dem Schlüssel, den plMail für diesen Absender kennt. Es kann sein neuer Schlüssel sein — oder jemand gibt sich als er aus. Vergleiche den Fingerabdruck mit dem Absender, bevor du ihn verwendest."
+            kept: "Der Schlüssel des Absenders wurde behalten."
+            kept_changed: "Behalten — aber er unterscheidet sich von dem Schlüssel, den plMail für diesen Absender kennt. Vergleiche die Fingerabdrücke, bevor du ihn verwendest."
+            unusable: "Dieser Schlüssel kann nicht behalten werden: Er ist widerrufen, abgelaufen oder nennt keine Benutzerkennung für die Adresse des Absenders."
         subject: "Betreff: %subject%"
         encrypted_kept: "Verschlüsselt empfangen · auf diesem Server lesbar gespeichert"
         sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."

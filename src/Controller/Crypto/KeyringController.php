@@ -6,8 +6,10 @@ namespace App\Controller\Crypto;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Crypto\UserKeyCopyKind;
+use App\Domain\Exception\ContactKeyRefused;
 use App\Domain\Exception\KeyringRefused;
 use App\Entity\User\User;
+use App\Service\Crypto\KeyPublishing;
 use App\Service\Crypto\Keyring;
 use App\Service\Crypto\KeyringView;
 use App\Service\Crypto\SmimeCertificates;
@@ -20,6 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Where a browser keeps the keyring it made, and fetches it back.
@@ -31,6 +34,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * because another was imported for its address, say.
  *
  * Writes carry the `keyring` CSRF token in X-CSRF-Token; see ChecksCsrf.
+ *
+ * Publishing an address key to a public key server (KeyPublishing) answers
+ * the same way, with the publication rows inside the keyring; its refusals
+ * are the person's to act on — the server could not be reached, too many in
+ * a row — so they come back as a 422 with the sentence to show.
  */
 #[Route('/keyring', name: 'app_keyring_')]
 #[IsGranted('ROLE_USER')]
@@ -44,6 +52,8 @@ final class KeyringController extends AbstractController
         private readonly SmimeCertificates $smime,
         private readonly DemoMode          $demoMode,
         private readonly LoggerInterface   $logger,
+        private readonly KeyPublishing     $publishing,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -109,11 +119,48 @@ final class KeyringController extends AbstractController
         });
     }
 
+    /**
+     * With the key's revocation when the browser could make one (`revokedKey`,
+     * the public key with its revocation signature): a key server the key was
+     * published to is handed it, so it stops vouching for the key. Marking
+     * the key does not wait on that — a revocation that is refused or does
+     * not get through is logged, and KeyPublishing sends it again on refresh.
+     */
     #[Route('/address-keys/{id}/compromised', name: 'address_key_compromised', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function markCompromised(Request $request, #[CurrentUser] User $user, int $id): JsonResponse
     {
-        return $this->write($request, $user, function () use ($user, $id): void {
+        return $this->write($request, $user, function (array $body) use ($user, $id): void {
             $this->keyring->markCompromised($user, $id);
+
+            if (is_string($body['revokedKey'] ?? null) && '' !== $body['revokedKey']) {
+                try {
+                    $this->publishing->revoke($user, $id, $body['revokedKey']);
+                } catch (ContactKeyRefused $refused) {
+                    $this->logger->warning('The revocation sent for address key {id} was refused: {reason}', ['id' => $id, 'reason' => $refused->translationKey, 'user' => $user->id]);
+                }
+            }
+        });
+    }
+
+    /**
+     * Publishes the key to a key server: the upload, then the server asked to
+     * mail every address not yet confirmed a link. The page asked the person
+     * first; this is what they agreed to.
+     */
+    #[Route('/address-keys/{id}/publish', name: 'address_key_publish', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function publish(Request $request, #[CurrentUser] User $user, int $id): JsonResponse
+    {
+        return $this->write($request, $user, function (array $body) use ($request, $user, $id): void {
+            $this->publishing->publish($user, $id, (string) ($body['host'] ?? ''), $request->getLocale());
+        });
+    }
+
+    /** What the key server holds now, for a key already published there. */
+    #[Route('/address-keys/{id}/publication', name: 'address_key_publication', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function refreshPublication(Request $request, #[CurrentUser] User $user, int $id): JsonResponse
+    {
+        return $this->write($request, $user, function (array $body) use ($user, $id): void {
+            $this->publishing->refresh($user, $id, (string) ($body['host'] ?? ''));
         });
     }
 
@@ -202,6 +249,9 @@ final class KeyringController extends AbstractController
 
         try {
             $write(is_array($body) ? $body : []);
+        } catch (ContactKeyRefused $refused) {
+            // Publishing's, and the person's to act on: said in their words.
+            return new JsonResponse(['error' => $this->translator->trans($refused->translationKey)], 422);
         } catch (KeyringRefused $refused) {
             // Logged, because the person cannot do anything about it and the
             // only witness of a browser sending something broken is here.

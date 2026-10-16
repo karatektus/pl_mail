@@ -221,7 +221,44 @@ export default class extends Controller {
             return;
         }
 
-        await this.#busy(event.currentTarget, () => this.#ring.renew(Number(event.params.id)));
+        const id = Number(event.params.id);
+        const before = new Set(this.#ring.state.addressKeys.map((key) => key.id));
+        const published = this.#publishedHosts(id);
+
+        await this.#busy(event.currentTarget, () => this.#ring.renew(id));
+
+        // The old key was published somewhere: offer the new one there too,
+        // asked again, since it ties the addresses to another key in public.
+        const renewed = this.#ring.state.addressKeys.find((key) => false === before.has(key.id) && "active" === key.status);
+
+        for (const host of published) {
+            if (undefined !== renewed && (this.#ring.state.publishTo ?? []).includes(host)
+                && true === await askConfirm(this.messagesValue.publishRenewed.replace("%host%", host).replace("%addresses%", this.#addressList(renewed)))) {
+                await this.#publishing(null, () => this.#ring.publish(renewed.id, host));
+            }
+        }
+    }
+
+    /**
+     * Settings → Encryption → the key's "Publish to keys.openpgp.org": asked
+     * first, in words that say what it does — the address is tied to the key
+     * in public, and the server mails it a link to confirm.
+     */
+    async publish(event) {
+        const { id, host } = event.params;
+        const key = this.#ring.state.addressKeys.find((candidate) => candidate.id === Number(id));
+
+        if (undefined === key || false === await askConfirm(this.messagesValue.confirmPublish.replace("%host%", host).replace("%addresses%", this.#addressList(key)))) {
+            return;
+        }
+
+        await this.#publishing(event.currentTarget, () => this.#ring.publish(Number(id), host));
+    }
+
+    async refreshPublication(event) {
+        const { id, host } = event.params;
+
+        await this.#publishing(event.currentTarget, () => this.#ring.refreshPublication(Number(id), host));
     }
 
     async markCompromised(event) {
@@ -447,7 +484,7 @@ export default class extends Controller {
                 actions.append(this.#button(this.messagesValue.compromised, "markCompromised", { id: key.id }));
             }
 
-            row.append(addresses, meta, fingerprint, actions);
+            row.append(addresses, meta, fingerprint, actions, ...this.#publications(key));
 
             return row;
         }));
@@ -530,6 +567,93 @@ export default class extends Controller {
         }
 
         return true;
+    }
+
+    /**
+     * Where the key stands on each key server it can be, or was, published
+     * to (KeyPublishing): one line per address in the server's own words,
+     * and what can be done from here — publish (or mail the links again),
+     * and ask the server again.
+     */
+    #publications(key) {
+        const rows = key.publications ?? [];
+        const hosts = [...new Set([...("active" === key.status ? (this.#ring.state.publishTo ?? []) : []), ...rows.map((row) => row.host)])];
+
+        return hosts.map((host) => {
+            const block = document.createElement("div");
+            const list = document.createElement("ul");
+            const actions = document.createElement("div");
+            const onHost = rows.filter((row) => row.host === host);
+
+            block.className = "mt-3 rounded-lg border border-line px-3 py-2";
+            block.setAttribute("data-testid", "key-publication");
+            block.setAttribute("data-host", host);
+
+            list.className = "space-y-0.5 text-[11px]";
+
+            for (const { email } of key.addresses) {
+                const state = onHost.find((row) => row.email === email)?.state ?? "none";
+                const item = document.createElement("li");
+
+                item.className = { published: "text-emerald-700 dark:text-emerald-400", pending: "text-amber-700 dark:text-amber-400", revoked: "text-ink-muted" }[state] ?? "text-ink-muted";
+                item.setAttribute("data-testid", "key-publication-state");
+                item.setAttribute("data-email", email);
+                item.setAttribute("data-state", state);
+                item.textContent = (this.messagesValue.publication?.[state] ?? "").replace("%host%", host).replace("%email%", email);
+                list.append(item);
+            }
+
+            actions.className = "flex flex-wrap gap-2 mt-2";
+
+            const unconfirmed = key.addresses.some(({ email }) => ["none", "unpublished", "pending"].includes(onHost.find((row) => row.email === email)?.state ?? "none"));
+
+            if ("active" === key.status && true === unconfirmed && (this.#ring.state.publishTo ?? []).includes(host)) {
+                actions.append(this.#button((0 === onHost.length ? this.messagesValue.publishTo : this.messagesValue.publishAgain).replace("%host%", host), "publish", { id: key.id, host }));
+            }
+
+            if (0 < onHost.length) {
+                actions.append(this.#button(this.messagesValue.publicationRefresh, "refreshPublication", { id: key.id, host }));
+            }
+
+            block.append(list, actions);
+
+            return block;
+        });
+    }
+
+    /** The hosts an address key has rows on that are not revoked. */
+    #publishedHosts(id) {
+        const key = this.#ring.state.addressKeys.find((candidate) => candidate.id === id);
+
+        return [...new Set((key?.publications ?? []).filter((row) => "revoked" !== row.state).map((row) => row.host))];
+    }
+
+    #addressList(key) {
+        return key.addresses.map(({ email }) => email).join(", ");
+    }
+
+    /**
+     * As #busy(), for the publishing actions, whose refusals are sentences
+     * for the person — the server could not be reached, too many in a row —
+     * and are shown as they came.
+     */
+    async #publishing(button, work) {
+        if (button instanceof HTMLButtonElement) {
+            button.disabled = true;
+        }
+
+        try {
+            await work();
+            showToast(this.messagesValue.publicationSaved, { type: "success" });
+        } catch (error) {
+            showToast(String(error?.message ?? "") || this.messagesValue.failed, { type: "error" });
+        } finally {
+            if (button instanceof HTMLButtonElement) {
+                button.disabled = false;
+            }
+
+            this.#render();
+        }
     }
 
     #button(label, action, params) {

@@ -47,6 +47,26 @@ test.describe("contacts' keys", () => {
         await expect(frame.getByTestId("contact-key-fingerprint")).toHaveText(grouped(second.fingerprint));
     });
 
+    test("imports a key from a file", async ({ page }) => {
+        await person(page);
+
+        const key = await newKey(page, "dave@contacts.e2e");
+        const frame = page.locator("turbo-frame#contact-keys");
+
+        // The file half of the form (#28, comment 6216185683): the key as the
+        // .asc file a sender attaches, chosen rather than pasted.
+        await frame.getByLabel("Key file").setInputFiles({
+            name: `OpenPGP_0x${key.fingerprint.slice(-16).toUpperCase()}.asc`,
+            mimeType: "application/pgp-keys",
+            buffer: Buffer.from(key.publicKey, "utf8"),
+        });
+        await frame.getByRole("button", { name: "Add key", exact: true }).click();
+
+        await expect(frame.getByTestId("contact-keys-notice")).toContainText("Imported");
+        await expect(frame.getByTestId("contact-key-fingerprint")).toHaveText(grouped(key.fingerprint));
+        await expect(frame.getByTestId("contact-key")).toContainText("dave@contacts.e2e");
+    });
+
     test("a signed message's banner turns valid once its key is trusted", async ({ page }) => {
         const email = await person(page);
         const key = await newKey(page, SENDER);
@@ -86,6 +106,64 @@ test.describe("contacts' keys", () => {
         await expect(banner).toContainText("Signed with a different key than the one plMail knows for this sender");
         await expect(banner.getByRole("button", { name: "Use the new key" })).toBeVisible();
     });
+
+    // An attached public key that is the sender's own is not an attachment
+    // (#28, comment 6216816288): the banner says it, with its fingerprint; a
+    // colleague's key in the same message stays an attachment.
+    test("says the sender's attached key in the banner instead of listing it", async ({ page }) => {
+        const email = await person(page);
+        const key = await newKey(page, SENDER);
+        const colleague = await newKey(page, "colleague@contacts.e2e");
+        const subject = `Key attached ${Date.now()}`;
+        const own = `OpenPGP_0x${key.fingerprint.slice(-16).toUpperCase()}.asc`;
+
+        deliver(email, subject, await signedRaw(page, key, subject, "My key is attached.", {
+            autocrypt: false,
+            attachments: [{ name: own, content: key.publicKey }, { name: "colleague.asc", content: colleague.publicKey }],
+        }));
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, subject).click();
+
+        const banner = page.getByTestId("crypto-banner");
+        const attached = banner.getByTestId("crypto-attached-key");
+
+        await expect(banner).toContainText("The sender's key is attached");
+        await expect(attached).toHaveAttribute("data-fingerprint", key.fingerprint);
+        await expect(attached).toContainText(grouped(key.fingerprint));
+        // Kept on arrival, as every attached key of the sender's is.
+        await expect(attached).toHaveAttribute("data-state", "current");
+
+        await expect(page.locator('a[download="colleague.asc"]').first()).toBeAttached();
+        await expect(page.locator(`a[download="${own}"]`)).toHaveCount(0);
+    });
+
+    test("offers the sender's attached key when it is not the one plMail uses", async ({ page }) => {
+        const email = await person(page);
+        const known = await newKey(page, SENDER);
+        const newer = await newKey(page, SENDER);
+        const first = `Old key ${Date.now()}`;
+        const second = `New key attached ${Date.now()}`;
+
+        deliver(email, first, await signedRaw(page, known, first, "The first one."));
+        deliver(email, second, await signedRaw(page, newer, second, "My new key is attached.", {
+            autocrypt: false,
+            attachments: [{ name: "newkey.asc", content: newer.publicKey }],
+        }));
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, second).click();
+
+        const attached = page.getByTestId("crypto-attached-key");
+
+        await expect(attached).toHaveAttribute("data-state", "changed");
+        await expect(attached).toContainText("It differs from the key plMail knows for this sender");
+
+        await attached.getByRole("button", { name: "Use this key instead" }).click();
+
+        await expect(page.getByTestId("crypto-attached-key")).toHaveAttribute("data-state", "current");
+        await expect(page.getByTestId("crypto-banner-notice")).toContainText("This key is now the one used for the address.");
+    });
 });
 
 /** A signed-in person with a keyring and the seeded mailbox, on Settings → Encryption. */
@@ -124,8 +202,31 @@ async function newKey(page: Page, address: string): Promise<Key> {
  * Autocrypt header the way a mail program that speaks Autocrypt sends it.
  * Signed over the exact bytes of the signed part, CRLF line ends included.
  */
-async function signedRaw(page: Page, key: Key, subject: string, body: string): Promise<string> {
-    const part = `Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+async function signedRaw(
+    page: Page,
+    key: Key,
+    subject: string,
+    body: string,
+    { autocrypt = true, attachments = [] }: { autocrypt?: boolean; attachments?: { name: string; content: string }[] } = {},
+): Promise<string> {
+    const text = `Content-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+    // With attachments the signed part is a multipart/mixed of the text and
+    // the files, as a mail program that attaches the sender's key builds it.
+    const part = 0 === attachments.length ? text : [
+        "Content-Type: multipart/mixed; boundary=\"A\"",
+        "",
+        "--A",
+        text,
+        ...attachments.flatMap(({ name, content }) => [
+            "--A",
+            `Content-Type: application/pgp-keys; name="${name}"`,
+            `Content-Disposition: attachment; filename="${name}"`,
+            "",
+            content.trim().replace(/\r?\n/g, "\r\n"),
+        ]),
+        "--A--",
+        "",
+    ].join("\r\n");
     const signature = await page.evaluate(async ({ armoredKey, signed }) => {
         const openpgp = await import("openpgp");
 
@@ -142,7 +243,7 @@ async function signedRaw(page: Page, key: Key, subject: string, body: string): P
         "To: mailbox@e2e.test",
         `Subject: ${subject}`,
         "MIME-Version: 1.0",
-        `Autocrypt: addr=${SENDER}; keydata=${key.binary}`,
+        ...(autocrypt ? [`Autocrypt: addr=${SENDER}; keydata=${key.binary}`] : []),
         "Content-Type: multipart/signed; micalg=pgp-sha512; protocol=\"application/pgp-signature\"; boundary=\"S\"",
         "",
         "--S",

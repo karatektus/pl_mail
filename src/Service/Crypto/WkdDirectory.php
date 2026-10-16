@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Crypto;
 
+use App\Domain\DTO\Crypto\KeyFetch;
+use App\Domain\DTO\Crypto\WkdCheck;
 use App\Domain\DTO\Crypto\WkdEntry;
 use App\Domain\Enum\Crypto\WkdCheckResult;
 use App\Domain\Enum\Crypto\WkdState;
@@ -54,6 +56,7 @@ final readonly class WkdDirectory
         private Keyring                $keyring,
         private WkdKeyExport           $export,
         private WkdLookup              $lookup,
+        private PublicKeyReader        $reader,
         private EntityManagerInterface $entityManager,
         private ClockInterface         $clock,
         #[Autowire('%app.wkd_domains%')]
@@ -232,13 +235,14 @@ final readonly class WkdDirectory
     }
 
     /**
-     * Asks for the person's own address the way anybody else would — through
-     * WkdLookup, from outside, past the cache — and says whether what comes
-     * back is the key plMail means to publish. Null for an address that is not
-     * one of theirs on a served domain. WkdLookup's refusals (rate limit,
-     * address) are left to the caller, which shows them.
+     * Asks for the person's own address the way anybody else would, by both
+     * WKD methods on their own, from outside and past the cache
+     * (WkdLookup::check()), and says of each whether what came back is the
+     * key plMail means to publish. Null for an address that is not one of
+     * theirs on a served domain. WkdLookup's refusals (rate limit, address)
+     * are left to the caller, which shows them.
      */
-    public function check(User $user, string $email): ?WkdCheckResult
+    public function check(User $user, string $email): ?WkdCheck
     {
         $entry = $this->entryFor($user, $email);
 
@@ -246,22 +250,39 @@ final readonly class WkdDirectory
             return null;
         }
 
-        $found = $this->lookup->find($user, $entry->email, fresh: true);
+        $answers = $this->lookup->check($user, $entry->email);
 
-        if ([] === $found) {
-            return WkdCheckResult::Missing;
+        return new WkdCheck(
+            $entry->email,
+            $this->verdict($entry, $answers['advanced']),
+            $this->verdict($entry, $answers['direct']),
+        );
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * One method's answer against the key plMail publishes for the address.
+     * Any key at all that is not the current one is Outdated — a key for
+     * another address under this one's hash is as wrong as yesterday's.
+     */
+    private function verdict(WkdEntry $entry, KeyFetch $answer): WkdCheckResult
+    {
+        if (false === $answer->reached) {
+            return WkdCheckResult::Unreachable;
         }
 
-        foreach ($found as $key) {
-            if (true === $entry->state->isPublished() && $entry->fingerprint === $key->fingerprint) {
+        $body = $answer->found();
+        $keys = null === $body ? [] : $this->reader->read($body);
+
+        foreach ($keys as $key) {
+            if (true === $entry->state->isPublished() && $entry->fingerprint === $key->fingerprint && true === $key->usableFor($entry->email)) {
                 return WkdCheckResult::Current;
             }
         }
 
-        return WkdCheckResult::Outdated;
+        return [] === $keys ? WkdCheckResult::Missing : WkdCheckResult::Outdated;
     }
-
-    // ── Private ───────────────────────────────────────────────────────────────
 
     /**
      * The sign-in address first, then every address the person's keys may be

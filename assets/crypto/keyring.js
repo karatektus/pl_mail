@@ -598,9 +598,33 @@ export class Keyring {
         });
     }
 
+    /**
+     * Marks the key compromised and makes a new one. With it goes the key's
+     * revocation — its public half with the revocation signature, made here
+     * while the key is open — so that a key server the key was published to
+     * is handed the revoked key (KeyPublishing::revoke()). The server never
+     * needs the private half for that, and never gets it.
+     */
     async markCompromised(addressKeyId) {
-        await this.#post(this.#url(`address-keys/${addressKeyId}/compromised`), {});
+        const entry = this.state.addressKeys.find((key) => key.id === addressKeyId);
+        const revokedKey = undefined === entry ? null : await this.#revokedPublicKey(entry);
+
+        await this.#post(this.#url(`address-keys/${addressKeyId}/compromised`), null === revokedKey ? {} : { revokedKey });
         await this.renew(addressKeyId);
+    }
+
+    /**
+     * Publishes an address key to a key server (KeyPublishing): the server
+     * uploads it and asks the key server to mail each address a link. The
+     * page has asked the person first.
+     */
+    async publish(addressKeyId, host) {
+        await this.#post(this.#url(`address-keys/${addressKeyId}/publish`), { host });
+    }
+
+    /** Asks the key server again where the key stands there. */
+    async refreshPublication(addressKeyId, host) {
+        await this.#post(this.#url(`address-keys/${addressKeyId}/publication`), { host });
     }
 
     async makePrimary(addressKeyId, email) {
@@ -1053,6 +1077,51 @@ export class Keyring {
         const token = decoder.decode(await open(userKeyBytes, entry.token, PURPOSE.token));
 
         return openpgp.decryptKey({ privateKey: await openpgp.readPrivateKey({ armoredKey: entry.privateKey }), passphrase: token });
+    }
+
+    /**
+     * The key's public half, revoked: from the open key where it opens, else
+     * from the revocation certificate kept beside it — which is either a
+     * revoked copy already (made at import, see #describe()) or the bare
+     * revocation signature openpgp makes with a new key. Null when neither
+     * works; the key is marked compromised all the same.
+     */
+    async #revokedPublicKey(entry) {
+        const openpgp = await import("openpgp");
+
+        try {
+            const decrypted = await this.#openAddressKey(entry);
+
+            if (null !== decrypted) {
+                return (await openpgp.revokeKey({ key: decrypted, format: "armored" })).publicKey;
+            }
+        } catch {
+            // Locked, or its primary half lives offline: the certificate, then.
+        }
+
+        if (null === entry.revocationCertificate) {
+            return null;
+        }
+
+        try {
+            const revoked = await openpgp.readKey({ armoredKey: entry.revocationCertificate });
+
+            if (revoked.getFingerprint() === entry.fingerprint && true === await revoked.isRevoked()) {
+                return revoked.armor();
+            }
+        } catch {
+            // A bare revocation signature, not a key: applied below.
+        }
+
+        try {
+            return (await openpgp.revokeKey({
+                key: await openpgp.readKey({ armoredKey: entry.publicKey }),
+                revocationCertificate: entry.revocationCertificate,
+                format: "armored",
+            })).publicKey;
+        } catch {
+            return null;
+        }
     }
 
     #smimeEntry(id) {

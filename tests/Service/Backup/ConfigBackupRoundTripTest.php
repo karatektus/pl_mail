@@ -198,6 +198,13 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('addressKey.fingerprint', self::ADDRESS_FPR, $addressKeys[0]->fingerprint);
         $this->check('addressKey.userKey', $userKeys[0], $addressKeys[0]->userKey);
         $this->check('addressKey.addresses', ['anna@work.audit.test'], $addressKeys[0]->addresses());
+        $this->check('addressKey.revokedPublicKey', "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nrevoked\n-----END PGP PUBLIC KEY BLOCK-----", $addressKeys[0]->revokedPublicKey);
+
+        $publications = $container->get(\App\Repository\Crypto\KeyPublicationRepository::class)->findForKey($addressKeys[0]);
+        self::assertCount(1, $publications, 'where the key is published did not come back');
+        $this->check('keyPublication.host', 'keys.openpgp.org', $publications[0]->host);
+        $this->check('keyPublication.state', \App\Domain\Enum\Crypto\KeyPublicationState::Published, $publications[0]->state);
+        $this->check('keyPublication.checkedAt', '2026-01-02 03:04:05', $publications[0]->checkedAt->format('Y-m-d H:i:s'));
 
         // ── Contacts' keys ────────────────────────────────────────────────
         $contactKeys = $container->get(\App\Repository\Crypto\ContactKeyRepository::class)->findForUser($user);
@@ -514,7 +521,11 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
             null,
         );
         $addressKey->bind('anna@work.audit.test', true);
+        $addressKey->keepRevocation("-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nrevoked\n-----END PGP PUBLIC KEY BLOCK-----");
         $this->entityManager->persist($addressKey);
+
+        // Where she published it (phase 6g): which servers a revocation has to reach.
+        $this->entityManager->persist(new \App\Entity\Crypto\KeyPublication($addressKey, 'keys.openpgp.org', 'anna@work.audit.test', \App\Domain\Enum\Crypto\KeyPublicationState::Published, new \DateTimeImmutable('2026-01-02 03:04:05')));
 
         // A contact's key she pinned, with her preferences for him, and a
         // changed one she has not decided about: decisions, which must travel.

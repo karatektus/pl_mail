@@ -644,7 +644,18 @@ be a worse regression than the one this feature fixes.
                     </span>
                 </div>
 
-                <div class="hidden @rowwide:flex items-center mt-1">
+                {# `has-[*]`, so a row without labels has no line for them.
+                   Without it this line was drawn empty but for its `mt-1`,
+                   and the wide row's content block was four pixels taller
+                   than its subject — centred against the sender, that put
+                   the subject and the snippet two pixels above the sender's
+                   line. It was reported on an encrypted draft, whose short
+                   "Encrypted message" snippet made it easy to see, but every
+                   label-less row had it. The specificity of `:has()` also
+                   outranks `.hidden`, which a plain container variant does
+                   not need to — see the note on `hidden @xl:inline-block`
+                   above. #}
+                <div class="hidden @rowwide:has-[*]:flex items-center mt-1">
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                 </div>
             </div>

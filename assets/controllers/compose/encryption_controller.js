@@ -82,6 +82,15 @@ export default class extends Controller {
     #status = "pending";
     #ready = true;
     #info = new Map();
+    /**
+     * The addresses already asked about WITH a lookup. An address first asked
+     * about while the keyring was shut was asked without one — the server only
+     * looks keys up for a window that can use them — and the answer, "no key",
+     * was kept in #info. Once the keyring opened, the refresh skipped every
+     * address #info already held, so that recipient was never looked up on
+     * WKD or the key servers at all until the message was sent.
+     */
+    #lookedUp = new Set();
     #sender = null;
     #sealed = false;
     #mode = "auto";
@@ -477,7 +486,9 @@ export default class extends Controller {
      */
     async #refresh(force) {
         const emails = this.#recipients();
-        const unknown = true === force ? emails : emails.filter((email) => false === this.#info.has(email));
+        const lookup = "open" === this.#status && "off" !== this.#mode;
+        const unknown = true === force ? emails : emails.filter((email) => false === this.#info.has(email)
+            || (true === lookup && null === (this.#info.get(email)?.key ?? null) && false === this.#lookedUp.has(email)));
 
         if (0 < unknown.length || null === this.#sender || true === force) {
             try {
@@ -486,7 +497,7 @@ export default class extends Controller {
                     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken(), "X-Requested-With": "XMLHttpRequest" },
                     body: JSON.stringify({
                         emails: unknown,
-                        lookup: "open" === this.#status && "off" !== this.#mode,
+                        lookup,
                         from: this.#fromToken(),
                     }),
                 });
@@ -495,6 +506,10 @@ export default class extends Controller {
                     const answer = await response.json();
 
                     (answer.recipients ?? []).forEach((info) => this.#info.set(info.email, info));
+
+                    if (true === lookup) {
+                        unknown.forEach((email) => this.#lookedUp.add(email));
+                    }
                     this.#sender = answer.sender ?? null;
                 }
             } catch {

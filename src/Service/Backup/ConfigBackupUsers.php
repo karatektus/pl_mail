@@ -25,7 +25,9 @@ use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Crypto\AddressKeyRepository;
 use App\Repository\Crypto\ContactCertificateRepository;
+use App\Entity\Crypto\KeyPublication;
 use App\Repository\Crypto\ContactKeyRepository;
+use App\Repository\Crypto\KeyPublicationRepository;
 use App\Repository\Crypto\SmimeCertificateRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
@@ -305,6 +307,7 @@ final readonly class ConfigBackupUsers
         private ContactKeyRepository         $contactKeys,
         private SmimeCertificateRepository   $smimeCertificates,
         private ContactCertificateRepository $contactCertificates,
+        private KeyPublicationRepository     $publications,
     ) {
     }
 
@@ -532,6 +535,16 @@ final readonly class ConfigBackupUsers
                 'firstUsedAt'           => $key->firstUsedAt?->format(DateTimeInterface::ATOM),
                 'createdAt'             => $key->createdAt->format(DateTimeInterface::ATOM),
                 'addresses'             => $addresses,
+                // Phase 6g: the revocation made when the key was marked
+                // compromised, and where the key is published — so a restored
+                // installation still knows which servers to send it to.
+                'revokedPublicKey'      => $key->revokedPublicKey,
+                'publications'          => array_map(static fn (KeyPublication $row): array => [
+                    'host'      => $row->host,
+                    'email'     => $row->email,
+                    'state'     => $row->state->value,
+                    'checkedAt' => $row->checkedAt->format(DateTimeInterface::ATOM),
+                ], $this->publications->findForKey($key)),
             ];
         }
 

@@ -52,7 +52,8 @@ final class WkdSettingsController extends AbstractController
     /**
      * Through WkdLookup, so with every rule that has for asking a domain — and
      * the same per-person limit, since this too makes the server knock on a
-     * door. The answer is a notice on the card, not a page of its own.
+     * door. Each method is asked on its own (WkdDirectory::check()), and the
+     * answer is both verdicts on the card, not a page of its own.
      */
     #[Route('/settings/encryption/wkd/check', name: 'app_settings_wkd_check', methods: ['POST'])]
     public function check(Request $request): Response
@@ -76,7 +77,10 @@ final class WkdSettingsController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $this->addFlash('wkd', $this->translator->trans($result->translationKey(), ['%email%' => $email]));
+        // Both methods' verdicts, drawn beside the address they were asked
+        // for (settings/_wkd.html.twig) rather than as one sentence: either
+        // method can be the broken one.
+        $this->addFlash('wkd_check', $result->toArray());
 
         return $this->back();
     }

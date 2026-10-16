@@ -2211,9 +2211,17 @@ encryption:
             not_sign_in_address: "Not published: plMail publishes only the address you sign in with, which an administrator gave you."
         check:
             button: "Check from outside"
-            current: "Found your current key for %email%."
-            outdated: "Found a key for %email%, but not your current one. Another server may be answering for the domain, or a cache still holds the old key."
-            missing: "No key found for %email%. The domain may not point to plMail yet — see the setup notes, or ask your administrator."
+            heading: "Checked %email% from outside, by each method on its own:"
+            method:
+                advanced: "Advanced (openpgpkey.%domain%)"
+                direct: "Direct (%domain%)"
+            result:
+                current: "found your current key"
+                outdated: "found a key, but not your current one — another server may answer for the domain, or a cache still holds the old key"
+                missing: "answered, but has no key for this address"
+                unreachable: "not reachable — the name does not resolve, or the connection or its certificate failed"
+            one_good: "Mail programs that try the other method first still find your key, but fix that method too — some try only one."
+            none_good: "Neither method hands out your current key. The domain may not point to plMail yet — see the setup notes, or ask your administrator."
         setup:
             heading: "Setting up the domain (administrators)"
             enable: "Name the domains in the APP_WKD_DOMAINS environment variable and restart plMail:"
@@ -2247,6 +2255,25 @@ encryption:
         passphrase: "Passphrase of the key"
         submit: "Import"
         wrong_passphrase: "That passphrase does not open the key."
+    publish:
+        button: "Publish to %host%"
+        again: "Send the confirmation link again"
+        refresh: "Check again"
+        saved: "The key server answered; the state below is what it said."
+        confirm: "Publish this key to %host%? Anybody will then find it by %addresses%. That ties these addresses to the key in public, and a key server does not really forget it. %host% mails each address a link, and the key is found by address only once you click it."
+        renewed: "Your previous key was published to %host%. Publish the new key for %addresses% there too? %host% mails each address a link to confirm it again."
+        state:
+            none: "%email% — not published on %host%"
+            unpublished: "%email% — on %host%, but nobody can find it by this address yet"
+            pending: "%email% — waiting for you: %host% mailed this address a link to confirm"
+            published: "%email% — published: anybody can find it on %host%"
+            revoked: "%email% — revoked on %host%: the server hands out the revoked key"
+        unavailable: "Publishing to that key server is not available — the installation does not use it, or key servers are switched off under Contacts' keys."
+        not_active: "Only a key in use can be published."
+        not_found: "That key is no longer there."
+        not_published: "That key is not published there."
+        failed: "The key server could not be reached, or did not take the key. Try again later."
+        not_a_revocation: "That is not this key's revocation."
     keys:
         advanced: "Show keys"
         compromised: "Mark as compromised"
@@ -2644,6 +2671,16 @@ message:
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
     crypto:
+        attached_key:
+            heading: "The sender's key is attached"
+            own: "Your public key is attached"
+            keep: "Keep this key"
+            accept: "Use this key instead"
+            none_hint: "plMail does not hold this key yet. Keep it to check the sender's signatures and to encrypt to them — compare the fingerprint with the sender to be sure it is theirs."
+            changed_hint: "It differs from the key plMail knows for this sender. It may be their new key, or somebody posing as them — compare the fingerprint with the sender before you use it."
+            kept: "Kept the sender's key."
+            kept_changed: "Kept — but it differs from the key plMail knows for this sender. Compare the fingerprints before you use it."
+            unusable: "This key cannot be kept: it is revoked, expired, or names no user ID for the sender's address."
         subject: "Subject: %subject%"
         encrypted_kept: "Encrypted on arrival · stored readable on this server"
         sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."

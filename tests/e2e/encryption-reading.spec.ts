@@ -87,6 +87,79 @@ test.describe("reading encrypted mail", () => {
         expect(remote, "a remote image in decrypted mail was fetched").toEqual([]);
     });
 
+    // The sender's key inside the encryption is said in the banner, not
+    // listed (crypto/message.js, senderKeyOf(); #28 comment 6216816288), and
+    // kept from there; a colleague's key in the same message stays listed.
+    test("says the sender's key attached inside the encryption, and keeps it", async ({ page }) => {
+        const email = await person(page);
+        const subject = `Sealed key ${Date.now()}`;
+        const [sender, colleague] = await page.evaluate(async () => {
+            const openpgp = await import("openpgp");
+            const make = async (address: string) => {
+                const { publicKey } = await openpgp.generateKey({ userIDs: [{ email: address }], format: "armored" });
+
+                return { publicKey, fingerprint: (await openpgp.readKey({ armoredKey: publicKey })).getFingerprint() };
+            };
+
+            return [await make("sender@e2e.test"), await make("colleague@e2e.test")];
+        });
+
+        const entity = [
+            "Content-Type: multipart/mixed; boundary=\"inner\"",
+            "",
+            "--inner",
+            "Content-Type: text/plain; charset=utf-8",
+            "",
+            "My key, and my colleague's.",
+            ...[["sender-key.asc", sender.publicKey], ["colleague.asc", colleague.publicKey]].flatMap(([name, key]) => [
+                "--inner",
+                `Content-Type: application/pgp-keys; name="${name}"`,
+                `Content-Disposition: attachment; filename="${name}"`,
+                "",
+                key.trim().replace(/\r?\n/g, "\r\n"),
+            ]),
+            "--inner--",
+            "",
+        ].join("\r\n");
+
+        deliver(email, subject, [
+            "From: E2E Sender <sender@e2e.test>",
+            `To: ${ADDRESS}`,
+            `Subject: ${subject}`,
+            "MIME-Version: 1.0",
+            "Content-Type: multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"outer\"",
+            "",
+            "--outer",
+            "Content-Type: application/pgp-encrypted",
+            "",
+            "Version: 1",
+            "--outer",
+            "Content-Type: application/octet-stream; name=\"encrypted.asc\"",
+            "",
+            (await encryptToOwnKey(page, entity)).trim(),
+            "--outer--",
+            "",
+        ].join("\r\n"));
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, subject).click();
+
+        const inside = page.getByTestId("crypto-attached-key-inside");
+
+        await expect(inside).toBeVisible({ timeout: 15000 });
+        await expect(inside).toHaveAttribute("data-fingerprint", sender.fingerprint);
+        await expect(inside).toHaveAttribute("data-state", "none");
+        await expect(inside).toContainText("The sender's key is attached");
+        await expect(page.getByRole("link", { name: "colleague.asc" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "sender-key.asc" })).toHaveCount(0);
+
+        await inside.getByRole("button", { name: "Keep this key" }).click();
+
+        // Opened again with the key now held: nothing left to offer.
+        await expect(page.getByTestId("crypto-attached-key-inside")).toHaveAttribute("data-state", "current", { timeout: 15000 });
+        await expect(page.getByTestId("crypto-attached-key-inside").getByRole("button")).toBeHidden();
+    });
+
     test("decrypts an inline PGP message into plain text", async ({ page }) => {
         const email = await person(page);
         const subject = `Inline seal ${Date.now()}`;

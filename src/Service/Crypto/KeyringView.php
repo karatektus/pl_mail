@@ -42,6 +42,7 @@ final readonly class KeyringView
         private WkdDirectory               $wkd,
         private DemoMode                   $demoMode,
         private PasswordKdf                $kdf,
+        private KeyPublishing              $publishing,
     ) {
     }
 
@@ -50,6 +51,8 @@ final readonly class KeyringView
      */
     public function build(User $user): array
     {
+        $publications = $this->publishing->view($user);
+
         return [
             // A demo visitor's mailbox is public and thrown away within hours;
             // a keyring on it would protect nothing and outlive nothing.
@@ -66,7 +69,14 @@ final readonly class KeyringView
             'addresses'         => $this->keyring->ownedAddresses($user),
             'userKeys'          => array_map($this->userKey(...), $this->userKeys->findForUser($user)),
             'copies'            => array_map($this->copy(...), $this->copies->findForUser($user)),
-            'addressKeys'       => array_map($this->addressKey(...), $this->addressKeys->findForUser($user)),
+            'addressKeys'       => array_map(
+                fn (AddressKey $key): array => $this->addressKey($key) + ['publications' => $publications[(int) $key->id] ?? []],
+                $this->addressKeys->findForUser($user),
+            ),
+            // The key servers the person can publish an address key to
+            // (KeyPublishing); empty when the installation lists none that
+            // takes uploads, or the person switched key servers off.
+            'publishTo'         => $this->publishing->hostsFor($user),
             'smimeCertificates' => array_map($this->smimeCertificate(...), $this->smimeCertificates->findForUser($user)),
             // Which of the person's addresses plMail's Web Key Directory
             // publishes, so an app can say so beside the key without asking

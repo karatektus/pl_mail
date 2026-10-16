@@ -2226,9 +2226,17 @@ encryption:
             not_sign_in_address: 'Non publiée : plMail ne publie que l’adresse avec laquelle vous vous connectez, attribuée par un administrateur.'
         check:
             button: Vérifier depuis l’extérieur
-            current: Votre clé actuelle a été trouvée pour %email%.
-            outdated: Une clé a été trouvée pour %email%, mais ce n’est pas votre clé actuelle. Un autre serveur répond peut-être pour le domaine, ou un cache conserve encore l’ancienne clé.
-            missing: Aucune clé trouvée pour %email%. Le domaine ne pointe peut-être pas encore vers plMail — consultez les notes de configuration, ou demandez à votre administrateur.
+            heading: "%email% vérifiée depuis l’extérieur, chaque méthode séparément :"
+            method:
+                advanced: Avancée (openpgpkey.%domain%)
+                direct: Directe (%domain%)
+            result:
+                current: votre clé actuelle a été trouvée
+                outdated: une clé a été trouvée, mais ce n’est pas votre clé actuelle — un autre serveur répond peut-être pour le domaine, ou un cache conserve encore l’ancienne clé
+                missing: répond, mais n’a aucune clé pour cette adresse
+                unreachable: injoignable — le nom ne se résout pas, ou la connexion ou son certificat a échoué
+            one_good: Les logiciels de messagerie qui essaient d’abord l’autre méthode trouvent quand même votre clé, mais corrigez aussi celle-ci — certains n’en essaient qu’une.
+            none_good: Aucune des deux méthodes ne fournit votre clé actuelle. Le domaine ne pointe peut-être pas encore vers plMail — consultez les notes de configuration, ou demandez à votre administrateur.
         setup:
             heading: Configurer le domaine (administrateurs)
             enable: 'Indiquez les domaines dans la variable d’environnement APP_WKD_DOMAINS et redémarrez plMail :'
@@ -2262,6 +2270,25 @@ encryption:
         passphrase: Phrase secrète de la clé
         submit: Importer
         wrong_passphrase: Cette phrase secrète n’ouvre pas la clé.
+    publish:
+        button: Publier sur %host%
+        again: Renvoyer le lien de confirmation
+        refresh: Vérifier à nouveau
+        saved: Le serveur de clés a répondu ; l’état ci-dessous est ce qu’il a indiqué.
+        confirm: "Publier cette clé sur %host% ? Tout le monde pourra alors la trouver à partir de %addresses%. Ces adresses sont ainsi liées publiquement à la clé, et un serveur de clés ne l’oublie pas vraiment. %host% envoie un lien à chaque adresse, et la clé ne se trouve par adresse qu’une fois que vous avez cliqué dessus."
+        renewed: "Votre clé précédente était publiée sur %host%. Y publier aussi la nouvelle clé pour %addresses% ? %host% envoie à nouveau un lien de confirmation à chaque adresse."
+        state:
+            none: "%email% — non publiée sur %host%"
+            unpublished: "%email% — sur %host%, mais personne ne peut encore la trouver par cette adresse"
+            pending: "%email% — en attente : %host% a envoyé à cette adresse un lien de confirmation"
+            published: "%email% — publiée : tout le monde peut la trouver sur %host%"
+            revoked: "%email% — révoquée sur %host% : le serveur fournit la clé révoquée"
+        unavailable: Publier sur ce serveur de clés n’est pas possible — l’installation ne l’utilise pas, ou les serveurs de clés sont désactivés sous « Clés de vos contacts ».
+        not_active: Seule une clé en usage peut être publiée.
+        not_found: Cette clé n’existe plus.
+        not_published: Cette clé n’y est pas publiée.
+        failed: Le serveur de clés n’a pas pu être joint, ou n’a pas accepté la clé. Réessayez plus tard.
+        not_a_revocation: Ce n’est pas la révocation de cette clé.
     keys:
         advanced: Afficher les clés
         compromised: Marquer comme compromise
@@ -2659,6 +2686,16 @@ message:
         failed_for: 'Non distribué à %recipient%.'
         reported_at: 'Signalé %datetime%'
     crypto:
+        attached_key:
+            heading: La clé de l’expéditeur est jointe
+            own: Votre clé publique est jointe
+            keep: Conserver cette clé
+            accept: Utiliser plutôt cette clé
+            none_hint: plMail ne détient pas encore cette clé. Conservez-la pour vérifier les signatures de l’expéditeur et lui écrire chiffré — comparez l’empreinte avec l’expéditeur pour vous assurer qu’elle est bien la sienne.
+            changed_hint: Elle diffère de la clé que plMail connaît pour cet expéditeur. Il peut s’agir de sa nouvelle clé, ou de quelqu’un qui se fait passer pour lui — comparez l’empreinte avec l’expéditeur avant de l’utiliser.
+            kept: La clé de l’expéditeur a été conservée.
+            kept_changed: Conservée — mais elle diffère de la clé que plMail connaît pour cet expéditeur. Comparez les empreintes avant de l’utiliser.
+            unusable: "Cette clé ne peut pas être conservée : elle est révoquée, expirée, ou ne porte aucun identifiant pour l’adresse de l’expéditeur."
         subject: 'Objet : %subject%'
         encrypted_kept: Chiffré à l’arrivée · conservé lisible sur ce serveur
         sealed_draft: Brouillon chiffré. Ouvrez-le pour continuer à écrire ; seul un navigateur disposant de vos clés peut le lire.

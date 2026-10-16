@@ -19,6 +19,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -87,7 +88,50 @@ final class ContactKeyControllerTest extends WebTestCase
         self::assertSame(ContactKeyOrigin::Manual, $this->repository()->findCurrent($this->user, self::CONTACT)?->origin);
     }
 
-    public function testAnImportWithoutTheTokenIsRefusedAndKeepsNothing(): void
+    /**
+     * The file half of the import form, which the tests above never reached:
+     * ContactKeyController::import() reads an uploaded `file` in place of the
+     * textarea when there is one (#28, comment 6216185683).
+     */
+    public function testAnUploadedKeyFileIsKeptAndShown(): void
+    {
+        $key  = new Gpg(self::CONTACT);
+        $path = tempnam(sys_get_temp_dir(), 'contact-key');
+        file_put_contents($path, $key->armored);
+
+        $this->client->request(
+            'POST',
+            '/contact-keys/import',
+            ['_token' => $this->token('contact-keys'), 'key' => ''],
+            ['file' => new UploadedFile($path, 'OpenPGP_0x' . strtoupper(substr($key->fingerprint, -16)) . '.asc', 'application/pgp-keys', null, true)],
+        );
+
+        self::assertResponseRedirects('/contact-keys');
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString($this->grouped($key->fingerprint), $crawler->text());
+        self::assertSame(ContactKeyOrigin::Manual, $this->repository()->findCurrent($this->user, self::CONTACT)?->origin);
+    }
+
+    /** A file wins over whatever the textarea held, as the form says. */
+    public function testAnUploadedFileIsTakenInsteadOfThePastedText(): void
+    {
+        $uploaded = new Gpg(self::CONTACT);
+        $pasted   = new Gpg('somebody-else@keys.test');
+        $path     = tempnam(sys_get_temp_dir(), 'contact-key');
+        file_put_contents($path, $uploaded->armored);
+
+        $this->client->request(
+            'POST',
+            '/contact-keys/import',
+            ['_token' => $this->token('contact-keys'), 'key' => $pasted->armored],
+            ['file' => new UploadedFile($path, 'key.asc', 'application/pgp-keys', null, true)],
+        );
+
+        self::assertNotNull($this->repository()->findCurrent($this->user, self::CONTACT));
+        self::assertNull($this->repository()->findCurrent($this->user, 'somebody-else@keys.test'));
+    }
+
+        public function testAnImportWithoutTheTokenIsRefusedAndKeepsNothing(): void
     {
         $this->client->request('POST', '/contact-keys/import', ['key' => new Gpg(self::CONTACT)->armored]);
 

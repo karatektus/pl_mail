@@ -8,6 +8,7 @@ switch needs before it turns on.
 
 Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
 #}
+{% import '_partials/_field_classes.html.twig' as fields %}
 {% set state = decrypted_mail_settings() %}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
 
@@ -44,7 +45,7 @@ Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
                         <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
                         <input type="hidden" name="keep" value="1">
                         <label class="flex items-start gap-2 text-[11px] text-ink-muted">
-                            <input type="checkbox" name="confirm" value="1" required class="mt-0.5">
+                            <input type="checkbox" name="confirm" value="1" required class="{{ fields.checkbox() }} mt-0.5">
                             <span>{{ 'encryption.decrypted.confirm'|trans }}</span>
                         </label>
                         <button type="submit" class="{{ button }} mt-2">{{ 'encryption.decrypted.turn_on'|trans }}</button>
@@ -66,7 +67,7 @@ Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
                         </span>
                         {% if not account.keepDecryptedAi and state.model.host is not null and not state.model.local %}
                             <label class="mt-2 flex items-start gap-2 text-[11px] text-ink-muted">
-                                <input type="checkbox" name="consent_external" value="1" required class="mt-0.5">
+                                <input type="checkbox" name="consent_external" value="1" required class="{{ fields.checkbox() }} mt-0.5">
                                 <span>{{ 'encryption.decrypted.ai.consent'|trans({ '%host%': state.model.host }) }}</span>
                             </label>
                         {% endif %}

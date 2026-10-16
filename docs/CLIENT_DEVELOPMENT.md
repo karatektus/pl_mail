@@ -1262,6 +1262,11 @@ addresses, renewed keys and password changes in the web app need no new pairing:
 user key you already hold. Sign with the `active` key whose `addresses` has the From address
 `primary`; decrypt with any of them.
 
+Each address key also carries `publications: [{host, email, state, checkedAt}]` — where the person
+published it on a key server and what the server last said (`unpublished`, `pending`, `published`,
+`revoked`) — and the keyring `publishTo: [host]`, the servers they can publish to. Publishing itself
+is done in the web app (Settings → Encryption); there is no JMAP method for it.
+
 **Reading.** Email has five plMail properties: `cryptoType` (`pgp_encrypted`, `pgp_signed`,
 `pgp_inline_encrypted`, `pgp_inline_signed`, `smime_encrypted`, `smime_signed` or null),
 `encrypted`, `signatureState` (`valid`, `untrusted`, `invalid`, `unknown_key`, `key_changed` or

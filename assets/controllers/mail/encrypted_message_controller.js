@@ -30,7 +30,8 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  *   settingsUrl — Settings → Encryption, for a keyring not set up yet
  *   messages   — translated: decrypting, locked, noKey, noCertificate,
  *                unsupported, noSource, failed,
- *                signature.{valid, invalid, unknown_key, untrusted, key_changed, unchecked}
+ *                signature.{valid, invalid, unknown_key, untrusted, key_changed, unchecked},
+ *                attachedKey.{heading, own, keep, accept, noneHint, changedHint}
  *
  * Targets:
  *   status       — what is happening, or what went wrong
@@ -41,9 +42,13 @@ import { isPlaceholder, openEncrypted } from "../../crypto/message.js";
  *   frame        — its iframe
  *   text         — a <pre> for a plain-text message
  *   attachments  — where the decrypted attachments are listed
+ *   attachedKey  — the banner's line for the sender's own key, attached
+ *                  inside the encryption: said there rather than listed
+ *                  (crypto/message.js, senderKeyOf()), with "Keep this key"
+ *                  or "Use this key instead" when plMail does not use it yet
  */
 export default class extends Controller {
-    static targets = ["subject", "status", "signature", "signatureActions", "frameHost", "frame", "text", "attachments"];
+    static targets = ["subject", "status", "signature", "signatureActions", "frameHost", "frame", "text", "attachments", "attachedKey"];
 
     static values = {
         rawUrl: String,
@@ -65,6 +70,8 @@ export default class extends Controller {
     #locked = false;
     #urls = [];
     #onKeyring = null;
+    /** The sender's key found inside the message, armored, for "Keep this key". */
+    #attachedKey = null;
 
     connect() {
         this.#onKeyring = (event) => {
@@ -105,6 +112,43 @@ export default class extends Controller {
             headers: { Accept: "application/json" },
             body: new FormData(form),
         }).catch(() => null);
+
+        button.disabled = false;
+
+        const answer = null === response ? null : await response.json().catch(() => null);
+
+        if (null !== answer && true === answer.ok) {
+            this.#opened = false;
+            this.#urls.forEach((url) => URL.revokeObjectURL(url));
+            this.#urls = [];
+            await this.#open();
+        }
+    }
+
+    /**
+     * The banner's "Keep this key" / "Use this key instead" for the sender's
+     * key inside the encryption: posted with the key itself, which only this
+     * browser has (ContactKeyController::messageAttachedKey()), and the
+     * message opened again on an answer, as lookUp() does.
+     */
+    async keepAttachedKey(event) {
+        event.preventDefault();
+
+        const form = event.currentTarget;
+        const button = event.submitter ?? form.querySelector("button");
+        const body = new FormData(form);
+
+        if (null === this.#attachedKey) {
+            return;
+        }
+
+        body.set("key", this.#attachedKey);
+        body.set("action", button?.value ?? "keep");
+        button.disabled = true;
+
+        // getAttribute, not form.action: the button is named `action`, and a
+        // named control shadows the form property of the same name.
+        const response = await fetch(form.getAttribute("action"), { method: "POST", headers: { Accept: "application/json" }, body }).catch(() => null);
 
         button.disabled = false;
 
@@ -187,6 +231,7 @@ export default class extends Controller {
         this.#keep(opened.mime);
         this.#showSubject(opened.subject);
         this.#showSignature(opened.signature);
+        this.#showAttachedKey(opened.senderKey);
         this.#showAttachments(opened.attachments);
 
         if (null !== opened.html) {
@@ -291,6 +336,35 @@ export default class extends Controller {
         if (true === this.hasSignatureActionsTarget) {
             this.signatureActionsTarget.hidden = false === ["unknown_key", "untrusted", "key_changed"].includes(signature.state);
         }
+    }
+
+    /** The sender's own key, when it came inside the message. */
+    #showAttachedKey(key) {
+        if (false === this.hasAttachedKeyTarget) {
+            return;
+        }
+
+        const messages = this.messagesValue.attachedKey ?? {};
+        const part = (role) => this.attachedKeyTarget.querySelector(`[data-role="${role}"]`);
+
+        this.#attachedKey = key?.armored ?? null;
+        this.attachedKeyTarget.hidden = null === key || undefined === key;
+
+        if (true === this.attachedKeyTarget.hidden) {
+            return;
+        }
+
+        const offer = { none: "keep", changed: "accept" }[key.state] ?? null;
+
+        this.attachedKeyTarget.dataset.state = key.state;
+        this.attachedKeyTarget.dataset.fingerprint = key.fingerprint;
+        part("heading").textContent = "own" === key.state ? messages.own : messages.heading;
+        part("fingerprint").textContent = key.fingerprint.toUpperCase().match(/.{1,4}/g).join(" ");
+        part("hint").textContent = { none: messages.noneHint, changed: messages.changedHint }[key.state] ?? "";
+        part("hint").hidden = null === offer;
+        part("form").hidden = null === offer;
+        part("label").textContent = null === offer ? "" : messages[offer];
+        part("form").querySelector("button").value = offer ?? "";
     }
 
     /**

@@ -97,6 +97,17 @@ class AddressKey
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $firstUsedAt = null;
 
+    /**
+     * The public key with its revocation, as the browser made it when the key
+     * was marked compromised (phase 6g of #28). Kept so a key server the key
+     * was published to is handed the revocation even if it could not be
+     * reached at that moment: KeyPublishing uploads it again on the next
+     * refresh until the server says "revoked". Public, like publicKey — no
+     * private half is ever needed to send it.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public private(set) ?string $revokedPublicKey = null;
+
     /** @var Collection<int, AddressKeyBinding> */
     #[ORM\OneToMany(targetEntity: AddressKeyBinding::class, mappedBy: 'addressKey', cascade: ['persist'], orphanRemoval: true)]
     public private(set) Collection $bindings;
@@ -173,6 +184,11 @@ class AddressKey
      * Moved under another user key: the one that replaced a locked key, once
      * a recovery copy opened the old one and the browser re-wrapped the token.
      */
+    public function keepRevocation(string $revokedPublicKey): void
+    {
+        $this->revokedPublicKey = $revokedPublicKey;
+    }
+
     public function rewrapToken(UserKey $userKey, string $token): void
     {
         $this->userKey = $userKey;

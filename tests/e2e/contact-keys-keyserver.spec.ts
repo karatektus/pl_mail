@@ -21,6 +21,7 @@ import { consoleCommand, login, seedUser } from "./support/config";
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const PASSWORD = "a-password-for-key-servers";
+const REPORTED = "test@pluetzner.de";
 
 test.describe("contacts' keys from key servers", () => {
     test("finds a key only a key server has, and says which server", async ({ page }) => {
@@ -62,6 +63,50 @@ test.describe("contacts' keys from key servers", () => {
         // Still off after a reload: the choice is stored, not just shown.
         await page.reload();
         await expect(page.locator("turbo-frame#contact-keys").getByTestId("key-servers-switch").locator('input[value="0"]')).toBeChecked();
+    });
+
+    // The address that was reported as not found (#28, comment 6216185683): no
+    // Web Key Directory, a confirmed key on keys.openpgp.org. Typed where
+    // plMail looks a key up, it is found there with no further click.
+    // pluetzner.de is a real domain; the stand-in resolves its WKD hosts to
+    // nothing, as a domain without WKD answers, so nothing leaves the machine.
+    // Seeding drops what earlier runs' lookups left in the cache.
+
+    test("finds the reported address on keys.openpgp.org by typing it into Look up a key", async ({ page }) => {
+        await person(page);
+
+        const key = await newKey(page, REPORTED);
+        const frame = page.locator("turbo-frame#contact-keys");
+
+        publish("keys.openpgp.org", REPORTED, key.publicKey);
+        await lookUp(page, REPORTED);
+
+        await expect(frame.getByTestId("contact-keys-notice")).toContainText("Found a key on the key server keys.openpgp.org");
+        await expect(frame.getByTestId("contact-key-fingerprint")).toHaveText(grouped(key.fingerprint));
+    });
+
+    test("finds the reported address on keys.openpgp.org as the composer's recipient", async ({ page }) => {
+        await person(page);
+
+        const key = await newKey(page, REPORTED);
+
+        publish("keys.openpgp.org", REPORTED, key.publicKey);
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const dock = page.locator("#compose_dock");
+        const to = dock.locator(".ts-control input").first();
+
+        await to.fill(REPORTED);
+        await to.press("Enter");
+
+        // Every recipient has a key now, so the message is encrypted by itself.
+        await expect(dock.locator("[data-compose--encryption-target=encryptButton]")).toHaveAttribute("aria-pressed", "true", { timeout: 15000 });
+
+        await page.goto("/settings?section=encryption");
+        await expect(page.locator("turbo-frame#contact-keys").getByTestId("contact-key-fingerprint")).toHaveText(grouped(key.fingerprint));
+        await expect(page.locator("turbo-frame#contact-keys").getByTestId("contact-key-origin")).toHaveText("From the key server keys.openpgp.org");
     });
 });
 

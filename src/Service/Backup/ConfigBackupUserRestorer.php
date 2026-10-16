@@ -9,6 +9,7 @@ use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyStatus;
+use App\Domain\Enum\Crypto\KeyPublicationState;
 use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Crypto\SmimeCertificateStatus;
 use App\Domain\Enum\Crypto\PgpScheme;
@@ -24,6 +25,7 @@ use App\Entity\Calendar\BookingPage;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Crypto\ContactKey;
+use App\Entity\Crypto\KeyPublication;
 use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Crypto\UserKeyCopy;
@@ -675,7 +677,24 @@ final readonly class ConfigBackupUserRestorer
                 }
             }
 
+            if (null !== $revoked = $this->text($row, 'revokedPublicKey')) {
+                $key->keepRevocation($revoked);
+            }
+
             $this->entityManager->persist($key);
+
+            // Where the key is published (phase 6g). Absent from documents
+            // written before it.
+            foreach ($this->rows($row, 'publications') as $publication) {
+                $host      = $this->text($publication, 'host');
+                $email     = $this->text($publication, 'email');
+                $state     = KeyPublicationState::tryFrom((string) $this->text($publication, 'state'));
+                $checkedAt = $this->moment($publication, 'checkedAt');
+
+                if (null !== $host && null !== $email && null !== $state && null !== $checkedAt) {
+                    $this->entityManager->persist(new KeyPublication($key, $host, $email, $state, $checkedAt));
+                }
+            }
         }
 
         // The S/MIME certificates, whose private keys are wrapped under the

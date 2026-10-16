@@ -42,27 +42,29 @@ const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAA
  * @param {import("./keyring.js").Keyring} ring  an open keyring
  * @param {{fingerprint: string, publicKey: string, status: string, pinned: boolean}[]} contactKeys
  *        the keys the person holds for the sender (ContactKeyController::sender)
- * @param {{smimeSignerUrl?: ?string}} [options]
+ * @param {{smimeSignerUrl?: ?string, sender?: string}} [options]
  *        where to ask what an S/MIME signature inside means
  *        (ContactKeyController::smimeSigner); without it, a signature by
- *        anybody but the person is only "untrusted"
- * @returns {Promise<{html: ?string, text: ?string, attachments: object[], signature: ?{state: string, signer: ?string}, subject: ?string, mime: Uint8Array}>}
+ *        anybody but the person is only "untrusted". And the From address,
+ *        to tell the sender's own attached key from anybody else's.
+ * @returns {Promise<{html: ?string, text: ?string, attachments: object[], signature: ?{state: string, signer: ?string}, subject: ?string, mime: Uint8Array, senderKey: ?{fingerprint: string, armored: string, state: string}}>}
  * @throws {Error} no_ciphertext, no_key, no_certificate (S/MIME, and no
  *         certificate of the person's opens it), unsupported_cipher
  */
-export async function openEncrypted(raw, ring, contactKeys = [], { smimeSignerUrl = null } = {}) {
+export async function openEncrypted(raw, ring, contactKeys = [], { smimeSignerUrl = null, sender = "" } = {}) {
     const { default: PostalMime } = await import("postal-mime");
     const outer = await PostalMime.parse(raw);
     const enveloped = findEnveloped(outer);
+    const known = { sender: String(sender || outer.from?.address || "").toLowerCase(), contactKeys, own: ring.ownFingerprints() };
 
     if (null !== enveloped) {
-        return openSmime(enveloped, ring, smimeSignerUrl);
+        return openSmime(enveloped, ring, smimeSignerUrl, known);
     }
 
-    return openPgp(outer, ring, contactKeys);
+    return openPgp(outer, ring, contactKeys, known);
 }
 
-async function openPgp(outer, ring, contactKeys) {
+async function openPgp(outer, ring, contactKeys, known) {
     const openpgp = await import("openpgp");
     const [armored, inline] = findCiphertext(outer);
 
@@ -89,17 +91,17 @@ async function openPgp(outer, ring, contactKeys) {
     if (true === inline) {
         const text = decoder.decode(decrypted.data);
 
-        return { html: null, text, attachments: [], signature, subject: null, mime: inlineEntity(text) };
+        return { html: null, text, attachments: [], signature, subject: null, mime: inlineEntity(text), senderKey: null };
     }
 
-    return present(decrypted.data, signature, isPgpSignaturePart);
+    return present(decrypted.data, signature, isPgpSignaturePart, known);
 }
 
 /**
  * S/MIME: the envelope opened with whichever of the person's certificates it
  * was encrypted to, and the signature inside checked.
  */
-async function openSmime(enveloped, ring, smimeSignerUrl) {
+async function openSmime(enveloped, ring, smimeSignerUrl, known) {
     const smime = await import("./smime.js");
     const keys = await ring.smimeKeys();
 
@@ -117,23 +119,29 @@ async function openSmime(enveloped, ring, smimeSignerUrl) {
 
     const { entity, signature } = await smimeSignature(smime, content, ring, smimeSignerUrl);
 
-    return present(entity, signature, isSmimeSignaturePart);
+    return present(entity, signature, isSmimeSignaturePart, known);
 }
 
 /**
  * The decrypted entity, parsed and made fit to show. The same for every
  * scheme; only what counts as a signature part differs.
  */
-async function present(entity, signature, isSignaturePart) {
+async function present(entity, signature, isSignaturePart, known) {
     const { default: PostalMime } = await import("postal-mime");
     const inner = await PostalMime.parse(entity);
-    const attachments = (inner.attachments ?? []).filter((part) => false === isSignaturePart(part));
+    const parts = (inner.attachments ?? []).filter((part) => false === isSignaturePart(part));
+    const senderKey = await senderKeyOf(parts, known);
+    const attachments = parts.filter((part) => part !== senderKey?.part);
     const html = null === (inner.html ?? null) ? null : await sanitize(inner.html, attachments);
 
     return {
         html,
         text: null === html ? (inner.text ?? "") : null,
         attachments: attachments.filter((part) => false === (null !== html && isEmbedded(part, inner.html))),
+        // The sender's own public key, attached inside the encryption: said
+        // in the banner rather than listed, as the server does for mail it
+        // can read (MessagePart::$senderKeyFingerprint, phase 6g of #28).
+        senderKey: null === senderKey ? null : { fingerprint: senderKey.fingerprint, armored: senderKey.armored, state: senderKey.state },
         // A message signed inside the encryption the RFC 3156 way — a
         // multipart/signed entity — carries its signature as a part rather
         // than as an OpenPGP packet. Said as unchecked for now rather than
@@ -383,6 +391,64 @@ async function signatureOf(signatures, keys, own, contactKeys) {
     }
 
     return { state: "key_changed", signer };
+}
+
+/**
+ * The attached part that is the sender's own public key, by the rule the
+ * server uses (ContactKeyCollector::markAttachedKeys()): a key with a user ID
+ * for the From address, or one plMail already holds for it — a contact key
+ * for that address, or one of the person's own keys on their own mail.
+ * Somebody else's key stays an attachment. `state` is where it stands with
+ * plMail: own, current, changed, or none (not held).
+ */
+async function senderKeyOf(parts, { sender, contactKeys, own }) {
+    const candidates = parts.filter(looksLikeKey);
+
+    if (0 === candidates.length) {
+        return null;
+    }
+
+    const openpgp = await import("openpgp");
+
+    for (const part of candidates) {
+        let found = [];
+
+        try {
+            found = await openpgp.readKeys({ armoredKeys: decoder.decode(part.content) });
+        } catch {
+            try {
+                found = await openpgp.readKeys({ binaryKeys: new Uint8Array(part.content) });
+            } catch {
+                continue;
+            }
+        }
+
+        for (const key of found) {
+            const fingerprint = key.getFingerprint().toLowerCase();
+            const emails = key.users.map((user) => String(user.userID?.email ?? "").toLowerCase());
+            const held = contactKeys.find((candidate) => String(candidate.fingerprint).toLowerCase() === fingerprint);
+
+            if (true === own.includes(fingerprint) || undefined !== held || ("" !== sender && emails.includes(sender))) {
+                const state = own.includes(fingerprint) ? "own" : (undefined === held ? "none" : ("current" === held.status ? "current" : "changed"));
+
+                return { part, fingerprint, armored: key.armor(), state };
+            }
+        }
+    }
+
+    return null;
+}
+
+/** As ContactKeyCollector::looksLikeKey(): a key file, not a signature or the ciphertext. */
+function looksLikeKey(part) {
+    const type = String(part.mimeType ?? "").toLowerCase();
+    const name = String(part.filename ?? "").toLowerCase();
+
+    if ("application/pgp-signature" === type || "application/pgp-encrypted" === type || "signature.asc" === name || "encrypted.asc" === name) {
+        return false;
+    }
+
+    return "application/pgp-keys" === type || name.endsWith(".asc") || name.endsWith(".key") || name.endsWith(".pub");
 }
 
 function isPgpSignaturePart(part) {

@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:25f3934fbce3d4b7ea0fa9c1cff03d7435dd10ed -->
+<!-- translated-from: features/encryption.md sha1:479c78a347eb42c286182ac9d06810d03e0e8f6a -->
 
 # Verschlüsselung
 
@@ -130,7 +130,10 @@ Von plMail erstellte Schlüssel laufen nicht ab — wie bei Proton. Unter **Schl
 - **Erneuern** erstellt einen neuen Schlüssel für dieselben Adressen. Der alte bleibt, als
   *ersetzt* markiert, um Mails zu öffnen, die an ihn gingen.
 - **Als kompromittiert markieren** ist für einen Schlüssel, den vermutlich jemand anderes hat. Er
-  wird nicht mehr benutzt, und seine Adressen bekommen einen neuen.
+  wird nicht mehr benutzt, und seine Adressen bekommen einen neuen. Hattest du ihn auf einem
+  Schlüsselserver veröffentlicht (siehe
+  [Deinen Schlüssel auf keys.openpgp.org veröffentlichen](#deinen-schlüssel-auf-keysopenpgporg-veröffentlichen)),
+  bekommt der Schlüsselserver seinen Widerruf und bürgt nicht mehr für ihn.
 - **Primär machen** wählt aus, welchen von mehreren Schlüsseln eine Adresse benutzt.
 
 ## Verschlüsselte und signierte Mails lesen
@@ -165,6 +168,18 @@ Entschlüsseln prüft.
 
 Die Signaturdatei selbst (`signature.asc`, `smime.p7s`) erscheint nicht mehr als Anhang.
 
+**Der angehängte Schlüssel des Absenders.** Viele Mailprogramme hängen den öffentlichen Schlüssel
+des Absenders an ihre Mails an (`OpenPGP_0x….asc`). Ist der angehängte Schlüssel der eigene des
+Absenders — er nennt dessen Adresse, oder plMail hat ihn schon für ihn —, steht er nicht bei den
+Anhängen, und die Nachricht bekommt dafür keine Büroklammer. Das Banner sagt *Der Schlüssel des
+Absenders ist angehängt*, mit seinem Fingerabdruck. Hat plMail diesen Schlüssel noch nicht, bietet
+das Banner **Diesen Schlüssel behalten** an; unterscheidet er sich von dem, den plMail für den
+Absender kennt, **Stattdessen diesen Schlüssel verwenden** — vergleiche vorher den Fingerabdruck mit
+dem Absender. Das gilt genauso in verschlüsselten Mails, die dein Browser liest, und für deine
+eigenen gesendeten Mails mit *Öffentlichen Schlüssel anhängen* (*Dein öffentlicher Schlüssel ist
+angehängt*). Ein Schlüssel, der jemand anderem gehört — der weitergeleitete Schlüssel eines
+Kollegen —, bleibt ein normaler Anhang.
+
 ## Schlüssel deiner Kontakte
 
 **Einstellungen → Verschlüsselung → Schlüssel deiner Kontakte** listet die öffentlichen Schlüssel,
@@ -182,10 +197,17 @@ Sie kommen aus vier Quellen, und für die ersten drei musst du nichts tun:
   und das Schreibfenster nach jedem Empfänger, für den es keinen Schlüssel hat. Die Anfrage geht vom
   plMail-Server aus, nicht von deinem Browser.
 - **Öffentliche Schlüsselserver** — keys.openpgp.org und der Schlüsselserver von Mailvelope —, wenn
-  die Domain nichts hat. Viele veröffentlichen ihren Schlüssel dort und haben kein WKD. Dieselben
-  Suchen fragen sie, nach der Domain, und der erste Server mit einem verwendbaren Schlüssel gewinnt.
+  die Domain nichts hat. Viele veröffentlichen ihren Schlüssel dort und haben kein WKD. Jede Suche
+  fragt sie von selbst, nach der Domain, ohne zusätzlichen Klick: eine Adresse in **Schlüssel
+  suchen**, **Schlüssel suchen** im Banner, die Prüfung der Empfänger im Schreibfenster und native
+  Apps. Der erste Server mit einem verwendbaren Schlüssel gewinnt.
 - **Ein Import** — füge einen öffentlichen Schlüsselblock ein oder wähle eine Datei. Der Schlüssel
   wird für jede Adresse gespeichert, die er nennt.
+
+plMail sucht Schlüssel nur in diesen Momenten — wenn du darum bittest, oder wenn das Schreibfenster
+bei geöffneten Schlüsseln prüft, an wen eine Nachricht geht. Es sucht nicht den Absender jeder
+signierten Mail, die du liest: Das würde der Domain und den Schlüsselservern verraten, wessen Mails
+du öffnest.
 
 Die Liste sagt, woher jeder Schlüssel kam: *Aus dem Schlüsselverzeichnis der Domain (WKD)*, *Vom
 Schlüsselserver keys.openpgp.org* und so weiter; ebenso der Hinweis nach einer Suche.
@@ -315,8 +337,12 @@ ihn erst schicken musst.
   Schlüssel sofort heraus; wer dann fragt, bekommt dasselbe „hier ist nichts“ wie für eine Adresse,
   die es nicht gibt.
 - Die beiden URLs, die ein Mailprogramm abfragt, und **Von außen prüfen**: Das sucht deine Adresse
-  so, wie es alle anderen tun würden — über den Server, wie die Schlüsselsuche für Kontakte — und
-  sagt, ob der gefundene Schlüssel dein aktueller ist.
+  so, wie es alle anderen tun würden — über den Server, wie die Schlüsselsuche für Kontakte. Es
+  fragt beide Methoden, jede für sich und frisch, und zeigt für jede ein Ergebnis: *dein aktueller
+  Schlüssel wurde gefunden*, *ein Schlüssel wurde gefunden, aber nicht dein aktueller*, *antwortet,
+  hat aber keinen Schlüssel für diese Adresse* oder *nicht erreichbar*. Ein Mailprogramm fragt
+  zuerst die erweiterte Methode und die direkte nur, wenn die erweiterte nichts hat — eine kaputte
+  Weiterleitung von der Website bliebe sonst unbemerkt, solange `openpgpkey.<domain>` antwortet.
 
 Veröffentlicht wird nur die Adresse, **mit der du dich anmeldest**. Deine anderen Adressen — Aliase,
 weitere Konten — stehen mit diesem Grund in der Liste: Sie sind, was eingetippt wurde, und plMail
@@ -342,6 +368,36 @@ Für Admins:
      die den Host nicht durchreicht.
 3. Nutze **Von außen prüfen** mit deiner eigenen Adresse. Admins sehen diese Schritte auch auf der
    Karte, ausgefüllt mit den Domains und dem Host der Installation.
+
+## Deinen Schlüssel auf keys.openpgp.org veröffentlichen
+
+Dein Web Key Directory deckt nur die eigenen Domains der Installation ab. Für deine anderen
+Adressen — oder für Kontakte, deren Mailprogramme kein WKD fragen — kannst du deinen Schlüssel auf
+[keys.openpgp.org](https://keys.openpgp.org) legen, den Schlüsselserver, auf dem plMail und viele
+Mailprogramme Schlüssel suchen.
+
+Unter **Einstellungen → Verschlüsselung → Schlüssel anzeigen** hat jeder Schlüssel in Gebrauch
+**Auf keys.openpgp.org veröffentlichen**. plMail fragt vorher, denn Veröffentlichen verbindet deine
+Adressen öffentlich mit dem Schlüssel, und ein Schlüsselserver vergisst das nicht wirklich. Dann:
+
+1. Der plMail-Server lädt den öffentlichen Schlüssel hoch — nie den privaten.
+2. keys.openpgp.org schickt jeder Adresse des Schlüssels einen Link. Bis du ihn anklickst, findet
+   niemand den Schlüssel über diese Adresse: der eigene Schutz des Servers dagegen, dass jemand
+   einen Schlüssel in deinem Namen hochlädt.
+3. Die Karte zeigt den Stand jeder Adresse: *nicht veröffentlicht*, *auf keys.openpgp.org, aber noch
+   nicht über diese Adresse zu finden*, *wartet auf dich* (der Link ist in deinem Posteingang),
+   *veröffentlicht* oder *widerrufen*. **Erneut prüfen** fragt den Server; **Bestätigungslink erneut
+   schicken** tut, was es sagt.
+
+Nach **Erneuern** bietet plMail an, den neuen Schlüssel dort zu veröffentlichen, wo der alte war.
+Nach **Als kompromittiert markieren** gibt es dem Server den Widerruf des alten Schlüssels — in
+deinem Browser erstellt, während der Schlüssel offen ist —, sodass der Server von da an den
+widerrufenen Schlüssel herausgibt.
+
+Veröffentlichen setzt voraus, dass die Installation keys.openpgp.org nutzt (`APP_KEY_SERVERS`) und
+**Auch auf öffentlichen Schlüsselservern suchen** eingeschaltet ist; sonst wird es nicht angeboten.
+Der Schlüsselserver von Mailvelope wird nur nach Schlüsseln gefragt, nicht beschickt (siehe
+[Fallstricke](#fallstricke)).
 
 ## Auf dem Handy
 
@@ -446,11 +502,11 @@ Administration fügt diese Stelle hinzu (`SMIME_CA_FILE`, siehe die Konfiguratio
 **Einen Schlüssel zu veröffentlichen braucht die eingetragene Domain und DNS oder eine
 Weiterleitung.** Ohne `APP_WKD_DOMAINS` wird nichts veröffentlicht, und die Karte sagt das. Mit der
 Variable, aber ohne `openpgpkey.<domain>` (mit gültigem TLS-Zertifikat für diesen Namen) oder eine
-Weiterleitung von der Website finden Mailprogramme einfach nichts; **Von außen prüfen** meldet *Kein
-Schlüssel gefunden*.
+Weiterleitung von der Website finden Mailprogramme einfach nichts; **Von außen prüfen** meldet für die
+fehlende Methode *nicht erreichbar*.
 
 **Die Prüfung läuft vom plMail-Server aus.** Eine Domain, die dort auf eine private Adresse auflöst —
-Split-Horizon-DNS, eine Installation im LAN —, gilt als nicht gefunden, auch wenn sie von außen
+Split-Horizon-DNS, eine Installation im LAN —, gilt als *nicht erreichbar*, auch wenn sie von außen
 funktioniert, denn plMail fragt nie private Adressen.
 
 **Eine veröffentlichte Adresse lässt sich als existierend bestätigen.** Wer eine Adresse errät oder
@@ -567,3 +623,15 @@ im Hintergrund geht weiter, sobald wieder einer offen ist.
 **Dein Passwort in den Einstellungen zu ändern, nimmt deine Schlüssel mit.** Jede andere Änderung —
 durch eine Administratorin, mit `app:user:password` — sperrt sie, und die Recovery-Phrase oder ein
 bekanntes Gerät öffnet sie wieder.
+
+**Ein Schlüssel auf keys.openpgp.org lässt sich nicht von plMail aus zurückholen.** Veröffentlichen
+verbindet die Adresse öffentlich mit dem Schlüssel. keys.openpgp.org entfernt eine Adresse auf
+Wunsch, über seine eigene Website; plMail hat dafür keinen Knopf. Einen Schlüssel widerrufen —
+**Als kompromittiert markieren** — kann plMail, und für einen Schlüssel, den es veröffentlicht hat,
+tut es das von selbst.
+
+**Veröffentlicht wird nur auf keys.openpgp.org.** Den Schlüsselserver von Mailvelope fragt plMail
+nach Schlüsseln, lädt aber nichts dorthin hoch. Veröffentliche dort bei Bedarf aus Mailvelope selbst.
+
+**Veröffentlichen zählt zum Limit der Schlüsselsuchen.** Jedes Hochladen und jede Prüfung ist eine
+weitere Anfrage vom plMail-Server und zählt mit den Schlüsselsuchen.

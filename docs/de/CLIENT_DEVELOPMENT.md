@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:bc9b4393940581dc972f4d72420a326cc1d0678b -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:f2356034b9df46845fa9c4e769a7e54de99f92f1 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1385,6 +1385,12 @@ User-Key `userKeyId` (`purposes.addressKeyToken`); es ist die Passphrase des gep
 `privateKey`. Neue Adressen, erneuerte Schlüssel und Passwortwechsel in der Web-App brauchen keine
 neue Kopplung: Sie hängen am User-Key, den du schon hast. Signiere mit dem `active`-Schlüssel, in
 dessen `addresses` die From-Adresse `primary` ist; entschlüsseln geht mit jedem.
+
+Jeder Adress-Key trägt außerdem `publications: [{host, email, state, checkedAt}]` — wo die Person
+ihn auf einem Schlüsselserver veröffentlicht hat und was der Server zuletzt sagte (`unpublished`,
+`pending`, `published`, `revoked`) —, und der Schlüsselbund `publishTo: [host]`, die Server, auf
+denen sie veröffentlichen kann. Veröffentlicht wird in der Web-App (Einstellungen → Verschlüsselung);
+eine JMAP-Methode dafür gibt es nicht.
 
 **Lesen.** Email hat fünf plMail-Properties: `cryptoType` (`pgp_encrypted`, `pgp_signed`,
 `pgp_inline_encrypted`, `pgp_inline_signed`, `smime_encrypted`, `smime_signed` oder null),

@@ -24,23 +24,35 @@ new one. Plain forms, answered with a Turbo Stream that replaces this banner
 once it knows what the signature said (`signatureActions` target), because
 only it does.
 
+The sender's own public key, when they attached it (attached_sender_key(),
+phase 6g of #28), is said here — "The sender's key is attached", with its
+fingerprint — instead of in the attachment list; with "Keep this key" when
+plMail does not hold it yet, or "Use this key instead" when it waits beside
+a different one. That is why a plain message that carries nothing but its
+sender's key gets this banner too, with no signature line. For an encrypted
+message the key is inside the encryption, so the browser says it
+(`attachedKey` target of mail--encrypted-message).
+
 Variables:
-  message      Message, with crypto set
+  message      Message, with crypto set — or none, when it carries its
+               sender's key
   notice       optional translation key: what the last banner action did
   notice_parameters  optional, its parameters — a lookup's says where the
                key was found
   notice_tone  optional, 'success' or 'error'
 #}
 {% set crypto = message.crypto %}
+{% set attached = attached_sender_key(message) %}
 {% set state = message.signatureState ? message.signatureState.value : null %}
-{% set encrypted = crypto.encrypted %}
+{% set encrypted = crypto ? crypto.encrypted : false %}
+{% set pgp = crypto ? crypto.pgp : false %}
 {% set warning = state in ['invalid', 'key_changed'] %}
 {% set tone = encrypted or state == 'valid' ? 'secure' : (warning ? 'danger' : 'neutral') %}
 {% set signer = message.signer ? (message.signer matches '/^[0-9a-f]+$/' ? message.signer|upper|split('', 4)|join(' ') : message.signer) : '' %}
 {% set notice = notice|default(null) %}
 {% set notice_parameters = notice_parameters|default({}) %}
 {% set notice_tone = notice_tone|default('success') %}
-{% set actions = not encrypted and crypto.pgp and state in ['unknown_key', 'untrusted', 'key_changed'] %}
+{% set actions = not encrypted and pgp and state in ['unknown_key', 'untrusted', 'key_changed'] %}
 {% set settings_url = path('app_settings_index', { section: 'encryption' }) ~ '#contact-keys' %}
 {% set csrf = csrf_token('message-key-' ~ message.id) %}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
@@ -49,12 +61,14 @@ Variables:
      class="flex items-start gap-3 rounded-lg border px-3 py-2.5 mb-3
             {{ tone == 'secure' ? 'border-emerald-500/40 bg-emerald-500/10' : (tone == 'danger' ? 'border-danger/40 bg-danger/10' : 'border-line bg-raised') }}"
      data-testid="crypto-banner">
-    <i class="fa-solid {{ encrypted ? 'fa-lock' : (warning ? 'fa-triangle-exclamation' : (state == 'valid' ? 'fa-circle-check' : 'fa-signature')) }}
+    <i class="fa-solid {{ not crypto ? 'fa-key' : (encrypted ? 'fa-lock' : (warning ? 'fa-triangle-exclamation' : (state == 'valid' ? 'fa-circle-check' : 'fa-signature'))) }}
               {{ tone == 'secure' ? 'text-emerald-600' : (tone == 'danger' ? 'text-danger' : 'text-ink-faint') }} mt-0.5 flex-shrink-0"
        aria-hidden="true"></i>
     <div class="min-w-0">
         <p class="text-sm font-semibold {{ tone == 'danger' ? 'text-danger' : 'text-ink' }}">
-            {% if encrypted %}
+            {% if not crypto %}
+                {{ (attached.state == 'own' ? 'message.crypto.attached_key.own' : 'message.crypto.attached_key.heading')|trans }}
+            {% elseif encrypted %}
                 {{ (message.plaintextSource.value == 'client' ? 'message.crypto.encrypted_kept' : (crypto.pgp ? 'message.crypto.encrypted' : 'message.crypto.encrypted_smime'))|trans }}
             {% else %}
                 {{ ('message.crypto.signed.' ~ (state ?? 'pending'))|trans }}
@@ -113,6 +127,47 @@ Variables:
                     </button>
                 </form>
                 <a href="{{ settings_url }}" class="text-xs font-medium text-link hover:underline">{{ 'message.crypto.action.manage'|trans }}</a>
+            </div>
+        {% endif %}
+
+        {% if attached %}
+            {% set attachedFingerprint = attached.fingerprint|upper|split('', 4)|join(' ') %}
+            <div class="mt-1" data-testid="crypto-attached-key" data-state="{{ attached.state }}" data-fingerprint="{{ attached.fingerprint }}">
+                {% if crypto %}
+                    <p class="text-xs text-ink-muted">{{ (attached.state == 'own' ? 'message.crypto.attached_key.own' : 'message.crypto.attached_key.heading')|trans }}</p>
+                {% endif %}
+                <p class="text-xs font-mono text-ink-muted break-all">{{ attachedFingerprint }}</p>
+                {% if attached.state in ['none', 'changed'] %}
+                    <p class="text-xs text-ink-muted mt-1">{{ ('message.crypto.attached_key.' ~ attached.state ~ '_hint')|trans }}</p>
+                    <form method="post" action="{{ path('app_contact_keys_message_attached_key', { id: message.id }) }}" class="mt-2 flex flex-wrap items-center gap-2">
+                        <input type="hidden" name="_token" value="{{ csrf }}">
+                        <input type="hidden" name="fingerprint" value="{{ attached.fingerprint }}">
+                        <button type="submit" name="action" value="{{ attached.state == 'none' ? 'keep' : 'accept' }}" class="{{ button }}">
+                            <i class="fa-solid fa-key text-[10px]" aria-hidden="true"></i>
+                            {{ ('message.crypto.attached_key.' ~ (attached.state == 'none' ? 'keep' : 'accept'))|trans }}
+                        </button>
+                        <a href="{{ settings_url }}" class="text-xs font-medium text-link hover:underline">{{ 'message.crypto.action.manage'|trans }}</a>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if encrypted and pgp %}
+            {# The sender's key inside the encryption, said by the browser once it
+               has decrypted (mail--encrypted-message): the same line, and the
+               same two actions, posted with the key itself. #}
+            <div class="mt-1" data-mail--encrypted-message-target="attachedKey" data-testid="crypto-attached-key-inside" hidden>
+                <p class="text-xs text-ink-muted" data-role="heading"></p>
+                <p class="text-xs font-mono text-ink-muted break-all" data-role="fingerprint"></p>
+                <p class="text-xs text-ink-muted mt-1" data-role="hint" hidden></p>
+                <form method="post" action="{{ path('app_contact_keys_message_attached_key', { id: message.id }) }}" class="mt-2 flex flex-wrap items-center gap-2" data-role="form" hidden
+                      data-action="submit->mail--encrypted-message#keepAttachedKey">
+                    <input type="hidden" name="_token" value="{{ csrf }}">
+                    <button type="submit" name="action" class="{{ button }}">
+                        <i class="fa-solid fa-key text-[10px]" aria-hidden="true"></i>
+                        <span data-role="label"></span>
+                    </button>
+                </form>
             </div>
         {% endif %}
 

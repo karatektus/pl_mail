@@ -118,7 +118,9 @@ Keys made by plMail do not expire — as with Proton. Under **Show keys**:
 - **Renew** makes a new key for the same addresses. The old one stays, marked *replaced*, to open
   mail that was sent to it.
 - **Mark as compromised** is for a key you think somebody else has. It stops being used, and its
-  addresses get a new one.
+  addresses get a new one. If you had published it on a key server (see
+  [Publishing your key on keys.openpgp.org](#publishing-your-key-on-keysopenpgporg)), the key
+  server is handed its revocation, so it stops vouching for it.
 - **Make primary** chooses which of several keys an address uses.
 
 ## Reading encrypted and signed mail
@@ -151,6 +153,16 @@ decrypting it.
 
 The signature file itself (`signature.asc`, `smime.p7s`) is no longer shown as an attachment.
 
+**The sender's key, attached.** Many mail programs attach the sender's public key to their mail
+(`OpenPGP_0x….asc`). When the attached key is the sender's own — it names the sender's address, or
+it is a key plMail already holds for them — it is not listed among the attachments, and the message
+gets no paperclip for it. The banner says *The sender's key is attached*, with its fingerprint. When
+plMail does not hold that key yet, the banner offers **Keep this key**; when it differs from the key
+plMail knows for the sender, **Use this key instead** — compare the fingerprint with the sender
+before you do. The same holds inside encrypted mail, which your browser reads, and for your own
+sent mail with *Attach your public key* on (*Your public key is attached*). A key that is somebody
+else's — a colleague's key, forwarded — stays a normal attachment.
+
 ## Contacts' keys
 
 **Settings → Encryption → Contacts' keys** lists the public keys plMail holds for the people you
@@ -167,8 +179,14 @@ They come from four places, and you do not have to do anything for the first thr
   window for every recipient it has no key for. The request goes out from the plMail server, not
   from your browser.
 - **Public key servers** — keys.openpgp.org and the Mailvelope key server — when the domain has
-  nothing. Many people publish their key there and have no WKD. The same lookups ask them, after the
-  domain, and the first server with a usable key wins.
+  nothing. Many people publish their key there and have no WKD. Every lookup asks them by itself,
+  after the domain, with no extra click: typing an address into **Look up a key**, the banner's
+  **Look up the key**, the compose window's check of its recipients, and native apps. The first
+  server with a usable key wins.
+
+plMail looks keys up only in those moments — when you ask, or when the compose window checks who a
+message is going to while your keys are open. It does not look up the sender of every signed
+message you read: that would tell the domain and the key servers whose mail you open.
 - **An import** — paste a public key block or choose a file. The key is kept for every address it
   names.
 
@@ -287,8 +305,12 @@ to you find your key without you sending it first.
   straight away; anybody asking then gets the same "nothing here" as for an address that does not
   exist.
 - The two URLs a mail program asks, and **Check from outside**, which looks your address up the
-  way anybody else would — through the server, like the contact-key lookup — and says whether the
-  key it found is your current one.
+  way anybody else would — through the server, like the contact-key lookup. It asks both methods,
+  each on its own and fresh, and shows a result for each: *found your current key*, *found a key,
+  but not your current one*, *answered, but has no key for this address*, or *not reachable*. A
+  mail program tries the advanced method first and falls back to the direct one only when the
+  advanced one has nothing, so a broken forward from the website would otherwise go unnoticed as
+  long as `openpgpkey.<domain>` answers.
 
 Only the address **you sign in with** is published. Your other addresses — aliases, further
 accounts — are listed with that reason: they are whatever was typed in, and plMail cannot vouch
@@ -312,6 +334,33 @@ For administrators:
      too.
 3. Use **Check from outside** on your own address. Administrators see these steps on the card as
    well, filled in for the installation's domains and host.
+
+## Publishing your key on keys.openpgp.org
+
+Your Web Key Directory covers only the installation's own domains. For your other addresses — or
+for contacts whose mail programs do not ask WKD — you can put your key on
+[keys.openpgp.org](https://keys.openpgp.org), the key server plMail and many mail programs look
+keys up on.
+
+Under **Settings → Encryption → Show keys**, each key in use has **Publish to keys.openpgp.org**.
+plMail asks first, because publishing ties your addresses to the key in public, and a key server
+does not really forget it. Then:
+
+1. plMail's server uploads the public key — never the private one.
+2. keys.openpgp.org mails each of the key's addresses a link. Until you click it, nobody finds the
+   key by that address: the server's own guard against somebody uploading a key in your name.
+3. The card shows each address's state: *not published*, *on keys.openpgp.org, but nobody can find
+   it by this address yet*, *waiting for you* (the link is in your inbox), *published*, or
+   *revoked*. **Check again** asks the server; **Send the confirmation link again** does what it
+   says.
+
+After **Renew**, plMail offers to publish the new key where the old one was. After **Mark as
+compromised**, it hands the server the old key's revocation — made in your browser while the key
+is open — so the server hands out the revoked key from then on.
+
+Publishing needs the installation to use keys.openpgp.org (`APP_KEY_SERVERS`) and **Also look on
+public key servers** to be on; otherwise the action is not offered. The Mailvelope key server is
+only asked for keys, not published to (see [Things that bite](#things-that-bite)).
 
 ## On your phone
 
@@ -407,11 +456,11 @@ administrator adds that authority (`SMIME_CA_FILE`, see the configuration refere
 **Publishing a key needs the domain configured, and DNS or a forward.** Without `APP_WKD_DOMAINS`
 nothing is published, and the card says so. With it but without `openpgpkey.<domain>` (with a valid
 TLS certificate for that name) or a forward from the website, mail programs simply find nothing;
-**Check from outside** says *No key found*.
+**Check from outside** says *not reachable* for the method that is missing.
 
 **The check runs from the plMail server.** A domain that resolves to a private address there — a
-split-horizon DNS, a LAN install — is reported missing even when it works from outside, because
-plMail never asks private addresses.
+split-horizon DNS, a LAN install — is reported *not reachable* even when it works from outside,
+because plMail never asks private addresses.
 
 **A published address can be confirmed to exist.** Anybody who guesses or knows an address can ask
 the directory and learn that it has a key. Addresses that are switched off or do not exist get the
@@ -513,3 +562,14 @@ again the next time one is.
 **Changing your password in Settings carries your keys over.** Changing it any other way — an
 administrator, `app:user:password` — locks them, and the recovery phrase or a known device opens
 them again.
+
+**A key on keys.openpgp.org cannot be taken back from plMail.** Publishing ties the address to the
+key in public. keys.openpgp.org can remove an address on request, through its own website; plMail
+has no button for that. Revoking a key — **Mark as compromised** — is what plMail can do, and it
+does that by itself for a key it published.
+
+**Only keys.openpgp.org is published to.** The Mailvelope key server is asked for keys, but plMail
+does not upload to it. Publish there from Mailvelope itself if you need to.
+
+**Publishing counts against the lookup limit.** Each upload or check is one more request from the
+plMail server, counted with the key lookups.

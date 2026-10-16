@@ -154,6 +154,36 @@ final class KeysCapabilityTest extends JmapTestCase
         self::assertSame(['keys.openpgp.org'], array_column($list, 'originHost'));
     }
 
+    /**
+     * The address that was reported as not found (#28, comment 6216185683):
+     * no WKD — its hosts resolve to nothing on the test environment's
+     * stand-in — and a confirmed key on keys.openpgp.org, which a native
+     * client's lookup finds without asking for key servers by name.
+     */
+    public function testContactKeyLookupFindsTheReportedAddressOnKeysOpenpgpOrg(): void
+    {
+        $address = 'test@pluetzner.de';
+        $key     = new Gpg($address);
+        $path    = SeedKeyServerCommand::path(self::getContainer()->getParameter('kernel.project_dir') . '/var/test-key-servers', 'keys.openpgp.org', $address);
+
+        SeedKeyServerCommand::forgetLookups(self::getContainer()->get('cache.app'), $address);
+
+        if (false === is_dir(dirname($path))) {
+            mkdir(dirname($path), 0o777, true);
+        }
+
+        file_put_contents($path, $key->armored);
+
+        try {
+            $lookup = $this->method(ContactKeyLookupMethod::class)->handle(['emails' => [$address], 'lookup' => true], $this->context());
+        } finally {
+            unlink($path);
+        }
+
+        self::assertSame($key->fingerprint, $lookup['recipients'][0]['key']['fingerprint']);
+        self::assertSame('keys.openpgp.org', $lookup['recipients'][0]['key']['originHost']);
+    }
+
     public function testEncryptedMailWaitsForItsDecryptedTextOnlyForAnAccountThatKeepsIt(): void
     {
         $message = $this->receivedMessage();

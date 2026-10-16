@@ -8,6 +8,32 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Publish your key to keys.openpgp.org, and the feedback from testing — phase 6g of end-to-end
+encryption.** Each key in use under Settings → Encryption → *Show keys* can now be **published to
+keys.openpgp.org**, after a confirmation that says the address is tied to the key in public: the
+plMail server uploads the public key and asks the server to mail each address a confirmation link,
+and the card shows each address's state (*not published*, *waiting for you*, *published*,
+*revoked*) with **Check again**. After *Renew* plMail offers to publish the new key there too; when
+a published key is marked compromised, the browser makes its revocation and the server hands it to
+keys.openpgp.org, so the old key is no longer vouched for. Only public keys travel, under the same
+outbound rules and per-person limit as the lookups, and only when `APP_KEY_SERVERS` lists the server
+and the person's key-server switch is on. An attached public key that is the **sender's own** —
+`OpenPGP_0x….asc`, or *Attach your public key* on your own Sent mail — is no longer listed as an
+attachment and earns no paperclip; the banner says *The sender's key is attached* with its
+fingerprint, and offers **Keep this key** or **Use this key instead** when plMail does not use it
+yet, in encrypted mail too. A colleague's forwarded key stays an attachment. **Check from outside**
+for the Web Key Directory now asks the advanced and the direct method each on its own and shows both
+results — current key, another key, nothing, or not reachable — so a broken forward from the website
+no longer hides behind a working `openpgpkey.` subdomain. The compose window now looks up a
+recipient it first checked while the keys were still locked, once they open. Settings cards all keep
+their distance from the next one (Encryption's last three sat flush), the encryption cards' fields
+use the same styling as every other field in Settings, and an encrypted draft's row in Drafts lines
+its subject up with the recipient. Two migrations: `key_publication` and
+`address_key.revoked_public_key`, and two columns on `message_part` (`sender_key_fingerprint`,
+`key_checked`); both are reversible, and mail that arrived before is looked at the first time it is
+shown.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Mail to people without a Web Key Directory went out unencrypted — phase 6f of end-to-end
 encryption.** plMail found a contact's key only on their own domain (WKD), in their mail, or by
 import, and many people publish theirs on keys.openpgp.org or the Mailvelope key server instead.

@@ -349,6 +349,18 @@ header, with no unknown critical attribute), attached keys from the raw source o
 for `From`, never for mail from the person's own addresses. A message can carry anybody's key; the
 sender vouching for their own is the only claim it can make.
 
+**The sender's attached key is not an attachment** (phase 6g). The same step marks the attached
+part that is the sender's own key — a user ID for `From`, or a fingerprint plMail already holds for
+`From` (a contact key, or on the person's own mail one of their address keys) — in
+`message_part.sender_key_fingerprint`, and recounts `hasAttachments` and the thread's count without
+it (`ContactKeyCollector::markAttachedKeys()`). `key_checked` marks a part as looked at, so a
+colleague's key is opened once; mail from before this phase is looked at the first time it is shown
+(`AttachedKeyExtension`). The banner says the key and its fingerprint and offers to keep it
+(`POST /contact-keys/message/{id}/attached-key`, the message's CSRF token) — through
+`ContactKeys::record()`, so TOFU holds: a different key waits as `changed`. Inside encrypted mail
+the browser applies the same rule (`senderKeyOf()` in `assets/crypto/message.js`) and posts the key
+it found; the server takes it only with a user ID for `From`.
+
 **WKD through the server** (`WkdLookup`), because the page may only connect to its own origin. It is
 an endpoint that fetches URLs derived from user input, so:
 
@@ -393,9 +405,48 @@ on keys.openpgp.org or the Mailvelope key server and have no WKD:
   `APP_KEY_SERVERS` (both servers by default; empty switches them off) and the person's **Also look
   on public key servers** (`crypto.key_servers` in the settings bag, on by default, in the config
   backup). Either off, and nothing is requested.
-- **Tests never reach the internet.** In the test environment `KeyServerLookup` fetches through
-  `App\Tests\Support\Crypto\KeyServerStub` (`when@test` in `config/services.yaml`), which answers
-  both APIs from files `app:test:seed-key-server` writes and resolves no DNS.
+- **Every lookup, none of them automatic.** The four places a key is looked up — the lookup form,
+  the reading banner, the composer's recipient check (only while the keyring is open, and once per
+  recipient once it is), and JMAP `ContactKey/lookup` with `lookup: true` — all go through
+  `ContactKeys::lookUp()`, so the key servers follow WKD in every one of them. plMail looks nothing
+  up on its own: an unknown signer is shown with **Look up the key**, not looked up, because an
+  automatic lookup on reading would tell the sender's domain and the key servers whose mail the
+  person opens, and when.
+- **Tests never reach the internet or DNS.** In the test environment `KeyServerLookup`, `WkdLookup`
+  and `KeyPublishing` all fetch through `App\Tests\Support\Crypto\KeyServerStub` (`when@test` in
+  `config/services.yaml`), which answers both lookup APIs, keys.openpgp.org's upload API and any
+  domain's WKD from files `app:test:seed-key-server` writes, and resolves no DNS: a WKD host nobody
+  seeded is unreachable, as a domain without WKD is.
+
+**Publishing the person's own key** (`KeyPublishing`, phase 6g) to keys.openpgp.org, for addresses
+outside the installation's WKD domains:
+
+- **What travels.** Only public keys: `POST /vks/v1/upload` with the armored public key, then
+  `POST /vks/v1/request-verify` with the upload's token and the addresses not yet confirmed, which
+  makes the server mail each a link. The token is used at once and never stored. Until a link is
+  clicked the server hands the key out by fingerprint only, never by address.
+- **Who decides.** The person, per key, after a confirmation in the page that says the address is
+  tied to the key in public. The server is offered only when `APP_KEY_SERVERS` lists it and the
+  person's **Also look on public key servers** is on; either off, nothing is offered or sent. Only a
+  server with a `KeyPublisherInterface` (`app.key_publisher`) can be published to — today
+  keys.openpgp.org; Mailvelope's lookup is used, its upload is not.
+- **How.** Through `KeyFetcher::post()`: the same HTTPS-only, no-redirect, no-private-address,
+  timeout and size rules as the lookups, and the same per-person budget. The answer is only
+  believed for the key's own fingerprint.
+- **What is kept.** `key_publication`: per address key, host and address, the state the server last
+  gave (`unpublished`, `pending`, `published`, `revoked`) and when. Refreshing re-uploads the same
+  key, which changes nothing there and mails nobody, and is refused for a key that was never
+  published there — it cannot be used to publish. Carried in the config backup with the keyring.
+- **Revocation.** When a key is marked compromised the browser, which has the key open, sends its
+  public half with the revocation signature (`revokedKey`); the server checks it is that key,
+  revoked, keeps it in `address_key.revoked_public_key`, and uploads it to every server the key was
+  published to. This goes out even when the person has since switched key servers off — leaving a
+  server vouching for a compromised key is the worse outcome — but never to a server the
+  installation no longer lists. A server that cannot be reached is sent it again on the next
+  refresh. The private key never leaves the browser.
+- **Privacy.** Publishing is public by design: anybody can then find the key by the address, and
+  keys.openpgp.org learns that this key belongs to it. plMail removes nothing from a key server;
+  the person does that on the server's own site.
 
 ## Writing and sending encrypted mail
 
@@ -572,8 +623,14 @@ body. The `?l=` hint is ignored — only the hash finds an address, so a hint na
 fetches nothing of theirs. What cannot be hidden is that a published address has a key; the
 `wkd_serve` limiter (300 an hour per IP) slows walking a list of names.
 
-**The settings check** (`POST /settings/encryption/wkd/check`) goes through `WkdLookup` with every
-rule it has — HTTPS only, no redirects, no private addresses, the per-person limit — past its cache.
+**The settings check** (`POST /settings/encryption/wkd/check`) goes through `WkdLookup::check()`
+with every rule it has — HTTPS only, no redirects, no private addresses, the per-person limit, one
+counted request for both — and asks **both methods on their own**, past the cache, which it then
+drops so the next lookup sees what the check saw. `KeyFetcher::probe()` keeps "not reached" (DNS,
+a private address, TLS, a timeout, an answer over the limit) apart from "reached, nothing there",
+and `WkdDirectory::check()` gives each method its own verdict: current, another key, nothing, or
+unreachable. `WkdLookup::find()` keeps its order — advanced, then direct only when the advanced one
+has nothing — because that is what a mail program does; only the check needs both.
 Both settings actions take an address from the form, and both refuse (404) one that is not the
 person's own on a served domain.
 
@@ -1200,7 +1257,7 @@ would publish nothing.
 
 **`MockHttpClient` follows no redirects whatever it is told**, and `NoPrivateNetworkHttpClient`
 follows them itself, never the client beneath. A test cannot show `max_redirects: 0` working; the
-option in `KeyFetcher::get()` is the guard, and it says why.
+option in `KeyFetcher::request()` is the guard, and it says why.
 
 **The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
 is the only difference between a known and an unknown address, and it lasts until that account's
@@ -1245,3 +1302,15 @@ leak at the exact moment the feature is working. `tests/e2e/rendering-security.s
 **Anything that renders `bodyHtmlSafe` must go through `message_render()`.** The Twig function
 exists so no template has to ask a security question, because the failure mode of forgetting is
 silent: the mail renders perfectly and the tracking pixels fire.
+
+**Refreshing a publication must never publish.** `KeyPublishing::refresh()` uploads only a key that
+already has rows on that server; an upload is how the state is asked, and without that guard a
+"check again" on an unpublished key would hand it to the server without the person's confirmation.
+
+**A revocation is checked before it is kept or sent.** The browser sends it, so the server reads it
+back (`PublicKeyReader`) and takes it only as this key's fingerprint, revoked. Anything else is
+refused, and the key is marked compromised all the same.
+
+**An attached key is the sender's only by `From`.** Hiding a key part, or keeping a key from the
+banner, needs a user ID for `From` or a key plMail already holds for it — the same rule as
+collecting one. A key for anybody else stays an attachment and is never kept for the sender.

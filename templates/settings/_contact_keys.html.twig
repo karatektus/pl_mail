@@ -34,7 +34,14 @@ Variables:
   keyServersOn bool, the person's switch for them
 #}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
-{% set field = 'w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors' %}
+{# The fields' classes come from _partials/_field_classes.html.twig, which the
+   form theme draws from too: this frame is plain forms, and its hand-written
+   copy had drifted from every other field in Settings. #}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% set field = fields.input() %}
+{% set textarea = fields.textarea() %}
+{% set fileField = fields.file() %}
+{% set fieldLabel = fields.label() %}
 {% set select = 'px-2 h-8 text-xs rounded-lg border border-field bg-field text-ink' %}
 {% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
                   peer-checked:bg-accent peer-checked:text-accent-ink
@@ -57,10 +64,10 @@ Variables:
             <p class="text-[11px] text-ink-muted mb-2">{{ 'contact_keys.import.hint'|trans }}</p>
             <input type="file" name="file" accept=".asc,.gpg,.key,.pub,.txt,application/pgp-keys"
                    aria-label="{{ 'contact_keys.import.file'|trans }}"
-                   class="block w-full text-xs text-ink-muted mb-2">
+                   class="{{ fileField }} mb-2">
             <textarea name="key" rows="3" spellcheck="false" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"
                       aria-label="{{ 'contact_keys.import.paste'|trans }}"
-                      class="{{ field }} font-mono text-xs"></textarea>
+                      class="{{ textarea }} font-mono text-xs"></textarea>
             <button type="submit" class="{{ button }} mt-2">{{ 'contact_keys.import.submit'|trans }}</button>
         </form>
 
@@ -68,7 +75,7 @@ Variables:
             <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
             <h3 class="text-xs font-semibold text-ink mb-1">{{ 'contact_keys.lookup.heading'|trans }}</h3>
             <p class="text-[11px] text-ink-muted mb-2">{{ asksKeyServers ? 'contact_keys.lookup.hint_keyservers'|trans({ '%servers%': serverList }) : 'contact_keys.lookup.hint'|trans }}</p>
-            <label for="contact-keys-lookup" class="block text-[11px] text-ink-faint mb-1">{{ 'contact_keys.lookup.email'|trans }}</label>
+            <label for="contact-keys-lookup" class="{{ fieldLabel }} mb-2">{{ 'contact_keys.lookup.email'|trans }}</label>
             <input type="email" name="email" id="contact-keys-lookup" required autocomplete="off" class="{{ field }}">
             <button type="submit" class="{{ button }} mt-2">
                 <i class="fa-solid fa-magnifying-glass text-[10px]" aria-hidden="true"></i>

@@ -2445,9 +2445,13 @@ class MessageRepository extends ServiceEntityRepository
      *
      * Labels are fetch-joined into the one statement; parts are NOT, because a
      * second to-many join multiplies the first (labels × parts rows, every one
-     * carrying the bodies). They are a statement of their own instead, and only
-     * for the messages that have attachments at all — the pane never touches
-     * the collection of one that does not.
+     * carrying the bodies). They are a statement of their own instead, for
+     * every message of the thread. It used to be only those with
+     * hasAttachments, because the pane touched no other message's parts; since
+     * phase 6g of #28 it does — a message whose one attachment is the sender's
+     * own key has hasAttachments false and still says that key in its banner
+     * (AttachedKeyExtension) — and a part-less message asked lazily is one
+     * query per message, which the budget test catches.
      *
      * @return list<Message>
      */
@@ -2465,21 +2469,16 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        $withAttachments = [];
+        $ids = array_values(array_filter(array_map(static fn (Message $message): ?int => $message->id, $messages)));
 
-        foreach ($messages as $message) {
-            if (true === $message->hasAttachments && null !== $message->id) {
-                $withAttachments[] = $message->id;
-            }
-        }
-
-        if ([] !== $withAttachments) {
-            // Already managed, so this only initialises messageParts on them.
+        if ([] !== $ids) {
+            // Already managed, so this only initialises messageParts on them —
+            // an empty collection too, for a message without any.
             $this->createQueryBuilder('m')
                 ->addSelect('p')
                 ->leftJoin('m.messageParts', 'p')
                 ->where('m.id IN (:ids)')
-                ->setParameter('ids', $withAttachments)
+                ->setParameter('ids', $ids)
                 ->getQuery()
                 ->getResult();
         }

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Crypto\ContactKeyCollector;
@@ -25,6 +28,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
+use Webklex\PHPIMAP\Config;
+use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Puts one message, given as its raw source, into the inbox of an end-to-end
@@ -40,6 +46,12 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * spec about signatures needs the verdict on the page. Base64 on
  * the command line rather than a file: the spec runs outside the container
  * and a few kilobytes of armor fit an argument easily.
+ *
+ * Its attachments are stored as parts the way the syncer stores them —
+ * without the wrapping (the signature, the ciphertext) — so a spec can see
+ * what the reading pane lists, and that an attached key that is the sender's
+ * own is not listed (phase 6g of #28). The parts carry no stored bytes: they
+ * are for the list, not for downloading.
  *
  * Needs `app:test:seed-mail` first, which creates the mailbox this delivers
  * into. Refuses to run in prod.
@@ -135,12 +147,25 @@ final class SeedCryptoMailCommand extends Command
 
         $message->thread = $thread;
 
+        foreach ($this->attachmentsOf($raw, $message->crypto) as $part) {
+            $message->addMessagePart($part);
+            $this->entityManager->persist($part);
+            $message->hasAttachments = true;
+            $thread->attachmentCount = 1;
+        }
+
         $this->entityManager->persist($thread);
         $this->entityManager->persist($message);
         $this->entityManager->flush();
 
         $this->raw->store($message, $raw);
         $this->entityManager->flush();
+
+        // A plain message that carries a key is collected too, as ingest
+        // does (CollectContactKeysStep).
+        if (null === $message->crypto && true === ContactKeyCollector::mayCarryKeys($message)) {
+            $this->collector->collect($message);
+        }
 
         if (null !== $message->crypto && false === $message->crypto->isEncrypted()) {
             $this->collector->collect($message);
@@ -157,6 +182,38 @@ final class SeedCryptoMailCommand extends Command
         $io->success(sprintf('Delivered "%s" (%s).', $subject, $message->crypto->value ?? 'plain'));
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The raw source's attachments as parts, without the parts that are only
+     * the wrapping — as MessageSyncer leaves them.
+     *
+     * @return list<MessagePart>
+     */
+    private function attachmentsOf(string $raw, ?MessageCrypto $crypto): array
+    {
+        try {
+            $parsed = ImapMessage::fromString($raw, Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]));
+        } catch (Throwable) {
+            return [];
+        }
+
+        $parts = [];
+
+        foreach ($parsed->getAttachments() as $attachment) {
+            if (null !== $crypto && true === $this->detector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename())) {
+                continue;
+            }
+
+            $part              = new MessagePart();
+            $part->contentType = strtolower(trim(explode(';', (string) $attachment->getContentType())[0]));
+            $part->filename    = (string) ($attachment->getFilename() ?? $attachment->getName());
+            $part->disposition = 'attachment';
+            $part->size        = strlen((string) $attachment->getContent());
+            $parts[]           = $part;
+        }
+
+        return $parts;
     }
 
     /** The top-level Content-Type, unfolded. */

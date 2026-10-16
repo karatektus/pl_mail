@@ -7,6 +7,7 @@ namespace App\Tests\Service\Crypto;
 use App\Domain\Enum\Crypto\WkdState;
 use App\Repository\User\UserRepository;
 use App\Service\Crypto\Keyring;
+use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\SendingKey;
 use App\Service\Crypto\WkdDirectory;
 use App\Service\Crypto\WkdKeyExport;
@@ -115,6 +116,7 @@ final class WkdDirectoryTest extends KernelTestCase
             $container->get(Keyring::class),
             $container->get(WkdKeyExport::class),
             $container->get(WkdLookup::class),
+            $container->get(PublicKeyReader::class),
             $this->em,
             $container->get(ClockInterface::class),
             $domains,

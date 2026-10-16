@@ -154,6 +154,43 @@ test.describe("writing encrypted mail", () => {
         await expect(page.locator(`${DOCK} ${EDITOR}, #compose_inline ${EDITOR}`).first()).toContainText("Second paragraph, still secret.", { timeout: 15000 });
     });
 
+    test("lines an encrypted draft's row up like any other row", async ({ page }) => {
+        const email = await person(page);
+        const subject = `Sealed row ${Date.now()}`;
+
+        await compose(page, [OWN], subject, "Nothing to see in the list.");
+        await expect.poll(() => held(email, subject)?.sealedDraft ?? false, { timeout: 15000 }).toBe(true);
+
+        // Reported at desktop width (#28, comment 6216252504): the subject and
+        // the "Encrypted message" snippet sat two pixels above the recipient.
+        // 1280 is the two-line row, where the subject shares the recipient's
+        // line; 1700 and 2200 are the one-line row, where all three do.
+        for (const [width, oneLine] of [[1280, false], [1700, true], [2200, true]] as const) {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto("/mail/drafts");
+
+            const row = mailRow(page, subject);
+
+            await expect(row.locator("[data-row-snippet]")).toHaveText("Encrypted message");
+
+            const middle = await row.evaluate((element) => {
+                const centre = (selector: string): number => {
+                    const box = element.querySelector(selector)!.getBoundingClientRect();
+
+                    return box.top + box.height / 2;
+                };
+
+                return { sender: centre("[data-row-sender] .truncate"), subject: centre("[data-row-subject]"), snippet: centre("[data-row-snippet]") };
+            });
+
+            expect(Math.abs(middle.subject - middle.sender), `the subject against the recipient at ${width}px`).toBeLessThanOrEqual(1);
+
+            if (true === oneLine) {
+                expect(Math.abs(middle.snippet - middle.sender), `the snippet against the recipient at ${width}px`).toBeLessThanOrEqual(1);
+            }
+        }
+    });
+
     test("says so when not every recipient can be reached encrypted", async ({ page }) => {
         await person(page);
 

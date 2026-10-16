@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Crypto;
 
+use App\Domain\DTO\Crypto\KeyFetch;
 use App\Domain\DTO\Crypto\PublicKeyInfo;
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\User\User;
@@ -128,7 +129,7 @@ final readonly class WkdLookup
 
         // One cache entry and one counted lookup for both methods: they are
         // two places on the same domain to ask the same question.
-        $body = $this->fetcher->cached($user, 'wkd.' . sha1($email), fn (): ?string => $this->fetcher->get($urls['advanced'], self::ACCEPT) ?? $this->fetcher->get($urls['direct'], self::ACCEPT), $fresh);
+        $body = $this->fetcher->cached($user, self::cacheKey($email), fn (): ?string => $this->fetcher->get($urls['advanced'], self::ACCEPT) ?? $this->fetcher->get($urls['direct'], self::ACCEPT), $fresh);
 
         if (null === $body) {
             return [];
@@ -140,7 +141,50 @@ final readonly class WkdLookup
         ));
     }
 
-    // ── Private ───────────────────────────────────────────────────────────────
+    /**
+     * Both methods asked on their own, past the cache, and what each brought
+     * back — for a person checking their own address from outside
+     * (WkdDirectory::check()), not for finding a key.
+     *
+     * find() asks the advanced URL and falls back to the direct one only when
+     * the advanced one has nothing, as a mail program does. That is the right
+     * order for a lookup and the wrong one for a check: when openpgpkey.<domain>
+     * answers at all, the direct method is never tried, so a broken forward
+     * from the website goes unnoticed until the subdomain goes away (#28,
+     * comment 6216080577). One counted request for the pair, as for find(),
+     * and the cached find() answer is dropped, so the next lookup sees what
+     * the check saw.
+     *
+     * @return array{advanced: KeyFetch, direct: KeyFetch}
+     *
+     * @throws ContactKeyRefused for an address WKD cannot be asked about, or
+     *                           when the person has used up their lookups
+     */
+    public function check(User $user, string $email): array
+    {
+        $email = strtolower(trim($email));
+        $urls  = self::urls($email);
+
+        if (null === $urls || false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ContactKeyRefused('contact_keys.lookup.invalid_address');
+        }
+
+        $this->fetcher->spend($user);
+        $this->fetcher->forget(self::cacheKey($email));
+
+        return [
+            'advanced' => $this->fetcher->probe($urls['advanced'], self::ACCEPT),
+            'direct'   => $this->fetcher->probe($urls['direct'], self::ACCEPT),
+        ];
+    }
+
+        // ── Private ───────────────────────────────────────────────────────────────
+
+    private static function cacheKey(string $email): string
+    {
+        return 'wkd.' . sha1($email);
+    }
+
 
     private static function zbase32(string $bytes): string
     {

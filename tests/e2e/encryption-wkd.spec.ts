@@ -64,6 +64,57 @@ test("publishes the key of the sign-in address, and stops when switched off", as
     await outside.dispose();
 });
 
+/**
+ * Check from outside asks the advanced and the direct method each on its own
+ * (#28, comment 6216080577). The stand-in directory (KeyServerStub) is set up
+ * the way the report described: openpgpkey.<domain> answers, but with an old
+ * key, and the website's forward hands out the current one. A lookup would
+ * have stopped at the subdomain and never tried the direct method; the card
+ * shows both, each with its own verdict.
+ */
+test("checks both methods from outside and shows each result", async ({ page, playwright, baseURL }) => {
+    const email = await person(page);
+    const row = page.locator(`[data-testid="wkd-address"][data-email="${email}"]`);
+    const url = new URL((await row.getByTestId("wkd-url").textContent())?.trim() ?? "");
+    const outside = await playwright.request.newContext({ baseURL });
+    const current = Buffer.from(await (await outside.get(url.pathname + url.search)).body());
+
+    await outside.dispose();
+
+    const stale = await page.evaluate(async (address) => {
+        const openpgp = await import("openpgp");
+
+        return (await openpgp.generateKey({ userIDs: [{ email: address }], format: "armored" })).publicKey;
+    }, email);
+
+    try {
+        consoleCommand(`app:test:seed-key-server --wkd=advanced --email=${email} --key=${Buffer.from(stale, "utf8").toString("base64")}`);
+        consoleCommand(`app:test:seed-key-server --wkd=direct --email=${email} --key=${current.toString("base64")}`);
+
+        await row.getByRole("button", { name: "Check from outside" }).click();
+
+        const check = page.locator(`[data-testid="wkd-address"][data-email="${email}"]`).getByTestId("wkd-check");
+
+        await expect(check).toContainText(`Checked ${email} from outside`);
+        await expect(check.getByTestId("wkd-check-advanced")).toHaveAttribute("data-result", "outdated");
+        await expect(check.getByTestId("wkd-check-advanced")).toContainText("found a key, but not your current one");
+        await expect(check.getByTestId("wkd-check-direct")).toHaveAttribute("data-result", "current");
+        await expect(check.getByTestId("wkd-check-direct")).toContainText("found your current key");
+        await expect(check).toContainText("Mail programs that try the other method first still find your key");
+
+        // Nothing at either host: each says it cannot be reached.
+        consoleCommand(`app:test:seed-key-server --forget-wkd --email=${email}`);
+        await page.locator(`[data-testid="wkd-address"][data-email="${email}"]`).getByRole("button", { name: "Check from outside" }).click();
+
+        const again = page.locator(`[data-testid="wkd-address"][data-email="${email}"]`).getByTestId("wkd-check");
+
+        await expect(again.getByTestId("wkd-check-advanced")).toHaveAttribute("data-result", "unreachable");
+        await expect(again.getByTestId("wkd-check-direct")).toHaveAttribute("data-result", "unreachable");
+    } finally {
+        consoleCommand(`app:test:seed-key-server --forget-wkd --email=${email}`);
+    }
+});
+
 /** A person of this test's own, signed in, on Settings → Encryption with the keyring open. */
 async function person(page: Page): Promise<string> {
     const email = `wkd-${Date.now()}-${Math.floor(Math.random() * 1e6)}@plmail.test`;

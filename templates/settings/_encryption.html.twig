@@ -34,7 +34,16 @@ Accepts nothing: what it needs is the signed-in user and the routes.
 #}
 {% set button = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
 {% set primaryButton = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
-{% set field = 'w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors' %}
+{# The fields' classes come from _partials/_field_classes.html.twig, which the
+   form theme draws from too: these cards are not Symfony forms, and their
+   hand-written copy had drifted from every other field in Settings. Strings
+   in the context rather than the macros themselves, because an {% embed %}
+   block does not see this template's imports. #}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% set field = fields.input() %}
+{% set textarea = fields.textarea() %}
+{% set fileField = fields.file() %}
+{% set fieldLabel = fields.label() %}
 
 <div data-controller="settings--encryption"
      data-settings--encryption-state-url-value="{{ path('app_keyring_state') }}"
@@ -113,6 +122,19 @@ Accepts nothing: what it needs is the signed-in user and the routes.
          smimeNoKey:        'encryption.smime.no_key'|trans,
          smimeNoMatch:      'encryption.smime.no_match'|trans,
          failed:            'encryption.failed'|trans,
+         publishTo:         'encryption.publish.button'|trans({ '%host%': '%host%' }),
+         publishAgain:      'encryption.publish.again'|trans,
+         publicationRefresh:'encryption.publish.refresh'|trans,
+         publicationSaved:  'encryption.publish.saved'|trans,
+         confirmPublish:    'encryption.publish.confirm'|trans({ '%host%': '%host%', '%addresses%': '%addresses%' }),
+         publishRenewed:    'encryption.publish.renewed'|trans({ '%host%': '%host%', '%addresses%': '%addresses%' }),
+         publication: {
+             none:        'encryption.publish.state.none'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             unpublished: 'encryption.publish.state.unpublished'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             pending:     'encryption.publish.state.pending'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             published:   'encryption.publish.state.published'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             revoked:     'encryption.publish.state.revoked'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+         },
      }|json_encode }}">
 
     {# ── Status ──────────────────────────────────────────────────────────── #}
@@ -120,7 +142,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.status.heading'|trans,
         subheading: 'encryption.status.subheading'|trans,
         padded:     true,
-        class:      'mb-6',
     } %}
         {% block body %}
             <p class="flex items-start gap-2 text-sm text-ink" data-settings--encryption-target="status" role="status">
@@ -144,10 +165,10 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                 <p class="text-xs text-danger mb-3" role="note">
                     <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ 'encryption.setup.warning'|trans }}
                 </p>
-                <label for="encryption-setup-passphrase" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.setup.passphrase'|trans }}</label>
+                <label for="encryption-setup-passphrase" class="{{ fieldLabel }} mb-2">{{ 'encryption.setup.passphrase'|trans }}</label>
                 <input type="password" id="encryption-setup-passphrase" required autocomplete="new-password"
                        data-settings--encryption-target="setupPassphrase" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
-                <label for="encryption-setup-repeat" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.setup.repeat'|trans }}</label>
+                <label for="encryption-setup-repeat" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.setup.repeat'|trans }}</label>
                 <input type="password" id="encryption-setup-repeat" required autocomplete="new-password"
                        data-settings--encryption-target="setupRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
                 <button type="submit" class="{{ primaryButton }} mt-3">{{ 'encryption.setup.submit'|trans }}</button>
@@ -165,17 +186,16 @@ Accepts nothing: what it needs is the signed-in user and the routes.
             heading:    'encryption.passphrase.heading'|trans,
             subheading: 'encryption.passphrase.subheading'|trans,
             padded:     true,
-            class:      'mb-6',
-        } %}
+            } %}
             {% block body %}
                 <form class="max-w-md" data-action="submit->settings--encryption#changePassphrase" novalidate>
-                    <label for="encryption-passphrase-current" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.passphrase.current'|trans }}</label>
+                    <label for="encryption-passphrase-current" class="{{ fieldLabel }} mb-2">{{ 'encryption.passphrase.current'|trans }}</label>
                     <input type="password" id="encryption-passphrase-current" required autocomplete="off"
                            data-settings--encryption-target="passphraseCurrent" class="{{ field }}">
-                    <label for="encryption-passphrase-new" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.passphrase.new'|trans }}</label>
+                    <label for="encryption-passphrase-new" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.passphrase.new'|trans }}</label>
                     <input type="password" id="encryption-passphrase-new" required autocomplete="new-password"
                            data-settings--encryption-target="passphraseNew" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
-                    <label for="encryption-passphrase-repeat" class="block text-[11px] text-ink-faint mt-2 mb-1">{{ 'encryption.passphrase.repeat'|trans }}</label>
+                    <label for="encryption-passphrase-repeat" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.passphrase.repeat'|trans }}</label>
                     <input type="password" id="encryption-passphrase-repeat" required autocomplete="new-password"
                            data-settings--encryption-target="passphraseRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
                     <button type="submit" class="{{ button }} mt-3">{{ 'encryption.passphrase.submit'|trans }}</button>
@@ -190,7 +210,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.phrase.heading'|trans,
         subheading: 'encryption.phrase.subheading'|trans,
         padded:     true,
-        class:      'mb-6',
     } %}
         {% block body %}
             <div data-settings--encryption-target="openOnly" hidden>
@@ -214,7 +233,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                     <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.phrase.recover_heading'|trans }}</h3>
                     <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.phrase.recover_hint'|trans }}</p>
                     <textarea rows="3" required autocomplete="off" spellcheck="false"
-                              data-settings--encryption-target="recoverWords" class="{{ field }} font-mono"></textarea>
+                              data-settings--encryption-target="recoverWords" class="{{ textarea }} font-mono"></textarea>
                     <button type="submit" class="{{ primaryButton }} mt-2">{{ 'encryption.phrase.recover_submit'|trans }}</button>
                     <p hidden class="mt-2 text-xs" data-settings--encryption-target="recoverResult" role="status"></p>
                 </form>
@@ -227,7 +246,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.devices.heading'|trans,
         subheading: 'encryption.devices.subheading'|trans,
         padded:     true,
-        class:      'mb-6',
     } %}
         {% block body %}
             <div data-settings--encryption-target="openOnly" hidden>
@@ -245,7 +263,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.keys.heading'|trans,
         subheading: 'encryption.keys.subheading'|trans,
         padded:     true,
-        class:      'mb-6',
     } %}
         {% block body %}
             <div data-settings--encryption-target="openOnly" hidden>
@@ -255,10 +272,10 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                         <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.import.hint'|trans }}</p>
                         <input type="file" accept=".asc,.gpg,.key,.txt,application/pgp-keys"
                                data-settings--encryption-target="importFile"
-                               class="block w-full text-xs text-ink-muted mb-2">
+                               class="{{ fileField }} mb-2">
                         <textarea rows="3" spellcheck="false" placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----"
-                                  data-settings--encryption-target="importText" class="{{ field }} font-mono text-xs"></textarea>
-                        <label class="block text-[11px] text-ink-faint mt-2 mb-1" for="encryption-import-passphrase">{{ 'encryption.import.passphrase'|trans }}</label>
+                                  data-settings--encryption-target="importText" class="{{ textarea }} font-mono text-xs"></textarea>
+                        <label class="{{ fieldLabel }} mt-3 mb-2" for="encryption-import-passphrase">{{ 'encryption.import.passphrase'|trans }}</label>
                         <input type="password" id="encryption-import-passphrase" autocomplete="off"
                                data-settings--encryption-target="importPassphrase" class="{{ field }}">
                         <button type="submit" class="{{ button }} mt-2">{{ 'encryption.import.submit'|trans }}</button>
@@ -268,7 +285,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                     <form data-action="submit->settings--encryption#exportKeys">
                         <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.export.heading'|trans }}</h3>
                         <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.export.hint'|trans }}</p>
-                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-export-passphrase">{{ 'encryption.export.passphrase'|trans }}</label>
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-export-passphrase">{{ 'encryption.export.passphrase'|trans }}</label>
                         <input type="password" id="encryption-export-passphrase" required minlength="8" autocomplete="new-password"
                                data-settings--encryption-target="exportPassphrase" class="{{ field }}">
                         <button type="submit" class="{{ button }} mt-2">
@@ -294,7 +311,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.smime.heading'|trans,
         subheading: 'encryption.smime.subheading'|trans,
         padded:     true,
-        class:      'mb-6',
     } %}
         {% block body %}
             <div data-settings--encryption-target="openOnly" hidden>
@@ -308,8 +324,8 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                                aria-label="{{ 'encryption.smime.file'|trans }}"
                                data-settings--encryption-target="smimeFile"
                                data-testid="smime-file"
-                               class="block w-full text-xs text-ink-muted mb-2">
-                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-smime-password">{{ 'encryption.smime.password'|trans }}</label>
+                               class="{{ fileField }} mb-2">
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-smime-password">{{ 'encryption.smime.password'|trans }}</label>
                         <input type="password" id="encryption-smime-password" autocomplete="off"
                                data-settings--encryption-target="smimePassword" class="{{ field }}">
                         <button type="submit" class="{{ button }} mt-2">{{ 'encryption.smime.import_submit'|trans }}</button>
@@ -319,7 +335,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                     <div>
                         <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.smime.export_heading'|trans }}</h3>
                         <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.smime.export_hint'|trans }}</p>
-                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-smime-export-password">{{ 'encryption.smime.export_password'|trans }}</label>
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-smime-export-password">{{ 'encryption.smime.export_password'|trans }}</label>
                         <input type="password" id="encryption-smime-export-password" minlength="8" autocomplete="new-password"
                                data-settings--encryption-target="smimeExportPassword" class="{{ field }}">
                     </div>
@@ -376,7 +392,6 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.wkd.heading'|trans,
         subheading: 'encryption.wkd.subheading'|trans,
         padded:     true,
-        class:      'mt-6',
     } %}
         {% block body %}
             {{ include('settings/_wkd.html.twig') }}

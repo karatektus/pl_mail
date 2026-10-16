@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Crypto;
 
+use App\Domain\DTO\Crypto\KeyFetch;
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\User\User;
 use App\Infrastructure\Http\PrivateNetwork;
@@ -42,7 +43,8 @@ use Throwable;
  *
  * Taken out of WkdLookup when the key servers arrived (phase 6f of #28)
  * rather than copied: two copies of an SSRF guard are two chances for one of
- * them to fall behind.
+ * them to fall behind. Publishing the person's own key (phase 6g,
+ * KeyPublishing) goes through it too, as a POST under the same rules.
  */
 final readonly class KeyFetcher
 {
@@ -88,9 +90,7 @@ final readonly class KeyFetcher
             // Counted only here, on the way out: an answer from the cache costs
             // nobody anything, and a thread of twenty signed messages from one
             // sender should not spend twenty lookups.
-            if (false === $this->wkdLookupLimiter->create((string) $user->id)->consume()->isAccepted()) {
-                throw new ContactKeyRefused('contact_keys.lookup.rate_limited');
-            }
+            $this->spend($user);
 
             $body = $fetch();
             $item->expiresAfter(null === $body ? self::NOT_FOUND_TTL : self::FOUND_TTL);
@@ -101,39 +101,90 @@ final readonly class KeyFetcher
         return '' === $cached ? null : (string) base64_decode($cached, true);
     }
 
+    /** Drops a cached answer, so the next cached() asks again. */
+    public function forget(string $cacheKey): void
+    {
+        $this->cache->delete($cacheKey);
+    }
+
+    /**
+     * Counts one request leaving the server for this person against the
+     * shared budget (`wkd_lookup`). For the requests that are not cached:
+     * a person checking their own Web Key Directory, publishing their key.
+     *
+     * @throws ContactKeyRefused when the person has used up their lookups
+     */
+    public function spend(User $user): void
+    {
+        if (false === $this->wkdLookupLimiter->create((string) $user->id)->consume()->isAccepted()) {
+            throw new ContactKeyRefused('contact_keys.lookup.rate_limited');
+        }
+    }
+
     /**
      * One GET, under every rule in the class docblock. Null for anything but
      * a 200 with a body of a sensible size.
      */
     public function get(string $url, string $accept): ?string
     {
+        return $this->probe($url, $accept)->found();
+    }
+
+    /**
+     * The same GET, saying what came back: whether the host was reached and
+     * with which status, for whoever has to tell "not reachable" from "not
+     * there" (WkdLookup::check()).
+     */
+    public function probe(string $url, string $accept): KeyFetch
+    {
+        return $this->request('GET', $url, ['headers' => ['Accept' => $accept]]);
+    }
+
+    /**
+     * One POST of a JSON body, under the same rules — for publishing to a key
+     * server's API. The body comes back whatever the status: an API says why
+     * it refused in the answer to a 4xx.
+     *
+     * @param array<string, mixed> $json
+     */
+    public function post(string $url, array $json, string $accept = 'application/json'): KeyFetch
+    {
+        return $this->request('POST', $url, ['json' => $json, 'headers' => ['Accept' => $accept]]);
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * @param array<string, mixed> $options the method's own: headers, body
+     */
+    private function request(string $method, string $url, array $options): KeyFetch
+    {
         $host = (string) parse_url($url, PHP_URL_HOST);
 
         if ('https' !== parse_url($url, PHP_URL_SCHEME) || '' === $host) {
-            return null;
+            return KeyFetch::unreached();
         }
 
         $addresses = ($this->resolve)($host);
 
         if ([] === $addresses) {
-            return null;
+            return KeyFetch::unreached();
         }
 
         foreach ($addresses as $address) {
             if (true === IpUtils::isPrivateIp($address)) {
                 $this->logger->notice('Key lookup host {host} resolves to a private address; not asked.', ['host' => $host]);
 
-                return null;
+                return KeyFetch::unreached();
             }
         }
 
         try {
-            $response = new NoPrivateNetworkHttpClient($this->httpClient)->request('GET', $url, [
+            $response = new NoPrivateNetworkHttpClient($this->httpClient)->request($method, $url, $options + [
                 'timeout'       => 4,
                 'max_duration'  => 8,
                 'max_redirects' => 0,
                 'resolve'       => [$host => $addresses[0]],
-                'headers'       => ['Accept' => $accept],
                 'on_progress'   => static function (int $downloaded, int $size): void {
                     if (self::MAX_BYTES < $downloaded || self::MAX_BYTES < $size) {
                         throw new TransportException('The key lookup answer is too large.');
@@ -141,17 +192,18 @@ final readonly class KeyFetcher
                 },
             ]);
 
-            if (200 !== $response->getStatusCode()) {
-                return null;
-            }
-
-            $body = $response->getContent();
+            $status = $response->getStatusCode();
+            $body   = $response->getContent(false);
         } catch (Throwable $exception) {
             $this->logger->info('Key lookup at {url} failed: {error}', ['url' => $url, 'error' => $exception->getMessage()]);
 
-            return null;
+            return KeyFetch::unreached();
         }
 
-        return '' === $body || self::MAX_BYTES < strlen($body) ? null : $body;
+        if (self::MAX_BYTES < strlen($body)) {
+            return KeyFetch::unreached();
+        }
+
+        return new KeyFetch(true, $status, '' === $body ? null : $body);
     }
 }
