@@ -417,6 +417,11 @@ step only by each controller action remembering to call both.
 label. That derived union is why `EmailMapper` reads `Message::$labels` and never
 `thread_label`: reading the union would report a mailbox for every message in a thread.
 
+"Its messages" are the ones pointing at the thread in memory, not what `$thread->messages`
+holds: the rules label new mail after threading and before the batch's flush, when that
+collection does not contain the new message yet, and a union over it took a rule's label
+straight off the conversation again.
+
 The provider mapping `LabelChangePropagator` performs is where the three providers stop being
 interchangeable:
 

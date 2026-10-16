@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
+the arriving message, but the conversation lost the label again in the same step, so it was
+missing from that label's list and from a tab filled by it. A message joining a conversation
+plMail already had was affected unless it was the first one that label was ever applied to on
+the account. Mail labelled before this update gets its conversation's label back the next time
+any label in that conversation changes.
+[#PR](https://github.com/karatektus/pl_mail/pull/PR), by @karatektus.
+
 **A conversation no longer splits when its replies are synced first.** When replies arrived before
 the message they answer, which is the usual case right after connecting an IMAP account (the Inbox
 is synced before Sent Items), each reply that found nothing to hang on started a conversation of

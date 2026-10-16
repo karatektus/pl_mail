@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:51e52f50e75b178068a8d73aa4161dfa52906ac2 -->
+<!-- translated-from: internals/mail-ingest.md sha1:b6f9af84349aeff829bc8e6e82f7108d258f7ab6 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -473,6 +473,11 @@ der Labels ihrer Nachrichten — Gmail-Semantik, bei der eine Konversation unter
 erscheint, sobald irgendeine Nachricht darin dieses Label trägt. Wegen dieser hergeleiteten
 Vereinigung liest `EmailMapper` `Message::$labels` und nie `thread_label`: Die Vereinigung zu
 lesen würde für jede Nachricht einer Konversation jedes Postfach melden.
+
+„Ihre Nachrichten" sind die, die im Speicher auf die Konversation zeigen, nicht der Inhalt von
+`$thread->messages`: Die Regeln setzen Labels auf neue Mail nach der Konversationsbildung und
+vor dem Flush des Batches, wenn diese Collection die neue Nachricht noch nicht enthält, und eine
+Vereinigung darüber nahm der Konversation das Label einer Regel gleich wieder weg.
 
 Die Abbildung auf den Anbieter, die `LabelChangePropagator` vornimmt, ist die Stelle, an der die
 drei Anbieter aufhören, austauschbar zu sein:

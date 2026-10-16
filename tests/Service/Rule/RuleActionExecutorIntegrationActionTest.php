@@ -191,7 +191,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
                 new GraphLabelPolicy(),
                 new NullLogger(),
             ),
-            new ThreadLabelSynchronizer(),
+            new ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
             $integrationRepository,
             $bus,
             new NullLogger(),

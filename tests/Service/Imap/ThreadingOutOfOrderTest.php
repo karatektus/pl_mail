@@ -254,7 +254,7 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
         $this->em->flush();
 
         $this->syncBatch([$middle], function () use ($middle): void {
-            (new ThreadLabelSynchronizer())->sync($middle->thread);
+            self::getContainer()->get(ThreadLabelSynchronizer::class)->sync($middle->thread);
         });
 
         $this->em->clear();

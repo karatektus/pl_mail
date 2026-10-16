@@ -120,7 +120,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 new GraphLabelPolicy(),
                 new NullLogger(),
             ),
-            new ThreadLabelSynchronizer(),
+            new ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
             $this->createStub(IntegrationRepository::class),
             $bus,
             new NullLogger(),
