@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.3.6 — 2026-10-16
 
 **A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
 the arriving message, but the conversation lost the label again in the same step, so it was
