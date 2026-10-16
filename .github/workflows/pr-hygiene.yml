@@ -37,7 +37,10 @@ jobs:
             # A feature needs an accepted issue before it is built, so a pull
             # request has to close one — `Closes #N` in its description. The
             # exceptions are the kinds of change that need no agreement first:
-            # a bug fix that says what the bug was, upkeep, and Dependabot.
+            # a bug fix that says what the bug was, upkeep, and Dependabot —
+            # and `deployment`, a milestone or release branch on its way to
+            # main: its work was agreed and reviewed piece by piece, each piece
+            # closing its own issue, so it has none of its own to name.
             # Their labels let them through; a contributor cannot set labels on
             # a fork's pull request, so a maintainer applies `bug` during
             # triage, and the check runs again when they do.
@@ -65,7 +68,7 @@ jobs:
                       exit 0
                   fi
 
-                  for exempt in bug chore dependencies; do
+                  for exempt in bug chore dependencies deployment; do
                       case ",$LABELS," in
                           *",$exempt,"*)
                               echo "No linked issue; labelled \`$exempt\`, which needs none." >> "$GITHUB_STEP_SUMMARY"

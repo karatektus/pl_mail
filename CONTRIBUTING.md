@@ -35,8 +35,10 @@ it closes. A release is a milestone with nothing left open, closed when it is ta
 one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
 Pull requests get their area labels from the files they touch
 (`.github/labeler.yml`), and a required check refuses a pull request that closes no issue —
-unless it is labelled `bug`, `chore` or `dependencies`. Contributors cannot label their own pull
-requests, so a bug fix without an issue waits for a maintainer to label it `bug`.
+unless it is labelled `bug`, `chore`, `dependencies` or `deployment`. `deployment` is for a milestone
+or release branch going to `main` (`milestone/v0.4.0`), whose pieces each closed their own issue on
+the way in. Contributors cannot label their own pull requests, so a bug fix without an issue waits
+for a maintainer to label it `bug`.
 
 **`main` is protected.** Everything reaches it through a pull request with green checks, the
 maintainers' own changes included, and is squash-merged. The production image follows `main`, so
