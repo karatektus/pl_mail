@@ -11,7 +11,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * That Version20261016090000 landed — where an encrypted message's decrypted
+ * That Version20261016190000 landed — where an encrypted message's decrypted
  * body came from — with `none` for every existing row, and that its own
  * down() and up() take it back and put it there again, inside this test's
  * transaction.
@@ -55,7 +55,7 @@ final class PlaintextSourceMigrationTest extends KernelTestCase
     {
         // Migrations are not autoloaded; the runner loads them by path, and
         // so does this — see ContactKeyMigrationTest.
-        $file = self::getContainer()->getParameter('kernel.project_dir') . '/migrations/Version20261016090000.php';
+        $file = self::getContainer()->getParameter('kernel.project_dir') . '/migrations/Version20261016190000.php';
         require_once $file;
 
         $class = 'DoctrineMigrations\\' . pathinfo($file, PATHINFO_FILENAME);

@@ -68,7 +68,9 @@ final readonly class ReadReceiptPolicy
 
         // Our own outgoing mail carries the flag too — it is one column for
         // both directions — and a sent message is not something to answer.
-        if (null !== $message->sentAt) {
+        // Nor is a draft, which has no sentAt (see Message::$sentAt) but is
+        // just as much our own.
+        if (null !== $message->sentAt || true === $message->isDraft()) {
             return ReadReceiptDecision::silent();
         }
 

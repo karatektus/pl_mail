@@ -16,6 +16,13 @@ Two shapes, decided by the taxonomy rather than by provider name:
   tree to descend, so each album is itself the button, and a "Library" row
   saves with no album at all.
 
+  A document archive (Paperless) gets its tags the same way, flat: a tag is a
+  label a document is filed under, not a place that holds anything. Each tag is
+  itself the button, and a "No tag" row files under none. What decides between
+  this and a tree is Provider::destinationKind(), not whether the service holds
+  photos — a flat list drawn as a tree is a list of links that all lead back to
+  the same list.
+
 And two MODES, decided by whether there is a part:
 
   With a part, a choice is a save: the row or the footer posts the upload and
@@ -36,7 +43,11 @@ a successful save is exactly when the modal should close.
 #}
 {% extends '_layout/app.html.twig' %}
 
-{% set isMediaLibrary = integration.provider.isMediaLibrary %}
+{# Folder, album or tag: the shape of the containers, and so what they are
+   called. `isFlat` is what changes the markup; `kind.value` completes the
+   translation keys, so a fourth kind is one enum case and its strings. #}
+{% set kind = integration.provider.destinationKind %}
+{% set isFlat = kind.isFlat %}
 
 {# Pick mode is the absence of something to upload, not a separate flag — see
    FilePickerController::renderDestination(). #}
@@ -107,9 +118,7 @@ drift into looking like different features.
                        the folder a rule will use for whatever arrives. #}
                     {{ 'integration.destination.choose_for_filter'|trans }}
                 {% else %}
-                    {{ (isMediaLibrary
-                        ? 'integration.destination.choose_album'
-                        : 'integration.destination.choose_folder')|trans({ '%file%': part.filename ?: 'attachment' }) }}
+                    {{ ('integration.destination.choose_' ~ kind.value)|trans({ '%file%': part.filename ?: 'attachment' }) }}
                 {% endif %}
             </p>
 
@@ -138,7 +147,7 @@ drift into looking like different features.
             {% else %}
 
                 {# ── Breadcrumb — a folder tree only ── #}
-                {% if not isMediaLibrary %}
+                {% if not isFlat %}
                     <nav class="flex items-center gap-1 flex-wrap px-6 pb-3 shrink-0 text-xs text-ink-muted">
                         {% for crumb in listing.breadcrumb %}
                             {% if not loop.last %}
@@ -155,18 +164,24 @@ drift into looking like different features.
                 {# ── The containers ── #}
                 <div class="flex-1 min-h-[14rem] min-w-0 px-6 overflow-y-auto overscroll-contain">
                     <div class="py-2">
-                        {% if isMediaLibrary %}
+                        {% if isFlat %}
 
+                            {# What the two flat kinds differ in: the row that files
+                               under no container at all, and the icons. #}
+                            {% set flat = {
+                                album: { rootLabel: 'integration.destination.library', rootIcon: 'fa-photo-film',  icon: 'fa-images' },
+                                tag:   { rootLabel: 'integration.destination.no_tag',   rootIcon: 'fa-box-archive', icon: 'fa-tag' },
+                            }[kind.value] %}
                             <ul class="space-y-0.5">
-                                {# Always available: the library itself, no album. #}
-                                {{ dest.chooseRow(integration, part, isPick, '', 'integration.destination.library'|trans, 'fa-photo-film') }}
+                                {# Always available: no album, no tag. #}
+                                {{ dest.chooseRow(integration, part, isPick, '', flat.rootLabel|trans, flat.rootIcon) }}
                                 {% for entry in listing.folders %}
-                                    {{ dest.chooseRow(integration, part, isPick, entry.id, entry.name, 'fa-images') }}
+                                    {{ dest.chooseRow(integration, part, isPick, entry.id, entry.name, flat.icon) }}
                                 {% endfor %}
                             </ul>
                             {% if listing.folders is empty %}
                                 <p class="py-6 text-center text-sm text-ink-faint italic">
-                                    {{ 'integration.destination.no_albums'|trans }}
+                                    {{ ('integration.destination.no_' ~ kind.value ~ 's')|trans }}
                                 </p>
                             {% endif %}
 
@@ -226,9 +241,7 @@ drift into looking like different features.
                                             text-xs font-medium text-ink-soft hover:bg-hover transition-colors
                                             focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                 <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
-                                {{ (isMediaLibrary
-                                    ? 'integration.destination.new_album'
-                                    : 'integration.destination.new_folder')|trans }}
+                                {{ ('integration.destination.new_' ~ kind.value)|trans }}
                             </summary>
                             <form method="post" data-ui--modal-keep-open
                                   action="{{ path('app_integration_create_destination', { id: integration.id, part: part.id }) }}"
@@ -236,14 +249,10 @@ drift into looking like different features.
                                 <input type="hidden" name="_token" value="{{ csrf_token('integration-destination-' ~ part.id) }}">
                                 <input type="hidden" name="parent" value="{{ folderId }}">
                                 <label class="sr-only" for="new-destination-name">
-                                    {{ (isMediaLibrary
-                                        ? 'integration.destination.album_name'
-                                        : 'integration.destination.folder_name')|trans }}
+                                    {{ ('integration.destination.' ~ kind.value ~ '_name')|trans }}
                                 </label>
                                 <input type="text" id="new-destination-name" name="name" required
-                                       placeholder="{{ (isMediaLibrary
-                                            ? 'integration.destination.album_name'
-                                            : 'integration.destination.folder_name')|trans }}"
+                                       placeholder="{{ ('integration.destination.' ~ kind.value ~ '_name')|trans }}"
                                        class="flex-1 min-w-0 h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
                                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                 <button type="submit"
@@ -273,7 +282,7 @@ drift into looking like different features.
                    Offered even when the listing failed: the top level is always
                    a valid target, so a user is never left unable to save at all
                    because a subfolder would not load. #}
-                {% if not isMediaLibrary %}
+                {% if not isFlat %}
                     {# The readable half of the answer. Folder ids are opaque for
                        most services — a Drive id is a random string — so the
                        trail the driver built is what a person is shown once the

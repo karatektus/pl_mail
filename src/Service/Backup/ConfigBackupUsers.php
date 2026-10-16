@@ -193,10 +193,17 @@ final readonly class ConfigBackupUsers
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Whether an account's own inbox has the category tabs. How the
+        // mailbox is drawn, like the reading pane above; a boolean, no id.
+        User::SETTING_ACCOUNT_INBOX_TABS,
         // How the topbar's calendar button moves between views. One enum
         // value, no id, the same on any install, and a preference about one's
         // own screen like the pane's mode and width above.
         User::SETTING_CALENDAR_SWITCH_SKIP,
+        // "Don't show this after updates". A choice about being interrupted,
+        // and one somebody made on purpose: a restore that brought the dialog
+        // back would be undoing it. A boolean, no id.
+        User::SETTING_WHATS_NEW_QUIET,
     ];
 
     /**
@@ -253,6 +260,7 @@ final readonly class ConfigBackupUsers
      */
     public const array EXCLUDED_USER_SETTINGS = [
         User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
+        User::SETTING_WHATS_NEW_SEEN => 'a read marker like admin.logs_seen_at, against the release the source install ran: restored onto another version it would either hide notes this person has not read or repeat ones they have',
         User::SETTING_SIDEBAR_ACCOUNT => 'an account id from the source database — on the target that is nothing, or somebody else',
         User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
     ];

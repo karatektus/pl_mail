@@ -935,14 +935,19 @@ class MessageSyncer
         $message->ccAddresses = self::addressesOf($imapMessage->getCc());
         $message->bccAddresses = self::addressesOf($imapMessage->getBcc());
 
-        // Dates
-        $receivedAt = $this->receivedAtOf($imapMessage);
-        $message->sentAt = $receivedAt;
-        $message->receivedAt = $receivedAt;
-
         // Flags
         $flagNames = array_values($imapMessage->getFlags()->toArray());
         $message->flags = $flagNames;
+
+        // Dates. A draft has not been sent, whatever its Date header says (see
+        // Message::$sentAt). Decided by the same test the rest of the app uses
+        // on the stored flags, so a row is never "not a draft, never sent":
+        // webklex strips the backslash, so a server's `\Draft` is stored as
+        // `Draft` here and is not a draft to the app yet.
+        $receivedAt = $this->receivedAtOf($imapMessage);
+
+        $message->sentAt = true === $message->isDraft() ? null : $receivedAt;
+        $message->receivedAt = $receivedAt;
 
         if (
             true === in_array('Seen', $flagNames, true)

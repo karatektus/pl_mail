@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:175617fd64542d859658e6386d29320816c99f58 -->
+<!-- translated-from: features/mail.md sha1:1aee1ecf391427b1e6c35fd4f36b0f59ba68da1e -->
 
 # Mail
 
@@ -22,13 +22,14 @@ gleich, wo es angekommen ist.
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Konversationen, die du archiviert hast |
+| **Alle E-Mails** | Jede Konversation außerhalb von Spam und Papierkorb, Archiviertes, Gesendetes und Entwürfe eingeschlossen — aus, bis du es einschaltest |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
 
 Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürfe**, **Zurückgestellt**,
-**Archiv**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter
-**Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
-Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
-einzige, der ausgeschaltet beginnt.
+**Archiv**, **Alle E-Mails**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat —
+hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
+der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
+**Alle E-Mails** beginnen ausgeschaltet.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -41,6 +42,18 @@ Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die d
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
 Kontos stehen als Ordnerzeilen darunter, einen Klick weiter; die Kontozeile ist kein Archiv über
 alles, was das Konto je enthalten hat.
+
+**Alle E-Mails** ist alles, was du hast, in einer Liste: was angekommen ist, was du gesendet hast,
+deine Entwürfe und vor allem, was du archiviert hast und sonst in keiner Liste durchsehen kannst.
+Nur Spam und Papierkorb bleiben draußen. Es ist Gmails „Alle E-Mails“, und wie dort steht auch deine
+eigene Mail darin. Eingeschaltet ist es eine Zeile neben **Entwürfe** für alle Konten zusammen und
+eine Zeile ganz oben in den Ordnern jedes Kontos für dieses Konto allein; die Kontozeile selbst
+öffnet weiterhin den Posteingang des Kontos. Ein Auge unter **Einstellungen → Labels** zeigt oder
+verbirgt beide. Archivierst du eine Konversation in Alle E-Mails oder stellst sie zurück, bleibt sie
+in der Liste, wo sie weiterhin hingehört; verschiebst du sie in Spam oder den Papierkorb, ist sie
+weg. Eine Konversation mit mehreren Labels steht einmal da, und der Ungelesen-Filter zählt dieselbe
+Liste. Ablegen kannst du darauf nichts — in eine Liste, die schon alles enthält, gibt es nichts zu
+verschieben.
 
 Klappst du unter **Konten** ein Konto auf, siehst du die Labels, die es dort tatsächlich gibt.
 Diese Liste ist absichtlich schmaler als die Label-Liste der Seitenleiste selbst: die
@@ -90,6 +103,20 @@ Netzwerke**, **Werbung**, **Updates** und **Foren**. Bei einem Gmail-Konto vertr
 Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie aus Headern ab,
 die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
 Synchronisierung.
+
+Die Tabs gibt es im Posteingang ganz oben, und du kannst sie auch im **Posteingang eines einzelnen
+Kontos** haben (Klick auf das Konto in der Seitenleiste): **Einstellungen → Mail → Kategorien**,
+**Tabs in jedem Konto**. Es ist aus, bis du es einschaltest; dann hat ein Outlook-Konto oder jedes
+andere sie auch, [eigene Tabs](#eigene-tabs) eingeschlossen. Ist es aus, zeigt die Seite eines Kontos
+seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Tabs im Posteingang**
+an ist, und eine Konfigurationssicherung enthält ihn. Ein Tab ist da, solange er Mail enthält, und auf der Seite
+eines Kontos zählt er nur dessen Mail — ein eigener Tab, der nur in einem anderen Konto Mail
+enthält, fehlt auf dieser Seite also. Die Tabs auf
+der Kontoseite sind schlichter: keine „neu“-Markierungen, keine Absenderhinweise und keine
+Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
+beschreiben. Eine Konversation auf einen Tab zu ziehen geht nur im Posteingang ganz oben.
+
+Ein Tab-Wechsel ersetzt den Eintrag im Browser-Verlauf, statt einen neuen anzulegen, so wie in Gmail. Die Zurück-Taste des Browsers verlässt darum den Posteingang, statt dich durch die Tabs zurückzuführen, die du dir angesehen hast. Für die Tabs auf der Seite eines Kontos gilt dasselbe.
 
 ### Ein Posteingang ohne Tabs
 
@@ -656,6 +683,12 @@ und als sonst nichts — wo die Nachricht danach landet, ist Sache des Anbieters
 
 **Aktualisieren** in der Werkzeugleiste reiht für jedes deiner aktiven Konten eine
 Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
+
+Auf dem Telefon ist dieselbe Synchronisierung ein Ziehen: Zieh die Liste vom oberen Rand nach
+unten, über den Hinweis *Loslassen zum Synchronisieren* hinaus, und lass los. Der Synchronisieren-
+Knopf oben auf dem Bildschirm dreht sich, solange er läuft, und der Hinweis dreht sich mit. Ohne
+Berührung ist der Knopf der Ersatz: ein benannter Knopf für Tastatur und Bildschirmleser, und die
+Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
 
 ### Tastenkürzel
 
@@ -1277,3 +1310,9 @@ keine Zeit. Auf dem Radar wird sie fünfzehn Minuten nach Eingang der Mail angeb
 dann, damit ein Code von letzter Woche nicht lesbar dort stehen bleibt; die Karte über der Mail
 selbst behält ihn. plMail erfindet keine zehn Minuten, also kann die Karte dir nicht sagen, ob der
 Code noch geht — das kann nur die Mail, aus der er stammt.
+
+**Ziehen zum Aktualisieren gibt es nur mit dem Finger, und nur ganz oben in der Liste.** Maus,
+Trackpad und jedes Fenster ab der Tablet-Breite ziehen nie. Ein Ziehen beginnt nur, wenn die Liste
+ganz oben steht, und nicht bei offener Seitenleiste; von weiter unten scrollt dieselbe Bewegung nur.
+Reduzierte Bewegung nimmt dem Hinweis das Gleiten und sonst nichts, der Auslösepunkt bleibt gleich.
+

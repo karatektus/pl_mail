@@ -98,33 +98,31 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	#
 	# There are two ways to get here, and the message names both:
 	#
-	#   - `docker compose up` with compose.override.yaml present but run from a
-	#     directory that is not the checkout. The override bind-mounts `./:/app`,
+	#   - `docker compose up` with compose.dev.yaml but run from a directory
+	#     that is not the checkout. compose.dev.yaml bind-mounts `./:/app`,
 	#     so an empty directory becomes an empty application.
 	#   - a local `pl_mail-dev:latest` left behind by an earlier `--build` while
-	#     the override has since gone missing. compose finds the local tag, does
+	#     compose.dev.yaml is no longer passed. compose finds the local tag, does
 	#     not pull, and boots the dev image — which deliberately carries no
 	#     application code, because in dev the code arrives through the mount.
-	#     compose.override.yaml.dist documents this at its `image:` line.
 	if [ ! -f composer.json ]; then
 		cat >&2 <<-'ERROR'
 			plMail: there is no application at /app — no composer.json.
 
 			This container has nothing to run. Two things cause it:
 
-			  1. You are using compose.override.yaml (the development stack) and
-			     ran `docker compose up` somewhere other than the checkout. That
+			  1. You are using compose.dev.yaml (the development stack) and ran
+			     `docker compose up` somewhere other than the checkout. That
 			     file bind-mounts ./ to /app, so an empty directory gives an
 			     empty application. cd to the cloned repository and try again.
 
 			  2. A local `pl_mail-dev:latest` image is being used without the
-			     override that builds it. The development image carries no
-			     application code on purpose. Restore compose.override.yaml, or
+			     compose.dev.yaml, which builds it. The development image carries no
+			     application code on purpose. Pass -f compose.dev.yaml again, or
 			     `docker image rm pl_mail-dev:latest` and let compose pull the
 			     published image.
 
-			To run plMail rather than develop it, delete compose.override.yaml
-			and use compose.yaml alone.
+			To run plMail rather than develop it, use compose.yaml alone.
 		ERROR
 
 		exit 1

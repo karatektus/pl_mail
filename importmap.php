@@ -38,6 +38,10 @@ return [
     'sortablejs' => ['version' => '1.15.6'],
     'emoji-picker-element' => ['version' => '1.29.1'],
     'idiomorph' => ['version' => '0.7.4'],
+    // What's new → Send feedback → "Attach a screenshot of the page you were on"
+    // (#165). Draws the page behind the dialog into a PNG in the browser;
+    // imported only when somebody ticks that box, so nobody else loads it.
+    'html-to-image' => ['version' => '1.11.11'],
     '@cantoo/pdf-lib' => ['version' => '2.9.1'],
     '@pdf-lib/standard-fonts' => ['version' => '1.0.0'],
     'pako' => ['version' => '2.2.0'],

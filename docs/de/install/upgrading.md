@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:cd56ca54927898f35075d3948a2deb9257fc0a4a -->
+<!-- translated-from: install/upgrading.md sha1:86de4574a5dd3df515000f98f4e2ababc44d535e -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -64,7 +64,7 @@ zu lassen, woran gerade gearbeitet wird, und das Changelog wird es noch nicht be
 festgenagelte Version ist richtig, wenn du Upgrades lieber planst als empfängst.
 
 **Der typische Fehlerfall ist `pull_policy: always` auf einem beweglichen Tag.**
-`truenas.compose.yaml` setzt das, ein Redeploy von der NAS-App-Seite holt sich also, worauf dieser
+Damit holt sich ein Redeploy von einer NAS-App-Seite, worauf dieser
 Tag inzwischen zeigt — bequem bei `latest` und überraschend bei `main`.
 
 ## Das Upgrade
@@ -157,6 +157,35 @@ Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte b
 gefunden hat, und der stündliche Befehl zählt es nicht als Fehler. GitHubs anonyme API erlaubt
 sechzig Anfragen pro Stunde und Adresse, was eine viel genutzte gemeinsame Adresse aufbrauchen kann;
 die Seite nennt diesen Fall, wenn er eintritt.
+
+## Was alle nach einem Update sehen
+
+Wenn jemand plMail nach einem Update zum ersten Mal öffnet, geht **Was ist neu** von selbst auf: die
+Versionen seit der, die die Person zuletzt gesehen hat, die neueste zuerst, jede mit ihren
+Highlights oben und dem Rest als Überschriften zum Aufklappen. Es sind die Hinweise aus
+`CHANGELOG.md`, gelesen aus dem Image selbst, also immer die des Builds, der gerade läuft. Ein
+**?** in der oberen Leiste öffnet denselben Dialog jederzeit, mit einem Punkt darauf, solange es
+etwas Ungesehenes gibt, und dem ganzen Änderungsprotokoll unter **Vollständiges
+Änderungsprotokoll**.
+
+- **Nur nach einem Update, nie bei einer Neuinstallation.** Wer auf einer frischen Installation
+  angelegt oder später hinzugefügt wird, beginnt bei der Version, die bei der ersten Anmeldung lief.
+  Alle, die es schon gab, als der Dialog kam, beginnen bei 0.3.1 und sehen beim ersten Mal jede
+  Version seitdem.
+- **Ein `main`-Image zählt als seine neueste Version.** Ein `main`- oder `sha-…`-Image oder ein
+  Checkout gilt als die neueste getaggte Version in seinem eigenen `CHANGELOG.md`, also sieht eine
+  Installation, die `main` folgt, den Dialog, sobald diese Version getaggt ist. Änderungen, die noch
+  in keiner Version sind, werden nie gezeigt.
+- **Migrationshinweise sind für Administratoren.** Zeilen mit `**Migration:**` und Abschnitte
+  *Before you upgrade* stehen in einem Kasten, den nur Administratoren sehen; alle anderen lesen, was
+  sich für sie geändert hat.
+- **Nach Updates nicht mehr anzeigen** im Fuß des Dialogs macht ihn für diese Person still: kein
+  Dialog und kein Punkt. **Einstellungen → Allgemein → Was ist neu** schaltet ihn wieder ein.
+- **Feedback senden**, im Dialog und unter dem **?**, ist eine Mail, die die Person von einem ihrer
+  eigenen Konten schickt, mit ihrer plMail-Version und, wenn sie es ankreuzt, einem Screenshot der
+  Seite, auf der sie war. Eine Kopie landet in ihrem Ordner „Gesendet“. Sie geht an
+  `feedback@pluetzner.de`, sofern `APP_FEEDBACK_TO` nichts anderes sagt — siehe die
+  [Konfigurationsreferenz](configuration.md).
 
 ## pgvector einschalten
 

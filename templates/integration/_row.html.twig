@@ -20,12 +20,16 @@ like it needed a decision.
         integration: integration,
         entry: entry,
         draftId: draftId,
+        mode: mode|default('attach'),
         isMediaLibrary: isMediaLibrary|default(false),
     } only %}
 {% else %}
     {# Only a *known* oversize blocks a copy — see the picker's docblock. #}
     {% set knownTooBig = entry.size is not null and entry.size > maxBytes %}
-    {% set canCopy = not knownTooBig %}
+    {# Profile-picture mode only: a file that cannot become a picture. Shown, so
+       the page does not look empty, but not choosable. #}
+    {% set notAnImage = entry.id in refusedIds|default([]) %}
+    {% set canCopy = not knownTooBig and not notAnImage %}
     {% set unattachable = not canCopy and not canLink %}
 
     <li class="group relative flex items-center gap-3 px-3 py-2.5 -mx-2 rounded-xl
@@ -105,7 +109,7 @@ like it needed a decision.
 
         {% if unattachable %}
             <span class="relative shrink-0 text-[11px] text-ink-faint">
-                {{ 'integration.picker.too_big'|trans }}
+                {{ (notAnImage ? 'integration.picker.not_an_image' : 'integration.picker.too_big')|trans }}
             </span>
         {% elseif canLink %}
             {# Above the row label, so the chip wins the click it is under. #}

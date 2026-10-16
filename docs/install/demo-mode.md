@@ -73,9 +73,6 @@ opened — a tour of a product with the interesting doors locked.
 SERVER_NAME=demo.example.com docker compose -f compose.yaml -f compose.demo.yaml up -d --wait
 ```
 
-It layers over `compose.yaml` rather than `compose.prod.yaml` — that one builds the image from
-source, and a demo has no reason to.
-
 The overlay exists rather than being a line in this page because `docker compose` reads the `.env`
 beside it, which is Symfony's and says `APP_DEMO_MODE=0`. Passing the variable on the command line
 works; writing `${APP_DEMO_MODE:-1}` into a compose file does not, and fails in the worst way — the

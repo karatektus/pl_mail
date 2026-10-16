@@ -156,8 +156,8 @@ private ?string $searchVector = null;
 
 ### 2.6 Config files carry essays
 
-`phpstan.dist.neon`, `phpunit.dist.xml`, `compose.yaml` and `.env` are code. They get the same
-treatment — every non-obvious value explains itself:
+`phpstan.dist.neon`, `phpunit.dist.xml` and `.env` are code. They get the same treatment — every
+non-obvious value explains itself:
 
 ```xml
 <!-- A file of its own: InstallEmptyInstallTest writes APP_PUBLIC_URL
@@ -165,6 +165,9 @@ treatment — every non-obvious value explains itself:
      environment actually runs on must not be the thing it overwrites. -->
 <server name="APP_SECRETS_FILE" value="var/secrets/phpunit.env" force="true" />
 ```
+
+Compose files are the exception: no comments except a header of at most three lines saying what the
+file is for. The reasoning behind a setting goes in `docs/install/`.
 
 ### 2.7 Section separators inside long classes
 

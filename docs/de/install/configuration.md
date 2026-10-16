@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:54142f9ce5898a2919adfc74fcef6cdd547f7074 -->
+<!-- translated-from: install/configuration.md sha1:c3d0ac70d7e26565677fefdc9b5f670da0d1ce54 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -93,6 +93,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `PUSH_ALLOWED_HOSTS` | Kommagetrennte Hosts, auf die ein Push-Endpunkt zeigen darf, obwohl sie auf eine private Adresse auflösen. | leer | Nur für ein ntfy im LAN | Jeder andere private, Loopback- oder Link-Local-Endpunkt wird bei der Registrierung und beim Senden abgewiesen. Läuft das mitgelieferte ntfy auf einer LAN- oder Tailscale-Adresse, setz hier deinen `SERVER_NAME`, sonst bekommen die Telefone keine Pushes mehr. Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOW_HTTP` | Ob jemand für eine selbst gehostete Integration einen `http://`-Server angeben darf. | `false` | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Kommagetrennte Hosts, die von der Sperre privater Adressbereiche ausgenommen sind. | leer | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
+| `APP_FEEDBACK_TO` | Wohin **Feedback senden** in „Was ist neu“ mailt. Die Mail geht über das eigene Konto der Person; das hier ist nur der Empfänger. | `feedback@pluetzner.de` (auch der Parameter `app.fallback_feedback_to`, der greift, wenn die Variable fehlt) | Nein | Das Feedback der Leute auf dieser Installation geht an den Entwickler von plMail. Trag deine eigene Adresse ein, um es selbst zu lesen; ein Tippfehler schickt es ins Leere, und wer es geschrieben hat, bekommt einen Bounce ins eigene Postfach. |
 
 **Der typische Fehlerfall bei dieser Tabelle ist, ein Leerfeld für einen fehlenden Wert zu halten.**
 Vier der obigen Leerfelder sind tragend: Sie sind leer, damit die Erzeugung beim ersten Start
@@ -116,7 +117,7 @@ sie direkt, wenn er `DATABASE_URL` zusammensetzt.
 | `POSTGRES_PASSWORD` | Datenbankpasswort. | leer — 24 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Wird von `app:reset` nie gewechselt: Postgres wurde damit initialisiert und behält seine eigene Kopie, ein neues sperrt die Anwendung also aus der Datenbank aus, die sie gerade zurückgesetzt hat. |
 | `POSTGRES_HOST` | Host in der zusammengesetzten DSN. Wird nur vom Entrypoint gelesen. | `database` | Nur relevant, wenn plMail außerhalb dieser Compose-Datei läuft. |
 | `POSTGRES_CHARSET` | `charset` in der zusammengesetzten DSN. Nur Entrypoint. | `utf8` | — |
-| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. `truenas.compose.yaml` verschiebt beides unter einen Bind-Mount. |
+| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. Die TrueNAS-App verschiebt beides unter einen Bind-Mount. |
 | `NTFY_PORT` | Host-Port für den optionalen ntfy-Container. | `8090` | Wird nur unter dem Profil `push` verwendet. |
 | `NTFY_BASE_URL` | Basis-URL, die ntfy in Push-Endpunkten ausgibt. | `http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}` | Wird in jeden ausgegebenen Endpunkt eingebacken; eine spätere Änderung macht daher jedes bestehende Abonnement ungültig, und jedes Gerät muss sich neu registrieren. |
 | `NTFY_AUTH_DEFAULT_ACCESS` | ntfys Standard-Zugriffsrichtlinie. | `read-write` | Bewusst offen — UnifiedPush-Topics sind nicht erratbar und Nutzdaten sind für das Gerät verschlüsselt —, aber setz sie auf `deny-all` und leg einen Benutzer an, wenn das hier im Internet steht statt über ein VPN erreicht zu werden. |
@@ -226,8 +227,8 @@ die Umgebung, solange er nicht leer ist:
 | Welche Dateiintegrationen überhaupt angeboten werden | Administration → Integrationen |
 | Basis-URLs der Integrationsanbieter (das SSRF-Festlegen von oben) | Administration → Integrationen |
 
-Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert und auf den
-`truenas.compose.yaml` verweist, denn dort wird die exakte Redirect-URI angezeigt, die in die
+Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert, und der
+empfohlene, denn dort wird die exakte Redirect-URI angezeigt, die in die
 Konsole des Anbieters einzufügen ist.
 
 **Der typische Fehlerfall ist ein halb ausgefüllter Eintrag.** Ein gespeicherter Wert überdeckt die

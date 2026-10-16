@@ -1,4 +1,4 @@
-<!-- translated-from: providers/oidc.md sha1:bfed4daca2f0fb6cf002748994c3a5b99a1cd55e -->
+<!-- translated-from: providers/oidc.md sha1:9f13620e5ec8619776cb422760e6bb37e3e5f6c2 -->
 
 # Single Sign-on (OpenID Connect)
 
@@ -70,8 +70,7 @@ dreien ab, weil ein halber Anbieter hier eingerichtet aussähe, während sich ni
 
 Eine Installation, die ihre Konfiguration in einer Compose-Datei pflegt, kann dasselbe dort setzen;
 es gilt immer dann, wenn unter Administration → SSO kein vollständiger Anbieter gespeichert ist.
-`compose.yaml` reicht die Variablen aus deiner Umgebung durch, und `truenas.compose.yaml` hat die
-ersten vier in ihrem `x-config`-Block.
+`compose.yaml` reicht die Variablen aus deiner Umgebung durch.
 
 | Variable | Einstellung | Vorgabe |
 |---|---|---|

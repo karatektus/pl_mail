@@ -1177,6 +1177,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Keine Mail außerhalb von Spam und Papierkorb."
+
 alias:
     added: 'Adresse hinzugefügt.'
     catch_all_added: 'Catch-all-Domain hinzugefügt.'
@@ -2439,16 +2444,21 @@ integration:
         # den er später speichert — für Mail, die noch gar nicht da ist.
         choose_for_filter: 'Wähle, wohin dieser Filter Anhänge speichert.'
         choose_here: 'Diesen Ordner wählen'
+        choose_tag: 'Tag für %file% wählen'
         choose_this: Wählen
         create: Erstellen
         folder_name: 'Ordnername'
         library: 'Mediathek (kein Album)'
         new_album: 'Neues Album'
         new_folder: 'Neuer Ordner'
+        new_tag: 'Neuer Tag'
         no_albums: 'Noch keine Alben.'
         no_subfolders: 'Keine Ordner hier.'
+        no_tag: 'Kein Tag'
+        no_tags: 'Noch keine Tags.'
         save_here: 'Hier speichern'
         start_over: 'Von vorn beginnen'
+        tag_name: 'Tag-Name'
     picker:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
@@ -2457,6 +2467,7 @@ integration:
         link: Link
         more: 'Mehr anzeigen'
         no_results: 'Nichts gefunden für „%query%“.'
+        not_an_image: 'Keine Bilddatei'
         search: Suchen
         search_placeholder:
             dropbox: 'Dropbox durchsuchen'
@@ -2476,6 +2487,7 @@ integration:
             skipped: 'Übersprungen: %files%'
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
+        use_as_avatar: 'Als Profilbild verwenden'
 
 jobs:
     button:
@@ -2913,6 +2925,9 @@ sync_now:
     still_running: 'Die Synchronisierung läuft im Hintergrund weiter.'
     complete: 'Synchronisierung abgeschlossen.'
     session_expired: 'Deine Sitzung ist abgelaufen – lade die Seite neu, um dich wieder anzumelden.'
+pull_to_refresh:
+    pull: 'Zum Synchronisieren nach unten ziehen'
+    release: 'Loslassen zum Synchronisieren'
 search:
     empty:
         or_keyword: oder tippe einfach ein Stichwort.
@@ -4098,6 +4113,13 @@ settings:
         'off': Aus
         'on': An
         subheading: Ob Bilder, die eine Mail von anderswo lädt, erst auf Nachfrage geladen werden.
+    whats_new:
+        heading: 'Was ist neu'
+        'off': 'Aus'
+        'on': 'An'
+        show: 'Nach einem Update zeigen, was neu ist'
+        show_hint: 'Aus: Nach einem Update öffnet sich nichts, und das ? oben zeigt keinen Punkt. Die Hinweise findest du weiter unter ? → Was ist neu.'
+        subheading: 'Was plMail dir zeigt, nachdem es aktualisiert wurde.'
     nav:
         accounts: E-Mail-Konten
         ai: 'Assistent'
@@ -4346,6 +4368,11 @@ settings:
         reorder: "Zum Umsortieren ziehen"
         subheading: "Schalte die eingebauten Tabs ein oder aus, leg eigene an und zieh sie in die Reihenfolge, die du willst."
     sorting:
+        account_tabs:
+            hint: Zeigt die Tabs auch im eigenen Posteingang eines Kontos, wenn du das Konto in der Seitenleiste anklickst. Aus zeigt den ganzen Posteingang dieses Kontos als eine Liste.
+            label: Tabs in jedem Konto
+            'off': Aus
+            'on': An
         again:
             button: Nochmal fragen
             hint: Der Assistent antwortet einmal pro Nachricht und behält die Antwort. Frag noch einmal, wenn sich Modell, Anweisung oder eine plMail-Version geändert haben — es kostet einen Modell-Aufruf pro Nachricht und gilt deshalb nur für deine neueste Mail.
@@ -4523,6 +4550,7 @@ sidebar:
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
+        all_mail: Alle E-Mails
         archive: Archiv
         calendar: Kalender
         drafts: Entwürfe
@@ -4733,3 +4761,55 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+whats_new:
+    admin: 'Für Administratoren'
+    also: 'Außerdem in dieser Version'
+    changes: '{0}Keine Änderungen|{1}1 Änderung|]1,Inf[ %count% Änderungen'
+    changes_heading: 'Änderungen'
+    done: 'Fertig'
+    feedback:
+        back: 'Zurück zu den Änderungen'
+        error:
+            account: 'Wähle das Konto, von dem gesendet wird.'
+            empty: 'Schreib eine Nachricht oder sag, wie es mit plMail läuft.'
+            screenshot: 'Der Screenshot ließ sich nicht anhängen. Nimm den Haken heraus und sende noch einmal.'
+            send: 'Die Mail konnte nicht gesendet werden. Dein Text ist noch da; versuch es gleich noch einmal.'
+            transport: 'Nicht gesendet: Der Server hat mit %status% statt mit plMail geantwortet. Versuch es ohne den Screenshot oder frag, wer diese Installation betreibt.'
+        from: 'Senden von'
+        message:
+            label: 'Deine Nachricht'
+            placeholder: 'Was dir gefällt, was dir fehlt, was kaputt ist.'
+        nudge: 'Gefällt dir etwas, fehlt dir etwas oder ist etwas kaputt?'
+        rating:
+            better: 'Besser'
+            label: 'Seit dem Update ist plMail (optional)'
+            same: 'Wie vorher'
+            worse: 'Schlechter'
+        screenshot:
+            failed: 'Die Seite ließ sich nicht aufnehmen, also wird nichts angehängt.'
+            label: 'Screenshot der Seite anhängen, auf der du warst'
+            preview: 'Der Screenshot, der angehängt wird'
+            taking: 'Screenshot wird aufgenommen …'
+        send: 'Feedback senden'
+        sent:
+            body: 'Eine Kopie liegt in deinem Ordner „Gesendet“, und eine Antwort kommt an wie jede andere Mail.'
+            title: 'Feedback gesendet.'
+        title: 'Feedback senden'
+        where: 'Geht per Mail an %address%, mit deiner plMail-Version. Eine Kopie bleibt in deinem Ordner „Gesendet“.'
+    highlights: 'Highlights'
+    menu:
+        label: 'Hilfe und Feedback'
+        unseen: 'Es gibt Versionshinweise, die du noch nicht gesehen hast'
+        version: 'plMail %version%'
+    missing: 'Die Versionshinweise sind in dieser Installation nicht enthalten.'
+    nav:
+        current: 'Installiert'
+        history: 'Vollständiges Änderungsprotokoll'
+        label: 'Versionen'
+        new: 'Neu für dich'
+    quiet: 'Nach Updates nicht mehr anzeigen'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Screenshot schließen'
+    screenshot_open: 'Screenshot in voller Größe öffnen'
+    title: 'Was ist neu'

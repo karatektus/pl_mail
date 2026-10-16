@@ -202,6 +202,148 @@ final class InboxTabQueriesTest extends KernelTestCase
         self::assertSame(['Promo Co'], $this->repository->newSendersByCategoryForUnifiedInbox($this->user, new DateTimeImmutable())['primary'] ?? null);
     }
 
+    // ── one account's inbox ──────────────────────────────────────────────────
+    //
+    // The same fixture, asked the account page's questions. The account page is
+    // the unified inbox narrowed to one account, so it must give the same answer
+    // for a tab of the reader's own as the unified list does.
+
+    public function testAnAccountsInboxListsAndCountsTheReadersOwnTab(): void
+    {
+        $shipping = InboxTab::custom((int) $this->shipping->id, 'Shipping');
+
+        // carrierNew and updateRead are filed in Shipping (see the table above).
+        self::assertSame(
+            ['carrier, new', 'update, read'],
+            $this->subjects($this->repository->findForAccountInbox($this->account, category: $shipping)),
+        );
+        self::assertSame(2, $this->repository->countForAccountInbox($this->account, $shipping));
+    }
+
+    public function testAnAccountsBuiltInTabNoLongerHoldsWhatLeftItForTheReadersOwn(): void
+    {
+        $promotions = InboxTab::builtIn(MessageCategory::Promotions);
+
+        // carrierNew is built-in Promotions but filed in Shipping: only promoNew stays.
+        self::assertSame(['promo, new'], $this->subjects($this->repository->findForAccountInbox($this->account, category: $promotions)));
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account, $promotions));
+
+        // Presence companion for the empty one: Primary holds primaryRead.
+        self::assertSame(
+            ['primary, read'],
+            $this->subjects($this->repository->findForAccountInbox($this->account, category: InboxTab::builtIn(MessageCategory::Primary))),
+        );
+        self::assertSame(
+            [],
+            $this->subjects($this->repository->findForAccountInbox($this->account, category: InboxTab::builtIn(MessageCategory::Updates))),
+            'updateRead is in Shipping, so Updates is empty',
+        );
+        self::assertSame(0, $this->repository->countForAccountInbox($this->account, InboxTab::builtIn(MessageCategory::Updates)));
+    }
+
+    /**
+     * Hand-derived from the table above: Shipping {carrierNew, updateRead} = 2,
+     * Promotions {promoNew} = 1, Primary {primaryRead} = 1, Updates = 0 (no key).
+     * 2 + 1 + 1 = 4 = the four threads in the inbox, so every thread is in
+     * exactly one tab. The per-tab count is also what that tab's own list count
+     * says, so a strip can never offer a number its tab does not open on.
+     */
+    public function testAnAccountsTabCountsKeyTheReadersTabAndAddUpToTheInbox(): void
+    {
+        $key    = 'c' . $this->shipping->id;
+        $counts = $this->repository->countByCategoryForAccountInbox($this->account);
+
+        self::assertEquals([$key => 2, 'promotions' => 1, 'primary' => 1], $this->sorted($counts));
+        self::assertSame(4, array_sum($counts));
+        self::assertSame(4, $this->repository->countForAccountInbox($this->account, null));
+
+        foreach ($counts as $tabKey => $count) {
+            $tab = true === InboxTab::looksCustom($tabKey)
+                ? InboxTab::custom((int) substr($tabKey, 1), 'Shipping')
+                : InboxTab::builtIn(MessageCategory::from($tabKey));
+
+            self::assertSame($count, $this->repository->countForAccountInbox($this->account, $tab), $tabKey);
+        }
+
+        // The invariant itself, not only its arithmetic: put every tab's list
+        // end to end and each of the four threads turns up exactly once.
+        $listed = [];
+
+        foreach ([...array_map(InboxTab::builtIn(...), MessageCategory::cases()), InboxTab::custom((int) $this->shipping->id, 'Shipping')] as $tab) {
+            array_push($listed, ...$this->subjects($this->repository->findForAccountInbox($this->account, category: $tab)));
+        }
+
+        sort($listed);
+
+        self::assertSame(['carrier, new', 'primary, read', 'promo, new', 'update, read'], $listed);
+    }
+
+    /**
+     * Promotions switched off (see testASwitchedOffCategoryIsListedAndCounted…):
+     * promoNew is Primary's now, on the account page too. Hand-derived: Primary
+     * = {primaryRead, promoNew} = 2, Shipping = {carrierNew, updateRead} = 2,
+     * and 2 + 2 = 4 = the inbox, so no thread falls out of every tab.
+     */
+    public function testAnAccountsSwitchedOffCategoryIsListedAndCountedUnderPrimary(): void
+    {
+        $this->user->categorySorting->switchOff([MessageCategory::Promotions]);
+
+        $primary = InboxTab::builtIn(MessageCategory::Primary);
+
+        self::assertSame(
+            ['primary, read', 'promo, new'],
+            $this->subjects($this->repository->findForAccountInbox($this->account, category: $primary)),
+        );
+        self::assertSame(2, $this->repository->countForAccountInbox($this->account, $primary));
+
+        $counts = $this->repository->countByCategoryForAccountInbox($this->account);
+
+        self::assertEquals(['c' . $this->shipping->id => 2, 'primary' => 2], $this->sorted($counts));
+        self::assertSame(4, array_sum($counts));
+        self::assertSame(4, $this->repository->countForAccountInbox($this->account, null));
+    }
+
+    /**
+     * The category is the reader's, the counts are the account's. Another
+     * account of the same reader holds one more Shipping thread and one thread
+     * in a second category of theirs; neither may reach this account's counts.
+     *
+     * Derived: this account stays Shipping 2 / Promotions 1 / Primary 1. The
+     * other account is Shipping 1 / Travel 1 on its own.
+     */
+    public function testAnAccountsTabCountsDoNotReachIntoTheReadersOtherAccounts(): void
+    {
+        $travel       = new InboxCategory();
+        $travel->usr  = $this->user;
+        $travel->name = 'Travel';
+        $this->em->persist($travel);
+        $this->em->flush();
+
+        $here          = $this->account;
+        $this->account = $this->seedAccount($this->user);
+        $this->inboxThread('carrier, other account', MessageCategory::Promotions, $this->shipping, unread: 1);
+        $this->inboxThread('trip, other account', MessageCategory::Updates, $travel, unread: 0);
+        $other         = $this->account;
+        $this->account = $here;
+
+        $key = 'c' . $this->shipping->id;
+
+        self::assertEquals(
+            [$key => 2, 'promotions' => 1, 'primary' => 1],
+            $this->sorted($this->repository->countByCategoryForAccountInbox($here)),
+            'another account\'s mail is in this account\'s counts',
+        );
+        self::assertEquals(
+            [$key => 1, 'c' . $travel->id => 1],
+            $this->sorted($this->repository->countByCategoryForAccountInbox($other)),
+            'presence companion: the other account has its own counts',
+        );
+        self::assertSame(
+            2,
+            $this->repository->countForAccountInbox($here, InboxTab::custom((int) $this->shipping->id, 'Shipping')),
+        );
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
 
     /**

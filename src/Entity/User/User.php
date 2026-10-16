@@ -1257,6 +1257,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether an account's own inbox (the account row in the sidebar) is shown
+     * in the category tabs as well as the unified Inbox (#55).
+     *
+     * OFF unless somebody switches it on. With it on, clicking an account opens
+     * its Primary tab, and its Social or Promotions mail is one more click
+     * away; off, the account page is the account's whole inbox, which is what
+     * it always was and what the account's own "Inbox" folder row still lists.
+     * Turning a familiar page into a narrower one is a change somebody should
+     * ask for, not one that arrives with an upgrade.
+     *
+     * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
+     * somebody who chose One list gets one list everywhere, whatever this says.
+     * Only a stored true is on, so the key is absent for nearly everybody.
+     * Per USER — Settings → Mail → Categories.
+     */
+    public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
+
+    /** Virtual, out of the settings bag — see SETTING_ACCOUNT_INBOX_TABS. */
+    public bool $accountInboxTabs {
+        get => true === $this->getSetting(self::SETTING_ACCOUNT_INBOX_TABS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_ACCOUNT_INBOX_TABS, $on ? true : null);
+        }
+    }
+
+    /**
      * Which position the topbar's calendar button leaves out — Settings →
      * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
      * is what the button has always done, and a person who has learned it
@@ -1288,6 +1314,48 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
                 self::SETTING_CALENDAR_SWITCH_SKIP,
                 CalendarSwitchSkip::None === $skip ? null : $skip->value,
             );
+        }
+    }
+
+    /**
+     * The last plMail release this person was shown What's new for, as
+     * `0.3.6` (#165).
+     *
+     * State, not a choice: WhatsNew writes it when the dialog is drawn, and
+     * nobody sets it by hand. Everybody who existed when the dialog shipped
+     * was given 0.3.1 by Version20261016090000; anybody created since gets the
+     * running release on their first request (WhatsNewFirstSighting), which
+     * is what keeps the dialog off a fresh install.
+     */
+    public const string SETTING_WHATS_NEW_SEEN = 'whats_new.seen_version';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_SEEN. */
+    public ?string $whatsNewSeenVersion {
+        get {
+            $stored = $this->getSetting(self::SETTING_WHATS_NEW_SEEN);
+
+            return true === is_string($stored) && 1 === preg_match('/^\d+\.\d+\.\d+$/', $stored) ? $stored : null;
+        }
+        set (?string $version) {
+            $this->setSetting(self::SETTING_WHATS_NEW_SEEN, $version);
+        }
+    }
+
+    /**
+     * "Don't show this after updates", from the What's new dialog's footer, and
+     * its way back under Settings → General (#165).
+     *
+     * Quiet means quiet: the dialog does not open by itself and the ? in the
+     * top bar shows no dot. What's new is still in that menu for someone who
+     * goes looking. Off unless somebody asks, so only a stored true is on.
+     */
+    public const string SETTING_WHATS_NEW_QUIET = 'whats_new.quiet';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_QUIET. */
+    public bool $whatsNewQuiet {
+        get => true === $this->getSetting(self::SETTING_WHATS_NEW_QUIET, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_WHATS_NEW_QUIET, $on ? true : null);
         }
     }
 

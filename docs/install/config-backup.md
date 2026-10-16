@@ -59,11 +59,10 @@ are `MAILER_DSN` and `MESSENGER_TRANSPORT_DSN` — but those two are no longer e
 the reason given under [Why the deployment's own DSNs are not in the backup](#why-the-deployments-own-dsns-are-not-in-the-backup).
 Everything else it passes through as `${NAME:-}`.
 
-`truenas.compose.yaml` is the exception and deliberately so: it is a hand-edited file that sets
-`APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`, `MERCURE_JWT_SECRET` and the rest from YAML
-anchors, because that platform has no `.env` beside the compose file. On that deployment you are
-managing those values yourself, and the review will say so for each of them — which is correct
-rather than a failure of the restore, and the lines it hands back are the ones to put in the anchors.
+A hand-edited compose file that sets `APP_SECRET`, `APP_ENCRYPTION_KEY`, `DATABASE_URL`,
+`MERCURE_JWT_SECRET` and the rest directly is the exception. On such a deployment you are managing
+those values yourself, and the review will say so for each of them — which is correct
+rather than a failure of the restore, and the lines it hands back are the ones to put in that file.
 
 ## Exporting
 

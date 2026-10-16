@@ -1170,6 +1170,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: La version que cette installation exécute — la publication, et le commit à partir duquel elle a été construite.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Aucun message hors du spam et de la corbeille."
+
 alias:
     added: 'Adresse ajoutée.'
     catch_all_added: 'Domaine fourre-tout ajouté.'
@@ -2451,16 +2456,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choisissez où ce filtre enregistre les pièces jointes.'
         choose_here: 'Choisir ce dossier'
+        choose_tag: 'Choisir une étiquette pour %file%'
         choose_this: Choisir
         create: Créer
         folder_name: 'Nom du dossier'
         library: 'Bibliothèque (sans album)'
         new_album: 'Nouvel album'
         new_folder: 'Nouveau dossier'
+        new_tag: 'Nouvelle étiquette'
         no_albums: 'Aucun album pour l’instant.'
         no_subfolders: 'Aucun dossier ici.'
+        no_tag: 'Sans étiquette'
+        no_tags: 'Aucune étiquette pour l’instant.'
         save_here: 'Enregistrer ici'
         start_over: 'Recommencer'
+        tag_name: 'Nom de l’étiquette'
     picker:
         attach: Joindre
         attach_from: 'Joindre depuis %name%'
@@ -2469,6 +2479,7 @@ integration:
         link: Lien
         more: 'Afficher plus'
         no_results: 'Rien trouvé pour « %query% ».'
+        not_an_image: 'Pas une image'
         search: Rechercher
         search_placeholder:
             dropbox: 'Rechercher dans Dropbox'
@@ -2488,6 +2499,7 @@ integration:
             skipped: 'Ignorés : %files%'
         timeline: 'Aller à une date'
         too_big: 'Trop volumineux pour être joint'
+        use_as_avatar: 'Utiliser comme photo de profil'
 
 jobs:
     button:
@@ -2942,6 +2954,9 @@ sync_now:
     still_running: 'La synchronisation se poursuit en arrière-plan.'
     complete: 'Synchronisation terminée.'
     session_expired: 'Votre session a expiré — rechargez la page pour vous reconnecter.'
+pull_to_refresh:
+    pull: 'Tirez vers le bas pour synchroniser'
+    release: 'Relâchez pour synchroniser'
 search:
     empty:
         or_keyword: ou tapez simplement un mot-clé.
@@ -4137,6 +4152,13 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    whats_new:
+        heading: 'Nouveautés'
+        'off': 'Désactivé'
+        'on': 'Activé'
+        show: 'Afficher les nouveautés après une mise à jour'
+        show_hint: 'Désactivé : rien ne s’ouvre après une mise à jour, et le ? de la barre du haut n’affiche aucun point. Les notes restent sous ? → Nouveautés.'
+        subheading: 'Ce que plMail vous montre après une mise à jour.'
     nav:
         accounts: Comptes mail
         ai: 'Assistant'
@@ -4355,6 +4377,11 @@ settings:
             toggle: 'Vue de la signature'
         subheading: 'Ce qui est ajouté en bas des messages que vous écrivez.'
     sorting:
+        account_tabs:
+            hint: Affiche aussi les onglets dans la boîte de réception d’un compte, quand vous cliquez sur le compte dans la barre latérale. Désactivé affiche toute la boîte de ce compte en une seule liste.
+            label: Onglets dans chaque compte
+            'off': 'Désactivé'
+            'on': 'Activé'
         again:
             button: Redemander
             hint: L’assistant répond une fois par message et garde la réponse. Redemandez après un changement de modèle, d’instruction ou de version de plMail — cela coûte un appel au modèle par message, c’est donc limité à votre courrier le plus récent.
@@ -4532,6 +4559,7 @@ sidebar:
     new_mail_here: 'Nouveau courrier dans %where%'
     new_mail_here_count: '%count% nouveaux dans %where%'
     nav:
+        all_mail: Tous les messages
         archive: Archives
         calendar: Agenda
         drafts: Brouillons
@@ -4766,3 +4794,55 @@ templates:
         sender_email: 'Votre adresse'
         sender_name: 'Votre nom'
         signature: 'Signature'
+
+whats_new:
+    admin: 'Pour les administrateurs'
+    also: 'Également dans cette version'
+    changes: '{0}Aucun changement|{1}1 changement|]1,Inf[ %count% changements'
+    changes_heading: 'Changements'
+    done: 'Terminé'
+    feedback:
+        back: 'Retour aux changements'
+        error:
+            account: 'Choisissez le compte d’envoi.'
+            empty: 'Écrivez un message, ou dites comment plMail se porte.'
+            screenshot: 'La capture d’écran n’a pas pu être jointe. Décochez-la et envoyez à nouveau.'
+            send: 'Le courrier n’a pas pu être envoyé. Votre texte est toujours là ; réessayez dans un instant.'
+            transport: 'Non envoyé : le serveur a répondu %status% au lieu de plMail. Réessayez sans la capture, ou demandez à la personne qui gère cette installation.'
+        from: 'Envoyer depuis'
+        message:
+            label: 'Votre message'
+            placeholder: 'Ce qui vous plaît, ce qui vous manque, ce qui ne marche pas.'
+        nudge: 'Quelque chose vous plaît, vous manque ou ne marche pas ?'
+        rating:
+            better: 'Mieux'
+            label: 'Depuis la mise à jour, plMail est (facultatif)'
+            same: 'Comme avant'
+            worse: 'Moins bien'
+        screenshot:
+            failed: 'La page n’a pas pu être capturée, rien ne sera donc joint.'
+            label: 'Joindre une capture de la page où vous étiez'
+            preview: 'La capture qui sera jointe'
+            taking: 'Capture en cours…'
+        send: 'Envoyer un avis'
+        sent:
+            body: 'Une copie se trouve dans votre dossier Envoyés, et une réponse arrive comme n’importe quel courrier.'
+            title: 'Avis envoyé.'
+        title: 'Envoyer un avis'
+        where: 'Part par courrier à %address%, avec votre version de plMail. Une copie reste dans votre dossier Envoyés.'
+    highlights: 'À la une'
+    menu:
+        label: 'Aide et avis'
+        unseen: 'Des notes de version que vous n’avez pas encore vues'
+        version: 'plMail %version%'
+    missing: 'Les notes de version ne font pas partie de cette installation.'
+    nav:
+        current: 'Installée'
+        history: 'Historique complet'
+        label: 'Versions'
+        new: 'Nouveau pour vous'
+    quiet: 'Ne plus afficher après les mises à jour'
+    screenshot: 'Capture d''écran'
+    screenshot_close: 'Fermer la capture'
+    screenshot_open: 'Ouvrir la capture en taille réelle'
+    title: 'Nouveautés'

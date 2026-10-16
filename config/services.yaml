@@ -15,6 +15,11 @@ parameters:
     app.fallback_timezone: 'Europe/Berlin'
     app.default_timezone: '%env(default:app.fallback_timezone:APP_DEFAULT_TIMEZONE)%'
 
+    # Where What's new's "Send feedback" goes (#165). Through `default:` so an
+    # install whose .env predates the variable still has somewhere to send to.
+    app.fallback_feedback_to: 'feedback@pluetzner.de'
+    app.feedback_to: '%env(default:app.fallback_feedback_to:APP_FEEDBACK_TO)%'
+
     # Whether this install is a public demo. Read through `default:` so an
     # install that never heard of the variable is a normal one — the accident
     # worth preventing is a real deployment turning into a demo, not the

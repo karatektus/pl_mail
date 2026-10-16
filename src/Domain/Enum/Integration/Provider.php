@@ -473,6 +473,22 @@ enum Provider: string
     }
 
     /**
+     * What a save is filed into — a folder, an album or a tag.
+     *
+     * Not derived from isMediaLibrary(): that is about what the service holds,
+     * this is about the shape of the containers, and a document archive has
+     * the second without the first.
+     */
+    public function destinationKind(): DestinationKind
+    {
+        return match ($this) {
+            self::Immich, self::GooglePhotos => DestinationKind::Album,
+            self::Paperless                  => DestinationKind::Tag,
+            default                          => DestinationKind::Folder,
+        };
+    }
+
+    /**
      * Whether a "Save to…" of this content type could possibly land.
      *
      * A photo library (Immich, Google Photos) ingests images and videos and

@@ -162,6 +162,14 @@ class Message extends MessageModel
 
 
 
+    /**
+     * When the message went out (for received mail, when it arrived).
+     *
+     * An unsent draft has none, however it came to be here: the editor, the
+     * send queue and the thread all read "has a sentAt" as "has gone out". So
+     * a sync builder must leave it null for a draft, or a draft written in
+     * another client is listed and then refused (404) by the editor.
+     */
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $sentAt = null;
 
@@ -798,6 +806,43 @@ class Message extends MessageModel
     public function hasFlag(MessageFlag $flag): bool
     {
         return in_array($flag->value, $this->flags, true);
+    }
+
+    /**
+     * A stored draft that the provider says has been sent.
+     *
+     * Sync stores a draft once, as an unsent draft, and never rebuilds a stored
+     * row, so sending it from Outlook or Gmail left it flagged `\Draft` with no
+     * sentAt: the editor would open it, the send queue would send it again, and
+     * discarding it would delete the sent copy at the provider. This is the one
+     * place that says what "was sent" means for the row, for every provider.
+     *
+     * The thread is ranked by $at, as the local send does (ThreadOrderingOnSendTest),
+     * but never moved backwards. Its category is not re-adopted: that is the
+     * threader's, and a draft's reply context was settled when it was written.
+     *
+     * Anything that is not an unsent draft is left exactly as it is, since the
+     * sync asks about every stored message the provider says is not a draft.
+     */
+    public function settleAsSent(DateTimeImmutable $at): void
+    {
+        if (false === $this->isDraft()) {
+            return;
+        }
+
+        $this->removeFlag(MessageFlag::DRAFT);
+
+        // A draft stored before synced drafts were kept unsent already has a
+        // sentAt (its receivedAt). That is the time it keeps, and the one the
+        // thread is ranked by: $at is only when this was noticed, and a mass
+        // re-read of old drafts must not float every conversation to the top.
+        $this->sentAt ??= $at;
+
+        $thread = $this->thread;
+
+        if (null !== $thread && (null === $thread->lastMessageAt || $this->sentAt > $thread->lastMessageAt)) {
+            $thread->lastMessageAt = $this->sentAt;
+        }
     }
 
     /**

@@ -36,8 +36,8 @@ WORKDIR /app
 # and raw messages written by the sync workers were invisible to the web
 # container that serves them — downloads 404'd, and the data vanished on every
 # container recreate. The durable paths are now bound explicitly per service
-# (var/attachments, var/raw, var/uploads); see compose.override.yaml and
-# truenas.compose.yaml. Re-adding this line silently breaks blob download again.
+# (var/attachments, var/raw, var/uploads); see compose.yaml and compose.dev.yaml.
+# Re-adding this line silently breaks blob download again.
 
 # persistent / runtime deps
 # hadolint ignore=DL3008

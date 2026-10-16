@@ -1,4 +1,4 @@
-<!-- translated-from: install/backup-restore.md sha1:bf79195c22d7a32064dd0b95d14bb8787cc7cdf9 -->
+<!-- translated-from: install/backup-restore.md sha1:c0c1c67a7da74a18108508f15e4db1df50c4d353 -->
 # Sichern und Wiederherstellen
 
 Eine plMail-Installation besteht aus drei Dingen, und eine Sicherung, die nur zwei davon enthält,
@@ -138,8 +138,8 @@ docker compose exec -T database psql -U app -d app < database.sql
 ```
 
 **5. Leg die Blobs zurück** in das, was sie auf diesem Host aufnimmt — die benannten Volumes, falls
-du sie ergänzt hast, oder das bind-gemountete Verzeichnis, falls du dem Muster aus
-`truenas.compose.yaml` gefolgt bist. Worauf es ankommt: Die Pfade unterhalb von `APP_STORAGE_DIR`
+du sie ergänzt hast, oder das bind-gemountete Datenverzeichnis, falls du eines
+verwendest. Worauf es ankommt: Die Pfade unterhalb von `APP_STORAGE_DIR`
 müssen dieselben sein wie vorher, denn die Datenbank speichert sie relativ zum
 Projektstammverzeichnis.
 

@@ -1084,6 +1084,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "Not a bottle aboard outside Spam an' the bin."
+
 alias:
     added: 'Address added, arr!'
     catch_all_added: 'Catch-all harbour added, arr!'
@@ -2318,16 +2323,21 @@ integration:
         choose_folder: 'Pick a hold fer %file%'
         choose_for_filter: "Pick where this sieve stows its cargo."
         choose_here: 'Take this hold'
+        choose_tag: 'Pick a tag fer %file%'
         choose_this: Take it
         create: Make
         folder_name: 'Hold name'
         library: 'Whole library (no album)'
         new_album: 'New album'
         new_folder: 'New hold'
+        new_tag: 'New tag'
         no_albums: 'No albums yet, matey.'
         no_subfolders: 'No holds here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet, matey.'
         save_here: 'Stow here'
         start_over: 'Start afresh'
+        tag_name: 'Tag name'
     picker:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'
@@ -2336,6 +2346,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Naught found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2355,6 +2366,7 @@ integration:
             skipped: 'Left on the dock: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too heavy to haul'
+        use_as_avatar: 'Hoist as me flag'
 
 jobs:
     button:
@@ -2787,6 +2799,9 @@ sync_now:
     still_running: 'Still haulin'' below decks.'
     complete: 'All hands aboard — sync complete.'
     session_expired: 'Yer watch has ended — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Heave down to haul in the post'
+    release: 'Let go, and haul in the post'
 search:
     empty:
         or_keyword: or just bellow a keyword.
@@ -3894,6 +3909,13 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    whats_new:
+        heading: 'What''s new aboard'
+        'off': 'Off'
+        'on': 'On'
+        show: 'Show what''s new after a refit'
+        show_hint: 'Off: nothin'' opens after a refit, an'' the ? up top shows no dot. The log be still under ? → What''s new aboard.'
+        subheading: 'What plMail shows ye after she''s been refitted.'
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
@@ -4125,6 +4147,11 @@ settings:
         reorder: "Drag t' reorder"
         subheading: "Raise or strike the ship's own tabs, add yer own, an' haul 'em into whatever order ye fancy."
     sorting:
+        account_tabs:
+            hint: "Shows the tabs on each ship's own hold too, when ye click the ship in the sidebar. Off shows that ship's whole hold as one pile."
+            label: "Tabs on every ship"
+            'off': Off
+            'on': On
         again:
             button: "Ask again"
             hint: "Th' oracle answers once per message an' keeps th' answer. Ask again when th' oracle, its orders or a plMail release have changed — it costs an askin' per message, so it be bounded to yer newest post."
@@ -4302,6 +4329,7 @@ sidebar:
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:
+        all_mail: Every bottle aboard
         archive: The hold
         calendar: Almanac
         drafts: Scrolls in the works
@@ -4509,3 +4537,55 @@ templates:
         sender_email: 'Yer address'
         sender_name: 'Yer name'
         signature: 'Mark'
+
+whats_new:
+    admin: 'For them that captain the ship'
+    also: 'Also in this haul'
+    changes: '{0}Nary a change|{1}1 change|]1,Inf[ %count% changes'
+    changes_heading: 'Changes'
+    done: 'Aye'
+    feedback:
+        back: 'Back to the changes'
+        error:
+            account: 'Pick the ship ye be sendin'' from.'
+            empty: 'Scrawl a message, or say how plMail be sailin''.'
+            screenshot: 'The likeness couldn''t be lashed on. Untick it an'' send again.'
+            send: 'The bottle couldn''t be sent. Yer words be still here; try again in a moment.'
+            transport: 'Not sent: the harbour answered %status% instead o'' plMail. Try again without the likeness, or ask whoever captains this ship.'
+        from: 'Send from'
+        message:
+            label: 'Yer message'
+            placeholder: 'What ye like, what ye miss, what broke.'
+        nudge: 'Somethin'' ye like, miss, or that broke?'
+        rating:
+            better: 'Better'
+            label: 'Since the refit, plMail be (if ye please)'
+            same: 'Same as before'
+            worse: 'Worse'
+        screenshot:
+            failed: 'The page couldn''t be captured, so nothin'' will be lashed on.'
+            label: 'Lash on a likeness o'' the page ye were on'
+            preview: 'The likeness that''ll be lashed on'
+            taking: 'Takin'' the likeness…'
+        send: 'Send word'
+        sent:
+            body: 'A copy be in yer Sent hold, an'' a reply comes aboard like any other bottle.'
+            title: 'Word sent.'
+        title: 'Send word'
+        where: 'Goes by bottle to %address%, with yer plMail version. A copy stays in yer Sent hold.'
+    highlights: 'Treasures'
+    menu:
+        label: 'Help an'' word'
+        unseen: 'There be ship''s log entries ye haven''t seen'
+        version: 'plMail %version%'
+    missing: 'The ship''s log ain''t aboard this vessel.'
+    nav:
+        current: 'Aboard'
+        history: 'The whole ship''s log'
+        label: 'Refits'
+        new: 'New to ye'
+    quiet: 'Don''t show this after a refit'
+    screenshot: 'Likeness'
+    screenshot_close: 'Stow the likeness'
+    screenshot_open: 'Open the likeness full size'
+    title: 'What''s new aboard'

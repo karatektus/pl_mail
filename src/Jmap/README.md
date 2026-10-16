@@ -120,7 +120,13 @@ column.
   relays ciphertext. `FcmSender` sends such a payload sealed or not at all;
   `StateChange` and `PushVerification` carry no content and stay readable.
 - `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
-  driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
+  driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`, which
+  drains two buffers from `StateManager`: what changed (`drainDirty()`) and on
+  which accounts mail arrived (`drainArrivals()`). A subscription with
+  `arrivalsOnly` — the in-app browser/PWA device, set by `WebPushController` —
+  is sent a StateChange only when its user had an arrival; every other row is
+  sent every StateChange. "Arrived" is decided by `PostIngestPipeline` (a live
+  batch, filed in the Inbox), not by an Email being created.
 
 **Appearance glue**
 - `Mapper/AppearanceMapper` — `App\Entity\Embeddable\Appearance` → the JMAP
@@ -498,8 +504,8 @@ Get these wrong and things fail quietly rather than loudly.
 - **`var/attachments`, `var/raw` and `var/uploads` must be shared storage.** The
   workers write them, the web container serves them. `php` overlays `/app/var`
   with a private volume for cache/logs, so those three paths are bound
-  explicitly in every service — see `compose.override.yaml` and
-  `truenas.compose.yaml`. The Dockerfile deliberately no longer declares
+  explicitly in every service — see `compose.yaml` and `compose.dev.yaml`.
+  The Dockerfile deliberately no longer declares
   `VOLUME /app/var/`; it gave each container its own anonymous volume there,
   which made downloads 404 and lost the data on every container recreate.
 - **Every path that changes a JMAP-visible property must call

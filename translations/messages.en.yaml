@@ -1163,6 +1163,11 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "No mail outside Spam and the bin."
+
 alias:
     added: 'Address added.'
     catch_all_added: 'Catch-all domain added.'
@@ -2436,16 +2441,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choose where this filter saves attachments.'
         choose_here: 'Choose this folder'
+        choose_tag: 'Choose a tag for %file%'
         choose_this: Choose
         create: Create
         folder_name: 'Folder name'
         library: 'Library (no album)'
         new_album: 'New album'
         new_folder: 'New folder'
+        new_tag: 'New tag'
         no_albums: 'No albums yet.'
         no_subfolders: 'No folders here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet.'
         save_here: 'Save here'
         start_over: 'Start over'
+        tag_name: 'Tag name'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'
@@ -2454,6 +2464,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Nothing found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2473,6 +2484,7 @@ integration:
             skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
+        use_as_avatar: 'Use as profile picture'
 
 jobs:
     button:
@@ -2925,6 +2937,9 @@ sync_now:
     still_running: 'Sync is still running in the background.'
     complete: 'Sync complete.'
     session_expired: 'Your session has expired — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Pull down to sync'
+    release: 'Release to sync'
 search:
     empty:
         or_keyword: or just type a keyword.
@@ -4083,6 +4098,13 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    whats_new:
+        heading: 'What''s new'
+        'off': 'Off'
+        'on': 'On'
+        show: 'Show what''s new after an update'
+        show_hint: 'Off: nothing opens after an update, and the ? in the top bar shows no dot. The notes are still under ? → What''s new.'
+        subheading: 'What plMail shows you after it has been updated.'
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -4325,6 +4347,11 @@ settings:
         reorder: "Drag to reorder"
         subheading: "Switch the built-in tabs on or off, add your own, and drag them into the order you want."
     sorting:
+        account_tabs:
+            hint: Shows the tabs on an account's own inbox too, when you click the account in the sidebar. Off shows that account's whole inbox as one list.
+            label: Tabs on each account
+            'off': 'Off'
+            'on': 'On'
         again:
             button: Ask again
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
@@ -4502,6 +4529,7 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
+        all_mail: All Mail
         archive: Archive
         calendar: Calendar
         drafts: Drafts
@@ -4736,3 +4764,55 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+whats_new:
+    admin: 'For administrators'
+    also: 'Also in this release'
+    changes: '{0}No changes|{1}1 change|]1,Inf[ %count% changes'
+    changes_heading: 'Changes'
+    done: 'Done'
+    feedback:
+        back: 'Back to the changes'
+        error:
+            account: 'Choose the account to send from.'
+            empty: 'Write a message, or say how plMail is doing.'
+            screenshot: 'The screenshot could not be attached. Untick it and send again.'
+            send: 'The mail could not be sent. Your text is still here; try again in a moment.'
+            transport: 'Not sent: the server answered %status% instead of plMail. Try again without the screenshot, or ask whoever runs this install.'
+        from: 'Send from'
+        message:
+            label: 'Your message'
+            placeholder: 'What you like, what you miss, what broke.'
+        nudge: 'Something you like, miss, or that broke?'
+        rating:
+            better: 'Better'
+            label: 'Since the update, plMail is (optional)'
+            same: 'Same as before'
+            worse: 'Worse'
+        screenshot:
+            failed: 'The page could not be captured, so nothing will be attached.'
+            label: 'Attach a screenshot of the page you were on'
+            preview: 'The screenshot that will be attached'
+            taking: 'Taking the screenshot…'
+        send: 'Send feedback'
+        sent:
+            body: 'A copy is in your Sent folder, and a reply arrives like any other mail.'
+            title: 'Feedback sent.'
+        title: 'Send feedback'
+        where: 'Goes by mail to %address%, with your plMail version. A copy stays in your Sent folder.'
+    highlights: 'Highlights'
+    menu:
+        label: 'Help and feedback'
+        unseen: 'There are release notes you have not seen'
+        version: 'plMail %version%'
+    missing: 'The release notes are not part of this installation.'
+    nav:
+        current: 'Installed'
+        history: 'Full changelog'
+        label: 'Releases'
+        new: 'New to you'
+    quiet: 'Don''t show this after updates'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Close the screenshot'
+    screenshot_open: 'Open the screenshot full size'
+    title: 'What''s new'

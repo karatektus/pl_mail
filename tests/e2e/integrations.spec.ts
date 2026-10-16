@@ -523,6 +523,76 @@ test.describe("compose integration picker", () => {
     });
 
     /**
+     * Settings → Profile chose a picture from a grid of its own — the first page
+     * of the service's root, with no albums, search or paging — so only the
+     * newest photos were ever on offer. It opens the picker compose uses.
+     *
+     * The service is unreachable here, so what is asserted is that the dialog
+     * is the picker (its own error, not an empty grid), that it was asked in
+     * avatar mode, and that choosing hands the file back to the form, which
+     * posts it. With no service there is no photo to click, so the choice is a
+     * ticked radio put where the picker's own markup puts one — the rest, from
+     * the picker's button to the form's request, is the real thing.
+     */
+    test("Settings → Profile picks a picture through the same picker", async ({
+        page,
+    }) => {
+        await enableNextcloudAsAdmin(page);
+        await connectAsMailUser(page, "Picture cloud");
+
+        await page.goto("/settings?section=profile");
+
+        const browse = page.waitForRequest((request) =>
+            /\/integrations\/\d+\/browse\?mode=avatar$/.test(request.url()),
+        );
+
+        await page.getByRole("button", { name: "Picture cloud" }).click();
+        await browse;
+
+        const modal = page.locator("#modal");
+
+        await expect(modal).toContainText(/Could not reach the Nextcloud server/i);
+
+        // Nothing chosen yet: the button must not post an empty choice.
+        await modal.getByRole("button", { name: "Use as profile picture" }).click();
+        await expect(modal).toContainText("Nothing selected");
+
+        await modal
+            .locator('[data-controller="integration--integration-picker"]')
+            .evaluate((root) => {
+                // Two files, the second chosen after the first — a profile has
+                // one picture, so only the second may be left standing.
+                for (const [file, checked] of [["Photos/old.jpg", true], ["Photos/me.jpg", false]] as const) {
+                    const input = document.createElement("input");
+                    input.type = "radio";
+                    input.name = `mode[${file}]`;
+                    input.value = "copy";
+                    input.checked = checked;
+                    input.setAttribute("data-integration--integration-picker-target", "mode");
+                    root.append(input);
+                }
+
+                const second = root.querySelector<HTMLInputElement>('input[name="mode[Photos/me.jpg]"]')!;
+                second.checked = true;
+                second.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+        await expect(modal.locator('input[name="mode[Photos/old.jpg]"]')).not.toBeChecked();
+
+        const save = page.waitForRequest(
+            (request) =>
+                "POST" === request.method() && /\/settings\/profile$/.test(request.url()),
+        );
+
+        await modal.getByRole("button", { name: "Use as profile picture" }).click();
+
+        // Both fields, under the form's own name, carrying what was chosen.
+        const body = (await save).postData() ?? "";
+        expect(body).toMatch(/name="profile\[avatarIntegrationId\]"\s+\d+/);
+        expect(body).toMatch(/name="profile\[avatarFileId\]"\s+Photos\/me\.jpg/);
+    });
+
+    /**
      * The attachment chip gained a "Save to…" half and was extracted into a
      * shared partial, so both of its call sites had to keep working. This
      * covers the thread view: the menu opens where a human can press it, and

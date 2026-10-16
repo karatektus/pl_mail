@@ -4938,6 +4938,32 @@ emoji-picker {
     animation-timing-function: var(--motion-ease);
 }
 
+/* ── What's new: a screenshot, grown to fill the dialog (#179) ─────────────
+   A layer over the What's new body (its container is `relative`), with the
+   picture centred and contained in it. The surface behind the picture is a
+   separate element so the controller can fade it in while the picture grows:
+   fading the layer itself would fade the picture with it. Opaque, not the
+   panel's glass, so the notes do not show through behind the picture. */
+.whats-new-shot {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.whats-new-shot[hidden] {
+    display: none;
+}
+
+.whats-new-shot-backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgb(var(--rgb-surface));
+}
+
 /* ═══ Appearance: typography, the mail list, and per-surface density ════════
    Everything below is driven by custom properties AppearanceRenderer writes
    inline on <html>. That is not a decoration of the existing scheme, it IS the
@@ -5386,6 +5412,45 @@ label:has(> input.sr-only) {
     z-index: 30;
 }
 
+/* ═══ A message header in a narrow pane ═════════════════════════════════════
+   The header is one row: avatar, sender, and a block holding the date, the ⋮
+   menu and the chevron. The last of those is as wide as it is on a desktop
+   (the date alone is ~150px), so in a pane of phone width it left the sender
+   about 110px and the address broke mid-word onto three lines.
+
+   Keyed to the width of `.thread-messages`, NOT to a media query. The reading
+   pane on the right makes a ~400px message pane on a 1920px monitor, and a
+   viewport breakpoint would fix the phone and leave exactly that case broken.
+   36rem is the same threshold the list rows use for their own narrow layout.
+
+   Narrow, the date block drops to a row of its own: the date at the left, ⋮
+   and the chevron at the right, indented to line up under the sender rather
+   than under the avatar. That gives the sender the full width, and the row it
+   already is (name, address, labels, `flex-wrap`) does the rest: the address
+   sits beside the name when it fits and takes a line of its own when it does
+   not. How much of a long address shows on that line is the address's own
+   styling, which this block does not touch. */
+.thread-messages {
+    container: thread-messages / inline-size;
+}
+
+@container thread-messages (max-width: 36rem) {
+    .thread-message-head {
+        flex-wrap: wrap;
+        row-gap: 0.125rem;
+    }
+
+    /* 3rem = the avatar (2.25rem) and the header's gap (0.75rem). */
+    .thread-message-meta {
+        flex: 0 0 100%;
+        padding-left: 3rem;
+    }
+
+    .thread-message-date {
+        margin-right: auto;
+    }
+}
+
 /* ═══ Dragging conversations onto folders and tabs ═════════════════════════
    The visual half of mail--dnd. Everything here keys off two data attributes
    the controller sets and clears: `data-dnd-active` on <html> for the whole
@@ -5598,4 +5663,47 @@ html[data-dnd-active] [data-dnd-ghost] {
 [data-kbd-cursor] {
     outline: 2px solid rgb(var(--rgb-accent) / 0.7);
     outline-offset: -2px;
+}
+
+/* ── Pull to refresh ───────────────────────────────────────────────────────
+   The indicator above a phone's mail list. pull_to_refresh_controller.js
+   moves it with the finger by an inline transform, so the idle position below
+   is the one a CSS rule owns: out of sight, above the top of the list. It is
+   removed from the flow (absolute), so the list does not move while it is
+   shown. Its slide back is a transition, which the controller removes under
+   reduced motion.
+
+   Unlayered, like the rules above. */
+.mail-pull-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    width: fit-content;
+    margin-inline: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    background: rgb(var(--rgb-raised));
+    color: rgb(var(--rgb-ink-muted));
+    font-size: 0.8125rem;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: transform 200ms ease-out;
+}
+
+.mail-pull-indicator [data-label-for] {
+    display: none;
+}
+
+.mail-pull-indicator[data-state="pulling"] [data-label-for="pulling"],
+.mail-pull-indicator[data-state="release"] [data-label-for="release"] {
+    display: inline;
+}
+
+.mail-pull-indicator[data-state="release"] {
+    color: var(--accent-text);
 }
