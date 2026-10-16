@@ -31,11 +31,6 @@ namespace App\Domain\Helper;
  * built message is missing" in the log. The test stack mounts the whole
  * checkout, so it could not see the difference. Avatars and signatures live
  * inside uploads/ for the same reason.
- *
- * Reading still looks in the old place, for an install whose var/ is one
- * directory (a checkout, an install without Docker): what it wrote before
- * stays readable there. In a Docker stack the old files were in the web
- * container's own layer and went with it.
  */
 readonly class SealedMessageStorage
 {
@@ -67,10 +62,6 @@ readonly class SealedMessageStorage
         $path = $this->path($messageId, $kind);
 
         if (false === is_file($path)) {
-            $path = $this->path($messageId, $kind, legacy: true);
-        }
-
-        if (false === is_file($path)) {
             return null;
         }
 
@@ -81,22 +72,19 @@ readonly class SealedMessageStorage
 
     public function delete(int $messageId, string $kind): void
     {
-        foreach ([false, true] as $legacy) {
-            $path = $this->path($messageId, $kind, $legacy);
+        $path = $this->path($messageId, $kind);
 
-            if (true === is_file($path)) {
-                unlink($path);
-            }
+        if (true === is_file($path)) {
+            unlink($path);
         }
     }
 
-    private function path(int $messageId, string $kind, bool $legacy = false): string
+    private function path(int $messageId, string $kind): string
     {
         return sprintf(
-            '%s/%s/%s/%d/%d.%s',
+            '%s/%s/raw/sealed/%d/%d.%s',
             $this->projectDir,
             $this->storageDir,
-            true === $legacy ? 'sealed' : 'raw/sealed',
             intdiv($messageId, self::FANOUT),
             $messageId,
             true === in_array($kind, [self::OUTGOING, self::DECRYPTED], true) ? $kind : self::DRAFT,

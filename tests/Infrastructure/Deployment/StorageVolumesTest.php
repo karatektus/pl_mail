@@ -85,35 +85,6 @@ final class StorageVolumesTest extends TestCase
         }
     }
 
-    /** An install whose var/ is one directory keeps reading what it wrote before the move. */
-    public function testASealedMessageFromTheOldPlaceIsStillReadAndDeleted(): void
-    {
-        $legacy = $this->projectDir . '/var/sealed/1/1234.eml';
-        mkdir(dirname($legacy), 0755, true);
-        file_put_contents($legacy, 'built before the move');
-
-        $storage = new SealedMessageStorage($this->projectDir, 'var');
-
-        self::assertSame('built before the move', $storage->read(1234, SealedMessageStorage::OUTGOING));
-
-        $storage->delete(1234, SealedMessageStorage::OUTGOING);
-
-        self::assertFileDoesNotExist($legacy);
-        self::assertNull($storage->read(1234, SealedMessageStorage::OUTGOING));
-    }
-
-    public function testTheNewPlaceWinsOverTheOld(): void
-    {
-        $legacy = $this->projectDir . '/var/sealed/1/1234.eml';
-        mkdir(dirname($legacy), 0755, true);
-        file_put_contents($legacy, 'old');
-
-        $storage = new SealedMessageStorage($this->projectDir, 'var');
-        $storage->write(1234, SealedMessageStorage::OUTGOING, 'new');
-
-        self::assertSame('new', $storage->read(1234, SealedMessageStorage::OUTGOING));
-    }
-
     /**
      * The container paths under /app/var that compose.yaml's `x-app-storage`
      * mounts, as paths relative to the project: `var/raw`, `var/uploads`, ….
