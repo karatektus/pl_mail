@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A conversation no longer splits when its replies are synced first.** When replies arrived before
+the message they answer, which is the usual case right after connecting an IMAP account (the Inbox
+is synced before Sent Items), each reply that found nothing to hang on started a conversation of
+its own, and the message that arrived later started another: a four-message exchange could be
+listed as three conversations, until `app:backfill rethread` was run. A message now also brings in
+the mail that already answers it, so a conversation ends up as one whatever order its folders are
+synced in. The conversation that was already in your list is the one kept, with its star, its tab
+and its labels. Conversations split before this update stay split until the next
+`app:backfill rethread`. **Migration:** one index on `message`, built on boot; on a large mailbox
+the first start after the update takes longer while it is built, and new mail waits for it.
+[#176](https://github.com/karatektus/pl_mail/pull/176), by @phdelodder.
+
 **IMAP folders that never synced now do.** On some servers, Dovecot among them, a folder's
 UIDVALIDITY (the number that says whether its message numbers still mean what they did) is above
 2147483647, and plMail could not store a number that large: every sync of such a folder stopped

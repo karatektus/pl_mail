@@ -122,6 +122,21 @@ final readonly class MailChangeRecorder
     }
 
     /**
+     * A conversation stopped existing because its messages joined another.
+     *
+     * The one case where a Thread is destroyed rather than updated, and the
+     * reason emailDestroyed() can say "updated" does not apply: that row stays
+     * standing, this one is deleted, and a client that keeps an id which no
+     * longer resolves shows a conversation it can never open. The messages it
+     * held are announced as updated by the caller — their threadId changed —
+     * and so is the conversation they joined.
+     */
+    public function threadDestroyed(int $accountId, int $threadId): void
+    {
+        $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $threadId);
+    }
+
+    /**
      * A submission moved between the states EmailSubmission/get reports —
      * pending to final when the mail goes out, pending to canceled when it is
      * called off.

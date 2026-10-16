@@ -14,12 +14,9 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Mail\InboxCategoryRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
-use App\Service\Imap\MessageThreader;
 use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleCategoryFiler;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -43,6 +40,8 @@ use Psr\Log\NullLogger;
  */
 final class RuleCategoryFilerTest extends TestCase
 {
+    use BuildsThreaderWithoutDatabase;
+
     private const string PASS = 'spf=pass smtp.mailfrom=mondialrelay.fr; dkim=pass header.d=mondialrelay.fr; dmarc=pass action=none header.from=mondialrelay.fr';
     private const string FAIL = 'spf=fail smtp.mailfrom=evil.example; dkim=none; dmarc=fail action=none header.from=mondialrelay.fr';
 
@@ -193,11 +192,7 @@ final class RuleCategoryFilerTest extends TestCase
         $filer = new RuleCategoryFiler(
             $repository,
             new SenderAuthentication(),
-            new MessageThreader(
-                $this->createStub(EntityManagerInterface::class),
-                $this->createStub(MessageRepository::class),
-                $this->createStub(MessageThreadRepository::class),
-            ),
+            $this->threaderWithoutDatabase(),
             new NullLogger(),
         );
 

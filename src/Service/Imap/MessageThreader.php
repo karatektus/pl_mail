@@ -44,6 +44,7 @@ final class MessageThreader
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageRepository       $messageRepository,
         private readonly MessageThreadRepository $messageThreadRepository,
+        private readonly ThreadMerger            $threadMerger,
     )
     {
     }
@@ -59,7 +60,9 @@ final class MessageThreader
     {
         // 1. The provider's own conversation id, when there is one. Gmail and
         //    Graph have already grouped the conversation the way the user sees
-        //    it in their web client; nothing we derive can beat that.
+        //    it in their web client; nothing we derive can beat that — and
+        //    nothing below it runs, the reverse lookup included: the provider
+        //    has already put the replies where they belong.
         $providerThreadKey = $message->providerThreadKey;
 
         if (null !== $providerThreadKey && '' !== $providerThreadKey) {
@@ -71,6 +74,18 @@ final class MessageThreader
             return;
         }
 
+        $this->assignThreadByHeaders($message, $account);
+
+        // 4. The other direction: mail that already answers this message.
+        $this->adoptReplies($message, $account);
+    }
+
+    /**
+     * Steps 2 and 3 of assignThread(): what the message's own headers, and
+     * failing them its subject, say it belongs to.
+     */
+    private function assignThreadByHeaders(Message $message, Account $account): void
+    {
         // 2. RFC 5322 References / In-Reply-To.
         $referenceIds = $this->collectReferenceIds($message);
 
@@ -118,6 +133,58 @@ final class MessageThreader
 
         $thread = $this->createThread($message, $account, ThreadingMethod::SubjectFallback);
         $this->attachMessageToThread($message, $thread);
+    }
+
+    /**
+     * Bring mail that answers this message into its thread.
+     *
+     * Steps 2 and 3 only ever look backwards, from a reply to what it answers,
+     * so the result depended on the order mail was synced in. Replies synced
+     * before the message they answer — INBOX before Sent Items is the ordinary
+     * case, folders being synced one after the other — found nothing, started
+     * threads of their own, and nothing looked back when the parent arrived:
+     * one conversation of four messages ended up in three threads (#172). Each
+     * of those threads is folded into this message's thread now, so the order
+     * no longer matters, and a chain arriving in reverse closes up link by link
+     * as each parent lands.
+     *
+     * One pass over the direct and indirect replies, with no recursion, so a
+     * reference cycle or a message naming itself cannot loop: whatever is
+     * already in this thread is skipped, and that includes the message itself.
+     * A reply not threaded yet — later in the same batch — is skipped as well,
+     * since step 2 will find this message from its side.
+     */
+    private function adoptReplies(Message $message, Account $account): void
+    {
+        $rawMessageId = $message->messageId;
+
+        if (null === $rawMessageId) {
+            return;
+        }
+
+        $messageId = MessageIdHelper::normalise($rawMessageId);
+
+        if ('' === $messageId) {
+            return;
+        }
+
+        foreach ($this->messageRepository->findRepliesToForAccount($messageId, $account) as $reply) {
+            $thread      = $message->thread;
+            $replyThread = $reply->thread;
+
+            if (null === $thread || null === $replyThread || $replyThread === $thread) {
+                continue;
+            }
+
+            // The lookup is scoped by the message's account, and a thread by
+            // its own. They agree; this is the guard that keeps them from ever
+            // merging two people's mail if somewhere they did not.
+            if ($replyThread->account !== $thread->account) {
+                continue;
+            }
+
+            $message->thread = $this->threadMerger->merge($thread, $replyThread);
+        }
     }
 
     /**

@@ -63,6 +63,21 @@ class MessageRepository extends ServiceEntityRepository
         SQL;
 
     /**
+     * Every Message-ID a row points at, In-Reply-To and References as one
+     * jsonb array.
+     *
+     * Spelled once because an index is built on exactly this expression
+     * (idx_message_referenced_ids, Version20261016130000) and the planner only
+     * uses it for a query that states the same one. A change here without a
+     * migration that rebuilds the index leaves the lookup correct and slow,
+     * which on a large mailbox is the quadratic import the index exists to
+     * prevent.
+     */
+    private const string REFERENCED_IDS = <<<'SQL'
+        (COALESCE(in_reply_to::jsonb, '[]'::jsonb) || COALESCE(thread_references::jsonb, '[]'::jsonb))
+        SQL;
+
+    /**
      * Raw DBAL for the reasons EXTRACTION_CANDIDATE_WHERE gives above.
      *
      * @param DateTimeImmutable|null $since only mail received at or after this; null for all of it
@@ -1907,6 +1922,49 @@ class MessageRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The messages of an account that name this Message-ID in In-Reply-To or
+     * References — its replies, and their replies, wherever they were threaded.
+     *
+     * The other direction from findOneByMessageIdsForAccount(), for the message
+     * that arrives after the mail answering it (#172). Raw SQL for the ids,
+     * because containment in a json array has no DQL spelling; entities for
+     * the result, through findBy(), so a row this unit of work already holds
+     * comes back as the instance it holds. That matters to the caller: a reply
+     * threaded earlier in the same batch has its thread only in memory until
+     * the batch is flushed, and the database still says NULL.
+     *
+     * Both spellings of the id are asked for. Rows synced before Message-IDs
+     * were normalised still hold "<x@host>" in their arrays until the rethread
+     * backfill has run over them, and `@>` compares exactly.
+     *
+     * @return list<Message>
+     */
+    public function findRepliesToForAccount(string $messageId, Account $account): array
+    {
+        $sql = sprintf(
+            <<<'SQL'
+                SELECT id
+                  FROM message
+                 WHERE account_id = :accountId
+                   AND %s @> ANY (ARRAY[jsonb_build_array(CAST(:bare AS text)), jsonb_build_array(CAST(:bracketed AS text))])
+                SQL,
+            self::REFERENCED_IDS,
+        );
+
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            $sql,
+            [
+                'accountId' => $account->id,
+                'bare'      => $messageId,
+                'bracketed' => sprintf('<%s>', $messageId),
+            ],
+            ['accountId' => ParameterType::INTEGER],
+        );
+
+        return array_values($this->findByIds(array_map(intval(...), $ids)));
     }
 
     /**

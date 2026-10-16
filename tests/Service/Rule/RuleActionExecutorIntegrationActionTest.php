@@ -18,16 +18,14 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MailboxRepository;
-use App\Repository\Mail\MessageRepository;
-use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Graph\GraphLabelPolicy;
-use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleCategoryFiler;
+use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\TestCase;
@@ -47,6 +45,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final class RuleActionExecutorIntegrationActionTest extends TestCase
 {
+    use BuildsThreaderWithoutDatabase;
+
     private User $user;
 
     /** @var list<UploadAttachmentsMessage> */
@@ -200,11 +200,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
             new RuleCategoryFiler(
                 $this->createStub(InboxCategoryRepository::class),
                 new SenderAuthentication(),
-                new MessageThreader(
-                    $this->createStub(EntityManagerInterface::class),
-                    $this->createStub(MessageRepository::class),
-                    $this->createStub(MessageThreadRepository::class),
-                ),
+                $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),
         );

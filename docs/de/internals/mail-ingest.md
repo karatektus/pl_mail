@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:4cec2680ca81aaeda118258ea11392456b81c947 -->
+<!-- translated-from: internals/mail-ingest.md sha1:51e52f50e75b178068a8d73aa4161dfa52906ac2 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -329,7 +329,8 @@ Nachrichten angezeigt wurden, bevor das Modell geantwortet hatte.
 ## Konversationsbildung
 
 `App\Service\Imap\MessageThreader::assignThread()` ist eine Kaskade aus drei Stufen, und jede
-existiert, weil die darunter nicht gut genug ist.
+existiert, weil die darunter nicht gut genug ist. Eine vierte Stufe schaut danach in die andere
+Richtung.
 
 **1. Die Konversations-Id des Anbieters selbst**, aus `Message::$providerThreadKey`. Gmail und
 Graph haben die Konversation bereits so gruppiert, wie die Nutzerin sie in ihrem Web-Client
@@ -359,6 +360,27 @@ ist, plus denen, die verbreitete europäische Clients ausgeben), und die Kandida
 eine beteiligte Person teilen. Eine Nachricht, die selbst keine Antwort ist, beginnt immer ihre
 eigene Konversation — sonst fällt jede „Ihre Bestellung ist unterwegs"-Benachrichtigung, die je
 eintraf, in eine einzige endlose Konversation zusammen.
+
+**4. Die andere Richtung: Mail, die diese Nachricht schon beantwortet.** Stufe 2 und 3 schauen von
+einer Antwort auf das, was sie beantwortet, also hing das Ergebnis allein von der Reihenfolge der
+Synchronisation ab. Ordner werden nacheinander synchronisiert, und Antworten im INBOX kommen
+regelmäßig vor der Nachricht aus Sent Items an, auf die sie antworten; sie fanden nichts, legten
+eigene Konversationen an und blieben dort (#172). Nach Stufe 2 und 3 fragt `adoptReplies()`
+`MessageRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
+`in_reply_to` oder `thread_references` diese Message-ID nennt, und `ThreadMerger` faltet jede
+ihrer Konversationen in diese hier. Ein GIN-Ausdrucksindex, `idx_message_referenced_ids`, hält
+diese Abfrage davon ab, pro Nachricht das ganze Postfach zu durchsuchen. Stufe 1 überspringt das:
+Eine Konversations-Id des Anbieters hat die Antworten schon zusammengefasst.
+
+Erhalten bleibt die Konversation mit der kleineren Id, und eine noch nicht geflushte gilt als die
+neueste. So überlebt die Konversation, auf die ein JMAP-Client, eine KI-Zusammenfassung oder eine
+Insight-Karte schon zeigt; eine Konversation mit Anbieter-Schlüssel wird nie aufgelöst. Zähler
+werden addiert, Labels vereinigt, die neueste Mail bestimmt `lastMessageAt` und die Kategorie,
+außer eine ist festgepinnt, Stern und Zurückstellen werden übernommen, und der Betreff kommt von
+der Seite, die die beantwortete Nachricht hält. Die aufgelöste Konversation wird JMAP als
+gelöscht gemeldet, ihre Nachrichten als geändert. Die Zusammenführung flusht nie: Nachrichten
+werden über die Unit of Work verschoben, weil die Konversation einer Antwort innerhalb eines
+Batches womöglich nur im Speicher existiert.
 
 Konversationsbildung über Gmails eigene `threadId` steht auf der Roadmap und ist nicht erledigt:
 Die Id wird auf `Message` mitgeführt, aber Stufe 2 arbeitet für Konten, auf die Stufe 1 nicht
