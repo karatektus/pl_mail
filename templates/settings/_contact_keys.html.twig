@@ -20,15 +20,28 @@ import or look up there — certificates only ever arrive on a signature — so
 the list is all there is: which one is in use, whether an authority vouches
 for it, and accept or remove for the ones waiting.
 
+Beside the lookup, the person's switch for the public key servers
+(User::$lookUpKeyServers, KeyServerLookup) — only when the installation asks
+any (APP_KEY_SERVERS), since a switch for nothing would be a promise. Its hint
+names the servers and what a lookup tells them, before anybody is asked.
+
 Variables:
   contactKeys  list<ContactKey>, by address, the Current key first
   contactCertificates  list<ContactCertificate>, the same order
   policies     RecipientPolicy::cases()
   schemes      PgpScheme::cases()
+  keyServers   list<string>, the key servers the installation asks, in order
+  keyServersOn bool, the person's switch for them
 #}
 {% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
 {% set field = 'w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors' %}
 {% set select = 'px-2 h-8 text-xs rounded-lg border border-field bg-field text-ink' %}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+{% set serverList = keyServers|join(', ') %}
+{% set asksKeyServers = keyServers is not empty and keyServersOn %}
 
 <turbo-frame id="contact-keys">
     {% for flash in app.flashes('contact_keys') %}
@@ -54,7 +67,7 @@ Variables:
         <form method="post" action="{{ path('app_contact_keys_lookup') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
             <h3 class="text-xs font-semibold text-ink mb-1">{{ 'contact_keys.lookup.heading'|trans }}</h3>
-            <p class="text-[11px] text-ink-muted mb-2">{{ 'contact_keys.lookup.hint'|trans }}</p>
+            <p class="text-[11px] text-ink-muted mb-2">{{ asksKeyServers ? 'contact_keys.lookup.hint_keyservers'|trans({ '%servers%': serverList }) : 'contact_keys.lookup.hint'|trans }}</p>
             <label for="contact-keys-lookup" class="block text-[11px] text-ink-faint mb-1">{{ 'contact_keys.lookup.email'|trans }}</label>
             <input type="email" name="email" id="contact-keys-lookup" required autocomplete="off" class="{{ field }}">
             <button type="submit" class="{{ button }} mt-2">
@@ -63,6 +76,31 @@ Variables:
             </button>
         </form>
     </div>
+
+    {% if keyServers is not empty %}
+        <form method="post" action="{{ path('app_contact_keys_key_servers') }}"
+              data-controller="ui--auto-submit" class="mb-5 border-t border-line pt-3" data-testid="key-servers-switch">
+            <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
+            <div class="flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ 'contact_keys.key_servers.label'|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'contact_keys.key_servers.hint'|trans({ '%servers%': serverList }) }}</span>
+                </span>
+                <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                     role="radiogroup" aria-label="{{ 'contact_keys.key_servers.label'|trans }}">
+                    {% for on in [true, false] %}
+                        <label>
+                            <input type="radio" name="key_servers" class="peer sr-only"
+                                   value="{{ on ? '1' : '0' }}"
+                                   data-action="change->ui--auto-submit#submit"
+                                   {{ keyServersOn == on ? 'checked' : '' }}>
+                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+    {% endif %}
 
     {% if contactKeys is empty %}
         <p class="text-sm text-ink-muted">{{ 'contact_keys.empty'|trans }}</p>
@@ -84,7 +122,7 @@ Variables:
                             </p>
                             <p class="font-mono text-xs text-ink break-all mt-0.5" data-testid="contact-key-fingerprint">{{ key.fingerprint|upper|split('', 4)|join(' ') }}</p>
                             <p class="text-[11px] text-ink-faint mt-0.5">
-                                {{ ('contact_keys.origin.' ~ key.origin.value)|trans }}
+                                <span data-testid="contact-key-origin">{{ ('contact_keys.origin.' ~ key.origin.value)|trans({ '%host%': key.originHost ?? '' }) }}</span>
                                 · {{ 'contact_keys.first_seen'|trans({ '%date%': key.firstSeenAt|date('Y-m-d') }) }}
                                 · {{ 'contact_keys.last_seen'|trans({ '%date%': key.lastSeenAt|date('Y-m-d') }) }}
                                 {% if key.expiresAt %}· {{ 'contact_keys.expires'|trans({ '%date%': key.expiresAt|date('Y-m-d') }) }}{% endif %}

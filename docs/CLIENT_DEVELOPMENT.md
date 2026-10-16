@@ -1272,10 +1272,15 @@ encryption against `ContactKey/get`.
 
 **Contacts' keys and composing.** `ContactKey/get` lists the keys plMail holds (`status: current`
 is the one in use; `changed` waits to be accepted in the web app), with each recipient's `encrypt`,
-`sign` and `scheme`. `ContactKey/lookup` with `{emails, lookup: true, accountId, from}` answers what
-the web composer is told: each recipient's key — looked up on their domain's WKD through the server
-if plMail has none — and the sender's own key. Encrypt when every recipient has a key, as the web
-app does.
+`sign` and `scheme`, and where the key came from: `origin` (`wkd`, `keyserver`, `attached`,
+`autocrypt`, `manual`) and `originHost`, the key server's host name for `keyserver` (null otherwise).
+`ContactKey/lookup` with `{emails, lookup: true, accountId, from}` answers what the web composer is
+told: each recipient's key — looked up through the server if plMail has none, on their domain's WKD
+and then on the public key servers the installation and the person allow — and the sender's own
+key. Each recipient's `key` carries `origin` and `originHost` too (both null for the person's own
+key, which `own: true` already says); show where a key came from, as the web app does, since a key
+from a key server only means somebody confirmed the address to that server. Encrypt when every
+recipient has a key, as the web app does.
 
 **Sending.** Build the MIME message yourself, encrypt it to every recipient **and the sender** (or
 sign it), upload it, and `Email/import` it with `keywords: {"$draft": true}`. For an encrypted

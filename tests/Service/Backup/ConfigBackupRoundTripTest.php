@@ -207,6 +207,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('contactKey.encrypt', \App\Domain\Enum\Crypto\RecipientPolicy::Always, $contactKeys[0]->encrypt);
         $this->check('contactKey.scheme', \App\Domain\Enum\Crypto\PgpScheme::Inline, $contactKeys[0]->scheme);
         $this->check('contactKey (changed).status', \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, $contactKeys[1]->status);
+        $this->check('contactKey (changed).origin', \App\Domain\Enum\Crypto\ContactKeyOrigin::KeyServer, $contactKeys[1]->origin);
+        $this->check('contactKey (changed).originHost', 'keys.openpgp.org', $contactKeys[1]->originHost);
 
         // ── S/MIME ────────────────────────────────────────────────────────
         $smime = $container->get(\App\Repository\Crypto\SmimeCertificateRepository::class)->findForUser($user);
@@ -238,6 +240,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting compose.forward_quote_collapsed', false, $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED));
         $this->check('setting compose.send_feedback', User::SEND_FEEDBACK_HOLD, $user->getSetting(User::SETTING_COMPOSE_SEND_FEEDBACK));
         $this->check('setting appearance.preview_width', 480, $user->getSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH));
+        $this->check('setting crypto.key_servers', false, $user->lookUpKeyServers);
 
         // ── The account ───────────────────────────────────────────────────
         $this->check('account.password (IMAP)', self::MAILBOX_PASSWORD, $account->password);
@@ -465,6 +468,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, false);
         $user->setSetting(User::SETTING_COMPOSE_SEND_FEEDBACK, User::SEND_FEEDBACK_HOLD);
         $user->setSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH, 480);
+        $user->lookUpKeyServers = false;
 
         $this->entityManager->persist($user);
 
@@ -519,7 +523,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $contactKey->encrypt = \App\Domain\Enum\Crypto\RecipientPolicy::Always;
         $contactKey->scheme  = \App\Domain\Enum\Crypto\PgpScheme::Inline;
         $this->entityManager->persist($contactKey);
-        $this->entityManager->persist(new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', str_repeat('e', 40), "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnew\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Autocrypt, \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, null, new \DateTimeImmutable()));
+        $this->entityManager->persist(new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', str_repeat('e', 40), "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnew\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::KeyServer, \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, null, new \DateTimeImmutable(), 'keys.openpgp.org'));
 
         // An S/MIME certificate of hers, retired by a renewal, and one of
         // Ben's that an authority vouched for.

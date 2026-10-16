@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:69fe449c13ec15cb176cada76f59f4d986f25c5a -->
+<!-- translated-from: internals/security-model.md sha1:215846da46ad1ead882c8a69b264e8db44d8f87f -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -394,17 +394,50 @@ Das ist ein Endpunkt, der URLs abruft, die aus Benutzereingaben abgeleitet sind,
   danach `https://<domain>/.well-known/openpgpkey/hu/…`. Die Domain muss ein IDNA-kodierter DNS-Name
   mit mindestens zwei Labels sein — kein IP-Literal, kein Port, kein Pfad, kein nackter
   Container-Name.
-- Der Host wird zuerst aufgelöst; ist unter seinen A- und AAAA-Einträgen eine private oder
-  reservierte Adresse, wird nichts gefragt. Die geprüfte Adresse wird festgehalten (`resolve`), und
-  `NoPrivateNetworkHttpClient` prüft die Adresse, mit der tatsächlich verbunden wird.
-- Keine Weiterleitungen (`max_redirects: 0`), 4 Sekunden Timeout und 8 Sekunden Obergrenze, und ein
-  Limit von 256 KiB, das schon während des Empfangs greift.
-- Antworten werden in `cache.app` gemerkt, einen Tag bei einem Treffer und eine Stunde ohne, und nur
-  Suchen, die hinausgehen, zählen gegen den Limiter `wkd_lookup` pro Person (30 in 10 Minuten).
+- Die Anfrage selbst geht durch `KeyFetcher`, der jede Suche, die den Server verlässt — WKD und die
+  Schlüsselserver weiter unten —, an dieselben Regeln hält:
+  - Der Host wird zuerst aufgelöst; ist unter seinen A- und AAAA-Einträgen eine private oder
+    reservierte Adresse, wird nichts gefragt. Die geprüfte Adresse wird festgehalten (`resolve`), und
+    `NoPrivateNetworkHttpClient` prüft die Adresse, mit der tatsächlich verbunden wird.
+  - Nur HTTPS, keine Weiterleitungen (`max_redirects: 0`), 4 Sekunden Timeout und 8 Sekunden
+    Obergrenze, und ein Limit von 256 KiB, das schon während des Empfangs greift.
+  - Antworten werden in `cache.app` gemerkt, einen Tag bei einem Treffer und eine Stunde ohne, und
+    nur Suchen, die hinausgehen, zählen gegen den Limiter `wkd_lookup` pro Person (60 in 10 Minuten,
+    ein Budget für WKD und Schlüsselserver zusammen; jede gefragte Stelle zählt einmal).
 - Nur Schlüssel mit einer User-ID für die gefragte Adresse werden behalten.
 
-keys.openpgp.org (VKS) wird nicht gefragt; das Konzept lässt das als optionale Instanz-Einstellung
-offen.
+**Öffentliche Schlüsselserver nach WKD** (`KeyServerLookup`, Phase 6f), für Menschen, die ihren
+Schlüssel auf keys.openpgp.org oder dem Schlüsselserver von Mailvelope veröffentlichen und kein WKD
+haben:
+
+- **Reihenfolge.** `ContactKeys::lookUp()` fragt zuerst WKD, weil die Domain für ihre eigenen
+  Adressen spricht; ein Schlüsselserver nur für den, der ihm die Adresse bestätigt hat. Die Server
+  werden nur gefragt, wenn WKD nichts Verwendbares hat, in der Reihenfolge von `APP_KEY_SERVERS`, und
+  der erste verwendbare Schlüssel gewinnt — keine zweite Meinung, die eine weitere Stelle erfahren
+  ließe, wem die Person schreibt, und die die erste ohnehin nicht überstimmen könnte.
+- **Die eigene HTTPS-API jedes Servers, nicht HKP.** `GET https://keys.openpgp.org/vks/v1/by-email/<Adresse>`
+  (der Schlüssel in ASCII-Armor) und `GET https://keys.mailvelope.com/api/v1/key?email=<Adresse>`
+  (JSON, `publicKeyArmored`), die Adresse URL-kodiert in eine feste URL — ein `KeyServerInterface`
+  pro Server, getaggt mit `app.key_server`. Der Host ist nie als URL einstellbar: `APP_KEY_SERVERS`
+  nennt Server, für die plMail eine Klasse hat, und jeder andere Name wird mit einer Warnung im Log
+  verworfen.
+- **Dieselben Regeln wie WKD**, weil die Anfrage durch denselben `KeyFetcher` geht.
+- **Welcher Schlüssel zählt.** Nur einer, den `PublicKeyReader` mit einer User-ID für genau die
+  gefragte Adresse annimmt, nicht widerrufen, nicht abgelaufen. keys.openpgp.org entfernt jede
+  User-ID, deren Adresse ihr Besitzer nicht bestätigt hat; ein solcher Schlüssel nennt keine Adresse
+  und wird nicht genommen.
+- **Das Vertrauen bleibt, wie es ist.** Der Schlüssel geht wie jeder andere durch
+  `ContactKeys::record()`: Der erste verwendbare ist `current` und nicht angepinnt, ein anderer ist
+  `changed` und wartet — ein Schlüsselserver überstimmt nie einen Schlüssel, den plMail schon hat.
+  Die Herkunft ist `keyserver`, der Host des Servers steht in `contact_key.origin_host`.
+- **Privatsphäre.** Eine Suche verrät dem Betreiber des Servers, welche Adresse jemand auf dieser
+  Installation gesucht hat — nicht, wer, denn die Anfrage kommt vom Server. Zwei Ebenen können Nein
+  sagen: `APP_KEY_SERVERS` (standardmäßig beide Server; leer schaltet sie ab) und **Auch auf
+  öffentlichen Schlüsselservern suchen** der Person (`crypto.key_servers` in den Einstellungen,
+  standardmäßig an, im Konfigurations-Backup). Ist eines aus, wird nichts angefragt.
+- **Tests erreichen nie das Internet.** In der Testumgebung holt `KeyServerLookup` über
+  `App\Tests\Support\Crypto\KeyServerStub` (`when@test` in `config/services.yaml`), der beide APIs
+  aus Dateien beantwortet, die `app:test:seed-key-server` schreibt, und kein DNS fragt.
 
 ## Verschlüsselte Mails schreiben und senden
 
@@ -1270,6 +1303,15 @@ unterschieben.
 eine URL nähme, oder eine Domain mit Port oder Pfad darin, wäre eine SSRF-Lücke, egal wie gut der
 Client darunter Adressen prüft.
 
+**Ein Schlüsselserver wird nie als URL eingestellt.** `APP_KEY_SERVERS` nennt Hosts, für die plMail
+ein `KeyServerInterface` hat; eine frei wählbare Basis-URL dort wäre ein SSRF-Hebel in der Umgebung,
+und ein Server mit anderer API würde falsch gelesen. Ein neuer Server ist eine neue Klasse.
+
+**Ein Schlüssel von einem Schlüsselserver ist kein verifizierter Schlüssel.** Der Server hat geprüft,
+dass jemand die Mails an die Adresse lesen kann, mehr nicht. Er muss beim Eintreffen unangepinnt
+bleiben und gegen einen Schlüssel verlieren, den plMail schon hat, wie jede andere Quelle; nur der
+Vergleich durch die Person pinnt ihn.
+
 **Ein WKD-Fehlschlag muss eine einzige Antwort bleiben.** Jeder neue Grund für „hier ist kein
 Schlüssel“ geht über `WkdDirectory::find()`, das null liefert, und das eine 404 des Controllers —
 nicht über eine Exception, eine Weiterleitung oder eine Meldung, die die Gründe unterscheidbar machen
@@ -1281,7 +1323,7 @@ Rückprüfung würde nichts veröffentlichen.
 
 **`MockHttpClient` folgt keiner Weiterleitung, egal was man ihm sagt**, und
 `NoPrivateNetworkHttpClient` folgt ihnen selbst, nie der Client darunter. Ein Test kann nicht zeigen,
-dass `max_redirects: 0` wirkt; die Option in `WkdLookup::fetch()` ist der Schutz, und dort steht,
+dass `max_redirects: 0` wirkt; die Option in `KeyFetcher::get()` ist der Schutz, und dort steht,
 warum.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein

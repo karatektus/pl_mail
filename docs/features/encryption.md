@@ -158,21 +158,29 @@ write to: the address, the fingerprint in groups of four, where the key came fro
 for the ones you verified. plMail uses them to check those people's signatures, and will encrypt to
 them once it sends encrypted mail.
 
-They come from three places, and you do not have to do anything for the first two:
+They come from four places, and you do not have to do anything for the first three:
 
 - **Mail you receive.** A key in a message's `Autocrypt:` header, or attached to it as a key file,
   is kept for the sender — only for the sender, and only a key that names the sender's address.
-- **The sender's domain**, through its Web Key Directory (WKD). **Look up a key** asks for one by
-  address; the banner of a signature from an unknown key asks for the sender's. The request goes
-  out from the plMail server, not from your browser.
+- **The contact's domain**, through its Web Key Directory (WKD). **Look up a key** asks for one by
+  address; the banner of a signature from an unknown key asks for the sender's, and the compose
+  window for every recipient it has no key for. The request goes out from the plMail server, not
+  from your browser.
+- **Public key servers** — keys.openpgp.org and the Mailvelope key server — when the domain has
+  nothing. Many people publish their key there and have no WKD. The same lookups ask them, after the
+  domain, and the first server with a usable key wins.
 - **An import** — paste a public key block or choose a file. The key is kept for every address it
   names.
 
+The list says where each key came from: *From the domain's key directory (WKD)*, *From the key
+server keys.openpgp.org*, and so on; so does the note after a lookup.
+
 plMail trusts the **first** key it finds for an address. If a **different** key turns up later — in
-a message, from WKD, or in an import — it is listed under the known one with a warning, and plMail
-keeps using the known key until you decide. A new key from a contact who lost the old one and a key
-from somebody posing as them look exactly alike; only the contact can tell you which it is. Ask them
-for the fingerprint, by phone or in person, and then **Use this key instead** — or remove it.
+a message, from WKD or a key server, or in an import — it is listed under the known one with a
+warning, and plMail keeps using the known key until you decide. A new key from a contact who lost
+the old one and a key from somebody posing as them look exactly alike; only the contact can tell you
+which it is. Ask them for the fingerprint, by phone or in person, and then **Use this key instead**
+— or remove it.
 
 **Mark as verified** says you compared the fingerprint with the contact. It is what turns their
 signatures from *intact, but nothing confirms who signed it* into *the signature checks out*, and
@@ -182,11 +190,24 @@ Keys that are revoked or expired, or that do not name the address, are not kept.
 **Preferences for this recipient** — encrypt, sign, PGP/MIME or inline — which the compose window
 follows.
 
+### Key servers
+
+**Also look on public key servers**, under Contacts' keys, is on unless you switch it off. The hint
+beside it names the servers your installation asks. A key server only hands out a key whose owner
+proved to it that they read mail at the address, and plMail only takes a key that names the very
+address it looked up, is not revoked and has not expired. Switched off, lookups ask the contact's
+domain and nobody else.
+
+An administrator chooses the servers, or switches them off for everybody (`APP_KEY_SERVERS`, see
+the [configuration reference](../install/configuration.md)). With none configured, the switch is
+not shown.
+
 ## Writing encrypted mail
 
 You do not switch anything on. As you type the recipients, each one plMail has a key for gets a
-small lock, looked up on their domain if plMail did not know it yet. When **every** recipient has
-one, the message is encrypted: the header says *Encrypted* and the lock in the toolbar is green.
+small lock, looked up on their domain — or on a key server, if the domain has none — when plMail
+did not know it yet. When **every** recipient has one, the message is encrypted: the header says
+*Encrypted* and the lock in the toolbar is green.
 When only some have one, a note under the recipients says who cannot be reached encrypted, and the
 message goes to everybody unencrypted — unless you turned on **Refuse to send when not everybody
 can be reached encrypted** under *Sending*. A reply to an encrypted message is encrypted from the
@@ -421,10 +442,21 @@ hundred signed messages from that sender, which are checked again.
 arrives. For a contact whose key you want now, look it up or import it.
 
 **A lookup tells the contact's domain that someone asked.** It does not tell them who: the request
-comes from the plMail server. Answers are remembered for a day (an hour when there was none), and
-each person may make thirty lookups in ten minutes.
+comes from the plMail server. Answers are remembered for a day (an hour when there was none). Each
+person may make sixty requests in ten minutes; every place asked counts once, so an address nobody
+has a key for costs three with both key servers on.
 
-**keys.openpgp.org is not asked.** Only the contact's own domain is, through WKD.
+**A lookup on a key server tells the server whom you are writing to.** The server learns the
+address, and that somebody on this plMail server asked — not who. Only when the contact's own domain
+had nothing. If that is too much, switch **Also look on public key servers** off.
+
+**keys.openpgp.org only hands out confirmed addresses.** A key whose owner never clicked the
+server's confirmation mail comes back without any address, and plMail does not take it. If a contact
+says their key is there and plMail finds nothing, they probably never confirmed it.
+
+**A key from a key server is not a verified key.** The server only checked that somebody can read
+mail at the address — which an attacker on that mailbox, or at the provider, can too. Compare the
+fingerprint with the contact before you **Mark as verified**, as with any other key.
 
 **A draft is sealed from the moment it is going to be encrypted, not before.** Whatever was saved
 before that — text typed before the last recipient with a key was added — was kept as typed until

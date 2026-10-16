@@ -8,6 +8,23 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Mail to people without a Web Key Directory went out unencrypted — phase 6f of end-to-end
+encryption.** plMail found a contact's key only on their own domain (WKD), in their mail, or by
+import, and many people publish theirs on keys.openpgp.org or the Mailvelope key server instead.
+Every lookup — **Look up a key** under Contacts' keys, the reading banner's *Look up the key*, the
+compose window checking its recipients, and JMAP `ContactKey/lookup` — now asks those key servers
+when the domain has nothing, through the server and under the same rules as WKD (HTTPS only, no
+redirects, no private addresses, size and time limits, a cache, and one per-person limit for both,
+raised from 30 to 60 lookups in ten minutes because one address can now cost three). Only a key
+naming exactly the address asked about counts, and it is trusted like any other first key: in use
+but unverified, never replacing a key plMail already holds. The list, the notices and JMAP say where
+a key came from (*From the key server keys.openpgp.org*; `origin: keyserver`, `originHost`). Both
+servers are asked by default; `APP_KEY_SERVERS` chooses them or, empty, switches them off, and each
+person can switch them off under Settings → Encryption → Contacts' keys (**Also look on public key
+servers**), since a lookup tells the server whom they are writing to. The migration adds
+`contact_key.origin_host`; going down removes the keys that came from key servers.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Encryption for single sign-on accounts, and no password prompt at sign-in — phase 6e of
 end-to-end encryption.** An account that signs in only through single sign-on has no plMail
 password for its keys to hang off, so it could not use encryption at all. It now sets encryption up

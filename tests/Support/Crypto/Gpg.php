@@ -103,6 +103,15 @@ final class Gpg
             . "--S--\r\n";
     }
 
+    /**
+     * The key as keys.openpgp.org hands out one whose owner never confirmed
+     * an address: the key material without a single user ID. Armored.
+     */
+    public function withoutUserIds(): string
+    {
+        return $this->run('--armor', '--export-options', 'export-minimal', '--export-filter', 'keep-uid=uid =~ no-such-user-id', '--export', $this->fingerprint);
+    }
+
     /** $body as an inline (cleartext) signed message, signed by this key. */
     public function clearSigned(string $body): string
     {

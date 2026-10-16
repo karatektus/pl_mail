@@ -21,9 +21,12 @@ use Throwable;
  *
  * One answer for every composer: the browser's (ContactKeyController
  * ::recipients()) and a native client's (JMAP ContactKey/lookup). With
- * `lookup`, an address with no key is looked up on its domain's WKD first —
- * throttled by WkdLookup like any other lookup, and a lookup that fails is an
- * address without a key, not an error. The person's own addresses answer
+ * `lookup`, an address with no key is looked up first — its domain's WKD, then
+ * the public key servers if the installation and the person allow them
+ * (ContactKeys::lookUp()) — throttled like any other lookup, and a lookup that
+ * fails is an address without a key, not an error. Each key says where it
+ * came from (`origin`, and `originHost` for a key server), so a composer can
+ * say so. The person's own addresses answer
  * with their own key.
  *
  * Beside the OpenPGP key, each answer says whether the address can be reached
@@ -51,7 +54,7 @@ final readonly class RecipientKeys
     /**
      * @param list<mixed> $emails
      *
-     * @return list<array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}>
+     * @return list<array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool, origin: ?string, originHost: ?string}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}>
      */
     public function describe(User $user, array $emails, bool $lookup): array
     {
@@ -91,7 +94,7 @@ final readonly class RecipientKeys
     }
 
     /**
-     * @return array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}
+     * @return array{email: string, own: bool, key: array{fingerprint: string, publicKey: string, pinned: bool, origin: ?string, originHost: ?string}|null, changed: bool, encrypt: string, sign: string, scheme: string, smime: array{fingerprint: string, certificate: string, verified: bool, notAfter: string}|null}
      */
     private function recipient(User $user, string $email, bool $lookup): array
     {
@@ -101,7 +104,8 @@ final readonly class RecipientKeys
             return [
                 'email'   => $email,
                 'own'     => true,
-                'key'     => ['fingerprint' => $own->fingerprint, 'publicKey' => $own->publicKey, 'pinned' => true],
+                // No origin: it is the person's own key, which `own` already says.
+                'key'     => ['fingerprint' => $own->fingerprint, 'publicKey' => $own->publicKey, 'pinned' => true, 'origin' => null, 'originHost' => null],
                 'changed' => false,
                 'encrypt' => RecipientPolicy::Auto->value,
                 'sign'    => RecipientPolicy::Auto->value,
@@ -131,7 +135,13 @@ final readonly class RecipientKeys
         return [
             'email'   => $email,
             'own'     => false,
-            'key'     => null === $current ? null : ['fingerprint' => $current->fingerprint, 'publicKey' => $current->publicKey, 'pinned' => $current->pinned],
+            'key'     => null === $current ? null : [
+                'fingerprint' => $current->fingerprint,
+                'publicKey'   => $current->publicKey,
+                'pinned'      => $current->pinned,
+                'origin'      => $current->origin->value,
+                'originHost'  => $current->originHost,
+            ],
             'changed' => $changed,
             'encrypt' => $current?->encrypt->value ?? RecipientPolicy::Auto->value,
             'sign'    => $current?->sign->value ?? RecipientPolicy::Auto->value,

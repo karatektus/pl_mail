@@ -9,6 +9,7 @@ use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Service\Crypto\KeyFetcher;
 use App\Service\Crypto\Keyring;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\SendingKey;
@@ -258,13 +259,12 @@ final class WkdSettingsTest extends WebTestCase
      */
     private function lookup(callable $answer): WkdLookup
     {
-        return new WkdLookup(
+        return new WkdLookup(new KeyFetcher(
             new MockHttpClient($answer),
-            new PublicKeyReader(),
             new ArrayAdapter(),
             new RateLimiterFactory(['id' => 'wkd-check', 'policy' => 'fixed_window', 'limit' => 30, 'interval' => '1 hour'], new InMemoryStorage()),
             new NullLogger(),
             static fn (string $host): array => ['93.184.215.14'],
-        );
+        ), new PublicKeyReader());
     }
 }

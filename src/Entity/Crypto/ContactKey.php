@@ -78,6 +78,15 @@ class ContactKey
     #[ORM\Column(length: 16, enumType: ContactKeyOrigin::class)]
     public private(set) ContactKeyOrigin $origin;
 
+    /**
+     * The key server's host name for a key from one (ContactKeyOrigin
+     * ::KeyServer) — "from the key server keys.openpgp.org" — and null for
+     * every other origin. A column of its own rather than a case per server:
+     * the servers differ in name, not in what their word is worth.
+     */
+    #[ORM\Column(length: 253, nullable: true)]
+    public private(set) ?string $originHost = null;
+
     #[ORM\Column(length: 16, enumType: ContactKeyStatus::class)]
     public private(set) ContactKeyStatus $status;
 
@@ -119,12 +128,14 @@ class ContactKey
         ContactKeyStatus $status,
         ?DateTimeImmutable $expiresAt,
         DateTimeImmutable $seenAt,
+        ?string $originHost = null,
     ) {
         $this->usr         = $usr;
         $this->email       = strtolower(trim($email));
         $this->fingerprint = strtolower($fingerprint);
         $this->publicKey   = $publicKey;
         $this->origin      = $origin;
+        $this->originHost  = ContactKeyOrigin::KeyServer === $origin ? $originHost : null;
         $this->status      = $status;
         $this->expiresAt   = $expiresAt;
         $this->firstSeenAt = $seenAt;

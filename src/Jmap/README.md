@@ -907,7 +907,9 @@ statement that creates the need for it.
   `decryptedOnServer`, `sealedDraft`. `Keyring/get` carries the person's S/MIME
   certificates (`smimeCertificates`) and which of their addresses the Web Key
   Directory publishes (`wkd`), and `ContactKey/lookup` each recipient's
-  (`smime`). `Keyring/get` also names what the keyring hangs off — `root`,
+  (`smime`). Contacts' keys say where they came from (`origin`, and
+  `originHost` for a public key server), in `ContactKey/get` and in each
+  recipient's `key` of `ContactKey/lookup`. `Keyring/get` also names what the keyring hangs off — `root`,
   `password` or `passphrase` (an account single sign-on made, which has no
   password) — and `rootKdf`, the salt and iterations to stretch that secret
   with, so an app asks for the right one. See docs/CLIENT_DEVELOPMENT.md.

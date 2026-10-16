@@ -6,6 +6,8 @@ namespace App\Controller\Crypto;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
+use App\Domain\DTO\Crypto\ContactKeyLookup;
+use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyOutcome;
 use App\Domain\Enum\Crypto\PgpScheme;
 use App\Domain\Enum\Crypto\RecipientPolicy;
@@ -19,6 +21,7 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Crypto\ContactCertificates;
 use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\ContactKeys;
+use App\Service\Crypto\KeyServerLookup;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\RecipientKeys;
 use App\Service\Crypto\SignatureVerifier;
@@ -51,6 +54,9 @@ use Symfony\UX\Turbo\TurboBundle;
  * at it and wants to see the answer. The sender's other signed mail is
  * queued (SignatureRecheck), as it is for every change made in the list.
  *
+ * The person's switch for the public key servers (KeyServerLookup) sits in
+ * the same frame, beside the lookup it widens.
+ *
  * Contacts' S/MIME certificates share the list and its rules (accept a
  * changed one, remove one); and the reading pane asks here what a signature
  * it found inside an S/MIME-encrypted message means (smimeSigner()).
@@ -79,6 +85,7 @@ final class ContactKeyController extends AbstractController
         private readonly RecipientKeys                $recipientKeys,
         private readonly ContactCertificates          $certificates,
         private readonly ContactCertificateRepository $certificateRepository,
+        private readonly KeyServerLookup              $keyServers,
     ) {
     }
 
@@ -113,6 +120,8 @@ final class ContactKeyController extends AbstractController
             'contactCertificates' => $this->certificateRepository->findForUser($user),
             'policies'            => RecipientPolicy::cases(),
             'schemes'             => PgpScheme::cases(),
+            'keyServers'          => $this->keyServers->hosts(),
+            'keyServersOn'        => $user->lookUpKeyServers,
         ]);
     }
 
@@ -161,7 +170,23 @@ final class ContactKeyController extends AbstractController
     public function lookup(Request $request, #[CurrentUser] User $user): Response
     {
         return $this->write($request, 'contact-keys', function () use ($request, $user): void {
-            $this->sayOutcome($this->contactKeys->lookUp($user, $request->request->getString('email')));
+            $this->sayOutcome($user, $this->contactKeys->lookUp($user, $request->request->getString('email')));
+        });
+    }
+
+    /**
+     * The person's "Also look on public key servers" (User::$lookUpKeyServers).
+     * Read only when posted, like the sending switches: a form that did not
+     * mention it must not move it.
+     */
+    #[Route('/key-servers', name: 'key_servers', methods: ['POST'])]
+    public function keyServers(Request $request, #[CurrentUser] User $user): Response
+    {
+        return $this->write($request, 'contact-keys', function () use ($request, $user): void {
+            if (true === $request->request->has('key_servers')) {
+                $user->lookUpKeyServers = '1' === $request->request->getString('key_servers');
+                $this->entityManager->flush();
+            }
         });
     }
 
@@ -236,18 +261,17 @@ final class ContactKeyController extends AbstractController
     // ── From the reading banner ───────────────────────────────────────────────
 
     /**
-     * Looks the sender's key up in their domain's WKD. Asked from the banner
-     * of a signature plMail has no key for, or a changed one.
+     * Looks the sender's key up — their domain's WKD, then the key servers.
+     * Asked from the banner of a signature plMail has no key for, or a
+     * changed one; the answer says where the key was found.
      */
     #[Route('/message/{id}/lookup', name: 'message_lookup', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function messageLookup(Request $request, #[CurrentUser] User $user, Message $message): Response
     {
-        return $this->fromBanner($request, $message, function () use ($user, $message): string {
-            return match ($this->contactKeys->lookUp($user, (string) $message->fromAddress)) {
-                ContactKeyOutcome::Added, ContactKeyOutcome::Seen => 'contact_keys.lookup.found',
-                ContactKeyOutcome::Changed                         => 'contact_keys.lookup.changed',
-                default                                            => 'contact_keys.lookup.nothing',
-            };
+        return $this->fromBanner($request, $message, function () use ($user, $message): array {
+            $notice = $this->lookupNotice($user, $this->contactKeys->lookUp($user, (string) $message->fromAddress));
+
+            return [$notice['key'], $notice['parameters']];
         });
     }
 
@@ -258,10 +282,10 @@ final class ContactKeyController extends AbstractController
     #[Route('/message/{id}/trust', name: 'message_trust', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function messageTrust(Request $request, #[CurrentUser] User $user, Message $message): Response
     {
-        return $this->fromBanner($request, $message, function () use ($user, $message): string {
+        return $this->fromBanner($request, $message, function () use ($user, $message): array {
             $this->contactKeys->pin($user, (int) $this->signerKey($user, $message)->id);
 
-            return 'contact_keys.pinned';
+            return ['contact_keys.pinned', []];
         });
     }
 
@@ -272,10 +296,10 @@ final class ContactKeyController extends AbstractController
     #[Route('/message/{id}/accept', name: 'message_accept', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function messageAccept(Request $request, #[CurrentUser] User $user, Message $message): Response
     {
-        return $this->fromBanner($request, $message, function () use ($user, $message): string {
+        return $this->fromBanner($request, $message, function () use ($user, $message): array {
             $this->contactKeys->accept($user, (int) $this->signerKey($user, $message)->id);
 
-            return 'contact_keys.accepted';
+            return ['contact_keys.accepted', []];
         });
     }
 
@@ -333,7 +357,8 @@ final class ContactKeyController extends AbstractController
     }
 
     /**
-     * @param Closure(): string $act returns the translation key of what happened
+     * @param Closure(): array{string, array<string, string>} $act returns the
+     *        translation key of what happened, and its parameters
      */
     private function fromBanner(Request $request, Message $message, Closure $act): Response
     {
@@ -342,11 +367,12 @@ final class ContactKeyController extends AbstractController
         $this->refuseInDemo();
 
         try {
-            $notice = $act();
-            $tone   = 'success';
+            [$notice, $parameters] = $act();
+            $tone = 'success';
         } catch (ContactKeyRefused $refused) {
-            $notice = $refused->translationKey;
-            $tone   = 'error';
+            $notice     = $refused->translationKey;
+            $parameters = [];
+            $tone       = 'error';
         }
 
         // This one now, while the person watches; ContactKeys has queued the
@@ -365,9 +391,10 @@ final class ContactKeyController extends AbstractController
 
         if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             return $this->renderTurboStream('mail/_crypto_banner.stream.html.twig', [
-                'message' => $message,
-                'notice'  => $notice,
-                'tone'    => $tone,
+                'message'    => $message,
+                'notice'     => $notice,
+                'parameters' => $parameters,
+                'tone'       => $tone,
             ]);
         }
 
@@ -401,13 +428,35 @@ final class ContactKeyController extends AbstractController
         return $key ?? throw new ContactKeyRefused('contact_keys.signer_unknown');
     }
 
-    private function sayOutcome(?ContactKeyOutcome $outcome): void
+    private function sayOutcome(User $user, ?ContactKeyLookup $lookup): void
     {
-        match ($outcome) {
-            ContactKeyOutcome::Added, ContactKeyOutcome::Seen => $this->say('success', 'contact_keys.lookup.found'),
-            ContactKeyOutcome::Changed                         => $this->say('warning', 'contact_keys.lookup.changed'),
-            default                                            => $this->say('error', 'contact_keys.lookup.nothing'),
-        };
+        $notice = $this->lookupNotice($user, $lookup);
+
+        $this->say($notice['tone'], $notice['key'], $notice['parameters']);
+    }
+
+    /**
+     * What a lookup found, in words that say where: the domain's directory,
+     * or the key server by name — the first thing to know about how far the
+     * key deserves belief. "Nothing" names the key servers too when they were
+     * asked, so a person who switched them off is not told they were.
+     *
+     * @return array{tone: string, key: string, parameters: array<string, string>}
+     */
+    private function lookupNotice(User $user, ?ContactKeyLookup $lookup): array
+    {
+        if (null === $lookup) {
+            return ['tone' => 'error', 'key' => true === $this->keyServers->isEnabledFor($user) ? 'contact_keys.lookup.nothing_keyservers' : 'contact_keys.lookup.nothing', 'parameters' => []];
+        }
+
+        $fromKeyServer = ContactKeyOrigin::KeyServer === $lookup->origin;
+        $parameters    = true === $fromKeyServer ? ['%host%' => (string) $lookup->host] : [];
+
+        if (ContactKeyOutcome::Changed === $lookup->outcome) {
+            return ['tone' => 'warning', 'key' => true === $fromKeyServer ? 'contact_keys.lookup.changed_keyserver' : 'contact_keys.lookup.changed', 'parameters' => $parameters];
+        }
+
+        return ['tone' => 'success', 'key' => true === $fromKeyServer ? 'contact_keys.lookup.found_keyserver' : 'contact_keys.lookup.found', 'parameters' => $parameters];
     }
 
     /**

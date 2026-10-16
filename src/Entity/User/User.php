@@ -1308,6 +1308,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether a lookup of a contact's key goes on to the public key servers
+     * when the address's own domain has none (KeyServerLookup) — Settings →
+     * Encryption → Contacts' keys.
+     *
+     * ON unless switched off, as Thunderbird asks keys.openpgp.org by default:
+     * without it most people's keys are not found, and mail to them goes out
+     * unencrypted. The price is that the server's operator learns which
+     * address somebody here looked up, which is why the switch is there and
+     * its hint says so. Stored only as a false.
+     */
+    public const string SETTING_CRYPTO_KEY_SERVERS = 'crypto.key_servers';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_KEY_SERVERS. */
+    public bool $lookUpKeyServers {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_KEY_SERVERS, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_KEY_SERVERS, $on ? null : false);
+        }
+    }
+
+    /**
      * Whether remote images load in every message without the "Show images"
      * bar, as if every sender were on the allowlist (#124).
      *

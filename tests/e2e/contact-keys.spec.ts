@@ -159,7 +159,7 @@ async function signedRaw(page: Page, key: Key, subject: string, body: string): P
 async function importKey(page: Page, armored: string): Promise<void> {
     const frame = page.locator("turbo-frame#contact-keys");
 
-    await frame.getByLabel("Public key").fill(armored);
+    await frame.getByLabel("Public key", { exact: true }).fill(armored);
     await frame.getByRole("button", { name: "Add key", exact: true }).click();
 }
 

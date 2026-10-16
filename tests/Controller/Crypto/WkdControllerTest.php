@@ -8,6 +8,7 @@ use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Service\Crypto\KeyFetcher;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\WkdLookup;
 use App\Tests\Support\Crypto\Gpg;
@@ -320,7 +321,7 @@ final class WkdControllerTest extends WebTestCase
         [$user, $gpg] = $this->published(extraUserIds: ['private@elsewhere.example']);
 
         $asked  = [];
-        $lookup = new WkdLookup(
+        $lookup = new WkdLookup(new KeyFetcher(
             new MockHttpClient(function (string $method, string $url) use (&$asked): MockResponse {
                 $asked[] = $url;
                 $parts   = parse_url($url);
@@ -330,12 +331,11 @@ final class WkdControllerTest extends WebTestCase
 
                 return new MockResponse((string) $response->getContent(), ['http_code' => $response->getStatusCode()]);
             }),
-            new PublicKeyReader(),
             new ArrayAdapter(),
             new RateLimiterFactory(['id' => 'wkd', 'policy' => 'fixed_window', 'limit' => 30, 'interval' => '1 hour'], new InMemoryStorage()),
             new NullLogger(),
             static fn (string $host): array => ['93.184.215.14'],
-        );
+        ), new PublicKeyReader());
 
         $keys = $lookup->find($user, (string) $user->email);
 
@@ -346,7 +346,7 @@ final class WkdControllerTest extends WebTestCase
 
         // And the direct method on its own, as when there is no openpgpkey
         // subdomain: the advanced URL is refused, the direct one answers.
-        $direct = new WkdLookup(
+        $direct = new WkdLookup(new KeyFetcher(
             new MockHttpClient(function (string $method, string $url): MockResponse {
                 $parts = parse_url($url);
 
@@ -358,12 +358,11 @@ final class WkdControllerTest extends WebTestCase
 
                 return new MockResponse((string) $this->client->getResponse()->getContent(), ['http_code' => $this->client->getResponse()->getStatusCode()]);
             }),
-            new PublicKeyReader(),
             new ArrayAdapter(),
             new RateLimiterFactory(['id' => 'wkd-direct', 'policy' => 'fixed_window', 'limit' => 30, 'interval' => '1 hour'], new InMemoryStorage()),
             new NullLogger(),
             static fn (string $host): array => ['93.184.215.14'],
-        );
+        ), new PublicKeyReader());
 
         self::assertSame([$gpg->fingerprint], array_map(static fn ($key): string => $key->fingerprint, $direct->find($user, (string) $user->email)));
     }

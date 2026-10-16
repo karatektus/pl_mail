@@ -15,8 +15,9 @@ background (SignatureVerifier) and the state is on the row; null means the
 check has not run yet.
 
 Below that, for a PGP signature plMail cannot vouch for, what the person can
-do about it (ContactKeyController): look the sender's key up in their
-domain's WKD when plMail has none or a different one, trust the key when the
+do about it (ContactKeyController): look the sender's key up — their
+domain's WKD, then the public key servers — when plMail has none or a
+different one, trust the key when the
 signature is intact but unconfirmed, or take a changed key as the sender's
 new one. Plain forms, answered with a Turbo Stream that replaces this banner
 — hence the id. For an encrypted message the browser shows the lookup itself
@@ -26,6 +27,8 @@ only it does.
 Variables:
   message      Message, with crypto set
   notice       optional translation key: what the last banner action did
+  notice_parameters  optional, its parameters — a lookup's says where the
+               key was found
   notice_tone  optional, 'success' or 'error'
 #}
 {% set crypto = message.crypto %}
@@ -35,6 +38,7 @@ Variables:
 {% set tone = encrypted or state == 'valid' ? 'secure' : (warning ? 'danger' : 'neutral') %}
 {% set signer = message.signer ? (message.signer matches '/^[0-9a-f]+$/' ? message.signer|upper|split('', 4)|join(' ') : message.signer) : '' %}
 {% set notice = notice|default(null) %}
+{% set notice_parameters = notice_parameters|default({}) %}
 {% set notice_tone = notice_tone|default('success') %}
 {% set actions = not encrypted and crypto.pgp and state in ['unknown_key', 'untrusted', 'key_changed'] %}
 {% set settings_url = path('app_settings_index', { section: 'encryption' }) ~ '#contact-keys' %}
@@ -113,7 +117,7 @@ Variables:
         {% endif %}
 
         {% if notice %}
-            <p class="text-xs mt-2 {{ notice_tone == 'error' ? 'text-danger' : 'text-ink-muted' }}" role="status">{{ notice|trans }}</p>
+            <p class="text-xs mt-2 {{ notice_tone == 'error' ? 'text-danger' : 'text-ink-muted' }}" role="status" data-testid="crypto-banner-notice">{{ notice|trans(notice_parameters) }}</p>
         {% endif %}
     </div>
 </div>

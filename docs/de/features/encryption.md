@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:e1720855395005a32c3b26fbcbb035996756ebfd -->
+<!-- translated-from: features/encryption.md sha1:25f3934fbce3d4b7ea0fa9c1cff03d7435dd10ed -->
 
 # Verschlüsselung
 
@@ -172,24 +172,31 @@ die plMail für die Menschen hat, denen du schreibst: die Adresse, den Fingerpri
 woher der Schlüssel kam, und ein Häkchen bei denen, die du verifiziert hast. plMail prüft damit die
 Signaturen dieser Menschen und verschlüsselt an sie, sobald es verschlüsselt senden kann.
 
-Sie kommen aus drei Quellen, und für die ersten beiden musst du nichts tun:
+Sie kommen aus vier Quellen, und für die ersten drei musst du nichts tun:
 
 - **Mails, die du bekommst.** Ein Schlüssel im `Autocrypt:`-Header einer Nachricht oder als
   angehängte Schlüsseldatei wird für den Absender gespeichert — nur für den Absender, und nur ein
   Schlüssel, der dessen Adresse nennt.
-- **Die Domain des Absenders**, über ihr Web Key Directory (WKD). **Schlüssel suchen** fragt nach
-  einer Adresse; das Banner einer Signatur mit unbekanntem Schlüssel fragt nach der des Absenders.
-  Die Anfrage geht vom plMail-Server aus, nicht von deinem Browser.
+- **Die Domain des Kontakts**, über ihr Web Key Directory (WKD). **Schlüssel suchen** fragt nach
+  einer Adresse; das Banner einer Signatur mit unbekanntem Schlüssel fragt nach der des Absenders,
+  und das Schreibfenster nach jedem Empfänger, für den es keinen Schlüssel hat. Die Anfrage geht vom
+  plMail-Server aus, nicht von deinem Browser.
+- **Öffentliche Schlüsselserver** — keys.openpgp.org und der Schlüsselserver von Mailvelope —, wenn
+  die Domain nichts hat. Viele veröffentlichen ihren Schlüssel dort und haben kein WKD. Dieselben
+  Suchen fragen sie, nach der Domain, und der erste Server mit einem verwendbaren Schlüssel gewinnt.
 - **Ein Import** — füge einen öffentlichen Schlüsselblock ein oder wähle eine Datei. Der Schlüssel
   wird für jede Adresse gespeichert, die er nennt.
 
+Die Liste sagt, woher jeder Schlüssel kam: *Aus dem Schlüsselverzeichnis der Domain (WKD)*, *Vom
+Schlüsselserver keys.openpgp.org* und so weiter; ebenso der Hinweis nach einer Suche.
+
 plMail vertraut dem **ersten** Schlüssel, den es für eine Adresse findet. Taucht später ein
-**anderer** auf — in einer Nachricht, über WKD oder in einem Import —, steht er mit einer Warnung
-unter dem bekannten, und plMail verwendet weiter den bekannten Schlüssel, bis du entscheidest. Ein
-neuer Schlüssel eines Kontakts, der den alten verloren hat, und der Schlüssel von jemandem, der sich
-als dieser ausgibt, sehen genau gleich aus; nur der Kontakt kann dir sagen, was es ist. Frag ihn nach
-dem Fingerprint, am Telefon oder persönlich, und wähle dann **Diesen Schlüssel verwenden** — oder
-entferne ihn.
+**anderer** auf — in einer Nachricht, über WKD oder einen Schlüsselserver oder in einem Import —,
+steht er mit einer Warnung unter dem bekannten, und plMail verwendet weiter den bekannten Schlüssel,
+bis du entscheidest. Ein neuer Schlüssel eines Kontakts, der den alten verloren hat, und der Schlüssel
+von jemandem, der sich als dieser ausgibt, sehen genau gleich aus; nur der Kontakt kann dir sagen,
+was es ist. Frag ihn nach dem Fingerprint, am Telefon oder persönlich, und wähle dann **Diesen
+Schlüssel verwenden** — oder entferne ihn.
 
 **Als verifiziert markieren** heißt, dass du den Fingerprint mit dem Kontakt verglichen hast. Erst
 das macht aus seinen Signaturen statt *unverändert, aber nichts bestätigt, wer signiert hat* ein
@@ -200,11 +207,23 @@ Widerrufene oder abgelaufene Schlüssel und solche, die die Adresse nicht nennen
 gespeichert. Jeder Schlüssel hat außerdem **Einstellungen für diesen Empfänger** — verschlüsseln,
 signieren, PGP/MIME oder Inline —, nach denen sich das Schreibfenster richtet.
 
+### Schlüsselserver
+
+**Auch auf öffentlichen Schlüsselservern suchen**, unter Schlüssel deiner Kontakte, ist an, bis du es
+ausschaltest. Der Hinweis daneben nennt die Server, die deine Installation fragt. Ein Schlüsselserver
+gibt einen Schlüssel nur heraus, wenn dessen Besitzer ihm bewiesen hat, dass er die Mails an die
+Adresse liest, und plMail nimmt nur einen Schlüssel, der genau die gesuchte Adresse nennt, nicht
+widerrufen und nicht abgelaufen ist. Ausgeschaltet fragen Suchen nur die Domain des Kontakts.
+
+Wer die Installation betreibt, wählt die Server aus oder schaltet sie für alle ab (`APP_KEY_SERVERS`,
+siehe die [Konfigurationsreferenz](../install/configuration.md)). Ist keiner eingestellt, fehlt der
+Schalter.
+
 ## Verschlüsselt schreiben
 
 Du musst nichts einschalten. Während du die Empfänger eintippst, bekommt jeder, für den plMail einen
-Schlüssel hat, ein kleines Schloss — nachgeschlagen bei seiner Domain, falls plMail ihn noch nicht
-kannte. Haben **alle** Empfänger einen, wird die Nachricht verschlüsselt: Im Kopf steht
+Schlüssel hat, ein kleines Schloss — nachgeschlagen bei seiner Domain oder, wenn die keinen hat, auf
+einem Schlüsselserver, falls plMail ihn noch nicht kannte. Haben **alle** Empfänger einen, wird die Nachricht verschlüsselt: Im Kopf steht
 *Verschlüsselt*, und das Schloss in der Werkzeugleiste ist grün. Haben nur manche einen, sagt ein
 Hinweis unter den Empfängern, wer nicht verschlüsselt erreichbar ist, und die Nachricht geht
 unverschlüsselt an alle — außer du hast unter *Versand* **Nicht senden, wenn nicht alle
@@ -468,10 +487,24 @@ werden.
 importiere ihn.
 
 **Eine Suche verrät der Domain des Kontakts, dass jemand gefragt hat.** Nicht, wer: Die Anfrage kommt
-vom plMail-Server. Antworten werden einen Tag lang gemerkt (eine Stunde, wenn es keine gab), und jede
-Person kann dreißig Suchen in zehn Minuten stellen.
+vom plMail-Server. Antworten werden einen Tag lang gemerkt (eine Stunde, wenn es keine gab). Jede
+Person kann sechzig Anfragen in zehn Minuten stellen; jede gefragte Stelle zählt einmal, eine Adresse,
+für die niemand einen Schlüssel hat, kostet mit beiden Schlüsselservern also drei.
 
-**keys.openpgp.org wird nicht gefragt.** Nur die eigene Domain des Kontakts, über WKD.
+**Eine Suche auf einem Schlüsselserver verrät dem Server, wem du schreibst.** Der Server erfährt die
+Adresse und dass jemand auf diesem plMail-Server gefragt hat — nicht, wer. Nur, wenn die Domain des
+Kontakts nichts hatte. Ist dir das zu viel, schalte **Auch auf öffentlichen Schlüsselservern suchen**
+aus.
+
+**keys.openpgp.org gibt nur bestätigte Adressen heraus.** Ein Schlüssel, dessen Besitzer die
+Bestätigungsmail des Servers nie angeklickt hat, kommt ohne jede Adresse zurück, und plMail nimmt ihn
+nicht. Sagt ein Kontakt, sein Schlüssel liege dort, und plMail findet nichts, hat er ihn
+wahrscheinlich nie bestätigt.
+
+**Ein Schlüssel von einem Schlüsselserver ist kein verifizierter Schlüssel.** Der Server hat nur
+geprüft, dass jemand die Mails an die Adresse lesen kann — was auch jemand kann, der in dieses
+Postfach oder beim Anbieter eingedrungen ist. Vergleiche den Fingerprint mit dem Kontakt, bevor du
+**Als verifiziert markieren** wählst, wie bei jedem anderen Schlüssel.
 
 **Ein Entwurf wird versiegelt, sobald er verschlüsselt werden soll, nicht vorher.** Was davor
 gespeichert wurde — Text, getippt bevor der letzte Empfänger mit Schlüssel dazukam —, lag so vor, wie

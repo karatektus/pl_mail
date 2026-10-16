@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\Method\Keys;
 
+use App\Command\Test\SeedKeyServerCommand;
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyStatus;
@@ -117,6 +118,40 @@ final class KeysCapabilityTest extends JmapTestCase
 
         self::assertSame($contact->fingerprint, $lookup['recipients'][0]['key']['fingerprint']);
         self::assertNull($lookup['recipients'][1]['key']);
+    }
+
+    /**
+     * The lookup a native composer makes finds a key only a key server has —
+     * the test environment's stand-in for it (KeyServerStub) — and both
+     * methods say where it came from. `.test` resolves nowhere, so WKD, which
+     * is asked first, finds nothing.
+     */
+    public function testContactKeyLookupFindsAKeyOnAKeyServerAndSaysWhich(): void
+    {
+        $address = sprintf('jo-%s@keyserver-only.test', bin2hex(random_bytes(6)));
+        $key     = new Gpg($address);
+        $path    = SeedKeyServerCommand::path(self::getContainer()->getParameter('kernel.project_dir') . '/var/test-key-servers', 'keys.openpgp.org', $address);
+
+        if (false === is_dir(dirname($path))) {
+            mkdir(dirname($path), 0o777, true);
+        }
+
+        file_put_contents($path, $key->armored);
+
+        try {
+            $lookup = $this->method(ContactKeyLookupMethod::class)->handle(['emails' => [$address], 'lookup' => true], $this->context());
+        } finally {
+            unlink($path);
+        }
+
+        self::assertSame($key->fingerprint, $lookup['recipients'][0]['key']['fingerprint']);
+        self::assertSame('keyserver', $lookup['recipients'][0]['key']['origin']);
+        self::assertSame('keys.openpgp.org', $lookup['recipients'][0]['key']['originHost']);
+
+        $list = $this->method(ContactKeyGetMethod::class)->handle([], $this->context())['list'];
+
+        self::assertSame(['keyserver'], array_column($list, 'origin'));
+        self::assertSame(['keys.openpgp.org'], array_column($list, 'originHost'));
     }
 
     public function testEncryptedMailWaitsForItsDecryptedTextOnlyForAnAccountThatKeepsIt(): void

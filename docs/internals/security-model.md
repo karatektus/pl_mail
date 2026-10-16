@@ -355,16 +355,47 @@ an endpoint that fetches URLs derived from user input, so:
 - The URL is built, never taken: `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/<z-base-32 SHA-1 of the lower-cased local part>?l=<local>`,
   then `https://<domain>/.well-known/openpgpkey/hu/…`. The domain must be an IDNA-encoded DNS name
   of two labels or more — no IP literal, no port, no path, no bare container name.
-- The host is resolved first; any private or reserved address among its A and AAAA records and
-  nothing is asked. The checked address is pinned (`resolve`) and `NoPrivateNetworkHttpClient` checks
-  the address actually connected to.
-- No redirects (`max_redirects: 0`), a 4-second timeout and 8-second ceiling, and a 256 KiB limit
-  enforced while the body streams.
-- Answers are cached in `cache.app`, a day when found and an hour when not, and only lookups that go
-  out count against the per-person `wkd_lookup` limiter (30 in 10 minutes).
+- The request itself goes through `KeyFetcher`, which holds every lookup that leaves the server —
+  WKD and the key servers below — to the same rules:
+  - The host is resolved first; any private or reserved address among its A and AAAA records and
+    nothing is asked. The checked address is pinned (`resolve`) and `NoPrivateNetworkHttpClient`
+    checks the address actually connected to.
+  - HTTPS only, no redirects (`max_redirects: 0`), a 4-second timeout and 8-second ceiling, and a
+    256 KiB limit enforced while the body streams.
+  - Answers are cached in `cache.app`, a day when found and an hour when not, and only lookups that
+    go out count against the per-person `wkd_lookup` limiter (60 in 10 minutes, one budget for WKD
+    and key servers together; every place asked counts once).
 - Only keys with a user ID for the address asked about are kept.
 
-keys.openpgp.org (VKS) is not asked; the concept leaves it as an optional instance setting.
+**Public key servers after WKD** (`KeyServerLookup`, phase 6f), for the people who publish their key
+on keys.openpgp.org or the Mailvelope key server and have no WKD:
+
+- **Order.** `ContactKeys::lookUp()` asks WKD first, because the domain speaks for its own
+  addresses; a key server speaks only for whoever confirmed the address to it. The servers are asked
+  only when WKD has nothing usable, in the order `APP_KEY_SERVERS` lists them, and the first usable
+  key wins — no second opinion, which would cost another party told whom the person writes to and
+  could not outvote the first anyway.
+- **Each server's own HTTPS API, not HKP.** `GET https://keys.openpgp.org/vks/v1/by-email/<address>`
+  (the armored key) and `GET https://keys.mailvelope.com/api/v1/key?email=<address>` (JSON,
+  `publicKeyArmored`), the address URL-encoded into a fixed URL — one `KeyServerInterface` per
+  server, tagged `app.key_server`. The host is never configurable as a URL: `APP_KEY_SERVERS` names
+  servers plMail has a class for, and any other name is dropped with a warning in the log.
+- **Same rules as WKD**, because the request goes through the same `KeyFetcher`.
+- **Which key counts.** Only one `PublicKeyReader` accepts with a user ID for exactly the address
+  asked about, not revoked, not expired. keys.openpgp.org strips every user ID whose address its
+  owner has not confirmed; such a key names no address and is not taken.
+- **Trust is unchanged.** The key goes through `ContactKeys::record()` like any other: the first
+  usable key is `current` and unpinned, a different one is `changed` and waits — a key server never
+  overrides a key plMail holds. The origin is `keyserver` with the server's host in
+  `contact_key.origin_host`.
+- **Privacy.** A lookup tells the server's operator which address somebody on this installation
+  looked up — not who, since the request comes from the server. Two layers can say no:
+  `APP_KEY_SERVERS` (both servers by default; empty switches them off) and the person's **Also look
+  on public key servers** (`crypto.key_servers` in the settings bag, on by default, in the config
+  backup). Either off, and nothing is requested.
+- **Tests never reach the internet.** In the test environment `KeyServerLookup` fetches through
+  `App\Tests\Support\Crypto\KeyServerStub` (`when@test` in `config/services.yaml`), which answers
+  both APIs from files `app:test:seed-key-server` writes and resolves no DNS.
 
 ## Writing and sending encrypted mail
 
@@ -1151,6 +1182,14 @@ somebody else would now plant a key for them on first use.
 URL, or a domain with a port or path in it, is an SSRF hole however well the client below it checks
 addresses.
 
+**A key server is never configured as a URL.** `APP_KEY_SERVERS` names hosts plMail has a
+`KeyServerInterface` for; a free-form base URL there would be an SSRF knob in the environment, and a
+server speaking another API would be read wrong. A new server is a new class.
+
+**A key server's key is not a verified key.** The server checked that somebody can read mail at the
+address, nothing more. It must stay unpinned on arrival and lose to a key plMail already holds, like
+every other source; only the person's comparison pins it.
+
 **A WKD miss must stay one response.** Any new reason for "no key here" goes through
 `WkdDirectory::find()` returning null and the controller's single 404 — not an exception, a
 redirect or a message, each of which would tell the reasons apart.
@@ -1161,7 +1200,7 @@ would publish nothing.
 
 **`MockHttpClient` follows no redirects whatever it is told**, and `NoPrivateNetworkHttpClient`
 follows them itself, never the client beneath. A test cannot show `max_redirects: 0` working; the
-option in `WkdLookup::fetch()` is the guard, and it says why.
+option in `KeyFetcher::get()` is the guard, and it says why.
 
 **The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
 is the only difference between a known and an unknown address, and it lasts until that account's

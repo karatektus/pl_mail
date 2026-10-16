@@ -1997,6 +1997,7 @@ contact_keys:
     origin:
         attached: Jointe à un message
         autocrypt: Issue de l’en-tête Autocrypt d’un message
+        keyserver: Issue du serveur de clés %host%
         manual: Importée par vous
         wkd: Issue de l’annuaire de clés du domaine (WKD)
     pin: Marquer comme vérifiée
@@ -2034,13 +2035,20 @@ contact_keys:
     lookup:
         heading: Rechercher une clé
         hint: Demande sa clé au domaine de l’adresse (Web Key Directory). La requête passe par ce serveur.
+        hint_keyservers: Demande sa clé au domaine de l’adresse (Web Key Directory), puis aux serveurs de clés %servers%. La requête passe par ce serveur.
         email: Adresse e-mail
         submit: Rechercher
-        found: Clé trouvée et conservée.
-        changed: Clé trouvée — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        found: Clé trouvée dans l’annuaire de clés du domaine (WKD) et conservée.
+        found_keyserver: Clé trouvée sur le serveur de clés %host% et conservée. Le serveur a seulement vérifié que quelqu’un lit le courrier de cette adresse — comparez l’empreinte avec votre contact avant de la marquer comme vérifiée.
+        changed: Clé trouvée dans l’annuaire de clés du domaine — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        changed_keyserver: Clé trouvée sur le serveur de clés %host% — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
         nothing: Le domaine ne publie aucune clé utilisable pour cette adresse.
+        nothing_keyservers: Ni le domaine ni les serveurs de clés n’ont de clé utilisable pour cette adresse.
         invalid_address: Cette adresse ne peut pas être recherchée.
         rate_limited: Trop de recherches d’affilée. Réessayez dans quelques minutes.
+    key_servers:
+        label: Chercher aussi sur les serveurs de clés publics
+        hint: Si le domaine de l’adresse n’a pas de clé, plMail interroge aussi %servers%. Une recherche leur indique quelle adresse vous cherchez.
     preferences:
         heading: Préférences pour ce destinataire
         hint: Utilisées quand plMail envoie du courrier chiffré.

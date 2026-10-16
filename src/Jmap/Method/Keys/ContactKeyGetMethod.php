@@ -17,7 +17,9 @@ use DateTimeInterface;
  * Settings → Encryption lists them: the one in use for each address
  * (`status: current`) and any changed key still waiting to be accepted, with
  * the per-recipient preferences. Read-only; keys are added by mail that
- * brings them, by WKD (ContactKey/lookup) or in the web settings.
+ * brings them, by WKD or a public key server (ContactKey/lookup) or in the web settings.
+ * `originHost` names the key server for a key whose `origin` is `keyserver`,
+ * and is null for every other origin.
  */
 final class ContactKeyGetMethod implements JmapMethod
 {
@@ -43,6 +45,7 @@ final class ContactKeyGetMethod implements JmapMethod
             'fingerprint' => $key->fingerprint,
             'publicKey'   => $key->publicKey,
             'origin'      => $key->origin->value,
+            'originHost'  => $key->originHost,
             'status'      => $key->status->value,
             'pinned'      => $key->pinned,
             'expiresAt'   => $key->expiresAt?->format(DateTimeInterface::ATOM),

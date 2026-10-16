@@ -7,17 +7,6 @@ namespace App\Service\Crypto;
 use App\Domain\DTO\Crypto\PublicKeyInfo;
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\User\User;
-use App\Infrastructure\Http\PrivateNetwork;
-use Closure;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\Exception\TransportException;
-use Symfony\Component\HttpClient\NoPrivateNetworkHttpClient;
-use Symfony\Component\HttpFoundation\IpUtils;
-use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Throwable;
 
 /**
  * Asks a recipient's own domain for their key: the OpenPGP Web Key Directory
@@ -33,17 +22,10 @@ use Throwable;
  *     https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/<hash>?l=<local>   (advanced)
  *     https://<domain>/.well-known/openpgpkey/hu/<hash>?l=<local>                       (direct)
  *
- * and the request is held to the rest of the rules here:
- *
- *   - HTTPS only, no redirects at all — a WKD server has no reason to send a
- *     key from anywhere else, and following one is how an attacker's domain
- *     would point the server at its own network;
- *   - the host's addresses resolved first and refused if any is private or
- *     reserved, then pinned, and NoPrivateNetworkHttpClient checking the
- *     address actually connected to (no DNS rebinding in between);
- *   - a short timeout and a size limit, enforced while the body streams in;
- *   - answers cached, found or not, so a busy thread does not ask again;
- *   - a per-person rate limit on the lookups that do go out.
+ * and the request is held to the rules every lookup that leaves the server
+ * is held to — HTTPS only, no redirects, private addresses refused and the
+ * checked one pinned, a timeout and a size limit, a cache and a per-person
+ * rate limit — which live in KeyFetcher, shared with the key servers.
  *
  * Only keys with a user ID for the very address asked about are returned. A
  * domain that serves somebody else's key under an address's hash is serving
@@ -54,29 +36,13 @@ final readonly class WkdLookup
     /** Z-Base-32, as WKD hashes local parts with it (RFC 6189 §5.1.6). */
     private const string ZBASE32 = 'ybndrfg8ejkmcpqxot1uwisza345h769';
 
-    private const int MAX_BYTES = PublicKeyReader::MAX_BYTES;
+    /** A WKD answer is the binary key; some servers send it armored. */
+    private const string ACCEPT = 'application/octet-stream, application/pgp-keys';
 
-    private const int FOUND_TTL     = 86400;
-    private const int NOT_FOUND_TTL = 3600;
-
-    /** @var Closure(string): list<string> */
-    private Closure $resolve;
-
-    /**
-     * @param (Closure(string): list<string>)|null $resolve how a host name
-     *        becomes addresses; PrivateNetwork::resolve() unless a test says
-     *        otherwise, since a test has no business asking real DNS
-     */
     public function __construct(
-        private HttpClientInterface         $httpClient,
-        private PublicKeyReader             $reader,
-        private CacheInterface              $cache,
-        private RateLimiterFactoryInterface $wkdLookupLimiter,
-        private LoggerInterface             $logger,
-        ?Closure                            $resolve = null,
-    ) {
-        $this->resolve = $resolve ?? PrivateNetwork::resolve(...);
-    }
+        private KeyFetcher      $fetcher,
+        private PublicKeyReader $reader,
+    ) {}
 
     /**
      * The two URLs to ask, in order, or null for an address that is not one
@@ -160,89 +126,21 @@ final readonly class WkdLookup
             throw new ContactKeyRefused('contact_keys.lookup.invalid_address');
         }
 
-        if (true === $fresh) {
-            $this->cache->delete('wkd.' . sha1($email));
-        }
+        // One cache entry and one counted lookup for both methods: they are
+        // two places on the same domain to ask the same question.
+        $body = $this->fetcher->cached($user, 'wkd.' . sha1($email), fn (): ?string => $this->fetcher->get($urls['advanced'], self::ACCEPT) ?? $this->fetcher->get($urls['direct'], self::ACCEPT), $fresh);
 
-        $cached = $this->cache->get('wkd.' . sha1($email), function (ItemInterface $item) use ($user, $urls): string {
-            // Counted only here, on the way out: an answer from the cache costs
-            // nobody anything, and a thread of twenty signed messages from one
-            // sender should not spend twenty lookups.
-            if (false === $this->wkdLookupLimiter->create((string) $user->id)->consume()->isAccepted()) {
-                throw new ContactKeyRefused('contact_keys.lookup.rate_limited');
-            }
-
-            $body = $this->fetch($urls['advanced']) ?? $this->fetch($urls['direct']);
-            $item->expiresAfter(null === $body ? self::NOT_FOUND_TTL : self::FOUND_TTL);
-
-            return null === $body ? '' : base64_encode($body);
-        });
-
-        if ('' === $cached) {
+        if (null === $body) {
             return [];
         }
 
         return array_values(array_filter(
-            $this->reader->read((string) base64_decode($cached, true)),
+            $this->reader->read($body),
             static fn (PublicKeyInfo $key): bool => $key->usableFor($email),
         ));
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    /**
-     * One GET, under every rule in the class docblock. Null for anything but
-     * a 200 with a body of a sensible size.
-     */
-    private function fetch(string $url): ?string
-    {
-        $host = (string) parse_url($url, PHP_URL_HOST);
-
-        if ('https' !== parse_url($url, PHP_URL_SCHEME) || '' === $host) {
-            return null;
-        }
-
-        $addresses = ($this->resolve)($host);
-
-        if ([] === $addresses) {
-            return null;
-        }
-
-        foreach ($addresses as $address) {
-            if (true === IpUtils::isPrivateIp($address)) {
-                $this->logger->notice('WKD host {host} resolves to a private address; not asked.', ['host' => $host]);
-
-                return null;
-            }
-        }
-
-        try {
-            $response = new NoPrivateNetworkHttpClient($this->httpClient)->request('GET', $url, [
-                'timeout'       => 4,
-                'max_duration'  => 8,
-                'max_redirects' => 0,
-                'resolve'       => [$host => $addresses[0]],
-                'headers'       => ['Accept' => 'application/octet-stream, application/pgp-keys'],
-                'on_progress'   => static function (int $downloaded, int $size): void {
-                    if (self::MAX_BYTES < $downloaded || self::MAX_BYTES < $size) {
-                        throw new TransportException('The WKD answer is too large.');
-                    }
-                },
-            ]);
-
-            if (200 !== $response->getStatusCode()) {
-                return null;
-            }
-
-            $body = $response->getContent();
-        } catch (Throwable $exception) {
-            $this->logger->info('WKD lookup at {url} failed: {error}', ['url' => $url, 'error' => $exception->getMessage()]);
-
-            return null;
-        }
-
-        return '' === $body || self::MAX_BYTES < strlen($body) ? null : $body;
-    }
 
     private static function zbase32(string $bytes): string
     {

@@ -16,8 +16,10 @@ use App\Service\Crypto\RecipientKeys;
  * What a composer needs to know about the people a message is going to — the
  * same answer the web composer gets (RecipientKeys): for each address the key
  * to encrypt to, whether a changed key is waiting, and the per-recipient
- * preferences; with `lookup: true`, an address without a key is looked up on
- * its domain's WKD first, through the server, so every client behaves alike.
+ * preferences; with `lookup: true`, an address without a key is looked up
+ * first — its domain's WKD, then the public key servers the installation and
+ * the person allow — through the server, so every client behaves alike. Each
+ * key carries `origin` and `originHost`, as ContactKey/get has them.
  *
  * With `accountId` (and optionally `from`, the address it sends from), also
  * the sender's own key and whether that account keeps decrypted mail.

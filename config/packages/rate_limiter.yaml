@@ -64,16 +64,23 @@ framework:
             limit: 5
             interval: '15 minutes'
 
-        # WKD lookups that actually leave the server, in
-        # App\Service\Crypto\WkdLookup — answers from its cache are not
+        # Key lookups that actually leave the server, in
+        # App\Service\Crypto\KeyFetcher — WKD and the public key servers
+        # alike, one budget for both, and answers from its cache are not
         # counted. Per user: the server makes these requests on a person's
         # behalf, and without a bound one signed-in account could use it to
-        # make the server knock on two domains' doors as fast as it can type.
-        # Thirty in ten minutes is far above a person working through their
-        # contacts by hand.
+        # make the server knock on doors as fast as it can type.
+        #
+        # Each place asked counts once: the domain's WKD, then each key server
+        # in turn, so an address nobody has a key for costs three with the
+        # default two servers. Sixty in ten minutes — twice the thirty it was
+        # with WKD alone — keeps that at twenty new addresses, still far above
+        # a person working through their contacts by hand or typing the
+        # recipients of one mail. Keeps its name from the WKD-only days, so
+        # no stored limiter state is orphaned.
         wkd_lookup:
             policy: 'sliding_window'
-            limit: 30
+            limit: 60
             interval: '10 minutes'
 
         # The public Web Key Directory, in App\Controller\Crypto\WkdController.

@@ -1986,6 +1986,7 @@ contact_keys:
     origin:
         attached: "Attached to a message"
         autocrypt: "From a message's Autocrypt header"
+        keyserver: "From the key server %host%"
         manual: "Imported by you"
         wkd: "From the domain's key directory (WKD)"
     pin: "Mark as verified"
@@ -2023,13 +2024,20 @@ contact_keys:
     lookup:
         heading: "Look up a key"
         hint: "Asks the address's own domain for its key (Web Key Directory). The request goes through this server."
+        hint_keyservers: "Asks the address's own domain for its key (Web Key Directory), then the key servers %servers%. The request goes through this server."
         email: "Email address"
         submit: "Look up"
-        found: "Found a key, and kept it."
-        changed: "Found a key — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        found: "Found a key in the domain's key directory (WKD), and kept it."
+        found_keyserver: "Found a key on the key server %host%, and kept it. The server only checked that somebody reads mail at this address — compare the fingerprint with your contact before you mark it verified."
+        changed: "Found a key in the domain's key directory — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        changed_keyserver: "Found a key on the key server %host% — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
         nothing: "The domain publishes no usable key for this address."
+        nothing_keyservers: "Neither the domain nor the key servers have a usable key for this address."
         invalid_address: "That address cannot be looked up."
         rate_limited: "Too many lookups in a row. Try again in a few minutes."
+    key_servers:
+        label: "Also look on public key servers"
+        hint: "When the address's own domain has no key, plMail also asks %servers%. A lookup tells them which address you are looking for."
     preferences:
         heading: "Preferences for this recipient"
         hint: "Used when plMail sends encrypted mail."

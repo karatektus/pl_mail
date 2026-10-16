@@ -150,6 +150,10 @@ final readonly class ConfigBackupUsers
         // published a key somebody had withdrawn would be telling the world
         // something they had decided not to.
         User::SETTING_CRYPTO_WKD_UNPUBLISHED,
+        // Whether lookups go on to the public key servers. A restore that
+        // quietly switched it back on would be telling key servers whom
+        // somebody writes to after they had decided not to.
+        User::SETTING_CRYPTO_KEY_SERVERS,
         // Whether any of the person's accounts keeps decrypted mail: carried
         // with the accounts' own switches above, which it summarises.
         User::SETTING_KEEPS_DECRYPTED_ANY,
@@ -596,6 +600,7 @@ final readonly class ConfigBackupUsers
                 'fingerprint' => $key->fingerprint,
                 'publicKey'   => $key->publicKey,
                 'origin'      => $key->origin->value,
+                'originHost'  => $key->originHost,
                 'status'      => $key->status->value,
                 'pinned'      => $key->pinned,
                 'expiresAt'   => $key->expiresAt?->format(DateTimeInterface::ATOM),

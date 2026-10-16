@@ -1991,6 +1991,7 @@ contact_keys:
     origin:
         attached: "An einer Mail angehängt"
         autocrypt: "Aus dem Autocrypt-Header einer Mail"
+        keyserver: "Vom Schlüsselserver %host%"
         manual: "Von dir importiert"
         wkd: "Aus dem Schlüsselverzeichnis der Domain (WKD)"
     pin: "Als verifiziert markieren"
@@ -2028,13 +2029,20 @@ contact_keys:
     lookup:
         heading: "Schlüssel suchen"
         hint: "Fragt die Domain der Adresse nach ihrem Schlüssel (Web Key Directory). Die Anfrage läuft über diesen Server."
+        hint_keyservers: "Fragt die Domain der Adresse nach ihrem Schlüssel (Web Key Directory), danach die Schlüsselserver %servers%. Die Anfrage läuft über diesen Server."
         email: "E-Mail-Adresse"
         submit: "Suchen"
-        found: "Schlüssel gefunden und gespeichert."
-        changed: "Schlüssel gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
+        found: "Schlüssel im Schlüsselverzeichnis der Domain (WKD) gefunden und gespeichert."
+        found_keyserver: "Schlüssel auf dem Schlüsselserver %host% gefunden und gespeichert. Der Server hat nur geprüft, dass jemand die Mail an diese Adresse liest — vergleiche den Fingerprint mit deinem Kontakt, bevor du ihn als geprüft markierst."
+        changed: "Schlüssel im Schlüsselverzeichnis der Domain gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
+        changed_keyserver: "Schlüssel auf dem Schlüsselserver %host% gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
         nothing: "Die Domain veröffentlicht keinen verwendbaren Schlüssel für diese Adresse."
+        nothing_keyservers: "Weder die Domain noch die Schlüsselserver haben einen verwendbaren Schlüssel für diese Adresse."
         invalid_address: "Diese Adresse lässt sich nicht nachschlagen."
         rate_limited: "Zu viele Suchen hintereinander. Versuch es in ein paar Minuten noch einmal."
+    key_servers:
+        label: "Auch auf öffentlichen Schlüsselservern suchen"
+        hint: "Hat die Domain der Adresse keinen Schlüssel, fragt plMail auch %servers%. Eine Suche verrät ihnen, nach welcher Adresse du suchst."
     preferences:
         heading: "Einstellungen für diesen Empfänger"
         hint: "Gilt, wenn plMail verschlüsselte Mails sendet."

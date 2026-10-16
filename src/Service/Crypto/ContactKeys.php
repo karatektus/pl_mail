@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Crypto;
 
+use App\Domain\DTO\Crypto\ContactKeyLookup;
 use App\Domain\DTO\Crypto\PublicKeyInfo;
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyOutcome;
@@ -22,7 +23,8 @@ use Symfony\Component\Clock\ClockInterface;
  * them worth holding: trust on first use.
  *
  *   - The first usable key found for an address is used — Current — whether
- *     it came from WKD, an Autocrypt header, an attachment or an import.
+ *     it came from WKD, a key server, an Autocrypt header, an attachment or
+ *     an import.
  *   - A different key turning up later is recorded as Changed and does
  *     nothing else. It is never used in place of the Current key, and never
  *     in place of a pinned one, until the person accepts it. This holds for a
@@ -47,6 +49,7 @@ final readonly class ContactKeys
         private ContactKeyRepository   $contactKeys,
         private PublicKeyReader        $reader,
         private WkdLookup              $wkd,
+        private KeyServerLookup        $keyServers,
         private SignatureRecheck       $recheck,
         private EntityManagerInterface $entityManager,
         private ClockInterface         $clock,
@@ -56,7 +59,7 @@ final readonly class ContactKeys
     /**
      * Offers one key for one address, from wherever it was found.
      */
-    public function record(User $user, string $email, PublicKeyInfo $key, ContactKeyOrigin $origin): ContactKeyOutcome
+    public function record(User $user, string $email, PublicKeyInfo $key, ContactKeyOrigin $origin, ?string $originHost = null): ContactKeyOutcome
     {
         $email = strtolower(trim($email));
 
@@ -82,7 +85,7 @@ final readonly class ContactKeys
         // make that decision by arriving.
         $status = [] === $known ? ContactKeyStatus::Current : ContactKeyStatus::Changed;
 
-        $this->entityManager->persist(new ContactKey($user, $email, $key->fingerprint, $key->armored, $origin, $status, $key->expiresAt, $now));
+        $this->entityManager->persist(new ContactKey($user, $email, $key->fingerprint, $key->armored, $origin, $status, $key->expiresAt, $now, $originHost));
         $this->entityManager->flush();
 
         $this->recheck->forSender($user, $email);
@@ -130,19 +133,43 @@ final readonly class ContactKeys
     }
 
     /**
-     * Asks the address's domain for its key (WkdLookup) and offers what it
-     * publishes. Null when the domain has nothing for the address.
+     * Looks the address's key up and offers what turns up: first on the
+     * address's own domain (WkdLookup), then — only when the domain has
+     * nothing usable — on the key servers, in the installation's order
+     * (KeyServerLookup), the first usable answer winning. Null when nobody
+     * has a usable key for the address.
+     *
+     * WKD first because the domain speaks for its own addresses; a key server
+     * only for whoever confirmed the address to it. Either way the key goes
+     * through record() like any other: a key server never overrides a key
+     * plMail already holds, and a different one waits as Changed.
      */
-    public function lookUp(User $user, string $email): ?ContactKeyOutcome
+    public function lookUp(User $user, string $email): ?ContactKeyLookup
     {
+        $keys   = $this->wkd->find($user, $email);
+        $origin = ContactKeyOrigin::Wkd;
+        $host   = null;
+
+        if ([] === $keys) {
+            $answer = $this->keyServers->find($user, $email);
+
+            if (null === $answer) {
+                return null;
+            }
+
+            $keys   = $answer->keys;
+            $origin = ContactKeyOrigin::KeyServer;
+            $host   = $answer->host;
+        }
+
         $outcome = null;
 
-        foreach ($this->wkd->find($user, $email) as $key) {
-            $result  = $this->record($user, $email, $key, ContactKeyOrigin::Wkd);
+        foreach ($keys as $key) {
+            $result  = $this->record($user, $email, $key, $origin, $host);
             $outcome = ContactKeyOutcome::Changed === $outcome ? $outcome : $result;
         }
 
-        return $outcome;
+        return null === $outcome ? null : new ContactKeyLookup($outcome, $origin, $host);
     }
 
     public function pin(User $user, int $id): ContactKey

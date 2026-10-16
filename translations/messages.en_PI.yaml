@@ -1877,6 +1877,7 @@ contact_keys:
     origin:
         attached: "Lashed to a letter"
         autocrypt: "From a letter's Autocrypt header"
+        keyserver: "From th' key server %host%"
         manual: "Brought aboard by ye"
         wkd: "From th' domain's key directory (WKD)"
     pin: "Mark as verified"
@@ -1914,13 +1915,20 @@ contact_keys:
     lookup:
         heading: "Seek a key"
         hint: "Asks th' address's own domain fer its key (Web Key Directory). Th' request sails through this server."
+        hint_keyservers: "Asks th' address's own domain fer its key (Web Key Directory), then th' key servers %servers%. Th' request sails through this server."
         email: "Email address"
         submit: "Seek"
-        found: "Found a key, an' kept it."
-        changed: "Found a key — but it differs from th' one plMail knows fer this address. Compare th' fingerprints afore ye accept it."
+        found: "Found a key in th' domain's key directory (WKD), an' kept it."
+        found_keyserver: "Found a key on th' key server %host%, an' kept it. Th' server only checked that someone reads letters at this address — compare th' fingerprint with yer contact afore ye mark it verified."
+        changed: "Found a key in th' domain's key directory — but it differs from th' one plMail knows fer this address. Compare th' fingerprints afore ye accept it."
+        changed_keyserver: "Found a key on th' key server %host% — but it differs from th' one plMail knows fer this address. Compare th' fingerprints afore ye accept it."
         nothing: "Th' domain posts no usable key fer this address."
+        nothing_keyservers: "Neither th' domain nor th' key servers hold a usable key fer this address."
         invalid_address: "That address can't be sought."
         rate_limited: "Too many seekin's in a row. Try again in a few minutes."
+    key_servers:
+        label: "Also search th' public key servers"
+        hint: "When th' address's own domain has no key, plMail also asks %servers%. A seekin' tells them which address ye be lookin' fer."
     preferences:
         heading: "Orders fer this recipient"
         hint: "Used when plMail sends sealed post."

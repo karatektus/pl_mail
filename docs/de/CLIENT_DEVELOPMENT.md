@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:8b3fd7a4004f1a4cee9bdc58d47cc012a80ff503 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:bc9b4393940581dc972f4d72420a326cc1d0678b -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1396,11 +1396,16 @@ Eine Signatur innerhalb der Verschlüsselung prüfst du gegen `ContactKey/get`.
 
 **Kontaktschlüssel und Schreiben.** `ContactKey/get` listet die Schlüssel, die plMail kennt
 (`status: current` ist der verwendete; `changed` wartet darauf, in der Web-App angenommen zu
-werden), mit `encrypt`, `sign` und `scheme` pro Empfänger. `ContactKey/lookup` mit `{emails,
-lookup: true, accountId, from}` sagt, was das Web-Schreibfenster gesagt bekommt: den Schlüssel jedes
-Empfängers — über den Server in der WKD seiner Domain nachgeschlagen, falls plMail keinen hat — und
-den eigenen Schlüssel des Absenders. Verschlüssele, wenn alle Empfänger einen Schlüssel haben, wie
-die Web-App.
+werden), mit `encrypt`, `sign` und `scheme` pro Empfänger, und woher der Schlüssel kam: `origin`
+(`wkd`, `keyserver`, `attached`, `autocrypt`, `manual`) und `originHost`, der Hostname des
+Schlüsselservers bei `keyserver` (sonst null). `ContactKey/lookup` mit `{emails, lookup: true,
+accountId, from}` sagt, was das Web-Schreibfenster gesagt bekommt: den Schlüssel jedes Empfängers —
+über den Server nachgeschlagen, falls plMail keinen hat, in der WKD seiner Domain und danach auf den
+öffentlichen Schlüsselservern, die Installation und Person erlauben — und den eigenen Schlüssel des
+Absenders. Auch der `key` jedes Empfängers trägt `origin` und `originHost` (beide null beim eigenen
+Schlüssel der Person, was `own: true` schon sagt); zeig an, woher ein Schlüssel kam, wie die Web-App,
+denn ein Schlüssel von einem Schlüsselserver heißt nur, dass jemand dem Server die Adresse bestätigt
+hat. Verschlüssele, wenn alle Empfänger einen Schlüssel haben, wie die Web-App.
 
 **Senden.** Bau die MIME-Nachricht selbst, verschlüssele sie an alle Empfänger **und den Absender**
 (oder signiere sie), lade sie hoch und importiere sie mit `Email/import` und

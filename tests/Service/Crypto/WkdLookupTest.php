@@ -6,6 +6,7 @@ namespace App\Tests\Service\Crypto;
 
 use App\Domain\Exception\ContactKeyRefused;
 use App\Entity\User\User;
+use App\Service\Crypto\KeyFetcher;
 use App\Service\Crypto\PublicKeyReader;
 use App\Service\Crypto\WkdLookup;
 use App\Tests\Support\Crypto\Gpg;
@@ -128,7 +129,7 @@ final class WkdLookupTest extends TestCase
      * followed by NoPrivateNetworkHttpClient, which never lets the client
      * beneath it follow one, and MockHttpClient below that follows none
      * whatever it is told — so the test passes with redirects allowed too.
-     * The option is in WkdLookup::fetch(), with its reason.
+     * The option is in KeyFetcher::get(), with its reason.
      */
     public function testARedirectToAnotherHostIsNotFollowed(): void
     {
@@ -204,14 +205,13 @@ final class WkdLookupTest extends TestCase
             return array_shift($responses) ?? new MockResponse('', ['http_code' => 404]);
         });
 
-        return new WkdLookup(
+        return new WkdLookup(new KeyFetcher(
             $client,
-            new PublicKeyReader(),
             new ArrayAdapter(),
             new RateLimiterFactory(['id' => 'wkd', 'policy' => 'fixed_window', 'limit' => $limit, 'interval' => '1 hour'], new InMemoryStorage()),
             new NullLogger(),
             $resolve ?? static fn (string $host): array => ['93.184.215.14'],
-        );
+        ), new PublicKeyReader());
     }
 
     private function user(): User

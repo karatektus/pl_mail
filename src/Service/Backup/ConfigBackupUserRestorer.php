@@ -816,7 +816,7 @@ final readonly class ConfigBackupUserRestorer
                 $status = ContactKeyStatus::Changed;
             }
 
-            $key = new ContactKey($user, $email, $fingerprint, $publicKey, $origin, $status, $this->moment($row, 'expiresAt'), $firstSeenAt);
+            $key = new ContactKey($user, $email, $fingerprint, $publicKey, $origin, $status, $this->moment($row, 'expiresAt'), $firstSeenAt, $this->text($row, 'originHost'));
             $key->restoreState(true === ($row['pinned'] ?? false), $firstSeenAt, $this->moment($row, 'lastSeenAt') ?? $firstSeenAt);
             $key->encrypt = RecipientPolicy::tryFrom((string) $this->text($row, 'encrypt')) ?? RecipientPolicy::Auto;
             $key->sign    = RecipientPolicy::tryFrom((string) $this->text($row, 'sign')) ?? RecipientPolicy::Auto;
