@@ -229,8 +229,15 @@ final readonly class ThreadMerger
 
         $moved = [];
 
+        // Through addMessage(), not only the owning side: the batch is not over.
+        // The rules run after threading and before the flush, and a label
+        // action re-derives the thread's labels from $survivor->messages
+        // (ThreadLabelSynchronizer). Loaded from the database at that point,
+        // the collection still lists only the survivor's own mail, and the
+        // labels of everything moved in were taken off the conversation again.
         foreach ($candidates as $candidate) {
             if ($candidate instanceof Message && $candidate->thread === $absorbed) {
+                $survivor->addMessage($candidate);
                 $candidate->thread = $survivor;
                 $moved[]           = $candidate;
             }

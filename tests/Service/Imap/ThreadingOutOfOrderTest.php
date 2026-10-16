@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -13,6 +15,8 @@ use App\Jmap\State\ChangeType;
 use App\Jmap\State\JmapObjectType;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MessageThreader;
+use App\Service\Imap\ThreadMerger;
+use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -220,6 +224,108 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
         self::assertSame(1, $this->em->find(MessageThread::class, $this->storedThreadOf($self))?->messageCount);
     }
 
+    /**
+     * What the conversation that is folded in had comes along, and stays
+     * there through the rest of the batch.
+     *
+     * The late message here is not a root: it answers mail already in the
+     * older thread and is answered by mail in a newer one, so the thread it
+     * joins survives and the newer one, labelled and snoozed, is absorbed.
+     * A label rule runs after threading and before the flush, and re-derives
+     * the thread's labels from its messages; the moved mail has to be among
+     * them by then, or the label it brought is taken straight off again.
+     */
+    public function testAnAbsorbedThreadsLabelAndSnoozeOutliveALabelRuleInTheSameBatch(): void
+    {
+        $label = $this->seedLabel('Budget review');
+
+        $root   = $this->message('absorbed-root', null, 'Budget 2027', '-3 hours', seen: true);
+        $middle = $this->message('absorbed-middle', 'absorbed-root', 'Re: Budget 2027', '-2 hours', seen: true);
+        $last   = $this->message('absorbed-last', 'absorbed-middle', 'Re: Budget 2027', '-1 hour');
+        $last->addLabel($label);
+
+        $this->syncBatch([$root]);
+        $this->syncBatch([$last]);
+
+        $snoozedUntil           = new \DateTimeImmutable('2026-10-20 08:00:00');
+        $absorbed               = $last->thread;
+        $absorbed->snoozedUntil = $snoozedUntil;
+        $absorbedId             = $absorbed->id;
+        $this->em->flush();
+
+        $this->syncBatch([$middle], function () use ($middle): void {
+            (new ThreadLabelSynchronizer())->sync($middle->thread);
+        });
+
+        $this->em->clear();
+
+        $kept = $this->em->find(MessageThread::class, $this->storedThreadOf($last));
+
+        self::assertNotNull($kept);
+        self::assertSame($this->storedThreadOf($root), $kept->id, 'the older conversation is the one kept');
+        self::assertNull($this->em->find(MessageThread::class, $absorbedId));
+        self::assertSame(3, $kept->messageCount);
+        self::assertSame(
+            [$label->id],
+            array_values(array_map(static fn (Label $carried): ?int => $carried->id, $kept->labels->toArray())),
+            'the label the moved reply carries was taken off the conversation',
+        );
+        self::assertEquals($snoozedUntil, $kept->snoozedUntil, 'the snooze went with the absorbed thread, and nothing would wake its mail');
+    }
+
+    /**
+     * Rows stored before Message-IDs were normalised still name their parent
+     * as "<x@host>" until the rethread backfill has run, and `@>` compares
+     * exactly — so the lookup asks for both spellings.
+     */
+    public function testAReplyStoredWithABracketedReferenceIsFoundToo(): void
+    {
+        $root  = $this->message('bracketed-root', null, 'Old mail', '-2 hours', seen: true);
+        $reply = $this->message('bracketed-reply', null, 'Re: Old mail', '-1 hour');
+
+        $reply->inReplyTo  = [sprintf('<%s>', $this->messageId('bracketed-root'))];
+        $reply->references = $reply->inReplyTo;
+
+        $this->syncBatch([$reply]);
+        $this->syncBatch([$root]);
+
+        self::assertSame($this->storedThreadOf($reply), $this->storedThreadOf($root));
+    }
+
+    /**
+     * A provider-keyed thread is the one kept, even when it is the newer of the
+     * two: the key is how step 1 finds a Gmail or Graph conversation again,
+     * and a thread that lost it would be opened anew by its next message.
+     */
+    public function testAProviderKeyedThreadIsNeverTheOneAbsorbed(): void
+    {
+        $plain = $this->thread('Plain', null);
+        $keyed = $this->thread('Keyed', 'provider-conversation-' . uniqid('', true));
+
+        self::assertLessThan($keyed->id, $plain->id, 'the fixture needs the keyed thread to be the newer one');
+
+        $inPlain = $this->message('keyed-upstream', null, 'Plain', '-2 hours', seen: true);
+        $inKeyed = $this->message('keyed-downstream', 'keyed-upstream', 'Re: Plain', '-1 hour');
+
+        $inPlain->thread = $plain;
+        $inKeyed->thread = $keyed;
+        $this->em->persist($inPlain);
+        $this->em->persist($inKeyed);
+        $this->em->flush();
+
+        $plainId  = $plain->id;
+        $survivor = self::getContainer()->get(ThreadMerger::class)->merge($plain, $keyed);
+        $this->em->flush();
+
+        self::assertSame($keyed, $survivor);
+        self::assertSame($keyed->id, $this->storedThreadOf($inPlain));
+        self::assertSame($keyed->id, $this->storedThreadOf($inKeyed));
+
+        $this->em->clear();
+
+        self::assertNull($this->em->find(MessageThread::class, $plainId));
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
 
     /**
@@ -227,9 +333,12 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
      * flushed before threading, because threading queries them, and the
      * threads are flushed once, after every message has one.
      *
+     * $beforeFlush stands in for what the pipeline runs between threading and
+     * that flush — the rules.
+     *
      * @param list<Message> $batch
      */
-    private function syncBatch(array $batch): void
+    private function syncBatch(array $batch, ?\Closure $beforeFlush = null): void
     {
         foreach ($batch as $message) {
             $this->em->persist($message);
@@ -239,6 +348,10 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
 
         foreach ($batch as $message) {
             $this->threader->assignThread($message, $this->account);
+        }
+
+        if (null !== $beforeFlush) {
+            $beforeFlush();
         }
 
         $this->em->flush();
@@ -297,6 +410,36 @@ final class ThreadingOutOfOrderTest extends KernelTestCase
     private function messageId(string $key): string
     {
         return sprintf('%s-%d@example.test', $key, (int) $this->account->id);
+    }
+
+    /** A thread made directly, for the merger's own rules. */
+    private function thread(string $subject, ?string $providerThreadKey): MessageThread
+    {
+        $thread                    = new MessageThread();
+        $thread->account           = $this->account;
+        $thread->subject           = $subject;
+        $thread->normalizedSubject = mb_strtolower($subject);
+        $thread->threadingMethod   = null === $providerThreadKey ? ThreadingMethod::References : ThreadingMethod::Provider;
+        $thread->providerThreadKey = $providerThreadKey;
+        $thread->messageCount      = 1;
+        $thread->unreadCount       = 0;
+        $thread->category          = MessageCategory::Primary;
+        $this->em->persist($thread);
+        $this->em->flush();
+
+        return $thread;
+    }
+
+    private function seedLabel(string $name): Label
+    {
+        $label            = new Label();
+        $label->usr       = $this->account->usr;
+        $label->name      = $name;
+        $label->isVisible = true;
+        $this->em->persist($label);
+        $this->em->flush();
+
+        return $label;
     }
 
     private function seedAccount(): Account
