@@ -17,6 +17,19 @@ import { openLayer, closeLayer } from "../../history_layer.js"
  * the notes are read, and the modal's own header, and its X, stay where they
  * are. (The first version was a <dialog> in the top layer, over everything.)
  *
+ * ## One X, pressed twice
+ *
+ * The X is the modal's own. While a picture is up, its first press shrinks the
+ * picture and the second closes What's new, the way Escape already worked. The
+ * picture used to bring an X of its own into the corner of the dialog body, a
+ * little below the modal's, and two X's one above the other read as a mistake
+ * (#187). The modal's X is relabelled for as long as the picture is up, so a
+ * screen reader hears what the next press does.
+ *
+ * Taken off the modal in the capture phase on window, like the keys below:
+ * the X's own action is a listener on the button, which a capture listener
+ * further out runs before.
+ *
  * ## Escape and Tab belong to the picture while it is up
  *
  * The shared modal listens for keydown on document — Escape closes it, Tab is
@@ -34,6 +47,9 @@ import { openLayer, closeLayer } from "../../history_layer.js"
  */
 let current = null
 
+/** The modal header's X; the footer's Done is `ui--modal#close` without the event. */
+const MODAL_X = '[data-action~="click->ui--modal#close"]'
+
 window.addEventListener("keydown", (event) => {
     if (null === current) return
 
@@ -44,12 +60,25 @@ window.addEventListener("keydown", (event) => {
     } else if ("Tab" === event.key) {
         event.preventDefault()
         event.stopImmediatePropagation()
-        current.closeTarget.focus()
+        current._modalX()?.focus()
     }
 }, true)
 
+window.addEventListener("click", (event) => {
+    if (null === current) return
+
+    const x = current._modalX()
+
+    if (!x || !x.contains(event.target)) return
+
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    current.close()
+}, true)
+
 export default class extends Controller {
-    static targets = ["overlay", "backdrop", "image", "close"]
+    static targets = ["overlay", "backdrop", "image"]
+    static values = { closeLabel: String }
 
     connect() {
         // The modal's own X, with the picture still up.
@@ -70,9 +99,11 @@ export default class extends Controller {
         // Replaced while open: a release picked a moment before the thumbnail
         // was clicked lands after it, and the frame is drawn again under the
         // picture. Its history entry goes with it, or the next Back would be
-        // spent on nothing.
+        // spent on nothing. The modal and its X outlive the frame, so the X
+        // gets its own label back.
         if (this === current) {
             current = null
+            this._restoreModalX()
             closeLayer()
         }
     }
@@ -111,7 +142,8 @@ export default class extends Controller {
         // Opacity rather than visibility: a hidden thumbnail would leave the
         // accessibility tree, and it is where the keyboard goes back to.
         this._thumbnail.style.opacity = "0"
-        this.closeTarget.focus()
+        this._relabelModalX()
+        this._modalX()?.focus()
         this._animate(false)
     }
 
@@ -141,10 +173,11 @@ export default class extends Controller {
         // The shrink holds its last frame (fill: forwards) so the picture does
         // not flash full size before it is hidden; let go of it here, or the
         // next open would start invisible.
-        for (const target of [this.imageTarget, this.backdropTarget, this.closeTarget]) {
+        for (const target of [this.imageTarget, this.backdropTarget]) {
             target.getAnimations().forEach((animation) => animation.cancel())
         }
 
+        this._restoreModalX()
         this.overlayTarget.hidden = true
         this.imageTarget.removeAttribute("src")
 
@@ -183,9 +216,37 @@ export default class extends Controller {
 
         const grow = image.animate([{ transform: small }, { transform: "none" }], options)
         this.backdropTarget.animate([{ opacity: 0 }, { opacity: 1 }], options)
-        this.closeTarget.animate([{ opacity: 0 }, { opacity: 1 }], options)
 
         return grow.finished.catch(() => {})
+    }
+
+    /** The X in the header of the modal this dialog is drawn in. */
+    _modalX() {
+        return this.element.closest("#modal-backdrop")?.querySelector(MODAL_X) ?? null
+    }
+
+    /** "Close the screenshot" while its next press does that, not "Close". */
+    _relabelModalX() {
+        const x = this._modalX()
+
+        if (!x) return
+
+        this._modalXLabel = x.getAttribute("aria-label")
+        x.setAttribute("aria-label", this.closeLabelValue)
+    }
+
+    _restoreModalX() {
+        const x = this._modalX()
+
+        if (!x || undefined === this._modalXLabel) return
+
+        if (null === this._modalXLabel) {
+            x.removeAttribute("aria-label")
+        } else {
+            x.setAttribute("aria-label", this._modalXLabel)
+        }
+
+        this._modalXLabel = undefined
     }
 
     /** "180ms" or "0.18s" → 180; anything else, including "0s", → 0. */

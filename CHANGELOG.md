@@ -6,6 +6,13 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**One X on a What's new screenshot.** A screenshot opened full size brought its own X into the
+corner of the dialog, just below the dialog's X. Now there is only the dialog's: pressed once it
+puts the screenshot back, pressed again it closes What's new, the same as Escape.
+[#187](https://github.com/karatektus/pl_mail/issues/187).
+
 ## v0.3.6 — 2026-10-16
 
 **Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail
