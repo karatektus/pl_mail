@@ -1246,6 +1246,50 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose sanitized body shows an Outlook conditional-comment
+     * marker as text — the set the conditional-comment repair has to walk.
+     *
+     * Unlike the charset and table-link damage, this one SQL can recognise in
+     * bodyHtmlSafe itself: a marker that reached the sanitizer as text comes
+     * out escaped, `[endif]--&gt;` or `[if mso]&gt;`, and the sanitizer never
+     * writes a comment, so a body that was rendered right holds neither. Folded
+     * because Outlook writes `[ENDIF]` as often as `[endif]`. Narrowed on the
+     * damage rather than on the cause, because the cause — a conditional
+     * comment in bodyHtml — is in a large part of all commercial mail, nearly
+     * none of which was affected (#175).
+     *
+     * @return list<Message>
+     */
+    public function findWithConditionalCommentText(int $afterId, int $limit): array
+    {
+        return $this->conditionalCommentTextQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithConditionalCommentText(): int
+    {
+        return (int) $this->conditionalCommentTextQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function conditionalCommentTextQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            ->andWhere('m.bodyHtmlSafe IS NOT NULL')
+            ->andWhere("(LOWER(m.bodyHtmlSafe) LIKE '%[endif]%' OR LOWER(m.bodyHtmlSafe) LIKE '%[if %]&gt;%')")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose body webklex filed as an attachment, oldest id first.
      *
      * The set MisfiledBodyDetector now keeps out of the database, found after

@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Outlook's `<![endif]-->` no longer shows up in a message.** Mail written for Outlook hides
+parts of itself behind conditional comments, and one form of them ends in a marker that is not
+inside a comment. A mail that also had a comment containing `--` anywhere in it was read by an older
+parser in one step of the rendering, which turned that marker into text, so a parcel notification
+could show `<![endif]-->` in the middle of a sentence. The same mail could also lose a link around a
+table. Every comment is now removed before that step, and the marker with it. Mail already in the
+mailbox is repaired on request: `php bin/console app:backfill safe-html-conditional-comments` writes
+the shown copy of every message that has the marker in it again from the sender's original, and
+`safe-html-table-links` does the same for the links. No schema change.
+[#175](https://github.com/karatektus/pl_mail/issues/175), by @phdelodder.
+
 **One X on a What's new screenshot.** A screenshot opened full size brought its own X into the
 corner of the dialog, just below the dialog's X. Now there is only the dialog's: pressed once it
 puts the screenshot back, pressed again it closes What's new, the same as Escape.
