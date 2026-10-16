@@ -64,6 +64,81 @@ test.describe("What's new", () => {
     });
 
     /**
+     * A highlight's screenshot grows to fill the dialog rather than opening a
+     * new tab (#179), and the X, Escape and Back each put it back and nothing
+     * else: the shared modal's Escape is on document, and Turbo and the mail
+     * pane both answer a popstate. v0.3.5 is a release whose highlights carry
+     * screenshots.
+     */
+    test("a screenshot fills the dialog, and X, Escape and Back put it back", async ({ page, context }) => {
+        await page.goto("/settings?section=general");
+
+        await page.locator("[data-whats-new-menu] > button").click();
+        await page.getByRole("menuitem", { name: "What's new" }).click();
+
+        const dialog = page.locator("#modal-backdrop");
+        const body = dialog.locator("[data-whats-new]");
+        await expect(dialog.locator("[data-whats-new-notes]")).toBeVisible();
+
+        // Marked first, so the wait below is for the frame drawn by this click:
+        // v0.3.5 may already be the release on show, and a thumbnail clicked
+        // before the new frame lands is replaced along with everything else.
+        await dialog.locator("[data-whats-new-notes]").evaluate((notes) => { notes.dataset.stale = ""; });
+        await dialog.locator("[data-whats-new-history] summary").click();
+        await dialog.locator('[data-whats-new-release="v0.3.5"]').first().click();
+        await expect(dialog.locator('[data-whats-new-notes="v0.3.5"]:not([data-stale])')).toBeVisible();
+
+        const pages = context.pages().length;
+        const url = page.url();
+        const thumbnail = dialog.getByRole("link", { name: "Open the screenshot full size" }).first();
+        const shot = dialog.locator("[data-whats-new-screenshot]");
+        const close = shot.getByRole("button", { name: "Close the screenshot" });
+
+        const open = async () => {
+            await thumbnail.click();
+            await expect(shot).toBeVisible();
+            await expect(close).toBeFocused();
+        };
+
+        const putBack = async (how: string) => {
+            await expect(shot, how).toBeHidden();
+            await expect(dialog, `What's new is still open after ${how}`).toBeVisible();
+            await expect(thumbnail, `the keyboard is back on the thumbnail after ${how}`).toBeFocused();
+            expect(page.url(), how).toBe(url);
+        };
+
+        await open();
+        expect(context.pages(), "no new tab").toHaveLength(pages);
+        await expect(shot.locator("img")).toHaveAttribute("src", (await thumbnail.getAttribute("href")) ?? "");
+
+        // It fills the body of the dialog — within the body's 1px top rule —
+        // and the picture ends up bigger than its thumbnail.
+        const [layer, inner, small] = await Promise.all([shot.boundingBox(), body.boundingBox(), thumbnail.boundingBox()]);
+        expect(Math.abs((layer?.width ?? 0) - (inner?.width ?? 0))).toBeLessThanOrEqual(2);
+        expect(Math.abs((layer?.height ?? 0) - (inner?.height ?? 0))).toBeLessThanOrEqual(2);
+        await expect.poll(async () => (await shot.locator("img").boundingBox())?.width ?? 0).toBeGreaterThan(small?.width ?? 0);
+
+        // Tab has nowhere else to go.
+        await page.keyboard.press("Tab");
+        await expect(close).toBeFocused();
+
+        await close.click();
+        await putBack("the X");
+
+        await open();
+        await page.keyboard.press("Escape");
+        await putBack("Escape");
+
+        await open();
+        await page.goBack();
+        await putBack("Back");
+
+        // And the next Escape is What's new's again.
+        await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+    });
+
+    /**
      * Over the calendar, whose day headings painted on top of the menu while
      * it was an ordinary dropdown inside the header's stacking context. Asked
      * the way menu-escapes-pane.spec.ts asks it: what is at the menu's centre

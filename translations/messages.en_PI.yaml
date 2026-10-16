@@ -4266,5 +4266,7 @@ whats_new:
         label: 'Refits'
         new: 'New to ye'
     quiet: 'Don''t show this after a refit'
+    screenshot: 'Likeness'
+    screenshot_close: 'Stow the likeness'
     screenshot_open: 'Open the likeness full size'
     title: 'What''s new aboard'

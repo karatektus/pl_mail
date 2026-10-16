@@ -4520,5 +4520,7 @@ whats_new:
         label: 'Versions'
         new: 'Nouveau pour vous'
     quiet: 'Ne plus afficher après les mises à jour'
+    screenshot: 'Capture d''écran'
+    screenshot_close: 'Fermer la capture'
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'

@@ -4495,5 +4495,7 @@ whats_new:
         label: 'Releases'
         new: 'New to you'
     quiet: 'Don''t show this after updates'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Close the screenshot'
     screenshot_open: 'Open the screenshot full size'
     title: 'What''s new'

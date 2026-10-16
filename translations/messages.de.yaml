@@ -4490,5 +4490,7 @@ whats_new:
         label: 'Versionen'
         new: 'Neu für dich'
     quiet: 'Nach Updates nicht mehr anzeigen'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Screenshot schließen'
     screenshot_open: 'Screenshot in voller Größe öffnen'
     title: 'Was ist neu'
