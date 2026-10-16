@@ -16,7 +16,7 @@ folders of the same account were not affected. **Migration:** `mailbox.uid_valid
 from `INT` to `BIGINT`, which rewrites the small `mailbox` table once on boot; no stored value
 changes. Reversible: rolling back forgets a folder's UIDVALIDITY that only the wider column can
 hold, and the next sync records it again.
-[#171](https://github.com/karatektus/pl_mail/issues/171).
+[#174](https://github.com/karatektus/pl_mail/pull/174), by @phdelodder.
 
 <!-- highlight screenshot=whats-new -->
 **Release notes after an update, and a feedback form.** The first time you open plMail
