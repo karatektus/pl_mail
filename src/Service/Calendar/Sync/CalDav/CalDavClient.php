@@ -13,12 +13,19 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Every HTTP request this driver makes, and every failure it turns into a
  * CalendarSyncException.
+ *
+ * CardDAV goes through here too. It is the same transport — PROPFIND, REPORT,
+ * PUT with If-Match — to the same kind of server, usually the same server, and
+ * both security decisions below are exactly as necessary for an address book.
+ * Only the wording of the failures differs, and say() picks it.
  *
  * One class rather than a `request()` at the bottom of the driver, because
  * three callers need it — discovery, the driver and anything added later — and
@@ -74,11 +81,17 @@ final readonly class CalDavClient
         private IntegrationUrlValidator             $urlValidator,
         private IntegrationProviderConfigRepository $configs,
         private MultiStatusParser                   $parser,
+        private LoggerInterface                     $logger = new NullLogger(),
     ) {
     }
 
     /**
      * The connection's server address, admin pin winning, SSRF-checked.
+     *
+     * The pin is looked up for the connection's own provider rather than for
+     * CalDAV by name: this client also carries CardDAV, and an address an
+     * administrator pinned for calendars says nothing about where contacts
+     * live.
      *
      * The IntegrationException the validator raises is already phrased for a
      * person — "Server address must not point at a private network" — so it is
@@ -91,7 +104,7 @@ final readonly class CalDavClient
     public function baseUrl(Integration $integration): string
     {
         try {
-            return $this->urlValidator->resolve($integration, $this->configs->findOneByProvider(Provider::CalDav));
+            return $this->urlValidator->resolve($integration, $this->configs->findOneByProvider($integration->provider));
         } catch (IntegrationException $e) {
             throw new CalendarSyncPermanentException($e->getMessage(), $e->getStatus(), $e);
         }
@@ -122,9 +135,11 @@ final readonly class CalDavClient
         $this->assertReachable($url);
 
         if (null === $integration->username || null === $integration->secret) {
-            throw new CalendarSyncPermanentException(
+            throw new CalendarSyncPermanentException($this->say(
+                $integration->provider,
                 'This calendar connection is missing its username or app password. Open it in settings and enter them again.',
-            );
+                'This contacts connection is missing its username or app password. Open it in settings and enter them again.',
+            ));
         }
 
         $headers = $options['headers'] ?? [];
@@ -152,7 +167,11 @@ final readonly class CalDavClient
             // permanently would need a person to reconnect a calendar that
             // healed itself.
             throw new CalendarSyncException(
-                'Could not reach the calendar server. Check the server address and that it is online.',
+                $this->say(
+                    $integration->provider,
+                    'Could not reach the calendar server. Check the server address and that it is online.',
+                    'Could not reach the contacts server. Check the server address and that it is online.',
+                ),
                 0,
                 $e,
             );
@@ -162,7 +181,7 @@ final readonly class CalDavClient
             return ['status' => $status, 'body' => $body, 'headers' => $headers];
         }
 
-        throw $this->classify($status, $body, $headers);
+        throw $this->classify($status, $body, $headers, $integration->provider);
     }
 
     /**
@@ -237,9 +256,58 @@ final readonly class CalDavClient
     }
 
     /**
+     * The etag the server assigned, asking for it again when the PUT did not
+     * say.
+     *
+     * Servers are not required to answer a PUT with an ETag, and a good many do
+     * not — RFC 4791 §5.3.4 and RFC 6352 §6.3.2.3 anticipate exactly this and
+     * say the client may GET the resource to learn it. Without that follow-up
+     * the local row stores a null etag, which makes the next pull treat the
+     * event or card as changed and write it again: correct, but a wasted write
+     * per push forever.
+     *
+     * Here rather than in each driver because it is the same request and the
+     * same tolerance for a calendar event and a vCard.
+     *
+     * A failure to read it back is not a failure of the push, which has already
+     * succeeded — the null is stored and the next pull repairs it.
+     *
      * @param array<string,list<string>> $headers
      */
-    public function classify(int $status, string $body, array $headers = []): CalendarSyncException
+    public function etagAfterWrite(Integration $integration, string $href, array $headers): ?string
+    {
+        $etag = trim($headers['etag'][0] ?? '');
+
+        if ('' !== $etag) {
+            return $etag;
+        }
+
+        try {
+            $response = $this->request($integration, 'GET', $href, [], [404, 410]);
+        } catch (CalendarSyncException $e) {
+            $this->logger->info('CalDav: could not read back the etag after a write', [
+                'provider'  => $integration->provider->value,
+                'href'      => $href,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return null;
+        }
+
+        $etag = trim($response['headers']['etag'][0] ?? '');
+
+        return '' === $etag ? null : $etag;
+    }
+
+    /**
+     * @param array<string,list<string>> $headers
+     * @param Provider|null              $provider whose wording to use — the
+     *                                             exception classes are the
+     *                                             same for an address book,
+     *                                             the sentence is not
+     */
+    public function classify(int $status, string $body, array $headers = [], ?Provider $provider = null): CalendarSyncException
     {
         // Before the status, because the same precondition arrives as 403, 409
         // and 400 depending on whose server it is — and a dead token
@@ -247,31 +315,51 @@ final readonly class CalDavClient
         // something that is not broken.
         if (true === $this->parser->hasPrecondition($body, 'valid-sync-token')) {
             return new CalendarResyncRequiredException(
-                'The calendar server no longer recognises our sync position, so the calendar is being read again from scratch.',
+                $this->say(
+                    $provider,
+                    'The calendar server no longer recognises our sync position, so the calendar is being read again from scratch.',
+                    'The contacts server no longer recognises our sync position, so the address book is being read again from scratch.',
+                ),
                 $status,
             );
         }
 
         return match (true) {
             401 === $status => new CalendarSyncPermanentException(
-                'The calendar server rejected the app password. Generate a new one and enter it in the connection settings.',
+                $this->say(
+                    $provider,
+                    'The calendar server rejected the app password. Generate a new one and enter it in the connection settings.',
+                    'The contacts server rejected the app password. Generate a new one and enter it in the connection settings.',
+                ),
                 $status,
             ),
             403 === $status => new CalendarSyncPermanentException(
-                'The calendar server refused access to this calendar. Check that the app password still has calendar permission.',
+                $this->say(
+                    $provider,
+                    'The calendar server refused access to this calendar. Check that the app password still has calendar permission.',
+                    'The contacts server refused access to this address book. Check that the app password still has contacts permission.',
+                ),
                 $status,
             ),
             404 === $status || 410 === $status => new CalendarSyncPermanentException(
-                'This calendar no longer exists on the server. Unsubscribe from it, or subscribe again if it has moved.',
+                $this->say(
+                    $provider,
+                    'This calendar no longer exists on the server. Unsubscribe from it, or subscribe again if it has moved.',
+                    'This address book no longer exists on the server. Unsubscribe from it, or subscribe again if it has moved.',
+                ),
                 $status,
             ),
             429 === $status || 503 === $status => new CalendarSyncThrottledException(
-                'The calendar server asked us to slow down.',
+                $this->say($provider, 'The calendar server asked us to slow down.', 'The contacts server asked us to slow down.'),
                 $status,
                 $this->retryAfter($headers),
             ),
             507 === $status => new CalendarResyncRequiredException(
-                'The calendar server would not report the changes since our last sync, so the calendar is being read again from scratch.',
+                $this->say(
+                    $provider,
+                    'The calendar server would not report the changes since our last sync, so the calendar is being read again from scratch.',
+                    'The contacts server would not report the changes since our last sync, so the address book is being read again from scratch.',
+                ),
                 $status,
             ),
             // Everything else, 5xx included, stays unclassified on purpose: the
@@ -279,13 +367,33 @@ final readonly class CalDavClient
             // never to try again, and a 500 from a CalDAV server is far more
             // often a restart than a refusal.
             default => new CalendarSyncException(
-                sprintf('The calendar server returned an unexpected response (%d).', $status),
+                sprintf($this->say(
+                    $provider,
+                    'The calendar server returned an unexpected response (%d).',
+                    'The contacts server returned an unexpected response (%d).',
+                ), $status),
                 $status,
             ),
         };
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The calendar sentence or the contacts one.
+     *
+     * This client carries CardDAV as well as CalDAV, and the exception
+     * hierarchy — permanent, throttled, resync — is the same for both because
+     * the retry decisions are. What differs is what a person reads in the
+     * settings list, and "the calendar server rejected the app password" under
+     * an address book sends them looking at the wrong connection. Two literal
+     * sentences rather than one with a placeholder, so each reads naturally and
+     * a grep for either finds it.
+     */
+    private function say(?Provider $provider, string $calendar, string $contacts): string
+    {
+        return Provider::CardDav === $provider ? $contacts : $calendar;
+    }
 
     /**
      * Seconds, and only when the header says seconds.

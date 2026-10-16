@@ -15,6 +15,10 @@ caldav.address_required: Gib die Adresse deines CalDAV-Servers ein — ohne sie 
 caldav.credential_required: Gib ein App-Passwort ein oder setz den Haken, um das gespeicherte Passwort eines E-Mail-Kontos zu verwenden.
 caldav.reuse_account_required: Wähle, welches E-Mail-Konto sein Passwort hergeben soll — oder nimm den Haken weg und tippe eines ein.
 caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-Server kennt.
+carddav.address_required: Gib die Adresse deines CardDAV-Servers ein — ohne sie hat plMail niemanden zu fragen.
+carddav.username_required: Gib den Benutzernamen ein, unter dem dich dein CardDAV-Server kennt.
+contacts.invalid_email: "„%email%“ ist keine gültige E-Mail-Adresse."
+contacts.name_or_email_required: Gib dem Kontakt einen Namen oder mindestens eine E-Mail-Adresse.
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.

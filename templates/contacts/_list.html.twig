@@ -1,0 +1,85 @@
+{#
+contacts/_list.html.twig — the cards, as rows.
+
+Inside the `contacts-list` frame, so a search replaces only this and a
+mutation's stream replaces exactly the same element. A row that has not
+reached the server yet says so: an edit saved here is real at once, and the
+small clock is the honest answer to "has my phone got it?".
+
+Variables:
+  cards      ContactCard[]
+  query      string
+  pageLimit  int   how many rows the query returned at most
+#}
+{% if cards is empty %}
+    <p class="px-4 py-10 text-center text-sm text-ink-faint italic">
+        {{ (query is empty ? 'contacts.empty' : 'contacts.no_match')|trans({ '%query%': query }) }}
+    </p>
+{% else %}
+    <ul class="divide-y divide-line">
+        {% for card in cards %}
+            <li class="flex items-start gap-3 px-4 py-3" data-contact-card="{{ card.id }}">
+                <span class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent-soft text-accent text-xs font-semibold"
+                      aria-hidden="true">{{ card.initials }}</span>
+
+                <div class="flex-1 min-w-0">
+                    <p class="flex items-center gap-2 text-sm text-ink">
+                        <span class="truncate font-medium">{{ card.displayName }}</span>
+                        {% if card.syncState.isPending %}
+                            <i class="fa-regular fa-clock text-[10px] text-ink-faint"
+                               title="{{ 'contacts.pending'|trans }}"
+                               aria-label="{{ 'contacts.pending'|trans }}"></i>
+                        {% endif %}
+                    </p>
+
+                    {% if card.organization %}
+                        <p class="text-xs text-ink-muted truncate">{{ card.organization }}</p>
+                    {% endif %}
+
+                    <p class="text-xs text-ink-faint truncate">
+                        {{ card.emails|merge(card.phones)|join(' · ') }}
+                    </p>
+                </div>
+
+                <span class="hidden sm:inline shrink-0 text-[11px] text-ink-faint truncate max-w-[10rem]">{{ card.addressBook.name }}</span>
+
+                {% if not card.addressBook.isReadOnly %}
+                    <div class="shrink-0 flex items-center gap-1">
+                        <button
+                            type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'contacts.edit.title'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_contacts_edit', { id: card.id }) }}"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            aria-label="{{ 'contacts.edit.label'|trans({ '%name%': card.displayName }) }}"
+                        >
+                            <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
+                        </button>
+
+                        <form method="post"
+                              action="{{ path('app_contacts_delete', { id: card.id }) }}"
+                              data-turbo-confirm="{{ 'contacts.delete.confirm'|trans({ '%name%': card.displayName }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('contact-delete' ~ card.id) }}">
+                            <button
+                                type="submit"
+                                class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                aria-label="{{ 'contacts.delete.label'|trans({ '%name%': card.displayName }) }}"
+                            >
+                                <i class="fa-solid fa-trash-can text-xs" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <i class="fa-solid fa-lock shrink-0 text-[10px] text-ink-faint mt-2"
+                       title="{{ 'contacts.read_only'|trans }}"
+                       aria-label="{{ 'contacts.read_only'|trans }}"></i>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+    {% if cards|length >= pageLimit %}
+        <p class="px-4 py-3 text-xs text-ink-faint text-center">{{ 'contacts.truncated'|trans({ '%count%': pageLimit }) }}</p>
+    {% endif %}
+{% endif %}

@@ -112,6 +112,7 @@ final class ContactAutocompleteMethodTest extends JmapTestCase
                 'frequency' => 9,
                 'lastSeenAt' => '2026-03-04T05:06:07Z',
                 'isCorrespondent' => true,
+                'inAddressBook' => false,
             ],
             $suggestion,
         );

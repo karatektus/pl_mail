@@ -417,6 +417,10 @@ framework:
             # every failure worth retrying is a third-party rate limit that
             # takes minutes to clear.
             App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest
+            # Same queue and the same reasoning as SyncCalendarMessage: nobody
+            # waits on it — an edit on the contacts page is saved and on screen
+            # before this carries it to the server.
+            App\Infrastructure\Messaging\Message\SyncAddressBookMessage: ingest
             # maintenance rather than ingest, although it is dispatched beside
             # the SyncCalendarMessage above and for the same calendar. Two
             # reasons, and the first is the point of the message existing at

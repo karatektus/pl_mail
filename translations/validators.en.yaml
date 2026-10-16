@@ -16,6 +16,10 @@ caldav.address_required: Enter the address of your CalDAV server — plMail has 
 caldav.credential_required: Enter an app password, or tick the box to use a mail account's stored one.
 caldav.reuse_account_required: Choose which mail account's password to use, or untick the box and type one.
 caldav.username_required: Enter the username your CalDAV server knows you by.
+carddav.address_required: Enter the address of your CardDAV server — plMail has nothing to ask without one.
+carddav.username_required: Enter the username your CardDAV server knows you by.
+contacts.invalid_email: '"%email%" is not a valid email address.'
+contacts.name_or_email_required: Give the contact a name or at least one email address.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
 compose.recipient_invalid: "“{{ address }}” is not a valid email address."
 compose.recipient_required: Add at least one recipient before sending.

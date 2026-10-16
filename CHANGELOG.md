@@ -8,6 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Contacts from a CardDAV server.** Connect Nextcloud, Radicale, Baïkal, Fastmail or iCloud under
+**Settings → Contacts**, tick the address books to mirror, and their contacts are suggested when you
+address a message — ranked after the people you actually write to, before addresses you only ever
+typed once. A new **Contacts** page (in the user menu) lists, searches, creates, edits and deletes
+them, and every change is sent back to the server; a photo, a birthday or anything else plMail has
+no field for is kept on the card. Changes made elsewhere arrive within fifteen minutes
+(`app:contacts:sync --stale`, run by the scheduler). JMAP `Contact/autocomplete` returns the same
+list, with a new `inAddressBook` flag. **Migration:** adds the `address_book` and `contact_card`
+tables; nothing existing changes. See [CardDAV](docs/providers/carddav.md).
+
 <!-- highlight screenshot=whats-new -->
 **Release notes after an update, and a feedback form.** The first time you open plMail
 after it has been updated, a dialog lists what changed since the version you last saw: the

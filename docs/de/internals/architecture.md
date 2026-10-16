@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:9a71407f7557ff10c7e390efae4605835733b595 -->
+<!-- translated-from: internals/architecture.md sha1:71f438dc61c883b274aecbc24260f33825237f11 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -230,6 +230,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 |---|---|---|
 | `*/15 * * * *` | `app:mail:sync` | Weder Gmail-Push noch Graph-Abonnements garantieren Zustellung, und IDLE-Verbindungen brechen ab; Polling ist die Rückfallebene |
 | `7-59/15 * * * *` | `app:calendar:sync --stale` | Der Mechanismus für CalDAV und ICS-Feeds, die Rückfallebene für Google und Graph. Gegen die Viertelstunde versetzt, damit er sich nicht auf den Mail-Durchlauf stapelt — beide teilen sich einen Worker |
+| `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV-Adressbücher haben überhaupt keinen Push, also kommen Änderungen vom Handy nur so an. Gegen beide Durchläufe oben versetzt, aus demselben Grund des geteilten Workers |
 | `20 * * * *` | `app:calendar:push` | Stündlich, nicht weil so schnell etwas abliefe, sondern weil die Registrierung aus *Deployment*-Gründen scheitert, die mit dem Klick, der den Kalender verbunden hat, nichts zu tun haben |
 | `* * * * *` | `app:mail:wake-snoozed` | Eine Minute ist die Einheit, in der Menschen eine Weckzeit wählen |
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |

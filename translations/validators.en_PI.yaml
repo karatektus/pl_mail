@@ -14,6 +14,10 @@ caldav.address_required: Name the address o' yer CalDAV port — without one the
 caldav.credential_required: Give a ship's key, or tick the box to use the word stowed for a parrot account.
 caldav.reuse_account_required: Say which parrot account lends its word — or take the tick off an' type one.
 caldav.username_required: Give the name yer CalDAV port knows ye by.
+carddav.address_required: Give the address o' yer CardDAV port — plMail has naught to hail without it.
+carddav.username_required: Give the name yer CardDAV port knows ye by.
+contacts.invalid_email: '"%email%" be no parrot address.'
+contacts.name_or_email_required: Give the hand a name or at least one parrot address.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
 compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
 compose.recipient_required: Name at least one soul afore ye cast off.

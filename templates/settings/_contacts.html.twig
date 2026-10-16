@@ -1,0 +1,128 @@
+{#
+settings/_contacts.html.twig — Settings → Contacts: the CardDAV servers
+connected for contacts, and the address books mirrored from each.
+
+The calendar sources block, for address books. A connection's own failure is
+shown beside it, and each book's last sync failure beside the book, because
+"my contacts stopped updating" is answered by one of those two lines and by
+nothing else on the page.
+
+Variables:
+  contactConnections  Integration[]                 ServiceKind::Contacts only
+  addressBooks        array<int, AddressBook[]>     keyed by integration id
+#}
+<div class="px-4 py-3 border-b border-line bg-sunken flex items-center justify-between gap-3 flex-wrap">
+    <p class="text-xs text-ink-muted leading-relaxed max-w-prose">{{ 'settings.contacts.intro'|trans }}</p>
+
+    <div class="flex items-center gap-2">
+        <a href="{{ path('app_contacts_index') }}"
+           class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                  text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+            <i class="fa-solid fa-address-book text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.contacts.open'|trans }}
+        </a>
+
+        <button
+            type="button"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-title-value="{{ 'settings.contacts.carddav.title'|trans }}"
+            data-ui--modal-src-value="{{ path('app_settings_contacts_carddav_connect') }}"
+            data-connect-carddav
+            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
+                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+        >
+            <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.contacts.carddav.connect'|trans }}
+        </button>
+    </div>
+</div>
+
+{% if contactConnections is empty %}
+    <p class="px-4 py-8 text-center text-sm text-ink-faint italic">{{ 'settings.contacts.empty'|trans }}</p>
+{% else %}
+    <ul class="divide-y divide-line">
+        {% for connection in contactConnections %}
+            <li class="px-4 py-3 space-y-2">
+                <div class="flex items-center gap-2.5">
+                    <i class="{{ connection.provider.icon }} w-4 text-center text-xs text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ connection.name }}</span>
+
+                    {% if not connection.isHealthy %}
+                        <span class="shrink-0 text-[11px] text-danger truncate max-w-[16rem]"
+                              title="{{ connection.lastError }}">{{ connection.lastError }}</span>
+                    {% endif %}
+
+                    <button
+                        type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'settings.contacts.subscribe.title'|trans }}"
+                        data-ui--modal-src-value="{{ path('app_settings_contacts_subscribe', { id: connection.id }) }}"
+                        class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-medium
+                               text-accent hover:bg-hover transition-colors cursor-pointer"
+                    >
+                        {{ 'settings.contacts.find'|trans }}
+                    </button>
+
+                    <form method="post"
+                          action="{{ path('app_settings_contacts_carddav_disconnect', { id: connection.id }) }}"
+                          data-turbo-confirm="{{ 'settings.contacts.carddav.disconnect_confirm'|trans({ '%name%': connection.name }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('contacts-disconnect' ~ connection.id) }}">
+                        <button
+                            type="submit"
+                            class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.contacts.carddav.disconnect'|trans({ '%name%': connection.name }) }}"
+                        >
+                            <i class="fa-solid fa-link-slash text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+
+                {% set books = addressBooks[connection.id] ?? [] %}
+
+                {% if books is empty %}
+                    <p class="pl-6 text-xs text-ink-faint italic">{{ 'settings.contacts.no_books'|trans }}</p>
+                {% else %}
+                    <ul class="pl-6 space-y-1">
+                        {% for book in books %}
+                            <li class="flex items-center gap-2.5" data-address-book="{{ book.id }}">
+                                <span class="flex-1 min-w-0 truncate text-xs text-ink">
+                                    {{ book.name }}
+                                    {% if book.isReadOnly %}
+                                        <i class="fa-solid fa-lock ml-1 text-[9px] text-ink-faint"
+                                           title="{{ 'settings.contacts.read_only'|trans }}"
+                                           aria-label="{{ 'settings.contacts.read_only'|trans }}"></i>
+                                    {% endif %}
+                                </span>
+
+                                {% if not book.isHealthy %}
+                                    <span class="shrink-0 text-[11px] text-danger truncate max-w-[16rem]"
+                                          title="{{ book.lastSyncError }}">{{ book.lastSyncError }}</span>
+                                {% elseif book.lastSyncedAt %}
+                                    <span class="shrink-0 text-[11px] text-ink-faint">
+                                        {{ 'settings.contacts.synced'|trans({ '%date%': book.lastSyncedAt|date('Y-m-d H:i') }) }}
+                                    </span>
+                                {% else %}
+                                    <span class="shrink-0 text-[11px] text-ink-faint">{{ 'settings.contacts.never_synced'|trans }}</span>
+                                {% endif %}
+
+                                <form method="post" action="{{ path('app_settings_contacts_sync', { id: book.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('contacts-sync' ~ book.id) }}">
+                                    <button
+                                        type="submit"
+                                        class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                                        aria-label="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
+                                        title="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
+                                    >
+                                        <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

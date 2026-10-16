@@ -29,6 +29,7 @@ use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Repository\Rule\MailRuleRepository;
+use App\Service\AddressBook\AddressBookLister;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
 use App\Service\Ai\AiAssistant;
@@ -63,7 +64,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour', 'contacts'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -100,6 +101,7 @@ final class SettingsController extends AbstractController
         #[Autowire('%kernel.default_locale%')]
         private readonly string $defaultLocale,
         private readonly CalendarSourceLister $calendarSources,
+        private readonly AddressBookLister $addressBooks,
         private readonly ProfileSectionViewData $profileSection,
         private readonly SecuritySectionViewData $securitySection,
         private readonly UserTimezoneResolver $timezones,
@@ -176,6 +178,7 @@ final class SettingsController extends AbstractController
             ),
             ...$this->securitySectionData($section, $request),
             ...$this->calendarSectionData($section),
+            ...$this->contactsSectionData($section),
             ...$this->sharingSectionData($section),
             ...$this->notificationsSectionData($section),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
@@ -262,6 +265,24 @@ final class SettingsController extends AbstractController
             'calendarAccounts'    => $this->calendarSources->accountsFor($user),
             'calendarConnections' => $this->calendarSources->connectionsFor($user),
         ];
+    }
+
+    /**
+     * The contacts connections and their address books, for their own section
+     * only — built by AddressBookLister so the first render and every stream
+     * after it agree.
+     *
+     * @return array<string, mixed>
+     */
+    private function contactsSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('contacts' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return $this->addressBooks->sectionFor($user);
     }
 
     /**

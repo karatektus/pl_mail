@@ -1692,6 +1692,47 @@ calendar:
         month: Month
         week: '7 days'
 
+contacts:
+    delete:
+        confirm: >-
+            Delete "%name%"? It is removed from the address book on the server
+            too, and from every device that syncs it.
+        label: Delete %name%
+    edit:
+        label: Edit %name%
+        submit: Save contact
+        title: Edit contact
+    empty: No contacts in your address books yet.
+    field:
+        address_book: Address book
+        emails: Email addresses
+        name: Name
+        note: Note
+        one_per_line: One per line.
+        organization: Organisation
+        phones: Phone numbers
+    form:
+        kept_note: >-
+            Anything else this contact carries — a photo, a birthday, a postal
+            address — is kept as it is on the server.
+    new:
+        button: New contact
+        submit: Create contact
+        title: New contact
+    no_books: >-
+        No address book is mirrored yet. Connect a CardDAV server — Nextcloud,
+        Radicale, Fastmail, iCloud — and choose which address books to bring in.
+    no_books_link: Set up contacts
+    no_match: No contact matches "%query%".
+    pending: Saved here, not yet sent to the server
+    read_only: Read-only address book
+    search: Search contacts
+    title: Contacts
+    toast:
+        created: Contact created
+        deleted: Contact deleted
+        saved: Contact saved
+    truncated: Showing the first %count% — search to narrow the list.
 clipboard:
     copied: Copied
     copy_failed: Copy failed
@@ -2108,6 +2149,7 @@ header:
     user_menu:
         account_attention: '%count% things about your accounts need attention'
         admin: Admin
+        contacts: Contacts
         label: User menu for %email%
         profile: Profile
         rerun_setup: Run setup again
@@ -3653,6 +3695,68 @@ settings:
         option_none: All three
         option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
+    contacts:
+        carddav:
+            connect: Connect a CardDAV server
+            disconnect: Disconnect "%name%"
+            disconnect_confirm: >-
+                Disconnect "%name%"? Every address book mirrored from it is
+                removed here, with any change not yet sent to the server. The
+                contacts on the server are not touched.
+            field:
+                address: Server address
+                address_help: >-
+                    The CardDAV address your server shows you, or just its
+                    domain — plMail asks the domain where its address books live
+                    before giving up.
+                name: Name
+                name_help: What to call this connection in your settings.
+                reuse: Use the password from one of my mail accounts
+                reuse_account: Which account's password
+                reuse_account_none: Choose an account…
+                reuse_help: >-
+                    Off by default, and worth leaving off: most servers want an
+                    app-specific password, and ticking this sends a password you
+                    gave plMail for your mailbox to the address above.
+                secret: App password
+                secret_help: >-
+                    Create one on your server rather than using your login
+                    password — iCloud and Fastmail accept nothing else.
+                username: Username
+                username_help: The account name your server knows you by.
+            intro: >-
+                Any CardDAV server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Usually the same address and app password as your
+                calendars.
+            submit: Connect and find address books
+            title: Connect a CardDAV server
+        empty: No contacts server connected yet.
+        find: Choose address books
+        heading: Contacts
+        intro: >-
+            Address books mirrored from a CardDAV server. Contacts in them are
+            suggested when you write, and changes you make here are sent back.
+        never_synced: Not synced yet
+        no_books: No address book chosen from this server yet.
+        open: Open contacts
+        read_only: Read-only
+        subheading: Where your address books come from.
+        subscribe:
+            empty: '"%name%" offers no address books.'
+            intro: Choose which address books from "%name%" to mirror in plMail.
+            mirrored: Mirrored
+            save: Save
+            title: Choose address books
+            unsubscribe_note: >-
+                Unticking an address book removes its copy here, including any
+                change not yet sent. The server keeps its own.
+        sync_now: Sync "%name%" now
+        synced: Synced %date%
+        toast:
+            disconnected: Contacts server disconnected
+            saved: Address books saved
+            sync_queued: Sync queued
+            unchanged: Nothing changed
     calendars:
         account_hint: Where events found in mail from %address% are filed.
         caldav:
@@ -3799,6 +3903,7 @@ settings:
         calendar_behaviour: Behaviour
         calendars: Calendars
         categories: "Categories"
+        contacts: Contacts
         disposal: Disposal
         filters: Filters
         general: General

@@ -1700,6 +1700,48 @@ calendar:
         month: Mois
         week: '7 jours'
 
+contacts:
+    delete:
+        confirm: >-
+            Supprimer « %name% » ? Il est aussi supprimé du carnet d’adresses sur le
+            serveur, et de chaque appareil qui le synchronise.
+        label: Supprimer %name%
+    edit:
+        label: Modifier %name%
+        submit: Enregistrer le contact
+        title: Modifier le contact
+    empty: Aucun contact dans vos carnets d’adresses pour l’instant.
+    field:
+        address_book: Carnet d’adresses
+        emails: Adresses e-mail
+        name: Nom
+        note: Note
+        one_per_line: Une par ligne.
+        organization: Organisation
+        phones: Numéros de téléphone
+    form:
+        kept_note: >-
+            Tout ce que ce contact porte d’autre — une photo, un anniversaire, une
+            adresse postale — est conservé tel quel sur le serveur.
+    new:
+        button: Nouveau contact
+        submit: Créer le contact
+        title: Nouveau contact
+    no_books: >-
+        Aucun carnet d’adresses n’est encore reflété. Connectez un serveur CardDAV —
+        Nextcloud, Radicale, Fastmail, iCloud — et choisissez les carnets à importer.
+    no_books_link: Configurer les contacts
+    no_match: Aucun contact ne correspond à « %query% ».
+    pending: Enregistré ici, pas encore envoyé au serveur
+    read_only: Carnet d’adresses en lecture seule
+    search: Rechercher des contacts
+    title: Contacts
+    toast:
+        created: Contact créé
+        deleted: Contact supprimé
+        saved: Contact enregistré
+    truncated: Affichage des %count% premiers — lancez une recherche pour réduire la liste.
+
 clipboard:
     copied: Copié
     copy_failed: Échec de la copie
@@ -2119,6 +2161,7 @@ header:
     user_menu:
         account_attention: '%count% points de vos comptes demandent votre attention'
         admin: Administration
+        contacts: Contacts
         label: Menu utilisateur de %email%
         profile: Profil
         rerun_setup: Relancer la configuration
@@ -3698,6 +3741,70 @@ settings:
         option_none: Les trois
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
+    contacts:
+        carddav:
+            connect: Connecter un serveur CardDAV
+            disconnect: Déconnecter « %name% »
+            disconnect_confirm: >-
+                Déconnecter « %name% » ? Chaque carnet d’adresses reflété depuis ce
+                serveur est supprimé ici, avec toute modification pas encore envoyée au
+                serveur. Les contacts sur le serveur ne sont pas touchés.
+            field:
+                address: Adresse du serveur
+                address_help: >-
+                    L’adresse CardDAV que votre serveur vous indique, ou simplement son
+                    domaine — plMail demande au domaine où se trouvent ses carnets
+                    d’adresses avant d’abandonner.
+                name: Nom
+                name_help: Comment appeler cette connexion dans vos réglages.
+                reuse: Utiliser le mot de passe d’un de mes comptes mail
+                reuse_account: Le mot de passe de quel compte
+                reuse_account_none: Choisissez un compte…
+                reuse_help: >-
+                    Désactivé par défaut, et mieux vaut le laisser ainsi : la plupart
+                    des serveurs veulent un mot de passe d’application, et cocher ceci
+                    envoie un mot de passe que vous avez donné à plMail pour votre boîte
+                    à l’adresse ci-dessus.
+                secret: Mot de passe d’application
+                secret_help: >-
+                    Créez-en un sur votre serveur plutôt que d’utiliser votre mot de
+                    passe de connexion — iCloud et Fastmail n’acceptent rien d’autre.
+                username: Nom d’utilisateur
+                username_help: Le nom de compte sous lequel votre serveur vous connaît.
+            intro: >-
+                N’importe quel serveur CardDAV : Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. En général la même adresse et le même mot de passe d’application
+                que vos agendas.
+            submit: Connecter et trouver les carnets d’adresses
+            title: Connecter un serveur CardDAV
+        empty: Aucun serveur de contacts connecté pour l’instant.
+        find: Choisir les carnets d’adresses
+        heading: Contacts
+        intro: >-
+            Les carnets d’adresses reflétés depuis un serveur CardDAV. Leurs contacts
+            sont suggérés quand vous écrivez, et les modifications faites ici sont
+            renvoyées au serveur.
+        never_synced: Pas encore synchronisé
+        no_books: Aucun carnet d’adresses choisi sur ce serveur pour l’instant.
+        open: Ouvrir les contacts
+        read_only: Lecture seule
+        subheading: D’où viennent vos carnets d’adresses.
+        subscribe:
+            empty: '« %name% » ne propose aucun carnet d’adresses.'
+            intro: Choisissez les carnets d’adresses de « %name% » à refléter dans plMail.
+            mirrored: Reflété
+            save: Enregistrer
+            title: Choisir les carnets d’adresses
+            unsubscribe_note: >-
+                Décocher un carnet d’adresses supprime sa copie ici, y compris toute
+                modification pas encore envoyée. Le serveur garde la sienne.
+        sync_now: Synchroniser « %name% » maintenant
+        synced: Synchronisé %date%
+        toast:
+            disconnected: Serveur de contacts déconnecté
+            saved: Carnets d’adresses enregistrés
+            sync_queued: Synchronisation programmée
+            unchanged: Rien n’a changé
     calendars:
         account_hint: Là où sont classés les événements trouvés dans le courrier de %address%.
         caldav:
@@ -3848,6 +3955,7 @@ settings:
         calendar_behaviour: Comportement
         calendars: Agendas
         categories: "Catégories"
+        contacts: Contacts
         disposal: Suppression
         filters: Filtres
         general: Général

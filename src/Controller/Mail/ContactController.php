@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
-use App\Repository\Mail\ContactRepository;
+use App\Service\AddressBook\ContactSuggester;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,7 +16,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ContactController extends AbstractController
 {
     public function __construct(
-        private readonly ContactRepository $contactRepository,
+        private readonly ContactSuggester $suggester,
     ) {}
 
     #[Route('/autocomplete', name: 'autocomplete', methods: ['GET'])]
@@ -28,19 +28,17 @@ final class ContactController extends AbstractController
             return $this->json([]);
         }
 
-        $contacts = $this->contactRepository->findForAutocomplete(
-            $this->getUser(),
-            $query,
-        );
-
+        // The harvest and the address books together, ranked once — see
+        // ContactSuggester for why JMAP reads the same list.
         $results = [];
 
-        foreach ($contacts as $contact) {
+        foreach ($this->suggester->suggest($this->getUser(), $query) as $suggestion) {
             $results[] = [
-                'email'       => $contact->email,
-                'displayName' => $contact->displayName,
-                'initials'    => $contact->initials,
-                'frequency'   => $contact->frequency,
+                'email'         => $suggestion->email,
+                'displayName'   => $suggestion->name,
+                'initials'      => $suggestion->initials(),
+                'frequency'     => $suggestion->frequency,
+                'inAddressBook' => $suggestion->inAddressBook,
             ];
         }
 

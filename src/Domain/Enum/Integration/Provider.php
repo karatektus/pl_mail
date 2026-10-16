@@ -80,6 +80,20 @@ enum Provider: string
      */
     case Ics = 'ics';
 
+    /**
+     * Any RFC 6352 address-book server: Nextcloud, Radicale, Baïkal, Fastmail,
+     * iCloud — usually the same box as the CalDAV one, on the same app
+     * password.
+     *
+     * A connection of its own rather than a second job for a CalDav one. Some
+     * servers carry only one of the two, a person may keep their contacts and
+     * their calendars in different places, and "which calendars does this
+     * connection mirror" is a question the calendar screens answer without
+     * having to filter out address books. Lower-case 'carddav' for the same
+     * reason CalDav is lower-case.
+     */
+    case CardDav = 'carddav';
+
     public function label(): string
     {
         return match ($this) {
@@ -92,6 +106,7 @@ enum Provider: string
             self::Dropbox      => 'Dropbox',
             self::CalDav       => 'CalDAV',
             self::Ics          => 'Calendar feed',
+            self::CardDav      => 'CardDAV',
         };
     }
 
@@ -119,6 +134,7 @@ enum Provider: string
             // shared mark would make "which of these can I edit?" unanswerable
             // at a glance. A feed is a subscription, so it takes the feed mark.
             self::Ics          => 'fa-solid fa-rss',
+            self::CardDav      => 'fa-solid fa-address-book',
         };
     }
 
@@ -142,6 +158,7 @@ enum Provider: string
             self::Dropbox => ServiceKind::Files,
             self::CalDav,
             self::Ics     => ServiceKind::Calendar,
+            self::CardDav => ServiceKind::Contacts,
         };
     }
 
@@ -166,6 +183,9 @@ enum Provider: string
             // over CalDAV exists only at Google, and Google's calendars come
             // in through the mail grant instead.
             self::CalDav => AuthKind::AppPassword,
+            // The same answer as CalDAV, for the same reason, and usually for
+            // the same server.
+            self::CardDav => AuthKind::AppPassword,
             // AppPassword although a feed asks for no password, and the reason
             // is what this enum actually decides: needsBaseUrl() is derived
             // from it, and the feed URL is the one thing a user must supply and
@@ -254,7 +274,8 @@ enum Provider: string
             // other than no. What a calendar connection can do is asked of the
             // server itself, per collection, at sync time.
             self::CalDav,
-            self::Ics    => [],
+            self::Ics,
+            self::CardDav => [],
         };
     }
 
@@ -297,6 +318,7 @@ enum Provider: string
             self::Paperless,
             self::CalDav,
             self::Ics,
+            self::CardDav,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,

@@ -1608,6 +1608,47 @@ calendar:
         month: Month
         week: 'Seven suns'
 
+contacts:
+    delete:
+        confirm: >-
+            Strike "%name%" from the roll? They be struck from the port's roll
+            too, an' from every vessel that keeps it in step.
+        label: Strike %name%
+    edit:
+        label: Mend %name%
+        submit: Stow the hand
+        title: Mend a hand
+    empty: No hands on yer rolls yet.
+    field:
+        address_book: Roll
+        emails: Parrot addresses
+        name: Name
+        note: Scribblin'
+        one_per_line: One to a line.
+        organization: Ship
+        phones: Hailin' numbers
+    form:
+        kept_note: >-
+            Aught else this hand carries — a likeness, a birthday, a mooring
+            ashore — be kept as it lies in port.
+    new:
+        button: New hand
+        submit: Sign 'em on
+        title: New hand
+    no_books: >-
+        No roll be kept in step yet. Make fast to a CardDAV port — Nextcloud,
+        Radicale, Fastmail, iCloud — an' pick which rolls to bring aboard.
+    no_books_link: Rig the rolls
+    no_match: No hand answers to "%query%".
+    pending: Stowed here, not yet sent to port
+    read_only: Roll ye may only read
+    search: Search the rolls
+    title: Rolls o' hands
+    toast:
+        created: Hand signed on
+        deleted: Hand struck off
+        saved: Hand stowed
+    truncated: Showin' the first %count% — search to narrow it.
 clipboard:
     copied: Pocketed
     copy_failed: Pocketin' failed
@@ -1990,6 +2031,7 @@ header:
     user_menu:
         account_attention: "%count% things about yer crew be needin' an eye"
         admin: Cap'n's quarters
+        contacts: Rolls o' hands
         label: Crew menu for %email%
         profile: Yer colours
         rerun_setup: Rig her up again
@@ -3469,6 +3511,68 @@ settings:
         option_none: All three
         option_split: Full breadth only
         subheading: 'How the calendar button up top moves between views.'
+    contacts:
+        carddav:
+            connect: Make fast to a CardDAV port
+            disconnect: Cut the line to "%name%"
+            disconnect_confirm: >-
+                Cut the line to "%name%"? Every roll kept in step with it be
+                struck from this deck, with any change not yet sent. The hands
+                in port be left be.
+            field:
+                address: The port's address
+                address_help: >-
+                    The CardDAV address yer port shows ye, or just its domain —
+                    plMail hails the domain an' asks where its rolls be moored
+                    afore it gives up.
+                name: What it be called
+                name_help: What to call this line in yer settin's.
+                reuse: Use the word from one o' me parrot accounts
+                reuse_account: Which account's word
+                reuse_account_none: Pick an account…
+                reuse_help: >-
+                    Off unless ye say so, an' best left off: most ports want a
+                    ship's key of their own, an' a tick here sends a word ye
+                    gave plMail for yer parrots off to the address above.
+                secret: Ship's key
+                secret_help: >-
+                    Cut one aboard yer own port instead o' handin' over yer
+                    boardin' word — iCloud an' Fastmail take naught else.
+                username: Yer name aboard
+                username_help: The name yer port knows ye by.
+            intro: >-
+                Any CardDAV port at all: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Most like the same address an' ship's key as yer
+                almanacs.
+            submit: Make fast an' find the rolls
+            title: Make fast to a CardDAV port
+        empty: No port o' hands made fast yet.
+        find: Pick the rolls
+        heading: Rolls o' hands
+        intro: >-
+            Rolls kept in step with a CardDAV port. The hands on 'em be offered
+            when ye write, an' what ye mend here be sent back.
+        never_synced: Not yet in step
+        no_books: No roll picked from this port yet.
+        open: Open the rolls
+        read_only: Read only
+        subheading: Where yer rolls o' hands come from.
+        subscribe:
+            empty: '"%name%" offers no rolls.'
+            intro: Pick which rolls from "%name%" plMail keeps in step.
+            mirrored: Kept in step
+            save: Stow it
+            title: Pick the rolls
+            unsubscribe_note: >-
+                Untick a roll an' its copy here goes overboard, with any change
+                not yet sent. The port keeps its own.
+        sync_now: Bring "%name%" in step now
+        synced: In step %date%
+        toast:
+            disconnected: Line to the port cut
+            saved: Rolls stowed
+            sync_queued: Bringin' 'em in step
+            unchanged: Naught changed
     calendars:
         account_hint: Where reckonin's found in parrots from %address% be filed.
         caldav:
@@ -3608,6 +3712,7 @@ settings:
         calendar_behaviour: Behaviour
         calendars: Almanacs
         categories: "Holds"
+        contacts: Rolls o' hands
         disposal: Disposal
         filters: Sieves
         general: General

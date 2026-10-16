@@ -1,0 +1,28 @@
+{#
+contacts/_form.html.twig — create or edit one contact, inside the modal.
+
+The fields are ContactCardType's. What the card carries beyond them — a photo,
+a birthday, a postal address — is not shown and not lost: the note under the
+fields says so, because a person editing a contact their phone made will
+otherwise wonder where the rest of it went.
+
+Variables:
+  form  FormView
+  card  ContactCard|null  null when creating
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        title: (card is null ? 'contacts.new.title' : 'contacts.edit.title')|trans,
+        submit_label: (card is null ? 'contacts.new.submit' : 'contacts.edit.submit')|trans,
+    } only %}
+        {% block after_fields %}
+            <p class="text-xs text-ink-faint leading-relaxed">
+                <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+                {{ 'contacts.form.kept_note'|trans }}
+            </p>
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

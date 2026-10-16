@@ -1,0 +1,24 @@
+{#
+settings/contacts/_list.stream.html.twig — the answer to every change in
+Settings → Contacts: connect, subscribe, disconnect, sync now.
+
+Re-emits the target id inside its own replacement — see
+calendar/_lists.stream.html.twig for why a replace that drops it works once.
+
+Variables:
+  contactConnections  Integration[]
+  addressBooks        array<int, AddressBook[]>
+  toastMessage        translation key
+#}
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
+
+<turbo-stream action="replace" target="settings-contacts-list">
+    <template>
+        <div id="settings-contacts-list">
+            {% include 'settings/_contacts.html.twig' with {
+                contactConnections: contactConnections,
+                addressBooks: addressBooks,
+            } only %}
+        </div>
+    </template>
+</turbo-stream>

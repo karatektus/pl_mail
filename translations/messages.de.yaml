@@ -1720,6 +1720,48 @@ calendar:
         month: Monat
         week: '7 Tage'
 
+contacts:
+    delete:
+        confirm: >-
+            "%name%" löschen? Der Kontakt verschwindet auch aus dem Adressbuch
+            auf dem Server und von jedem Gerät, das es synchronisiert.
+        label: '%name% löschen'
+    edit:
+        label: '%name% bearbeiten'
+        submit: Kontakt speichern
+        title: Kontakt bearbeiten
+    empty: Noch keine Kontakte in deinen Adressbüchern.
+    field:
+        address_book: Adressbuch
+        emails: E-Mail-Adressen
+        name: Name
+        note: Notiz
+        one_per_line: Eine pro Zeile.
+        organization: Organisation
+        phones: Telefonnummern
+    form:
+        kept_note: >-
+            Alles andere an diesem Kontakt — ein Foto, ein Geburtstag, eine
+            Postanschrift — bleibt auf dem Server, wie es ist.
+    new:
+        button: Neuer Kontakt
+        submit: Kontakt anlegen
+        title: Neuer Kontakt
+    no_books: >-
+        Noch wird kein Adressbuch gespiegelt. Verbinde einen CardDAV-Server —
+        Nextcloud, Radicale, Fastmail, iCloud — und wähle, welche Adressbücher
+        hereinkommen sollen.
+    no_books_link: Kontakte einrichten
+    no_match: Kein Kontakt passt zu „%query%“.
+    pending: Hier gespeichert, noch nicht an den Server geschickt
+    read_only: Schreibgeschütztes Adressbuch
+    search: Kontakte durchsuchen
+    title: Kontakte
+    toast:
+        created: Kontakt angelegt
+        deleted: Kontakt gelöscht
+        saved: Kontakt gespeichert
+    truncated: Die ersten %count% werden angezeigt — such, um die Liste einzugrenzen.
 clipboard:
     copied: Kopiert
     copy_failed: Kopieren fehlgeschlagen
@@ -2109,6 +2151,7 @@ header:
     user_menu:
         account_attention: '%count% Dinge an deinen Konten brauchen Aufmerksamkeit'
         admin: Administration
+        contacts: Kontakte
         label: Benutzermenü für %email%
         profile: Profil
         rerun_setup: Einrichtung erneut starten
@@ -3664,6 +3707,71 @@ settings:
         option_none: Alle drei
         option_split: Nur volle Breite
         subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
+    contacts:
+        carddav:
+            connect: CardDAV-Server verbinden
+            disconnect: '"%name%" trennen'
+            disconnect_confirm: >-
+                "%name%" trennen? Jedes von dort gespiegelte Adressbuch wird
+                hier entfernt, samt Änderungen, die noch nicht an den Server
+                gegangen sind. Die Kontakte auf dem Server bleiben unberührt.
+            field:
+                address: Serveradresse
+                address_help: >-
+                    Die CardDAV-Adresse, die dein Server anzeigt — oder einfach
+                    die Domain: plMail fragt die Domain, wo ihre Adressbücher
+                    liegen, bevor es aufgibt.
+                name: Name
+                name_help: Wie diese Verbindung in deinen Einstellungen heißen soll.
+                reuse: Das Passwort eines meiner E-Mail-Konten verwenden
+                reuse_account: Das Passwort welchen Kontos
+                reuse_account_none: Konto wählen…
+                reuse_help: >-
+                    Standardmäßig aus, und das aus gutem Grund: Die meisten
+                    Server wollen ein App-Passwort, und ein Haken hier schickt
+                    ein Passwort, das du plMail für dein Postfach gegeben hast,
+                    an die Adresse oben.
+                secret: App-Passwort
+                secret_help: >-
+                    Lege eines auf deinem Server an, statt dein Anmeldepasswort
+                    zu nehmen — iCloud und Fastmail akzeptieren nichts anderes.
+                username: Benutzername
+                username_help: Der Kontoname, unter dem dich dein Server kennt.
+            intro: >-
+                Jeder CardDAV-Server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Meist dieselbe Adresse und dasselbe App-Passwort wie
+                bei deinen Kalendern.
+            submit: Verbinden und Adressbücher suchen
+            title: CardDAV-Server verbinden
+        empty: Noch kein Kontakte-Server verbunden.
+        find: Adressbücher wählen
+        heading: Kontakte
+        intro: >-
+            Adressbücher, gespiegelt von einem CardDAV-Server. Ihre Kontakte
+            werden dir beim Schreiben vorgeschlagen, und was du hier änderst,
+            geht zurück an den Server.
+        never_synced: Noch nicht synchronisiert
+        no_books: Von diesem Server ist noch kein Adressbuch gewählt.
+        open: Kontakte öffnen
+        read_only: Schreibgeschützt
+        subheading: Woher deine Adressbücher kommen.
+        subscribe:
+            empty: '"%name%" bietet keine Adressbücher an.'
+            intro: Wähle, welche Adressbücher von "%name%" plMail spiegeln soll.
+            mirrored: Gespiegelt
+            save: Speichern
+            title: Adressbücher wählen
+            unsubscribe_note: >-
+                Nimmst du den Haken bei einem Adressbuch weg, verschwindet seine
+                Kopie hier, samt Änderungen, die noch nicht gesendet sind. Der
+                Server behält seine eigene.
+        sync_now: '"%name%" jetzt synchronisieren'
+        synced: Synchronisiert %date%
+        toast:
+            disconnected: Kontakte-Server getrennt
+            saved: Adressbücher gespeichert
+            sync_queued: Synchronisierung eingereiht
+            unchanged: Nichts geändert
     calendars:
         account_hint: Hier landen Termine aus E-Mails von %address%.
         caldav:
@@ -3812,6 +3920,7 @@ settings:
         calendar_behaviour: Verhalten
         calendars: Kalender
         categories: "Kategorien"
+        contacts: Kontakte
         disposal: Entsorgen
         filters: Filter
         general: Allgemein

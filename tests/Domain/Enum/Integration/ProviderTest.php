@@ -14,6 +14,7 @@ use App\Domain\Interface\IntegrationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
 use App\Domain\Interface\VerifiableDriverInterface;
+use App\Service\AddressBook\CardDav\CardDavDriver;
 use App\Service\Calendar\Sync\CalDav\CalDavCalendarDriver;
 use App\Service\Calendar\Sync\IcsUrl\IcsUrlCalendarDriver;
 use App\Service\Integration\Driver\DropboxDriver;
@@ -47,7 +48,7 @@ final class ProviderTest extends TestCase
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(9, Provider::cases());
+        self::assertCount(10, Provider::cases());
     }
 
     /**
@@ -94,6 +95,26 @@ final class ProviderTest extends TestCase
             self::assertContains(VerifiableDriverInterface::class, $implements, 'the connect and test paths need verify()');
             self::assertNotContains(IntegrationDriverInterface::class, $implements, 'a calendar connection holds no files');
         }
+    }
+
+    /**
+     * The address-book provider is neither a file service nor a calendar one:
+     * it must not reach the picker, and it must not appear on the calendar
+     * screens, which list connections by kind.
+     */
+    public function testTheContactsProviderIsOfferedOnlyAsContacts(): void
+    {
+        self::assertSame(ServiceKind::Contacts, Provider::CardDav->kind());
+        self::assertSame([Provider::CardDav], Provider::of(ServiceKind::Contacts));
+        self::assertNotContains(Provider::CardDav, Provider::of(ServiceKind::Files));
+        self::assertNotContains(Provider::CardDav, Provider::of(ServiceKind::Calendar));
+        self::assertSame([], Provider::CardDav->capabilities());
+
+        $implements = class_implements(CardDavDriver::class) ?: [];
+
+        self::assertContains(VerifiableDriverInterface::class, $implements, 'the connect and test paths need verify()');
+        self::assertNotContains(IntegrationDriverInterface::class, $implements, 'an address book holds no files');
+        self::assertNotContains(CalendarSyncDriverInterface::class, $implements, 'an address book is not a calendar');
     }
 
     /**
@@ -235,7 +256,7 @@ final class ProviderTest extends TestCase
         // and AuthKind is what makes needsBaseUrl() true so the address is
         // validated. See Provider::authKind(), which says why that is not a
         // third AuthKind case.
-        foreach ([Provider::Nextcloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics] as $provider) {
+        foreach ([Provider::Nextcloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics, Provider::CardDav] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
             self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');
@@ -271,6 +292,8 @@ final class ProviderTest extends TestCase
         // it.
         self::assertSame('caldav', Provider::CalDav->slug());
         self::assertSame('caldav', Provider::CalDav->transKey());
+        self::assertSame('carddav', Provider::CardDav->slug());
+        self::assertSame('carddav', Provider::CardDav->transKey());
     }
 
     /**

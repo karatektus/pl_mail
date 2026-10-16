@@ -15,6 +15,10 @@ caldav.address_required: Saisissez l’adresse de votre serveur CalDAV — sans 
 caldav.credential_required: Saisissez un mot de passe d’application, ou cochez la case pour utiliser celui enregistré d’un compte mail.
 caldav.reuse_account_required: Choisissez le compte mail dont utiliser le mot de passe, ou décochez la case et saisissez-en un.
 caldav.username_required: Saisissez le nom d’utilisateur sous lequel votre serveur CalDAV vous connaît.
+carddav.address_required: Saisissez l’adresse de votre serveur CardDAV — sans elle, plMail n’a personne à interroger.
+carddav.username_required: Saisissez le nom d’utilisateur sous lequel votre serveur CardDAV vous connaît.
+contacts.invalid_email: '« %email% » n’est pas une adresse e-mail valide.'
+contacts.name_or_email_required: Donnez au contact un nom ou au moins une adresse e-mail.
 calendar.name_required: Donnez un nom à l’agenda — c’est ce qui le distingue des autres.
 compose.recipient_invalid: "« {{ address }} » n’est pas une adresse e-mail valide."
 compose.recipient_required: Ajoutez au moins un destinataire avant d’envoyer.
