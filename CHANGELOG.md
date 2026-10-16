@@ -13,6 +13,14 @@ corner of the dialog, just below the dialog's X. Now there is only the dialog's:
 puts the screenshot back, pressed again it closes What's new, the same as Escape.
 [#187](https://github.com/karatektus/pl_mail/issues/187).
 
+**An event that ends when it starts no longer runs into the next day.** A calendar feed or CalDAV
+event whose end is its start, such as a reminder at 23:59, was given an hour, as if no end had been
+stated. Other clients show it as 23:59–23:59, and here it ran past midnight and showed again on the
+next day. It now gets one minute, which keeps it on its own day. An event with no end at all still
+gets an hour, but the hour stops at midnight. Events already synced are corrected when the publisher
+next changes them, or right away by removing the calendar and adding it again.
+[#170](https://github.com/karatektus/pl_mail/issues/170).
+
 ## v0.3.6 — 2026-10-16
 
 **Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail
