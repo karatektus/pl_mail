@@ -159,3 +159,10 @@ mark it read here.
 Mail, Sent Mail, Drafts and the rest. Gmail marks it `\Noselect` and refuses to open it, so plMail
 creates it with sync switched off and never polls it; the folders underneath are ordinary and sync as
 usual. A folder the server later makes selectable is not switched back on by itself.
+
+**Some servers send a message's headers again as the start of its body.** A Stalwart server has
+been seen doing this for some messages and not others. plMail recognises an exact repeat of the
+header block and drops it, so the message is shown and stored once. Mail synced before that was
+fixed shows its `Delivered-To:` and `Received:` lines above the content; `app:backfill
+repeated-headers` repairs it from the stored original, without asking the server. It reads every
+IMAP message's original once, so on a large mailbox it takes a while.

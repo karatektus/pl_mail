@@ -32,6 +32,15 @@ gets an hour, but the hour stops at midnight. Events already synced are correcte
 next changes them, or right away by removing the calendar and adding it again.
 [#170](https://github.com/karatektus/pl_mail/issues/170).
 
+**Some IMAP messages no longer show their own headers above the content.** A Stalwart server
+answers some messages' body with the whole message, headers included, and plMail stored that as the
+body: the message opened with `Delivered-To:`, `Received:` and the rest of its header block printed
+as text, and its original held the headers twice. An exact repeat of the header block at the top of
+the body is now dropped before the message is read. Mail already stored that way is repaired by
+`app:backfill repeated-headers`, from the stored original and without asking the server; it reads
+the original of every IMAP message once. No migration.
+[#173](https://github.com/karatektus/pl_mail/issues/173), by @phdelodder.
+
 ## v0.3.6 — 2026-10-16
 
 **Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail

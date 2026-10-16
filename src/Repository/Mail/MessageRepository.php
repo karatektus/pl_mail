@@ -1380,6 +1380,44 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * IMAP messages after $afterId whose original bytes are on disk, in id
+     * order: the set RepeatedHeaderBackfillTask reads.
+     *
+     * Every one of them, not the ones whose body looks wrong. A repeated
+     * header block is only visible in body_html for a single-part message; a
+     * multipart one renders correctly and carries the doubled block in its
+     * .eml all the same, and only reading the file finds it.
+     *
+     * @return list<Message>
+     */
+    public function findImapWithStoredRaw(int $afterId, int $limit): array
+    {
+        return $this->imapWithStoredRawQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countImapWithStoredRaw(): int
+    {
+        return (int) $this->imapWithStoredRawQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function imapWithStoredRawQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.imapUid IS NOT NULL')
+            ->andWhere('m.rawPath IS NOT NULL')
+            ->setParameter('afterId', $afterId);
+    }
+
     /** Shared so the count and the walk can never disagree about the set. */
     private function misfiledBodyPartQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
     {
