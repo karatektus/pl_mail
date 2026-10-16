@@ -22,4 +22,12 @@ enum GmailSkipReason: string
 
     /** Listed by Gmail, and answered with a permanent error when asked for. */
     case Unfetchable = 'unfetchable';
+
+    /**
+     * Another of the user's Gmail accounts holds it, under its own Gmail id,
+     * through its own sync: mail forwarded from one to the other, or a copy
+     * both received. Stored once, there; see
+     * SyncGmailMessageBatchHandler::mayTakeGmailId().
+     */
+    case HeldElsewhere = 'held_elsewhere';
 }

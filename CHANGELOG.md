@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail
+account connected, mail one of them forwarded to another (or that both received) was merged into
+the first account's copy, and that copy's Gmail id was replaced with the second mailbox's. The
+first account then stored the message again, and the next import batch to reach it failed with
+`duplicate key value violates unique constraint "uniq_message_gmail_id_account"`, was fetched again
+on every retry and used up the Gmail quota, so `429 rateLimitExceeded` followed. A message another
+Gmail account holds is now left with that account and written down as such
+(`app:gmail:skipped` lists it as held by another Gmail account). Messages this already happened to
+stay listed twice.
+[Discussion #168](https://github.com/karatektus/pl_mail/discussions/168), by @karatektus.
+
 **A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
 the arriving message, but the conversation lost the label again in the same step, so it was
 missing from that label's list and from a tab filled by it. A message joining a conversation
