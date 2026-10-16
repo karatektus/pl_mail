@@ -25,7 +25,7 @@ jobs:
     label-areas:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/labeler@v5
+            - uses: actions/labeler@v7
               with:
                   # Adds, never removes: an area somebody set by hand stays.
                   sync-labels: false
