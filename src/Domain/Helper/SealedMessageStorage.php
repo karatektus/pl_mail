@@ -22,6 +22,20 @@ namespace App\Domain\Helper;
  * decrypted inner message a browser handed over for an account that keeps
  * decrypted mail (App\Service\Crypto\DecryptedMail). Kept apart from the raw
  * source, which stays the ciphertext that arrived.
+ *
+ * UNDER raw/, in a `sealed` directory of its own beside the accounts' ones,
+ * because raw/ is a volume every container shares. The files were first kept
+ * in var/sealed/, which the stock compose.yaml mounts nowhere: the web
+ * container wrote the built message into its own filesystem, the send job in
+ * the worker found nothing, and encrypted mail stayed in Drafts with "the
+ * built message is missing" in the log. The test stack mounts the whole
+ * checkout, so it could not see the difference. Avatars and signatures live
+ * inside uploads/ for the same reason.
+ *
+ * Reading still looks in the old place, for an install whose var/ is one
+ * directory (a checkout, an install without Docker): what it wrote before
+ * stays readable there. In a Docker stack the old files were in the web
+ * container's own layer and went with it.
  */
 readonly class SealedMessageStorage
 {
@@ -53,6 +67,10 @@ readonly class SealedMessageStorage
         $path = $this->path($messageId, $kind);
 
         if (false === is_file($path)) {
+            $path = $this->path($messageId, $kind, legacy: true);
+        }
+
+        if (false === is_file($path)) {
             return null;
         }
 
@@ -63,19 +81,22 @@ readonly class SealedMessageStorage
 
     public function delete(int $messageId, string $kind): void
     {
-        $path = $this->path($messageId, $kind);
+        foreach ([false, true] as $legacy) {
+            $path = $this->path($messageId, $kind, $legacy);
 
-        if (true === is_file($path)) {
-            unlink($path);
+            if (true === is_file($path)) {
+                unlink($path);
+            }
         }
     }
 
-    private function path(int $messageId, string $kind): string
+    private function path(int $messageId, string $kind, bool $legacy = false): string
     {
         return sprintf(
-            '%s/%s/sealed/%d/%d.%s',
+            '%s/%s/%s/%d/%d.%s',
             $this->projectDir,
             $this->storageDir,
+            true === $legacy ? 'sealed' : 'raw/sealed',
             intdiv($messageId, self::FANOUT),
             $messageId,
             true === in_array($kind, [self::OUTGOING, self::DECRYPTED], true) ? $kind : self::DRAFT,
