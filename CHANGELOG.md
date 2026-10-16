@@ -17,7 +17,7 @@ on every retry and used up the Gmail quota, so `429 rateLimitExceeded` followed.
 Gmail account holds is now left with that account and written down as such
 (`app:gmail:skipped` lists it as held by another Gmail account). Messages this already happened to
 stay listed twice.
-[Discussion #168](https://github.com/karatektus/pl_mail/discussions/168), by @karatektus.
+[#196](https://github.com/karatektus/pl_mail/pull/196), by @karatektus.
 
 **A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
 the arriving message, but the conversation lost the label again in the same step, so it was
