@@ -14,7 +14,7 @@ missing from that label's list and from a tab filled by it. A message joining a 
 plMail already had was affected unless it was the first one that label was ever applied to on
 the account. Mail labelled before this update gets its conversation's label back the next time
 any label in that conversation changes.
-[#PR](https://github.com/karatektus/pl_mail/pull/PR), by @karatektus.
+[#185](https://github.com/karatektus/pl_mail/pull/185), by @karatektus.
 
 **A conversation no longer splits when its replies are synced first.** When replies arrived before
 the message they answer, which is the usual case right after connecting an IMAP account (the Inbox
