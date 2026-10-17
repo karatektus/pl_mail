@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:90f0e331560ca2cd562d56cfc01609f1a52cb275 -->
+<!-- translated-from: providers/imap-smtp.md sha1:5335652d9a9068ad87eafb41deda04a22278acba -->
 
 # IMAP und SMTP
 
@@ -172,3 +172,11 @@ markiert ihn mit `\Noselect` und lässt sich nicht darauf ein, ihn zu öffnen; p
 mit ausgeschalteter Synchronisation an und fragt ihn nie ab. Die Ordner darunter sind gewöhnlich und
 werden wie üblich synchronisiert. Ein Ordner, den der Server später auswählbar macht, wird nicht von
 selbst wieder eingeschaltet.
+
+**Manche Server schicken die Kopfzeilen einer Nachricht als Anfang ihres Inhalts noch einmal.** Bei
+einem Stalwart-Server wurde das bei einigen Nachrichten beobachtet, bei anderen nicht. plMail erkennt
+eine exakte Wiederholung des Kopfblocks und lässt sie weg, sodass die Nachricht einmal angezeigt und
+gespeichert wird. Mail, die vorher synchronisiert wurde, zeigt ihre Zeilen `Delivered-To:` und
+`Received:` über dem Inhalt; `app:backfill repeated-headers` repariert sie aus dem gespeicherten
+Original, ohne den Server zu fragen. Es liest dafür das Original jeder IMAP-Nachricht einmal, auf
+einem großen Postfach dauert das also eine Weile.

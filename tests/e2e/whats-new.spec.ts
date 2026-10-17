@@ -92,7 +92,10 @@ test.describe("What's new", () => {
         const url = page.url();
         const thumbnail = dialog.getByRole("link", { name: "Open the screenshot full size" }).first();
         const shot = dialog.locator("[data-whats-new-screenshot]");
-        const close = shot.getByRole("button", { name: "Close the screenshot" });
+        // The modal's own X, relabelled while the picture is up: the picture
+        // has no X of its own, so there is one X on screen, not two (#187).
+        const close = dialog.getByRole("button", { name: "Close the screenshot" });
+        const modalX = dialog.getByRole("button", { name: "Close", exact: true });
 
         const open = async () => {
             await thumbnail.click();
@@ -109,6 +112,8 @@ test.describe("What's new", () => {
 
         await open();
         expect(context.pages(), "no new tab").toHaveLength(pages);
+        await expect(shot.getByRole("button"), "the picture brings no X of its own").toHaveCount(0);
+        await expect(modalX, "the modal's X is the one that shrinks it").toHaveCount(0);
         await expect(shot.locator("img")).toHaveAttribute("src", (await thumbnail.getAttribute("href")) ?? "");
 
         // It fills the body of the dialog — within the body's 1px top rule —
@@ -124,6 +129,7 @@ test.describe("What's new", () => {
 
         await close.click();
         await putBack("the X");
+        await expect(modalX, "and the X is What's new's again").toBeVisible();
 
         await open();
         await page.keyboard.press("Escape");
@@ -135,6 +141,37 @@ test.describe("What's new", () => {
 
         // And the next Escape is What's new's again.
         await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+    });
+
+    /**
+     * The X pressed twice: once to put the picture back, once more to close
+     * What's new (#187).
+     */
+    test("the modal's X puts a screenshot back first, then closes What's new", async ({ page }) => {
+        await page.goto("/settings?section=general");
+
+        await page.locator("[data-whats-new-menu] > button").click();
+        await page.getByRole("menuitem", { name: "What's new" }).click();
+
+        const dialog = page.locator("#modal-backdrop");
+        await expect(dialog.locator("[data-whats-new-notes]")).toBeVisible();
+
+        await dialog.locator("[data-whats-new-notes]").evaluate((notes) => { notes.dataset.stale = ""; });
+        await dialog.locator("[data-whats-new-history] summary").click();
+        await dialog.locator('[data-whats-new-release="v0.3.5"]').first().click();
+        await expect(dialog.locator('[data-whats-new-notes="v0.3.5"]:not([data-stale])')).toBeVisible();
+
+        const shot = dialog.locator("[data-whats-new-screenshot]");
+
+        await dialog.getByRole("link", { name: "Open the screenshot full size" }).first().click();
+        await expect(shot).toBeVisible();
+
+        await dialog.getByRole("button", { name: "Close the screenshot" }).click();
+        await expect(shot).toBeHidden();
+        await expect(dialog, "the first press only puts the picture back").toBeVisible();
+
+        await dialog.getByRole("button", { name: "Close", exact: true }).click();
         await expect(dialog).toBeHidden();
     });
 

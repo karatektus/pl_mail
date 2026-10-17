@@ -8,6 +8,44 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
+one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
+the server only counted To. It now counts all three as well. A mail with no recipient at all is
+still refused, and a draft may still be saved with none. No schema change.
+
+**Outlook's `<![endif]-->` no longer shows up in a message.** Mail written for Outlook hides
+parts of itself behind conditional comments, and one form of them ends in a marker that is not
+inside a comment. A mail that also had a comment containing `--` anywhere in it was read by an older
+parser in one step of the rendering, which turned that marker into text, so a parcel notification
+could show `<![endif]-->` in the middle of a sentence. The same mail could also lose a link around a
+table. Every comment is now removed before that step, and the marker with it. Mail already in the
+mailbox is repaired on request: `php bin/console app:backfill safe-html-conditional-comments` writes
+the shown copy of every message that has the marker in it again from the sender's original, and
+`safe-html-table-links` does the same for the links. No schema change.
+[#175](https://github.com/karatektus/pl_mail/issues/175), by @phdelodder.
+
+**One X on a What's new screenshot.** A screenshot opened full size brought its own X into the
+corner of the dialog, just below the dialog's X. Now there is only the dialog's: pressed once it
+puts the screenshot back, pressed again it closes What's new, the same as Escape.
+[#187](https://github.com/karatektus/pl_mail/issues/187).
+
+**An event that ends when it starts no longer runs into the next day.** A calendar feed or CalDAV
+event whose end is its start, such as a reminder at 23:59, was given an hour, as if no end had been
+stated. Other clients show it as 23:59–23:59, and here it ran past midnight and showed again on the
+next day. It now gets one minute, which keeps it on its own day. An event with no end at all still
+gets an hour, but the hour stops at midnight. Events already synced are corrected when the publisher
+next changes them, or right away by removing the calendar and adding it again.
+[#170](https://github.com/karatektus/pl_mail/issues/170).
+
+**Some IMAP messages no longer show their own headers above the content.** A Stalwart server
+answers some messages' body with the whole message, headers included, and plMail stored that as the
+body: the message opened with `Delivered-To:`, `Received:` and the rest of its header block printed
+as text, and its original held the headers twice. An exact repeat of the header block at the top of
+the body is now dropped before the message is read. Mail already stored that way is repaired by
+`app:backfill repeated-headers`, from the stored original and without asking the server; it reads
+the original of every IMAP message once. No migration.
+[#173](https://github.com/karatektus/pl_mail/issues/173), by @phdelodder.
+
 **A Gmail copy trashed in Gmail no longer moves a Gmailify sibling's mail out of its Inbox.** The Gmail import
 merges Gmail's labels onto the IMAP account's own copy of a message, and that included `TRASH`, `SPAM`,
 `INBOX`, `SENT` and `DRAFT`. Mail still sitting in the IMAP server's Inbox, or in a folder of its own, was
@@ -17,6 +55,17 @@ labels merge as before. Rows already marked Trash this way stay that way until t
 or the mail is moved. No migration. [#203](https://github.com/karatektus/pl_mail/issues/203).
 
 ## v0.3.6 — 2026-10-16
+
+**Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail
+account connected, mail one of them forwarded to another (or that both received) was merged into
+the first account's copy, and that copy's Gmail id was replaced with the second mailbox's. The
+first account then stored the message again, and the next import batch to reach it failed with
+`duplicate key value violates unique constraint "uniq_message_gmail_id_account"`, was fetched again
+on every retry and used up the Gmail quota, so `429 rateLimitExceeded` followed. A message another
+Gmail account holds is now left with that account and written down as such
+(`app:gmail:skipped` lists it as held by another Gmail account). Messages this already happened to
+stay listed twice.
+[#196](https://github.com/karatektus/pl_mail/pull/196), by @karatektus.
 
 **A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
 the arriving message, but the conversation lost the label again in the same step, so it was

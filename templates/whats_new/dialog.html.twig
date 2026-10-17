@@ -48,7 +48,8 @@ Accepts:
     <template data-ui--modal-frame-title>{{ 'whats_new.title'|trans }}</template>
 
     <div class="relative flex h-[min(640px,80vh)] min-h-0 flex-col border-t border-line" data-whats-new
-         data-controller="whats-new--zoom">
+         data-controller="whats-new--zoom"
+         data-whats-new--zoom-close-label-value="{{ 'whats_new.screenshot_close'|trans }}">
         <div class="flex min-h-0 flex-1">
 
             {# ── Releases ─────────────────────────────────────────────────── #}
@@ -238,19 +239,16 @@ Accepts:
 
         {# ── A screenshot, full size ──────────────────────────────────────────
            Over everything above, below the modal's own header; grown out of its
-           thumbnail by the controller, and the X, Escape or Back put it back.
+           thumbnail by the controller, and the modal's X, Escape or Back put it
+           back. No X of its own (#187), so not a modal dialog either: the one
+           control that closes it is the header's, outside it.
            Layout in app.css under .whats-new-shot. #}
         <div data-whats-new--zoom-target="overlay" data-whats-new-screenshot hidden
-             role="dialog" aria-modal="true" aria-label="{{ 'whats_new.screenshot'|trans }}"
+             role="group" aria-label="{{ 'whats_new.screenshot'|trans }}"
              class="whats-new-shot">
             <div data-whats-new--zoom-target="backdrop" class="whats-new-shot-backdrop"></div>
             <img data-whats-new--zoom-target="image" alt=""
                  class="relative block max-h-full min-h-0 max-w-full min-w-0 rounded-lg border border-line object-contain">
-            <button type="button" data-whats-new--zoom-target="close" data-action="whats-new--zoom#close"
-                    aria-label="{{ 'whats_new.screenshot_close'|trans }}"
-                    class="absolute right-3 top-3 inline-flex size-11 items-center justify-center rounded-full bg-raised text-ink shadow-float transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent md:size-9">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
         </div>
     </div>
 </turbo-frame>
