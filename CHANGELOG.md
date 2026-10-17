@@ -6,6 +6,16 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**A Gmail copy trashed in Gmail no longer moves a Gmailify sibling's mail out of its Inbox.** The Gmail import
+merges Gmail's labels onto the IMAP account's own copy of a message, and that included `TRASH`, `SPAM`,
+`INBOX`, `SENT` and `DRAFT`. Mail still sitting in the IMAP server's Inbox, or in a folder of its own, was
+shown as trashed and dropped out of the Inbox list. For a sibling's IMAP copy the folder now decides where
+the message sits, and Gmail's placement labels are neither applied to it nor removed from it. Other Gmail
+labels merge as before. Rows already marked Trash this way stay that way until their labels are fixed by hand
+or the mail is moved. No migration. [#203](https://github.com/karatektus/pl_mail/issues/203).
+
 ## v0.3.6 — 2026-10-16
 
 **A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled

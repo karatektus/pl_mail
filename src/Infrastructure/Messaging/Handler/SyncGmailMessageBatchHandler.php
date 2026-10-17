@@ -482,7 +482,9 @@ final readonly class SyncGmailMessageBatchHandler
 
         $existing->gmailLabelIds = $labelIds;
 
-        $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
+        // A sibling's IMAP copy keeps its placement: the folder it is in decides
+        // Inbox, Trash and Spam, not what Gmail did with its own copy.
+        $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier, false === $ownsFlags);
 
         // ## Recategorise, because the line above changed the only signal
         //
