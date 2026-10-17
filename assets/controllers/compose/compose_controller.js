@@ -2261,7 +2261,12 @@ export default class extends Controller {
             return;
         }
 
-        dock.src = `/compose/edit/${id}`;
+        // With the thread, as a reply opened below md carries it: the window
+        // is still answering this conversation, and without it the send had
+        // nowhere to put the sent message — compose/_sent.stream.html.twig
+        // only touches the conversation the window says it belongs to, so a
+        // reply sent from the popped-out window never appeared in the thread.
+        dock.src = `/compose/edit/${id}${this.hasThreadValue ? `?thread=${this.threadValue}` : ''}`;
 
         // Put the row back rather than emptying the frame. Popping out moves
         // where the draft is edited; it does not remove the draft from the

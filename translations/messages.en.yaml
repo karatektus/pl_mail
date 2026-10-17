@@ -2684,6 +2684,7 @@ message:
         subject: "Subject: %subject%"
         encrypted_kept: "Encrypted on arrival · stored readable on this server"
         sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
+        sending: "Encrypted, and being sent. It opens here once it has gone."
         action:
             accept: "Use the new key"
             lookup: "Look up the key"

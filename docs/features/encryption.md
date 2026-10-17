@@ -237,7 +237,9 @@ message instead.
 An encrypted message never reaches the server readable, not even as a draft: your browser encrypts
 the draft to your own key before every save, encrypts attachments before they are uploaded, and
 builds and encrypts the whole message — to every recipient and to you, so the copy in *Sent* stays
-readable — when you press Send. Undo, *Send later* and *Sent* work as they always have.
+readable — when you press Send. Undo, *Send later* and *Sent* work as they always have. A reply
+shows in the conversation as being sent until it has gone, and then opens there like any encrypted
+mail of yours.
 
 **Signing.** Encrypted mail is always signed. Unencrypted mail is signed when it goes to somebody
 whose key plMail knows, or always if you turn on **Sign unencrypted mail**.

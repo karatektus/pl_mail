@@ -84,7 +84,10 @@ final class SeedCryptoMailCommand extends Command
         $this
             ->addOption('email', null, InputOption::VALUE_REQUIRED, 'The E2E user')
             ->addOption('subject', null, InputOption::VALUE_REQUIRED, 'Subject of the message')
-            ->addOption('raw-base64', null, InputOption::VALUE_REQUIRED, 'The raw RFC 5322 message, base64');
+            ->addOption('raw-base64', null, InputOption::VALUE_REQUIRED, 'The raw RFC 5322 message, base64')
+            // The seeded mailbox's own address makes a reply go to a key the
+            // person holds, without a second person: encryption-reply-sent.spec.ts.
+            ->addOption('from', null, InputOption::VALUE_REQUIRED, 'The sender\'s address', 'sender@e2e.test');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -117,7 +120,7 @@ final class SeedCryptoMailCommand extends Command
         $message->account        = $account;
         $message->subject        = $subject;
         $message->fromName       = 'E2E Sender';
-        $message->fromAddress    = 'sender@e2e.test';
+        $message->fromAddress    = (string) $input->getOption('from');
         $message->toAddresses    = [['name' => 'E2E Tester', 'address' => self::SEED_ACCOUNT_USERNAME]];
         $message->headers        = array_filter([
             'content-type' => self::contentType($headers),

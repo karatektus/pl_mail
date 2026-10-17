@@ -2699,6 +2699,7 @@ message:
         subject: 'Objet : %subject%'
         encrypted_kept: Chiffré à l’arrivée · conservé lisible sur ce serveur
         sealed_draft: Brouillon chiffré. Ouvrez-le pour continuer à écrire ; seul un navigateur disposant de vos clés peut le lire.
+        sending: Message chiffré en cours d'envoi. Il s'ouvrira ici une fois parti.
         action:
             accept: Utiliser la nouvelle clé
             lookup: Rechercher la clé

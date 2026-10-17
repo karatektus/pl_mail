@@ -2566,6 +2566,7 @@ message:
         subject: "Subject: %subject%"
         encrypted_kept: "Came aboard in cipher · kept readable on this ship"
         sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
+        sending: "Ciphered, an' under sail. It opens here once she's away."
         action:
             accept: "Use th' new key"
             lookup: "Seek th' key"

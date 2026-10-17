@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:479c78a347eb42c286182ac9d06810d03e0e8f6a -->
+<!-- translated-from: features/encryption.md sha1:d0d4d0d5168dd769792036fec72abe0fa55ea968 -->
 
 # Verschlüsselung
 
@@ -259,7 +259,9 @@ Eine verschlüsselte Nachricht kommt nie lesbar beim Server an, auch nicht als E
 verschlüsselt den Entwurf vor jedem Speichern mit deinem eigenen Schlüssel, verschlüsselt Anhänge,
 bevor sie hochgeladen werden, und baut und verschlüsselt die ganze Nachricht — an alle Empfänger
 und an dich, damit die Kopie in *Gesendet* lesbar bleibt —, wenn du auf Senden drückst. Rückgängig,
-*Später senden* und *Gesendet* funktionieren wie immer.
+*Später senden* und *Gesendet* funktionieren wie immer. Eine Antwort steht in der Unterhaltung als
+„wird gesendet“, bis sie verschickt ist, und öffnet sich dann dort wie jede verschlüsselte Mail von
+dir.
 
 **Signieren.** Verschlüsselte Mails werden immer signiert. Unverschlüsselte Mails werden signiert,
 wenn sie an jemanden gehen, dessen Schlüssel plMail kennt, oder immer, wenn du **Unverschlüsselte

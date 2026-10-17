@@ -2687,6 +2687,7 @@ message:
         subject: "Betreff: %subject%"
         encrypted_kept: "Verschlüsselt empfangen · auf diesem Server lesbar gespeichert"
         sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."
+        sending: "Verschlüsselte Nachricht wird gesendet. Sobald sie verschickt ist, öffnet sie sich hier."
         action:
             accept: "Neuen Schlüssel verwenden"
             lookup: "Schlüssel suchen"
