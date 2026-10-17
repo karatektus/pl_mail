@@ -72,7 +72,7 @@ test.describe("reading encrypted mail", () => {
 
         const row = mailRow(page, subject);
 
-        await expect(row).toContainText("Encrypted message");
+        await expect(row.locator("[data-row-encrypted]")).toBeVisible();
         await row.click();
 
         await expect(page.getByTestId("crypto-banner")).toContainText("End-to-end encrypted");

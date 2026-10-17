@@ -163,15 +163,18 @@ test.describe("writing encrypted mail", () => {
 
         // Reported at desktop width (#28, comment 6216252504): the subject and
         // the "Encrypted message" snippet sat two pixels above the recipient.
-        // 1280 is the two-line row, where the subject shares the recipient's
-        // line; 1700 and 2200 are the one-line row, where all three do.
-        for (const [width, oneLine] of [[1280, false], [1700, true], [2200, true]] as const) {
+        // The row now says it with a lock in front of the subject and has no
+        // placeholder snippet, and the subject still has to sit on the
+        // recipient's line. 1280 is the two-line row, where the subject shares
+        // the recipient's line; 1700 and 2200 are the one-line row.
+        for (const width of [1280, 1700, 2200]) {
             await page.setViewportSize({ width, height: 900 });
             await page.goto("/mail/drafts");
 
             const row = mailRow(page, subject);
 
-            await expect(row.locator("[data-row-snippet]")).toHaveText("Encrypted message");
+            await expect(row.locator("[data-row-subject] [data-row-encrypted]")).toBeVisible();
+            await expect(row.locator("[data-row-snippet]")).toHaveText("");
 
             const middle = await row.evaluate((element) => {
                 const centre = (selector: string): number => {
@@ -180,14 +183,10 @@ test.describe("writing encrypted mail", () => {
                     return box.top + box.height / 2;
                 };
 
-                return { sender: centre("[data-row-sender] .truncate"), subject: centre("[data-row-subject]"), snippet: centre("[data-row-snippet]") };
+                return { sender: centre("[data-row-sender] .truncate"), subject: centre("[data-row-subject]") };
             });
 
             expect(Math.abs(middle.subject - middle.sender), `the subject against the recipient at ${width}px`).toBeLessThanOrEqual(1);
-
-            if (true === oneLine) {
-                expect(Math.abs(middle.snippet - middle.sender), `the snippet against the recipient at ${width}px`).toBeLessThanOrEqual(1);
-            }
         }
     });
 

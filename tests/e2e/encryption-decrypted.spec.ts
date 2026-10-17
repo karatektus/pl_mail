@@ -57,6 +57,11 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
         return mailRow(page, subject).innerText();
     }, { timeout: 30000, intervals: [2000] }).toContain(word);
 
+    // Its real preview, and still the lock in front of the subject: it was
+    // encrypted, whatever the server now keeps of it.
+    await expect(mailRow(page, subject).locator("[data-row-snippet]")).toContainText(word);
+    await expect(mailRow(page, subject).locator("[data-row-subject] [data-row-encrypted]")).toBeVisible();
+
     await mailRow(page, subject).click();
     await expect(page.getByTestId("crypto-banner")).toContainText("stored readable on this server");
 
@@ -67,8 +72,10 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
     await expect.poll(async () => {
         await page.goto("/mail/inbox");
 
-        return mailRow(page, subject).innerText();
-    }, { timeout: 30000, intervals: [2000] }).toContain("Encrypted message");
+        return mailRow(page, subject).locator("[data-row-snippet]").innerText();
+    }, { timeout: 30000, intervals: [2000] }).toBe("");
+
+    await expect(mailRow(page, subject).locator("[data-row-subject] [data-row-encrypted]")).toBeVisible();
 });
 
 /** A signed-in person with a keyring and the seeded mailbox address. */

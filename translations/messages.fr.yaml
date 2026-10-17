@@ -2732,7 +2732,6 @@ message:
         signer: Signé par %signer%
         smime_unreadable: Ce message est chiffré avec S/MIME pour un certificat que plMail n’a pas. Importez-le dans Paramètres → Chiffrement, ou ouvrez le message dans un logiciel de messagerie qui le possède.
         smime_unsupported: Ce message est chiffré avec un algorithme que plMail ne sait pas ouvrir ; seul AES est pris en charge.
-        snippet: Message chiffré
     details:
         categorised:
             ai: 'un modèle de langage, faute de règle l’ayant reconnu : '

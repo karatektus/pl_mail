@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:d0d4d0d5168dd769792036fec72abe0fa55ea968 -->
+<!-- translated-from: features/encryption.md sha1:72c880f5e72bc7fe9b311fa68d9b3fc9abcab91e -->
 
 # Verschlüsselung
 
@@ -141,9 +141,12 @@ Von plMail erstellte Schlüssel laufen nicht ab — wie bei Proton. Unter **Schl
 **Verschlüsselte Mails** zeigen ein grünes Schloss und *Ende-zu-Ende verschlüsselt* darüber. plMail
 bewahrt auf dem Server keine lesbare Kopie davon auf: Dein Browser holt die Nachricht so, wie sie
 angekommen ist, entschlüsselt sie mit deinen Schlüsseln und zeigt sie wie jede andere Mail an —
-samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht *Verschlüsselte
-Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen Text, und für
-S/MIME, sobald du dein Zertifikat importiert hast (siehe [S/MIME](#smime) unten).
+samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht ein Schloss vor
+dem Betreff und keine Vorschau, denn der Server hat keinen Text, den er zeigen könnte (wenn
+[entschlüsselte Mails behalten werden](#entschlüsselte-mails-auf-diesem-server-behalten), ist
+die Vorschau wieder da, das Schloss bleibt). Das gilt für OpenPGP, egal ob als PGP/MIME oder als
+Block im reinen Text, und für S/MIME, sobald du dein Zertifikat importiert hast (siehe
+[S/MIME](#smime) unten).
 
 **Signierte Mails** zeigen, was die Prüfung der Signatur ergeben hat:
 

@@ -2599,7 +2599,6 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This letter be S/MIME-sealed fer a certificate plMail don't hold. Bring it aboard in Settings → Encryption, or open th' letter in a mail program that holds it."
         smime_unsupported: "This letter be sealed with a cipher plMail can't open; only AES serves."
-        snippet: "Sealed letter"
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "

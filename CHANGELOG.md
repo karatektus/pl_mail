@@ -160,9 +160,9 @@ the collected keys and pins. Mail that arrived before the update is not searched
 end-to-end encryption.** An OpenPGP-encrypted message, PGP/MIME or inline, now opens in your
 browser with the keys plMail made for you, attachments included; the server keeps no readable copy,
 so it is left out of search, filters on the text, summaries and the assistant, and the list shows
-*Encrypted message*. Signed mail says what its signature is worth — checked, intact but unconfirmed,
-from an unknown key, or not matching — with S/MIME checked against the usual certificate
-authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
+a lock in front of its subject. Signed mail says what its signature is worth — checked, intact but
+unconfirmed, from an unknown key, or not matching — with S/MIME checked against the usual
+certificate authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
 blocked; S/MIME-encrypted mail is recognised but not yet readable. The image gains the PHP `gnupg`
 extension. Three columns are added to the message table; the migration is reversible. Mail synced
 before the update is not re-examined.

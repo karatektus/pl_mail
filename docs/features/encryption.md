@@ -128,9 +128,11 @@ Keys made by plMail do not expire — as with Proton. Under **Show keys**:
 **Encrypted mail** shows a green lock and *End-to-end encrypted* above it. plMail keeps no readable
 copy of it on the server: your browser fetches the message as it arrived, decrypts it with your
 keys, and shows it like any other mail — attachments included, which download straight from the
-browser. In the list it reads *Encrypted message*. This works for OpenPGP, whether the message is
-PGP/MIME or an armored block in plain text, and for S/MIME once you have imported your certificate
-(see [S/MIME](#smime) below).
+browser. In the list it has a lock in front of its subject and no preview, since the server holds
+no text to preview (with [decrypted mail kept](#keeping-decrypted-mail-on-this-server), the preview
+is back, the lock stays). This works for OpenPGP, whether the message is PGP/MIME or an armored
+block in plain text, and for S/MIME once you have imported your certificate (see [S/MIME](#smime)
+below).
 
 **Signed mail** shows what checking the signature found:
 

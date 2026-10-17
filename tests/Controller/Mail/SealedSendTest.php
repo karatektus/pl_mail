@@ -84,7 +84,17 @@ final class SealedSendTest extends WebTestCase
         $message = $this->reload($id);
 
         self::assertTrue($message->sealedDraft);
-        self::assertSame(MessageCrypto::PgpEncrypted, $message->crypto, 'the list says "Encrypted message"');
+        self::assertSame(MessageCrypto::PgpEncrypted, $message->crypto, 'the list shows it locked');
+
+        // A lock in front of the subject in Drafts, and no placeholder preview.
+        $row = $client->request('GET', '/mail/drafts')
+            ->filter('#message-list li')
+            ->reduce(static fn ($li): bool => str_contains($li->filter('[data-row-subject]')->text(''), 'Sealed subject'))
+            ->first();
+
+        self::assertCount(1, $row->filter('[data-row-subject] [data-row-encrypted] i.fa-lock'));
+        self::assertSame('', trim($row->filter('[data-row-snippet]')->text()));
+        self::assertStringNotContainsString('Encrypted message', $row->text());
         self::assertNull($message->bodyText);
         self::assertNull($message->bodyHtml);
 

@@ -2720,7 +2720,6 @@ message:
         signer: "Signiert von %signer%"
         smime_unreadable: "Diese Nachricht ist mit S/MIME für ein Zertifikat verschlüsselt, das plMail nicht hat. Importiere es unter Einstellungen → Verschlüsselung oder öffne die Nachricht in einem Mailprogramm, das es hat."
         smime_unsupported: "Diese Nachricht ist mit einem Verfahren verschlüsselt, das plMail nicht öffnen kann; unterstützt wird nur AES."
-        snippet: "Verschlüsselte Nachricht"
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '

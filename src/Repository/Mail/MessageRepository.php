@@ -2681,7 +2681,8 @@ class MessageRepository extends ServiceEntityRepository
 
     /**
      * The two body columns MessageSnippet reads, for specific messages only —
-     * one per list row, the row's latest.
+     * one per list row, the row's latest — and whether it is encrypted, which
+     * is the lock in front of the row's subject (ThreadRow::$encrypted).
      *
      * @param list<int> $ids
      *
