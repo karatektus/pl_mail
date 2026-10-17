@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:215846da46ad1ead882c8a69b264e8db44d8f87f -->
+<!-- translated-from: internals/security-model.md sha1:9f20eacc978deaa467a7acf972aa9a25dc4e829f -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -448,7 +448,7 @@ werden soll, wird er **versiegelt**:
 
 - jedes automatische Speichern verschlüsselt das Getippte an die aktiven eigenen Schlüssel und
   schickt es als `sealed[draft]`, die Body-Felder leer. `SealedDrafts` legt es auf der Platte ab
-  (`SealedMessageStorage`, `<storage>/sealed/`), setzt `Message::$sealedDraft` und leert ab dann den
+  (`SealedMessageStorage`, `<storage>/raw/sealed/`, im gemeinsamen Raw-Volume), setzt `Message::$sealedDraft` und leert ab dann den
   Body jedes Speicherns dieser Zeile, egal was es mitbringt — einmal versiegelt, immer versiegelt;
 - Anhänge werden vor dem Hochladen im Browser verschlüsselt (`MessagePart::$sealed`): kein
   Vorschaubild, keine Vorschau, ausgeliefert nur als `application/octet-stream`;
