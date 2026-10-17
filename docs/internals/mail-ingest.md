@@ -248,6 +248,16 @@ never been asked about onto `enrich_backlog` — but only once every account of 
 finished importing, and only while the queue is empty, which is what stands in for state.
 `Message::$aiCategorisedAt` is the progress marker.
 
+**How far back.** Bulk sorting — `enrich` and `enrich_backlog` — stops at
+`AiSettings::$categoriseBacklogDays`, 30 by default, 0 for no limit (#208). It is applied three
+times: by `ClassifyMailStep` to an import batch, by the catch-up's query, and again by
+`ClassifyMailHandler` when an envelope is handled, so whatever was already queued when the limit
+was set or lowered is stopped too. The handler cannot read "bulk" off the mail — a message
+delivered now can carry an old date — so `TellClassificationItsQueue` passes it the transport the
+envelope came off, and only those two queues are limited; `enrich_live` never is. A skipped
+message gets no `aiCategorisedAt`, so `app:ai:classify-backlog --any-age`, which selects on its
+absence and flags its envelopes with `ClassifyMailMessage::$anyAge`, can still sort it.
+
 **One model host.** Separate workers still end at one host that answers one request at a time.
 `App\Service\Ai\LiveMailPriority` makes bulk classification look at `enrich_live` before each
 call and stand aside while anything is due there, so live mail waits behind one in-flight call

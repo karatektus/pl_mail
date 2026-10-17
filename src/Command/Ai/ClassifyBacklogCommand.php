@@ -27,6 +27,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * while the queue still holds the last run's work, so the cadence is a ceiling
  * and the model host sets the pace; a quarter of an hour only decides how long
  * the queue may stand empty before it is noticed.
+ *
+ * NO FURTHER BACK THAN ADMIN → AI ALLOWS, thirty days unless somebody changed
+ * it (#208). `--any-age` is the way past that, by hand: the scheduled run never
+ * passes it, so older mail is sorted only when somebody asks. It is bounded by
+ * --limit like every run, and the next scheduled run goes back to the limit —
+ * so a whole history wants one run with a --limit as large as the history.
  */
 #[AsCommand(
     name: 'app:ai:classify-backlog',
@@ -57,7 +63,8 @@ final class ClassifyBacklogCommand extends Command
     {
         $this
             ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Messages per mailbox', self::DEFAULT_LIMIT)
-            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'One mailbox instead of every mailbox');
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'One mailbox instead of every mailbox')
+            ->addOption('any-age', null, InputOption::VALUE_NONE, 'Include mail older than the age limit in Admin → AI');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -79,8 +86,9 @@ final class ClassifyBacklogCommand extends Command
             return Command::SUCCESS;
         }
 
-        $limit = max(1, (int) $input->getOption('limit'));
-        $email = $input->getOption('email');
+        $limit  = max(1, (int) $input->getOption('limit'));
+        $email  = $input->getOption('email');
+        $anyAge = true === $input->getOption('any-age');
 
         if (null !== $email) {
             $user = $this->users->findOneBy(['email' => (string) $email]);
@@ -91,7 +99,7 @@ final class ClassifyBacklogCommand extends Command
                 return Command::FAILURE;
             }
 
-            $queued = $this->catchUp->sweep($user, $limit);
+            $queued = $this->catchUp->sweep($user, $limit, $anyAge);
 
             $io->success(sprintf('Queued %d message(s) from %s.', $queued, (string) $user->email));
 
@@ -113,7 +121,7 @@ final class ClassifyBacklogCommand extends Command
             foreach ($page as $user) {
                 $lastId = (int) $user->id;
 
-                $queued += $this->catchUp->sweep($user, $limit);
+                $queued += $this->catchUp->sweep($user, $limit, $anyAge);
                 $mailboxes++;
             }
         }

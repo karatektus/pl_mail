@@ -29,8 +29,29 @@ final readonly class EnrichmentRouter
     /** Mail that has just arrived; a worker of its own. */
     public const string LIVE = 'enrich_live';
 
+    /**
+     * Recent mail brought in by an import. Reached by the routing table and
+     * not by a stamp; named here because the handler at the other end needs
+     * to recognise it — see isBulk().
+     */
+    public const string IMPORT = 'enrich';
+
     /** Old mail being classified after an import; behind everything else. */
     public const string BACKLOG = 'enrich_backlog';
+
+    /**
+     * Whether work taken off this queue is bulk work: an import, or the
+     * catch-up after one.
+     *
+     * The other half of the choice stampsFor() makes. The queue is the one
+     * place that still knows, at the far end, which kind of mail a message
+     * carried — and so the one place a limit meant only for bulk work can be
+     * read from without being able to reach mail that has just arrived.
+     */
+    public static function isBulk(?string $queue): bool
+    {
+        return self::IMPORT === $queue || self::BACKLOG === $queue;
+    }
 
     /**
      * The stamps to dispatch a batch's follow-up work with.
