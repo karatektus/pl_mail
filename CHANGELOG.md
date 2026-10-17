@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Adding a large mailbox no longer means days of sorting by the assistant.** With **Sort mail into
+tabs** on, plMail asked the model about every old message after an import — 14,000 messages at
+twenty seconds each on a CPU model is about 70 hours of that host. Admin → AI now has
+**Sort imported mail up to (days old)**, 30 by default: an import and the background pass after it
+stop there, and so does older mail that was already waiting in the queue. Mail that has just arrived
+is always sorted, whatever its date. Older mail keeps the tab the ordinary rules gave it (**Primary**
+when no rule recognised it) and is found by search as before. `0` sorts everything again, and
+`php bin/console app:ai:classify-backlog --any-age --limit=N` sorts the older mail when you choose.
+This is on for installations that already sort by assistant: their background pass stops at 30 days
+after the update. Migration: adds `ai_settings.categorise_backlog_days`, 30 on the existing row.
+[#208](https://github.com/karatektus/pl_mail/issues/208), by @phdelodder.
+
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
 the server only counted To. It now counts all three as well. A mail with no recipient at all is

@@ -167,6 +167,8 @@ admin:
             hold_help: 'For people who let the assistant sort their mail. New mail is kept out of the inbox tabs for the moment the assistant needs, so it appears once, in the right tab, instead of appearing in one and moving to another. Mail brought in by a first import is never held.'
             hold_max_seconds: 'Wait at most (seconds)'
             hold_max_seconds_help: 'Past this, the mail is shown where the ordinary rules put it, whatever the assistant is doing — and moved if the assistant answers later. Between 2 and 300.'
+            categorise_backlog_days: 'Sort imported mail up to (days old)'
+            categorise_backlog_days_help: 'How far back the assistant sorts when an account is added or its history is caught up. Older mail keeps the tab the ordinary rules gave it — Primary when no rule recognised it — and stays searchable. New mail is always sorted, whatever its date. 0 sorts everything; `app:ai:classify-backlog --any-age` sorts the older mail on request.'
             search_query_instruction: 'Query instruction'
             search_query_instruction_help: 'Put in front of the search text before it is embedded. Most models need one and answer badly without it; leave it empty for models that do not. Only searches are affected, so changing it never means indexing your mail again.'
             semantic_min_similarity: 'Minimum similarity'

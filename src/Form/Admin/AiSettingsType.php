@@ -253,9 +253,30 @@ final class AiSettingsType extends AbstractType
                 'help'     => 'admin.ai.field.categorisation_help',
                 'required' => false,
             ])
-            // The two that qualify the switch above rather than being features
-            // of their own: whether arriving mail waits for the assistant
-            // before it is shown in a tab, and for how long at most. See
+            // The three that qualify the switch above rather than being
+            // features of their own. First, how far back an import and the
+            // catch-up after it go — see AiSettings::$categoriseBacklogDays.
+            // Range rather than PositiveOrZero alone: past ten years a number
+            // stops meaning a distance and becomes a slower way to write zero.
+            ->add('categoriseBacklogDays', IntegerType::class, [
+                'label'       => 'admin.ai.field.categorise_backlog_days',
+                'help'        => 'admin.ai.field.categorise_backlog_days_help',
+                // An emptied box is the shipped thirty days, not zero and not
+                // null. Zero is "any age", the expensive answer, and must be
+                // typed to be meant; null cannot be stored in an int and would
+                // be a TypeError — a 500 on the admin page — rather than a
+                // form error.
+                'empty_data'  => (string) AiSettings::DEFAULT_CATEGORISE_BACKLOG_DAYS,
+                'constraints' => [
+                    new Range(min: 0, max: AiSettings::MAX_CATEGORISE_BACKLOG_DAYS),
+                ],
+                'attr'        => [
+                    'min' => 0,
+                    'max' => AiSettings::MAX_CATEGORISE_BACKLOG_DAYS,
+                ],
+            ])
+            // Then whether arriving mail waits for the assistant before it is
+            // shown in a tab, and for how long at most. See
             // AiSettings::$holdUntilClassified.
             ->add('holdUntilClassified', CheckboxType::class, [
                 'label'    => 'admin.ai.field.hold',

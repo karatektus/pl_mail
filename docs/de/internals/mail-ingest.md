@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:b6f9af84349aeff829bc8e6e82f7108d258f7ab6 -->
+<!-- translated-from: internals/mail-ingest.md sha1:426116f2483e1351db6c59a6611683cd39b2712c -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -283,6 +283,18 @@ ein ganzes Postfach als live einreihen würde.
 gefragt wurde, auf `enrich_backlog` ein — aber erst, wenn jedes Konto dieser Person fertig
 importiert ist, und nur, solange die Warteschlange leer ist; das ersetzt einen eigenen Zustand.
 `Message::$aiCategorisedAt` ist die Fortschrittsmarke.
+
+**Wie weit zurück.** Das Einsortieren in großen Mengen — `enrich` und `enrich_backlog` — hält an
+`AiSettings::$categoriseBacklogDays`, 30 als Vorgabe, 0 für keine Grenze (#208). Die Grenze greift
+dreimal: in `ClassifyMailStep` für einen Import-Stapel, in der Abfrage des Durchlaufs, und noch
+einmal in `ClassifyMailHandler`, wenn ein Umschlag bearbeitet wird — so wird auch angehalten, was
+schon in der Warteschlange stand, als die Grenze gesetzt oder gesenkt wurde. Der Handler kann
+„Massenarbeit" nicht an der Mail ablesen — eine Nachricht, die jetzt zugestellt wird, kann ein altes
+Datum tragen —, deshalb reicht ihm `TellClassificationItsQueue` den Transport, von dem der Umschlag
+kam, und nur diese zwei Warteschlangen sind begrenzt; `enrich_live` nie. Eine übersprungene
+Nachricht bekommt kein `aiCategorisedAt`, also kann `app:ai:classify-backlog --any-age`, das nach
+dessen Fehlen auswählt und seine Umschläge mit `ClassifyMailMessage::$anyAge` markiert, sie
+trotzdem einsortieren.
 
 **Ein Modell-Host.** Getrennte Worker enden trotzdem an einem Host, der eine Anfrage nach der
 anderen beantwortet. `App\Service\Ai\LiveMailPriority` lässt die Massen-Klassifizierung vor jedem

@@ -11,8 +11,10 @@ use App\Domain\DTO\Ai\AiConnection;
 use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPrompts;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\Ai\AiSettingsRepository;
+use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -74,6 +76,16 @@ class AiSettings
     public const int DEFAULT_HOLD_MAX_SECONDS = 60;
     public const int MIN_HOLD_SECONDS         = 2;
     public const int MAX_HOLD_SECONDS         = 300;
+
+    /** See $categoriseBacklogDays. */
+    public const int DEFAULT_CATEGORISE_BACKLOG_DAYS = 30;
+
+    /**
+     * Ten years, the ceiling RecentMailPolicy clamps its own window to. Past it
+     * a number stops meaning "this far back" and starts meaning "everything",
+     * and everything already has a spelling: zero.
+     */
+    public const int MAX_CATEGORISE_BACKLOG_DAYS = 3_650;
 
     use TimestampableTrait;
 
@@ -335,6 +347,35 @@ class AiSettings
     #[ORM\Column(name: 'hold_max_seconds', options: ['default' => self::DEFAULT_HOLD_MAX_SECONDS])]
     public int $holdMaxSeconds = self::DEFAULT_HOLD_MAX_SECONDS;
 
+    /**
+     * How old mail may be and still be sorted by the assistant as BULK work, in
+     * days. Zero means any age.
+     *
+     * Bulk work is an import and the catch-up after it — the two jobs that walk
+     * a mailbox nobody is watching. On a model host that takes twenty seconds a
+     * message, a fourteen-thousand-message mailbox was seventy hours of that
+     * host, spent mostly on mail nobody would scroll back to (#208). Mail older
+     * than this keeps the rules' answer and is never asked about by either.
+     *
+     * NEVER MAIL THAT HAS JUST ARRIVED, whatever its date. A message delivered
+     * now is somebody's foreground, held mail may be waiting on this very
+     * answer, and a limit on history must not be able to reach either. The
+     * line is drawn by the queue the work is on, not by the mail — see
+     * ClassifyMailHandler::sortedInBulk().
+     *
+     * THIRTY DAYS BY DEFAULT, and not off, although CONTRIBUTING asks a setting
+     * that changes behaviour for everybody to start off. It changes nothing for
+     * anybody who has not switched sorting by assistant on, which is nearly
+     * everybody; for those who have, it is what the maintainer asked for in the
+     * issue, and the same thirty days RecentMailPolicy already gives an import.
+     * The old behaviour is one number away — zero — and older mail can still be
+     * sorted on purpose: `app:ai:classify-backlog --any-age` ignores this.
+     *
+     * Read through {@see bulkSortCutoff()}, which clamps it, and never directly.
+     */
+    #[ORM\Column(name: 'categorise_backlog_days', options: ['default' => self::DEFAULT_CATEGORISE_BACKLOG_DAYS])]
+    public int $categoriseBacklogDays = self::DEFAULT_CATEGORISE_BACKLOG_DAYS;
+
     #[ORM\Column(name: 'writing_help_enabled', options: ['default' => false])]
     public bool $writingHelpEnabled = false;
 
@@ -412,6 +453,46 @@ class AiSettings
     public function holdSeconds(): int
     {
         return max(self::MIN_HOLD_SECONDS, min(self::MAX_HOLD_SECONDS, $this->holdMaxSeconds));
+    }
+
+    /**
+     * The oldest a message may be and still be sorted in bulk, or null for no
+     * limit.
+     *
+     * Clamped on the way out like holdSeconds(), for the writer that is not the
+     * form: a restored backup. A negative number reads as zero — no limit —
+     * because the mistake of asking about too much is the one somebody can see
+     * and undo, and the other one quietly leaves mail unsorted.
+     */
+    public function bulkSortCutoff(?DateTimeImmutable $now = null): ?DateTimeImmutable
+    {
+        $days = max(0, min(self::MAX_CATEGORISE_BACKLOG_DAYS, $this->categoriseBacklogDays));
+
+        if (0 === $days) {
+            return null;
+        }
+
+        return ($now ?? new DateTimeImmutable())->modify(sprintf('-%d days', $days));
+    }
+
+    /**
+     * Whether bulk work should leave this message to the rules.
+     *
+     * By receivedAt, then sentAt — the order RecentMailPolicy reads them in, so
+     * an import and this limit agree about how old a message is. A message
+     * with neither is not too old, for that class's reason: the mistake of a
+     * little unnecessary work is the one nobody notices.
+     */
+    public function isTooOldToSortInBulk(Message $message, ?DateTimeImmutable $now = null): bool
+    {
+        $cutoff = $this->bulkSortCutoff($now);
+        $date   = $message->receivedAt ?? $message->sentAt;
+
+        if (null === $cutoff || null === $date) {
+            return false;
+        }
+
+        return $date < $cutoff;
     }
 
     /**

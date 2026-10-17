@@ -245,6 +245,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('aiSettings.embeddingDimensions', 768, $ai?->embeddingDimensions);
         $this->check('aiSettings.isEnabled', true, $ai?->isEnabled);
         $this->check('aiSettings.summaryEnabled', true, $ai?->summaryEnabled);
+        $this->check('aiSettings.categoriseBacklogDays', 7, $ai?->categoriseBacklogDays);
         $this->check('aiSettings.prompts.summary', 'Fasse dich kurz.', $ai?->prompts->of(PromptSlot::Summary));
 
         $log = $container->get(LogSettingsRepository::class)->current();
@@ -468,6 +469,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $ai->embeddingDimensions = 768;
         $ai->searchEnabled       = true;
         $ai->summaryEnabled      = true;
+        // Not the default, so a restore that dropped it would show.
+        $ai->categoriseBacklogDays = 7;
         $ai->prompts->put(PromptSlot::Summary, 'Fasse dich kurz.');
         $this->entityManager->persist($ai);
 

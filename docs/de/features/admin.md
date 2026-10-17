@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:745cb9593e98a39e4729dffb19f7be3e1808df78 -->
+<!-- translated-from: features/admin.md sha1:65296a069c7589d578ca9ac779b427cc01a86a82 -->
 
 # Administration
 
@@ -654,12 +654,23 @@ den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache,
 schon geschrieben hast, die Kategorie bereits bestimmt hat, wird das Modell gar nicht gefragt.
 Ausschalten erfordert kein Aufräumen.
 
-Zwei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg steht:
+Drei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg steht:
 
 - **Nur aktuelle Mail wird beim Eintreffen einsortiert.** Nach Mail aus den letzten 30 Tagen wird
   sofort gefragt. Wenn du ein Konto hinzufügst, wird der Rest des Postfachs danach einsortiert, im
   Hintergrund, die neueste zuerst, und erst, wenn der Import abgeschlossen ist — ein erster Import
   besteht also nicht aus stundenlangen Modellaufrufen, hinter denen neue Mail wartet.
+- **Importierte Mail wird nur bis zu einem Alter einsortiert.** **Importierte Mail einsortieren bis
+  (Tage alt)** legt fest, wie weit ein Import und dieser Durchlauf im Hintergrund zurückgehen: 30 Tage
+  als Vorgabe. Auf einem langsamen Modell-Host ist das der Unterschied zwischen einem Nachmittag und
+  mehreren Tagen — bei zwanzig Sekunden pro Nachricht sind 14.000 Mails rund 70 Stunden Rechenzeit.
+  Nach älterer Mail wird nie gefragt. Sie behält den Tab, den die normalen Regeln ihr gegeben haben —
+  Gmails eigene Kategorie, die Header eines Newsletters oder einer Mailingliste, die Tatsache, dass
+  du dem Absender schreibst — und **Allgemein**, wenn nichts davon gegriffen hat, und die Suche
+  findet sie wie jede andere Mail. Neue Mail wird immer einsortiert, egal welches Datum sie trägt.
+  `0` sortiert alles ein. Um die ältere Mail einmal einsortieren zu lassen, wann du willst, führe
+  `php bin/console app:ai:classify-backlog --any-age --limit=20000` aus (mit `--email=` für die Mail
+  einer Person). Eine kleinere Zahl hält auch ältere Mail an, die schon in der Warteschlange steht.
 - **Auf den Assistenten warten, bevor neue Mail in einem Tab erscheint.** Für alle, die ihre Mail
   vom Assistenten sortieren lassen, bleibt neue Mail für den Moment, den der Assistent braucht, aus
   den Posteingangs-Tabs heraus — sie erscheint dann einmal, im richtigen Tab, statt in einem
@@ -902,6 +913,12 @@ Monitoring-Daten bleiben auf jeder Stufe erhalten. Die Protokolle leerst du unte
 Indexiert wird nach einer Suche und einmal pro Nacht, nicht bei der Ankunft — die erste Suche des
 Tages zieht also die Mail des Tages nach, und zwar für die Suche danach, nicht für sich selbst. Die
 normale Suche findet neue Mail sofort, weshalb das meistens gar nicht auffällt.
+
+**Ein Lauf mit `--any-age` reicht nur so weit wie sein `--limit`.** Der geplante Durchlauf danach
+hält wieder an der Altersgrenze, ein Lauf mit dem Standardlimit von 200 sortiert also 200 ältere
+Nachrichten ein und lässt den Rest liegen. Gib ihm ein Limit, so groß wie die Mail, die du
+einsortiert haben willst. Solange der letzte Durchlauf noch in der Warteschlange steht, tut er
+außerdem nichts und sagt das — starte ihn dann noch einmal, wenn sie leer ist.
 
 **Der Export der gemeldeten Mails sind fremde Mails.** Es ist eine schlichte, unverschlüsselte
 JSON-Datei mit dem Text von Nachrichten, die deine Leute weitergegeben haben — anders als die

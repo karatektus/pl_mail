@@ -272,6 +272,11 @@ framework:
                     # server sending a trickle cannot hold a queue. See
                     # App\Service\Imap\ImapDeadline.
                     - App\Infrastructure\Messaging\Middleware\AbortStalledImap
+                    # The queue a classification came off, passed to its
+                    # handler, which limits bulk work by age and must never
+                    # limit live mail. See the class for why the queue and not
+                    # a flag on the message.
+                    - App\Infrastructure\Messaging\Middleware\TellClassificationItsQueue
 
         routing:
             # Admin "run now" buttons dispatch this; the scheduler dispatches
