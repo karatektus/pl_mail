@@ -159,7 +159,31 @@ test.describe("pull to refresh on a phone", () => {
         // list never sees the touch at all. That is what the browser does, and it
         // is recorded here: the open-surface check in the gesture module is covered
         // by its node-side spec, not by this one.
-        const start = await rowsStart(page);
+        //
+        // "Where the drawer is open" means beside the drawer, not under it. The
+        // drawer is w-64 (256px) of Pixel 5's 393, and the middle of the rows is
+        // x≈196 — inside the drawer once it has arrived. This used to touch that
+        // middle straight after `inert` came off, which is the START of a 200ms
+        // slide, so the hit-test found the backdrop only while the drawer was
+        // still mostly off-screen. A slower runner reached it later, found the
+        // drawer, and the test failed with "drawer" (on CI from 2026-10-16, on
+        // every branch). So: wait until the drawer has stopped moving, then
+        // touch the strip of backdrop to its right, which is the drawer-open
+        // touch that can actually reach the list's part of the screen.
+        const drawer = page.locator("#sidebar-drawer");
+
+        await expect.poll(() => drawer.evaluate((el) => el.getBoundingClientRect().left)).toBe(0);
+
+        const drawerBox = (await drawer.boundingBox())!;
+        const rowsBox = (await page.locator(ROWS).boundingBox())!;
+        const besideDrawer = drawerBox.x + drawerBox.width;
+        const start = {
+            x: (besideDrawer + rowsBox.x + rowsBox.width) / 2,
+            y: (await rowsStart(page)).y,
+        };
+
+        expect(start.x, "the rows reach past the open drawer").toBeGreaterThan(besideDrawer);
+
         const hit = await page.evaluate(({ x, y }) => {
             const element = document.elementFromPoint(x, y);
 
@@ -180,8 +204,9 @@ test.describe("pull to refresh on a phone", () => {
         await page.keyboard.press("Escape");
         await expect(page.locator("#sidebar-drawer")).toHaveAttribute("inert", "");
 
-        const again = await rowsStart(page);
-        const second = await Finger.down(page, again.x, again.y);
+        // The same point as the first pull, so the only thing that changed
+        // between the two is the drawer.
+        const second = await Finger.down(page, start.x, start.y);
 
         await second.move(0, PULL_PAST);
         await second.up();
