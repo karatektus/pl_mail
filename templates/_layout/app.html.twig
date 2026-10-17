@@ -293,6 +293,7 @@
        through setup: it drives the dialog above, so that has to exist first. #}
     {% if app.user %}
         {% include 'onboarding/_boot.html.twig' %}
+        {% include 'crypto/_keyring_boot.html.twig' %}
         {# After an update, What's new — never on an install, and never on top
            of the setup wizard above (WhatsNewGlobal::opensByItself). #}
         {% include 'whats_new/_boot.html.twig' %}

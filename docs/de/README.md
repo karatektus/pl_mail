@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:0672ad1ba0164a9c746efbc168be740b1de378b1 -->
+<!-- translated-from: README.md sha1:01e39c4a2bd0d1527b9ce79dcd78b9abfb1fe091 -->
 
 # plMail-Dokumentation
 
@@ -39,6 +39,7 @@ wo der Mechanismus dahinter steht.
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
 | [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich und Paperless-ngx |
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
+| [Verschlüsselung](features/encryption.md) | Deine OpenPGP-Schlüssel, die Recovery-Phrase, bekannte Geräte, Schlüssel importieren und exportieren, was ein Passwort-Reset mit ihnen macht |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
 | [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, die Live-Vorschau, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |
 | [Administration](features/admin.md) | Benutzer und Rollen, ein Konto abschalten, Integrationen freischalten, Monitoring, Warteschlangen und der Versions-Chip |

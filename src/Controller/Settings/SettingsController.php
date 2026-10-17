@@ -63,7 +63,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'encryption', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour'];
 
     /**
      * One icon per AI feature, here rather than on the enum.

@@ -25,6 +25,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -85,6 +86,11 @@ final class SeedTestEmailCommand extends Command
     protected function configure(): void
     {
         $this->configureUserOption();
+        // The mailbox at the person's own sign-in address rather than the
+        // shared mailbox@e2e.test: the Web Key Directory publishes only the
+        // sign-in address (WkdDirectory), and every worker's person has a key
+        // for mailbox@e2e.test, which no directory could answer for anyway.
+        $this->addOption('own-address', null, InputOption::VALUE_NONE, 'Give the mailbox the user\'s own sign-in address');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -132,9 +138,10 @@ final class SeedTestEmailCommand extends Command
         $user->calendarPaneMode = CalendarPaneMode::Mail;
         $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, User::CALENDAR_PANE_DEFAULT_WIDTH);
 
+        $address = true === $input->getOption('own-address') ? strtolower((string) $user->email) : self::SEED_ACCOUNT_USERNAME;
         $account = $this->accountRepository->findOneBy([
             'usr'      => $user,
-            'username' => self::SEED_ACCOUNT_USERNAME,
+            'username' => $address,
         ]);
 
         if (null === $account) {
@@ -142,7 +149,7 @@ final class SeedTestEmailCommand extends Command
             $account->usr = $user;
             $account->name = 'E2E Mailbox';
             $account->email = 'E2E Mailbox';
-            $account->username = self::SEED_ACCOUNT_USERNAME;
+            $account->username = $address;
             $account->imapHost = 'imap.e2e.test';
             $account->imapPort = 993;
             $account->imapEncryption = 'ssl';
@@ -257,7 +264,7 @@ final class SeedTestEmailCommand extends Command
 
         $this->entityManager->flush();
 
-        $io->success(sprintf('Seeded %d inbox thread(s) for "%s".', $seeded, self::SEED_ACCOUNT_USERNAME));
+        $io->success(sprintf('Seeded %d inbox thread(s) for "%s".', $seeded, $address));
 
         return Command::SUCCESS;
     }

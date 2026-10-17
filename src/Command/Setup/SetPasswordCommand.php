@@ -6,6 +6,7 @@ namespace App\Command\Setup;
 
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Service\Crypto\Keyring;
 use Doctrine\ORM\EntityManagerInterface;
 use SensitiveParameter;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -40,6 +41,13 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  * and `app:user:2fa-disable`, and having to ask for the second one separately
  * is deliberate: they are different losses, and the confirmation prompt on the
  * 2FA command should be answered on its own terms rather than swept along.
+ *
+ * The password set here is a one-time one by default: the operator knows it,
+ * so the person has to choose their own at the next sign-in (see
+ * User::$passwordChangeRequired). `--no-change-required` is for the operator
+ * letting themselves back in, where nobody else knows it. Either way it is
+ * hashed from the password itself, as anything without a browser has to — the
+ * next sign-in through the form stretches it; see App\Security\PasswordKdf.
  */
 #[AsCommand(
     name: 'app:user:password',
@@ -51,6 +59,7 @@ final class SetPasswordCommand extends Command
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly EntityManagerInterface      $em,
+        private readonly Keyring                     $keyring,
     ) {
         parent::__construct();
     }
@@ -64,6 +73,13 @@ final class SetPasswordCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'The new password, for scripted use. Prompted for, hidden and twice, when omitted',
+            )
+            ->addOption(
+                'change-required',
+                null,
+                InputOption::VALUE_NEGATABLE,
+                'Make them choose their own password at the next sign-in. On unless --no-change-required',
+                true,
             );
     }
 
@@ -99,11 +115,27 @@ final class SetPasswordCommand extends Command
             return Command::FAILURE;
         }
 
-        $user->password = $this->passwordHasher->hashPassword($user, $plainPassword);
+        // The keys hang off the password being replaced, and nobody here knows
+        // it — so they are locked, not lost: a recovery phrase or a browser the
+        // person signed in on before opens them again. Said out loud below,
+        // because it is the one consequence of this command that reaches past
+        // the sign-in.
+        $locked = $this->keyring->lockAll($user);
+
+        $user->useServerHashedPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+        $user->passwordChangeRequired = true === $input->getOption('change-required');
 
         $this->em->flush();
 
         $io->success(sprintf('%s can sign in with the new password.', $email));
+
+        if (true === $user->passwordChangeRequired) {
+            $io->comment('It works once: they will be asked to choose their own straight after signing in.');
+        }
+
+        if (0 < $locked) {
+            $io->warning('Their encryption keys are locked now. Mail encrypted to them stays unreadable until they open the keys again with their recovery phrase, or by signing in on a browser they used before.');
+        }
 
         // Said out loud because the command cannot do it and the operator has
         // to know the account is not fully open yet — a password on its own

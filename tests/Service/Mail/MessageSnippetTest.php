@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use Symfony\Component\Translation\IdentityTranslator;
 use App\Entity\Mail\Message;
 use App\Service\Mail\MessageSnippet;
 use PHPUnit\Framework\TestCase;
@@ -28,7 +29,7 @@ final class MessageSnippetTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->snippet = new MessageSnippet();
+        $this->snippet = new MessageSnippet(new IdentityTranslator());
     }
 
     /**

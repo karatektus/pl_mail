@@ -1853,6 +1853,7 @@ compose:
         save_failed: Impossible d’enregistrer le brouillon
         saved: Brouillon enregistré
         saving: "Enregistrement…"
+        sealing: Chiffrement…
         uploading: "Envoi du fichier…"
     # Why an upload was refused. The compose window prints these as-is on its
     # status line, so they are the whole of the explanation the user gets.
@@ -1876,6 +1877,29 @@ compose:
     discard: Supprimer le brouillon
     empty_draft: (brouillon vide)
     encrypt: Chiffrer le message
+    crypto:
+        encrypt: Chiffrer
+        sign: Signer
+        encrypted: Chiffré
+        encrypted_hint: 'Ce message sera chiffré de bout en bout : seuls vous et ses destinataires pourront le lire.'
+        has_key: 'plMail a une clé pour cette adresse : le courrier qui lui est destiné peut être chiffré.'
+        has_certificate: 'plMail a un certificat S/MIME pour cette adresse : le courrier qui lui est destiné peut être chiffré.'
+        key_changed: Une nouvelle clé pour cette adresse attend d’être acceptée dans Paramètres → Chiffrement. D’ici là, la clé connue est utilisée.
+        partial: '%emails% ne peuvent pas recevoir de courrier chiffré : ce message part donc en clair pour tout le monde.'
+        partial_blocked: '%emails% ne peuvent pas recevoir de courrier chiffré. Retirez-les, ou désactivez le chiffrement pour ce message.'
+        missing: Il n’y a pas de clé pour %emails%. Retirez-les, ou désactivez le chiffrement pour ce message.
+        locked: Vos clés sont verrouillées dans ce navigateur. Ouvrez-les dans Paramètres → Chiffrement, ou désactivez le chiffrement pour ce message.
+        locked_not_saved: 'Non enregistré : ce brouillon est chiffré, et vos clés sont verrouillées dans ce navigateur.'
+        locked_draft: Ce brouillon est chiffré, et vos clés sont verrouillées dans ce navigateur. Ouvrez-les dans Paramètres → Chiffrement pour continuer à écrire.
+        failed_draft: Ce brouillon chiffré n’a pas pu être ouvert.
+        no_own_key: 'Vous n’avez pas de clé pour cette adresse d’expédition : rien ne peut être signé ni chiffré depuis elle.'
+        no_own_certificate: 'Vous n’avez pas de certificat S/MIME pour cette adresse d’expédition : ce message ne peut pas être signé ni chiffré avec S/MIME.'
+        failed: Le message n’a pas pu être chiffré. Rien n’a été envoyé.
+        sealed_attachment: 'Chiffré : jusqu’à l’envoi du message, vous seul pouvez l’ouvrir.'
+    seal:
+        refused: Le message chiffré n’est pas arrivé intact. Rien n’a été envoyé ; réessayez.
+        keys_changed: La clé d’un destinataire a changé pendant que vous écriviez. Rien n’a été envoyé ; renvoyez le message.
+        unbuilt: 'Ce brouillon est chiffré : il ne peut être envoyé que depuis un navigateur où vos clés sont ouvertes.'
     # The whole of what the disabled encrypt button says for itself. It has to
     # be a complete sentence: it is the only explanation anyone gets.
     encrypt_unavailable: Le chiffrement n’est pas encore disponible.
@@ -1960,6 +1984,84 @@ compose:
         saved: 'Enregistré comme modèle « %name% ». Renommez-le ou déplacez-le dans les Réglages.'
         search: 'Trouver un modèle'
         untitled: 'Modèle sans titre'
+
+contact_keys:
+    heading: Clés de vos contacts
+    subheading: Les clés publiques avec lesquelles plMail vérifie les signatures de vos contacts, et vers lesquelles il chiffre le courrier.
+    loading: Chargement des clés de vos contacts…
+    empty: Aucune clé pour l’instant. plMail les récupère dans le courrier signé ; vous pouvez aussi en rechercher ou en importer une ci-dessus.
+    verified: Vérifiée
+    first_seen: vue pour la première fois le %date%
+    last_seen: vue pour la dernière fois le %date%
+    expires: expire le %date%
+    origin:
+        attached: Jointe à un message
+        autocrypt: Issue de l’en-tête Autocrypt d’un message
+        keyserver: Issue du serveur de clés %host%
+        manual: Importée par vous
+        wkd: Issue de l’annuaire de clés du domaine (WKD)
+    pin: Marquer comme vérifiée
+    unpin: Retirer la coche
+    accept: Utiliser plutôt cette clé
+    remove: Supprimer
+    confirm_remove: Supprimer cette clé ? Les signatures faites avec elle ne pourront plus être vérifiées tant que plMail ne l’aura pas retrouvée.
+    changed_warning: Une autre clé est apparue pour cette adresse. C’est peut-être la nouvelle clé de votre contact — ou quelqu’un qui se fait passer pour lui. plMail continue d’utiliser la clé connue jusqu’à ce que vous compariez cette empreinte avec votre contact et que vous l’acceptiez.
+    pinned: Marquée comme vérifiée.
+    accepted: Cette clé est désormais celle utilisée pour l’adresse.
+    removed: Clé supprimée.
+    preferences_saved: Enregistré.
+    not_found: Cette clé n’existe plus.
+    signer_unknown: plMail n’a pas la clé qui a fait cette signature. Recherchez-la ou importez-la d’abord.
+    certificates:
+        heading: Certificats S/MIME de vos contacts
+        hint: Récupérés dans le courrier signé de vos contacts. Le courrier qui leur est destiné est chiffré avec S/MIME quand chaque destinataire en a un et que vous avez votre propre certificat.
+        empty: Aucun pour l’instant. plMail conserve le certificat de chaque message signé S/MIME dont la signature est valable.
+        verified: Confirmé par %issuer%
+        unverified: Non confirmé par une autorité de certification
+        confirm_remove: Supprimer ce certificat ? Le courrier vers cette adresse ne pourra plus être chiffré avec S/MIME tant que plMail n’en aura pas vu un nouveau.
+        changed_warning: Un autre certificat est apparu pour cette adresse, et aucune autorité de certification ne garantit ce changement. plMail continue d’utiliser le certificat connu jusqu’à ce que vous compariez cette empreinte avec votre contact et que vous l’acceptiez.
+        removed: Certificat supprimé.
+    import:
+        heading: Importer une clé
+        hint: Collez un bloc de clé publique ou choisissez un fichier. La clé est conservée pour chaque adresse qu’elle mentionne.
+        file: Fichier de clé
+        paste: Clé publique
+        submit: Ajouter la clé
+        done: 'Importée. Adresses avec cette clé : %count%.'
+        changed: Importée — mais %count% des adresses avaient déjà une autre clé. Comparez les empreintes ci-dessous avant d’accepter la nouvelle.
+        unusable: 'Rien d’utilisable dans cette clé : elle est révoquée, expirée, ou ne mentionne aucune adresse.'
+        not_a_key: Ce n’est pas une clé publique OpenPGP.
+        private_key: C’est une clé privée. N’importez ici que les clés publiques de vos contacts — vos propres clés vont dans le trousseau ci-dessus.
+    lookup:
+        heading: Rechercher une clé
+        hint: Demande sa clé au domaine de l’adresse (Web Key Directory). La requête passe par ce serveur.
+        hint_keyservers: Demande sa clé au domaine de l’adresse (Web Key Directory), puis aux serveurs de clés %servers%. La requête passe par ce serveur.
+        email: Adresse e-mail
+        submit: Rechercher
+        found: Clé trouvée dans l’annuaire de clés du domaine (WKD) et conservée.
+        found_keyserver: Clé trouvée sur le serveur de clés %host% et conservée. Le serveur a seulement vérifié que quelqu’un lit le courrier de cette adresse — comparez l’empreinte avec votre contact avant de la marquer comme vérifiée.
+        changed: Clé trouvée dans l’annuaire de clés du domaine — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        changed_keyserver: Clé trouvée sur le serveur de clés %host% — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        nothing: Le domaine ne publie aucune clé utilisable pour cette adresse.
+        nothing_keyservers: Ni le domaine ni les serveurs de clés n’ont de clé utilisable pour cette adresse.
+        invalid_address: Cette adresse ne peut pas être recherchée.
+        rate_limited: Trop de recherches d’affilée. Réessayez dans quelques minutes.
+    key_servers:
+        label: Chercher aussi sur les serveurs de clés publics
+        hint: Si le domaine de l’adresse n’a pas de clé, plMail interroge aussi %servers%. Une recherche leur indique quelle adresse vous cherchez.
+    preferences:
+        heading: Préférences pour ce destinataire
+        hint: Utilisées quand plMail envoie du courrier chiffré.
+        encrypt: Chiffrer
+        sign: Signer
+        scheme: Format
+        save: Enregistrer
+        policy:
+            always: Toujours
+            auto: Automatiquement
+            never: Jamais
+        scheme_pgp-inline: PGP en ligne
+        scheme_pgp-mime: PGP/MIME
 
 demo:
     bar:
@@ -2068,6 +2170,236 @@ dnd:
 drafts:
     empty: Aucun brouillon.
     heading: Brouillons
+
+encryption:
+    decrypted:
+        heading: Courrier déchiffré sur ce serveur
+        subheading: Désactivé sauf si vous le choisissez, compte par compte. Dans tous les cas, votre fournisseur de messagerie ne peut toujours pas lire votre courrier chiffré.
+        forbidden: Cette installation ne conserve pas de courrier déchiffré. Votre courrier chiffré reste chiffré sur le serveur.
+        state_on: 'Le courrier chiffré est déchiffré dans votre navigateur et conservé lisible ici : la recherche, les colis, les dates et les règles fonctionnent dessus.'
+        state_off: 'Le courrier chiffré reste chiffré ici : seuls l’expéditeur et l’objet sont consultables par la recherche.'
+        confirm: Le courrier chiffré de ce compte sera stocké sur ce serveur plMail une fois déchiffré. La recherche, les colis et les dates fonctionneront alors dessus. Toute personne ayant accès au serveur pourra le lire. Votre fournisseur de messagerie, toujours pas.
+        confirm_needed: Cochez la case pour confirmer que vous voulez conserver le courrier déchiffré sur ce serveur.
+        turn_on: Conserver ici le courrier déchiffré
+        turn_off: Arrêter, et supprimer les copies déchiffrées
+        ai:
+            label: Laisser aussi les modèles le lire
+            local: Tri, recherche par le sens et résumés, avec l’hôte de modèle %host%, qui se trouve sur le réseau de cette installation.
+            external: 'L’hôte de modèle %host% est en dehors du réseau de cette installation : le courrier déchiffré lui serait envoyé.'
+            no_model: Aucun hôte de modèle n’est configuré sur cette installation.
+            consent: J’accepte que le courrier déchiffré de ce compte soit envoyé à %host%.
+            consent_needed: Cochez la case pour accepter que le courrier déchiffré soit envoyé à l’hôte de modèle.
+            turn_on: Laisser les modèles le lire
+            turn_off: Arrêter, et supprimer ce qu’ils en ont tiré
+    sending:
+        heading: Envoi
+        subheading: Comment le courrier part maintenant que plMail sait le chiffrer. Le courrier destiné à des personnes dont plMail connaît la clé est chiffré de lui-même.
+        on: Activé
+        off: Désactivé
+        autocrypt:
+            label: Partager votre clé avec chaque message
+            hint: Un en-tête Autocrypt invisible transporte votre clé publique, pour que Thunderbird, Delta Chat et d’autres puissent répondre chiffré.
+        attach_key:
+            label: Joindre votre clé publique
+            hint: Sous forme de fichier sur chaque message, pour les destinataires dont le logiciel de messagerie ne lit pas Autocrypt. Les personnes sans PGP voient une pièce jointe dont elles n’ont pas besoin.
+        sign_plain:
+            label: Signer le courrier non chiffré
+            hint: Les personnes sans PGP voient une pièce jointe signature.asc. Le courrier destiné à quelqu’un dont plMail connaît la clé est signé dans tous les cas.
+        block_partial:
+            label: Refuser d’envoyer quand tout le monde ne peut pas recevoir de courrier chiffré
+            hint: 'Désactivé : un tel message part en clair pour tout le monde, avec une note dans la fenêtre de rédaction. Activé : il n’est pas envoyé tant que vous n’avez pas retiré ces destinataires ou désactivé le chiffrement pour lui.'
+        protect_subject:
+            label: Chiffrer l’objet
+            hint: L’objet d’un message chiffré voyage à l’intérieur du chiffrement, et l’extérieur indique seulement « ... ». Thunderbird et d’autres affichent le véritable objet ; un logiciel qui ne le peut pas affiche « ... ».
+    wkd:
+        heading: Web Key Directory
+        subheading: Votre clé publique, publiée sous les domaines de cette installation, pour que Thunderbird, Proton et GnuPG la trouvent à partir de votre adresse.
+        disabled: Cette installation ne publie pas de clés. Un administrateur peut l’activer.
+        no_addresses: Aucune de vos adresses n’est sur un domaine pour lequel cette installation publie des clés (%domains%).
+        publish: Publier la clé de %email%
+        url_advanced: Méthode avancée (sous-domaine openpgpkey)
+        url_direct: Méthode directe
+        state:
+            published: Publiée. Toute personne qui connaît l’adresse peut récupérer votre clé publique.
+            switched_off: Non publiée — vous l’avez désactivée.
+            no_key: 'Rien à publier pour l’instant : cette adresse n’a pas de clé active.'
+            not_sign_in_address: 'Non publiée : plMail ne publie que l’adresse avec laquelle vous vous connectez, attribuée par un administrateur.'
+        check:
+            button: Vérifier depuis l’extérieur
+            heading: "%email% vérifiée depuis l’extérieur, chaque méthode séparément :"
+            method:
+                advanced: Avancée (openpgpkey.%domain%)
+                direct: Directe (%domain%)
+            result:
+                current: votre clé actuelle a été trouvée
+                outdated: une clé a été trouvée, mais ce n’est pas votre clé actuelle — un autre serveur répond peut-être pour le domaine, ou un cache conserve encore l’ancienne clé
+                missing: répond, mais n’a aucune clé pour cette adresse
+                unreachable: injoignable — le nom ne se résout pas, ou la connexion ou son certificat a échoué
+            one_good: Les logiciels de messagerie qui essaient d’abord l’autre méthode trouvent quand même votre clé, mais corrigez aussi celle-ci — certains n’en essaient qu’une.
+            none_good: Aucune des deux méthodes ne fournit votre clé actuelle. Le domaine ne pointe peut-être pas encore vers plMail — consultez les notes de configuration, ou demandez à votre administrateur.
+        setup:
+            heading: Configurer le domaine (administrateurs)
+            enable: 'Indiquez les domaines dans la variable d’environnement APP_WKD_DOMAINS et redémarrez plMail :'
+            domains: 'Les clés sont publiées pour : %domains%. Chaque domaine a besoin de l’une de ces deux façons d’atteindre plMail.'
+            advanced: 'Méthode avancée, à privilégier : un enregistrement DNS pour openpgpkey.%domain% qui pointe vers %host%, et un certificat TLS pour ce nom sur le serveur de plMail.'
+            direct: 'Méthode directe : le site web de %domain% transmet tout ce qui se trouve sous /.well-known/openpgpkey/ à plMail, en conservant l’en-tête Host.'
+            check: 'Utilisez ensuite « Vérifier depuis l’extérieur » sur votre propre adresse. La vérification part de ce serveur : un domaine qui se résout ici en adresse privée est signalé comme absent, même s’il fonctionne depuis l’extérieur.'
+    devices:
+        empty: Aucun appareil pour l’instant.
+        heading: Appareils connus
+        last_used: utilisé
+        remember: Mémoriser cet appareil
+        remove: Supprimer
+        subheading: Les navigateurs qui peuvent ouvrir vos clés par eux-mêmes après une réinitialisation du mot de passe, sans la phrase de récupération.
+        this_device: Cet appareil
+        unavailable: Ce navigateur ne peut pas conserver de clé d’appareil ici — il faut HTTPS et le stockage du site.
+    export:
+        file_name: plmail-keys.asc
+        heading: Exporter vos clés
+        hint: Toutes les clés privées, anciennes comprises, dans un seul fichier que GnuPG, Thunderbird et Proton savent lire.
+        passphrase: Phrase secrète du fichier
+        submit: Exporter
+    failed: Cela n’a pas fonctionné. Rechargez la page et réessayez.
+    import:
+        done: '%count% clés importées.'
+        hardware_key: Les parties secrètes de cette clé se trouvent sur une carte à puce ou une clé de sécurité, qu’un navigateur ne peut pas utiliser.
+        heading: Importer une clé
+        hint: Une clé privée OpenPGP que vous utilisez déjà, exportée de GnuPG, Thunderbird ou Proton. Elle devient la clé des adresses qu’elle mentionne.
+        no_match: Aucune de ces clés ne mentionne l’une de vos adresses.
+        not_a_key: Ce n’est pas une clé privée OpenPGP.
+        passphrase: Phrase secrète de la clé
+        submit: Importer
+        wrong_passphrase: Cette phrase secrète n’ouvre pas la clé.
+    publish:
+        button: Publier sur %host%
+        again: Renvoyer le lien de confirmation
+        refresh: Vérifier à nouveau
+        saved: Le serveur de clés a répondu ; l’état ci-dessous est ce qu’il a indiqué.
+        confirm: "Publier cette clé sur %host% ? Tout le monde pourra alors la trouver à partir de %addresses%. Ces adresses sont ainsi liées publiquement à la clé, et un serveur de clés ne l’oublie pas vraiment. %host% envoie un lien à chaque adresse, et la clé ne se trouve par adresse qu’une fois que vous avez cliqué dessus."
+        renewed: "Votre clé précédente était publiée sur %host%. Y publier aussi la nouvelle clé pour %addresses% ? %host% envoie à nouveau un lien de confirmation à chaque adresse."
+        state:
+            none: "%email% — non publiée sur %host%"
+            unpublished: "%email% — sur %host%, mais personne ne peut encore la trouver par cette adresse"
+            pending: "%email% — en attente : %host% a envoyé à cette adresse un lien de confirmation"
+            published: "%email% — publiée : tout le monde peut la trouver sur %host%"
+            revoked: "%email% — révoquée sur %host% : le serveur fournit la clé révoquée"
+        unavailable: Publier sur ce serveur de clés n’est pas possible — l’installation ne l’utilise pas, ou les serveurs de clés sont désactivés sous « Clés de vos contacts ».
+        not_active: Seule une clé en usage peut être publiée.
+        not_found: Cette clé n’existe plus.
+        not_published: Cette clé n’y est pas publiée.
+        failed: Le serveur de clés n’a pas pu être joint, ou n’a pas accepté la clé. Réessayez plus tard.
+        not_a_revocation: Ce n’est pas la révocation de cette clé.
+    keys:
+        advanced: Afficher les clés
+        compromised: Marquer comme compromise
+        confirm_compromised: Marquer cette clé comme compromise ? Elle ne sera plus utilisée, et ses adresses en reçoivent une nouvelle.
+        confirm_renew: Créer une nouvelle clé pour ces adresses ? L’ancienne reste, pour ouvrir le courrier qui lui a été envoyé.
+        created: créée
+        expires: expire
+        heading: Clés
+        locked: verrouillée — ouvrez-la avec votre phrase de récupération
+        make_primary: Rendre principale
+        origin:
+            generated: créée par plMail
+            imported: importée
+        primary: principale
+        renew: Renouveler
+        status:
+            active: Active
+            compromised: Compromise
+            obsolete: Remplacée
+        subheading: Les clés OpenPGP de vos adresses. Apportez une clé que vous utilisez déjà, ou emportez les vôtres ailleurs.
+    smime:
+        heading: Certificats S/MIME
+        subheading: Des certificats d’une autorité de certification ou de votre organisation, que comprennent Outlook, Apple Mail et Thunderbird. Utilisés quand chaque destinataire en a un et que tous n’ont pas de clé OpenPGP.
+        empty: Aucun certificat S/MIME pour l’instant.
+        import_heading: Importer un certificat
+        import_hint: Un fichier .p12 ou .pfx contenant votre certificat et sa clé privée. Le fichier est ouvert dans ce navigateur ; le serveur ne conserve la clé que chiffrée.
+        file: Fichier du certificat
+        password: Mot de passe du fichier
+        import_submit: Importer le certificat
+        imported: Importé. Il signe et déchiffre désormais le courrier pour %addresses%.
+        export_heading: Exporter un certificat
+        export_hint: Saisissez ici un mot de passe pour le fichier, puis choisissez Exporter à côté d’un certificat ci-dessus.
+        export_password: Mot de passe du fichier exporté
+        export_password_missing: Saisissez d’abord un mot de passe d’au moins 8 caractères pour le fichier exporté.
+        export: Exporter en .p12
+        remove: Supprimer
+        confirm_remove: Supprimer ce certificat et sa clé privée ? Le courrier chiffré pour lui ne pourra plus être lu ici.
+        valid_until: valable jusqu’au
+        expired: expiré
+        issued_by: émis par
+        retired: remplacé par un certificat plus récent
+        wrong_password: Ce mot de passe n’ouvre pas le fichier.
+        not_pkcs12: Ce n’est pas un fichier .p12 ou .pfx.
+        legacy: Ce fichier utilise un ancien chiffrement (RC2 ou 3DES) que plMail ne sait pas ouvrir. Exportez-le à nouveau avec AES — OpenSSL 3 le fait par défaut, Windows avec l’option AES-256.
+        not_rsa: Seuls les certificats avec une clé RSA peuvent être utilisés ici.
+        no_key: Le fichier ne contient aucune clé privée correspondant à l’un de ses certificats.
+        no_match: Le certificat n’est pour aucune de vos adresses.
+    nag:
+        action: Ouvrir les paramètres
+        locked_keys: Certaines de vos anciennes clés sont verrouillées depuis la réinitialisation de votre mot de passe.
+        recovered: Vos anciennes clés ont été rouvertes depuis cet appareil.
+    phrase:
+        create: Créer une phrase de récupération
+        download: Télécharger
+        file_intro: Phrase de récupération plMail. Conservez ce fichier en lieu sûr, hors ligne. Les blocs qui suivent sont les certificats de révocation de vos clés.
+        file_name: plmail-recovery-phrase.txt
+        heading: Phrase de récupération
+        invalid: Ce ne sont pas douze mots de récupération valides. Vérifiez les fautes de frappe.
+        missing: Vous n’avez pas encore de phrase de récupération.
+        opens_nothing: Cette phrase n’ouvre aucune de vos clés verrouillées.
+        recover_heading: Ouvrir les anciennes clés
+        recover_hint: Certaines de vos clés ont été verrouillées lors de la réinitialisation de votre mot de passe. Saisissez votre phrase de récupération pour les rouvrir.
+        recover_submit: Ouvrir avec la phrase de récupération
+        recovered: '%count% clés rouvertes.'
+        recreate: Créer une nouvelle phrase de récupération
+        saved: Votre phrase de récupération est en place. Créez-en une nouvelle si l’ancienne a pu être vue.
+        shown_once: Notez ces mots ou téléchargez-les maintenant — ils ne sont affichés qu’une fois. Quiconque les possède peut ouvrir vos clés.
+        subheading: Douze mots qui ouvrent vos clés si vous oubliez un jour votre mot de passe. Sans eux, le courrier chiffré est perdu avec le mot de passe.
+    passphrase:
+        heading: "Phrase de passe de chiffrement"
+        subheading: "Elle ouvre vos clés. La changer ne change rien à votre connexion."
+        current: "Phrase de passe actuelle"
+        new: "Nouvelle phrase de passe"
+        repeat: "Répétez la nouvelle phrase de passe"
+        submit: "Changer la phrase de passe"
+        done: "Phrase de passe changée. Utilisez désormais la nouvelle."
+    setup:
+        heading: "Configurer le chiffrement"
+        intro: "Choisissez une phrase de passe de chiffrement. Elle protège vos clés et vous est demandée une fois par session, lorsque quelque chose en a besoin pour la première fois. Ce n’est pas le mot de passe de votre fournisseur d’identité, et elle ne quitte jamais ce navigateur."
+        warning: "plMail ne peut pas réinitialiser cette phrase de passe. Si vous l’oubliez, seule votre phrase de récupération — créez-la juste après — ou un navigateur déjà utilisé rouvre votre courrier chiffré. Sans l’une ni l’autre, ce courrier est perdu."
+        passphrase: "Phrase de passe de chiffrement"
+        repeat: "Répétez la phrase de passe"
+        submit: "Configurer le chiffrement"
+        too_short: "Au moins %min% caractères."
+        mismatch: "Les deux phrases de passe ne correspondent pas."
+        done: "Le chiffrement est configuré. Créez maintenant une phrase de récupération."
+    status:
+        broken: Vos clés n’ont pas pu être ouvertes. Déconnectez-vous puis reconnectez-vous ; si cela ne suffit pas, un administrateur trouvera la raison dans le journal.
+        disabled: Non disponible sur cette installation.
+        insecure: Nécessite HTTPS. Cette page a été ouverte en http:// simple, où le navigateur n’offre aucune cryptographie — ouvrez plMail par son adresse https://.
+        heading: Chiffrement de bout en bout
+        key_count: 'Clés actives : %keys% · Adresses : %addresses%'
+        loading: Ouverture de vos clés…
+        locked: Verrouillé dans ce navigateur. Saisissez votre mot de passe pour le déverrouiller.
+        locked_passphrase: "Verrouillé dans ce navigateur. Saisissez votre phrase de passe de chiffrement pour le déverrouiller."
+        open: Configuré, et déverrouillé dans ce navigateur.
+        subheading: Du courrier que seuls vous et vos correspondants pouvez lire — ni ce serveur, ni votre fournisseur de messagerie.
+        unset: "Pas encore configuré. Vous vous connectez par authentification unique ; vos clés ont donc besoin d’une phrase de passe à elles — choisissez-en une ci-dessous."
+    unlock:
+        rate_limited: Trop de tentatives. Patientez quelques minutes et réessayez.
+        submit: Déverrouiller
+        wrong_password: Ce n’est pas votre mot de passe.
+    unlock_dialog:
+        heading: "Déverrouiller vos clés"
+        password_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre mot de passe pour les ouvrir — une seule fois, pour le reste de cette session."
+        passphrase_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre phrase de passe de chiffrement pour les ouvrir — une seule fois, pour le reste de cette session. Ce n’est pas le mot de passe de votre fournisseur d’identité."
+        password_label: "Mot de passe"
+        passphrase_label: "Phrase de passe de chiffrement"
+        wrong_passphrase: "Cette phrase de passe n’ouvre pas vos clés."
+        cancel: "Pas maintenant"
+        submit: "Déverrouiller"
 
 errors:
     page:
@@ -2315,9 +2647,13 @@ login:
         email: Adresse e-mail
         forgot_password: Mot de passe oublié ?
         forgot_password_hint: 'La récupération du mot de passe se fait depuis la console du serveur : bin/console app:user:2fa-disable et un nouveau mot de passe défini par un administrateur.'
+        needs_script: 'La connexion nécessite JavaScript : votre mot de passe est protégé dans le navigateur avant tout envoi.'
         password: Mot de passe
+        prelogin_failed: Impossible de joindre le serveur pour vous connecter. Vérifiez votre connexion et réessayez.
+        prelogin_rate_limited: Trop de tentatives de connexion depuis cet endroit. Patientez quelques minutes et réessayez.
         remember_me: Rester connecté
         submit: Se connecter
+        submitting: Connexion…
     oidc:
         button: Se connecter avec l’authentification unique
         button_named: Se connecter avec %provider%
@@ -2349,6 +2685,53 @@ message:
         failed: 'Ce message n’a pas été distribué.'
         failed_for: 'Non distribué à %recipient%.'
         reported_at: 'Signalé %datetime%'
+    crypto:
+        attached_key:
+            heading: La clé de l’expéditeur est jointe
+            own: Votre clé publique est jointe
+            keep: Conserver cette clé
+            accept: Utiliser plutôt cette clé
+            none_hint: plMail ne détient pas encore cette clé. Conservez-la pour vérifier les signatures de l’expéditeur et lui écrire chiffré — comparez l’empreinte avec l’expéditeur pour vous assurer qu’elle est bien la sienne.
+            changed_hint: Elle diffère de la clé que plMail connaît pour cet expéditeur. Il peut s’agir de sa nouvelle clé, ou de quelqu’un qui se fait passer pour lui — comparez l’empreinte avec l’expéditeur avant de l’utiliser.
+            kept: La clé de l’expéditeur a été conservée.
+            kept_changed: Conservée — mais elle diffère de la clé que plMail connaît pour cet expéditeur. Comparez les empreintes avant de l’utiliser.
+            unusable: "Cette clé ne peut pas être conservée : elle est révoquée, expirée, ou ne porte aucun identifiant pour l’adresse de l’expéditeur."
+        subject: 'Objet : %subject%'
+        encrypted_kept: Chiffré à l’arrivée · conservé lisible sur ce serveur
+        sealed_draft: Brouillon chiffré. Ouvrez-le pour continuer à écrire ; seul un navigateur disposant de vos clés peut le lire.
+        action:
+            accept: Utiliser la nouvelle clé
+            lookup: Rechercher la clé
+            manage: Clés de vos contacts
+            trust: Faire confiance à cette clé
+        compare_hint: Comparez l’empreinte avec l’expéditeur — par téléphone, en personne — avant de lui faire confiance.
+        key_changed_hint: C’est peut-être la nouvelle clé de l’expéditeur, ou quelqu’un qui se fait passer pour lui. Comparez l’empreinte avec l’expéditeur avant de l’utiliser.
+        decrypting: Déchiffrement…
+        encrypted: Chiffré de bout en bout
+        encrypted_smime: Chiffré avec S/MIME
+        failed: Ce message n’a pas pu être déchiffré.
+        inner:
+            invalid: La signature à l’intérieur ne correspond pas
+            key_changed: Signé avec la clé %signer% — pas celle que plMail connaît pour cet expéditeur
+            unchecked: Signé à l’intérieur du chiffrement ; la signature n’a pas été vérifiée
+            unknown_key: Signé avec la clé %signer%, que plMail ne connaît pas encore
+            untrusted: Signé à l’intérieur du chiffrement — intact, mais personne n’a confirmé la clé %signer%
+            valid: Signé à l’intérieur du chiffrement, avec votre propre clé ou une clé que vous avez vérifiée
+        locked: Vos clés sont verrouillées dans ce navigateur.
+        no_key: Ce message a été chiffré pour une clé que vous n’avez pas ici.
+        no_source: 'L’original de ce message n’est pas disponible : il ne peut donc pas être déchiffré.'
+        open_settings: Les déverrouiller
+        signed:
+            invalid: La signature ne correspond pas — ce message a été modifié ou ne vient pas de l’expéditeur
+            key_changed: Signé avec une autre clé que celle que plMail connaît pour cet expéditeur
+            pending: Signé — vérification de la signature…
+            unknown_key: Signé avec une clé que plMail ne connaît pas encore
+            untrusted: Signé — le message est intact, mais rien ne confirme qui l’a signé
+            valid: Signé, et la signature est valable
+        signer: Signé par %signer%
+        smime_unreadable: Ce message est chiffré avec S/MIME pour un certificat que plMail n’a pas. Importez-le dans Paramètres → Chiffrement, ou ouvrez le message dans un logiciel de messagerie qui le possède.
+        smime_unsupported: Ce message est chiffré avec un algorithme que plMail ne sait pas ouvrir ; seul AES est pris en charge.
+        snippet: Message chiffré
     details:
         categorised:
             ai: 'un modèle de langage, faute de règle l’ayant reconnu : '
@@ -2598,6 +2981,14 @@ onboarding:
             title: Protéger votre compte
     title: Configurer plMail
 
+password_required:
+    explanation: Quelqu’un d’autre a choisi le mot de passe avec lequel vous venez de vous connecter. Choisissez-en un que vous seul connaissez — plMail ne vous laissera pas entrer avant.
+    page_title: Choisissez votre mot de passe
+    sign_out: Me déconnecter plutôt
+    submit: Enregistrer et continuer
+    submitting: Enregistrement…
+    tagline: Encore une étape
+
 profile:
     avatar_current: Image actuelle
     avatar_from:
@@ -2752,6 +3143,7 @@ session:
         sign_in: Se reconnecter
         sign_in_new_tab: Se reconnecter dans un nouvel onglet
         reload: Recharger cette page
+
 settings:
     ai:
         context:
@@ -2959,6 +3351,7 @@ settings:
         scan_title: "Scannez ceci avec l’application plMail"
         scan_hint: "Le code ne fonctionne qu’une fois et expire au bout de deux minutes. Il ne contient pas votre mot de passe d’application — l’application l’échange contre un nouveau."
         qr_alt: "Code d’association"
+        with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
     app_passwords:
@@ -3849,6 +4242,7 @@ settings:
         calendars: Agendas
         categories: "Catégories"
         disposal: Suppression
+        encryption: Chiffrement
         filters: Filtres
         general: Général
         group:
@@ -3938,6 +4332,7 @@ settings:
         remember_me_note: 'Changer votre mot de passe déconnecte tous les navigateurs mémorisés sauf celui-ci. C’est ce qui le rend utile quand un appareil disparaît.'
         subheading: 'Ce avec quoi vous vous connectez. Vous seul pouvez le changer — même un administrateur ne peut pas le définir à votre place.'
         submit: Changer le mot de passe
+        submitting: Enregistrement…
     reading_pane:
         heading: Volet de lecture
         hint: 'Désactivé affiche la liste et le message l’un après l’autre. À droite place le message à côté de la liste quand la fenêtre a la place pour les deux — faites glisser le séparateur pour choisir la part de chacun.'

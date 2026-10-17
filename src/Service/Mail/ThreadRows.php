@@ -174,7 +174,7 @@ final class ThreadRows implements ResetInterface
 
             $this->rows[$threadId] = new ThreadRow(
                 $messages,
-                null === $body ? '' : $this->snippet->fromBodies($body['bodyHtmlSafe'], $body['bodyText']),
+                null === $body ? '' : $this->snippet->fromBodies($body['bodyHtmlSafe'], $body['bodyText'], $body['crypto']),
             );
         }
     }

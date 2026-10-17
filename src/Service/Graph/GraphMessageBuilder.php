@@ -9,6 +9,7 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
@@ -62,6 +63,7 @@ final class GraphMessageBuilder
         private readonly GraphFolderResolver    $folderResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly HeaderNormalizer       $headerNormalizer,
+        private readonly MessageCryptoDetector  $cryptoDetector,
     ) {}
 
     /**
@@ -198,6 +200,29 @@ final class GraphMessageBuilder
         } else {
             $message->bodyText = $bodyContent;
             $message->bodyHtml = '';
+        }
+
+        // ── OpenPGP / S/MIME ──────────────────────────────────────────────────
+        // Before the row is written, as in the other two builders. Unlike them,
+        // the attachment list is consulted too: Graph's headers are a selection
+        // and may lack Content-Type, and Exchange hands a signed S/MIME message
+        // over as a single smime.p7m attachment with an empty body.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers ?? [], 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+            array_map(
+                static fn (array $attachment): array => ['type' => (string) ($attachment['contentType'] ?? ''), 'name' => $attachment['name'] ?? null],
+                $attachments,
+            ),
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        if (null !== $crypto) {
+            $attachments = array_values(array_filter(
+                $attachments,
+                fn (array $attachment): bool => false === $this->cryptoDetector->isWrapping($crypto, $attachment['contentType'] ?? null, $attachment['name'] ?? null),
+            ));
         }
 
         // ── Attachments ───────────────────────────────────────────────────────

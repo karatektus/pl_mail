@@ -51,7 +51,7 @@ final readonly class DraftAttachmentService
      * @return string|null the reason nothing was attached, short enough for the
      *                     window's status line, or null when all of them were
      */
-    public function attach(Message $message, array $files): ?string
+    public function attach(Message $message, array $files, bool $sealed = false): ?string
     {
         // Everything is checked before anything is stored, so a rejected file
         // cannot leave the ones before it attached.
@@ -64,13 +64,37 @@ final readonly class DraftAttachmentService
         }
 
         foreach ($files as $file) {
+            $contents = (string) file_get_contents($file->getPathname());
+
+            // Sealed in the browser: an OpenPGP message whatever the file was,
+            // so there are no bytes to guess a type from. The type is what the
+            // browser said, kept only for the browser that will open it again
+            // — nothing serves a sealed part as that type. See
+            // MessagePart::$sealed.
+            if (true === $sealed) {
+                if ('' === $contents || 0 === (ord($contents[0]) & 0x80)) {
+                    return $this->translator->trans('compose.upload.failed');
+                }
+
+                $declared = strtolower((string) $file->getClientMimeType());
+                $part     = $this->storeBytes(
+                    $message,
+                    (string) $file->getClientOriginalName(),
+                    1 === preg_match('~^[a-z0-9.+-]+/[a-z0-9.+-]+$~', $declared) ? $declared : 'application/octet-stream',
+                    $contents,
+                );
+                $part->sealed = true;
+
+                continue;
+            }
+
             $this->storeBytes(
                 $message,
                 (string) $file->getClientOriginalName(),
                 // Guessed from the bytes, not from the client's header — this
                 // value comes back out as a Content-Type on download.
                 $file->getMimeType() ?? 'application/octet-stream',
-                (string) file_get_contents($file->getPathname()),
+                $contents,
             );
         }
 

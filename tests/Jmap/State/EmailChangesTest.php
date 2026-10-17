@@ -20,10 +20,15 @@ use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SendingKey;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\AttachmentResolver;
@@ -408,6 +413,12 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MailChangeRecorder::class),
             $container->get(MessageThreader::class),
             $container->get(ThreadLabelSynchronizer::class),
+            $container->get(SealGuard::class),
+            $container->get(SealedDrafts::class),
+            $container->get(AutocryptHeader::class),
+            $container->get(SendingKey::class),
+            $container->get(RawMessageResolver::class),
+            $container->get(DraftAttachmentService::class),
         );
     }
 

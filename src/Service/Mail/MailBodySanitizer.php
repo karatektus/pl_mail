@@ -61,6 +61,10 @@ final readonly class MailBodySanitizer
         // text: never filled in, and never warned about on Send.
         'data-pl-signature-pinned',
         'data-pl-var',
+        // Where the composer puts an encrypted original it decrypted in the
+        // browser (ReplyDraftBuilder::quote()). A message id, nothing more;
+        // planted by hand it fetches a raw source the person owns anyway.
+        'data-quote-sealed',
     ];
 
     public function __construct(

@@ -13,21 +13,35 @@
                 {{ 'settings.device_pairing.scan_hint'|trans }}
             </p>
 
-            <div class="flex flex-col sm:flex-row items-center gap-4">
+            <div class="flex flex-col sm:flex-row items-center gap-4"
+                 {% if withKeys|default(false) %}data-controller="settings--pairing-qr" data-settings--pairing-qr-uri-value="{{ uri }}"{% endif %}>
                 {# The SVG is a data URI, so the code never becomes a URL that
                    could land in an access log or a referrer header. #}
+{% if withKeys|default(false) %}
+                    {# The keys travel too: the transfer key is the QR code's
+                       fragment, held by this browser only, so it draws the
+                       code and finishes the link (settings--pairing-qr). #}
+                    <img data-settings--pairing-qr-target="image" alt="{{ 'settings.device_pairing.qr_alt'|trans }}"
+                         class="shrink-0 rounded-lg bg-white p-2" width="220" height="220">
+                {% else %}
                 <img src="{{ qr }}" alt="{{ 'settings.device_pairing.qr_alt'|trans }}"
                      class="shrink-0 rounded-lg bg-white p-2" width="220" height="220">
+                {% endif %}
 
                 <div class="min-w-0 flex-1 text-center sm:text-left">
                     <p class="text-[11px] text-ink-muted mb-2">
                         {{ 'settings.device_pairing.expires'|trans({ '%time%': expiresAt|date('H:i') }) }}
                     </p>
+                    {% if withKeys|default(false) %}
+                        <p class="text-[11px] text-ink-muted mb-2" data-testid="pairing-with-keys">
+                            <i class="fa-solid fa-key text-[10px] mr-1" aria-hidden="true"></i>{{ 'settings.device_pairing.with_keys'|trans }}
+                        </p>
+                    {% endif %}
 
                     {# On a phone browser there is no second screen to scan
                        with, so the same code is offered as a link the app
                        opens directly. #}
-                    <a href="{{ uri }}"
+                    <a href="{{ uri }}" {% if withKeys|default(false) %}data-settings--pairing-qr-target="link"{% endif %}
                        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
                               bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
                         <i class="fa-solid fa-arrow-up-right-from-square text-[11px]" aria-hidden="true"></i>
