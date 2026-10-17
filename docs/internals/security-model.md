@@ -456,7 +456,7 @@ The compose window decides (`assets/controllers/compose/encryption_controller.js
 
 - every autosave encrypts what was typed to the person's own active keys and posts it as
   `sealed[draft]`, with the body fields empty. `SealedDrafts` keeps it on disk
-  (`SealedMessageStorage`, `<storage>/sealed/`), sets `Message::$sealedDraft`, and from then on
+  (`SealedMessageStorage`, `<storage>/raw/sealed/`, on the shared raw volume), sets `Message::$sealedDraft`, and from then on
   blanks the body of every save of that row whatever it carries — once sealed, always sealed;
 - attachments are encrypted in the browser before upload (`MessagePart::$sealed`): no thumbnail,
   no preview, served only as `application/octet-stream`;

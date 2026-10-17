@@ -22,6 +22,15 @@ namespace App\Domain\Helper;
  * decrypted inner message a browser handed over for an account that keeps
  * decrypted mail (App\Service\Crypto\DecryptedMail). Kept apart from the raw
  * source, which stays the ciphertext that arrived.
+ *
+ * UNDER raw/, in a `sealed` directory of its own beside the accounts' ones,
+ * because raw/ is a volume every container shares. The files were first kept
+ * in var/sealed/, which the stock compose.yaml mounts nowhere: the web
+ * container wrote the built message into its own filesystem, the send job in
+ * the worker found nothing, and encrypted mail stayed in Drafts with "the
+ * built message is missing" in the log. The test stack mounts the whole
+ * checkout, so it could not see the difference. Avatars and signatures live
+ * inside uploads/ for the same reason.
  */
 readonly class SealedMessageStorage
 {
@@ -73,7 +82,7 @@ readonly class SealedMessageStorage
     private function path(int $messageId, string $kind): string
     {
         return sprintf(
-            '%s/%s/sealed/%d/%d.%s',
+            '%s/%s/raw/sealed/%d/%d.%s',
             $this->projectDir,
             $this->storageDir,
             intdiv($messageId, self::FANOUT),
