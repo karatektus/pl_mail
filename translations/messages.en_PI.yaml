@@ -870,6 +870,8 @@ admin:
             client_secret: 'Client secret'
             issuer: 'Issuer'
             issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
+            password_login_disabled: 'Th'' fleet''s seal only'
+            password_login_disabled_help: 'Hides th'' password form an'' turns away password boardin''s, so every sailor comes in through th'' fleet. Only holds while a fleet be set up here. Ye can tick it only after ye''ve boarded through th'' fleet yerself, an'' if th'' fleet ever sinks, run bin/console app:sso:allow-password-login t'' bring th'' form back. Passwords fer mail clients (app passwords) be left alone.'
             require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
             require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
             scopes: 'Scopes'

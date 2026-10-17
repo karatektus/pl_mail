@@ -8,6 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
+(or `OIDC_DISABLE_PASSWORD_LOGIN=true` in the environment), hides the password form and makes the
+server refuse a password sign-in, so everybody comes in through the provider. It is in force only
+while a provider is set up, so a provider that was removed cannot leave an install with no way in,
+and the box can be ticked only by an administrator who has signed in through the provider
+themselves. If the provider is down, `php bin/console app:sso:allow-password-login` brings the form
+back. App passwords for mail clients and the phone apps, and sessions that are already open, are not
+affected. Off by default. Schema change: one boolean column on `oidc_config`, false for every
+existing install. [#169](https://github.com/karatektus/pl_mail/issues/169).
+
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
 the server only counted To. It now counts all three as well. A mail with no recipient at all is

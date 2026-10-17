@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Form\Admin;
 
 use App\Entity\Oidc\OidcConfig;
+use App\Entity\User\User;
 use App\Form\PasswordManagerIgnore;
 use App\Form\SecretType;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -34,6 +36,13 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * three empty is a legitimate answer: it hands the decision back to the
  * OIDC_* variables.
  *
+ * **"Single sign-on only" has two refusals of its own.** It needs a whole
+ * registration on this page (the environment's does not count: the setting is
+ * saved with the row, and the row is ignored unless whole), and it needs the
+ * administrator saving it to have signed in through the provider themselves at
+ * least once. Without that second check the first administrator to tick the box
+ * would be locking themselves out of a provider they had never used.
+ *
  * **The issuer has to be https**, refused at the field rather than at the first
  * sign-in. The ID token is believed on the strength of the TLS connection it
  * arrives over (IdTokenValidator), so OidcDiscovery refuses anything else — and
@@ -44,6 +53,7 @@ final class OidcConfigType extends AbstractType
 {
     public function __construct(
         private readonly TranslatorInterface $translator,
+        private readonly Security            $security,
     ) {
     }
 
@@ -117,6 +127,11 @@ final class OidcConfigType extends AbstractType
                 'label'    => 'admin.sso.field.require_verified_email',
                 'help'     => 'admin.sso.field.require_verified_email_help',
                 'required' => false,
+            ])
+            ->add('passwordLoginDisabled', CheckboxType::class, [
+                'label'    => 'admin.sso.field.password_login_disabled',
+                'help'     => 'admin.sso.field.password_login_disabled_help',
+                'required' => false,
             ]);
     }
 
@@ -134,6 +149,16 @@ final class OidcConfigType extends AbstractType
 
         if ('' !== $issuer && false === str_starts_with($issuer, 'https://')) {
             $form->get('issuer')->addError($this->refusal('admin.sso.error.issuer_not_https'));
+        }
+
+        if (true === $form->get('passwordLoginDisabled')->getData()) {
+            $me = $this->security->getUser();
+
+            if ('' === $issuer || '' === $clientId || false === $hasSecret) {
+                $form->get('passwordLoginDisabled')->addError($this->refusal('admin.sso.error.password_login_needs_provider'));
+            } elseif (true === $me instanceof User && null === $me->oidcSubject) {
+                $form->get('passwordLoginDisabled')->addError($this->refusal('admin.sso.error.password_login_needs_own_sso'));
+            }
         }
 
         // All three, or none of them.

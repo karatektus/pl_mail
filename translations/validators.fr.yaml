@@ -7,6 +7,8 @@ admin.integrations.secret_missing: Saisissez aussi le secret client — un ID cl
 admin.sso.error.client_id_missing: 'Un ID client est nécessaire avec l’émetteur et le secret. Les trois, ou aucun.'
 admin.sso.error.issuer_missing: 'Un émetteur est nécessaire avec l’ID client et le secret. Les trois, ou aucun.'
 admin.sso.error.issuer_not_https: 'L’émetteur doit commencer par https://. plMail fait confiance au fournisseur grâce à la connexion TLS vers lui.'
+admin.sso.error.password_login_needs_own_sso: 'Connectez-vous vous-même au moins une fois via le fournisseur avant d’en faire la seule voie d’accès, sinon vous vous enfermeriez dehors.'
+admin.sso.error.password_login_needs_provider: 'Enregistrez d’abord un fournisseur complet (émetteur, ID client et secret) avant de faire de l’authentification unique la seule voie d’accès.'
 admin.sso.error.secret_missing: 'Un secret client est nécessaire avec l’émetteur et l’ID client. Les trois, ou aucun.'
 admin.users.password_too_short: Utilisez au moins {{ limit }} caractères — ce mot de passe est choisi pour quelqu’un d’autre.
 alias.invalid: Saisissez une adresse e-mail valide.

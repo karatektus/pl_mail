@@ -84,6 +84,44 @@ final class SsoSettingsControllerTest extends WebTestCase
         self::assertStringContainsString('All three, or none of them.', $crawler->filter('turbo-frame#admin-sso')->text());
     }
 
+    public function testSingleSignOnOnlyIsRefusedBeforeTheAdministratorHasSignedInThroughTheProvider(): void
+    {
+        $crawler = $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
+
+        $config = static::getContainer()->get(OidcConfigRepository::class)->current();
+
+        self::assertTrue(null === $config || false === $config->passwordLoginDisabled);
+        self::assertStringContainsString('Sign in through the provider yourself', $crawler->filter('turbo-frame#admin-sso')->text());
+    }
+
+    public function testSingleSignOnOnlyIsSavedOnceTheAdministratorIsLinkedAndTheProviderWhole(): void
+    {
+        $admin              = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
+        $admin->oidcIssuer  = 'https://auth.example.com/';
+        $admin->oidcSubject = 'admin-subject';
+        static::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class)->flush();
+
+        $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
+
+        self::assertTrue(static::getContainer()->get(OidcConfigRepository::class)->current()?->passwordLoginDisabled);
+    }
+
+    public function testSingleSignOnOnlyNeedsAWholeProviderOnThisPage(): void
+    {
+        $crawler = $this->submit(['passwordLoginDisabled' => '1']);
+
+        self::assertNull(static::getContainer()->get(OidcConfigRepository::class)->current());
+        self::assertStringContainsString('Save a whole provider first', $crawler->filter('turbo-frame#admin-sso')->text());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function provider(): array
+    {
+        return ['issuer' => 'https://auth.example.com/', 'clientId' => 'plmail', 'clientSecret' => 'the-secret', 'requireVerifiedEmail' => '1'];
+    }
+
     /**
      * @param array<string, string> $values
      */
