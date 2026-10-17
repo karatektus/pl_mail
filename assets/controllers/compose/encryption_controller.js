@@ -837,7 +837,9 @@ function textOf(html) {
 
     doc.body.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
     doc.body.querySelectorAll("p, div, li, blockquote, h1, h2, h3, h4, h5, h6, tr").forEach((block) => block.append("\n"));
-    doc.body.querySelectorAll("blockquote").forEach((quote) => {
+    // A blockquote in the signature is the signature's own layout, not a
+    // quote: quoting it put "> " before the sender's own name.
+    doc.body.querySelectorAll("blockquote:not([data-pl-signature] blockquote)").forEach((quote) => {
         quote.textContent = quote.textContent.replace(/^/gm, "> ");
     });
 

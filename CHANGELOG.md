@@ -196,6 +196,15 @@ schema, but going back down leaves every moved account unable to sign in until
 `app:user:password` resets it.
 [#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
 
+**A signature with a blockquote in it is no longer indented in the sent mail.** The editor draws a
+blockquote flush left, while the reading pane and every mail program give it the browser's 40px on
+either side, so a signature that wraps a name in one — as signatures pasted from elsewhere often do —
+arrived indented although it never looked that way while writing. The blockquote now carries the
+editor's margin in the mail itself, for signatures already saved too. It was also taken for quoted
+text: the plain-text part of the mail ended where it began, so the signature was missing there, and
+an encrypted message's plain-text part quoted it with `>`. Mail already sent is unchanged. No schema
+change.
+
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
 the server only counted To. It now counts all three as well. A mail with no recipient at all is
