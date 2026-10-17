@@ -26,6 +26,15 @@ final readonly class OidcGlobal
     }
 
     /**
+     * Whether the login page shows the password form. False only on an install
+     * whose administrator made single sign-on the only way in.
+     */
+    public function passwordLoginAllowed(): bool
+    {
+        return $this->settings->current()->allowsPasswordLogin();
+    }
+
+    /**
      * The provider's name as the operator wants it on the button, or null for
      * the generic wording.
      */

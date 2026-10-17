@@ -57,6 +57,7 @@ with a button to copy it.
 | **Scopes** | Space-separated scopes. `openid` is always added. | `openid email profile` |
 | **Create an account for people plMail has not seen** | Whether somebody the provider lets in, and plMail has never seen, gets a new ordinary account. | off |
 | **Only link an address the provider has verified** | Link an existing account by address only when the provider vouches for the address. | on |
+| **Single sign-on only** | Hide the password form and refuse password sign-ins, so everybody comes in through the provider. See [Making single sign-on the only way in](#making-single-sign-on-the-only-way-in). | off |
 
 Issuer, client ID and secret are saved together or not at all: the form refuses two of the three,
 because half a provider would look set up here while nothing signed anybody in.
@@ -76,11 +77,45 @@ your environment.
 | `OIDC_SCOPES` | Scopes | `openid email profile` |
 | `OIDC_AUTO_CREATE` | Create an account for people plMail has not seen | `false` |
 | `OIDC_REQUIRE_VERIFIED_EMAIL` | Only link an address the provider has verified. Only `false`, `0`, `no` or `off` switch it off; blank or anything else leaves it on. | `true` |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | Single sign-on only. Only `true`, `1`, `yes` or `on` switch it on; blank or anything else leaves the password form. | `false` |
 
 **What is saved under Admin → SSO wins**, and it wins whole: a saved provider uses its own options
 too and reads nothing from these variables. The chip on the page says which is in force — **On**,
 **On, from the environment**, or **Off**. To hand the decision back to the environment, empty the
 issuer and the client ID and tick **Forget the stored client secret**.
+
+## Making single sign-on the only way in
+
+By default the password form stays beside the provider's button. If everybody should come in through
+the provider — a family or a team where the provider already holds the accounts and the second
+factor — tick **Single sign-on only** on **Admin → SSO**. The login page then shows only the
+button, and the server refuses a password sign-in outright: posting the right password to the login
+URL gets the same "turned off" answer as a wrong one, for an address that exists and for one that
+does not.
+
+- **It needs a whole provider saved on that page**, and **you must have signed in through the
+  provider yourself at least once** before it lets you tick the box. Otherwise the first
+  administrator to try it would shut themselves out of a provider they had never used.
+- **Accounts that have never signed in through the provider can still do so.** Their first sign-in
+  links the account by email address. That works only if the provider has a user with exactly that
+  address and reports it as verified; an account whose address the provider does not know has no way
+  in once the box is ticked, and neither does somebody with no account here when auto-creation is off.
+- **It is in force only while single sign-on is on.** Take the provider away, or leave it half
+  filled, and the password form comes back by itself — an install can never be left with no way in
+  because of a provider that is not there.
+- **If the provider is down**, nothing in a browser can bring the form back, on purpose. From the
+  console:
+
+  ```bash
+  docker compose exec php php bin/console app:sso:allow-password-login
+  ```
+
+  That clears what Admin → SSO saved. If you set `OIDC_DISABLE_PASSWORD_LOGIN` in the environment,
+  change it there and restart.
+- **What it does not touch:** app passwords for mail clients and the Android and iOS apps (JMAP and
+  CalDAV) keep working, and so do browser sessions that are already open. Passwords stay in the
+  database, so switching the setting off again needs no reset. Remove a person's access at the
+  provider *and* deactivate their account under Admin → Users to end sessions that are already open.
 
 ## Things that bite
 

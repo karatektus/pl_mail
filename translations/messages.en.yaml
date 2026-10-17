@@ -937,6 +937,8 @@ admin:
             client_secret: 'Client secret'
             issuer: 'Issuer'
             issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
+            password_login_disabled: 'Single sign-on only'
+            password_login_disabled_help: 'Hides the password form and refuses password sign-ins, so everybody comes in through the provider. Only in force while a provider is set up here. You can tick it only after you have signed in through the provider yourself, and if the provider is ever down, run bin/console app:sso:allow-password-login to bring the form back. Passwords for mail clients (app passwords) are not affected.'
             require_verified_email: 'Only link an address the provider has verified'
             require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
             scopes: 'Scopes'

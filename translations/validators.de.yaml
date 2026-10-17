@@ -7,6 +7,8 @@ admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der 
 admin.sso.error.client_id_missing: 'Zum Issuer und zum Secret gehört eine Client-ID. Alle drei oder keins davon.'
 admin.sso.error.issuer_missing: 'Zur Client-ID und zum Secret gehört ein Issuer. Alle drei oder keins davon.'
 admin.sso.error.issuer_not_https: 'Der Issuer muss mit https:// beginnen. plMail vertraut dem Anbieter wegen der TLS-Verbindung zu ihm.'
+admin.sso.error.password_login_needs_own_sso: 'Melde dich mindestens einmal selbst über den Anbieter an, bevor du ihn zum einzigen Weg machst — sonst sperrst du dich aus.'
+admin.sso.error.password_login_needs_provider: 'Speichere zuerst einen vollständigen Anbieter (Issuer, Client-ID und Secret), bevor du Single Sign-on zum einzigen Weg machst.'
 admin.sso.error.secret_missing: 'Zum Issuer und zur Client-ID gehört ein Client-Secret. Alle drei oder keins davon.'
 admin.users.password_too_short: Mindestens {{ limit }} Zeichen — dieses Passwort wählst du für jemand anderen.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
