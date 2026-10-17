@@ -947,6 +947,8 @@ admin:
             client_secret: 'Client-Secret'
             issuer: 'Issuer'
             issuer_help: 'Die Issuer-URL des Anbieters, genau so, wie sein Discovery-Dokument sie angibt. In Authentik ist das der „OpenID Configuration Issuer“ auf der Seite des Providers.'
+            password_login_disabled: 'Nur Single Sign-on'
+            password_login_disabled_help: 'Blendet das Passwortformular aus und weist Passwort-Anmeldungen ab, sodass alle über den Anbieter hereinkommen. Gilt nur, solange hier ein Anbieter eingerichtet ist. Du kannst es erst ankreuzen, nachdem du dich selbst über den Anbieter angemeldet hast, und fällt der Anbieter einmal aus, holt bin/console app:sso:allow-password-login das Formular zurück. Passwörter für Mail-Programme (App-Passwörter) sind nicht betroffen.'
             require_verified_email: 'Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat'
             require_verified_email_help: 'Eine erste Anmeldung findet ihr Konto über die E-Mail-Adresse. Schalt das nur aus, wenn man die eigene Adresse beim Anbieter nicht selbst ändern kann: Ist es aus, kann jede Person, die das darf, jedes Konto übernehmen, das sich noch nicht über den Anbieter angemeldet hat.'
             scopes: 'Scopes'

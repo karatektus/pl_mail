@@ -943,6 +943,8 @@ admin:
             client_secret: 'Secret client'
             issuer: 'Émetteur'
             issuer_help: 'L’URL de l’émetteur du fournisseur, exactement comme l’indique son document de découverte. Dans Authentik, c’est « OpenID Configuration Issuer » sur la page du fournisseur.'
+            password_login_disabled: 'Authentification unique uniquement'
+            password_login_disabled_help: 'Masque le formulaire de mot de passe et refuse les connexions par mot de passe : tout le monde passe par le fournisseur. Actif uniquement tant qu’un fournisseur est configuré ici. Vous ne pouvez le cocher qu’après vous être connecté vous-même via le fournisseur, et si le fournisseur tombe en panne, bin/console app:sso:allow-password-login ramène le formulaire. Les mots de passe des clients de messagerie (mots de passe d’application) ne sont pas concernés.'
             require_verified_email: 'Ne lier qu’une adresse vérifiée par le fournisseur'
             require_verified_email_help: 'Une première connexion retrouve son compte par l’adresse e-mail. Ne désactivez ceci que là où les gens ne peuvent pas modifier leur propre adresse chez le fournisseur : désactivé, quiconque le peut est en mesure de s’approprier n’importe quel compte qui ne s’est pas encore connecté via le fournisseur.'
             scopes: 'Portées'
