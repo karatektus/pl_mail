@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:479c78a347eb42c286182ac9d06810d03e0e8f6a -->
+<!-- translated-from: features/encryption.md sha1:72c880f5e72bc7fe9b311fa68d9b3fc9abcab91e -->
 
 # Verschlüsselung
 
@@ -141,9 +141,12 @@ Von plMail erstellte Schlüssel laufen nicht ab — wie bei Proton. Unter **Schl
 **Verschlüsselte Mails** zeigen ein grünes Schloss und *Ende-zu-Ende verschlüsselt* darüber. plMail
 bewahrt auf dem Server keine lesbare Kopie davon auf: Dein Browser holt die Nachricht so, wie sie
 angekommen ist, entschlüsselt sie mit deinen Schlüsseln und zeigt sie wie jede andere Mail an —
-samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht *Verschlüsselte
-Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen Text, und für
-S/MIME, sobald du dein Zertifikat importiert hast (siehe [S/MIME](#smime) unten).
+samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht ein Schloss vor
+dem Betreff und keine Vorschau, denn der Server hat keinen Text, den er zeigen könnte (wenn
+[entschlüsselte Mails behalten werden](#entschlüsselte-mails-auf-diesem-server-behalten), ist
+die Vorschau wieder da, das Schloss bleibt). Das gilt für OpenPGP, egal ob als PGP/MIME oder als
+Block im reinen Text, und für S/MIME, sobald du dein Zertifikat importiert hast (siehe
+[S/MIME](#smime) unten).
 
 **Signierte Mails** zeigen, was die Prüfung der Signatur ergeben hat:
 
@@ -259,7 +262,9 @@ Eine verschlüsselte Nachricht kommt nie lesbar beim Server an, auch nicht als E
 verschlüsselt den Entwurf vor jedem Speichern mit deinem eigenen Schlüssel, verschlüsselt Anhänge,
 bevor sie hochgeladen werden, und baut und verschlüsselt die ganze Nachricht — an alle Empfänger
 und an dich, damit die Kopie in *Gesendet* lesbar bleibt —, wenn du auf Senden drückst. Rückgängig,
-*Später senden* und *Gesendet* funktionieren wie immer.
+*Später senden* und *Gesendet* funktionieren wie immer. Eine Antwort steht in der Unterhaltung als
+„wird gesendet“, bis sie verschickt ist, und öffnet sich dann dort wie jede verschlüsselte Mail von
+dir.
 
 **Signieren.** Verschlüsselte Mails werden immer signiert. Unverschlüsselte Mails werden signiert,
 wenn sie an jemanden gehen, dessen Schlüssel plMail kennt, oder immer, wenn du **Unverschlüsselte

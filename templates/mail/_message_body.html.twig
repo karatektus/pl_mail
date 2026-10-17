@@ -28,16 +28,29 @@ Variables:
   message  Message
 #}
 {% set render = message_render(message) %}
+{# Sent, and not gone yet: the browser built the message, and until the send
+   job has handed it over there is nothing here to read. The draft is sealed,
+   or the body was blanked because only the recipients may read it, and the
+   raw source — the bytes that went out — does not exist until they have gone.
+   Shown as being sent, not as a draft and not as something to decrypt: asking
+   the keyring for a source that is not there yet is how a reply to encrypted
+   mail came to say the keys were locked. The worker's outcome stream swaps
+   the whole message for its sent self once it has gone (see
+   mail/_send_outcome.stream.html.twig). outgoingSeal rather than sentAt: it
+   is cleared in the same flush that stores the raw source, and sentAt is
+   written before either. #}
+{% set sendingSealed = message.outgoingSeal is not null
+    and (message.sealedDraft or (message.outgoingSeal.kind ?? null) == 'encrypted') %}
 {# A draft sealed in the browser has no raw source to decrypt: it is opened in
    the composer, never here. See App\Service\Crypto\SealedDrafts. #}
-{% set sealedDraft = message.sealedDraft %}
+{% set sealedDraft = message.sealedDraft and not sendingSealed %}
 {# A decrypted body a browser handed over (DecryptedMail) is shown like any
    body the server holds; only the banner says where it came from. #}
 {% set decryptedKept = message.plaintextSource.value == 'client' %}
 {# Opened in the browser: OpenPGP always — every person has address keys —
    and S/MIME once the person has a certificate of their own to open it with
    (phase 6c of #28). Without one, S/MIME is only said to be unreadable. #}
-{% set encryptedHere = not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted %}
+{% set encryptedHere = not sendingSealed and not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted %}
 {% set encryptedInBrowser = encryptedHere and (message.crypto.pgp or has_smime_certificate()) %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
@@ -130,7 +143,12 @@ Variables:
        (mail--encrypted-message). The frame document is rendered here with a
        placeholder for the body, so both paths show a message in exactly the
        same document. #}
-    {% if sealedDraft %}
+    {% if sendingSealed %}
+        <p class="flex items-center gap-2 text-sm text-ink-muted" data-testid="sending-encrypted" data-sending-sealed>
+            <i class="fa-solid fa-lock text-success text-xs" aria-hidden="true"></i>
+            {{ 'message.crypto.sending'|trans }}
+        </p>
+    {% elseif sealedDraft %}
         <p class="flex items-center gap-2 text-sm text-ink-muted" data-testid="sealed-draft-note">
             <i class="fa-solid fa-lock text-success text-xs" aria-hidden="true"></i>
             {{ 'message.crypto.sealed_draft'|trans }}
@@ -220,8 +238,9 @@ Variables:
     {% endif %}
 
     {# ── The reading frame ──────────────────────────────────────────────── #}
-    {% if encryptedHere or sealedDraft %}
-        {# Drawn above, by the browser — or, for a sealed draft, not at all. #}
+    {% if encryptedHere or sealedDraft or sendingSealed %}
+        {# Drawn above, by the browser — or, for a sealed draft and a message
+           still being sent, not at all. #}
     {% elseif render.content.html is not empty %}
 
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: render.content.html } only %}{% endset %}

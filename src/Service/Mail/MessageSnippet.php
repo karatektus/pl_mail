@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Entity\Mail\Message;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The line of preview text under a subject in the list.
@@ -37,15 +35,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Costs no query of its own. The list fetches the two body columns of each
  * row's latest message only — see App\Service\Mail\ThreadRows.
  */
-final class MessageSnippet
+final readonly class MessageSnippet
 {
     /** Enough for the widest row; the template truncates for narrower ones. */
     private const int LENGTH = 200;
-
-    public function __construct(
-        private readonly TranslatorInterface $translator,
-    ) {
-    }
 
     /**
      * How long a block has to be before the preview is willing to start there.
@@ -86,24 +79,22 @@ final class MessageSnippet
             return '';
         }
 
-        return $this->fromBodies($message->bodyHtmlSafe, $message->bodyText, $message->crypto);
+        return $this->fromBodies($message->bodyHtmlSafe, $message->bodyText);
     }
 
     /**
      * The same preview from the two columns alone, for a caller that fetched
      * them without hydrating the Message — see App\Service\Mail\ThreadRows.
      */
-    public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText, ?MessageCrypto $crypto = null): string
+    public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText): string
     {
         // An encrypted message has no body here to preview — the server keeps
         // none, unless the account keeps decrypted mail and a browser has
-        // handed it over (DecryptedMail) — and an empty line in the list reads
-        // as a broken row. Said in words instead, which is also what a reader
-        // needs to know about it.
-        if (null !== $crypto && true === $crypto->isEncrypted() && '' === trim((string) $bodyHtmlSafe) && '' === trim((string) $bodyText)) {
-            return $this->translator->trans('message.crypto.snippet');
-        }
-
+        // handed it over (DecryptedMail) — so its preview is empty. It used to
+        // be "Encrypted message", appended after the subject; the row now says
+        // that with a lock in front of the subject (ThreadRow::$encrypted), in
+        // the place a reader looks first, and the preview line is left to
+        // what the message says when the server has it.
         $fromHtml = $this->flatten((string) $bodyHtmlSafe);
 
         if ('' !== $fromHtml) {

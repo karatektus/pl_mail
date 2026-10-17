@@ -91,6 +91,10 @@ final class SeedTestEmailCommand extends Command
         // sign-in address (WkdDirectory), and every worker's person has a key
         // for mailbox@e2e.test, which no directory could answer for anyway.
         $this->addOption('own-address', null, InputOption::VALUE_NONE, 'Give the mailbox the user\'s own sign-in address');
+        // The seeded account's "email" is a display name, as some IMAP accounts
+        // have, and a mail sent From it is refused before it is built. A spec
+        // that runs the send job (app:test:finish-send) needs an address there.
+        $this->addOption('sendable', null, InputOption::VALUE_NONE, 'Give the account its address as its email, so mail can be sent from it');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -158,6 +162,10 @@ final class SeedTestEmailCommand extends Command
 
             $this->entityManager->persist($account);
             $this->entityManager->flush();
+        }
+
+        if (true === $input->getOption('sendable')) {
+            $account->email = $address;
         }
 
         // isPrimary is a stored choice rather than "whichever account sorts

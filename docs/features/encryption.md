@@ -128,9 +128,11 @@ Keys made by plMail do not expire — as with Proton. Under **Show keys**:
 **Encrypted mail** shows a green lock and *End-to-end encrypted* above it. plMail keeps no readable
 copy of it on the server: your browser fetches the message as it arrived, decrypts it with your
 keys, and shows it like any other mail — attachments included, which download straight from the
-browser. In the list it reads *Encrypted message*. This works for OpenPGP, whether the message is
-PGP/MIME or an armored block in plain text, and for S/MIME once you have imported your certificate
-(see [S/MIME](#smime) below).
+browser. In the list it has a lock in front of its subject and no preview, since the server holds
+no text to preview (with [decrypted mail kept](#keeping-decrypted-mail-on-this-server), the preview
+is back, the lock stays). This works for OpenPGP, whether the message is PGP/MIME or an armored
+block in plain text, and for S/MIME once you have imported your certificate (see [S/MIME](#smime)
+below).
 
 **Signed mail** shows what checking the signature found:
 
@@ -237,7 +239,9 @@ message instead.
 An encrypted message never reaches the server readable, not even as a draft: your browser encrypts
 the draft to your own key before every save, encrypts attachments before they are uploaded, and
 builds and encrypts the whole message — to every recipient and to you, so the copy in *Sent* stays
-readable — when you press Send. Undo, *Send later* and *Sent* work as they always have.
+readable — when you press Send. Undo, *Send later* and *Sent* work as they always have. A reply
+shows in the conversation as being sent until it has gone, and then opens there like any encrypted
+mail of yours.
 
 **Signing.** Encrypted mail is always signed. Unencrypted mail is signed when it goes to somebody
 whose key plMail knows, or always if you turn on **Sign unencrypted mail**.

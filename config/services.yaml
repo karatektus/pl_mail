@@ -446,3 +446,10 @@ when@test:
         App\Service\Crypto\KeyPublishing:
             arguments:
                 $fetcher: '@app.key_server_stub_fetcher'
+
+        # The provider the browser suite sends to: nothing leaves, and the mail
+        # is written to var/test-sent for app:test:finish-send to print. Above
+        # every real sender, claiming only the accounts the suite seeds.
+        App\Tests\Support\Mail\RecordingMailSender:
+            arguments: ['%kernel.project_dir%/var/test-sent']
+            tags: [{ name: app.mail_sender, priority: 200 }]

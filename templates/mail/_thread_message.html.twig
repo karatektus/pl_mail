@@ -175,10 +175,13 @@ Variables:
                 data-mail--thread-message-target="snippet"
                 class="text-xs text-ink-muted truncate py-0.5 {{ expanded ? 'hidden' : '' }}"
             >
-                {% if message.crypto is not null and message.crypto.encrypted %}
-                    {# No body on the server to preview; see MessageSnippet. #}
-                    <i class="fa-solid fa-lock text-[10px] mr-1" aria-hidden="true"></i>{{ 'message.crypto.snippet'|trans }}
-                {% else %}
+                {# An encrypted message with no body here has nothing to
+                   preview: the lock beside the sender says what it is, as the
+                   lock in front of the subject does in the list, and the
+                   "Encrypted message" placeholder this line used to carry is
+                   gone with the list's. A decrypted copy kept on the server
+                   previews like any message. #}
+                {% if message.bodyText %}
                     {{ message.bodyText|slice(0, 200) }}…
                 {% endif %}
             </div>

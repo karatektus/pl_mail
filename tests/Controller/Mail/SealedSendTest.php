@@ -6,6 +6,7 @@ namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Crypto\AddressKey;
@@ -13,6 +14,7 @@ use App\Entity\Crypto\SmimeCertificate;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\SendMessageHandler;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
@@ -23,6 +25,7 @@ use App\Service\Mail\MailSenderRegistry;
 use App\Tests\Support\Crypto\Gpg;
 use App\Tests\Support\Crypto\Smime;
 use App\Tests\Support\Mail\SendsAjaxCsrf;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -81,7 +84,17 @@ final class SealedSendTest extends WebTestCase
         $message = $this->reload($id);
 
         self::assertTrue($message->sealedDraft);
-        self::assertSame(MessageCrypto::PgpEncrypted, $message->crypto, 'the list says "Encrypted message"');
+        self::assertSame(MessageCrypto::PgpEncrypted, $message->crypto, 'the list shows it locked');
+
+        // A lock in front of the subject in Drafts, and no placeholder preview.
+        $row = $client->request('GET', '/mail/drafts')
+            ->filter('#message-list li')
+            ->reduce(static fn ($li): bool => str_contains($li->filter('[data-row-subject]')->text(''), 'Sealed subject'))
+            ->first();
+
+        self::assertCount(1, $row->filter('[data-row-subject] [data-row-encrypted] i.fa-lock'));
+        self::assertSame('', trim($row->filter('[data-row-snippet]')->text()));
+        self::assertStringNotContainsString('Encrypted message', $row->text());
         self::assertNull($message->bodyText);
         self::assertNull($message->bodyHtml);
 
@@ -143,6 +156,75 @@ final class SealedSendTest extends WebTestCase
      * Header protection (RFC 9788): the subject is inside the encryption, so
      * the outside says "..." — and the row keeps the one the person wrote.
      */
+    /**
+     * A reply to encrypted mail, between Send and gone (#28, from testing the
+     * milestone build): the conversation showed it as a draft — "only a
+     * browser with your keys can read it" — and nothing ever said otherwise,
+     * so it sat there until the page was reloaded.
+     *
+     * While the send job holds it the message says it is being sent and asks
+     * the keyring for nothing; the worker's outcome stream then swaps exactly
+     * that message for a frame that loads it as sent, which opens like any
+     * encrypted mail of the person's own.
+     */
+    public function testAMessageBeingSentSaysSoAndIsSwappedForItsSentSelf(): void
+    {
+        $client  = static::createClient();
+        $account = $this->boot($client);
+
+        $id = $this->post($client, $account, '/compose/send', [
+            'draft'        => self::DRAFT,
+            'entity'       => $this->encryptedEntity(),
+            'kind'         => 'encrypted',
+            'fingerprints' => $this->key->fingerprint,
+            'signer'       => $this->key->fingerprint,
+        ], body: '');
+
+        // In a conversation, so the cancel window's end puts it there, as it
+        // does for a reply (compose/_sent.stream.html.twig).
+        $message                   = $this->reload($id);
+        $thread                    = new MessageThread();
+        $thread->account           = $message->account;
+        $thread->subject           = 'Sealed subject';
+        $thread->normalizedSubject = 'sealed subject';
+        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new DateTimeImmutable();
+        $this->em->persist($thread);
+
+        $message->thread = $thread;
+        $this->em->flush();
+
+        $client->request('POST', sprintf('/compose/sent/%d?frame=compose_inline&thread=%d', $id, $thread->id), server: $this->ajaxCsrf($client));
+
+        self::assertResponseIsSuccessful();
+
+        $sending = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString(sprintf('target="thread_messages_%d"', $thread->id), $sending);
+
+        self::assertStringContainsString('data-sending-sealed', $sending);
+        self::assertStringNotContainsString('sealed-draft-note', $sending, 'a message being sent is not a draft');
+        self::assertStringNotContainsString('mail--encrypted-message', $sending, 'nothing to decrypt before it has gone');
+
+        $outcome = static::getContainer()->get('twig')->render('mail/_send_outcome.stream.html.twig', [
+            'message' => $this->reload($id),
+            'sent'    => true,
+        ]);
+
+        self::assertStringContainsString(sprintf('targets="#thread_message_%d:has([data-sending-sealed])"', $id), $outcome);
+        self::assertStringContainsString(sprintf('src="/compose/settled-row/%d"', $id), $outcome);
+
+        $this->runHandler($id);
+
+        $client->request('GET', '/compose/settled-row/' . $id);
+
+        $sent = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString(sprintf('<turbo-frame id="settled_message_%d">', $id), $sent);
+        self::assertStringContainsString('data-controller="mail--encrypted-message"', $sent, 'gone, it opens like any encrypted mail');
+        self::assertStringNotContainsString('data-sending-sealed', $sent);
+    }
+
     public function testAProtectedSubjectStaysInsideTheEncryption(): void
     {
         $client  = static::createClient();

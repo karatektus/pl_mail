@@ -2684,6 +2684,7 @@ message:
         subject: "Subject: %subject%"
         encrypted_kept: "Encrypted on arrival · stored readable on this server"
         sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
+        sending: "Encrypted, and being sent. It opens here once it has gone."
         action:
             accept: "Use the new key"
             lookup: "Look up the key"
@@ -2716,7 +2717,6 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This message is encrypted with S/MIME for a certificate plMail does not have. Import it in Settings → Encryption, or open the message in a mail program that holds it."
         smime_unsupported: "This message is encrypted with a cipher plMail cannot open; only AES is supported."
-        snippet: "Encrypted message"
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '

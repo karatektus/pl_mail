@@ -859,6 +859,31 @@ class ComposeController extends AbstractController
     }
 
     /**
+     * The conversation's message for one whose send has settled, as the frame
+     * the worker's outcome stream put in its place.
+     *
+     * For a message built in the browser — a reply to encrypted mail, most
+     * often. The conversation shows it as being sent while the send job holds
+     * it, because there is nothing to read yet; once the job has finished,
+     * mail/_send_outcome.stream.html.twig swaps it for a frame that loads
+     * this. Rendered here, in the person's own request, rather than in the
+     * worker: the message opens through the keyring, whose CSRF token and
+     * user belong to a session the worker does not have.
+     *
+     * The message says what it became. Sent, it opens like any encrypted mail
+     * of the person's own; refused, it is a draft again, and the row says so.
+     */
+    #[Route('/settled-row/{id}', name: 'settled_row', methods: ['GET'])]
+    public function settledRow(Message $message): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        return $this->render('compose/_settled_row.html.twig', [
+            'message' => $message,
+        ]);
+    }
+
+    /**
      * Discard: the trash button in the compose window really deletes the
      * draft instead of just closing the window on top of it.
      */

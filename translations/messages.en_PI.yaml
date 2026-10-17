@@ -2566,6 +2566,7 @@ message:
         subject: "Subject: %subject%"
         encrypted_kept: "Came aboard in cipher · kept readable on this ship"
         sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
+        sending: "Ciphered, an' under sail. It opens here once she's away."
         action:
             accept: "Use th' new key"
             lookup: "Seek th' key"
@@ -2598,7 +2599,6 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This letter be S/MIME-sealed fer a certificate plMail don't hold. Bring it aboard in Settings → Encryption, or open th' letter in a mail program that holds it."
         smime_unsupported: "This letter be sealed with a cipher plMail can't open; only AES serves."
-        snippet: "Sealed letter"
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "

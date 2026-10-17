@@ -2261,7 +2261,12 @@ export default class extends Controller {
             return;
         }
 
-        dock.src = `/compose/edit/${id}`;
+        // With the thread, as a reply opened below md carries it: the window
+        // is still answering this conversation, and without it the send had
+        // nowhere to put the sent message — compose/_sent.stream.html.twig
+        // only touches the conversation the window says it belongs to, so a
+        // reply sent from the popped-out window never appeared in the thread.
+        dock.src = `/compose/edit/${id}${this.hasThreadValue ? `?thread=${this.threadValue}` : ''}`;
 
         // Put the row back rather than emptying the frame. Popping out moves
         // where the draft is edited; it does not remove the draft from the
@@ -2546,9 +2551,10 @@ export default class extends Controller {
         const clone = this.bodyTarget.cloneNode(true);
 
         // The last two selectors cover drafts written before buildQuotedHtml
-        // marked the quote with data-quoted.
+        // marked the quote with data-quoted. A blockquote in the signature is
+        // the signature's, and goes with it below only while it is untouched.
         clone.querySelectorAll(
-            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+            '[data-quote-wrapped], [data-quoted], blockquote:not([data-pl-signature] blockquote), div[style*="border-top"], div[style*="font-size:0.85em"]',
         ).forEach((node) => node.remove());
 
         // The signature is dropped for the same reason the quote is: it is not

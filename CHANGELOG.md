@@ -160,9 +160,9 @@ the collected keys and pins. Mail that arrived before the update is not searched
 end-to-end encryption.** An OpenPGP-encrypted message, PGP/MIME or inline, now opens in your
 browser with the keys plMail made for you, attachments included; the server keeps no readable copy,
 so it is left out of search, filters on the text, summaries and the assistant, and the list shows
-*Encrypted message*. Signed mail says what its signature is worth — checked, intact but unconfirmed,
-from an unknown key, or not matching — with S/MIME checked against the usual certificate
-authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
+a lock in front of its subject. Signed mail says what its signature is worth — checked, intact but
+unconfirmed, from an unknown key, or not matching — with S/MIME checked against the usual
+certificate authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
 blocked; S/MIME-encrypted mail is recognised but not yet readable. The image gains the PHP `gnupg`
 extension. Three columns are added to the message table; the migration is reversible. Mail synced
 before the update is not re-examined.
@@ -195,6 +195,15 @@ themselves back in). Three columns are added to the user table; the migration is
 schema, but going back down leaves every moved account unable to sign in until
 `app:user:password` resets it.
 [#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
+**A signature with a blockquote in it is no longer indented in the sent mail.** The editor draws a
+blockquote flush left, while the reading pane and every mail program give it the browser's 40px on
+either side, so a signature that wraps a name in one — as signatures pasted from elsewhere often do —
+arrived indented although it never looked that way while writing. The blockquote now carries the
+editor's margin in the mail itself, for signatures already saved too. It was also taken for quoted
+text: the plain-text part of the mail ended where it began, so the signature was missing there, and
+an encrypted message's plain-text part quoted it with `>`. Mail already sent is unchanged. No schema
+change.
 
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
