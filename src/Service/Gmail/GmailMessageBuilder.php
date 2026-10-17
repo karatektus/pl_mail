@@ -252,6 +252,20 @@ final class GmailMessageBuilder
     private const array ALWAYS_KEEP_MIME = ['text/calendar', 'application/ics'];
 
     /**
+     * The Gmail system labels that say where a message sits, and the plMail
+     * roles they map to. See applyTranslatedLabels() $placementIsLocal.
+     */
+    private const array PLACEMENT_LABEL_IDS = ['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM'];
+
+    private const array PLACEMENT_ROLES = [
+        LabelRole::Inbox,
+        LabelRole::Sent,
+        LabelRole::Drafts,
+        LabelRole::Trash,
+        LabelRole::Spam,
+    ];
+
+    /**
      * Walk the MIME tree for the body and the parts worth keeping.
      *
      * @param array<string,mixed> $part
@@ -511,8 +525,23 @@ final class GmailMessageBuilder
      *
      * @param list<string> $labelIds
      */
-    public function applyTranslatedLabels(Message $message, array $labelIds, Account $target, Account $carrier): void
-    {
+    public function applyTranslatedLabels(
+        Message $message,
+        array   $labelIds,
+        Account $target,
+        Account $carrier,
+        bool    $placementIsLocal = false,
+    ): void {
+        // Where a message sits is the folder's word when the row is a sibling
+        // account's own IMAP copy: Gmail only collected the mail, and what it
+        // did with its copy (trashed it, archived it, marked it spam) says
+        // nothing about the copy on the server the sibling actually reads.
+        // Neither the placement ids Gmail reported nor the placement labels
+        // the row already wears are touched, in either direction.
+        if (true === $placementIsLocal) {
+            $labelIds = array_values(array_diff($labelIds, self::PLACEMENT_LABEL_IDS));
+        }
+
         $resolved = $this->labelResolver->resolve($labelIds, $carrier);
 
         /** @var array<int,true> $keep */
@@ -529,6 +558,10 @@ final class GmailMessageBuilder
         // added and then removed by its own pass.
         foreach ($this->labelPolicy->providerLabels($message, $carrier) as $current) {
             if (true === isset($keep[(int) $current->id])) {
+                continue;
+            }
+
+            if (true === $placementIsLocal && true === in_array($current->role, self::PLACEMENT_ROLES, true)) {
                 continue;
             }
 
