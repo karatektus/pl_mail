@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Profile pictures, signature images and backgrounds no longer vanish on a Sunday morning.** The weekly
+clean-up of files nothing points at (`app:prune:blobs`, Sundays at 05:00) walked the whole of the
+uploads, attachments and raw-mail volumes, and took every picture a person had uploaded more than a
+week before for an orphan: it deleted them and the folders they were in. It now sweeps only the
+per-account folders it is responsible for, and leaves the others alone. Pictures already deleted
+cannot be brought back by plMail; upload them again, or restore the uploads volume from a backup.
+No migration. [#214](https://github.com/karatektus/pl_mail/issues/214), by @pmdevelopment.
+
 **Publish your key to keys.openpgp.org, and the feedback from testing — phase 6g of end-to-end
 encryption.** Each key in use under Settings → Encryption → *Show keys* can now be **published to
 keys.openpgp.org**, after a confirmation that says the address is tied to the key in public: the

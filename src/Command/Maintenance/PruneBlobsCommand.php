@@ -42,6 +42,17 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *   2. Orphaned files — files under the three roots with no row pointing at
  *      them. Filesystem-driven.
  *
+ * ONLY THE PER-ACCOUNT DIRECTORIES of each root are swept: the numbered ones
+ * its owner writes (`uploads/<account>/`, `attachments/<n>/…`,
+ * `raw/<account>/…`). Other storages keep files beside them on the same
+ * volumes — profile pictures in uploads/avatars/, signature images in
+ * uploads/signatures/, backgrounds in uploads/backgrounds/, sealed messages
+ * in raw/sealed/ — and no column of this command's names them. Walking the
+ * whole root took every one of those for an orphan: a week after upload,
+ * the Sunday run deleted them and removed their directories (#214). A
+ * directory that is not a number is somebody else's, including one added
+ * later, so the safe answer for it is to leave it alone.
+ *
  * Both respect the same retention window, and the window is what makes the
  * second pass safe: every writer creates the file before committing the row,
  * so a file younger than the cutoff may simply be waiting for its INSERT.
@@ -192,7 +203,7 @@ final class PruneBlobsCommand extends Command
         $files = 0;
         $bytes = 0;
 
-        foreach ($this->walk($absoluteRoot) as $file) {
+        foreach ($this->ownedFiles($absoluteRoot) as $file) {
             // A file younger than the cutoff may be one whose row has not been
             // committed yet. Leave it for the next run.
             if ($file->getMTime() >= $cutoff->getTimestamp()) {
@@ -214,7 +225,10 @@ final class PruneBlobsCommand extends Command
         }
 
         if (false === $dryRun && $files > 0) {
-            $this->removeEmptyDirectories($absoluteRoot);
+            foreach ($this->ownedDirectories($absoluteRoot) as $directory) {
+                $this->removeEmptyDirectories($directory);
+                @rmdir($directory);
+            }
         }
 
         $io->text(sprintf('Orphans in %s: %d (%s).', $root, $files, $this->humanBytes($bytes)));
@@ -249,6 +263,36 @@ final class PruneBlobsCommand extends Command
     /**
      * @return iterable<\SplFileInfo>
      */
+    /**
+     * The numbered directories directly under $root: the ones the store's own
+     * writer makes, and the only ones this command may sweep. See the class
+     * comment and #214.
+     *
+     * @return list<string>
+     */
+    private function ownedDirectories(string $root): array
+    {
+        $directories = [];
+
+        foreach (new \FilesystemIterator($root, \FilesystemIterator::SKIP_DOTS) as $entry) {
+            if ($entry instanceof \SplFileInfo && true === $entry->isDir() && false === $entry->isLink() && 1 === preg_match('/^\d+$/', $entry->getFilename())) {
+                $directories[] = $entry->getPathname();
+            }
+        }
+
+        return $directories;
+    }
+
+    /**
+     * @return iterable<\SplFileInfo>
+     */
+    private function ownedFiles(string $root): iterable
+    {
+        foreach ($this->ownedDirectories($root) as $directory) {
+            yield from $this->walk($directory);
+        }
+    }
+
     private function walk(string $directory): iterable
     {
         $iterator = new \RecursiveIteratorIterator(
