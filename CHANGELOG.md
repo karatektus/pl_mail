@@ -32,6 +32,17 @@ reached Outlook at all, and now does; labels nested under a Gmail label are dele
 it. No schema change.
 [#40](https://github.com/karatektus/pl_mail/issues/40).
 
+**Inline images labelled `application/octet-stream` show up.** Many mailers do not say what an
+inline image is — they label it `application/octet-stream`, or `image/octet-stream`, which is not
+a registered type at all and is what Vaultwarden's notification mails put on their logo — and the
+attachment route served every such part as a download, so the image never appeared in the message. For those labels only, the file's own
+bytes now decide, held to the same allow-list as everything else: a PNG, JPEG, GIF or WebP is
+served inline, while SVG, HTML and anything unrecognised are still downloads. The image proxy
+already did this for unlabelled remote images and now shares the same check, so a remote image
+labelled `image/octet-stream` is now also identified from its bytes and served under its real
+type, rather than passed through under the label it came with. No schema change.
+Part of [#213](https://github.com/karatektus/pl_mail/issues/213).
+
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
 the server only counted To. It now counts all three as well. A mail with no recipient at all is
