@@ -105,9 +105,14 @@ final readonly class IntegrationsStepHandler implements OnboardingStepHandlerInt
 
         $config = $this->connector->requireConnectable($provider);
 
+        // Reconnecting edits the existing connection: (user, provider, name) is
+        // unique, so a fresh entity would collide on save.
+        $integration = $this->integrations->findOneBy(['usr' => $user, 'provider' => $provider])
+            ?? new Integration($user, $provider, $provider->label());
+
         return $this->formFactory->create(
             IntegrationConnectType::class,
-            new Integration($user, $provider, $provider->label()),
+            $integration,
             [
                 'integration_provider' => $provider,
                 'url_editable'         => $this->connector->isUrlEditable($provider, $config),
