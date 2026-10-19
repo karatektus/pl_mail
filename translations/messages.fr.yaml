@@ -3661,6 +3661,7 @@ settings:
         disabled: 'Connexion en pause'
         disconnect: Déconnecter
         disconnect_confirm: 'Déconnecter %name% ? Les fichiers déjà joints à des mails ne sont pas concernés.'
+        disconnect_confirm_calendars: 'Déconnecter %name% ? Ses %count% agenda(s) reflété(s) sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
         disconnected: 'Service déconnecté'
         edit: Modifier
         empty: 'Aucun service connecté pour l’instant.'
@@ -3779,6 +3780,8 @@ settings:
                 reste.
             find: Trouver les agendas de %name%
             heading: D’où viennent les agendas
+            managed: 'Configuré dans Intégrations'
+            managed_hint: '%name% contient aussi vos fichiers. Déconnectez-le dans Réglages → Intégrations.'
             why_admin: >-
                 Votre administrateur n’a peut-être pas ajouté les autorisations
                 d’agenda à l’inscription d’application avec laquelle plMail se
@@ -3801,6 +3804,7 @@ settings:
                 Cochez les agendas de %name% à synchroniser avec plMail. Les
                 événements apparaissent dans la minute qui suit.
             mirrored: Déjà reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
             primary: Principal
             save: Enregistrer les abonnements
             title: Trouver mes agendas

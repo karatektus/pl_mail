@@ -3616,6 +3616,7 @@ settings:
         disabled: 'Connection paused'
         disconnect: Disconnect
         disconnect_confirm: 'Disconnect %name%? Files already attached to mail are unaffected.'
+        disconnect_confirm_calendars: 'Disconnect %name%? Its %count% mirrored calendar(s) are removed here too; events that came from your mail are moved to your default calendar first. Files already attached to mail are unaffected.'
         disconnected: 'Service disconnected'
         edit: Edit
         empty: 'No services connected yet.'
@@ -3732,6 +3733,8 @@ settings:
                 Outlook accounts do; connect a CalDAV server for anything else.
             find: Find calendars on %name%
             heading: Where calendars come from
+            managed: 'Set up in Integrations'
+            managed_hint: '%name% also holds your files. Disconnect it in Settings → Integrations.'
             why_admin: >-
                 Your administrator may not have added calendar permissions to
                 the app registration plMail signs in with. Mail keeps working
@@ -3754,6 +3757,7 @@ settings:
                 Tick the calendars on %name% to keep in step with plMail. Events
                 appear within a minute of ticking one.
             mirrored: Already mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
             primary: Main
             save: Save subscriptions
             title: Find my calendars

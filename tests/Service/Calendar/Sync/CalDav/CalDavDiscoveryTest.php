@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Service\Calendar\Sync\CalDav\DavService;
 use PHPUnit\Framework\TestCase;
@@ -197,6 +198,49 @@ final class CalDavDiscoveryTest extends TestCase
         self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->home);
         self::assertSame('https://dav.example.com/dav/principals/alice/', $endpoint->principal);
         self::assertSame(1, $fixture->requestCount());
+    }
+
+    // ── Nextcloud ─────────────────────────────────────────────────────────────
+
+    /**
+     * A Nextcloud connection holds the web interface's address, so the lookup
+     * starts at /remote.php/dav under it — after a subfolder too, which is
+     * where an origin-based guess would go wrong — and never asks .well-known.
+     */
+    public function testANextcloudConnectionIsLookedUpUnderItsDavRoot(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->principalResponse('/nextcloud/remote.php/dav/')),
+            CalDavFixture::multistatus($this->homeResponse('/dav/principals/alice/')),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://cloud.example.com/nextcloud', Provider::Nextcloud),
+        );
+
+        self::assertSame('https://cloud.example.com/nextcloud/remote.php/dav', $fixture->url(0));
+        self::assertSame('https://cloud.example.com/dav/calendars/alice/', $endpoint->home);
+        self::assertSame(2, $fixture->requestCount(), 'no probe of the web interface, no .well-known');
+    }
+
+    /**
+     * Not a dead end: a Nextcloud behind a proxy that rewrites its paths can
+     * still be found the RFC 6764 way.
+     */
+    public function testANextcloudThatDoesNotAnswerAtItsDavRootFallsBackToWellKnown(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::status(404),
+            CalDavFixture::multistatus($this->homeResponse('/dav/', withPrincipal: true)),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://cloud.example.com', Provider::Nextcloud),
+        );
+
+        self::assertSame('https://cloud.example.com/remote.php/dav', $fixture->url(0));
+        self::assertSame('https://cloud.example.com/.well-known/caldav', $fixture->url(1));
+        self::assertSame('https://cloud.example.com/dav/calendars/alice/', $endpoint->home);
     }
 
     // ── CardDAV ───────────────────────────────────────────────────────────────

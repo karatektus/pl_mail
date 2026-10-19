@@ -3627,6 +3627,7 @@ settings:
         disabled: 'Verbindung pausiert'
         disconnect: Trennen
         disconnect_confirm: '%name% trennen? Bereits angehängte Dateien bleiben unberührt.'
+        disconnect_confirm_calendars: '%name% trennen? Die %count% von dort gespiegelten Kalender werden hier ebenfalls entfernt; Termine aus deinen E-Mails kommen vorher in deinen Standardkalender. Bereits angehängte Dateien bleiben unberührt.'
         disconnected: 'Dienst getrennt'
         edit: Bearbeiten
         empty: 'Noch keine Dienste verbunden.'
@@ -3745,6 +3746,8 @@ settings:
                 einen CalDAV-Server.
             find: Kalender auf %name% suchen
             heading: Woher Kalender kommen
+            managed: 'Unter Integrationen eingerichtet'
+            managed_hint: '%name% enthält auch deine Dateien. Trenne die Verbindung unter Einstellungen → Integrationen.'
             why_admin: >-
                 Vielleicht hat deine Administration der App-Registrierung, mit
                 der plMail sich anmeldet, keine Kalenderberechtigungen gegeben.
@@ -3767,6 +3770,7 @@ settings:
                 Wähle die Kalender auf %name%, die plMail mitführen soll.
                 Termine erscheinen innerhalb einer Minute.
             mirrored: Wird bereits gespiegelt
+            mirrored_elsewhere: 'Wird bereits über %name% gespiegelt'
             primary: Haupt
             save: Auswahl speichern
             title: Meine Kalender finden

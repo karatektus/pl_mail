@@ -183,6 +183,41 @@ final class CalendarSubscriberTest extends KernelTestCase
         self::assertContains($calendar->color, Calendar::COLORS, 'an unparseable colour falls back to the palette');
     }
 
+    /**
+     * The same remote calendar through two of the user's connections — a
+     * CalDAV connection made by hand to a Nextcloud, then the Nextcloud
+     * connection itself (#158). The unique index is per connection, so only
+     * this stops two rows syncing every event twice.
+     */
+    public function testACalendarMirroredThroughAnotherConnectionIsNotMirroredAgain(): void
+    {
+        $remote = [['remoteId' => 'https://cloud.example.invalid/remote.php/dav/calendars/sub/work/', 'name' => 'Work']];
+
+        $this->offer($remote);
+        $this->subscriber->apply($this->source(), [$remote[0]['remoteId']]);
+
+        $nextcloud = new Integration($this->user, Provider::Nextcloud, 'Nextcloud');
+        $nextcloud->baseUrl = 'https://cloud.example.invalid';
+        $nextcloud->setSetting(ScriptedCalendarSyncDriver::SETTINGS_KEY, true);
+        $nextcloud->setSetting(ScriptedCalendarSyncDriver::SETTINGS_CALENDARS, $remote);
+        $this->em->persist($nextcloud);
+        $this->em->flush();
+
+        $source        = CalendarSource::ofIntegration($nextcloud);
+        $subscriptions = $this->discoverer->discover($source);
+
+        self::assertCount(1, $subscriptions);
+        self::assertTrue($subscriptions[0]->isMirroredElsewhere(), 'the screen has to show it locked');
+        self::assertSame('Scripted server', $subscriptions[0]->elsewhereLabel());
+
+        // A crafted POST ticking it anyway: the server half of the lock.
+        $change = $this->subscriber->apply($source, [$remote[0]['remoteId']]);
+
+        self::assertSame(0, $change->subscribed);
+        self::assertSame([], $this->calendars->findMirroredForIntegration($nextcloud));
+        self::assertCount(1, $this->calendars->findMirroredForIntegration($this->integration), 'the first copy is untouched');
+    }
+
     // ── What a fresh subscription starts ──────────────────────────────────
 
     /**

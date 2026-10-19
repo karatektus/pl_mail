@@ -146,6 +146,34 @@ enum Provider: string
     }
 
     /**
+     * Whether Settings → Calendars lists this connection to find calendars on.
+     *
+     * Not the same question as kind(). Nextcloud is a file service — it stays
+     * in the file picker and in "Save to…" — and the same connection, with the
+     * same app password, also serves CalDAV under /remote.php/dav. One
+     * connection gives a person their files and their calendars (#158), so a
+     * calendar list built from kind() alone would ask for the address and the
+     * password a second time.
+     *
+     * Exhaustive for the same reason as kind(): a provider added later must
+     * say whether it carries calendars rather than inherit an answer.
+     */
+    public function offersCalendars(): bool
+    {
+        return match ($this) {
+            self::Nextcloud,
+            self::CalDav,
+            self::Ics          => true,
+            self::Immich,
+            self::Paperless,
+            self::GoogleDrive,
+            self::GooglePhotos,
+            self::OneDrive,
+            self::Dropbox      => false,
+        };
+    }
+
+    /**
      * Exhaustive, with no `default` arm — and that is the point rather than a
      * style preference. It used to fall through to OAuth2, so a provider added
      * later claimed an OAuth flow it had no endpoints for and failed at connect

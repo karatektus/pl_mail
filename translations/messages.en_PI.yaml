@@ -3432,6 +3432,7 @@ settings:
         disabled: 'Line slackened'
         disconnect: 'Cast off'
         disconnect_confirm: 'Cast off from %name%? Cargo already hauled aboard stays put.'
+        disconnect_confirm_calendars: 'Cast off from %name%? Its %count% almanac(s) go overboard with it; what came by mail be stowed in yer default almanac first. Cargo already hauled aboard stays put.'
         disconnected: 'Cast off'
         edit: Edit
         empty: 'No ports moored yet.'
@@ -3548,6 +3549,8 @@ settings:
                 accounts do; for aught else, make fast to a CalDAV port.
             find: Find the almanacs on %name%
             heading: Where almanacs come from
+            managed: 'Rigged under Integrations'
+            managed_hint: '%name% holds yer cargo too. Cut the line in Settings → Integrations.'
             why_admin: >-
                 Yer quartermaster may not have given the papers plMail signs in
                 with any almanac rights. Parrots sail without 'em; almanacs do
@@ -3570,6 +3573,7 @@ settings:
                 Tick the almanacs on %name% for plMail to keep in step with.
                 Reckonin's turn up within the minute.
             mirrored: Already kept in step
+            mirrored_elsewhere: 'Already kept in step through %name%'
             primary: The main one
             save: Stow the choosin'
             title: Find me almanacs

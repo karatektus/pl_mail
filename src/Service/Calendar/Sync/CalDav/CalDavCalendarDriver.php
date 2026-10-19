@@ -158,9 +158,17 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
      */
     public function supports(Provider|CalendarSource $subject): bool
     {
+        // Nextcloud as a calendar source only. A bare Provider is what the
+        // connect and test paths ask, and the Nextcloud connection is made and
+        // verified as a file service by NextcloudDriver — answering yes here
+        // would put it in the "connect a CalDAV server" form as well (#158).
         return match (true) {
             $subject instanceof Provider       => Provider::CalDav === $subject,
-            $subject instanceof CalendarSource => Provider::CalDav === $subject->integrationProvider(),
+            $subject instanceof CalendarSource => in_array(
+                $subject->integrationProvider(),
+                [Provider::CalDav, Provider::Nextcloud],
+                true,
+            ),
         };
     }
 

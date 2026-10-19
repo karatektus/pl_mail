@@ -322,7 +322,10 @@ final class CalendarSettingsController extends AbstractController
 
         $integration = $source->integration;
 
-        if (null === $integration) {
+        // Only a connection made for calendars. A Nextcloud connection also
+        // holds the user's files, so it is disconnected where it was made, in
+        // Settings → Integrations, whose confirmation says what goes with it.
+        if (null === $integration || ServiceKind::Calendar !== $integration->provider->kind()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -385,12 +388,13 @@ final class CalendarSettingsController extends AbstractController
 
         $integration = $this->integrations->find($id);
 
-        // ServiceKind, not the CalDav case: a file connection has no calendars
-        // and no driver, and answering "not yours" for one is more honest than
-        // letting it reach a registry that would say the same thing in a 500.
+        // offersCalendars(), not the CalDav case: most file connections have
+        // no calendars and no driver, and answering "not yours" for one is
+        // more honest than letting it reach a registry that would say the same
+        // thing in a 500. Nextcloud is the file connection that does (#158).
         if (null === $integration
             || $integration->usr !== $user
-            || ServiceKind::Calendar !== $integration->provider->kind()) {
+            || false === $integration->provider->offersCalendars()) {
             throw $this->createAccessDeniedException();
         }
 

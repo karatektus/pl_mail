@@ -20,7 +20,7 @@ or an account that genuinely has no calendars.
 
 Variables:
   calendarAccounts     Account[]      accounts with a calendar service behind them
-  calendarConnections  Integration[]  CalDAV and anything else of ServiceKind::Calendar
+  calendarConnections  Integration[]  CalDAV, ICS and Nextcloud — Provider::offersCalendars()
 #}
 {% set has_sources = calendarAccounts is not empty or calendarConnections is not empty %}
 
@@ -107,6 +107,17 @@ Variables:
                         {{ 'settings.calendars.sources.find'|trans({ '%name%': connection.name }) }}
                     </button>
 
+                    {# A Nextcloud connection also holds the user's files, so
+                       it is disconnected in Settings → Integrations, where it
+                       was made and where the confirmation says what goes with
+                       it. A link-slash here would read as "stop the
+                       calendars" and remove the files too. #}
+                    {% if connection.provider.kind.value != 'calendar' %}
+                        <span class="shrink-0 text-[11px] text-ink-faint"
+                              title="{{ 'settings.calendars.sources.managed_hint'|trans({ '%name%': connection.name }) }}">
+                            {{ 'settings.calendars.sources.managed'|trans }}
+                        </span>
+                    {% else %}
                     {# The confirmation names the connection and says the
                        mirrored calendars go with it, because they do — and
                        what only exists here moves rather than going with
@@ -124,6 +135,7 @@ Variables:
                             <i class="fa-solid fa-link-slash text-xs" aria-hidden="true"></i>
                         </button>
                     </form>
+                    {% endif %}
                 </li>
             {% endfor %}
         </ul>
