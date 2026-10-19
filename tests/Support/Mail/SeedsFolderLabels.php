@@ -78,6 +78,9 @@ trait SeedsFolderLabels
         $mailbox->delimiter     = '/';
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;
+        // Imported: a folder whose import is still running is not one that
+        // can be deleted yet, and that is its own test.
+        $mailbox->importFloorUid = 0;
 
         $this->em->persist($mailbox);
         $this->em->flush();

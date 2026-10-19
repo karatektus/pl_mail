@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Job\JobState;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
@@ -56,6 +58,15 @@ use Throwable;
  * (mail the sync never imported, a move the server refused) the job fails
  * saying so, and the label and the folder both stay. Nothing here deletes mail
  * to make progress.
+ *
+ * While it waits, the job says which folder it is waiting for (`view.waitingOn`,
+ * read by the jobs indicator): a bar standing full for minutes with nothing
+ * beside it reads as a job that hung.
+ *
+ * A server that refuses the delete itself is not waited for. That is
+ * LabelDeleteRefusedException, the server's answer rather than a passing
+ * outage, and the job ends on it at once with the server's own words — it
+ * used to sit through all forty attempts first.
  */
 #[AsMessageHandler]
 final readonly class DeleteLabelHandler
@@ -122,6 +133,10 @@ final readonly class DeleteLabelHandler
             if (DeleteLabelMessage::PHASE_MOVE === $message->phase) {
                 $moved = $this->move($job, $label);
 
+                if (0 < $moved) {
+                    $this->markWaiting($message->jobId, $label->fullName);
+                }
+
                 // Straight on when nothing moved — empty folders have no queued
                 // moves to wait for, and a person deleting one should not watch
                 // a spinner for fifteen seconds for nothing.
@@ -171,9 +186,15 @@ final readonly class DeleteLabelHandler
             $this->deletion->folderBindings($label),
         );
 
-        $job->begin($this->deletion->mailInFolders($label));
+        $total = $this->deletion->mailInFolders($label);
+
+        $job->begin($total);
         $this->em->flush();
         $this->notifier->changed($job);
+
+        if (0 < $total && null !== $destinationId) {
+            $this->prepareDestinations($label, $destinationId, $locale);
+        }
 
         $processed = 0;
 
@@ -232,6 +253,54 @@ final readonly class DeleteLabelHandler
     }
 
     /**
+     * Create, before anything moves, the system folder each IMAP account's
+     * mail is about to be filed into — see RemoteLabelRemover::prepareDestination()
+     * for what goes wrong without it.
+     *
+     * Which folder that is depends on the account. Archive and Trash are
+     * themselves. A label of the user's own that is a folder on this account
+     * needs nothing; one that is not is a tag here, and taking mail out of the
+     * folder it was in and into a tag is the archive (LabelChangePropagator),
+     * so Archive it is. The Inbox exists on every IMAP server.
+     */
+    private function prepareDestinations(Label $label, int $destinationId, ?string $locale): void
+    {
+        $destination = $this->labels->find($destinationId);
+
+        if (null === $destination) {
+            return;
+        }
+
+        $prepared = [];
+
+        foreach ($this->deletion->folderBindings($label) as $binding) {
+            $account = $binding->account;
+
+            if (null === $account || null === $binding->mailbox || isset($prepared[$account->id])) {
+                continue;
+            }
+
+            $prepared[$account->id] = true;
+
+            $role = match (true) {
+                null !== $destination->role                                  => $destination->role,
+                null !== $destination->bindingFor($account)?->mailbox        => null,
+                default                                                      => LabelRole::Archive,
+            };
+
+            if (null === $role) {
+                continue;
+            }
+
+            if (false === $this->remover->prepareDestination($account, $role)) {
+                throw new \RuntimeException($this->say($locale, 'label.delete.failed_destination_create', [
+                    '%name%' => $this->translator->trans('sidebar.nav.' . $role->value, [], null, $locale),
+                ]));
+            }
+        }
+    }
+
+    /**
      * Delete the folders on the server, children first, and the label here
      * once nothing of it is left there.
      */
@@ -244,8 +313,9 @@ final readonly class DeleteLabelHandler
             return;
         }
 
-        $waitingOn = null;
-        $error     = null;
+        /** @var list<string> $waiting full names of the labels still on the server */
+        $waiting = [];
+        $error   = null;
 
         // Every binding in the subtree, not only the folders: a nested label
         // that is a Gmail label on another account goes with its parent, and
@@ -255,28 +325,47 @@ final readonly class DeleteLabelHandler
             foreach ($member->bindings as $binding) {
                 try {
                     if (false === $this->remover->remove($binding)) {
-                        $waitingOn ??= $member->fullName;
+                        $waiting[] = $member->fullName;
                     }
+                } catch (LabelDeleteRefusedException $e) {
+                    $this->logger->warning('DeleteLabelHandler: the server refused to delete a folder, ending the job', [
+                        'jobId'     => $message->jobId,
+                        'label'     => $e->folder,
+                        'error'     => $e->getMessage(),
+                        'exception' => $e,
+                    ]);
+
+                    // Ended now, and the label kept: whatever was deleted on
+                    // the server before this is gone, and the label is what
+                    // shows the person what is left.
+                    $this->finish($message->jobId, JobState::Failed, $this->say(
+                        $job->usr->locale,
+                        'label.delete.failed_server',
+                        ['%name%' => $e->folder, '%error%' => $e->getMessage()],
+                    ));
+
+                    return;
                 } catch (Throwable $e) {
-                    // A server that did not answer, or refused. Waited out like
-                    // a folder that is not empty yet — most of these are a
-                    // connection that works the next time — and named in the
-                    // job's failure if it never does.
-                    $this->logger->warning('DeleteLabelHandler: the server refused part of a label delete, will ask again', [
+                    // A server that could not be reached, or asked to slow down
+                    // — anything short of an answer to the delete. Waited out
+                    // like a folder that is not empty yet, since most of these
+                    // work the next time, and named in the job's failure if it
+                    // never does.
+                    $this->logger->warning('DeleteLabelHandler: the server could not be asked about part of a label delete, will ask again', [
                         'jobId'     => $message->jobId,
                         'label'     => $member->fullName,
                         'error'     => $e->getMessage(),
                         'exception' => $e,
                     ]);
 
-                    $waitingOn ??= $member->fullName;
-                    $error     ??= $e->getMessage();
+                    $waiting[] = $member->fullName;
+                    $error   ??= $e->getMessage();
                 }
             }
         }
 
-        if (null !== $waitingOn) {
-            $this->waitOrGiveUp($message, $job, $waitingOn, $error);
+        if ([] !== $waiting) {
+            $this->waitOrGiveUp($message, $job, $waiting[0], $error);
 
             return;
         }
@@ -336,14 +425,40 @@ final readonly class DeleteLabelHandler
         }
 
         // A stamp on the job, or the reaper would read ten minutes of waiting
-        // as a worker that died.
+        // as a worker that died — and the folder it is waiting for, for the
+        // person reading the indicator.
         $job->advance($job->processed);
         $this->em->flush();
+
+        $this->markWaiting($message->jobId, $folder);
 
         $this->bus->dispatch(
             new DeleteLabelMessage($message->jobId, DeleteLabelMessage::PHASE_REMOTE, $message->attempt + 1),
             [new DelayStamp(self::REMOTE_DELAY_MS)],
         );
+    }
+
+    /**
+     * Record on the job which folder it is waiting for the server to empty,
+     * and tell the indicator to redraw.
+     *
+     * On the job's view rather than a column of its own: it is read by one
+     * template for one kind of job, and the view is already the place a job
+     * keeps what is particular to its kind (a move's target, a snooze's time).
+     */
+    private function markWaiting(int $jobId, string $folder): void
+    {
+        $job = $this->jobs->find($jobId);
+
+        if (null === $job || false === $job->isActive()) {
+            return;
+        }
+
+        // A new array, not an element written into the old one: Doctrine
+        // compares a json column by value, and this is the change it sees.
+        $job->view = [...$job->view, 'waitingOn' => $folder];
+        $this->em->flush();
+        $this->notifier->changed($job);
     }
 
     /**

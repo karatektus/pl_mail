@@ -13,8 +13,11 @@ folder on Outlook, deleting a label left its folder on the mail server, and the 
 label again. Deleting one now deletes the folder there too. When there is mail in it, the delete
 dialog first asks where that mail goes — Inbox, Archive, Trash or one of your other folders — moves
 it there, deletes the folder once the server says it is empty, and only then removes the label. This
-runs in the background and shows in the activity indicator; a folder that still holds mail on the
-server is never deleted, and the indicator says which one it was. Deleting an Outlook category never
+runs in the background and shows in the activity indicator, which names the folder it is waiting
+for; a folder that still holds mail on the server is never deleted, and a server that refuses the
+delete ends it at once with its reason. A folder still being imported is deleted only once its
+import has finished. A folder plMail creates on an IMAP server (an Archive or Trash it did not have
+yet) no longer shows as "Importing" in the activity indicator. Deleting an Outlook category never
 reached Outlook at all, and now does; labels nested under a Gmail label are deleted in Gmail with
 it. No schema change.
 [#40](https://github.com/karatektus/pl_mail/issues/40).

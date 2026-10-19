@@ -401,6 +401,12 @@ final class LabelController extends AbstractController
             }
         }
 
+        // Mail still arriving from the server: the count the dialog showed is
+        // short, and the folder would not empty. See LabelDeletion::stillImporting().
+        if (0 < count($form->getErrors())) {
+            return $this->renderDeleteDialog($label, $form, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $destination = null;
 
         if (true === $form->has('destination')) {
@@ -460,10 +466,22 @@ final class LabelController extends AbstractController
                 : $this->translator->trans('sidebar.nav.' . $destination->role->value);
         }
 
-        return $this->createForm(LabelDeleteType::class, null, [
+        $form = $this->createForm(LabelDeleteType::class, null, [
             'action'       => $this->generateUrl('app_label_delete', ['id' => $label->id]),
             'destinations' => $destinations,
         ]);
+
+        // Said on the dialog itself, before anybody presses anything, and
+        // refused by the route if they press Delete anyway.
+        $importing = $this->deletion->stillImporting($label);
+
+        if (null !== $importing) {
+            $form->addError(new FormError(
+                $this->translator->trans('label.delete.still_importing', ['%name%' => $importing]),
+            ));
+        }
+
+        return $form;
     }
 
     private function renderDeleteDialog(Label $label, FormInterface $form, int $status = Response::HTTP_OK): Response

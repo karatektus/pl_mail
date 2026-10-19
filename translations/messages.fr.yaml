@@ -2289,13 +2289,16 @@ label:
         destination: Déplacer son courrier vers
         destination_placeholder: '— choisissez une destination —'
         destination_required: 'Choisissez où va le courrier. Le dossier n’est pas supprimé tant qu’il contient du courrier.'
+        failed_destination_create: 'Le serveur de messagerie n’a pas créé le dossier %name% où devait aller le courrier. Rien n’a été déplacé ni supprimé.'
         failed_destination_gone: 'La destination choisie pour le courrier n’existe plus. Supprimez à nouveau le libellé et choisissez-en une autre.'
         failed_new_mail: 'Du nouveau courrier est arrivé dans le dossier après la suppression. Supprimez à nouveau le libellé pour choisir où il va.'
         failed_not_empty: 'Le dossier « %name% » contient encore du courrier sur le serveur, il n’a donc pas été supprimé. Déplacez ce courrier dans votre client de messagerie, puis supprimez à nouveau le libellé.'
         failed_server: 'Le serveur de messagerie n’a pas supprimé « %name% » : %error%'
         mail_count: 'Il contient %count% message(s). Ils sont déplacés vers la destination choisie ci-dessous avant la suppression du dossier.'
         on_server: 'C’est un dossier sur votre serveur de messagerie : le dossier y est donc supprimé aussi.'
+        still_importing: 'plMail importe encore le courrier de « %name% » depuis le serveur. Supprimez-le une fois l’import terminé, pour que rien n’en reste en arrière.'
         title: 'Supprimer « %name% »'
+        waiting: 'En attente que le serveur de messagerie vide « %name% » avant de le supprimer.'
     delete_confirm: 'Supprimer le libellé « %name% » ? Il disparaît de tous les comptes. Les messages gardent leurs autres libellés et ne sont pas supprimés.'
     delete_confirm_children: 'Supprimer « %name% » et ses %count% libellé(s) imbriqué(s) ? Ils disparaissent de tous les comptes. Les messages ne sont pas supprimés.'
     deleted: Libellé supprimé.

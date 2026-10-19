@@ -2278,13 +2278,16 @@ label:
         destination: Move its mail to
         destination_placeholder: '— choose where it goes —'
         destination_required: 'Choose where the mail goes. The folder is not deleted while there is mail in it.'
+        failed_destination_create: 'The mail server would not create the %name% folder the mail was to go to. Nothing was moved or deleted.'
         failed_destination_gone: 'The place you chose for the mail no longer exists. Delete the label again and choose another.'
         failed_new_mail: 'New mail arrived in the folder after you pressed Delete. Delete the label again to choose where it goes.'
         failed_not_empty: 'The folder "%name%" still holds mail on the server, so it was not deleted. Move that mail in your mail client, then delete the label again.'
         failed_server: 'The mail server would not delete "%name%": %error%'
         mail_count: '%count% message(s) are in it. They are moved to the place you choose below before the folder is deleted.'
         on_server: 'It is a folder on your mail server, so the folder is deleted there too.'
+        still_importing: 'plMail is still importing the mail in "%name%" from the server. Delete it once the import has finished, so none of that mail is left behind.'
         title: 'Delete "%name%"'
+        waiting: 'Waiting for the mail server to empty "%name%" before deleting it.'
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.

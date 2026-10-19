@@ -2279,13 +2279,16 @@ label:
         destination: Mail verschieben nach
         destination_placeholder: '— wähle ein Ziel —'
         destination_required: 'Wähle, wohin die Mail soll. Der Ordner wird nicht gelöscht, solange Mail darin liegt.'
+        failed_destination_create: 'Der Mailserver hat den Ordner %name%, in den die Mail sollte, nicht angelegt. Es wurde nichts verschoben oder gelöscht.'
         failed_destination_gone: 'Das Ziel, das du für die Mail gewählt hast, gibt es nicht mehr. Lösche das Label noch einmal und wähle ein anderes.'
         failed_new_mail: 'Nachdem du auf Löschen gedrückt hast, ist neue Mail im Ordner angekommen. Lösche das Label noch einmal, um zu wählen, wohin sie soll.'
         failed_not_empty: 'Im Ordner "%name%" liegt auf dem Server noch Mail, deshalb wurde er nicht gelöscht. Verschiebe diese Mail in deinem Mailprogramm und lösche das Label dann noch einmal.'
         failed_server: 'Der Mailserver hat "%name%" nicht gelöscht: %error%'
         mail_count: 'Darin liegen %count% Nachricht(en). Sie werden an das Ziel verschoben, das du unten wählst, bevor der Ordner gelöscht wird.'
         on_server: 'Es ist ein Ordner auf deinem Mailserver, deshalb wird der Ordner dort auch gelöscht.'
+        still_importing: 'plMail importiert die Mail in "%name%" noch vom Server. Lösche es, sobald der Import fertig ist, damit nichts davon zurückbleibt.'
         title: '"%name%" löschen'
+        waiting: 'Wartet, bis "%name%" auf dem Mailserver leer ist, und löscht den Ordner dann.'
     delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.

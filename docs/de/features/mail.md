@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e351d46f5deaeab71b3357e61122471f249ef405 -->
+<!-- translated-from: features/mail.md sha1:d39cfffa143114c313d19f8ecc9a5a3f1d5266f8 -->
 
 # Mail
 
@@ -531,8 +531,11 @@ das Label nicht zurückbringt. Ein Ordner lässt sich nicht löschen, solange Ma
 welche darin, fragt der Dialog deshalb zuerst, wohin sie soll: **Posteingang**, **Archiv**,
 **Papierkorb** oder einer deiner anderen Ordner. Die Mail wird verschoben, der Ordner wird gelöscht,
 sobald der Server ihn leer meldet, und erst dann verschwindet das Label. Das läuft im Hintergrund und
-erscheint in der Aktivitätsanzeige. Liegt auf dem Server noch Mail, die plMail nie importiert hat,
-wird nichts gelöscht: Ordner und Label bleiben, und die Anzeige nennt den Ordner. Ein Gmail-Label
+erscheint in der Aktivitätsanzeige, die auch sagt, auf welchen Ordner sie wartet. Liegt auf dem
+Server noch Mail, die plMail nie importiert hat, wird nichts gelöscht: Ordner und Label bleiben, und
+die Anzeige nennt den Ordner. Lehnt der Server das Löschen des Ordners ab, endet der Vorgang sofort
+mit der Begründung des Servers, und das Label bleibt. Einen Ordner, dessen Mail plMail noch
+importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt dir das. Ein Gmail-Label
 oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
 und verschiebt nichts.
 

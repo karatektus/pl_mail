@@ -136,6 +136,28 @@ final readonly class LabelDeletion
     }
 
     /**
+     * The first folder in the subtree whose mail plMail is still importing,
+     * by the label's full name, or null when there is none.
+     *
+     * A folder like that has mail on the server that is not here yet, so the
+     * count above says less than the server would: the dialog asks nothing
+     * (or too little), nothing is moved for the mail that has not arrived,
+     * and the server then reports the folder full for the ten minutes the job
+     * waits before it gives up. Asked first, the delete simply waits until
+     * the import is done.
+     */
+    public function stillImporting(Label $label): ?string
+    {
+        foreach ($this->folderBindings($label) as $binding) {
+            if (true === $binding->mailbox?->isImporting()) {
+                return $binding->label?->fullName;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Where the mail may go, as dropdown value => the label it stands for.
      *
      * The three system places, then the user's own labels that are a folder on

@@ -7,9 +7,11 @@ namespace App\Tests\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Handler\DeleteLabelHandler;
 use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
@@ -129,6 +131,44 @@ final class DeleteLabelHandlerTest extends KernelTestCase
         self::assertContains('Archive', $this->labelNames($this->em->find(Message::class, $message->id)));
     }
 
+    /**
+     * The account has no Archive yet: it is made before anything moves, so the
+     * moved rows have a folder to point at. Without it they stayed pointing at
+     * the folder being deleted, and the delete waited on them for ever.
+     */
+    public function testAMissingArchiveIsCreatedBeforeTheMailMoves(): void
+    {
+        $label    = $this->folderLabel(['Old']);
+        $prepared = new ArrayObject();
+        $this->messageIn($label, 'Keep me');
+
+        $job = $this->job($label, $this->systemLabel(LabelRole::Archive));
+
+        $this->handler(serverIsEmpty: true, prepared: $prepared)(new DeleteLabelMessage((int) $job->id));
+
+        self::assertSame(['archive'], $prepared->getArrayCopy());
+    }
+
+    /** A server that will not make the folder: nothing moves, the job says why. */
+    public function testADestinationTheServerWillNotCreateMovesNothing(): void
+    {
+        $label   = $this->folderLabel(['Old']);
+        $message = $this->messageIn($label, 'Stay put');
+        $job     = $this->job($label, $this->systemLabel(LabelRole::Trash));
+
+        $this->handler(serverIsEmpty: true, canCreate: false)(new DeleteLabelMessage((int) $job->id));
+
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Failed, $fresh->state);
+        self::assertStringContainsString('Trash', (string) $fresh->failureReason);
+        self::assertContains('Old', $this->labelNames($this->em->find(Message::class, $message->id)));
+        self::assertCount(0, $this->dispatched);
+    }
+
     /** Empty folders have nothing in flight to wait for. */
     public function testNothingToMoveGoesStraightToTheServer(): void
     {
@@ -224,6 +264,46 @@ final class DeleteLabelHandlerTest extends KernelTestCase
         self::assertCount(0, $this->dispatched);
     }
 
+    /**
+     * A server that says no to the delete is not asked again for ten minutes:
+     * the job ends now, in the server's words, and the label stays.
+     */
+    public function testARefusedDeleteEndsTheJobAtOnce(): void
+    {
+        $label = $this->folderLabel(['Protected']);
+        $job   = $this->job($label, null);
+
+        $this->handler(serverIsEmpty: true, refuses: true)(
+            new DeleteLabelMessage((int) $job->id, DeleteLabelMessage::PHASE_REMOTE),
+        );
+
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Failed, $fresh->state);
+        self::assertStringContainsString('Protected', (string) $fresh->failureReason);
+        self::assertStringContainsString('Permission denied', (string) $fresh->failureReason);
+        self::assertNotNull($this->em->find(Label::class, $label->id));
+        self::assertCount(0, $this->dispatched, 'a refusal was queued to be asked again');
+    }
+
+    /** While it waits, the job says for which folder — that is the indicator's line. */
+    public function testAWaitingJobSaysWhichFolderItIsWaitingFor(): void
+    {
+        $label = $this->folderLabel(['Busy']);
+        $job   = $this->job($label, null);
+
+        $this->handler(serverIsEmpty: false)(
+            new DeleteLabelMessage((int) $job->id, DeleteLabelMessage::PHASE_REMOTE),
+        );
+
+        $this->em->clear();
+
+        self::assertSame('Busy', $this->em->find(BackgroundJob::class, $job->id)?->view['waitingOn'] ?? null);
+    }
+
     /** Mail that arrived after the dialog said the folder was empty. */
     public function testMailWithNoChosenDestinationIsNotMovedAnywhere(): void
     {
@@ -258,24 +338,55 @@ final class DeleteLabelHandlerTest extends KernelTestCase
     }
 
     /**
-     * @param ArrayObject<int, string>|null $removed full names, in the order
-     *                                              the double was asked
+     * @param ArrayObject<int, string>|null $removed  full names, in the order
+     *                                               the double was asked
+     * @param ArrayObject<int, string>|null $prepared roles the double was
+     *                                               asked to create a folder for
      */
-    private function handler(bool $serverIsEmpty, ?ArrayObject $removed = null): DeleteLabelHandler
+    private function handler(
+        bool         $serverIsEmpty,
+        ?ArrayObject $removed = null,
+        bool         $refuses = false,
+        ?ArrayObject $prepared = null,
+        bool         $canCreate = true,
+    ): DeleteLabelHandler
     {
         $container  = self::getContainer();
         $dispatched = $this->dispatched;
         $removed  ??= new ArrayObject();
+        $prepared ??= new ArrayObject();
 
-        $remover = new readonly class ($serverIsEmpty, $removed) extends RemoteLabelRemover {
-            /** @param ArrayObject<int, string> $removed */
-            public function __construct(private bool $empty, private ArrayObject $removed)
+        $remover = new readonly class ($serverIsEmpty, $removed, $refuses, $prepared, $canCreate) extends RemoteLabelRemover {
+            /**
+             * @param ArrayObject<int, string> $removed
+             * @param ArrayObject<int, string> $prepared
+             */
+            public function __construct(
+                private bool        $empty,
+                private ArrayObject $removed,
+                private bool        $refuses,
+                private ArrayObject $prepared,
+                private bool        $canCreate,
+            ) {
+            }
+
+            public function prepareDestination(Account $account, LabelRole $role): bool
             {
+                $this->prepared[] = $role->value;
+
+                return $this->canCreate;
             }
 
             public function remove(LabelBinding $binding): bool
             {
                 $this->removed[] = (string) $binding->label?->fullName;
+
+                if (true === $this->refuses) {
+                    throw new LabelDeleteRefusedException(
+                        (string) $binding->label?->fullName,
+                        new \RuntimeException('NO [NOPERM] Permission denied'),
+                    );
+                }
 
                 return $this->empty;
             }

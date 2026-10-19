@@ -143,6 +143,32 @@ final class LabelDeleteTest extends WebTestCase
         self::assertNotNull($job->view['destinationId'] ?? null);
     }
 
+    /**
+     * A folder still being imported has mail on the server that is not here
+     * yet: the count would be short and the folder would never empty. The
+     * dialog says so, and the route will not start.
+     */
+    public function testAFolderStillBeingImportedIsNotDeletedYet(): void
+    {
+        $label = $this->folderLabel(['Arriving']);
+        $mailbox = $label->bindingFor($this->account)?->mailbox;
+
+        self::assertNotNull($mailbox);
+
+        $mailbox->importFloorUid = 40;
+        $this->em->flush();
+
+        $this->client->request('GET', sprintf('/labels/%d/delete', $label->id));
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[role="alert"]', 'still importing');
+
+        $this->delete($label);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->jobsFor($label->id));
+    }
+
     /** Pressed twice: the second press says it is under way, and starts nothing. */
     public function testASecondPressDoesNotStartASecondJob(): void
     {

@@ -479,9 +479,11 @@ folder on Outlook — the folder is deleted there as well, so the next sync does
 back. A folder cannot be deleted with mail still in it, so if there is any, the dialog asks where it
 goes first: **Inbox**, **Archive**, **Trash**, or one of your other folders. The mail is moved, the
 folder is deleted once the server says it is empty, and only then does the label go. This runs in
-the background and shows in the activity indicator. If the server still holds mail plMail never
-imported, nothing is deleted: the folder and the label stay, and the indicator says which folder it
-was. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
+the background and shows in the activity indicator, which says which folder it is waiting for. If
+the server still holds mail plMail never imported, nothing is deleted: the folder and the label stay,
+and the indicator says which folder it was. If the server refuses to delete the folder, the job stops
+at once with the server's reason, and the label stays. A folder whose mail plMail is still importing
+cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
 and moves nothing.
 
 ### Move to

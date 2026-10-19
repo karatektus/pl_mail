@@ -6,6 +6,8 @@ namespace App\Tests\Service\Label;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Exception\GraphApiException;
+use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
@@ -45,6 +47,9 @@ final class GraphLabelDeleteTest extends KernelTestCase
 
     /** @var int how many folders Exchange says are inside it */
     private int $childFolders = 0;
+
+    /** @var int what Exchange answers a DELETE with */
+    private int $deleteStatus = 204;
 
     protected function setUp(): void
     {
@@ -120,6 +125,41 @@ final class GraphLabelDeleteTest extends KernelTestCase
         self::assertNotContains('DELETE /me/mailFolders/folder-1', $this->requests);
     }
 
+    /** Exchange saying no to the delete is its answer, and ends the job. */
+    public function testAForbiddenDeleteIsARefusal(): void
+    {
+        $this->deleteStatus = 403;
+        $binding            = $this->folderBinding();
+
+        try {
+            $this->remover()->remove($binding);
+            self::fail('a 403 on the delete was not reported as a refusal');
+        } catch (LabelDeleteRefusedException $e) {
+            self::assertSame('Receipts', $e->folder);
+        }
+
+        self::assertSame('folder-1', $binding->graphFolderId, 'a refused folder was forgotten');
+    }
+
+    /** Exchange failing on its own side is weather, and is waited out. */
+    public function testAServerErrorOnTheDeleteIsNotARefusal(): void
+    {
+        $this->deleteStatus = 503;
+        $binding            = $this->folderBinding();
+
+        try {
+            $this->remover()->remove($binding);
+            self::fail('a 503 on the delete was swallowed');
+        } catch (LabelDeleteRefusedException) {
+            self::fail('a 503 on the delete was reported as a refusal');
+        } catch (GraphApiException) {
+            // GraphApiClient reads a 503 as Exchange asking to slow down; what
+            // matters here is only that it reached the caller as itself, which
+            // the catch above it already rules out being a refusal.
+            $this->addToAssertionCount(1);
+        }
+    }
+
     public function testAnEmptyFolderIsDeletedAndForgotten(): void
     {
         $binding = $this->folderBinding();
@@ -170,6 +210,10 @@ final class GraphLabelDeleteTest extends KernelTestCase
                 return $this->json(['totalItemCount' => $this->folderItems, 'childFolderCount' => $this->childFolders]);
             }
 
+            if ('DELETE' === $method) {
+                return new MockResponse(204 === $this->deleteStatus ? '' : '{"error":{"code":"ErrorAccessDenied"}}', ['http_code' => $this->deleteStatus]);
+            }
+
             return new MockResponse('', ['http_code' => 204]);
         });
 
@@ -205,6 +249,8 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get('App\Service\Mail\GmailApiClient'),
             $this->graph(),
             $container->get('App\Repository\Mail\MessageRepository'),
+            $container->get('App\Service\Imap\ImapFolderProvisioner'),
+            $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
         );
