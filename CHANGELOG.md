@@ -20,8 +20,9 @@ Nextcloud shows as *Already mirrored through …* and cannot be ticked a second 
 connections are left as they are. No schema change.
 [#158](https://github.com/karatektus/pl_mail/issues/158).
 
-**Contacts from a CardDAV server.** Connect Nextcloud, Radicale, Baïkal, Fastmail or iCloud under
-**Settings → Contacts**, tick the address books to mirror, and their contacts are suggested when you
+**Contacts from a CardDAV server.** Connect Radicale, Baïkal, Fastmail or iCloud under
+**Settings → Contacts** — a Nextcloud already connected under Settings → Integrations is listed
+there with no second connection to make — tick the address books to mirror, and their contacts are suggested when you
 address a message — ranked after the people you actually write to, before addresses you only ever
 typed once. A new **Contacts** page (in the user menu) lists, searches, creates, edits and deletes
 them, and every change is sent back to the server; a photo, a birthday or anything else plMail has

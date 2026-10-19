@@ -3704,7 +3704,7 @@ settings:
         disabled: 'Connexion en pause'
         disconnect: Déconnecter
         disconnect_confirm: 'Déconnecter %name% ? Les fichiers déjà joints à des mails ne sont pas concernés.'
-        disconnect_confirm_calendars: 'Déconnecter %name% ? Ses %count% agenda(s) reflété(s) sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
+        disconnect_confirm_mirrored: 'Déconnecter %name% ? %calendars% agenda(s) et %books% carnet(s) d’adresses reflétés depuis ce service sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
         disconnected: 'Service déconnecté'
         edit: Modifier
         empty: 'Aucun service connecté pour l’instant.'

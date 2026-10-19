@@ -94,9 +94,28 @@ final class ProviderTest extends TestCase
             self::assertTrue($provider->offersCalendars(), $provider->value . ' is a calendar service');
         }
 
-        foreach ([Provider::Immich, Provider::Paperless, Provider::GoogleDrive, Provider::GooglePhotos, Provider::OneDrive, Provider::Dropbox] as $provider) {
+        foreach ([Provider::Immich, Provider::Paperless, Provider::GoogleDrive, Provider::GooglePhotos, Provider::OneDrive, Provider::Dropbox, Provider::CardDav] as $provider) {
             self::assertFalse($provider->offersCalendars(), $provider->value . ' has no calendars to offer');
         }
+    }
+
+    /** The same connection carries the address books, beside CardDAV's own. */
+    public function testNextcloudAndCardDavOfferAddressBooksAndNothingElseDoes(): void
+    {
+        foreach (Provider::cases() as $provider) {
+            self::assertSame(
+                in_array($provider, [Provider::Nextcloud, Provider::CardDav], true),
+                $provider->offersAddressBooks(),
+                $provider->value,
+            );
+        }
+
+        // Exhaustive: every case answers offersCalendars() without an
+        // UnhandledMatchError, since the calendar lister asks it of all of them.
+        self::assertCount(
+            count(Provider::cases()),
+            array_map(static fn (Provider $provider): bool => $provider->offersCalendars(), Provider::cases()),
+        );
     }
 
     /**

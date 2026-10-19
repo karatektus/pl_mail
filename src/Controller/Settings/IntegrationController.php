@@ -12,6 +12,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
 use App\Form\Integration\IntegrationConnectType;
+use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
@@ -51,6 +52,7 @@ final class IntegrationController extends AbstractController
         private readonly EntityManagerInterface              $em,
         private readonly CalendarSubscriber                  $calendarSubscriber,
         private readonly CalendarRepository                  $calendarRepository,
+        private readonly AddressBookRepository               $addressBookRepository,
     ) {
     }
 
@@ -217,8 +219,9 @@ final class IntegrationController extends AbstractController
             'providers'    => Provider::of(ServiceKind::Files),
             'configs'      => $this->configRepository->findAllIndexedByProvider(),
             // For the disconnect confirmation, which says how many calendars
-            // go with a Nextcloud connection.
+            // and address books go with a Nextcloud connection.
             'calendarCounts' => $this->calendarRepository->countMirroredByIntegration($this->user()),
+            'bookCounts'     => $this->addressBookRepository->countByIntegration($this->user()),
         ];
     }
 

@@ -3658,7 +3658,7 @@ settings:
         disabled: 'Connection paused'
         disconnect: Disconnect
         disconnect_confirm: 'Disconnect %name%? Files already attached to mail are unaffected.'
-        disconnect_confirm_calendars: 'Disconnect %name%? Its %count% mirrored calendar(s) are removed here too; events that came from your mail are moved to your default calendar first. Files already attached to mail are unaffected.'
+        disconnect_confirm_mirrored: 'Disconnect %name%? %calendars% calendar(s) and %books% address book(s) mirrored from it are removed here too; events that came from your mail are moved to your default calendar first. Files already attached to mail are unaffected.'
         disconnected: 'Service disconnected'
         edit: Edit
         empty: 'No services connected yet.'

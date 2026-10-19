@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:a06fc9c179ee639b2313645719eb019dbdeed91d -->
+<!-- translated-from: providers/carddav.md sha1:da26fea3d41e67c7a4d5846d18b2a08cced17f8b -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -20,18 +20,26 @@ E-Mail-Kontos wiederzuverwenden. Was jedes Feld erwartet, steht unter
 [Einen Server verbinden](caldav.md#einen-server-verbinden) auf der CalDAV-Seite; alles dort gilt
 auch hier.
 
-Bei Nextcloud ist die CardDAV-Adresse dasselbe `…/remote.php/dav` wie die CalDAV-Adresse, und die
-Kontakte-App zeigt unter **Kontakte → Einstellungen** eine Adresse pro Buch, falls du nur auf ein
-einzelnes Buch zeigen willst.
+**Nextcloud braucht keine CardDAV-Verbindung.** Eine Nextcloud, die unter **Einstellungen →
+Integrationen** für Dateien verbunden ist, steht auch unter Einstellungen → Kontakte, mit einer
+eigenen Schaltfläche **Adressbücher wählen**, mit demselben App-Passwort. Statt einer
+Schaltfläche zum Trennen steht dort *Unter Integrationen eingerichtet*, weil die Verbindung auch
+deine Dateien und Kalender hält; trennst du sie dort, gehen ihre Adressbücher mit, und die
+Rückfrage sagt, wie viele. Ihre Adressbücher werden unter `/remote.php/dav` gesucht, wie
+[ihre Kalender](caldav.md#nextcloud-keine-zweite-verbindung). Eine CardDAV-Verbindung, die du von
+Hand auf eine Nextcloud gerichtet hast, funktioniert weiter, und deren Kontakte-App zeigt unter
+**Kontakte → Einstellungen** eine Adresse pro Buch, falls du nur auf ein einzelnes Buch zeigen
+willst.
 
 Speichern verbindet sofort und listet dann die Adressbücher, die der Server anbietet, mit
 Kästchen zum Anhaken. Angehakte Bücher werden gespiegelt; ihre erste Synchronisierung wird sofort
 eingereiht, sodass die Kontakte innerhalb einer Minute erscheinen und nicht erst beim nächsten
 Durchlauf.
 
-**Es ist eine eigene Verbindung, getrennt von CalDAV**, auch auf demselben Server. Manche Server
-bieten nur eines von beiden, und manche Menschen haben Kontakte und Kalender an verschiedenen
-Orten. Eine Nextcloud für beides zu verbinden heißt, das App-Passwort zweimal einzugeben.
+**Für jeden anderen Server ist es eine eigene Verbindung, getrennt von CalDAV**, auch auf
+demselben Server. Manche Server bieten nur eines von beiden, und manche Menschen haben Kontakte und
+Kalender an verschiedenen Orten. Ein Radicale oder Baïkal für beides zu verbinden heißt, das
+App-Passwort zweimal einzugeben.
 
 ## Die Suche
 

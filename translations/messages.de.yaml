@@ -3670,7 +3670,7 @@ settings:
         disabled: 'Verbindung pausiert'
         disconnect: Trennen
         disconnect_confirm: '%name% trennen? Bereits angehängte Dateien bleiben unberührt.'
-        disconnect_confirm_calendars: '%name% trennen? Die %count% von dort gespiegelten Kalender werden hier ebenfalls entfernt; Termine aus deinen E-Mails kommen vorher in deinen Standardkalender. Bereits angehängte Dateien bleiben unberührt.'
+        disconnect_confirm_mirrored: '%name% trennen? %calendars% Kalender und %books% Adressbuch/Adressbücher, die von dort gespiegelt werden, werden hier ebenfalls entfernt; Termine aus deinen E-Mails kommen vorher in deinen Standardkalender. Bereits angehängte Dateien bleiben unberührt.'
         disconnected: 'Dienst getrennt'
         edit: Bearbeiten
         empty: 'Noch keine Dienste verbunden.'

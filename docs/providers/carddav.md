@@ -17,17 +17,22 @@ deliberately-off option to reuse a mail account's stored password. See
 [Connecting a server](caldav.md#connecting-a-server) on the CalDAV page for what each one wants;
 everything there applies here.
 
-On Nextcloud the CardDAV address is the same `…/remote.php/dav` as the CalDAV one, and the
-contacts app shows a per-book address under **Contacts → Settings** if you want to point at one
-book only.
+**Nextcloud needs no CardDAV connection.** A Nextcloud connected for files under **Settings →
+Integrations** is listed in Settings → Contacts too, with its own **Choose address books** button,
+on the same app password. It is marked *Set up in Integrations* rather than offering a disconnect
+button, because the connection also holds your files and calendars; disconnecting it there removes
+its address books along with them, and the confirmation says how many. Its address books are
+looked up under `/remote.php/dav`, as for [its calendars](caldav.md#nextcloud-no-second-connection).
+A CardDAV connection pointed at a Nextcloud by hand keeps working, and its contacts app shows a
+per-book address under **Contacts → Settings** if you want to point at one book only.
 
 Saving connects immediately and then lists the address books the server offers, with tick boxes.
 Ticked books are mirrored; their first sync is queued at once, so the contacts appear within a
 minute rather than at the next sweep.
 
-**It is a separate connection from CalDAV**, even on the same server. Some servers carry only one of
-the two, and a person may keep their contacts and their calendars in different places. Connecting a
-Nextcloud for both means entering the app password twice.
+**For any other server it is a separate connection from CalDAV**, even on the same server. Some
+servers carry only one of the two, and a person may keep their contacts and their calendars in
+different places. Connecting a Radicale or a Baïkal for both means entering the app password twice.
 
 ## Discovery
 

@@ -3474,7 +3474,7 @@ settings:
         disabled: 'Line slackened'
         disconnect: 'Cast off'
         disconnect_confirm: 'Cast off from %name%? Cargo already hauled aboard stays put.'
-        disconnect_confirm_calendars: 'Cast off from %name%? Its %count% almanac(s) go overboard with it; what came by mail be stowed in yer default almanac first. Cargo already hauled aboard stays put.'
+        disconnect_confirm_mirrored: 'Cast off from %name%? %calendars% almanac(s) and %books% ledger(s) o'' names go overboard with it; what came by mail be stowed in yer default almanac first. Cargo already hauled aboard stays put.'
         disconnected: 'Cast off'
         edit: Edit
         empty: 'No ports moored yet.'
