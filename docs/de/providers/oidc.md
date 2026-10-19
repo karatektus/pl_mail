@@ -1,4 +1,4 @@
-<!-- translated-from: providers/oidc.md sha1:ad10015eedffa5844ea26617f27d89ed33bcb835 -->
+<!-- translated-from: providers/oidc.md sha1:215b567147d6d394cdecb26af8b1a5e351d945f7 -->
 
 # Single Sign-on (OpenID Connect)
 
@@ -120,7 +120,7 @@ bei einem falschen — für eine Adresse, die es gibt, genauso wie für eine, di
 
   Das löscht, was Administration → SSO gespeichert hat. Hast du `OIDC_DISABLE_PASSWORD_LOGIN` in der
   Umgebung gesetzt, änder es dort und starte neu.
-- **Was es nicht anfasst:** App-Passwörter für Mail-Programme und die Android-App (JMAP und
+- **Was es nicht anfasst:** App-Passwörter für Mail-Programme und die Android- und iOS-Apps (JMAP und
   CalDAV) funktionieren weiter, ebenso bereits geöffnete Browser-Sitzungen. Die Passwörter bleiben in
   der Datenbank, das Ausschalten braucht also kein Zurücksetzen. Um bereits geöffnete Sitzungen zu
   beenden, nimm den Zugang beim Anbieter weg *und* deaktiviere das Konto unter Administration → Benutzer.
