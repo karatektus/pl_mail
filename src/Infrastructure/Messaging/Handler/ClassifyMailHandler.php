@@ -16,6 +16,7 @@ use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\LiveMailPriority;
+use App\Service\Ai\OllamaClient;
 use App\Service\Mail\HeldMailReleaser;
 use App\Service\Ai\PromptLibrary;
 use DateTimeImmutable;
@@ -46,9 +47,17 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * ───────────────────────────────────────────────────
  * The host is a box on somebody's network. It may be off, mid-update, or
  * holding a different model than it was last week. None of that is an
- * application error and none of it may fail the job — but the attempt is
- * stamped anyway, so a later backfill can tell "asked, got nothing" from "never
- * asked" and does not retry the same unanswerable message forever.
+ * application error and none of it may fail the job.
+ *
+ * TWO KINDS OF NOTHING, TOLD APART. When the host answered and the answer was
+ * no use (empty, or not one of the categories), the attempt is stamped, so a
+ * later backfill can tell "asked, got nothing" from "never asked" and does not
+ * retry the same unanswerable message forever. When the host could not be
+ * reached at all (a timeout, a refused connection, a 403 or a 5xx from a proxy
+ * in front of it), nothing was asked: the stamp stays empty and the catch-up
+ * sweep offers the message again, a quarter of an hour later, which is also the
+ * only backoff a host that stays down gets. A minute's outage used to leave
+ * every message in flight with no category and no second attempt (#222).
  */
 #[AsMessageHandler]
 final readonly class ClassifyMailHandler
@@ -142,9 +151,15 @@ final readonly class ClassifyMailHandler
                 $this->entityManager->refresh($mail);
             }
 
-            // Stamped whether or not the answer was usable — see the docblock.
-            $mail->aiCategorisedAt = new DateTimeImmutable();
-            $mail->aiCategory      = $verdict;
+            // Stamped whether or not the answer was usable, but not when the
+            // host could not be reached — see the docblock. Everything else
+            // below still happens for such a message: the timings are worth
+            // keeping, and held mail must still be released under the rules.
+            if (false === self::hostUnreachable($result)) {
+                $mail->aiCategorisedAt = new DateTimeImmutable();
+            }
+
+            $mail->aiCategory = $verdict;
 
             // Where the time went — see Message::$aiQueueMs. After the refresh
             // above, which would otherwise have discarded them.
@@ -272,8 +287,8 @@ final readonly class ClassifyMailHandler
      * than per unrecognised message, on the same host the composer and the
      * search index already queue behind. It is bounded by the three checks
      * below — the installation switch, the person's own, and aiCategorisedAt,
-     * which is stamped whether or not the answer was usable, so no message is
-     * ever asked about twice.
+     * which is stamped whether or not the answer was usable, so no message the
+     * host has answered is ever asked about twice.
      *
      * The per-user check goes HERE rather than at dispatch, and that is a scope
      * decision rather than an oversight: one ClassifyMailMessage carries ids
@@ -340,6 +355,36 @@ final readonly class ClassifyMailHandler
             // A model given room to be creative here invents categories.
             temperature: 0.0,
         );
+    }
+
+    /**
+     * Whether the question never reached a model that could answer it.
+     *
+     * By the error kind the clients already record, and only the kinds that say
+     * "try again later": a timeout, a host that refused or dropped the
+     * connection, and a refusal by status (a proxy's 403, a 502 while the host
+     * restarts). Left out on purpose:
+     *
+     *   · a 404, which is a model the host does not have — a setting somebody
+     *     has to change, and a retry every quarter of an hour would only repeat
+     *     it;
+     *   · a reply with no content, and anything unexpected — the host answered,
+     *     which is the case the stamp exists for.
+     *
+     * No result at all means the feature was switched off between dispatch and
+     * the call, and is stamped as before.
+     */
+    private static function hostUnreachable(?AiChatResult $result): bool
+    {
+        if (null === $result || true === $result->succeeded) {
+            return false;
+        }
+
+        return in_array($result->errorKind, [
+            OllamaClient::ERROR_TIMEOUT,
+            OllamaClient::ERROR_UNREACHABLE,
+            OllamaClient::ERROR_HTTP_STATUS,
+        ], true);
     }
 
     private function describe(Message $mail): string

@@ -2789,6 +2789,8 @@ class MessageRepository extends ServiceEntityRepository
      * `ai_categorised_at IS NULL` is "never asked", not "no answer" — the
      * stamp is written even when the model said nothing usable — so a message
      * the model cannot answer is offered once and not on every run for ever.
+     * A host that could not be reached leaves it unstamped, so it is offered
+     * again here once the host is back.
      *
      * @return list<int>
      */

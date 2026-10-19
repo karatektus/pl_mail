@@ -523,7 +523,9 @@ class Message extends MessageModel
      *
      * Set even when the answer was unusable, because "asked and got nothing"
      * and "never asked" need to be distinguishable or a backfill would retry
-     * the same unanswerable message on every pass forever.
+     * the same unanswerable message on every pass forever. Not set when the
+     * host could not be reached (timeout, refused, 403/5xx): nothing was
+     * asked, and the catch-up sweep offers the message again.
      */
     #[ORM\Column(name: 'ai_categorised_at', nullable: true)]
     public ?DateTimeImmutable $aiCategorisedAt = null;
