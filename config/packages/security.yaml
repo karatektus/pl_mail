@@ -242,6 +242,12 @@ security:
         # check still runs per fetch in App\Service\Mail\ImageProxyFetcher. See
         # App\Controller\Mail\ImageProxyController for the full argument.
         - { path: ^/mail/image-proxy$, roles: PUBLIC_ACCESS }
+        # An inline (cid:) image of a message, anonymous for the same reason as
+        # the proxy above: the sandboxed body sends no session cookie, so behind
+        # ROLE_USER every inline image was a 302 to /login. The gate is the HMAC
+        # over the part id that the route checks itself, and it serves nothing
+        # but raster images. See App\Controller\Mail\InlineAttachmentController.
+        - { path: ^/mail/inline/\d+$, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

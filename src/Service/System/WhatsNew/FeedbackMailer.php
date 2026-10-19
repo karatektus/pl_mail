@@ -65,9 +65,8 @@ final readonly class FeedbackMailer
      */
     public function send(Account $account, ?string $rating, string $message, ?string $screenshot = null): bool
     {
-        $email = $this->build($account, $rating, $message, $screenshot);
-
         try {
+            $email  = $this->build($account, $rating, $message, $screenshot);
             $sender = $this->senders->resolve($account);
 
             if (false === $sender->send($email, $account)) {
@@ -98,7 +97,7 @@ final readonly class FeedbackMailer
 
     public function build(Account $account, ?string $rating, string $message, ?string $screenshot = null): Email
     {
-        $from    = (string) ($account->displayAddress ?? '');
+        $from    = self::fromAddress($account) ?? throw new \InvalidArgumentException(sprintf('Account %d has no address to send from.', (int) $account->id));
         $version = $this->appVersion->label();
         $commit  = $this->appVersion->commit();
         $label   = match ($rating) {
@@ -125,6 +124,25 @@ final readonly class FeedbackMailer
         }
 
         return $email;
+    }
+
+    /**
+     * The address feedback goes out from: the account's own, as compose would
+     * use it, else the first of its fields that is an address at all. An
+     * account whose name was typed where its address belongs — "E2E Mailbox"
+     * in the email column — would otherwise stop the mail with an RFC
+     * exception at the moment of sending; null says there is none, so the form
+     * can say so.
+     */
+    public static function fromAddress(Account $account): ?string
+    {
+        foreach ([$account->displayAddress, $account->email, $account->username] as $candidate) {
+            if (null !== $candidate && false !== filter_var(trim($candidate), FILTER_VALIDATE_EMAIL)) {
+                return trim($candidate);
+            }
+        }
+
+        return null;
     }
 
     /**

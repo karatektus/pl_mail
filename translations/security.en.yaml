@@ -26,3 +26,5 @@ oidc.email_unverified: Your sign-in provider has not confirmed your email addres
 oidc.ambiguous: More than one account here has your email address. Ask your administrator to sort it out.
 oidc.no_account: There is no plMail account for you yet. Ask your administrator to create one with your email address.
 oidc.linked_elsewhere: The account with your email address is already linked to someone else at your sign-in provider. Ask your administrator.
+oidc.unavailable_sso_only: 'Single sign-on is not working right now. Try again in a moment, or ask your administrator to check the logs.'
+login.password_disabled: 'Password sign-in is turned off on this install. Use single sign-on.'

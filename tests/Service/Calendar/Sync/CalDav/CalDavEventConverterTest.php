@@ -146,6 +146,60 @@ final class CalDavEventConverterTest extends TestCase
         self::assertSame('2026-08-04 09:00:00', $event?->endsAt?->format('Y-m-d H:i:s'));
     }
 
+    /**
+     * An end stated to be the start is an instant, not an unstated length:
+     * other clients draw 23:59–23:59, and the nominal hour ran it into the next
+     * day, where it showed as a second entry (#170). One minute keeps it on its
+     * own day, in its own zone.
+     */
+    public function testAnEndEqualToTheStartIsAMinuteRatherThanAnHour(): void
+    {
+        $ics = $this->calendar('', 'DTSTART;TZID=Europe/Berlin:20261015T235900', 'DTEND;TZID=Europe/Berlin:20261015T235900');
+
+        $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
+
+        self::assertSame('PT1M', $event?->jscalendar['duration'] ?? null);
+        self::assertSame(
+            '2026-10-16 00:00',
+            $event?->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
+            'it ends on the midnight that closes its day, not an hour into the next',
+        );
+    }
+
+    public function testAZeroDurationIsAnInstantToo(): void
+    {
+        $ics = $this->calendar('DURATION:PT0S', 'DTSTART:20260804T080000Z', '');
+
+        $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
+
+        self::assertSame('PT1M', $event?->jscalendar['duration'] ?? null);
+        self::assertSame('2026-08-04 08:01:00', $event?->endsAt?->format('Y-m-d H:i:s'));
+    }
+
+    /** The nominal hour stops at the end of the day the event starts on, in its own zone. */
+    public function testTheNominalHourDoesNotRunIntoTheNextDay(): void
+    {
+        $ics = $this->calendar('', 'DTSTART;TZID=Europe/Berlin:20261015T233000', '');
+
+        $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
+
+        self::assertSame('PT30M', $event?->jscalendar['duration'] ?? null);
+        self::assertSame(
+            '2026-10-16 00:00',
+            $event?->endsAt?->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('Y-m-d H:i'),
+        );
+    }
+
+    /** A DTEND before DTSTART is broken, not a stated instant: it keeps the nominal hour. */
+    public function testAnEndBeforeTheStartStillGetsTheNominalHour(): void
+    {
+        $ics = $this->calendar('', 'DTSTART:20260804T080000Z', 'DTEND:20260804T070000Z');
+
+        $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
+
+        self::assertSame('PT1H', $event?->jscalendar['duration'] ?? null);
+    }
+
     public function testTheSeriesMasterWinsOverAnEditedInstance(): void
     {
         // A CalDAV resource holds every component sharing one UID, so a moved

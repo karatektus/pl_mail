@@ -38,6 +38,23 @@ final class FeedbackMailerTest extends TestCase
         self::assertNull(FeedbackMailer::decodeScreenshot('data:image/png;base64,' . base64_encode(self::PNG . str_repeat('x', FeedbackMailer::SCREENSHOT_MAX_BYTES))), 'too big');
     }
 
+    /** A name typed where the address belongs is passed over, not sent as a From. */
+    public function testTheFromIsTheFirstFieldThatIsAnAddress(): void
+    {
+        $account           = new Account();
+        $account->email    = 'E2E Mailbox';
+        $account->username = 'mailbox@example.test';
+
+        self::assertSame('mailbox@example.test', FeedbackMailer::fromAddress($account));
+
+        $nothing           = new Account();
+        $nothing->email    = 'E2E Mailbox';
+        $nothing->username = 'mailbox';
+
+        self::assertNull(FeedbackMailer::fromAddress($nothing));
+        self::assertFalse($this->mailer(new SentRecorder(true))->send($nothing, null, 'Hi'), 'no address is a failed send, not an exception');
+    }
+
     public function testTheMailSaysWhoWhatAndWhichBuild(): void
     {
         $email = $this->mailer(new SentRecorder(true))->build($this->account(), 'worse', "Search is slow.\n", self::PNG);

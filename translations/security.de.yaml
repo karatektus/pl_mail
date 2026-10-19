@@ -16,3 +16,5 @@ oidc.email_unverified: Dein Anmeldeanbieter hat deine E-Mail-Adresse nicht best�
 oidc.ambiguous: Hier gibt es mehr als ein Konto mit deiner E-Mail-Adresse. Bitte die Administration, das zu klären.
 oidc.no_account: Für dich gibt es noch kein plMail-Konto. Bitte die Administration, eins mit deiner E-Mail-Adresse anzulegen.
 oidc.linked_elsewhere: Das Konto mit deiner E-Mail-Adresse ist bereits mit jemand anderem bei deinem Anmeldeanbieter verknüpft. Wende dich an die Administration.
+oidc.unavailable_sso_only: 'Single Sign-on funktioniert gerade nicht. Versuch es gleich noch einmal, oder bitte die Administration, ins Log zu schauen.'
+login.password_disabled: 'Die Anmeldung per Passwort ist auf dieser Installation abgeschaltet. Nutze Single Sign-on.'

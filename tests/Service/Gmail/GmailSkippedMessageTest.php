@@ -237,6 +237,81 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertSame(1, self::getContainer()->get(ImportProgress::class)->forUser($this->user)[0]->done);
     }
 
+    // ── another Gmail account's own copy (discussion #168) ───────────────────
+
+    /**
+     * Mail forwarded from one connected Gmail account to another: Delivered-To
+     * names the first, so it is attributed there, and that account's own sync
+     * holds it under its own Gmail id. Merging used to write this mailbox's id
+     * over that one — the row then answered to neither mailbox properly, and
+     * its own sync stored the message a second time.
+     */
+    public function testAnotherGmailAccountsOwnCopyKeepsItsGmailId(): void
+    {
+        $sibling = $this->seedGmailSibling();
+        $copy    = $this->seedCopy($sibling, 'sibling-own-id');
+
+        $this->handle(['INBOX'], to: 'other@gmail.com', deliveredTo: 'other@gmail.com');
+
+        $this->em->refresh($copy);
+
+        self::assertSame('sibling-own-id', $copy->gmailId, 'its own mailbox\'s id, not this one\'s');
+        self::assertNull($copy->gmailCarrierAccount);
+        self::assertSame(0, $this->storedCount(), 'not a second copy on this account either');
+
+        $rows = $this->skipped->findForAccount($this->account);
+
+        self::assertCount(1, $rows, 'written down, so the import counts it and stops asking');
+        self::assertSame(\App\Domain\Enum\Mail\GmailSkipReason::HeldElsewhere, $rows[0]->reason);
+
+        // A label change re-fetches it; the record stays, and stays one.
+        $this->handle(['INBOX', 'STARRED'], to: 'other@gmail.com', deliveredTo: 'other@gmail.com');
+
+        self::assertSame(1, $this->skipped->countForAccount($this->account));
+    }
+
+    /** The same, for a message nobody claims and the other Gmail account holds. */
+    public function testAnUnclaimedMessageAnotherGmailAccountHoldsIsNotMergedIntoIt(): void
+    {
+        $sibling = $this->seedGmailSibling();
+        $copy    = $this->seedCopy($sibling, 'sibling-own-id');
+
+        $this->handle(['INBOX'], to: 'list-members@list.test', from: 'news@list.test');
+
+        $this->em->refresh($copy);
+
+        self::assertSame('sibling-own-id', $copy->gmailId);
+        self::assertSame(0, $this->storedCount());
+    }
+
+    /**
+     * What an installation the old merge ran over looks like: the other
+     * account's row carries this mailbox's id, and its own sync has stored
+     * the message again under its own. Two rows, one Message-ID. Handling
+     * this id again picked either by Message-ID and wrote the id onto it —
+     * onto the second row, a duplicate key, and the whole batch failed and
+     * was fetched again on every retry.
+     */
+    public function testAnIdAlreadyMergedIsFoundByItselfNotByMessageId(): void
+    {
+        $sibling = $this->seedGmailSibling();
+        $own     = $this->seedCopy($sibling, 'sibling-own-id');
+        $merged  = $this->seedCopy($sibling, self::GMAIL_ID);
+
+        $merged->gmailCarrierAccount = $this->account;
+        $this->em->flush();
+
+        $this->handle(['INBOX'], to: 'other@gmail.com', deliveredTo: 'other@gmail.com');
+        $this->handle(['INBOX', 'STARRED'], to: 'other@gmail.com', deliveredTo: 'other@gmail.com');
+
+        $this->em->refresh($own);
+        $this->em->refresh($merged);
+
+        self::assertSame('sibling-own-id', $own->gmailId);
+        self::assertSame(self::GMAIL_ID, $merged->gmailId);
+        self::assertSame(['INBOX', 'STARRED'], $merged->gmailLabelIds);
+    }
+
     /** A Gmail draft is a draft here: in Drafts, flagged as one. */
     public function testAGmailDraftIsStoredAsADraft(): void
     {
@@ -380,6 +455,55 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $this->em->flush();
 
         return $account;
+    }
+
+    /** A second Gmail account of the same user, synced through the API itself. */
+    private function seedGmailSibling(): Account
+    {
+        $sibling                   = new Account();
+        $sibling->usr              = $this->user;
+        $sibling->name             = 'Other Gmail';
+        $sibling->email            = 'other@gmail.com';
+        $sibling->username         = uniqid('gmail-other-', true);
+        $sibling->imapHost         = 'imap.gmail.com';
+        $sibling->authType         = AuthType::OAuth2->value;
+        $sibling->oauthProvider    = 'google';
+        $sibling->oauthAccessToken = 'test-access-token';
+        $sibling->oauthTokenExpiry = new DateTimeImmutable('+1 day');
+        $sibling->isActive         = true;
+        $this->em->persist($sibling);
+        $this->em->flush();
+
+        return $sibling;
+    }
+
+    /** That account's copy of the test message, on a conversation of its own. */
+    private function seedCopy(Account $owner, string $gmailId): Message
+    {
+        $thread                    = new \App\Entity\Mail\MessageThread();
+        $thread->account           = $owner;
+        $thread->subject           = 'About the invoice';
+        $thread->normalizedSubject = 'about the invoice';
+        $thread->threadingMethod   = \App\Domain\Enum\Mail\ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new DateTimeImmutable('-1 hour');
+        $thread->unreadCount       = 0;
+        $this->em->persist($thread);
+
+        $copy                 = new Message();
+        $copy->account        = $owner;
+        $copy->thread         = $thread;
+        $copy->subject        = 'About the invoice';
+        $copy->fromAddress    = 'sender@example.test';
+        $copy->messageId      = 'gmail-skipped-1@example.test';
+        $copy->gmailId        = $gmailId;
+        $copy->gmailLabelIds  = ['INBOX'];
+        $copy->receivedAt     = new DateTimeImmutable('-1 hour');
+        $copy->hasAttachments = false;
+        $copy->flags          = [];
+        $this->em->persist($copy);
+        $this->em->flush();
+
+        return $copy;
     }
 
     private function seedUser(): User

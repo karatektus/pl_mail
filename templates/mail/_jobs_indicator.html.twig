@@ -220,6 +220,17 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                                 </div>
                             {% endif %}
 
+                            {# A label delete whose mail has moved and whose
+                               folder the server has not yet reported empty.
+                               The bar stands full while it waits, and without
+                               this line that reads as a job that hung. See
+                               DeleteLabelHandler::markWaiting(). #}
+                            {% if job.isActive() and job.view.waitingOn is defined %}
+                                <p class="mt-1 text-[11px] text-ink-muted break-words">
+                                    {{ 'label.delete.waiting'|trans({ '%name%': job.view.waitingOn }) }}
+                                </p>
+                            {% endif %}
+
                             {% if job.failureReason %}
                                 <p class="mt-1 text-[11px] text-danger break-words">{{ job.failureReason }}</p>
                             {% endif %}

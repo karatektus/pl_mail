@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sync\CalDav;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Integration\Integration;
+use App\Service\Integration\Driver\NextcloudDriver;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -87,10 +89,24 @@ final readonly class CalDavDiscovery
     {
         $base = $this->client->baseUrl($integration);
 
-        // The address as given, first — see the class docblock. Skipped when it
-        // is a bare origin, because probing "https://example.com/" and then
-        // probing its .well-known is the same server twice for the first half.
-        if (true === $this->hasPath($base)) {
+        // A Nextcloud connection's address is the web interface, not a DAV
+        // URL, so the address as given would only answer with a login page.
+        // Nextcloud always serves DAV at the same path under it — subfolder
+        // installs included, which is why it is appended to the base rather
+        // than to the origin — and starting there skips .well-known, the
+        // redirect Nextcloud's own setup check warns about when a reverse
+        // proxy does not forward it.
+        if (Provider::Nextcloud === $integration->provider) {
+            $endpoint = $this->probe($integration, $service, $base . NextcloudDriver::DAV_ROOT);
+
+            if (null !== $endpoint) {
+                return $endpoint;
+            }
+        } elseif (true === $this->hasPath($base)) {
+            // The address as given, first — see the class docblock. Skipped
+            // when it is a bare origin, because probing "https://example.com/"
+            // and then probing its .well-known is the same server twice for the
+            // first half.
             $endpoint = $this->probe($integration, $service, $base);
 
             if (null !== $endpoint) {

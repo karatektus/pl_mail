@@ -7,8 +7,12 @@ namespace App\Controller\Settings;
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Theme\BackgroundKind;
+use App\Domain\Enum\Theme\LogoMotif;
+use App\Domain\Enum\Theme\LogoStyle;
+use App\Domain\Helper\AppIconStorage;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
+use App\Service\Appearance\LogoIcons;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -142,6 +146,61 @@ final class AppearanceController extends AbstractController
             'mode'  => $user->readingPaneMode->value,
             'width' => $user->readingPaneWidthPct,
         ]);
+    }
+
+    /**
+     * Keeps the installed app's PNGs, as this user's browser drew them (#141).
+     *
+     * The appearance pane draws the chosen icon into four PNGs on a canvas
+     * when a logo is picked, and any page does when the current choice's are
+     * missing (see app_icons.js); this stores them, for this user only. Why
+     * the browser draws them rather than the server is in AppIconStorage.
+     *
+     * Nothing the browser says is taken on trust: the choice has to be one
+     * the routes can name, and each file a PNG of exactly its size and small
+     * (AppIconStorage::isAcceptable()). A drawing version that is not this
+     * server's means the page was loaded before a deploy changed the drawing:
+     * 409, and the page's next load draws the current one.
+     */
+    #[Route('/app-icons', name: 'app_icons', methods: ['POST'])]
+    public function appIcons(Request $request, AppIconStorage $storage, LogoIcons $icons): Response
+    {
+        $this->assertCsrf($request, 'ajax');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $motif = LogoMotif::tryFrom($request->request->getString('motif'));
+        $paint = $request->request->getString('paint');
+
+        if (null === $motif || false === in_array($paint, LogoMotif::paintWires(), true)) {
+            return new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if ($icons->version() !== $request->request->getString('version')) {
+            return new Response(null, Response::HTTP_CONFLICT);
+        }
+
+        $pngs = [];
+
+        foreach (array_keys(AppIconStorage::ICONS) as $name) {
+            $file  = $request->files->get($name);
+            $bytes = $file instanceof UploadedFile && true === $file->isValid() ? (string) file_get_contents($file->getPathname()) : '';
+
+            if (false === $storage->isAcceptable($name, $bytes)) {
+                return new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $pngs[$name] = $bytes;
+        }
+
+        $choice = LogoIcons::choice($motif, LogoStyle::tryFrom($paint));
+
+        $storage->store((string) $user->id, $choice, $icons->version(), $pngs);
+
+        // Which choice was kept: several uploads can be in flight (a pick, and
+        // the layout drawing a missing one), and the answer says which is which.
+        return $this->json(['choice' => $choice]);
     }
 
     #[Route('/background', name: 'background_upload', methods: ['POST'])]

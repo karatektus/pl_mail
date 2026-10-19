@@ -11,6 +11,7 @@ use App\Domain\Helper\CharsetHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
+use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -28,6 +29,7 @@ use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Attribute;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use Webklex\PHPIMAP\Support\AttachmentCollection;
 use App\Service\Mail\HeaderNormalizer;
 
 class MessageSyncer
@@ -531,6 +533,10 @@ class MessageSyncer
             }
 
             try {
+                // Before anything reads the body, so the columns, the parts and
+                // the stored .eml all come from the same bytes.
+                $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
+
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
 
@@ -737,6 +743,47 @@ class MessageSyncer
         $lowestSkippedUid = $uid;
 
         return true;
+    }
+
+    /**
+     * Parse the body again without the header block a server repeated at the
+     * top of it.
+     *
+     * Some messages on a Stalwart server answer RFC822.TEXT with the whole
+     * message, headers included, while RFC822.HEADER is right (#173). webklex
+     * builds its parts from whatever the TEXT literal held, so a single-part
+     * HTML mail was stored with its own `Delivered-To: …` block as the first
+     * lines of body_html, and rawOf() wrote the headers into the .eml twice.
+     * See RepeatedHeaderHelper for how a repeat is recognised.
+     *
+     * Read from the structure, not getRawBody(): getRawBody() keeps the first
+     * answer it gives, so asking it here would pin the doubled bytes for
+     * rawOf() below. parseRawBody() appends to the bodies and attachments an
+     * earlier parse left behind, which is why both are emptied first.
+     */
+    private function dropRepeatedHeader(ImapMessage $imapMessage, int $uid, string $mailboxPath): void
+    {
+        $header    = $imapMessage->getHeader();
+        $structure = $imapMessage->getStructure();
+
+        if (null === $header || null === $structure) {
+            return;
+        }
+
+        $body = RepeatedHeaderHelper::strip($header->raw, $structure->raw);
+
+        if (null === $body) {
+            return;
+        }
+
+        $imapMessage->bodies = [];
+        $imapMessage->setAttachments(AttachmentCollection::make());
+        $imapMessage->parseRawBody($body);
+
+        $this->logger->info('Dropped a header block the server repeated at the top of the body', [
+            'uid'     => $uid,
+            'mailbox' => $mailboxPath,
+        ]);
     }
 
     /**

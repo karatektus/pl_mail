@@ -35,8 +35,10 @@ it closes. A release is a milestone with nothing left open, closed when it is ta
 one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
 Pull requests get their area labels from the files they touch
 (`.github/labeler.yml`), and a required check refuses a pull request that closes no issue —
-unless it is labelled `bug`, `chore` or `dependencies`. Contributors cannot label their own pull
-requests, so a bug fix without an issue waits for a maintainer to label it `bug`.
+unless it is labelled `bug`, `chore`, `dependencies` or `deployment`. `deployment` is for a milestone
+or release branch going to `main` (`milestone/v0.4.0`), whose pieces each closed their own issue on
+the way in. Contributors cannot label their own pull requests, so a bug fix without an issue waits
+for a maintainer to label it `bug`.
 
 **`main` is protected.** Everything reaches it through a pull request with green checks, the
 maintainers' own changes included, and is squash-merged. The production image follows `main`, so
@@ -917,7 +919,7 @@ php bin/mirror-wiki.php --check
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
@@ -928,10 +930,11 @@ php bin/mirror-wiki.php --check
 | `app:gmail:quota-probe [account] [--mode=all] [--count=30]` | Without an account, list the Gmail accounts and ask which. Fetch a fixed number of stored Gmail messages one way per minute (batched as an import does, or singly in each format), holding the account's import meanwhile, so the cost Google charges for each can be read off the Cloud console's quota chart. Stores and changes nothing |
 | `app:gmail:skipped [account] [--list=N] [--forget]` | Show the Gmail messages an import looked at and did not store. Without an account, one line per Gmail account: stored, skipped, Gmail's own total. With one, the skipped messages grouped by kind (chat, draft, sent from another address, delivered to another address, unfetchable), by Gmail label and by address, and with `--list` the messages themselves. Reads only what was recorded when each message was looked at; asks Gmail nothing. `--forget` deletes the record for the account so the next listing asks for those messages again |
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
-| `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
+| `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads, delete files orphaned by deleted rows and the thumbnails of attachments that no longer exist. Only looks in the per-account directories of `uploads`, `attachments` and `raw` under `APP_STORAGE_DIR`, and in `attachments/thumbs`; everything else on those volumes belongs to someone else |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:user:password <email> [--password=…]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
+| `app:sso:allow-password-login` | Show the password form again after an administrator made single sign-on the only way in (Admin → SSO, **Single sign-on only**). The way back when the identity provider is down: with the setting on, the login page shows no form and the server refuses a password, so nothing in a browser can undo it. Console-only for that reason. Clears what Admin → SSO saved; an `OIDC_DISABLE_PASSWORD_LOGIN` in the environment has to be changed there |
 | `app:user:oidc-unlink <email>` | Forget the single sign-on identity an account is linked to, so its next sign-in through the provider links it again by address. For somebody deleted and re-added at the provider, who comes back with a new subject and is refused as a second person claiming the account. Console-only like the two above: an unlinked account is one the next identity with its address can claim |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
 | `app:jmap:prune-changes [--days=N]` | Prune JMAP change-log rows older than the retention window (60 days by default), keeping the newest row per account and object type so no state token goes backwards. Runs nightly at 05:20. A client away longer than the window gets `cannotCalculateChanges` and resyncs |

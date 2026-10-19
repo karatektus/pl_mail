@@ -4938,6 +4938,32 @@ emoji-picker {
     animation-timing-function: var(--motion-ease);
 }
 
+/* ── What's new: a screenshot, grown to fill the dialog (#179) ─────────────
+   A layer over the What's new body (its container is `relative`), with the
+   picture centred and contained in it. The surface behind the picture is a
+   separate element so the controller can fade it in while the picture grows:
+   fading the layer itself would fade the picture with it. Opaque, not the
+   panel's glass, so the notes do not show through behind the picture. */
+.whats-new-shot {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.whats-new-shot[hidden] {
+    display: none;
+}
+
+.whats-new-shot-backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgb(var(--rgb-surface));
+}
+
 /* ═══ Appearance: typography, the mail list, and per-surface density ════════
    Everything below is driven by custom properties AppearanceRenderer writes
    inline on <html>. That is not a decoration of the existing scheme, it IS the

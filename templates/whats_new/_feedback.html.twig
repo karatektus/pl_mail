@@ -20,12 +20,17 @@ Nothing about it is hidden from the person sending it.
 {% else %}
     <form method="post" action="{{ path('app_whats_new_feedback') }}"
           data-ui--modal-keep-open
-          data-controller="whats-new--screenshot"
+          data-controller="whats-new--feedback"
+          data-action="submit->whats-new--feedback#send"
           class="max-w-xl space-y-5" data-whats-new-feedback>
         <input type="hidden" name="_token" value="{{ csrf_token('whats-new') }}">
         <input type="hidden" name="since" value="{{ since }}">
 
         <h3 class="text-xl font-semibold text-ink">{{ 'whats_new.feedback.title'|trans }}</h3>
+
+        <p class="alert-danger rounded-lg px-3 py-2 text-sm" role="alert" hidden
+           data-whats-new--feedback-target="failure"
+           data-message="{{ 'whats_new.feedback.error.transport'|trans }}"></p>
 
         {% if feedback.error %}
             <p class="alert-danger rounded-lg px-3 py-2 text-sm" role="alert">{{ feedback.error|trans }}</p>
@@ -57,17 +62,17 @@ Nothing about it is hidden from the person sending it.
 
         <div class="space-y-2">
             <label class="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink-soft md:min-h-0">
-                <input type="checkbox" data-whats-new--screenshot-target="toggle"
-                       data-action="change->whats-new--screenshot#toggle"
+                <input type="checkbox" data-whats-new--feedback-target="toggle"
+                       data-action="change->whats-new--feedback#toggle"
                        class="size-4 cursor-pointer rounded border-field bg-field accent-accent focus:ring-2 focus:ring-accent">
                 {{ 'whats_new.feedback.screenshot.label'|trans }}
             </label>
-            <input type="hidden" name="screenshot" value="" data-whats-new--screenshot-target="data">
-            <p class="text-xs text-ink-faint" data-whats-new--screenshot-target="status" aria-live="polite"
+            <input type="hidden" name="screenshot" value="" data-whats-new--feedback-target="data">
+            <p class="text-xs text-ink-faint" data-whats-new--feedback-target="status" aria-live="polite"
                data-taking="{{ 'whats_new.feedback.screenshot.taking'|trans }}"
                data-failed="{{ 'whats_new.feedback.screenshot.failed'|trans }}"></p>
             <img alt="{{ 'whats_new.feedback.screenshot.preview'|trans }}" hidden
-                 data-whats-new--screenshot-target="preview"
+                 data-whats-new--feedback-target="preview"
                  class="max-h-40 rounded-lg border border-line">
         </div>
 
@@ -88,7 +93,7 @@ Nothing about it is hidden from the person sending it.
                class="inline-flex h-11 items-center justify-center rounded-lg px-3.5 text-sm font-medium text-ink-soft hover:bg-hover md:h-8">
                 {{ 'whats_new.feedback.back'|trans }}
             </a>
-            <button type="submit" data-whats-new--screenshot-target="submit"
+            <button type="submit" data-whats-new--feedback-target="submit"
                     class="inline-flex h-11 cursor-pointer items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50 md:h-8">
                 {{ 'whats_new.feedback.send'|trans }}
             </button>

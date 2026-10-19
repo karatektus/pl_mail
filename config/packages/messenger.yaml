@@ -300,6 +300,11 @@ framework:
             # serialised instead, which removes that pairing outright; the
             # handler's in-process retry covers the collisions that are left.
             App\Infrastructure\Messaging\Message\RunBulkStatusMessage: bulk
+            # Beside it for its reason: deleting a folder-backed label moves
+            # every message in it first, which is a bulk move by another name.
+            # Its server half waits by re-dispatching itself on a delay, so it
+            # never holds the one consumer while it waits.
+            App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
 
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export

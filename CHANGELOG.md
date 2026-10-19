@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Nextcloud calendars come with the Nextcloud connection.** A Nextcloud connected for files under
+Settings → Integrations is now listed in Settings → Calendars, and **Find calendars on…** lists its
+calendars with the same app password. There is no second address or password to type. The address
+is the connection's own, or the one an administrator pinned in Admin → Integrations; a pinned
+address on a private network now works for calendars too, where before it was refused as a private
+address. Disconnecting Nextcloud removes its calendars as well, and the confirmation says how many;
+events that came from mail are moved to the default calendar first, as when a CalDAV server is
+disconnected. A calendar already mirrored through a separate CalDAV connection to the same
+Nextcloud shows as *Already mirrored through …* and cannot be ticked a second time. Existing CalDAV
+connections are left as they are. No schema change.
+[#158](https://github.com/karatektus/pl_mail/issues/158).
+
 **Contacts from a CardDAV server.** Connect Nextcloud, Radicale, Baïkal, Fastmail or iCloud under
 **Settings → Contacts**, tick the address books to mirror, and their contacts are suggested when you
 address a message — ranked after the people you actually write to, before addresses you only ever
@@ -17,6 +29,169 @@ no field for is kept on the card. Changes made elsewhere arrive within fifteen m
 (`app:contacts:sync --stale`, run by the scheduler). JMAP `Contact/autocomplete` returns the same
 list, with a new `inAddressBook` flag. **Migration:** adds the `address_book` and `contact_card`
 tables; nothing existing changes. See [CardDAV](docs/providers/carddav.md).
+
+**The weekly cleanup works on installs that moved their storage, and clears old thumbnails.**
+`app:prune:blobs` looked for leftover files under a fixed `var/`, so on an install that sets
+`APP_STORAGE_DIR` to another directory it found nothing and reclaimed nothing. It now looks where
+the files are written. The preview thumbnails of attachments are kept there too now, beside the
+attachments, instead of under a fixed `var/`; on such an install the old `var/attachments/thumbs`
+directory can be deleted, and the thumbnails are drawn again when they are next shown. The cleanup
+also deletes the thumbnails of attachments that no longer exist, which nothing removed before. No
+schema change. [#232](https://github.com/karatektus/pl_mail/issues/232),
+[#233](https://github.com/karatektus/pl_mail/issues/233).
+
+**The installed app has the icon you picked, on iPhone and Android too.** The tab icon followed
+Settings → Appearance → Logo, but an app installed from the browser or added to a home screen kept
+the wax seal, because its icons came from fixed files. The install manifest and the iOS home-screen
+icon now name your choice. Your browser draws them as PNGs when you pick a logo and uploads them for
+your account, so the image needs nothing new to draw them; a logo picked before this is drawn by the
+next page you open. An app that is already installed keeps its old icon until the browser refreshes
+it or you reinstall. No migration. [#141](https://github.com/karatektus/pl_mail/issues/141), building
+on #92 by @Flouss.
+
+**The weekly cleanup no longer deletes profile pictures, signature images and backgrounds.** Every
+Sunday at 05:00 `app:prune:blobs` removed week-old files it found no record for anywhere under
+`var/uploads`, `var/attachments` and `var/raw`. Profile pictures, signature images and appearance
+background images are kept under `var/uploads` without such a record, so they were deleted along
+with the real leftovers. The cleanup now only looks in the per-account directories that mail
+attachments, original messages and staged uploads are written to, and leaves everything else on
+those volumes alone, including directories added later. Files it already deleted cannot be brought
+back by plMail: restore them from a backup of the volume, or upload them again. No schema change.
+[#214](https://github.com/karatektus/pl_mail/issues/214).
+
+**Reconnecting a service in the setup wizard no longer fails.** Opening the Integrations step for
+a service that was already connected and saving it again answered with an error page, because the
+step built a second connection with the same name instead of editing the first. It now edits the
+existing one, and a blank secret still keeps the stored one. The settings page had the same error
+when a second connection to a service (a work Nextcloud next to the home one) kept the default
+name; it now asks for another name instead. No schema change.
+[#216](https://github.com/karatektus/pl_mail/issues/216), by @phdelodder.
+
+**Inline images in a message show up again.** Pictures that a mail carries inside itself, such as
+a logo or the icons in a booking confirmation, rendered as empty boxes: the message body is shown in
+a sandbox that sends no session cookie, so each image was answered with a redirect to the login
+page. They now load through a signed link (`/mail/inline/{id}`) that only answers for an image of
+the message being read, and nothing that is not a picture. The link stops working after a day or
+two, so one that leaks through a forward or a log does not open the image for good; the message
+signs a fresh one each time it is shown. Images labelled `application/octet-stream` or
+`image/octet-stream` load the same way when their bytes are a picture. Messages already in the
+mailbox are fixed too, no backfill needed. No schema change.
+
+**Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
+(or `OIDC_DISABLE_PASSWORD_LOGIN=true` in the environment), hides the password form and makes the
+server refuse a password sign-in, so everybody comes in through the provider. It is in force only
+while a provider is set up, so a provider that was removed cannot leave an install with no way in,
+and the box can be ticked only by an administrator who has signed in through the provider
+themselves. If the provider is down, `php bin/console app:sso:allow-password-login` brings the form
+back. App passwords for mail clients and the phone apps, and sessions that are already open, are not
+affected. Off by default. Schema change: one boolean column on `oidc_config`, false for every
+existing install. [#169](https://github.com/karatektus/pl_mail/issues/169).
+
+**A deleted label no longer comes back after the next sync.** On a plain IMAP account, and for a
+folder on Outlook, deleting a label left its folder on the mail server, and the next sync made the
+label again. Deleting one now deletes the folder there too. When there is mail in it, the delete
+dialog first asks where that mail goes — Inbox, Archive, Trash or one of your other folders — moves
+it there, deletes the folder once the server says it is empty, and only then removes the label. This
+runs in the background and shows in the activity indicator, which names the folder it is waiting
+for; a folder that still holds mail on the server is never deleted, and a server that refuses the
+delete ends it at once with its reason. A folder still being imported is deleted only once its
+import has finished. A folder plMail creates on an IMAP server (an Archive or Trash it did not have
+yet) no longer shows as "Importing" in the activity indicator. Deleting an Outlook category never
+reached Outlook at all, and now does; labels nested under a Gmail label are deleted in Gmail with
+it. No schema change.
+[#40](https://github.com/karatektus/pl_mail/issues/40).
+
+**Inline images labelled `application/octet-stream` show up.** Many mailers do not say what an
+inline image is — they label it `application/octet-stream`, or `image/octet-stream`, which is not
+a registered type at all and is what Vaultwarden's notification mails put on their logo — and the
+attachment route served every such part as a download, so the image never appeared in the message. For those labels only, the file's own
+bytes now decide, held to the same allow-list as everything else: a PNG, JPEG, GIF or WebP is
+served inline, while SVG, HTML and anything unrecognised are still downloads. The image proxy
+already did this for unlabelled remote images and now shares the same check, so a remote image
+labelled `image/octet-stream` is now also identified from its bytes and served under its real
+type, rather than passed through under the label it came with. No schema change.
+Part of [#213](https://github.com/karatektus/pl_mail/issues/213).
+
+**A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
+one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
+the server only counted To. It now counts all three as well. A mail with no recipient at all is
+still refused, and a draft may still be saved with none. No schema change.
+
+**Outlook's `<![endif]-->` no longer shows up in a message.** Mail written for Outlook hides
+parts of itself behind conditional comments, and one form of them ends in a marker that is not
+inside a comment. A mail that also had a comment containing `--` anywhere in it was read by an older
+parser in one step of the rendering, which turned that marker into text, so a parcel notification
+could show `<![endif]-->` in the middle of a sentence. The same mail could also lose a link around a
+table. Every comment is now removed before that step, and the marker with it. Mail already in the
+mailbox is repaired on request: `php bin/console app:backfill safe-html-conditional-comments` writes
+the shown copy of every message that has the marker in it again from the sender's original, and
+`safe-html-table-links` does the same for the links. No schema change.
+[#175](https://github.com/karatektus/pl_mail/issues/175), by @phdelodder.
+
+**One X on a What's new screenshot.** A screenshot opened full size brought its own X into the
+corner of the dialog, just below the dialog's X. Now there is only the dialog's: pressed once it
+puts the screenshot back, pressed again it closes What's new, the same as Escape.
+[#187](https://github.com/karatektus/pl_mail/issues/187).
+
+**An event that ends when it starts no longer runs into the next day.** A calendar feed or CalDAV
+event whose end is its start, such as a reminder at 23:59, was given an hour, as if no end had been
+stated. Other clients show it as 23:59–23:59, and here it ran past midnight and showed again on the
+next day. It now gets one minute, which keeps it on its own day. An event with no end at all still
+gets an hour, but the hour stops at midnight. Events already synced are corrected when the publisher
+next changes them, or right away by removing the calendar and adding it again.
+[#170](https://github.com/karatektus/pl_mail/issues/170).
+
+**Some IMAP messages no longer show their own headers above the content.** A Stalwart server
+answers some messages' body with the whole message, headers included, and plMail stored that as the
+body: the message opened with `Delivered-To:`, `Received:` and the rest of its header block printed
+as text, and its original held the headers twice. An exact repeat of the header block at the top of
+the body is now dropped before the message is read. Mail already stored that way is repaired by
+`app:backfill repeated-headers`, from the stored original and without asking the server; it reads
+the original of every IMAP message once. No migration.
+[#173](https://github.com/karatektus/pl_mail/issues/173), by @phdelodder.
+
+## v0.3.6 — 2026-10-16
+
+**Several Gmail accounts import without failing on a duplicate key.** With more than one Gmail
+account connected, mail one of them forwarded to another (or that both received) was merged into
+the first account's copy, and that copy's Gmail id was replaced with the second mailbox's. The
+first account then stored the message again, and the next import batch to reach it failed with
+`duplicate key value violates unique constraint "uniq_message_gmail_id_account"`, was fetched again
+on every retry and used up the Gmail quota, so `429 rateLimitExceeded` followed. A message another
+Gmail account holds is now left with that account and written down as such
+(`app:gmail:skipped` lists it as held by another Gmail account). Messages this already happened to
+stay listed twice.
+[#196](https://github.com/karatektus/pl_mail/pull/196), by @karatektus.
+
+**A label a rule puts on new mail shows on its conversation.** A rule with **Apply label** labelled
+the arriving message, but the conversation lost the label again in the same step, so it was
+missing from that label's list and from a tab filled by it. A message joining a conversation
+plMail already had was affected unless it was the first one that label was ever applied to on
+the account. Mail labelled before this update gets its conversation's label back the next time
+any label in that conversation changes.
+[#185](https://github.com/karatektus/pl_mail/pull/185), by @karatektus.
+
+**A conversation no longer splits when its replies are synced first.** When replies arrived before
+the message they answer, which is the usual case right after connecting an IMAP account (the Inbox
+is synced before Sent Items), each reply that found nothing to hang on started a conversation of
+its own, and the message that arrived later started another: a four-message exchange could be
+listed as three conversations, until `app:backfill rethread` was run. A message now also brings in
+the mail that already answers it, so a conversation ends up as one whatever order its folders are
+synced in. The conversation that was already in your list is the one kept, with its star, its tab
+and its labels. Conversations split before this update stay split until the next
+`app:backfill rethread`. **Migration:** one index on `message`, built on boot; on a large mailbox
+the first start after the update takes longer while it is built, and new mail waits for it.
+[#176](https://github.com/karatektus/pl_mail/pull/176), by @phdelodder.
+
+**IMAP folders that never synced now do.** On some servers, Dovecot among them, a folder's
+UIDVALIDITY (the number that says whether its message numbers still mean what they did) is above
+2147483647, and plMail could not store a number that large: every sync of such a folder stopped
+with "value … is out of range for type integer" in the worker log, and its mail never arrived. Other
+folders of the same account were not affected. **Migration:** `mailbox.uid_validity` is widened
+from `INT` to `BIGINT`, which rewrites the small `mailbox` table once on boot; no stored value
+changes. Reversible: rolling back forgets a folder's UIDVALIDITY that only the wider column can
+hold, and the next sync records it again.
+[#174](https://github.com/karatektus/pl_mail/pull/174), by @phdelodder.
 
 <!-- highlight screenshot=whats-new -->
 **Release notes after an update, and a feedback form.** The first time you open plMail

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/caldav.md sha1:ccfc56f41acd4b8b77775fff1716870993c07d8e -->
+<!-- translated-from: providers/caldav.md sha1:09e8b50721113f2e7d06ec33fc969e9be7ef2df7 -->
 
 # CalDAV
 
@@ -17,6 +17,27 @@ CalDAV-Endpunkt ist.
 Was nach dem Verbinden eines Servers passiert — anhaken, welche Kalender gespiegelt werden,
 Zwei-Wege-Synchronisation, schreibgeschützte Kalender —, steht in
 [Verbundene Kalender](../features/calendar-sync.md).
+
+## Nextcloud: keine zweite Verbindung
+
+Eine Nextcloud, die unter **Einstellungen → Integrationen** für Dateien verbunden ist, bringt auch
+ihre Kalender mit. Nextcloud stellt CalDAV unter demselben `/remote.php/dav` mit demselben
+App-Passwort bereit, also steht diese Verbindung unter **Einstellungen → Kalender**, und ihre
+Kalender werden von dort aus gefunden. Nichts auf dieser Seite ist dafür nötig.
+
+- **Die Adresse** ist die der Nextcloud-Verbindung. Eine Adresse, die eine Administratorin oder ein
+  Administrator unter **Admin → Integrationen** festgelegt hat, gilt also auch für Kalender,
+  samt ihrer Ausnahme von der Regel für private Netze weiter unten.
+- **Die Suche** beginnt bei `/remote.php/dav` unter dieser Adresse, auch bei Installationen in einem
+  Unterordner, und weicht erst auf `.well-known` aus, wenn dort nichts antwortet.
+- **Trennen** der Nextcloud unter Einstellungen → Integrationen entfernt auch ihre Kalender. Wie bei
+  jeder Kalenderverbindung kommen Termine, die aus deinen E-Mails statt vom Server stammen, vorher in
+  deinen Standardkalender.
+- **Eine eigene CalDAV-Verbindung**, die du früher zur selben Nextcloud angelegt hast, funktioniert
+  weiter. Ihre Kalender erscheinen in der Liste der Nextcloud-Verbindung als *Wird bereits über …
+  gespiegelt*, derselbe Kalender wird also nie doppelt gespiegelt.
+
+Die allgemeine CalDAV-Verbindung unten bleibt für jeden anderen Server.
 
 ## Einen Server verbinden
 
@@ -108,7 +129,8 @@ Serveradresse:
   es landete überall dort im Log, wo die URL landet, und würde stillschweigend die Zugangsdaten der
   Verbindung überschreiben.
 - Alles, was auf Loopback, Link-local oder einen privaten Bereich auflöst, wird abgelehnt, sofern der
-  Host nicht in `INTEGRATIONS_ALLOWED_HOSTS` steht.
+  Host nicht in `INTEGRATIONS_ALLOWED_HOSTS` steht oder der Host einer Serveradresse ist, die unter
+  **Admin → Integrationen** festgelegt wurde.
 
 Die letzte Regel ist die, der Selbsthostende begegnen. Ein Nextcloud in deinem LAN unter
 `192.168.1.10` oder `nextcloud.lan` wird abgelehnt, bis du es erlaubst, und ein Nextcloud ohne

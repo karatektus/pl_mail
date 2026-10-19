@@ -15,6 +15,7 @@ use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\Integration\IntegrationRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 /**
  * One user's connection to one external file or photo service.
@@ -37,6 +38,11 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'integration')]
 #[ORM\UniqueConstraint(name: 'uniq_integration_user_provider_name', columns: ['usr_id', 'provider', 'name'])]
 #[ORM\Index(name: 'idx_integration_user', columns: ['usr_id'])]
+// The unique key above, checked before the INSERT so a form can say so. A
+// second Nextcloud that kept the default name used to reach the database and
+// come back as a 500; now it is an error on the name field, which is the one
+// the user can change (#216).
+#[UniqueEntity(fields: ['usr', 'provider', 'name'], message: 'integration.name_taken', errorPath: 'name')]
 #[ORM\HasLifecycleCallbacks]
 class Integration
 {

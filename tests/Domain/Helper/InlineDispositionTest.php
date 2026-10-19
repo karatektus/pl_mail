@@ -105,6 +105,52 @@ final class InlineDispositionTest extends TestCase
         self::assertSame('image/png', InlineDisposition::servedType('IMAGE/PNG; name=x.png'));
     }
 
+    #[DataProvider('labels')]
+    public function testWhichLabelsLetTheBytesDecide(?string $contentType, bool $expected): void
+    {
+        self::assertSame($expected, InlineDisposition::isUnlabelled($contentType));
+    }
+
+    /** @return iterable<string, array{?string, bool}> */
+    public static function labels(): iterable
+    {
+        yield 'octet-stream'       => ['application/octet-stream', true];
+        // Not a registered type, and what Vaultwarden's mails and plenty of
+        // others put on their inline logos (#213).
+        yield 'image/octet-stream' => ['image/octet-stream', true];
+        yield 'binary'             => ['binary/octet-stream', true];
+        yield 'with a name'        => ['Application/Octet-Stream; name="logo.png"', true];
+        yield 'empty'              => ['', true];
+        yield 'null'               => [null, true];
+
+        // A type the sender did state is taken at its word — sniffing these
+        // would let a declared `text/html` be re-read as something else.
+        yield 'png'                => ['image/png', false];
+        yield 'svg'                => ['image/svg+xml', false];
+        yield 'html'               => ['text/html', false];
+        yield 'pdf'                => ['application/pdf', false];
+    }
+
+    #[DataProvider('contents')]
+    public function testSniffingOnlyEverYieldsATypeOnTheList(string $bytes, ?string $expected): void
+    {
+        self::assertSame($expected, InlineDisposition::sniff($bytes));
+    }
+
+    /** @return iterable<string, array{string, ?string}> */
+    public static function contents(): iterable
+    {
+        yield 'png' => [(string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', true), 'image/png'];
+        yield 'gif' => [(string) base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', true), 'image/gif'];
+
+        // The reason sniff() exists as a gate and not a lookup: an unlabelled
+        // part that turns out to be markup is still a download.
+        yield 'svg with a script' => ['<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', null];
+        yield 'html'              => ["<!DOCTYPE html>\n<html><body><script>alert(1)</script></body></html>", null];
+        yield 'pdf'               => ["%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n", null];
+        yield 'empty'             => ['', null];
+    }
+
     /** A path in an attachment name used to be a 500 out of makeDisposition(). */
     public function testAFilenameWithAPathStillMakesAValidHeader(): void
     {

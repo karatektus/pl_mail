@@ -45,9 +45,13 @@ final class Html5CssInliner extends CssToInlineStyles
      */
     protected function createDomDocumentFromHtml($html): DOMDocument
     {
+        $modern = null;
+
         try {
             $modern = HTMLDocument::createFromString((string) $html, LIBXML_NOERROR, 'UTF-8');
-            $xml    = (string) preg_replace(self::XHTML_NAMESPACE, '$1', (string) $modern->saveXml(), 1);
+            self::removeComments($modern);
+
+            $xml = (string) preg_replace(self::XHTML_NAMESPACE, '$1', (string) $modern->saveXml(), 1);
 
             $document = new DOMDocument('1.0', 'UTF-8');
             $previous = libxml_use_internal_errors(true);
@@ -70,6 +74,46 @@ final class Html5CssInliner extends CssToInlineStyles
         // carry — a control character XML forbids, say — is still inlined and
         // still rendered, with the old parser's nesting; worse than the above
         // and far better than a message with no body.
-        return parent::createDomDocumentFromHtml($html);
+        //
+        // Handed the HTML5 parser's own serialisation where there is one,
+        // not the sender's markup: that is the copy with the comments already
+        // gone, so the HTML 4 parser never meets a conditional-comment marker
+        // it would turn into text.
+        return parent::createDomDocumentFromHtml(null !== $modern ? $modern->saveHtml() : $html);
+    }
+
+    /**
+     * Take every comment out of the tree before it is handed over as XML.
+     *
+     * The handover is what comments broke. XML forbids `--` inside a comment
+     * and HTML does not, so one comment holding a double hyphen made loadXML
+     * refuse the whole body and sent it to the HTML 4 parser below — with the
+     * nesting that parser gets wrong, and with Outlook's conditional comments
+     * in it. The downlevel-revealed form, `<!--[if !mso]><!-->` … `<![endif]-->`,
+     * ends in a marker that is not inside a comment at all: the HTML5 parser
+     * reads it, as a browser does, as a comment holding `[endif]--`, which is
+     * exactly what XML refuses; the HTML 4 parser reads it as text, and the
+     * stored body showed `<![endif]-->` to the reader (#175).
+     *
+     * Removed rather than repaired, because nothing downstream keeps one:
+     * the sanitizer drops every comment, and the library matches selectors
+     * against elements. A conditional comment's Outlook-only content goes with
+     * it, which is right for a client that is not Outlook; the content meant
+     * for every other client was never inside a comment and stays.
+     *
+     * Over a snapshot of the nodes, since removing a node while the XPath
+     * result is being walked would skip its siblings.
+     */
+    private static function removeComments(HTMLDocument $document): void
+    {
+        $comments = [];
+
+        foreach (new \Dom\XPath($document)->query('//comment()') as $comment) {
+            $comments[] = $comment;
+        }
+
+        foreach ($comments as $comment) {
+            $comment->parentNode?->removeChild($comment);
+        }
     }
 }

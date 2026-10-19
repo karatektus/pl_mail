@@ -289,7 +289,7 @@ before the model had answered.
 ## Threading
 
 `App\Service\Imap\MessageThreader::assignThread()` is a three-step cascade, and each step
-exists because the one below it is not good enough.
+exists because the one below it is not good enough. A fourth step then looks the other way.
 
 **1. The provider's own conversation id**, from `Message::$providerThreadKey`. Gmail and
 Graph have already grouped the conversation the way the user sees it in their web client, and
@@ -317,6 +317,24 @@ languages plMail is translated into plus the ones common European clients emit),
 candidate thread must also share a participant. A message that is not itself a reply always
 starts its own thread — otherwise every "Your order has shipped" notification ever received
 collapses into one endless conversation.
+
+**4. The other direction: mail that already answers this message.** Steps 2 and 3 look from a
+reply to what it answers, so on their own the result depends on sync order. Folders are synced
+one after the other, and replies in INBOX routinely arrive before the Sent Items message they
+answer; they found nothing, opened threads of their own, and stayed there (#172). After steps 2
+and 3, `adoptReplies()` asks `MessageRepository::findRepliesToForAccount()` for every message of
+the account whose `in_reply_to` or `thread_references` names this Message-ID, and
+`ThreadMerger` folds each of their threads into this one. A GIN expression index,
+`idx_message_referenced_ids`, keeps that lookup from scanning the mailbox per message. Step 1
+skips it: a provider conversation id has already grouped the replies.
+
+The thread kept is the one with the lower id, and one not flushed yet counts as the newest, so
+the conversation a JMAP client, an AI summary or an insight card already points at survives; a
+provider-keyed thread is never absorbed. Counters add up, labels are the union, the newest mail
+decides `lastMessageAt` and the category unless one is pinned, starring and snoozing carry over,
+and the subject comes from the side holding the answered message. The absorbed thread is
+announced to JMAP as destroyed and its messages as updated. The merge never flushes: messages are
+moved by walking the unit of work, because in a batch a reply's thread may exist only in memory.
 
 Gmail-native `threadId` threading is on the roadmap and not done: the id is carried on
 `Message`, but step 2 is still RFC Message-ID based for accounts where step 1 does not apply.
@@ -398,6 +416,11 @@ step only by each controller action remembering to call both.
 — Gmail semantics, where a thread appears under a label if any message in it carries that
 label. That derived union is why `EmailMapper` reads `Message::$labels` and never
 `thread_label`: reading the union would report a mailbox for every message in a thread.
+
+"Its messages" are the ones pointing at the thread in memory, not what `$thread->messages`
+holds: the rules label new mail after threading and before the batch's flush, when that
+collection does not contain the new message yet, and a union over it took a rule's label
+straight off the conversation again.
 
 The provider mapping `LabelChangePropagator` performs is where the three providers stop being
 interchangeable:

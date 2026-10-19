@@ -165,6 +165,42 @@ final class ComposeSafetyTest extends WebTestCase
         );
     }
 
+    /**
+     * Bcc alone is a recipient.
+     *
+     * The rule used to count To only, so a mail meant for Bcc recipients and
+     * nobody else came back with "Add at least one recipient", although the
+     * window itself had let it through.
+     */
+    public function testASendToBccAloneIsAccepted(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $account = $this->account($user, 'sender@joder.dev', sortOrder: 0, primary: true);
+
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
+        $token   = $crawler->filter('input[name="compose[_token]"]')->attr('value');
+
+        $client->request('POST', '/compose/send', [
+            'compose' => [
+                '_token'       => $token,
+                'account'      => $account->id . '|sender@joder.dev',
+                'bccAddresses' => ['hidden@example.test'],
+                'subject'      => 'Bcc only',
+                'bodyHtml'     => '<p>Body</p>',
+            ],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString(
+            'add at least one recipient',
+            strtolower((string) $client->getResponse()->getContent()),
+        );
+    }
+
     /** A draft, by contrast, may have no recipient at all. */
     public function testADraftMayStillBeSavedWithNoRecipient(): void
     {

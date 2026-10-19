@@ -109,6 +109,9 @@ final readonly class CalDavEventConverter
      */
     private const int DEFAULT_DURATION_MINUTES = 60;
 
+    /** An event whose end is stated to be its start. See endOf(). */
+    private const int INSTANT_MINUTES = 1;
+
     public function __construct(
         private RecurrenceRuleConverter $recurrence,
         private AlertReader             $alerts,
@@ -635,26 +638,89 @@ final readonly class CalDavEventConverter
         }
     }
 
+    /**
+     * Where an event ends, never at or before where it starts.
+     *
+     * Three kinds of answer. A real end, from DTEND or DURATION, is taken as
+     * written. An end the publisher STATES to be the start — DTEND equal to
+     * DTSTART, or a zero DURATION — is an instant, a reminder at 23:59 say,
+     * and gets the one minute that keeps it in the views (#170). It used to get
+     * the nominal hour, which other clients do not draw, and an instant late in
+     * the evening ran into the next day and showed there too. An end nobody
+     * stated gets the nominal hour, see nominalEndOf().
+     *
+     * One minute rather than none, because none is invisible: an occurrence's
+     * span is `[start, end)`, and an empty range overlaps no window a view asks
+     * for. One minute and not more, because a minute starting on the last
+     * minute of a day ends on its midnight, which the day grid and the day
+     * walk both read as not continuing — in every zone, since no zone's offset
+     * is a fraction of a minute.
+     */
     private function endOf(VEvent $vevent, DateTimeImmutable $start): DateTimeImmutable
     {
-        $end = $this->instantOf($vevent, 'DTEND');
+        $instant = $start->modify(sprintf('+%d minutes', self::INSTANT_MINUTES));
+        $end     = $this->instantOf($vevent, 'DTEND');
 
         if (null !== $end && $end > $start) {
             return $end;
+        }
+
+        // Equal, and not merely missing or before: a DTEND before DTSTART is a
+        // broken event, not a stated instant, and gets the nominal hour.
+        if (null !== $end && $end->getTimestamp() === $start->getTimestamp()) {
+            return $instant;
         }
 
         $durations = $vevent->select('DURATION');
 
         if ([] !== $durations) {
             try {
-                return $start->add(DateTimeParser::parseDuration((string) reset($durations)));
+                $end = $start->add(DateTimeParser::parseDuration((string) reset($durations)));
+
+                if ($end > $start) {
+                    return $end;
+                }
+
+                if ($end->getTimestamp() === $start->getTimestamp()) {
+                    return $instant;
+                }
             } catch (\Throwable) {
                 // Falls through to the nominal hour: an unparseable DURATION is
                 // no more informative than an absent one.
             }
         }
 
-        return $start->modify(sprintf('+%d minutes', self::DEFAULT_DURATION_MINUTES));
+        return $this->nominalEndOf($vevent, $start);
+    }
+
+    /**
+     * The nominal hour for an event that says nothing about its length, cut
+     * at the midnight that ends the day it starts on.
+     *
+     * Cut so an event at 23:30 stays on its day rather than leaving half an
+     * hour on the next, where it was drawn as a second entry (#170). The day is
+     * the one DTSTART's own zone has, read before $start was moved to UTC; a
+     * start that is already UTC, or floating, is cut at midnight there, which
+     * is no worse than before.
+     */
+    private function nominalEndOf(VEvent $vevent, DateTimeImmutable $start): DateTimeImmutable
+    {
+        $nominal = $start->modify(sprintf('+%d minutes', self::DEFAULT_DURATION_MINUTES));
+
+        $dtstart = $vevent->select('DTSTART')[0] ?? null;
+
+        if (false === $dtstart instanceof ICalDateTime) {
+            return $nominal;
+        }
+
+        try {
+            $local    = DateTimeImmutable::createFromInterface($dtstart->getDateTime());
+            $midnight = $local->setTime(0, 0)->modify('+1 day')->setTimezone(new DateTimeZone('UTC'));
+        } catch (\Throwable) {
+            return $nominal;
+        }
+
+        return $midnight > $start && $midnight < $nominal ? $midnight : $nominal;
     }
 
     /** A DATE value rather than a DATE-TIME is what makes an event all-day. */

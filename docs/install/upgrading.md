@@ -157,8 +157,9 @@ time, with a dot on it while there is something unseen, and the whole changelog 
 - **After an update only, never on an install.** Somebody created on a fresh install, or added
   later, starts at the release that was running when they first signed in. Everybody who existed
   when the dialog arrived starts at 0.3.1, so their first look is every release since.
-- **Only release builds.** A `main` or `sha-…` image, or a checkout, never opens it by itself and
-  shows no dot: there is no release to call new. The **?** still opens the notes.
+- **A `main` image counts as its newest release.** A `main` or `sha-…` image, or a checkout, is
+  treated as the newest tagged release in its own `CHANGELOG.md`, so an install that follows `main`
+  sees the dialog once that release is tagged. Changes not yet in a release are never shown.
 - **Migration notes are for administrators.** `**Migration:**` lines and *Before you upgrade*
   sections are shown in a box only administrators see; everybody else reads what changed for them.
 - **Don't show this after updates** in the dialog's footer makes it quiet for that person: no

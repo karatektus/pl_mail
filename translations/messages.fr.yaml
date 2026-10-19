@@ -943,6 +943,8 @@ admin:
             client_secret: 'Secret client'
             issuer: 'Émetteur'
             issuer_help: 'L’URL de l’émetteur du fournisseur, exactement comme l’indique son document de découverte. Dans Authentik, c’est « OpenID Configuration Issuer » sur la page du fournisseur.'
+            password_login_disabled: 'Authentification unique uniquement'
+            password_login_disabled_help: 'Masque le formulaire de mot de passe et refuse les connexions par mot de passe : tout le monde passe par le fournisseur. Actif uniquement tant qu’un fournisseur est configuré ici. Vous ne pouvez le cocher qu’après vous être connecté vous-même via le fournisseur, et si le fournisseur tombe en panne, bin/console app:sso:allow-password-login ramène le formulaire. Les mots de passe des clients de messagerie (mots de passe d’application) ne sont pas concernés.'
             require_verified_email: 'Ne lier qu’une adresse vérifiée par le fournisseur'
             require_verified_email_help: 'Une première connexion retrouve son compte par l’adresse e-mail. Ne désactivez ceci que là où les gens ne peuvent pas modifier leur propre adresse chez le fournisseur : désactivé, quiconque le peut est en mesure de s’approprier n’importe quel compte qui ne s’est pas encore connecté via le fournisseur.'
             scopes: 'Portées'
@@ -2308,6 +2310,7 @@ jobs:
         move_to: Déplacement
         purge: Suppression définitive
         reclassify: Nouveau tri du courrier récent
+        delete_label: Suppression d’un libellé
     state:
         done: '%count% terminés'
         failed: échec
@@ -2326,6 +2329,21 @@ label:
         violet: Violet
     empty: Aucune conversation avec ce libellé.
     created: Libellé créé.
+    delete:
+        already_running: '« %name% » est déjà en cours de suppression.'
+        destination: Déplacer son courrier vers
+        destination_placeholder: '— choisissez une destination —'
+        destination_required: 'Choisissez où va le courrier. Le dossier n’est pas supprimé tant qu’il contient du courrier.'
+        failed_destination_create: 'Le serveur de messagerie n’a pas créé le dossier %name% où devait aller le courrier. Rien n’a été déplacé ni supprimé.'
+        failed_destination_gone: 'La destination choisie pour le courrier n’existe plus. Supprimez à nouveau le libellé et choisissez-en une autre.'
+        failed_new_mail: 'Du nouveau courrier est arrivé dans le dossier après la suppression. Supprimez à nouveau le libellé pour choisir où il va.'
+        failed_not_empty: 'Le dossier « %name% » contient encore du courrier sur le serveur, il n’a donc pas été supprimé. Déplacez ce courrier dans votre client de messagerie, puis supprimez à nouveau le libellé.'
+        failed_server: 'Le serveur de messagerie n’a pas supprimé « %name% » : %error%'
+        mail_count: 'Il contient %count% message(s). Ils sont déplacés vers la destination choisie ci-dessous avant la suppression du dossier.'
+        on_server: 'C’est un dossier sur votre serveur de messagerie : le dossier y est donc supprimé aussi.'
+        still_importing: 'plMail importe encore le courrier de « %name% » depuis le serveur. Supprimez-le une fois l’import terminé, pour que rien n’en reste en arrière.'
+        title: 'Supprimer « %name% »'
+        waiting: 'En attente que le serveur de messagerie vide « %name% » avant de le supprimer.'
     delete_confirm: 'Supprimer le libellé « %name% » ? Il disparaît de tous les comptes. Les messages gardent leurs autres libellés et ne sont pas supprimés.'
     delete_confirm_children: 'Supprimer « %name% » et ses %count% libellé(s) imbriqué(s) ? Ils disparaissent de tous les comptes. Les messages ne sont pas supprimés.'
     deleted: Libellé supprimé.
@@ -3686,6 +3704,7 @@ settings:
         disabled: 'Connexion en pause'
         disconnect: Déconnecter
         disconnect_confirm: 'Déconnecter %name% ? Les fichiers déjà joints à des mails ne sont pas concernés.'
+        disconnect_confirm_calendars: 'Déconnecter %name% ? Ses %count% agenda(s) reflété(s) sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
         disconnected: 'Service déconnecté'
         edit: Modifier
         empty: 'Aucun service connecté pour l’instant.'
@@ -3868,6 +3887,8 @@ settings:
                 reste.
             find: Trouver les agendas de %name%
             heading: D’où viennent les agendas
+            managed: 'Configuré dans Intégrations'
+            managed_hint: '%name% contient aussi vos fichiers. Déconnectez-le dans Réglages → Intégrations.'
             why_admin: >-
                 Votre administrateur n’a peut-être pas ajouté les autorisations
                 d’agenda à l’inscription d’application avec laquelle plMail se
@@ -3890,6 +3911,7 @@ settings:
                 Cochez les agendas de %name% à synchroniser avec plMail. Les
                 événements apparaissent dans la minute qui suit.
             mirrored: Déjà reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
             primary: Principal
             save: Enregistrer les abonnements
             title: Trouver mes agendas
@@ -4594,6 +4616,7 @@ whats_new:
             empty: 'Écrivez un message, ou dites comment plMail se porte.'
             screenshot: 'La capture d’écran n’a pas pu être jointe. Décochez-la et envoyez à nouveau.'
             send: 'Le courrier n’a pas pu être envoyé. Votre texte est toujours là ; réessayez dans un instant.'
+            transport: 'Non envoyé : le serveur a répondu %status% au lieu de plMail. Réessayez sans la capture, ou demandez à la personne qui gère cette installation.'
         from: 'Envoyer depuis'
         message:
             label: 'Votre message'
@@ -4627,5 +4650,7 @@ whats_new:
         label: 'Versions'
         new: 'Nouveau pour vous'
     quiet: 'Ne plus afficher après les mises à jour'
+    screenshot: 'Capture d''écran'
+    screenshot_close: 'Fermer la capture'
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'

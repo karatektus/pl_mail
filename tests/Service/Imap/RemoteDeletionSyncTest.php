@@ -652,6 +652,49 @@ final class RemoteDeletionSyncTest extends KernelTestCase
         self::assertSame(333, $this->inbox->uidValidity);
     }
 
+    /**
+     * UIDVALIDITY is an unsigned 32-bit number, and a server that derives it
+     * from a timestamp or a hash goes past what a signed INT holds. The column
+     * was one (#171): the flush that recorded such a value was refused, the
+     * folder's sync was aborted, and the same thing happened on every round.
+     *
+     * Re-read from the database rather than asserted on the object the sweep
+     * wrote, so the assertion is about what was stored and how it comes back.
+     */
+    public function testAUidValidityAboveTheSignedIntRangeIsStored(): void
+    {
+        $this->incoming('Eins', $this->inbox, 6);
+
+        $believed = $this->sweep($this->inbox, [6], now: '2026-08-11 09:00:00', uidValidity: 3064473417);
+
+        self::assertTrue($believed);
+
+        $this->em->refresh($this->inbox);
+
+        self::assertSame(3064473417, $this->inbox->uidValidity, 'stored whole, and read back as an int');
+    }
+
+    /**
+     * The other half of storing it: the same large value, read back from the
+     * database on the next sweep, is the same validity. isRebuilt() compares
+     * with `!==`, so a value that came back as a string — which is what a
+     * bigint was hydrated as before DBAL 4 — would void every stored UID of the
+     * folder on every sweep.
+     */
+    public function testAnUnchangedUidValidityAboveTheSignedIntRangeIsNotARebuild(): void
+    {
+        $message = $this->incoming('Eins', $this->inbox, 6);
+
+        $this->inbox->uidValidity = 3064473417;
+        $this->em->flush();
+        $this->em->refresh($this->inbox);
+
+        $believed = $this->sweep($this->inbox, [6], now: '2026-08-11 09:00:00', uidValidity: 3064473417);
+
+        self::assertTrue($believed, 'an unchanged validity is a comparison, not a rebuild');
+        self::assertSame(6, $message->imapUid, 'and the address it had still holds');
+    }
+
     // ── cadence ──────────────────────────────────────────────────────────
 
     /**

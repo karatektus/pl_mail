@@ -21,7 +21,13 @@
 # to invent a second DATABASE_URL.
 #
 # The cost is that a fresh database needs creating, migrating and seeding, which
-# is what the rest of this does. Migrations are a no-op once they have run, so
+# is what the rest of this does. Migrated with app:db:migrate, as an install is,
+# not doctrine:migrations:migrate: the migrations leave the cache tables out
+# (see DatabaseCacheTables) and only the app's command creates them. Without
+# them the first cache read inside a test's transaction fails, Postgres aborts
+# the transaction, and whichever test got there first errors with "current
+# transaction is aborted" — ThreadSummaryTest or the Gmail import tests,
+# depending on what ran before them. Migrations are a no-op once they have run, so
 # only the first invocation is slow.
 #
 # The two seeded users are not optional: PageRendersTest, ListFragmentTest and
@@ -32,7 +38,7 @@ set -e
 export TEST_TOKEN=_unit
 
 php bin/console doctrine:database:create --if-not-exists --quiet
-php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --quiet
+php bin/console app:db:migrate --no-interaction --quiet
 php bin/console app:test:seed-user --quiet
 php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password --quiet
 

@@ -1,3 +1,5 @@
+// First, before Turbo starts: see the file for why the order matters.
+import './history_layer.js';
 import './stimulus_bootstrap.js';
 import './password_manager_ignore.js';
 import './nav_origin.js';

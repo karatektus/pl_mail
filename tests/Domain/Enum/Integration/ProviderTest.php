@@ -78,6 +78,28 @@ final class ProviderTest extends TestCase
     }
 
     /**
+     * Nextcloud stays a file service and also carries calendars (#158).
+     *
+     * Two answers that a single kind() could not give: the files connection is
+     * where its calendars come from, so it is listed in Settings → Calendars
+     * without becoming something the file picker filters out.
+     */
+    public function testNextcloudCarriesCalendarsWithoutLeavingTheFileServices(): void
+    {
+        self::assertSame(ServiceKind::Files, Provider::Nextcloud->kind());
+        self::assertContains(Provider::Nextcloud, Provider::of(ServiceKind::Files));
+        self::assertTrue(Provider::Nextcloud->offersCalendars());
+
+        foreach (Provider::of(ServiceKind::Calendar) as $provider) {
+            self::assertTrue($provider->offersCalendars(), $provider->value . ' is a calendar service');
+        }
+
+        foreach ([Provider::Immich, Provider::Paperless, Provider::GoogleDrive, Provider::GooglePhotos, Provider::OneDrive, Provider::Dropbox] as $provider) {
+            self::assertFalse($provider->offersCalendars(), $provider->value . ' has no calendars to offer');
+        }
+    }
+
+    /**
      * The calendar provider's driver implements the two calendar interfaces and
      * emphatically not the file one.
      *

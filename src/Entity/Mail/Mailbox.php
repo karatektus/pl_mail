@@ -9,6 +9,7 @@ use App\Repository\Mail\MailboxRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Domain\Trait\TimestampableTrait;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: MailboxRepository::class)]
@@ -50,7 +51,21 @@ class Mailbox
     #[ORM\Column(length: 50, nullable: true)]
     public ?MailboxSpecialUse $specialUse = null;
 
-    #[ORM\Column(nullable: true)]
+    /**
+     * The folder's UIDVALIDITY as last seen, or null before the first listing.
+     *
+     * BIGINT, not INT: RFC 3501 makes it an unsigned 32-bit number, up to
+     * 4294967295, and servers that derive it from a timestamp or a hash
+     * (Dovecot among them) go past the 2147483647 a signed INT holds. Stored as
+     * INT, the flush that records such a value was refused and the folder never
+     * synced at all (#171).
+     *
+     * Still an int in PHP, and that is not an oversight: since DBAL 4 a bigint
+     * that fits PHP's integer range is hydrated as an int, and on a 64-bit build
+     * every bigint does. VanishedMessageReconciler::isRebuilt() compares it
+     * with `!==`, so a string here would read every sweep as a rebuild.
+     */
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
     public ?int $uidValidity = null;
 
     #[ORM\Column(nullable: true)]

@@ -947,6 +947,8 @@ admin:
             client_secret: 'Client-Secret'
             issuer: 'Issuer'
             issuer_help: 'Die Issuer-URL des Anbieters, genau so, wie sein Discovery-Dokument sie angibt. In Authentik ist das der „OpenID Configuration Issuer“ auf der Seite des Providers.'
+            password_login_disabled: 'Nur Single Sign-on'
+            password_login_disabled_help: 'Blendet das Passwortformular aus und weist Passwort-Anmeldungen ab, sodass alle über den Anbieter hereinkommen. Gilt nur, solange hier ein Anbieter eingerichtet ist. Du kannst es erst ankreuzen, nachdem du dich selbst über den Anbieter angemeldet hast, und fällt der Anbieter einmal aus, holt bin/console app:sso:allow-password-login das Formular zurück. Passwörter für Mail-Programme (App-Passwörter) sind nicht betroffen.'
             require_verified_email: 'Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat'
             require_verified_email_help: 'Eine erste Anmeldung findet ihr Konto über die E-Mail-Adresse. Schalt das nur aus, wenn man die eigene Adresse beim Anbieter nicht selbst ändern kann: Ist es aus, kann jede Person, die das darf, jedes Konto übernehmen, das sich noch nicht über den Anbieter angemeldet hat.'
             scopes: 'Scopes'
@@ -2298,6 +2300,7 @@ jobs:
         move_to: Verschieben
         purge: Endgültig löschen
         reclassify: Sortiert neueste Mail neu
+        delete_label: Löscht ein Label
     state:
         done: '%count% erledigt'
         failed: fehlgeschlagen
@@ -2316,6 +2319,21 @@ label:
         violet: Violett
     empty: Keine Konversationen mit diesem Label.
     created: Label erstellt.
+    delete:
+        already_running: '"%name%" wird schon gelöscht.'
+        destination: Mail verschieben nach
+        destination_placeholder: '— wähle ein Ziel —'
+        destination_required: 'Wähle, wohin die Mail soll. Der Ordner wird nicht gelöscht, solange Mail darin liegt.'
+        failed_destination_create: 'Der Mailserver hat den Ordner %name%, in den die Mail sollte, nicht angelegt. Es wurde nichts verschoben oder gelöscht.'
+        failed_destination_gone: 'Das Ziel, das du für die Mail gewählt hast, gibt es nicht mehr. Lösche das Label noch einmal und wähle ein anderes.'
+        failed_new_mail: 'Nachdem du auf Löschen gedrückt hast, ist neue Mail im Ordner angekommen. Lösche das Label noch einmal, um zu wählen, wohin sie soll.'
+        failed_not_empty: 'Im Ordner "%name%" liegt auf dem Server noch Mail, deshalb wurde er nicht gelöscht. Verschiebe diese Mail in deinem Mailprogramm und lösche das Label dann noch einmal.'
+        failed_server: 'Der Mailserver hat "%name%" nicht gelöscht: %error%'
+        mail_count: 'Darin liegen %count% Nachricht(en). Sie werden an das Ziel verschoben, das du unten wählst, bevor der Ordner gelöscht wird.'
+        on_server: 'Es ist ein Ordner auf deinem Mailserver, deshalb wird der Ordner dort auch gelöscht.'
+        still_importing: 'plMail importiert die Mail in "%name%" noch vom Server. Lösche es, sobald der Import fertig ist, damit nichts davon zurückbleibt.'
+        title: '"%name%" löschen'
+        waiting: 'Wartet, bis "%name%" auf dem Mailserver leer ist, und löscht den Ordner dann.'
     delete_confirm: 'Das Label "%name%" löschen? Es verschwindet aus allen Konten. Nachrichten behalten ihre übrigen Labels und werden nicht gelöscht.'
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
@@ -3652,6 +3670,7 @@ settings:
         disabled: 'Verbindung pausiert'
         disconnect: Trennen
         disconnect_confirm: '%name% trennen? Bereits angehängte Dateien bleiben unberührt.'
+        disconnect_confirm_calendars: '%name% trennen? Die %count% von dort gespiegelten Kalender werden hier ebenfalls entfernt; Termine aus deinen E-Mails kommen vorher in deinen Standardkalender. Bereits angehängte Dateien bleiben unberührt.'
         disconnected: 'Dienst getrennt'
         edit: Bearbeiten
         empty: 'Noch keine Dienste verbunden.'
@@ -3835,6 +3854,8 @@ settings:
                 einen CalDAV-Server.
             find: Kalender auf %name% suchen
             heading: Woher Kalender kommen
+            managed: 'Unter Integrationen eingerichtet'
+            managed_hint: '%name% enthält auch deine Dateien. Trenne die Verbindung unter Einstellungen → Integrationen.'
             why_admin: >-
                 Vielleicht hat deine Administration der App-Registrierung, mit
                 der plMail sich anmeldet, keine Kalenderberechtigungen gegeben.
@@ -3857,6 +3878,7 @@ settings:
                 Wähle die Kalender auf %name%, die plMail mitführen soll.
                 Termine erscheinen innerhalb einer Minute.
             mirrored: Wird bereits gespiegelt
+            mirrored_elsewhere: 'Wird bereits über %name% gespiegelt'
             primary: Haupt
             save: Auswahl speichern
             title: Meine Kalender finden
@@ -4565,6 +4587,7 @@ whats_new:
             empty: 'Schreib eine Nachricht oder sag, wie es mit plMail läuft.'
             screenshot: 'Der Screenshot ließ sich nicht anhängen. Nimm den Haken heraus und sende noch einmal.'
             send: 'Die Mail konnte nicht gesendet werden. Dein Text ist noch da; versuch es gleich noch einmal.'
+            transport: 'Nicht gesendet: Der Server hat mit %status% statt mit plMail geantwortet. Versuch es ohne den Screenshot oder frag, wer diese Installation betreibt.'
         from: 'Senden von'
         message:
             label: 'Deine Nachricht'
@@ -4598,5 +4621,7 @@ whats_new:
         label: 'Versionen'
         new: 'Neu für dich'
     quiet: 'Nach Updates nicht mehr anzeigen'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Screenshot schließen'
     screenshot_open: 'Screenshot in voller Größe öffnen'
     title: 'Was ist neu'

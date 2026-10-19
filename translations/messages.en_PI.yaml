@@ -870,6 +870,8 @@ admin:
             client_secret: 'Client secret'
             issuer: 'Issuer'
             issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
+            password_login_disabled: 'Th'' fleet''s seal only'
+            password_login_disabled_help: 'Hides th'' password form an'' turns away password boardin''s, so every sailor comes in through th'' fleet. Only holds while a fleet be set up here. Ye can tick it only after ye''ve boarded through th'' fleet yerself, an'' if th'' fleet ever sinks, run bin/console app:sso:allow-password-login t'' bring th'' form back. Passwords fer mail clients (app passwords) be left alone.'
             require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
             require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
             scopes: 'Scopes'
@@ -2176,6 +2178,7 @@ jobs:
         move_to: Haulin'
         purge: Sendin' to Davy Jones for good
         reclassify: Stowin' recent post again
+        delete_label: "Strikin' a flag"
     state:
         done: '%count% done'
         failed: foundered
@@ -2194,6 +2197,21 @@ label:
         violet: Violet
     empty: No yarns flyin' this flag.
     created: Flag hoisted.
+    delete:
+        already_running: '"%name%" be comin'' down already.'
+        destination: Haul its post to
+        destination_placeholder: '— pick a hold —'
+        destination_required: 'Pick where the post goes, matey. The hold be not scuttled with post still in it.'
+        failed_destination_create: 'The mail server wouldn''t build the %name% hold the post were bound fer. Nothin'' were hauled or scuttled.'
+        failed_destination_gone: 'The hold ye picked for the post be gone. Strike the flag again an'' pick another.'
+        failed_new_mail: 'Fresh post landed in the hold after ye gave the order. Strike the flag again to say where it goes.'
+        failed_not_empty: 'The hold "%name%" still has post in it on the server, so it were not scuttled. Haul that post out in yer other mail client, then strike the flag again.'
+        failed_server: 'The mail server refused to scuttle "%name%": %error%'
+        mail_count: '%count% yarn(s) be in it. They be hauled to the hold ye pick below afore the hold be scuttled.'
+        on_server: 'It be a hold on yer mail server, so the hold be scuttled there too.'
+        still_importing: 'plMail be still haulin'' the post in "%name%" off the server. Strike it once the haulin'' be done, so none o'' that post be left behind.'
+        title: 'Strike "%name%"'
+        waiting: 'Waitin'' fer the mail server to empty the hold "%name%" afore it be scuttled.'
     delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
     delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.
@@ -3456,6 +3474,7 @@ settings:
         disabled: 'Line slackened'
         disconnect: 'Cast off'
         disconnect_confirm: 'Cast off from %name%? Cargo already hauled aboard stays put.'
+        disconnect_confirm_calendars: 'Cast off from %name%? Its %count% almanac(s) go overboard with it; what came by mail be stowed in yer default almanac first. Cargo already hauled aboard stays put.'
         disconnected: 'Cast off'
         edit: Edit
         empty: 'No ports moored yet.'
@@ -3634,6 +3653,8 @@ settings:
                 accounts do; for aught else, make fast to a CalDAV port.
             find: Find the almanacs on %name%
             heading: Where almanacs come from
+            managed: 'Rigged under Integrations'
+            managed_hint: '%name% holds yer cargo too. Cut the line in Settings → Integrations.'
             why_admin: >-
                 Yer quartermaster may not have given the papers plMail signs in
                 with any almanac rights. Parrots sail without 'em; almanacs do
@@ -3656,6 +3677,7 @@ settings:
                 Tick the almanacs on %name% for plMail to keep in step with.
                 Reckonin's turn up within the minute.
             mirrored: Already kept in step
+            mirrored_elsewhere: 'Already kept in step through %name%'
             primary: The main one
             save: Stow the choosin'
             title: Find me almanacs
@@ -4337,6 +4359,7 @@ whats_new:
             empty: 'Scrawl a message, or say how plMail be sailin''.'
             screenshot: 'The likeness couldn''t be lashed on. Untick it an'' send again.'
             send: 'The bottle couldn''t be sent. Yer words be still here; try again in a moment.'
+            transport: 'Not sent: the harbour answered %status% instead o'' plMail. Try again without the likeness, or ask whoever captains this ship.'
         from: 'Send from'
         message:
             label: 'Yer message'
@@ -4370,5 +4393,7 @@ whats_new:
         label: 'Refits'
         new: 'New to ye'
     quiet: 'Don''t show this after a refit'
+    screenshot: 'Likeness'
+    screenshot_close: 'Stow the likeness'
     screenshot_open: 'Open the likeness full size'
     title: 'What''s new aboard'

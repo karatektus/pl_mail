@@ -19,7 +19,13 @@
             {# Error #}
             {% if error %}
                 <div class="mb-4 px-4 py-3 rounded-lg alert-danger text-sm text-danger">
-                    {{ error.messageKey | trans(error.messageData, 'security') }}
+                    {# The one message that sends people to the password form is
+                       wrong where there is no password form. #}
+                    {% if error.messageKey == 'oidc.unavailable' and not oidc.passwordLoginAllowed %}
+                        {{ 'oidc.unavailable_sso_only'|trans({}, 'security') }}
+                    {% else %}
+                        {{ error.messageKey | trans(error.messageData, 'security') }}
+                    {% endif %}
                 </div>
             {% endif %}
 
@@ -63,6 +69,7 @@
                         {% endif %}
                     </a>
 
+                    {% if oidc.passwordLoginAllowed %}
                     {# No role="separator": that role makes its content
                        presentational, and a screen reader would then skip the
                        word that says the form below is the other way in. #}
@@ -71,8 +78,10 @@
                         {{ 'login.oidc.or'|trans }}
                         <span class="flex-1 border-t border-line"></span>
                     </div>
+                    {% endif %}
                 {% endif %}
 
+                {% if oidc.passwordLoginAllowed %}
                 {# Full page load on submit: Turbo swaps the <body> only, so the
                    appearance the server renders onto <html> would be ignored
                    until the next real navigation. #}
@@ -153,6 +162,7 @@
                     </button>
 
                 </form>
+                {% endif %}
             </div>
 
             {# The legal notice. Demo-mode only, because only a publicly hosted
@@ -175,7 +185,7 @@
             {# Register link. Hidden on a demo: it advertises a sign-up that does
                not exist yet, and on a public instance that reads as the demo
                refusing to let you in rather than as a roadmap note. #}
-            <p class="text-center text-sm text-ink-muted mt-6 {{ demo.isEnabled ? 'hidden' }}">
+            <p class="text-center text-sm text-ink-muted mt-6 {{ demo.isEnabled or not oidc.passwordLoginAllowed ? 'hidden' }}">
                 {{ 'login.register.prompt'|trans }}
                 <a href="#" class="text-accent font-medium hover:underline">
                     {{ 'login.register.link'|trans }}

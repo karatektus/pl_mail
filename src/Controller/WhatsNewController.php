@@ -98,8 +98,12 @@ final class WhatsNewController extends AbstractController
 
         $form = ['rating' => $rating, 'message' => $message, 'account' => $account?->id];
 
+        // An account of theirs that has an address to send from; see
+        // FeedbackMailer::fromAddress() for the one that did not.
+        $from = null === $account ? null : FeedbackMailer::fromAddress($account);
+
         $error = match (true) {
-            null === $account                    => 'whats_new.feedback.error.account',
+            null === $from                       => 'whats_new.feedback.error.account',
             '' === $message && null === $rating  => 'whats_new.feedback.error.empty',
             '' !== $shotUrl && null === $screenshot => 'whats_new.feedback.error.screenshot',
             default                              => null,

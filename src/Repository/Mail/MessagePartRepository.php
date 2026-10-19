@@ -4,6 +4,7 @@ namespace App\Repository\Mail;
 
 use App\Entity\Mail\MessagePart;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -61,5 +62,34 @@ class MessagePartRepository extends ServiceEntityRepository
         }
 
         return $referenced;
+    }
+
+    /**
+     * Which of these part ids still exist, as a lookup set. For the thumbnail
+     * sweep in PruneBlobsCommand, which names its files by part id.
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, true>
+     */
+    public function findExistingIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $existing = [];
+
+        $result = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT id FROM message_part WHERE id IN (:ids)',
+            ['ids' => $ids],
+            ['ids' => ArrayParameterType::INTEGER],
+        );
+
+        foreach ($result->iterateColumn() as $id) {
+            $existing[(int) $id] = true;
+        }
+
+        return $existing;
     }
 }

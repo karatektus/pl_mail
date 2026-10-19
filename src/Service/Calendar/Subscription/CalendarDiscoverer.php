@@ -6,6 +6,7 @@ namespace App\Service\Calendar\Subscription;
 
 use App\Domain\DTO\Calendar\CalendarSource;
 use App\Domain\DTO\Calendar\CalendarSubscription;
+use App\Domain\DTO\Calendar\RemoteCalendar;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\Calendar\Calendar;
 use App\Repository\Calendar\CalendarRepository;
@@ -61,13 +62,16 @@ final readonly class CalendarDiscoverer
     {
         $driver   = $this->drivers->for($source);
         $mirrored = $this->mirrored($source);
+        $remotes  = $driver->discover($source);
+        $other    = $this->mirroredElsewhere($source, $remotes);
 
         $subscriptions = [];
 
-        foreach ($driver->discover($source) as $remote) {
+        foreach ($remotes as $remote) {
             $subscriptions[] = new CalendarSubscription(
                 $remote,
                 $mirrored[$remote->remoteId] ?? null,
+                $other[$remote->remoteId] ?? null,
             );
         }
 
@@ -75,6 +79,43 @@ final readonly class CalendarDiscoverer
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The same remotes, mirrored by another of this user's sources, keyed by
+     * remote id.
+     *
+     * Remote ids are absolute URLs for CalDAV, so a calendar reached through a
+     * separate CalDAV connection to a Nextcloud and through the Nextcloud
+     * connection itself carries the same id — and nothing else would notice,
+     * since the unique index is per connection (#158).
+     *
+     * @param list<RemoteCalendar> $remotes
+     *
+     * @return array<string, Calendar>
+     */
+    private function mirroredElsewhere(CalendarSource $source, array $remotes): array
+    {
+        $user = $source->user();
+
+        if (null === $user || [] === $remotes) {
+            return [];
+        }
+
+        $ids    = array_map(static fn (RemoteCalendar $remote): string => $remote->remoteId, $remotes);
+        $others = [];
+
+        foreach ($this->calendars->findMirroredForUserByRemoteIds($user, $ids) as $calendar) {
+            $isThisSource = null !== $source->integration
+                ? $calendar->integration === $source->integration
+                : (null !== $source->account && $calendar->account === $source->account);
+
+            if (false === $isThisSource && null !== $calendar->remoteId) {
+                $others[$calendar->remoteId] = $calendar;
+            }
+        }
+
+        return $others;
+    }
 
     /**
      * What is already mirrored from this source, keyed by the remote id it

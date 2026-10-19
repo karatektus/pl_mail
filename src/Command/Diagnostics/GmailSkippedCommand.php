@@ -237,6 +237,10 @@ final class GmailSkippedCommand extends Command
             return 'Gmail lists it and could not return it';
         }
 
+        if (GmailSkipReason::HeldElsewhere === $row->reason) {
+            return 'Another Gmail account here holds it already';
+        }
+
         $labels = $row->labelIds;
 
         if (true === in_array('CHAT', $labels, true)) {

@@ -244,6 +244,41 @@ final readonly class SyncGmailMessageBatchHandler
                 $nowStored[] = $gmailId;
             }
 
+            // ── Already ours: a label change, not a new message ───────────────
+            // The planner used to hand over none of these — newGmailIds() drops
+            // anything already stored, so a message could only arrive here once
+            // and building was the only case. Label changes broke that
+            // assumption: they are reported for messages plMail has had for
+            // months, and the point of re-fetching one is precisely to re-read
+            // labels that have changed underneath it.
+            //
+            // Looking first is also what makes this handler idempotent. A
+            // redelivered batch — a worker restart, a retry after a partial
+            // failure — used to build a second row for every message in it.
+            //
+            // FIRST, ahead of the two merges below, which find a row by
+            // Message-ID. A Message-ID can be on more than one row of an
+            // account and the id cannot, so a merged row looked up by
+            // Message-ID again was sometimes the other one — given this id
+            // while its twin still held it, a duplicate key, and the whole
+            // batch failed and was fetched again on every retry (#168).
+            if ('' !== $gmailId) {
+                $known = $this->messageRepository->findOneByGmailIdForUser($account->usr, $gmailId);
+
+                if (null !== $known) {
+                    // A native Gmail row: Gmail is the authority on its flags,
+                    // and UNREAD/STARRED are in the very labelIds this re-fetch
+                    // was made to re-read. A merged one is another account's
+                    // copy, whose own sync owns its flags; the carrier column
+                    // says which this is.
+                    $this->enrichExisting($known, $labelIds, $gmailId, $known->account, $account, null === $known->gmailCarrierAccount);
+
+                    $enriched++;
+                    $affectedAccounts[(int) $known->account->id] = $known->account;
+                    continue;
+                }
+            }
+
             // ── Claimed by nobody: is it another account's copy? ──────────────
             // A message whose headers name neither this account nor any other
             // is this account's — it is in its mailbox. But Gmail may have
@@ -258,6 +293,11 @@ final readonly class SyncGmailMessageBatchHandler
                 $copy = $this->copyOnAnotherAccount($headers, $siblingAccounts);
 
                 if (null !== $copy) {
+                    if (false === $this->mayTakeGmailId($copy, $account)) {
+                        $newlySkipped += $this->recordHeldElsewhere($account, $gmailId, $labelIds, $headers, $alreadySkipped, $nowStored);
+                        continue;
+                    }
+
                     $this->enrichExisting($copy, $labelIds, $gmailId, $copy->account, $account, false);
                     $enriched++;
                     $affectedAccounts[(int) $copy->account->id] = $copy->account;
@@ -276,6 +316,11 @@ final readonly class SyncGmailMessageBatchHandler
                 if ('' !== $rfcMessageId) {
                     $existing = $this->messageRepository->findOneForAccountByMessageId($targetAccount, $rfcMessageId);
 
+                    if (null !== $existing && false === $this->mayTakeGmailId($existing, $account)) {
+                        $newlySkipped += $this->recordHeldElsewhere($account, $gmailId, $labelIds, $headers, $alreadySkipped, $nowStored);
+                        continue;
+                    }
+
                     if (null !== $existing) {
                         // Gmailify: the row is the sibling's own IMAP copy, and
                         // the IMAP side owns its flags. Enrich the labels, leave
@@ -286,32 +331,6 @@ final readonly class SyncGmailMessageBatchHandler
                         $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
                         continue;
                     }
-                }
-            }
-
-            // ── Already ours: a label change, not a new message ───────────────
-            // The planner used to hand over none of these — newGmailIds() drops
-            // anything already stored, so a message could only arrive here once
-            // and building was the only case. Label changes broke that
-            // assumption: they are reported for messages plMail has had for
-            // months, and the point of re-fetching one is precisely to re-read
-            // labels that have changed underneath it.
-            //
-            // Looking first is also what makes this handler idempotent. A
-            // redelivered batch — a worker restart, a retry after a partial
-            // failure — used to build a second row for every message in it.
-            if ('' !== $gmailId) {
-                $known = $this->messageRepository->findOneByGmailIdForUser($account->usr, $gmailId);
-
-                if (null !== $known) {
-                    // A native Gmail row: Gmail is the authority on its flags,
-                    // and UNREAD/STARRED are in the very labelIds this re-fetch
-                    // was made to re-read.
-                    $this->enrichExisting($known, $labelIds, $gmailId, $targetAccount, $account, true);
-
-                    $enriched++;
-                    $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
-                    continue;
                 }
             }
 
@@ -563,6 +582,64 @@ final readonly class SyncGmailMessageBatchHandler
 
             $this->stateManager->recordThreadsTouched((int) $target->id, [(int) $thread->id]);
         }
+    }
+
+    /**
+     * Whether a row another account holds may be given this carrier's Gmail
+     * id — what both merges above do to the copy they find.
+     *
+     * Both were written for a sibling whose own sync is IMAP: its rows have no
+     * Gmail id, and the carrier's is the only one they will ever get. But the
+     * sibling map is every active account, and a user with several Gmail
+     * accounts has siblings that sync Gmail themselves. Mail forwarded from
+     * one to another reaches the second still Delivered-To the first, and is
+     * attributed there; the row it is merged into already has an id, its own
+     * mailbox's (#168). Overwritten, that row stopped answering to its own
+     * sync, which stored the message again under its own id — two rows with
+     * one Message-ID, a duplicate key the next time either was merged into.
+     *
+     * So: never a row of a Gmail account, whose ids are its own, and never a
+     * row an id from somewhere else has already reached. A row this carrier
+     * merged before is found by its id before either merge is tried.
+     */
+    private function mayTakeGmailId(Message $row, Account $carrier): bool
+    {
+        if (true === $row->account->isGmail()) {
+            return false;
+        }
+
+        return null === $row->gmailId || '' === $row->gmailId || $row->gmailCarrierAccount === $carrier;
+    }
+
+    /**
+     * Write down a message another account already holds, so the import
+     * counts it as dealt with and the next listing does not fetch it again.
+     *
+     * @param list<string>         $labelIds
+     * @param array<string,string> $headers
+     * @param array<string,mixed>  $alreadySkipped
+     * @param list<string>         $nowStored      what comes off the record; this does not
+     *
+     * @return int 1 when it was written down now, 0 when it already was
+     */
+    private function recordHeldElsewhere(
+        Account $account,
+        string  $gmailId,
+        array   $labelIds,
+        array   $headers,
+        array   &$alreadySkipped,
+        array   &$nowStored,
+    ): int {
+        $nowStored = array_values(array_diff($nowStored, [$gmailId]));
+
+        if ('' === $gmailId || true === isset($alreadySkipped[$gmailId])) {
+            return 0;
+        }
+
+        $this->em->persist(new GmailSkippedMessage($account, $gmailId, GmailSkipReason::HeldElsewhere, $labelIds, $headers));
+        $alreadySkipped[$gmailId] = true;
+
+        return 1;
     }
 
     /**

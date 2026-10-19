@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:ec9aeaf511daaa02fb59138c5e65e3b6a0c5e7f1 -->
+<!-- translated-from: internals/security-model.md sha1:093ff3fe874724f349aa3990c4b8ab6211f71701 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -234,6 +234,13 @@ du kennen:
   Benutzer kann die Adresse eines Kontos ändern, und ein unverknüpftes Konto wird über die Adresse
   gefunden, also erreicht eine Administratorin mit einem zweiten Login beim Anbieter ein Konto, das
   noch nicht verknüpft ist. `app:user:oidc-unlink` gibt es aus demselben Grund nur auf der Konsole.
+- **„Nur Single Sign-on“ setzt der Server durch und hebt nur die Konsole auf.**
+  `LoginFormAuthenticator` weist eine Passwort-Anmeldung ab, bevor er den Benutzer nachschlägt; ein
+  POST an `/login` mit dem richtigen Passwort scheitert also wie ein falsches. Es gilt nur, solange
+  der Anbieter vollständig ist und gilt, und das Formular, das es setzt, verlangt, dass die
+  speichernde Administratorin schon mit dem Anbieter verknüpft ist. `app:sso:allow-password-login`
+  gibt es nur auf der Konsole: Die Browser-Sitzung einer Administratorin soll eine Einstellung nicht
+  aufheben können, die Passwörter draußen halten soll.
 
 ### Zugriffssteuerung, und die Endpunkte, die keine Session halten können
 
