@@ -57,7 +57,7 @@ services:
         set -e
         [ -f vendor/autoload_runtime.php ] || composer install --prefer-dist --no-progress --no-interaction
         php bin/console doctrine:database:create --if-not-exists
-        php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+        php bin/console app:db:migrate --no-interaction
         php bin/console importmap:install
         php bin/console tailwind:build \
             || { sleep 5; php bin/console tailwind:build; } \
