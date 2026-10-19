@@ -8,6 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The weekly cleanup no longer deletes profile pictures, signature images and backgrounds.** Every
+Sunday at 05:00 `app:prune:blobs` removed week-old files it found no record for anywhere under
+`var/uploads`, `var/attachments` and `var/raw`. Profile pictures, signature images and appearance
+background images are kept under `var/uploads` without such a record, so they were deleted along
+with the real leftovers. The cleanup now only looks in the per-account directories that mail
+attachments, original messages and staged uploads are written to, and leaves everything else on
+those volumes alone, including directories added later. Files it already deleted cannot be brought
+back by plMail: restore them from a backup of the volume, or upload them again. No schema change.
+[#214](https://github.com/karatektus/pl_mail/issues/214).
+
 **Reconnecting a service in the setup wizard no longer fails.** Opening the Integrations step for
 a service that was already connected and saving it again answered with an error page, because the
 step built a second connection with the same name instead of editing the first. It now edits the
