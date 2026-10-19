@@ -53,6 +53,7 @@ final class PruneBlobsCommandTest extends TestCase
             'var/uploads/avatars/3/3f9c1e.png',
             'var/uploads/signatures/3/logo-a1b2c3.png',
             'var/uploads/backgrounds/7d2e.jpg',
+            // A thumbnail of a part that exists: the thumbnail pass's, and kept.
             'var/attachments/thumbs/42.webp',
             // A store nobody has written yet, in the shape the sealed messages
             // of v0.4.0 take: it is left alone without anyone listing it here.
@@ -68,7 +69,7 @@ final class PruneBlobsCommandTest extends TestCase
             $this->file($path, self::OLD);
         }
 
-        $exit = $this->command()->execute([]);
+        $exit = $this->command(existingParts: [42])->execute([]);
 
         self::assertSame(Command::SUCCESS, $exit);
 
@@ -147,6 +148,69 @@ final class PruneBlobsCommandTest extends TestCase
         self::assertStringContainsString('Orphans in var/raw: 1', $tester->getDisplay());
     }
 
+    /**
+     * #233: the stores are under APP_STORAGE_DIR, not a hardcoded var/. On an
+     * install that moved them, the sweep looked where nothing was written and
+     * reclaimed nothing.
+     */
+    public function testTheStoresAreUnderTheStorageDirectory(): void
+    {
+        $orphan     = 'var/data/raw/3/1/1042.eml';
+        $referenced = 'var/data/attachments/3/12/4711/kept.pdf';
+        $elsewhere  = 'var/raw/3/1/1042.eml';
+
+        foreach ([$orphan, $referenced, $elsewhere] as $path) {
+            $this->file($path, self::OLD);
+        }
+
+        $this->command(parts: [$referenced => true], storageDir: 'var/data')->execute([]);
+
+        self::assertFileDoesNotExist($this->projectDir.'/'.$orphan, 'swept where the writers write');
+        self::assertFileExists($this->projectDir.'/'.$referenced, 'the keep-list is asked with the storage dir\'s prefix');
+        self::assertFileExists($this->projectDir.'/'.$elsewhere, 'and var/ is not this install\'s store');
+    }
+
+    /**
+     * #232: a thumbnail is named by its part id, and nothing deletes it with
+     * the part. It goes once the part is gone, and not before.
+     */
+    public function testThumbnailsOfPartsThatAreGoneAreDeleted(): void
+    {
+        $gone     = 'var/attachments/thumbs/41.webp';
+        $existing = 'var/attachments/thumbs/42.webp';
+        $recent   = 'var/attachments/thumbs/43.webp';
+        $foreign  = 'var/attachments/thumbs/notes.txt';
+        // Larger than any message_part.id can be: not ours, and it must not
+        // turn the existence query into an error that stops the run.
+        $tooLarge = 'var/attachments/thumbs/99999999999.webp';
+
+        foreach ([$gone, $existing, $foreign, $tooLarge] as $path) {
+            $this->file($path, self::OLD);
+        }
+
+        $this->file($recent, '-1 day');
+
+        $tester = $this->command(existingParts: [42]);
+        $tester->execute([]);
+
+        self::assertFileDoesNotExist($this->projectDir.'/'.$gone);
+        self::assertFileExists($this->projectDir.'/'.$existing, 'its part still exists');
+        self::assertFileExists($this->projectDir.'/'.$recent, 'inside the window');
+        self::assertFileExists($this->projectDir.'/'.$foreign, 'not a thumbnail');
+        self::assertFileExists($this->projectDir.'/'.$tooLarge, 'not a part id');
+        self::assertStringContainsString('Orphaned thumbnails: 1', $tester->getDisplay());
+    }
+
+    public function testADryRunKeepsThumbnailsToo(): void
+    {
+        $gone = 'var/attachments/thumbs/41.webp';
+        $this->file($gone, self::OLD);
+
+        $this->command()->execute(['--dry-run' => true]);
+
+        self::assertFileExists($this->projectDir.'/'.$gone);
+    }
+
     private function file(string $relativePath, string $age): void
     {
         $path = $this->projectDir.'/'.$relativePath;
@@ -163,15 +227,24 @@ final class PruneBlobsCommandTest extends TestCase
      * @param array<string, true> $uploads
      * @param array<string, true> $parts
      * @param array<string, true> $raw
+     * @param list<int>           $existingParts part ids that still exist
      */
-    private function command(array $uploads = [], array $parts = [], array $raw = []): CommandTester
-    {
+    private function command(
+        array $uploads = [],
+        array $parts = [],
+        array $raw = [],
+        array $existingParts = [],
+        string $storageDir = 'var',
+    ): CommandTester {
         $blobs = $this->createStub(UploadedBlobRepository::class);
         $blobs->method('findOlderThan')->willReturn([]);
         $blobs->method('findReferencedPaths')->willReturn($uploads);
 
         $messageParts = $this->createStub(MessagePartRepository::class);
         $messageParts->method('findReferencedStoragePaths')->willReturn($parts);
+        $messageParts->method('findExistingIds')->willReturnCallback(
+            static fn (array $ids): array => array_fill_keys(array_values(array_intersect($ids, $existingParts)), true),
+        );
 
         $messages = $this->createStub(MessageRepository::class);
         $messages->method('findReferencedRawPaths')->willReturn($raw);
@@ -180,9 +253,10 @@ final class PruneBlobsCommandTest extends TestCase
             $blobs,
             $messageParts,
             $messages,
-            new UploadStorage($this->projectDir, 'var'),
+            new UploadStorage($this->projectDir, $storageDir),
             $this->createStub(EntityManagerInterface::class),
             $this->projectDir,
+            $storageDir,
         ));
     }
 }

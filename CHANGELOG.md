@@ -8,6 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The weekly cleanup works on installs that moved their storage, and clears old thumbnails.**
+`app:prune:blobs` looked for leftover files under a fixed `var/`, so on an install that sets
+`APP_STORAGE_DIR` to another directory it found nothing and reclaimed nothing. It now looks where
+the files are written. The preview thumbnails of attachments are kept there too now, beside the
+attachments, instead of under a fixed `var/`; on such an install the old `var/attachments/thumbs`
+directory can be deleted, and the thumbnails are drawn again when they are next shown. The cleanup
+also deletes the thumbnails of attachments that no longer exist, which nothing removed before. No
+schema change. [#232](https://github.com/karatektus/pl_mail/issues/232),
+[#233](https://github.com/karatektus/pl_mail/issues/233).
+
 **The installed app has the icon you picked, on iPhone and Android too.** The tab icon followed
 Settings → Appearance → Logo, but an app installed from the browser or added to a home screen kept
 the wax seal, because its icons came from fixed files. The install manifest and the iOS home-screen

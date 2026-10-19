@@ -24,6 +24,10 @@ use Psr\Log\LoggerInterface;
  * Thumbnails are written next to nothing — a flat cache directory keyed by part
  * id — and generated once. The part's bytes are immutable, so there is no
  * invalidation to get wrong; deleting the directory is a full, safe reset.
+ *
+ * The directory is under APP_STORAGE_DIR, beside the attachments themselves
+ * (it was a hardcoded var/ until #233). A thumbnail outlives its part until
+ * the weekly app:prune:blobs clears it (#232).
  */
 final readonly class AttachmentThumbnailer
 {
@@ -37,10 +41,14 @@ final readonly class AttachmentThumbnailer
 
     private const int EDGE = 160;
 
+    /** The cache directory, relative to APP_STORAGE_DIR. PruneBlobsCommand sweeps it. */
+    public const string DIRECTORY = 'attachments/thumbs';
+
     public function __construct(
         private AttachmentResolver $attachments,
         private LoggerInterface $logger,
         private string $projectDir,
+        private string $storageDir,
     ) {
     }
 
@@ -75,7 +83,7 @@ final readonly class AttachmentThumbnailer
             return null;
         }
 
-        $cachePath = sprintf('%s/var/attachments/thumbs/%d.webp', $this->projectDir, $part->id);
+        $cachePath = sprintf('%s/%s/%s/%d.webp', $this->projectDir, $this->storageDir, self::DIRECTORY, $part->id);
 
         if (true === is_file($cachePath)) {
             return $cachePath;
