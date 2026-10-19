@@ -20,6 +20,7 @@ caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
+integration.name_taken: Du hast schon eine Verbindung zu diesem Dienst mit dem Namen {{ value }}. Gib dieser einen anderen Namen — etwa Privat und Arbeit.
 settings.password.current_required: Gib dein aktuelles Passwort ein — es verhindert, dass jemand an deinem offenen Bildschirm es einfach ändert.
 settings.password.current_wrong: Das ist nicht dein aktuelles Passwort.
 settings.password.mismatch: Die beiden neuen Passwörter stimmen nicht überein.

@@ -20,6 +20,7 @@ caldav.username_required: Saisissez le nom d’utilisateur sous lequel votre ser
 calendar.name_required: Donnez un nom à l’agenda — c’est ce qui le distingue des autres.
 compose.recipient_invalid: "« {{ address }} » n’est pas une adresse e-mail valide."
 compose.recipient_required: Ajoutez au moins un destinataire avant d’envoyer.
+integration.name_taken: Vous avez déjà une connexion à ce service nommée {{ value }}. Donnez un autre nom à celle-ci — maison et travail, par exemple.
 settings.password.current_required: Saisissez votre mot de passe actuel — c’est ce qui empêche quelqu’un devant votre écran déverrouillé de le changer.
 settings.password.current_wrong: Ce n’est pas votre mot de passe actuel.
 settings.password.mismatch: Les deux nouveaux mots de passe ne correspondent pas.

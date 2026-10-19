@@ -19,6 +19,7 @@ caldav.username_required: Give the name yer CalDAV port knows ye by.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
 compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
 compose.recipient_required: Name at least one soul afore ye cast off.
+integration.name_taken: Ye already have a line to this port named {{ value }}. Christen this one somethin' else — home an' work, say.
 settings.password.current_required: Say yer current word — 'tis what keeps a passing hand from changing it at yer open desk.
 settings.password.current_wrong: That be not yer current word.
 settings.password.mismatch: Th' two new words don't match.

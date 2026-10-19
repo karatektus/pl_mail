@@ -11,7 +11,9 @@ The published image tags: `latest` follows the most recent release below,
 **Reconnecting a service in the setup wizard no longer fails.** Opening the Integrations step for
 a service that was already connected and saving it again answered with an error page, because the
 step built a second connection with the same name instead of editing the first. It now edits the
-existing one, and a blank secret still keeps the stored one. No schema change.
+existing one, and a blank secret still keeps the stored one. The settings page had the same error
+when a second connection to a service (a work Nextcloud next to the home one) kept the default
+name; it now asks for another name instead. No schema change.
 [#216](https://github.com/karatektus/pl_mail/issues/216), by @phdelodder.
 
 **Inline images in a message show up again.** Pictures that a mail carries inside itself, such as
