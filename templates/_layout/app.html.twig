@@ -100,9 +100,19 @@
     <meta name="title-count-key" content="{% block title_count_key %}role:inbox{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
-       needs the apple-touch-icon specifically — it ignores the manifest icons. #}
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+       needs the apple-touch-icon specifically — it ignores the manifest icons.
+
+       Both follow the logo picked in Settings → Appearance (#141), as PNGs the
+       user's own browser drew (see AppIconStorage for why not the server). The
+       manifest is a route with the choice and the user's key in its URL, like
+       the tab icon: it is fetched without credentials. The apple-touch-icon is
+       the form that fills its square, because iOS rounds the corners itself
+       and paints a transparent one black. Nobody signed in: the wax seal. #}
+    {% set _app_icons = app_icons() %}
+    {% set _logo_motif = appearance().effectiveLogoMotif %}
+    {% set _logo_paint = appearance().effectiveLogoPaint %}
+    <link rel="manifest" href="{{ logo_manifest_url(_logo_motif, _logo_paint, _app_icons ? _app_icons.key : null) }}">
+    <link rel="apple-touch-icon" href="{{ _app_icons ? logo_app_icon_url('bleed-180', _app_icons.key, _logo_motif, _logo_paint) : '/icons/apple-touch-icon.png' }}">
     {# The token the fetch-based endpoints check. Stimulus controllers that
        build their own request body cannot carry a form field, so they read this
        and send it as X-CSRF-Token. Every such endpoint validates against the
@@ -424,5 +434,16 @@
             {% endfor %}
         {% endfor %}
     </div>
+    {# The installed app's PNGs for the current choice are not drawn yet: a logo
+       picked before #141, or a deploy that changed the drawing. This page draws
+       and uploads them once (core--app-icons); until then the icon route serves
+       the wax seal. #}
+    {% if _app_icons and _app_icons.missing %}
+        <div hidden
+             data-controller="core--app-icons"
+             data-core--app-icons-tile-url-value="{{ logo_icon_url(_logo_motif, _logo_paint) }}"
+             data-core--app-icons-bleed-url-value="{{ logo_bleed_url(_logo_motif, _logo_paint) }}"
+             data-core--app-icons-upload-url-value="{{ path('app_appearance_app_icons') }}"></div>
+    {% endif %}
 </body>
 </html>

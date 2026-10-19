@@ -8,6 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The installed app has the icon you picked, on iPhone and Android too.** The tab icon followed
+Settings → Appearance → Logo, but an app installed from the browser or added to a home screen kept
+the wax seal, because its icons came from fixed files. The install manifest and the iOS home-screen
+icon now name your choice. Your browser draws them as PNGs when you pick a logo and uploads them for
+your account, so the image needs nothing new to draw them; a logo picked before this is drawn by the
+next page you open. An app that is already installed keeps its old icon until the browser refreshes
+it or you reinstall. No migration. [#141](https://github.com/karatektus/pl_mail/issues/141), building
+on #92 by @Flouss.
+
 **The weekly cleanup no longer deletes profile pictures, signature images and backgrounds.** Every
 Sunday at 05:00 `app:prune:blobs` removed week-old files it found no record for anywhere under
 `var/uploads`, `var/attachments` and `var/raw`. Profile pictures, signature images and appearance

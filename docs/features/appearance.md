@@ -56,6 +56,11 @@ dark-chrome colours, so an ink-dark icon never disappears into a dark top bar. T
 the tile for every icon but the pl mark, because a drawing with nothing behind it is hard to make
 out at the size of a tab.
 
+An app installed from the browser, or plMail added to an iPhone's Home Screen, wears it too. Your
+browser draws that icon when you pick a logo, and it is kept for your account. After an update that
+changes the drawing, the first page you open draws it again in the background. An app that is
+already installed keeps its old icon until the browser refreshes it or you install it again.
+
 ## The live preview
 
 Beside the controls sits a second card showing a sample sidebar, message list and reading pane in

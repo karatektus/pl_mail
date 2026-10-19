@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:963b5496c55b39c78ef14815a4c3c0e5b2ae8f78 -->
+<!-- translated-from: features/appearance.md sha1:07ca79710a14017f094316936796ec53ba56ebb6 -->
 
 # Darstellung
 
@@ -63,6 +63,12 @@ Theme wechseln das pl-Zeichen und das Horn zu den Farben, die jede Farbstimmung 
 Oberflächen hat — ein tintendunkles Symbol verschwindet so nie in einer dunklen Kopfleiste. Das
 Tab-Symbol behält die Kachel bei jedem Symbol außer dem pl-Zeichen, weil eine Zeichnung ohne
 Hintergrund in Tab-Größe kaum zu erkennen ist.
+
+Eine aus dem Browser installierte App, oder plMail auf dem Home-Bildschirm eines iPhones, trägt es
+ebenfalls. Dieses Symbol zeichnet dein Browser, wenn du ein Logo wählst, und es wird für dein Konto
+aufbewahrt. Nach einem Update, das die Zeichnung ändert, zeichnet die erste Seite, die du öffnest,
+es im Hintergrund neu. Eine schon installierte App behält ihr altes Symbol, bis der Browser es
+auffrischt oder du sie neu installierst.
 
 ## Die Live-Vorschau
 
