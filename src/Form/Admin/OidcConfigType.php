@@ -39,8 +39,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * **"Single sign-on only" has two refusals of its own.** It needs a whole
  * registration on this page (the environment's does not count: the setting is
  * saved with the row, and the row is ignored unless whole), and it needs the
- * administrator saving it to have signed in through the provider themselves at
- * least once. Without that second check the first administrator to tick the box
+ * administrator saving it to have signed in through that provider — the issuer
+ * on this page, not one it held before — themselves at least once. Without that second check the first administrator to tick the box
  * would be locking themselves out of a provider they had never used.
  *
  * **The issuer has to be https**, refused at the field rather than at the first
@@ -156,7 +156,7 @@ final class OidcConfigType extends AbstractType
 
             if ('' === $issuer || '' === $clientId || false === $hasSecret) {
                 $form->get('passwordLoginDisabled')->addError($this->refusal('admin.sso.error.password_login_needs_provider'));
-            } elseif (true === $me instanceof User && null === $me->oidcSubject) {
+            } elseif (true === $me instanceof User && false === $this->signedInThrough($me, $issuer)) {
                 $form->get('passwordLoginDisabled')->addError($this->refusal('admin.sso.error.password_login_needs_own_sso'));
             }
         }
@@ -177,6 +177,22 @@ final class OidcConfigType extends AbstractType
         if (false === $hasSecret) {
             $form->get('clientSecret')->addError($this->refusal('admin.sso.error.secret_missing'));
         }
+    }
+
+    /**
+     * Whether $user is linked to the provider being saved, not merely to some
+     * provider. A link to the one this page used to hold does not count: an
+     * administrator switching providers and ticking the box in one save has
+     * never signed in at the new one, and their first try there may well be
+     * refused (another address, an unverified one). The stored issuer is the
+     * discovery document's spelling, so it is compared without a trailing
+     * slash, as OidcDiscovery compares it.
+     */
+    private function signedInThrough(User $user, string $issuer): bool
+    {
+        return null !== $user->oidcSubject
+            && null !== $user->oidcIssuer
+            && rtrim($user->oidcIssuer, '/') === rtrim($issuer, '/');
     }
 
     /**

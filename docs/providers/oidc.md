@@ -112,7 +112,7 @@ does not.
 
   That clears what Admin → SSO saved. If you set `OIDC_DISABLE_PASSWORD_LOGIN` in the environment,
   change it there and restart.
-- **What it does not touch:** app passwords for mail clients and the Android and iOS apps (JMAP and
+- **What it does not touch:** app passwords for mail clients and the Android app (JMAP and
   CalDAV) keep working, and so do browser sessions that are already open. Passwords stay in the
   database, so switching the setting off again needs no reset. Remove a person's access at the
   provider *and* deactivate their account under Admin → Users to end sessions that are already open.

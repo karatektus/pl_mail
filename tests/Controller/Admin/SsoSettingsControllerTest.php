@@ -96,10 +96,38 @@ final class SsoSettingsControllerTest extends WebTestCase
 
     public function testSingleSignOnOnlyIsSavedOnceTheAdministratorIsLinkedAndTheProviderWhole(): void
     {
-        $admin              = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
-        $admin->oidcIssuer  = 'https://auth.example.com/';
-        $admin->oidcSubject = 'admin-subject';
-        static::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class)->flush();
+        $this->linkAdmin('https://auth.example.com/');
+
+        $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
+
+        self::assertTrue(static::getContainer()->get(OidcConfigRepository::class)->current()?->passwordLoginDisabled);
+    }
+
+    /**
+     * A link to the provider this page held before is not a sign-in through
+     * the one being saved: switching providers and ticking the box in one save
+     * would make a provider the administrator has never used the only way in.
+     */
+    public function testSingleSignOnOnlyIsRefusedWhileTheAdministratorIsLinkedToAnotherProvider(): void
+    {
+        $this->linkAdmin('https://old-auth.example.com/');
+
+        $crawler = $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
+
+        $config = static::getContainer()->get(OidcConfigRepository::class)->current();
+
+        self::assertTrue(null === $config || false === $config->passwordLoginDisabled);
+        self::assertStringContainsString('Sign in through the provider yourself', $crawler->filter('turbo-frame#admin-sso')->text());
+    }
+
+    /**
+     * The stored issuer is the discovery document's spelling and the form's is
+     * the operator's; which way round the trailing slash went is not a
+     * different provider.
+     */
+    public function testSingleSignOnOnlyAcceptsTheSameIssuerWithoutItsTrailingSlash(): void
+    {
+        $this->linkAdmin('https://auth.example.com');
 
         $this->submit($this->provider() + ['passwordLoginDisabled' => '1']);
 
@@ -112,6 +140,14 @@ final class SsoSettingsControllerTest extends WebTestCase
 
         self::assertNull(static::getContainer()->get(OidcConfigRepository::class)->current());
         self::assertStringContainsString('Save a whole provider first', $crawler->filter('turbo-frame#admin-sso')->text());
+    }
+
+    private function linkAdmin(string $issuer): void
+    {
+        $admin              = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
+        $admin->oidcIssuer  = $issuer;
+        $admin->oidcSubject = 'admin-subject';
+        static::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class)->flush();
     }
 
     /**

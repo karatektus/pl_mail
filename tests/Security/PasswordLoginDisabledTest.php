@@ -27,6 +27,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 final class PasswordLoginDisabledTest extends WebTestCase
 {
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
+    // As bin/test-unit.sh seeds it.
+    private const string ADMIN_PASSWORD = 'e2e-admin-password';
 
     private KernelBrowser $client;
     private Connection $connection;
@@ -85,12 +87,30 @@ final class PasswordLoginDisabledTest extends WebTestCase
         $this->client->request('GET', '/login');
         $this->client->request('POST', '/login', [
             'email'    => self::ADMIN_EMAIL,
-            'password' => 'whatever-it-is',
+            'password' => self::ADMIN_PASSWORD,
             '_csrf_token' => 'not-needed-the-refusal-comes-first',
         ]);
 
         self::assertStringContainsString('Password sign-in is turned off', (string) $this->client->getResponse()->getContent());
         self::assertNull(static::getContainer()->get('security.token_storage')->getToken()?->getUser(), 'nobody was signed in');
+    }
+
+    /**
+     * The control for the test above: the same address and password, through
+     * the form, sign in while the setting is off. Without it the refusal could
+     * be a login that was broken for some other reason.
+     */
+    public function testTheSameLoginSignsInWhileThePasswordIsAllowed(): void
+    {
+        $this->saveProvider(passwordLoginDisabled: false);
+
+        $form = $this->client->request('GET', '/login')->filter('form input[name="password"]')->closest('form')?->form();
+        self::assertNotNull($form);
+
+        $this->client->submit($form, ['email' => self::ADMIN_EMAIL, 'password' => self::ADMIN_PASSWORD]);
+
+        self::assertResponseRedirects();
+        self::assertStringNotContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
     }
 
     public function testTheRefusalSaysNothingAboutWhichAddressesExist(): void
