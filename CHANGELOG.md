@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A reply threads for the person who gets it.** A reply sent from plMail, in the web composer or
+over JMAP, reached the recipient without `In-Reply-To` or `References`, so Outlook, Gmail and Apple
+Mail showed it as a new conversation instead of part of the one it answered. The draft always held
+both; the mail built from it never carried them. They are written now, and `References` always
+ends with the message answered, as RFC 5322 asks, even when the draft's own list left it out. A mail
+that is not a reply is unchanged, and replies already sent stay as they went out. No schema change.
+[#206](https://github.com/karatektus/pl_mail/issues/206).
+
 **A send that fails for a passing reason is tried again, and one that finally fails is marked on
 the draft.** Every failed send used to be dropped at once, whatever the reason, so a one-minute
 Gmail rate limit or a short outage lost the mail and only a toast said so. A rate limit, a provider

@@ -401,6 +401,7 @@ class MessageSendService
 
         $this->applyPriority($message, $email);
         $this->applyReceiptRequest($message, $email, $fromAddress);
+        $this->applyThreadingHeaders($message, $email);
 
         $toAddresses = $message->toAddresses;
         if (null !== $toAddresses) {
@@ -455,6 +456,34 @@ class MessageSendService
         }
 
         return $email;
+    }
+
+    /**
+     * In-Reply-To and References, so a reply threads for whoever receives it.
+     *
+     * The draft always carried them (ReplyDraftBuilder fills them, and JMAP
+     * Email/set stores what the client sent) and nothing wrote them onto the
+     * mail, so every reply left as a message of its own and Outlook, Gmail and
+     * Apple Mail showed a new conversation. The ids are written bracket-less
+     * because that is how Symfony's ID header takes them.
+     *
+     * References ends with the parent: RFC 5322 §3.6.4 has a reply carry its
+     * parent's References plus the parent's Message-ID, and a draft whose
+     * list lacks the parent (a JMAP client that set only inReplyTo) would
+     * otherwise send a chain that stops one short.
+     */
+    private function applyThreadingHeaders(Message $message, Email $email): void
+    {
+        $inReplyTo  = MessageIdHelper::normaliseList($message->inReplyTo);
+        $references = MessageIdHelper::normaliseList(array_merge($message->references ?? [], $inReplyTo));
+
+        if ([] !== $inReplyTo) {
+            $email->getHeaders()->addIdHeader('In-Reply-To', $inReplyTo);
+        }
+
+        if ([] !== $references) {
+            $email->getHeaders()->addIdHeader('References', $references);
+        }
     }
 
     /**
