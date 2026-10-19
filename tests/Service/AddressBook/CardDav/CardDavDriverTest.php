@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\AddressBook\CardDav;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\IntegrationException;
@@ -82,6 +83,31 @@ final class CardDavDriverTest extends TestCase
             self::assertSame(401, $e->getStatus());
             self::assertStringContainsString('contacts server rejected the app password', $e->getMessage());
         }
+    }
+
+    /**
+     * A Nextcloud connection made for files carries its address books on the
+     * same app password (#158): found under /remote.php/dav, and a failure
+     * worded for contacts although the connection's provider is not CardDAV.
+     */
+    public function testANextcloudConnectionsAddressBooksAreFoundUnderItsDavRoot(): void
+    {
+        $fixture = new CardDavFixture(
+            CalDavFixture::multistatus($this->homeOnPrincipal()),
+            CalDavFixture::status(401),
+        );
+
+        $nextcloud = CardDavFixture::integration('https://cloud.example.com/nextcloud', Provider::Nextcloud);
+
+        try {
+            $fixture->driver->discover($nextcloud);
+            self::fail('a 401 on the listing must not pass');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertStringContainsString('contacts server rejected the app password', $e->getMessage());
+        }
+
+        self::assertSame('https://cloud.example.com/nextcloud/remote.php/dav', $fixture->url(0));
+        self::assertStringContainsString('addressbook-home-set', $fixture->body(0));
     }
 
     public function testAnAddressInsideTheContainerNetworkIsRefusedBeforeAnyRequest(): void

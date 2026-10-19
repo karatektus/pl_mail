@@ -186,7 +186,29 @@ enum Provider: string
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,
-            self::Dropbox      => false,
+            self::Dropbox,
+            self::CardDav      => false,
+        };
+    }
+
+    /**
+     * Whether Settings → Contacts lists this connection to find address books
+     * on: CardDAV, and Nextcloud for the same reason it offers calendars — one
+     * app password reaches files, calendars and contacts (#158).
+     */
+    public function offersAddressBooks(): bool
+    {
+        return match ($this) {
+            self::Nextcloud,
+            self::CardDav      => true,
+            self::Immich,
+            self::Paperless,
+            self::GoogleDrive,
+            self::GooglePhotos,
+            self::OneDrive,
+            self::Dropbox,
+            self::CalDav,
+            self::Ics          => false,
         };
     }
 

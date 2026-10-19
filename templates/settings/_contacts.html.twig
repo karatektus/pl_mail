@@ -8,7 +8,7 @@ shown beside it, and each book's last sync failure beside the book, because
 nothing else on the page.
 
 Variables:
-  contactConnections  Integration[]                 ServiceKind::Contacts only
+  contactConnections  Integration[]                 CardDAV and Nextcloud — Provider::offersAddressBooks()
   addressBooks        array<int, AddressBook[]>     keyed by integration id
 #}
 <div class="px-4 py-3 border-b border-line bg-sunken flex items-center justify-between gap-3 flex-wrap">
@@ -65,6 +65,15 @@ Variables:
                         {{ 'settings.contacts.find'|trans }}
                     </button>
 
+                    {# Nextcloud also holds the user's files and calendars, so
+                       it is disconnected where it was made — the same rule
+                       as in Settings → Calendars. #}
+                    {% if connection.provider.kind.value != 'contacts' %}
+                        <span class="shrink-0 text-[11px] text-ink-faint"
+                              title="{{ 'settings.calendars.sources.managed_hint'|trans({ '%name%': connection.name }) }}">
+                            {{ 'settings.calendars.sources.managed'|trans }}
+                        </span>
+                    {% else %}
                     <form method="post"
                           action="{{ path('app_settings_contacts_carddav_disconnect', { id: connection.id }) }}"
                           data-turbo-confirm="{{ 'settings.contacts.carddav.disconnect_confirm'|trans({ '%name%': connection.name }) }}">
@@ -77,6 +86,7 @@ Variables:
                             <i class="fa-solid fa-link-slash text-xs" aria-hidden="true"></i>
                         </button>
                     </form>
+                    {% endif %}
                 </div>
 
                 {% set books = addressBooks[connection.id] ?? [] %}

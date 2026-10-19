@@ -41,6 +41,33 @@ class AddressBookRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many address books each of a user's connections mirrors, keyed by
+     * the connection's id — for the Nextcloud disconnect confirmation in
+     * Settings → Integrations, which says what goes with it (#158).
+     *
+     * @return array<int,int>
+     */
+    public function countByIntegration(UserInterface $user): array
+    {
+        /** @var list<array{integrationId:int|string,books:int|string}> $rows */
+        $rows = $this->createQueryBuilder('book')
+            ->select('IDENTITY(book.integration) AS integrationId', 'COUNT(book.id) AS books')
+            ->where('book.usr = :user')
+            ->groupBy('book.integration')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(int) $row['integrationId']] = (int) $row['books'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * @return list<AddressBook>
      */
     public function findForIntegration(Integration $integration): array

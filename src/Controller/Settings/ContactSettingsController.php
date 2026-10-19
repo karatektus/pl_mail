@@ -136,6 +136,13 @@ final class ContactSettingsController extends AbstractController
         $integration = $this->connectionFor($id);
         $this->assertCsrf($request, 'contacts-disconnect' . $id);
 
+        // Only a connection made for contacts. A Nextcloud connection holds
+        // the user's files and calendars too, and is disconnected in Settings
+        // → Integrations, whose confirmation says what goes with it.
+        if (ServiceKind::Contacts !== $integration->provider->kind()) {
+            throw $this->createAccessDeniedException();
+        }
+
         $this->em->remove($integration);
         $this->em->flush();
 
@@ -161,14 +168,17 @@ final class ContactSettingsController extends AbstractController
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    /** A contacts connection of this user's, or a refusal. */
+    /**
+     * A connection of this user's that carries address books — CardDAV, or
+     * Nextcloud (#158) — or a refusal.
+     */
     private function connectionFor(int $id): Integration
     {
         $integration = $this->integrations->find($id);
 
         if (null === $integration
             || $integration->usr !== $this->currentUser()
-            || ServiceKind::Contacts !== $integration->provider->kind()) {
+            || false === $integration->provider->offersAddressBooks()) {
             throw $this->createAccessDeniedException();
         }
 

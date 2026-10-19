@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\AddressBook;
 
-use App\Domain\Enum\Integration\ServiceKind;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
@@ -35,7 +34,9 @@ final readonly class AddressBookLister
     {
         $connections = array_values(array_filter(
             $this->integrations->findForUserOrdered($user),
-            static fn (Integration $integration): bool => ServiceKind::Contacts === $integration->provider->kind(),
+            // offersAddressBooks() rather than the Contacts kind, so the
+            // Nextcloud connection made for files is listed too (#158).
+            static fn (Integration $integration): bool => $integration->provider->offersAddressBooks(),
         ));
 
         $byConnection = [];

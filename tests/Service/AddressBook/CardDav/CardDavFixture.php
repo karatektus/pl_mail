@@ -81,9 +81,9 @@ final class CardDavFixture
 
     // ── Entities ──────────────────────────────────────────────────────────────
 
-    public static function integration(string $baseUrl = 'https://dav.example.com'): Integration
+    public static function integration(string $baseUrl = 'https://dav.example.com', Provider $provider = Provider::CardDav): Integration
     {
-        $integration           = new Integration(new User(), Provider::CardDav, 'Home server');
+        $integration           = new Integration(new User(), $provider, 'Home server');
         $integration->baseUrl  = $baseUrl;
         $integration->username = 'alice';
         $integration->secret   = 'app-password';
