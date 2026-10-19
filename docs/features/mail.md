@@ -470,9 +470,19 @@ off unless you switch it on per account; see [Accounts and aliases](accounts.md)
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
-as well as from **Settings → Labels**, and the confirmation says plainly that the label goes from
-every account and how many nested labels are going with it — rather than asking you to agree to
-something whose reach it has not mentioned.
+as well as from **Settings → Labels**, and the dialog says plainly that the label goes from every
+account and how many nested labels are going with it — rather than asking you to agree to something
+whose reach it has not mentioned.
+
+When the label is a folder on your mail server — any folder on a plain IMAP account, or a mail
+folder on Outlook — the folder is deleted there as well, so the next sync does not bring the label
+back. A folder cannot be deleted with mail still in it, so if there is any, the dialog asks where it
+goes first: **Inbox**, **Archive**, **Trash**, or one of your other folders. The mail is moved, the
+folder is deleted once the server says it is empty, and only then does the label go. This runs in
+the background and shows in the activity indicator. If the server still holds mail plMail never
+imported, nothing is deleted: the folder and the label stay, and the indicator says which folder it
+was. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
+and moves nothing.
 
 ### Move to
 

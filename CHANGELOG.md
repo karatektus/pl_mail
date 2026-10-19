@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A deleted label no longer comes back after the next sync.** On a plain IMAP account, and for a
+folder on Outlook, deleting a label left its folder on the mail server, and the next sync made the
+label again. Deleting one now deletes the folder there too. When there is mail in it, the delete
+dialog first asks where that mail goes — Inbox, Archive, Trash or one of your other folders — moves
+it there, deletes the folder once the server says it is empty, and only then removes the label. This
+runs in the background and shows in the activity indicator; a folder that still holds mail on the
+server is never deleted, and the indicator says which one it was. Deleting an Outlook category never
+reached Outlook at all, and now does; labels nested under a Gmail label are deleted in Gmail with
+it. No schema change.
+[#40](https://github.com/karatektus/pl_mail/issues/40).
+
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
 the server only counted To. It now counts all three as well. A mail with no recipient at all is

@@ -2134,6 +2134,7 @@ jobs:
         move_to: Haulin'
         purge: Sendin' to Davy Jones for good
         reclassify: Stowin' recent post again
+        delete_label: "Strikin' a flag"
     state:
         done: '%count% done'
         failed: foundered
@@ -2152,6 +2153,18 @@ label:
         violet: Violet
     empty: No yarns flyin' this flag.
     created: Flag hoisted.
+    delete:
+        already_running: '"%name%" be comin'' down already.'
+        destination: Haul its post to
+        destination_placeholder: '— pick a hold —'
+        destination_required: 'Pick where the post goes, matey. The hold be not scuttled with post still in it.'
+        failed_destination_gone: 'The hold ye picked for the post be gone. Strike the flag again an'' pick another.'
+        failed_new_mail: 'Fresh post landed in the hold after ye gave the order. Strike the flag again to say where it goes.'
+        failed_not_empty: 'The hold "%name%" still has post in it on the server, so it were not scuttled. Haul that post out in yer other mail client, then strike the flag again.'
+        failed_server: 'The mail server refused to scuttle "%name%": %error%'
+        mail_count: '%count% yarn(s) be in it. They be hauled to the hold ye pick below afore the hold be scuttled.'
+        on_server: 'It be a hold on yer mail server, so the hold be scuttled there too.'
+        title: 'Strike "%name%"'
     delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
     delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.

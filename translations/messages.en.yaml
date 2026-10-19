@@ -2254,6 +2254,7 @@ jobs:
         move_to: Moving
         purge: Deleting for good
         reclassify: Sorting recent mail again
+        delete_label: Deleting a label
     state:
         done: '%count% done'
         failed: failed
@@ -2272,6 +2273,18 @@ label:
         violet: Violet
     empty: No conversations with this label.
     created: Label created.
+    delete:
+        already_running: '"%name%" is already being deleted.'
+        destination: Move its mail to
+        destination_placeholder: '— choose where it goes —'
+        destination_required: 'Choose where the mail goes. The folder is not deleted while there is mail in it.'
+        failed_destination_gone: 'The place you chose for the mail no longer exists. Delete the label again and choose another.'
+        failed_new_mail: 'New mail arrived in the folder after you pressed Delete. Delete the label again to choose where it goes.'
+        failed_not_empty: 'The folder "%name%" still holds mail on the server, so it was not deleted. Move that mail in your mail client, then delete the label again.'
+        failed_server: 'The mail server would not delete "%name%": %error%'
+        mail_count: '%count% message(s) are in it. They are moved to the place you choose below before the folder is deleted.'
+        on_server: 'It is a folder on your mail server, so the folder is deleted there too.'
+        title: 'Delete "%name%"'
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.

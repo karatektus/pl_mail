@@ -2547,6 +2547,75 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ids of one account's messages carrying one label, by keyset — every one
+     * of them, not only those Exchange knows.
+     *
+     * For emptying a folder-backed label before it is deleted: the walk is
+     * findIdsWithLabelForAccount()'s, without its graphId filter, because the
+     * mail that has to leave an IMAP folder never had a graphId at all.
+     *
+     * @return list<int>
+     */
+    public function findAllIdsWithLabelForAccount(
+        int $accountId,
+        int $labelId,
+        int $afterId = 0,
+        int $limit = 200,
+    ): array {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * How many of one account's messages carry one label.
+     *
+     * What the delete dialog asks before it offers a destination: a folder
+     * with nothing in it on this account needs no move.
+     */
+    public function countWithLabelForAccount(int $accountId, int $labelId): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * How many messages are recorded as sitting in this folder.
+     *
+     * Asked before a Mailbox row is removed, and the answer has to be zero:
+     * message.mailbox_id cascades on delete, so removing the row of a folder
+     * that still has mail recorded in it deletes that mail here.
+     */
+    public function countInMailbox(Mailbox $mailbox): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.mailbox = :mailbox')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * A thread's messages in the order the conversation actually happened.
      *
      * Received mail is placed by when it arrived, sent mail by when it was
