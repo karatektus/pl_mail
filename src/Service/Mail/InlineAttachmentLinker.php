@@ -26,9 +26,16 @@ use App\Entity\Mail\Message;
  * is not one of this message's parts is left exactly as it was, still behind
  * the login.
  *
- * Only raster types on the {@see InlineDisposition} allow-list are signed. A
- * part that is not an image stays on the authenticated route, where a click
- * from the top-level page (with a cookie) still downloads it.
+ * Only parts that can be an image are signed: a type on the
+ * {@see InlineDisposition} allow-list, or an `octet-stream` label, which many
+ * senders put on their inline logos. Whether such a part really is an image is
+ * decided from its bytes when it is fetched, not here, so rendering a body
+ * never reads a file or downloads a Gmail or Graph attachment. Any other part
+ * stays on the authenticated route, where a click from the top-level page (with
+ * a cookie) still downloads it.
+ *
+ * Only `src` attributes and CSS `url()` are rewritten, the places a browser
+ * loads an image from. A link (`href`) keeps the authenticated URL.
  */
 final readonly class InlineAttachmentLinker
 {
@@ -46,7 +53,11 @@ final readonly class InlineAttachmentLinker
         $signable = [];
 
         foreach ($message->messageParts as $part) {
-            if (null === $part->id || false === InlineDisposition::allows($part->contentType ?? '')) {
+            if (
+                null === $part->id
+                || (false === InlineDisposition::allows($part->contentType)
+                    && false === InlineDisposition::isUnlabelled($part->contentType))
+            ) {
                 continue;
             }
 
@@ -57,13 +68,16 @@ final readonly class InlineAttachmentLinker
             return $html;
         }
 
-        // Anchored on the delimiter a URL sits inside (`src="…"`, `url(…)`) and
-        // on the digits ending right there, so `/mail/attachment/12/preview` or
+        // Anchored on what a URL is loaded from (`src="…"`, `url(…)`, quoted or
+        // not, including the `&quot;` an attribute holds a quote as) and on the
+        // digits ending right there, so `/mail/attachment/12/preview` or
         // `/mail/attachment/12?download=1` are not touched.
         return (string) preg_replace_callback(
-            '#(["\'(])/mail/attachment/(\d+)(?=["\')])#',
+            '#(\bsrc\s*=\s*["\']|\burl\(\s*(?:["\']|&quot;|&\#0*39;)?)/mail/attachment/(\d+)(?=["\')&])#i',
             fn (array $m): string => true === isset($signable[(int) $m[2]])
-                ? $m[1] . $this->signer->urlFor((int) $m[2])
+                // Escaped: the URL now carries two parameters, and a bare `&`
+                // in an attribute is a character reference waiting to happen.
+                ? $m[1] . htmlspecialchars($this->signer->urlFor((int) $m[2]), ENT_QUOTES | ENT_HTML5)
                 : $m[0],
             $html,
         );

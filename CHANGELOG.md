@@ -12,9 +12,11 @@ The published image tags: `latest` follows the most recent release below,
 a logo or the icons in a booking confirmation, rendered as empty boxes: the message body is shown in
 a sandbox that sends no session cookie, so each image was answered with a redirect to the login
 page. They now load through a signed link (`/mail/inline/{id}`) that only answers for an image of
-the message being read, and nothing that is not a picture. Messages already in the mailbox are fixed
-too, no backfill needed. Images that are declared as `application/octet-stream` are still treated as
-downloads. No schema change.
+the message being read, and nothing that is not a picture. The link stops working after a day or
+two, so one that leaks through a forward or a log does not open the image for good; the message
+signs a fresh one each time it is shown. Images labelled `application/octet-stream` or
+`image/octet-stream` load the same way when their bytes are a picture. Messages already in the
+mailbox are fixed too, no backfill needed. No schema change.
 
 **Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
 (or `OIDC_DISABLE_PASSWORD_LOGIN=true` in the environment), hides the password form and makes the

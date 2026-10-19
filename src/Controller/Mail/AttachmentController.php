@@ -90,26 +90,18 @@ final class AttachmentController extends AbstractController
         return $response;
     }
 
-    /** Enough of a file for its magic bytes; libmagic reads no further for raster formats. */
-    private const int SNIFF_BYTES = 4096;
-
     #[Route('/mail/attachment/{id}', name: 'app_mail_attachment', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function serve(MessagePart $part, Request $request): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
-        $contentType  = $part->contentType ?? 'application/octet-stream';
-
         // A part labelled `application/octet-stream` or `image/octet-stream` is
-        // very often an inline image whose sender did not say so. For those
-        // labels only, the bytes decide — and only a type on the allow-list can
-        // come out of InlineDisposition::sniff(), so this cannot make anything
-        // inline that the list would refuse.
-        if (true === InlineDisposition::isUnlabelled($contentType)) {
-            $head        = @file_get_contents($absolutePath, false, null, 0, self::SNIFF_BYTES);
-            $contentType = (false === $head ? null : InlineDisposition::sniff($head)) ?? $contentType;
-        }
+        // very often an inline image whose sender did not say so; the resolver
+        // lets the bytes decide for those labels only. See inlineTypeFor().
+        $contentType  = $this->attachmentResolver->inlineTypeFor($part, $absolutePath)
+            ?? $part->contentType
+            ?? 'application/octet-stream';
 
         // An allow-list, not a prefix test. `image/svg+xml` starts with
         // "image/" and executes script when loaded as a document, and the type

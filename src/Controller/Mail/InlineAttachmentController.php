@@ -32,10 +32,13 @@ use Symfony\Component\Routing\Attribute\Route;
  * message it is rendering for someone who may read it.
  *
  * Deliberately narrower than {@see AttachmentController::serve()}: this route
- * serves a part only when its type is on the {@see InlineDisposition}
- * allow-list, so an anonymous caller holding a signature can fetch an image and
- * nothing else. Every refusal is the same 404, so a caller cannot tell a bad
- * signature from a part that does not exist or is not an image.
+ * serves a part only when {@see AttachmentResolver::inlineTypeFor()} finds a
+ * raster type for it (its stated type, or its bytes when the sender labelled it
+ * `octet-stream`), so an anonymous caller holding a signature can fetch an
+ * image and nothing else. The signature expires (see
+ * {@see InlineAttachmentSigner}). Every refusal is the same 404, so a caller
+ * cannot tell a bad or expired signature from a part that does not exist or is
+ * not an image.
  */
 final class InlineAttachmentController extends AbstractController
 {
@@ -48,24 +51,34 @@ final class InlineAttachmentController extends AbstractController
     public function serve(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
         $signature = (string) $request->query->get('s', '');
+        $expires   = $request->query->getInt('e');
 
-        if ('' === $signature || false === $this->signer->isValid($id, $signature)) {
+        if ('' === $signature || false === $this->signer->isValid($id, $expires, $signature)) {
             throw new NotFoundHttpException();
         }
 
         $part = $entityManager->find(MessagePart::class, $id);
 
-        if (false === $part instanceof MessagePart || false === InlineDisposition::allows($part->contentType)) {
+        if (false === $part instanceof MessagePart) {
             throw new NotFoundHttpException();
         }
 
-        $response = new BinaryFileResponse($this->attachmentResolver->absolutePathFor($part));
-        $response->headers->set('Content-Type', InlineDisposition::servedType($part->contentType));
+        $absolutePath = $this->attachmentResolver->absolutePathFor($part);
+        $contentType  = $this->attachmentResolver->inlineTypeFor($part, $absolutePath);
+
+        if (null === $contentType) {
+            throw new NotFoundHttpException();
+        }
+
+        $response = new BinaryFileResponse($absolutePath);
+        $response->headers->set('Content-Type', InlineDisposition::servedType($contentType));
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Content-Security-Policy', InlineDisposition::SANDBOX_CSP);
-        // The bytes of a part never change under its id, and the URL is signed,
-        // so the browser may keep it; `private` keeps a shared cache out of it.
-        $response->headers->set('Cache-Control', 'private, max-age=86400');
+        // The bytes of a part never change under its id, so the browser may
+        // keep them, but no longer than the link works; `private` keeps a
+        // shared cache out of it.
+        $response->setPrivate();
+        $response->setMaxAge(min(InlineAttachmentSigner::LIFETIME, $this->signer->secondsLeft($expires)));
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_INLINE,
             InlineDisposition::headerFilename($part->filename),
