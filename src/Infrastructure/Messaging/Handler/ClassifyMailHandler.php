@@ -53,11 +53,14 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * no use (empty, or not one of the categories), the attempt is stamped, so a
  * later backfill can tell "asked, got nothing" from "never asked" and does not
  * retry the same unanswerable message forever. When the host could not be
- * reached at all (a timeout, a refused connection, a 403 or a 5xx from a proxy
- * in front of it), nothing was asked: the stamp stays empty and the catch-up
- * sweep offers the message again, a quarter of an hour later, which is also the
- * only backoff a host that stays down gets. A minute's outage used to leave
- * every message in flight with no category and no second attempt (#222).
+ * reached at all (a timeout, a refused connection, or a status that says "not
+ * now": 401, 403, 408, 429, a 5xx), nothing was asked: the stamp stays empty
+ * and the catch-up sweep offers the message again, a quarter of an hour later,
+ * which is also the only backoff a host that stays down gets. A minute's outage
+ * used to leave every message in flight with no category and no second attempt
+ * (#222). A status that refuses the request itself (a 400 from a content
+ * filter, 413, 422) is stamped: it would only come back the same. See
+ * hostUnreachable().
  */
 #[AsMessageHandler]
 final readonly class ClassifyMailHandler
@@ -358,18 +361,30 @@ final readonly class ClassifyMailHandler
     }
 
     /**
-     * Whether the question never reached a model that could answer it.
+     * Statuses that say "not now" rather than "not this": a credential the
+     * host refused (401, 403: a key being rotated, a proxy in front of a host
+     * that is restarting), a request it gave up waiting for (408), a rate
+     * limit (429), and every 5xx.
      *
-     * By the error kind the clients already record, and only the kinds that say
-     * "try again later": a timeout, a host that refused or dropped the
-     * connection, and a refusal by status (a proxy's 403, a 502 while the host
-     * restarts). Left out on purpose:
+     * Left out on purpose, and stamped like an answer: 404, a model the host
+     * does not have, which is a setting somebody has to change; and the other
+     * 4xx, which say the request itself was refused (400 from a content filter,
+     * 413, 422). Those would fail the same way on every retry, and the catch-up
+     * offers the newest unstamped mail first, so a handful of them would take
+     * its whole budget every quarter of an hour, for good.
      *
-     *   · a 404, which is a model the host does not have — a setting somebody
-     *     has to change, and a retry every quarter of an hour would only repeat
-     *     it;
-     *   · a reply with no content, and anything unexpected — the host answered,
-     *     which is the case the stamp exists for.
+     * @var list<int>
+     */
+    private const array RETRY_STATUSES = [401, 403, 408, 429];
+
+    /**
+     * Whether the question never reached a model that could answer it, and
+     * asking again later can be expected to go differently.
+     *
+     * A timeout, a host that refused or dropped the connection, and a refusal
+     * by one of the statuses above. Anything else is stamped: an answer, a
+     * useless answer, a reply the client could not read, and a refusal whose
+     * status is not known (an error part-way through a stream).
      *
      * No result at all means the feature was switched off between dispatch and
      * the call, and is stamped as before.
@@ -380,11 +395,15 @@ final readonly class ClassifyMailHandler
             return false;
         }
 
-        return in_array($result->errorKind, [
-            OllamaClient::ERROR_TIMEOUT,
-            OllamaClient::ERROR_UNREACHABLE,
-            OllamaClient::ERROR_HTTP_STATUS,
-        ], true);
+        if (OllamaClient::ERROR_TIMEOUT === $result->errorKind || OllamaClient::ERROR_UNREACHABLE === $result->errorKind) {
+            return true;
+        }
+
+        $status = $result->httpStatus;
+
+        return OllamaClient::ERROR_HTTP_STATUS === $result->errorKind
+            && null !== $status
+            && (in_array($status, self::RETRY_STATUSES, true) || $status >= 500);
     }
 
     private function describe(Message $mail): string

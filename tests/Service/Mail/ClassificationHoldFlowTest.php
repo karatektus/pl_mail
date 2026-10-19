@@ -37,6 +37,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -256,15 +257,49 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
     /**
      * #222. A minute's outage left 327 messages with no category and no second
-     * attempt, because the failed call was stamped as an answer. A refusal by
-     * status (a proxy's 403, a 502 while the host restarts) is the same case.
+     * attempt, because the failed call was stamped as an answer. A refusal
+     * that says "not now" is the same case: a credential being rotated, a
+     * proxy in front of a host that is restarting, a rate limit, any 5xx.
      */
-    public function testAHostThatRefusesLeavesTheMessageForTheCatchUp(): void
+    #[DataProvider('passingRefusals')]
+    public function testARefusalThatWillPassLeavesTheMessageForTheCatchUp(int $status): void
     {
-        $message = $this->askedAbout(new MockResponse('', ['http_code' => 503]));
+        $message = $this->askedAbout(new MockResponse('', ['http_code' => $status]));
 
-        self::assertNull($message->aiCategorisedAt);
+        self::assertNull($message->aiCategorisedAt, $status . ' is not an answer');
         self::assertContains((int) $message->id, $this->unclassified());
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function passingRefusals(): iterable
+    {
+        foreach ([401, 403, 408, 429, 500, 502, 503, 504] as $status) {
+            yield (string) $status => [$status];
+        }
+    }
+
+    /**
+     * A refusal of the request itself comes back the same on every retry: a
+     * content filter's 400 for this mail, a 413, a 422. Retried, a handful of
+     * them would take the catch-up's whole budget (it offers the newest
+     * unstamped mail first) every quarter of an hour, for good. And a 404 is a
+     * model the host does not have: a setting to change, not an outage.
+     */
+    #[DataProvider('lastingRefusals')]
+    public function testARefusalThatWouldRepeatIsStamped(int $status): void
+    {
+        $message = $this->askedAbout(new MockResponse('', ['http_code' => $status]));
+
+        self::assertNotNull($message->aiCategorisedAt, $status . ' would only repeat');
+        self::assertNotContains((int) $message->id, $this->unclassified());
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function lastingRefusals(): iterable
+    {
+        foreach ([400, 404, 413, 422] as $status) {
+            yield (string) $status => [$status];
+        }
     }
 
     /**
@@ -278,18 +313,6 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
         self::assertNotNull($message->aiCategorisedAt);
         self::assertNotContains((int) $message->id, $this->unclassified());
-    }
-
-    /**
-     * A 404 is a model the host does not have: a setting to change, not an
-     * outage that passes, so a retry every quarter of an hour would only
-     * repeat it.
-     */
-    public function testAModelTheHostDoesNotHaveIsNotRetried(): void
-    {
-        $message = $this->askedAbout(new MockResponse('', ['http_code' => 404]));
-
-        self::assertNotNull($message->aiCategorisedAt);
     }
 
     /**
