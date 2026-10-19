@@ -116,7 +116,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => self::COLLECTION_PROPS,
-        ]);
+        ], service: DavService::AddressBook);
 
         $books = [];
 
@@ -175,7 +175,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
         $response = $this->client->request($book->integration, 'PUT', $href, [
             'headers' => $headers,
             'body'    => $card->vcard,
-        ], [412]);
+        ], [412], DavService::AddressBook);
 
         if (412 === $response['status']) {
             throw new CalendarResyncRequiredException(
@@ -184,7 +184,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
             );
         }
 
-        return ['href' => $href, 'etag' => $this->client->etagAfterWrite($book->integration, $href, $response['headers'])];
+        return ['href' => $href, 'etag' => $this->client->etagAfterWrite($book->integration, $href, $response['headers'], DavService::AddressBook)];
     }
 
     /**
@@ -203,7 +203,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
         $headers  = null === $card->etag ? [] : ['If-Match' => $card->etag];
         $response = $this->client->request($book->integration, 'DELETE', $card->href, [
             'headers' => $headers,
-        ], [404, 410, 412]);
+        ], [404, 410, 412], DavService::AddressBook);
 
         if (412 === $response['status']) {
             throw new CalendarResyncRequiredException(
@@ -230,7 +230,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                     'Content-Type' => 'application/xml; charset=utf-8',
                 ],
                 'body' => $this->syncReportBody($token),
-            ]);
+            ], service: DavService::AddressBook);
 
             $resources = $this->parser->parse($response['body']);
             $nextToken = $this->parser->syncToken($response['body']);
@@ -288,7 +288,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => $this->queryReportBody(),
-        ]);
+        ], service: DavService::AddressBook);
 
         $cards = $this->toRemoteCards($integration, $collection, $this->parser->parse($response['body']));
 
@@ -368,7 +368,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => $body . '</card:addressbook-multiget>',
-        ]);
+        ], service: DavService::AddressBook);
 
         $cards = [];
 
@@ -412,7 +412,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => self::COLLECTION_PROPS,
-        ]);
+        ], service: DavService::AddressBook);
 
         $resources = $this->parser->parse($response['body']);
 

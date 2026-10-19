@@ -157,7 +157,7 @@ final readonly class CalDavDiscovery
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => $service->probeBody(),
-        ], [301, 302, 303, 307, 308, ...self::NOT_HERE]);
+        ], [301, 302, 303, 307, 308, ...self::NOT_HERE], $service);
 
         $redirect = $this->client->redirectTarget($response, $url);
 
@@ -230,7 +230,7 @@ final readonly class CalDavDiscovery
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
             'body' => $service->probeBody(),
-        ], self::NOT_HERE);
+        ], self::NOT_HERE, $service);
 
         if (true === in_array($response['status'], self::NOT_HERE, true)) {
             return null;
