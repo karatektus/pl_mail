@@ -188,4 +188,49 @@ test.describe("What's new screenshots, as an administrator", () => {
 
         await capture(page, "sso", panel, 560);
     });
+
+    /**
+     * Single sign-on only (#169): the login page with the provider's button and
+     * no password form, which is the feature as everybody else meets it.
+     *
+     * The provider is saved through Admin → SSO, since the client secret is
+     * stored encrypted and SQL cannot write it. The box itself is set in the
+     * database: the form only lets an administrator tick it who has signed in
+     * through that provider, and this stack has no provider to sign in at.
+     * Undone in `finally`, so the stack is left with password sign-in and no
+     * provider, as the other pictures and the regression suite expect.
+     */
+    test("sso-only", async ({ page }) => {
+        await login(page, TEST_DEMO_ADMIN.email, TEST_DEMO_ADMIN.password);
+        await page.goto("/admin?section=sso");
+
+        const panel = page.locator("turbo-frame#admin-sso");
+        await panel.getByLabel("Issuer").fill("https://auth.example.com/application/o/plmail/");
+        await panel.getByLabel("Client ID").fill("plmail");
+        await panel.getByLabel("Client secret").fill("not-a-real-secret");
+        await panel.getByLabel("Name on the button").fill("Authentik");
+        await panel.getByRole("button", { name: "Save", exact: true }).click();
+        await expect(panel.getByLabel("Issuer")).toHaveValue("https://auth.example.com/application/o/plmail/");
+
+        try {
+            consoleCommand(`dbal:run-sql "UPDATE oidc_config SET password_login_disabled = true"`);
+            await page.context().clearCookies();
+            await page.goto("/login");
+
+            await expect(page.getByLabel("Password")).toHaveCount(0);
+            await expect(page.getByText("Authentik")).toBeVisible();
+
+            // With a margin of the page around it: cropped to the box, the
+            // logo touches the top edge and the card's bottom border is lost.
+            const box = await page.locator("div.max-w-sm").first().boundingBox();
+            expect(box, "sso-only: no login card").not.toBeNull();
+            await page.screenshot({
+                path: `${OUT}/sso-only.png`,
+                clip: { x: box!.x - 32, y: box!.y - 32, width: box!.width + 64, height: box!.height + 64 },
+            });
+        } finally {
+            consoleCommand("app:sso:allow-password-login");
+            consoleCommand(`dbal:run-sql "DELETE FROM oidc_config"`);
+        }
+    });
 });

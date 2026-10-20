@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+<!-- highlight screenshot=sso-only -->
+**Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
+(or `OIDC_DISABLE_PASSWORD_LOGIN=true` in the environment), hides the password form and makes the
+server refuse a password sign-in, so everybody comes in through the provider. It is in force only
+while a provider is set up, so a provider that was removed cannot leave an install with no way in,
+and the box can be ticked only by an administrator who has signed in through the provider
+themselves. If the provider is down, `php bin/console app:sso:allow-password-login` brings the form
+back. App passwords for mail clients and the phone apps, and sessions that are already open, are not
+affected. Off by default. Schema change: one boolean column on `oidc_config`, false for every
+existing install. [#169](https://github.com/karatektus/pl_mail/issues/169).
+
 **A reply threads for the person who gets it.** A reply sent from plMail, in the web composer or
 over JMAP, reached the recipient without `In-Reply-To` or `References`, so Outlook, Gmail and Apple
 Mail showed it as a new conversation instead of part of the one it answered. The draft always held
@@ -124,19 +135,14 @@ a sandbox that sends no session cookie, so each image was answered with a redire
 page. They now load through a signed link (`/mail/inline/{id}`) that only answers for an image of
 the message being read, and nothing that is not a picture. The link stops working after a day or
 two, so one that leaks through a forward or a log does not open the image for good; the message
-signs a fresh one each time it is shown. Images labelled `application/octet-stream` or
-`image/octet-stream` load the same way when their bytes are a picture. Messages already in the
+signs a fresh one each time it is shown. Many mailers label an inline image
+`application/octet-stream`, or `image/octet-stream`, which is not a registered type at all and is
+what Vaultwarden's notification mails put on their logo, and such a part was served as a download.
+For those labels only, the file's own bytes now decide: a PNG, JPEG, GIF or WebP is shown, while
+SVG, HTML and anything unrecognised are still downloads. A remote image with that label is
+identified the same way by the image proxy and served under its real type. Messages already in the
 mailbox are fixed too, no backfill needed. No schema change.
-
-**Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
-(or `OIDC_DISABLE_PASSWORD_LOGIN=true` in the environment), hides the password form and makes the
-server refuse a password sign-in, so everybody comes in through the provider. It is in force only
-while a provider is set up, so a provider that was removed cannot leave an install with no way in,
-and the box can be ticked only by an administrator who has signed in through the provider
-themselves. If the provider is down, `php bin/console app:sso:allow-password-login` brings the form
-back. App passwords for mail clients and the phone apps, and sessions that are already open, are not
-affected. Off by default. Schema change: one boolean column on `oidc_config`, false for every
-existing install. [#169](https://github.com/karatektus/pl_mail/issues/169).
+[#213](https://github.com/karatektus/pl_mail/issues/213).
 
 **A deleted label no longer comes back after the next sync.** On a plain IMAP account, and for a
 folder on Outlook, deleting a label left its folder on the mail server, and the next sync made the
@@ -151,17 +157,6 @@ yet) no longer shows as "Importing" in the activity indicator. Deleting an Outlo
 reached Outlook at all, and now does; labels nested under a Gmail label are deleted in Gmail with
 it. No schema change.
 [#40](https://github.com/karatektus/pl_mail/issues/40).
-
-**Inline images labelled `application/octet-stream` show up.** Many mailers do not say what an
-inline image is — they label it `application/octet-stream`, or `image/octet-stream`, which is not
-a registered type at all and is what Vaultwarden's notification mails put on their logo — and the
-attachment route served every such part as a download, so the image never appeared in the message. For those labels only, the file's own
-bytes now decide, held to the same allow-list as everything else: a PNG, JPEG, GIF or WebP is
-served inline, while SVG, HTML and anything unrecognised are still downloads. The image proxy
-already did this for unlabelled remote images and now shares the same check, so a remote image
-labelled `image/octet-stream` is now also identified from its bytes and served under its real
-type, rather than passed through under the label it came with. No schema change.
-Part of [#213](https://github.com/karatektus/pl_mail/issues/213).
 
 **A mail can go to Bcc recipients only.** Sending with nobody in To was refused with "Add at least
 one recipient before sending", even with addresses in Cc or Bcc: the window counted all three, but
