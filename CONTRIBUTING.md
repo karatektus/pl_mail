@@ -218,11 +218,13 @@ Changing the shard count means changing two numbers in the same `matrix` block, 
 `shardTotal`. They are kept together for that reason: a fifth index without a matching total asks
 Playwright for shard 5 of 4, which it refuses.
 
-The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
-regression pushed there is found when a version is tagged, which may be several commits later, and
-the tag is then what fails. So run the suites locally before pushing anything you are unsure of —
-`npm run test:unit:docker && npm run test:e2e:docker` — which is faster than waiting for a runner
-anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
+Every commit on `main` is still verified, because nothing reaches `main` except through a pull
+request, and branch protection requires the jobs above to be green on it before it merges. What
+is not required is that the pull request is up to date with `main`, so its checks ran against the
+`main` it was opened on, or last updated against. Two pull requests that pass apart can still break
+together. `workflow_dispatch` on the Actions tab runs the whole workflow on any branch, and the
+suites run locally with `npm run test:unit:docker && npm run test:e2e:docker`, which is faster than
+waiting for a runner when you are unsure of a change before pushing it.
 
 A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
 the image being published. Tag from a tree you have already run the suites against — see
@@ -316,10 +318,12 @@ unpublish a catalogue version. A bad release is repaired by tagging the next one
 
 That makes the tag the only gate there is, and two things have to be true before it is pushed:
 
-- **The suites are green on the exact commit being tagged.** Either locally —
-  `npm run test:unit:docker && npm run test:e2e:docker` — or by starting the E2E workflow on `main`
-  with `workflow_dispatch` and waiting for it. The run the tag itself starts does not count: the
-  image is published beside it, not after it.
+- **The suites are green on the exact commit being tagged.** The `Release vX.Y.Z` pull request
+  described below is that run: it cannot merge until the E2E workflow is green on it, and the
+  commit it makes on `main` is the one that is tagged. There is no need to start the workflow by
+  hand before it. If anything else merged into `main` after its checks ran, press **Update branch**
+  and let them run again, because the protection does not ask for that by itself. The run the tag
+  starts does not count: the image is published beside it, not after it.
 - **That commit has been installed and used on a real installation.** A push to `main` publishes
   `main` and `sha-<commit>` without touching `latest` or the catalogue, which is what those tags are
   for: pull one onto the production install, let the migrations run against real data, and read
