@@ -4642,3 +4642,107 @@ whats_new:
     screenshot_close: 'Screenshot schließen'
     screenshot_open: 'Screenshot in voller Größe öffnen'
     title: 'Was ist neu'
+contacts:
+    nav: Kontakte
+    title: Kontakte
+    back: Zurück
+    cancel: Abbrechen
+    save: Speichern
+    new: Neuer Kontakt
+    edit: Kontakt bearbeiten
+    delete: Löschen
+    delete_confirm: '%name% löschen? Der Kontakt kommt in den Papierkorb und wird nach 90 Tagen endgültig entfernt.'
+    created: Kontakt angelegt.
+    updated: Kontakt gespeichert.
+    trashed: Kontakt in den Papierkorb verschoben.
+    count: '%count% Kontakte'
+    search: Kontakte durchsuchen
+    search_placeholder: 'Name, Firma oder E-Mail suchen…'
+    empty: 'Noch keine Kontakte. Leg den ersten an oder importiere eine vCard- oder CSV-Datei.'
+    empty_search: Kein Kontakt passt zu dieser Suche.
+    tag_all: Alle
+    prev: Zurück
+    next: Weiter
+    page: 'Seite %page%'
+    section_name: Name
+    display_name: Vollständiger Name
+    given_name: Vorname
+    family_name: Nachname
+    nickname: Spitzname
+    company: Firma
+    job_title: Position
+    section_emails: E-Mail-Adressen
+    add_email: E-Mail hinzufügen
+    email_placeholder: name@example.com
+    section_phones: Telefonnummern
+    add_phone: Telefon hinzufügen
+    phone_placeholder: '+49 30 1234567'
+    section_addresses: Adressen
+    add_address: Adresse hinzufügen
+    label: Bezeichnung
+    label_home: Privat
+    label_work: Arbeit
+    label_other: Sonstige
+    primary: Hauptadresse
+    primary_short: Haupt
+    remove: Entfernen
+    street: Straße
+    city: Ort
+    region: Bundesland/Region
+    postcode: PLZ
+    country: Land
+    section_notes: Notizen
+    notes: Notizen
+    tags: Schlagwörter
+    tags_placeholder: 'Durch Kommas getrennt, z. B. Familie, Lieferanten'
+    section_details: Details
+    no_details: Noch keine Kontaktdaten.
+    related: Verknüpfte Kontakte
+    rel_related: Verwandt
+    rel_assistant: Assistenz
+    rel_manager: Vorgesetzte(r)
+    rel_partner: Partner(in)
+    photo_upload: Foto hochladen
+    photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'
+    photo_invalid: 'Dieses Foto ließ sich nicht verwenden. JPG, PNG oder WebP bis 5 MB.'
+    photo_uploaded: Foto aktualisiert.
+    reference_emails: Bezugs-E-Mails
+    reference_emails_hint: 'Jede nicht gelöschte E-Mail von oder an diesen Kontakt — Posteingang, Gesendet, Entwürfe, Papierkorb und Labels.'
+    reference_emails_empty: Noch keine E-Mails mit diesem Kontakt.
+    no_subject: '(kein Betreff)'
+    import: Importieren
+    import_step1: 'Schritt 1 — Datei wählen'
+    import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
+    in_address_book: 'In deinen Kontakten'
+    add_to_address_book: 'Zu Kontakten hinzufügen'
+    import_choose: Datei wählen
+    import_formats: '.vcf, .vcard oder .csv'
+    import_upload: 'Hochladen & Vorschau'
+    import_uploading: 'Wird hochgeladen…'
+    import_no_file: 'Es wurde keine Datei hochgeladen.'
+    import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
+    import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
+    import_step2: 'Schritt 2 — Vorschau'
+    import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
+    import_confirm: '%count% Kontakte importieren'
+    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
+    imported: '%count% Kontakte importiert.'
+    export_vcf: Als vCard exportieren
+    export_csv: Als CSV exportieren
+    duplicates: Doppelte
+    duplicates_count: '%count% mögliche Paare'
+    duplicates_none: 'Keine Doppelten gefunden. Neue Importe werden automatisch geprüft.'
+    confidence: '%pct%% Übereinstimmung'
+    check_carefully: Genau prüfen
+    keep_this: Diesen behalten
+    merge: Zusammenführen
+    merge_pick_keep: 'Wähle zuerst, welcher Kontakt bleiben soll.'
+    merged: Kontakte zusammengeführt. Du kannst es in der Liste unten rückgängig machen.
+    recent_merges: Letzte Zusammenführungen
+    merged_into: '%count% in %name% zusammengeführt'
+    deleted_contact: '(gelöschter Kontakt)'
+    merge_undo: Rückgängig
+    merge_undone: Zusammenführung rückgängig gemacht.
+    merge_undo_expired: Die 90-tägige Frist zum Rückgängigmachen ist abgelaufen.
+    validation:
+        name_required: 'Gib dem Kontakt einen Namen.'

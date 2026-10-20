@@ -506,6 +506,22 @@
             </span>
         {% endif %}
     </a>
+
+    {# ── Contacts ──────────────────────────────────────────────────────
+       The address book, beside the calendar switch: both are the
+       non-mail half of the "all in one" system. A plain link — contacts
+       is a destination, not a pane toggle. Hidden on a phone, where the
+       bar has no room (it is in the drawer there). #}
+    <a
+        href="{{ path('app_contacts_list') }}"
+        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+               transition-colors flex-shrink-0
+               text-ink-muted hover:bg-hover"
+        aria-label="{{ 'contacts.nav'|trans }}"
+        title="{{ 'contacts.nav'|trans }}"
+    >
+        <i class="fa-solid fa-address-book text-base" aria-hidden="true"></i>
+    </a>
     </div>
 
     {# Right actions #}

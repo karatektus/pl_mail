@@ -4643,3 +4643,107 @@ whats_new:
     screenshot_close: 'Close the screenshot'
     screenshot_open: 'Open the screenshot full size'
     title: 'What''s new'
+contacts:
+    nav: Contacts
+    title: Contacts
+    back: Back
+    cancel: Cancel
+    save: Save
+    new: New contact
+    edit: Edit contact
+    delete: Delete
+    delete_confirm: 'Delete %name%? The contact goes to the trash and is permanently removed after 90 days.'
+    created: Contact created.
+    updated: Contact saved.
+    trashed: Contact moved to trash.
+    count: '%count% contacts'
+    search: Search contacts
+    search_placeholder: Search name, company or email…
+    empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
+    empty_search: No contacts match this search.
+    tag_all: All
+    prev: Previous
+    next: Next
+    page: 'Page %page%'
+    section_name: Name
+    display_name: Full name
+    given_name: First name
+    family_name: Last name
+    nickname: Nickname
+    company: Company
+    job_title: Job title
+    section_emails: Emails
+    add_email: Add email
+    email_placeholder: name@example.com
+    section_phones: Phones
+    add_phone: Add phone
+    phone_placeholder: '+1 555 010 2030'
+    section_addresses: Addresses
+    add_address: Add address
+    label: Label
+    label_home: Home
+    label_work: Work
+    label_other: Other
+    primary: Primary
+    primary_short: Primary
+    remove: Remove
+    street: Street
+    city: City
+    region: Region
+    postcode: Postcode
+    country: Country
+    section_notes: Notes
+    notes: Notes
+    tags: Tags
+    tags_placeholder: 'Comma-separated, e.g. family, vendors'
+    section_details: Details
+    no_details: No contact details yet.
+    related: Related contacts
+    rel_related: Related
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partner
+    photo_upload: Upload photo
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
+    photo_uploaded: Photo updated.
+    reference_emails: Reference emails
+    reference_emails_hint: Every email to or from this contact that has not been deleted — inbox, sent, drafts, trash and labels.
+    reference_emails_empty: No emails with this contact yet.
+    no_subject: '(no subject)'
+    import: Import
+    import_step1: 'Step 1 — choose a file'
+    import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
+    in_address_book: 'In your contacts'
+    add_to_address_book: 'Add to contacts'
+    import_choose: Choose file
+    import_formats: '.vcf, .vcard or .csv'
+    import_upload: 'Upload & preview'
+    import_uploading: 'Uploading…'
+    import_no_file: 'No file was uploaded.'
+    import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
+    import_expired: 'The staged import expired. Please upload the file again.'
+    import_step2: 'Step 2 — preview'
+    import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_confirm: 'Import %count% contacts'
+    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    imported: 'Imported %count% contacts.'
+    export_vcf: Export as vCard
+    export_csv: Export as CSV
+    duplicates: Duplicates
+    duplicates_count: '%count% candidate pairs'
+    duplicates_none: 'No duplicates found. New imports are checked automatically.'
+    confidence: '%pct%% match'
+    check_carefully: Check carefully
+    keep_this: Keep this one
+    merge: Merge
+    merge_pick_keep: 'Pick which contact to keep first.'
+    merged: Contacts merged. You can undo it from the list below.
+    recent_merges: Recent merges
+    merged_into: 'Merged %count% into %name%'
+    deleted_contact: '(deleted contact)'
+    merge_undo: Undo
+    merge_undone: Merge undone.
+    merge_undo_expired: The 90-day undo window for this merge has expired.
+    validation:
+        name_required: 'Give the contact a name.'

@@ -1,0 +1,116 @@
+{#
+contacts/list.html.twig — the address book.
+
+Search (q), tag chips, a card grid, prev/next pagination. New / import /
+export actions in the header.
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% block title %}{{ 'contacts.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <nav class="flex items-center gap-1 min-w-0 flex-1 text-sm" aria-label="{{ 'contacts.title'|trans }}">
+            <i class="fa-solid fa-address-book text-ink-faint mr-1.5" aria-hidden="true"></i>
+            <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
+            <span class="text-xs text-ink-faint ml-1">{{ 'contacts.count'|trans({'%count%': contacts|length}) }}</span>
+        </nav>
+
+        <form method="get" action="{{ path('app_contacts_list') }}" class="relative hidden sm:block" role="search">
+            {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+            <span class="sr-only">{{ 'contacts.search'|trans }}</span>
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
+            <input type="search" name="q" value="{{ q }}"
+                   placeholder="{{ 'contacts.search_placeholder'|trans }}"
+                   class="h-8 w-44 lg:w-56 rounded-lg border border-field bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        </form>
+
+        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}" title="{{ 'contacts.import'|trans }}">
+            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i><span class="hidden lg:inline">{{ 'contacts.import'|trans }}</span>
+        </a>
+        <a href="{{ path('app_contacts_export_vcf') }}" class="{{ iconBtn }}" title="{{ 'contacts.export_vcf'|trans }}">
+            <i class="fa-solid fa-file-export text-sm" aria-hidden="true"></i>
+        </a>
+        <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}">
+            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.new'|trans }}
+        </a>
+    </div>
+
+    {% if tags is not empty %}
+        <div class="flex items-center gap-1.5 px-4 md:px-6 py-2 border-b border-line shrink-0 overflow-x-auto">
+            <a href="{{ path('app_contacts_list', { q: q }) }}"
+               class="shrink-0 h-7 px-2.5 inline-flex items-center rounded-full text-xs font-medium border transition-colors {{ tag == '' ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
+                {{ 'contacts.tag_all'|trans }}
+            </a>
+            {% for t in tags %}
+                <a href="{{ path('app_contacts_list', { q: q, tag: t }) }}"
+                   class="shrink-0 h-7 px-2.5 inline-flex items-center rounded-full text-xs font-medium border transition-colors {{ tag == t ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
+                    {{ t }}
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        {% if contacts is empty %}
+            <div class="h-full flex flex-col items-center justify-center gap-3 text-center py-16">
+                <i class="fa-solid fa-address-book text-4xl text-ink-faint" aria-hidden="true"></i>
+                <p class="text-sm text-ink-muted max-w-sm">
+                    {{ q or tag ? 'contacts.empty_search'|trans : 'contacts.empty'|trans }}
+                </p>
+                {% if not (q or tag) %}
+                    <div class="flex items-center gap-2">
+                        <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}">
+                            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.new'|trans }}
+                        </a>
+                        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}">
+                            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>{{ 'contacts.import'|trans }}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {% for contact in contacts %}
+                    <a href="{{ path('app_contacts_show', { id: contact.id }) }}"
+                       class="flex items-center gap-3 rounded-pane border border-line bg-surface p-3.5 hover:bg-hover transition-colors min-w-0">
+                        {{ cm.avatar(contact, 'w-11 h-11 text-lg') }}
+                        <span class="flex-1 min-w-0">
+                            <span class="block truncate text-sm font-semibold text-ink">{{ contact.displayName }}</span>
+                            {% if contact.company or contact.jobTitle %}
+                                <span class="block truncate text-xs text-ink-muted">
+                                    {{- [contact.jobTitle, contact.company]|filter(v => v)|join(' · ') -}}
+                                </span>
+                            {% endif %}
+                            {% set _primary = contact.emails|filter(e => e.isPrimary)|first %}
+                            {% if _primary is empty and contact.emails is not empty %}
+                                {% set _primary = contact.emails|first %}
+                            {% endif %}
+                            {% if _primary %}
+                                <span class="block truncate text-xs text-ink-faint">{{ _primary.email }}</span>
+                            {% endif %}
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint shrink-0" aria-hidden="true"></i>
+                    </a>
+                {% endfor %}
+            </div>
+
+            {% if page > 1 or hasNext %}
+                <div class="flex items-center justify-center gap-2 mt-6">
+                    {% if page > 1 %}
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, page: page - 1 }) }}" class="{{ btnGhost }}">
+                            <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>{{ 'contacts.prev'|trans }}
+                        </a>
+                    {% endif %}
+                    <span class="text-xs text-ink-faint">{{ 'contacts.page'|trans({'%page%': page}) }}</span>
+                    {% if hasNext %}
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, page: page + 1 }) }}" class="{{ btnGhost }}">
+                            {{ 'contacts.next'|trans }}<i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

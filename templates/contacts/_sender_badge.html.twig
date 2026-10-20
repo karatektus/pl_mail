@@ -1,0 +1,40 @@
+{#
+contacts/_sender_badge.html.twig
+─────────────────────────────────────────────────────────────────────────────
+A sender's standing in the address book: a link to the contact when there is
+one, otherwise a button that adds them.
+
+Variables:
+  address    string   the sender's address
+  name       string   the sender's display name, may be empty
+  contactId  ?int     the contact's id, or null when not in the address book
+
+data-no-toggle keeps a click here from folding the message (see
+mail--thread-message#toggle). data-contact-badge is what the turbo-stream
+targets, so every message from this sender is updated at once.
+#}
+<span class="contact-badge inline-flex items-center"
+      data-contact-badge="{{ address_book_key(address) }}"
+      data-no-toggle>
+    {% if contactId is not null %}
+        <a href="{{ path('app_contacts_show', {id: contactId}) }}"
+           data-turbo-frame="_top"
+           title="{{ 'contacts.in_address_book'|trans }}"
+           aria-label="{{ 'contacts.in_address_book'|trans }}"
+           class="text-ink-faint hover:text-accent transition-colors">
+            <i class="fa-solid fa-address-book text-[11px]" aria-hidden="true"></i>
+        </a>
+    {% else %}
+        <form method="post" action="{{ path('app_contacts_from_mail') }}" data-turbo-stream class="inline">
+            <input type="hidden" name="_token" value="{{ csrf_token('contacts_from_mail') }}">
+            <input type="hidden" name="address" value="{{ address }}">
+            <input type="hidden" name="name" value="{{ name }}">
+            <button type="submit"
+                    title="{{ 'contacts.add_to_address_book'|trans }}"
+                    aria-label="{{ 'contacts.add_to_address_book'|trans }}"
+                    class="text-ink-faint hover:text-accent transition-colors cursor-pointer">
+                <i class="fa-solid fa-user-plus text-[11px]" aria-hidden="true"></i>
+            </button>
+        </form>
+    {% endif %}
+</span>

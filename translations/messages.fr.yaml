@@ -4671,3 +4671,107 @@ whats_new:
     screenshot_close: 'Fermer la capture'
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'
+contacts:
+    nav: Contacts
+    title: Contacts
+    back: Retour
+    cancel: Annuler
+    save: Enregistrer
+    new: Nouveau contact
+    edit: Modifier le contact
+    delete: Supprimer
+    delete_confirm: 'Supprimer %name% ? Le contact ira dans la corbeille et sera définitivement effacé après 90 jours.'
+    created: Contact créé.
+    updated: Contact enregistré.
+    trashed: Contact déplacé dans la corbeille.
+    count: '%count% contacts'
+    search: Rechercher des contacts
+    search_placeholder: 'Rechercher nom, société ou e-mail…'
+    empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
+    empty_search: Aucun contact ne correspond à cette recherche.
+    tag_all: Tous
+    prev: Précédent
+    next: Suivant
+    page: 'Page %page%'
+    section_name: Nom
+    display_name: Nom complet
+    given_name: Prénom
+    family_name: Nom de famille
+    nickname: Surnom
+    company: Société
+    job_title: Fonction
+    section_emails: E-mails
+    add_email: Ajouter un e-mail
+    email_placeholder: nom@exemple.com
+    section_phones: Téléphones
+    add_phone: Ajouter un téléphone
+    phone_placeholder: '+33 6 12 34 56 78'
+    section_addresses: Adresses
+    add_address: Ajouter une adresse
+    label: Étiquette
+    label_home: Domicile
+    label_work: Travail
+    label_other: Autre
+    primary: Principal
+    primary_short: Principal
+    remove: Retirer
+    street: Rue
+    city: Ville
+    region: Région
+    postcode: Code postal
+    country: Pays
+    section_notes: Notes
+    notes: Notes
+    tags: Étiquettes
+    tags_placeholder: 'Séparées par des virgules, p. ex. famille, fournisseurs'
+    section_details: Coordonnées
+    no_details: Aucune coordonnée pour le moment.
+    related: Contacts liés
+    rel_related: Lié
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partenaire
+    photo_upload: Changer la photo
+    photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
+    photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
+    photo_uploaded: Photo mise à jour.
+    reference_emails: E-mails de référence
+    reference_emails_hint: 'Tous les e-mails échangés avec ce contact et non supprimés — boîte de réception, envoyés, brouillons, corbeille et étiquettes.'
+    reference_emails_empty: 'Aucun e-mail avec ce contact pour le moment.'
+    no_subject: '(sans objet)'
+    import: Importer
+    import_step1: 'Étape 1 — choisir un fichier'
+    import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
+    in_address_book: 'Dans vos contacts'
+    add_to_address_book: 'Ajouter aux contacts'
+    import_choose: Choisir un fichier
+    import_formats: '.vcf, .vcard ou .csv'
+    import_upload: 'Importer & aperçu'
+    import_uploading: 'Envoi en cours…'
+    import_no_file: 'Aucun fichier téléversé.'
+    import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
+    import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
+    import_step2: 'Étape 2 — aperçu'
+    import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_confirm: 'Importer %count% contacts'
+    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    imported: '%count% contacts importés.'
+    export_vcf: Exporter en vCard
+    export_csv: Exporter en CSV
+    duplicates: Doublons
+    duplicates_count: '%count% paires suspectes'
+    duplicates_none: 'Aucun doublon trouvé. Les nouveaux imports sont vérifiés automatiquement.'
+    confidence: '%pct%% de correspondance'
+    check_carefully: Vérifier attentivement
+    keep_this: Garder celui-ci
+    merge: Fusionner
+    merge_pick_keep: 'Choisissez d’abord le contact à garder.'
+    merged: Contacts fusionnés. Annulation possible dans la liste ci-dessous.
+    recent_merges: Fusions récentes
+    merged_into: '%count% fusionné(s) dans %name%'
+    deleted_contact: '(contact supprimé)'
+    merge_undo: Annuler
+    merge_undone: Fusion annulée.
+    merge_undo_expired: Le délai d’annulation de 90 jours pour cette fusion est dépassé.
+    validation:
+        name_required: 'Donnez un nom au contact.'

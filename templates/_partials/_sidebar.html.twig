@@ -904,6 +904,22 @@ controller instead — the scroll position and which trees are open.
             </div>
         </details>
 
+        {# Contacts: the address book. Directly under the mail accounts, which
+           is where the people the mail is for live. #}
+        {% set _contactsHref = path('app_contacts_list') %}
+        <a href="{{ _contactsHref }}"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_contactsHref) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'contacts.nav'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-address-book w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'contacts.nav'|trans }}</span>
+            </span>
+        </a>
+
     </nav>
 
     {# ClockPlacement::Sidebar: the day at a glance, pinned under the nav — the
