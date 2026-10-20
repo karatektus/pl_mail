@@ -156,7 +156,11 @@ final class IntegrationUrlValidatorTest extends TestCase
                 // ManagerRegistry, and findAll() is all this test asks.
             }
 
-            /** @return list<IntegrationProviderConfig> */
+            /**
+             * @return list<IntegrationProviderConfig>
+             *
+             * @phpstan-pure Doctrine marks findAll() impure; this one only returns the array.
+             */
             public function findAll(): array
             {
                 return $this->configs;
