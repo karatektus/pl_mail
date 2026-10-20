@@ -8,11 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
-**Amazon parcels from amazon.co.uk are on the radar.** Parcels were read from the German,
-American and French Amazon shops only, so an "Out for delivery" mail from amazon.co.uk gave no card.
-amazon.co.uk, amazon.ca, amazon.com.au, amazon.in and amazon.sg are now read the same way, and the
-card's Track button opens the shop that sent the mail. Mail that is already in plMail gets its card
-when `app:backfill insights --since=7d` reads it again. No schema change.
+**Amazon parcels from amazon.co.uk are on the radar, on the right day.** Parcels were read from
+the German, American and French Amazon shops only, so an "Out for delivery" mail from amazon.co.uk
+gave no card. amazon.co.uk, amazon.ca, amazon.com.au, amazon.in and amazon.sg are now read the same
+way, and the card's Track button opens the shop that sent the mail. A delivery date such as
+"23/10/2026" is now read from the shops of countries that write the day first; it used to give a
+card with no date. And "arriving today" or "tomorrow" is counted from the day on your calendar,
+in your timezone from Settings → General, instead of the day in UTC, which put a parcel a day early for a mail
+that came in on an Australian morning and a day late for one on an American evening. That also
+applies to the carriers' own mail ("Zustellung heute"). Mail that is already in plMail gets its card,
+or its corrected day, when `app:backfill insights --since=7d` reads it again. No schema change.
 [#207](https://github.com/karatektus/pl_mail/issues/207).
 
 **A short outage of the AI host no longer leaves mail without a category for good.** When the

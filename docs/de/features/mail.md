@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:208c05b3a6db67dd51382a1ed83613d8bd89ef57 -->
+<!-- translated-from: features/mail.md sha1:19b1ad812f018d4c44683e43afc832a05b7f5a15 -->
 
 # Mail
 
@@ -337,9 +337,14 @@ Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt ein
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
-landet auf demselben Tag wie beim ersten Mal. Gelesen werden die Amazon-Shops amazon.de, amazon.com,
-amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer
-Karte öffnet den Shop, der die Mail geschickt hat.
+landet auf demselben Tag wie beim ersten Mal. "Heute" ist der Tag, der in deinem Kalender stand, als
+die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein** (oder der Vorgabe der Installation, wenn du
+nie eine gewählt hast). Eine Mail, die früh morgens in Sydney oder abends in Los Angeles ankommt,
+landet so nicht einen Tag daneben. Gelesen werden die Amazon-Shops amazon.de, amazon.com, amazon.fr,
+amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer Karte öffnet
+den Shop, der die Mail geschickt hat. Ein Datum mit Schrägstrichen wie "23/10/2026" wird bei den
+Shops aus Ländern, die den Tag zuerst schreiben, als Tag/Monat gelesen, und nur mit Jahr; bei
+amazon.com und amazon.ca gar nicht, weil dort der Monat vorne stehen kann.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr

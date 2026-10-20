@@ -9,6 +9,7 @@ use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -118,6 +119,21 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     private const array MERCHANT_DOMAINS = [
         'amazon.de', 'amazon.com', 'amazon.fr',
         'amazon.co.uk', 'amazon.ca', 'amazon.com.au', 'amazon.in', 'amazon.sg',
+    ];
+
+    /**
+     * The storefronts of MERCHANT_DOMAINS whose country writes the day first,
+     * so a "23/10/2026" in their mail is the 23rd of October — see dateIn().
+     *
+     * A list of the ones that do rather than of the ones that do not, so a
+     * storefront added above reads no slash date until someone says which way
+     * round it writes them. amazon.com is month first, and amazon.ca is left
+     * out because Canada writes both.
+     *
+     * @var list<string>
+     */
+    private const array DAY_FIRST_STOREFRONTS = [
+        'amazon.de', 'amazon.fr', 'amazon.co.uk', 'amazon.com.au', 'amazon.in', 'amazon.sg',
     ];
 
     /**
@@ -272,6 +288,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'décembre' => 12, 'decembre' => 12,
     ];
 
+    public function __construct(
+        private UserTimezoneResolver $timezones,
+    ) {
+    }
+
     public static function key(): string
     {
         return 'parcel';
@@ -364,7 +385,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         $status = $this->status($subject, $whole);
-        $eta = $this->eta($whole, $message->receivedAt);
+        $eta = $this->eta($whole, $this->receivedOnTheReadersClock($message));
         $fromName = trim((string) $message->fromName);
 
         // The relay network's display name may name the carrier; the sender's
@@ -458,7 +479,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 'merchant'       => '' === $fromName ? null : $fromName,
                 'status'         => $this->status($subject, $whole),
             ],
-            happensAt: $this->eta($whole, $message->receivedAt),
+            happensAt: $this->eta(
+                $whole,
+                $this->receivedOnTheReadersClock($message),
+                in_array($this->merchantDomainOf($domain), self::DAY_FIRST_STOREFRONTS, true),
+            ),
         )];
     }
 
@@ -825,8 +850,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * make. Every announcing word gets a chance, because "estimated delivery"
      * and the actual "Zustellung am 24.12.2026" are frequently different
      * sentences of the same mail.
+     *
+     * $dayFirstShop is the sender's say on "23/10/2026": a storefront in a
+     * country that writes the day first (see DAY_FIRST_STOREFRONTS).
      */
-    private function eta(string $text, ?DateTimeImmutable $receivedAt): ?DateTimeImmutable
+    private function eta(string $text, ?DateTimeImmutable $receivedAt, bool $dayFirstShop = false): ?DateTimeImmutable
     {
         preg_match_all(
             '~voraussichtlich|estimated|expected|arriving|zustellung am|zustellung:|liefertermin'
@@ -848,7 +876,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 continue;
             }
 
-            $date = $this->dateIn($window, $receivedAt, 1 === preg_match(self::FRENCH_ETA_WORD, $word));
+            $date = $this->dateIn($window, $receivedAt, 1 === preg_match(self::FRENCH_ETA_WORD, $word), $dayFirstShop);
 
             if (null !== $date) {
                 return $date;
@@ -863,7 +891,12 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * carrier promises a day, never an hour, and midnight would render as the
      * previous evening in any timezone west of the parcel.
      */
-    private function dateIn(string $window, ?DateTimeImmutable $receivedAt, bool $dayFirstSlashes): ?DateTimeImmutable
+    private function dateIn(
+        string $window,
+        ?DateTimeImmutable $receivedAt,
+        bool $dayFirstSlashes,
+        bool $dayFirstShop,
+    ): ?DateTimeImmutable
     {
         // 24.12.2026 — the German convention, day first, full year required.
         if (1 === preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b~', $window, $m)) {
@@ -890,6 +923,21 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         if (true === $dayFirstSlashes
             && 1 === preg_match('~\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b~', $window, $m)) {
             $date = $this->dateFrom((int) $m[1], (int) $m[2], '' === ($m[3] ?? '') ? null : (int) $m[3], $receivedAt);
+
+            if (null !== $date) {
+                return $date;
+            }
+        }
+
+        // 23/10/2026 from a shop in a country that writes the day first —
+        // amazon.co.uk's "Estimated delivery: 23/10/2026". The sender settles
+        // the order where the French word above settles it for French mail,
+        // but the year is required here: an English mail says "24/7" about
+        // its support line, and with the year left optional that is the 24th
+        // of July.
+        if (true === $dayFirstShop
+            && 1 === preg_match('~\b(\d{1,2})/(\d{1,2})/(\d{4})\b~', $window, $m)) {
+            $date = $this->dateFrom((int) $m[1], (int) $m[2], (int) $m[3], $receivedAt);
 
             if (null !== $date) {
                 return $date;
@@ -932,6 +980,10 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * reason: a backfill re-reading this mail next year has to land on the day
      * it always did.
      *
+     * The day is the one on the reader's calendar when the mail arrived (see
+     * receivedOnTheReadersClock()), so receivedAt is taken in whatever zone it
+     * comes in and not turned back into UTC here.
+     *
      * Without a receivedAt there is nothing to be relative TO, and a refusal is
      * the only honest answer.
      */
@@ -942,7 +994,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         $text = mb_strtolower($window);
-        $day = $receivedAt->setTimezone(new DateTimeZone('UTC'));
+        $day = $receivedAt;
 
         if (1 === preg_match("~\b(today|heute|aujourd['’]hui|ce jour)\b~u", $text)) {
             return $this->noonOn($day);
@@ -1110,6 +1162,29 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         return null;
+    }
+
+    /**
+     * When the mail arrived, on the clock of the person it was sent to: the
+     * day "Arriving today" means.
+     *
+     * Not UTC. Read in UTC, an amazon.com.au mail at eight in the morning in
+     * Sydney still has yesterday's date, and an amazon.com mail at half past
+     * seven in the evening in Los Angeles already has tomorrow's, so the
+     * parcel landed a day early or a day late. A carrier promises a day in
+     * the recipient's country, and the recipient's timezone is the best
+     * stand-in for that there is. The offset in the mail's Date header is the
+     * sending server's, which says nothing about where the parcel is going.
+     *
+     * The account's owner, or the install's default for a user who never
+     * chose a zone. A user who later changes zone gets the new answer on a
+     * backfill, which is the only time the same mail is read twice.
+     */
+    private function receivedOnTheReadersClock(Message $message): ?DateTimeImmutable
+    {
+        $owner = true === isset($message->account) ? $message->account->usr : null;
+
+        return $message->receivedAt?->setTimezone($this->timezones->resolve($owner));
     }
 
     /** Exact or subdomain-of — mail.amazon.de is amazon.de, notamazon.de is not. */

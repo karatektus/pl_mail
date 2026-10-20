@@ -303,8 +303,13 @@ A shop that never names a carrier still yields a parcel. Amazon states an order 
 into its own tracker and no tracking number anywhere, so that is what the card carries — and a
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
-it always did. The Amazon shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca,
-amazon.com.au, amazon.in and amazon.sg, and a card's button opens the shop that sent the mail.
+it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
+from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
+shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
+and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
+such as "23/10/2026", is read day first from the shops of countries that write it that way, and only
+with the year; from amazon.com and amazon.ca it is not read at all, because the month may come first.
 
 The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
 GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
