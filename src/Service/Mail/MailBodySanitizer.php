@@ -165,8 +165,84 @@ final readonly class MailBodySanitizer
         }
 
         return trim($this->restoreCidReferences(
-            $this->buildComposeSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)),
+            $this->buildComposeSanitizer()->sanitize($this->unfoldQuotes(CharsetHelper::retagHtmlAsUtf8($html))),
         ));
+    }
+
+    /**
+     * Take the composer's "show quoted text" fold back out of a body.
+     *
+     * The compose window folds the quote under a reply: it wraps it in
+     * `[data-quote-wrapped]` beside a `[data-quote-toggle]` button and hides
+     * it with an inline `display: none`. That is editor state, like the
+     * cursor, and none of it belongs in the mail. The editor's own clean-up
+     * dropped the button and kept the rest, so every reply sent with the quote
+     * still folded — which is how the composer opens — went out with its
+     * history invisible to the recipient, in every client (#257).
+     *
+     * The editor no longer sends it either; this is the copy that holds for a
+     * compose page loaded before that fix, and for any other client that
+     * posts a body. Drafts lose the fold too, which costs nothing: the
+     * composer folds the quote again every time it opens one.
+     *
+     * Before sanitising rather than after, so the body is parsed and
+     * serialised by the sanitiser once more and comes out in its usual shape.
+     */
+    private function unfoldQuotes(string $html): string
+    {
+        if (false === str_contains($html, 'data-quote-wrapped')) {
+            return $html;
+        }
+
+        try {
+            $document = \Dom\HTMLDocument::createFromString(
+                '<!DOCTYPE html><html><body>' . $html . '</body></html>',
+                LIBXML_NOERROR,
+                'UTF-8',
+            );
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        $body = $document->body;
+
+        if (null === $body) {
+            return $html;
+        }
+
+        foreach ($body->querySelectorAll('[data-quote-toggle]') as $toggle) {
+            $toggle->remove();
+        }
+
+        foreach ($body->querySelectorAll('[data-quote-wrapped]') as $wrapper) {
+            $parent = $wrapper->parentNode;
+
+            if (null === $parent) {
+                continue;
+            }
+
+            foreach (iterator_to_array($wrapper->childNodes) as $child) {
+                if ($child instanceof \Dom\Element && $child->hasAttribute('style')) {
+                    $style = trim((string) preg_replace(
+                        '/(^|;)\s*display\s*:\s*none\s*(!important\s*)?(?=;|$)/i',
+                        '$1',
+                        (string) $child->getAttribute('style'),
+                    ), " ;\t\n");
+
+                    if ('' === $style) {
+                        $child->removeAttribute('style');
+                    } else {
+                        $child->setAttribute('style', $style);
+                    }
+                }
+
+                $parent->insertBefore($child, $wrapper);
+            }
+
+            $wrapper->remove();
+        }
+
+        return $body->innerHTML;
     }
 
     /**

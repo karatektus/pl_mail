@@ -38,6 +38,22 @@ editor on today, because a past date was pulled to the next hour. It now keeps i
 it would have had; today and future days are unchanged.
 [#253](https://github.com/karatektus/pl_mail/issues/253).
 
+**A reply sent from plMail shows its quote to the person who gets it.** The composer folds the
+quoted mail under a reply out of the way while you write, and sent it still folded: the "show
+quoted text" button was taken out, but the quote kept the `display: none` that hid it. So a reply
+sent without opening the quote reached Gmail, Outlook and Apple Mail users with the history
+invisible, and in plMail the "···" opened onto nothing. Replies go out unfolded now, and mail
+already received that way opens properly in plMail. Copies already delivered to other mail
+programs stay as they went out. No schema change. [#257](https://github.com/karatektus/pl_mail/issues/257).
+
+**The preview line in the list shows what the newest mail says.** A short reply ("Passt!")
+previewed as the mail it quoted, often your own, because the preview skipped short lines to find
+the first long one and landed in the quote. The quoted history and a `-- ` signature are cut off
+first now, in HTML and plain-text mail alike. Only bulk mail (promotions, updates, social) still
+skips its "View in browser" lines; a person's mail starts at its first line, greeting included.
+The Android and iOS apps get the same preview. No schema change.
+[#257](https://github.com/karatektus/pl_mail/issues/257).
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->
