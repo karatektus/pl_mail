@@ -6,6 +6,38 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**The month view says what is on a day.** An entry in a month cell was its time on one line and its
+title cut to a single line under it, which at a normal width left "Lea…" and "Ihre…", and for an
+invitation a lone "…". It is now the title first, on up to two lines, and under it the time it runs
+and where. In a narrower day the end time and the place go so the title gets a third line, long
+words are hyphenated, and an invitation you have not answered has a dashed bar. On a phone, where a
+day is too narrow for words and its entries are bars, the grid makes room for the chosen day listed
+in full underneath: today at first, then whichever day you tap. The list has a **+** that adds an
+event on that day, and the toolbar's **New event** does too. On a touch screen with room for words,
+the first tap on a day opens it and the next opens an entry. No schema change.
+[#253](https://github.com/karatektus/pl_mail/issues/253).
+
+**The calendar's toolbar and the bar at the top fit a phone.** On a 320–375px screen the toolbar
+ran off its card and the top bar's icons slid over the logo. The toolbar now switches to icons and a
+short date ("October", "Oct 20–26") when it is narrow, and the top bar tightens and moves **Sync
+now**, **What's new** and **Send feedback** into the user menu, below a divider of their own.
+[#253](https://github.com/karatektus/pl_mail/issues/253).
+
+**Dialogs are the whole screen on a phone**, as the compose window is, with less padding, so the
+event editor's times, day buttons and repeat menu fit. [#253](https://github.com/karatektus/pl_mail/issues/253).
+
+**The red now line moves, and the calendar turns over at midnight.** The current-time line in the
+day and 7-day views was drawn when the page loaded and stayed there, and the month's circle on
+today stayed on yesterday until something reloaded the page. The line now moves every minute, and
+when the date changes the view redraws itself. [#253](https://github.com/karatektus/pl_mail/issues/253).
+
+**A new event on a day that has gone stays on that day.** Pressing **+** on a past day opened the
+editor on today, because a past date was pulled to the next hour. It now keeps its date, at the hour
+it would have had; today and future days are unchanged.
+[#253](https://github.com/karatektus/pl_mail/issues/253).
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->
