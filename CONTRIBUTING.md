@@ -29,7 +29,9 @@ new section of the app — gets a short design in its issue before any code.
 **Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
 an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue
 it closes. A release is a milestone with nothing left open, closed when it is tagged (see
-[Releasing](#releasing)).
+[Releasing](#releasing)). An issue closes when the pull request that names it is merged, whether
+into `main` or into a milestone branch (`milestone/v0.4.0`); GitHub only does the first itself, so
+`.github/workflows/close-milestone-issues.yml` does the second.
 
 **Labels**: one type — `bug`, `enhancement`, `documentation`, `chore` — a status from triage, and
 one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
