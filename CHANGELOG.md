@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A send that fails for a passing reason is tried again, and one that finally fails is marked on
+the draft.** Every failed send used to be dropped at once, whatever the reason, so a one-minute
+Gmail rate limit or a short outage lost the mail and only a toast said so. A rate limit, a provider
+failing on its side, a busy or greylisting mail server, or a connection that never opened is now
+tried again for up to two minutes, keeping the wait Gmail or Outlook asks for, and nothing is said
+while it is. A refusal, such as an unknown recipient or a message too large, is said at once, as
+before. When the answer to a send is lost after the provider had the mail, it is never sent again
+without checking: Gmail and Outlook accounts look for it in Sent first, and SMTP accounts report it
+as possibly sent. A send that finally fails puts a red warning triangle on the draft in Drafts,
+with the reason, and the same triangle on Drafts in the sidebar while any draft has one; the toast
+now says why. The migration adds four nullable columns and a partial index to `message`; it is
+additive and needs no backfill. [#125](https://github.com/karatektus/pl_mail/issues/125).
+
 **IMAP mail with a repeated Date header is imported, and Proton Mail Bridge folders sync.** A
 message carrying its Date header two or three times (some gateways add their own) could not be read
 by the IMAP library: it stopped with an error, and that took the rest of its page of the sync or

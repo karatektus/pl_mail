@@ -6,10 +6,13 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\Helper\ApiMime;
 use App\Entity\Mail\Account;
+use App\Service\Gmail\GmailQuotaPacer;
+use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GmailApiSender;
 use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Mime\Email;
@@ -37,7 +40,7 @@ final class ApiSenderBccTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('token');
 
-        $sender = new GmailApiSender($tokens, $http, new NullLogger());
+        $sender = new GmailApiSender(new GmailApiClient($http, $tokens, new GmailQuotaPacer(new MockClock())), new NullLogger());
 
         self::assertTrue($sender->send($this->email(), new Account()));
         self::assertIsString($captured);

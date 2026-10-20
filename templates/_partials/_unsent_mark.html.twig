@@ -1,0 +1,32 @@
+{#
+The warning on a draft whose send finally failed (#125) — on its row in the
+Drafts list, and on the Drafts entry in the sidebar while any draft has one.
+
+One icon in both places, defined once, so the sidebar's mark is plainly the
+same thing as the row's and the reader knows what to look for when they open
+Drafts. Red, because it is the one state here that means "this did not happen
+and you need to know": the toast that said so is gone by the time a scheduled
+send's failure is noticed.
+
+The sidebar's is rendered at every count and hidden at zero, the idiom every
+patched marker follows (see _new_dot.html.twig): ui--sidebar finds it by
+`data-count-key` after a counts refresh, and an element never rendered cannot
+be found.
+#}
+{% macro row(failure) %}
+    {% set reason = ('thread_row.send_failed.' ~ failure.value)|trans %}
+    <i class="fa-solid fa-triangle-exclamation shrink-0 text-red-600 dark:text-red-400"
+       role="img"
+       data-unsent-draft
+       title="{{ reason }}"
+       aria-label="{{ reason }}"></i>
+{% endmacro %}
+
+{% macro sidebar(count) %}
+    <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400 text-xs{{ count > 0 ? '' : ' hidden' }}"
+       role="img"
+       data-unsent-mark
+       data-count-key="unsent:role:drafts"
+       title="{{ 'sidebar.badge.unsent'|trans }}"
+       aria-label="{{ 'sidebar.badge.unsent'|trans }}"></i>
+{% endmacro %}

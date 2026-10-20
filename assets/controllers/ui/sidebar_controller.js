@@ -279,6 +279,24 @@ function patchNewDots(counts) {
 }
 
 /**
+ * The warning on Drafts while any draft's send has finally failed (#125):
+ * shown above zero, hidden at it. A number in the payload rather than a flag,
+ * because every value there is one, under its own "unsent:" key so no other
+ * marker can be fed it. Document-wide for the reason patchNewDots is.
+ */
+function patchUnsentMarks(counts) {
+    document.querySelectorAll("[data-unsent-mark]").forEach((mark) => {
+        const count = counts[mark.dataset.countKey];
+
+        if (count === undefined) {
+            return;
+        }
+
+        mark.classList.toggle("hidden", count === 0);
+    });
+}
+
+/**
  * The sender hints on the category tabs, from the same payload.
  *
  * The "senders:" family holds the one value in the payload that is a STRING —
@@ -700,6 +718,7 @@ export default class extends Controller {
 
         patchNewDots(counts);
         patchTabMarks(counts);
+        patchUnsentMarks(counts);
         patchTabIcons(counts);
         patchTabUnread(counts);
 

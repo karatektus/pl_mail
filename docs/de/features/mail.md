@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:dcf5971012b11da80f145606ceb21145412fcb6e -->
+<!-- translated-from: features/mail.md sha1:3ce077e532ee6d78f8b007edb8ab2e563af0413d -->
 
 # Mail
 
@@ -1235,6 +1235,35 @@ bereits an sich genommen hat —, wird dir das klar gesagt: *Zu spät — diese 
 gesendet.* Du bekommst keine bearbeitbare Kopie von Post, die schon draußen ist. Weil das angebotene
 Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten und nicht die Regel.
 
+## Wenn das Senden scheitert
+
+Scheitert ein Senden aus einem vorübergehenden Grund, versucht plMail es von selbst noch einmal, bis
+zu **zwei Minuten** lang: bei einem Limit (Gmail und Outlook sagen, wie lange zu warten ist, und daran
+wird sich gehalten), bei einem Fehler auf der Seite des Anbieters, bei einem Mailserver, der gerade
+ausgelastet ist oder per Greylisting vertröstet, oder bei einer Verbindung, die gar nicht erst
+zustande kam. Solange es noch versucht wird, wird nichts gemeldet. Geht es durch, bestätigt der Toast
+**Nachricht gesendet** das wie immer.
+
+Ein Senden, das so nicht klappen kann, wird nicht wiederholt: ein Empfänger, den der Server nicht
+kennt, eine zu große Nachricht, ein Passwort, das der Server nicht mehr annimmt. Das wird sofort
+gemeldet.
+
+**Wenn die Antwort auf ein Senden verloren geht** — die Verbindung brach ab oder lief in eine
+Zeitüberschreitung, nachdem der Anbieter die Mail schon hatte —, ist die Mail vielleicht schon
+unterwegs. Sie wird dann nie ungeprüft noch einmal gesendet. Bei Gmail- und Outlook-Konten schaut
+plMail ein paar Sekunden später unter Gesendet nach: Ist sie da, gilt sie als gesendet; ist sie nicht
+da, wird sie noch einmal gesendet. Bei anderen Konten (SMTP) gibt es nichts, wo man nachschauen
+könnte, deshalb wird sofort gemeldet, dass sie vielleicht gesendet wurde: Schau unter **Gesendet**
+nach, bevor du sie noch einmal sendest.
+
+Scheitert ein Senden endgültig, sagt ein Toast, warum, und der Entwurf wird markiert: mit einem
+**roten Warndreieck** an seiner Zeile unter **Entwürfe**, das den Grund zeigt, wenn du darauf zeigst,
+und mit demselben Dreieck an **Entwürfe** in der Seitenleiste, solange ein Entwurf eins trägt. Das ist
+es, was zu finden bleibt, wenn niemand den Toast gesehen hat — ein geplanter Versand scheitert, ohne
+dass jemand zuschaut. Die Markierung verschwindet, wenn der Entwurf gesendet oder noch einmal
+gesendet oder gelöscht wird. Bearbeiten allein nimmt sie nicht weg, denn die Mail ist ja immer noch
+nicht raus.
+
 ## Wo du weiterliest
 
 - [Mail-Ingest](../internals/mail-ingest.md) — der Weg vom Anbieter in die Datenbank, Zuordnung
@@ -1285,6 +1314,11 @@ ohne „Neu“ zurück — das ist die Markierung, die funktioniert, und keine, 
 **Der Nur-Text-Modus lässt sich nur zurücknehmen, solange der Entwurf nicht gespeichert ist.** Die
 Warnung sagt das vor dem Umschalten. Ist der Entwurf einmal als Nur-Text abgelegt, gibt es
 nirgends mehr eine Formatierung, zu der man zurückkehren könnte.
+
+**Ein Warndreieck an einem Entwurf heißt, dass sein Senden gescheitert ist, nicht dass der Entwurf
+kaputt ist.** Öffne ihn und sende ihn noch einmal; die Markierung verschwindet, sobald der neue
+Versuch beginnt. Vorsicht nur bei *Vielleicht gesendet*: Schau erst unter Gesendet nach, sonst
+bekommt der Empfänger die Mail womöglich doppelt.
 
 **Ein geplanter Versand kann nicht näher als eine Minute liegen.** Die nächste volle Minute
 einzutippen ist genau die Zeit, die man zum Ausprobieren wählt, und sie wird abgelehnt — mit

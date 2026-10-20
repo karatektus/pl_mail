@@ -3,6 +3,7 @@
 namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
@@ -277,8 +278,13 @@ class MessageRepository extends ServiceEntityRepository
         $affected = $this->getEntityManager()->getConnection()->executeStatement(
             // The database's own clock, not PHP's: the claim is decided here,
             // so the timestamp that records it should be too.
+            // A warning left by an earlier send is lifted by this one: the
+            // draft is being sent again, and if this attempt fails too it is
+            // marked afresh (#125).
             'UPDATE message
-                SET send_claimed_at = LOCALTIMESTAMP
+                SET send_claimed_at = LOCALTIMESTAMP,
+                    send_failed_at = NULL,
+                    send_failure = NULL
               WHERE id = :id
                 AND cancelled = false
                 AND sent_at IS NULL
@@ -368,6 +374,80 @@ class MessageRepository extends ServiceEntityRepository
         $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE message SET send_claimed_at = NULL WHERE id = :id AND sent_at IS NULL',
             ['id' => $messageId],
+        );
+    }
+
+    /**
+     * Start the clock on a send that is being retried, if it is not running
+     * already, and say how long it has been running in seconds (#125).
+     *
+     * One statement for both, so two attempts racing each other cannot each
+     * start their own clock. The database's clock, as for the claim.
+     */
+    public function secondsRetryingSend(int $messageId): int
+    {
+        $elapsed = $this->getEntityManager()->getConnection()->fetchOne(
+            'UPDATE message
+                SET send_retrying_since = COALESCE(send_retrying_since, LOCALTIMESTAMP)
+              WHERE id = :id
+          RETURNING EXTRACT(EPOCH FROM LOCALTIMESTAMP - send_retrying_since)',
+            ['id' => $messageId],
+        );
+
+        return false === $elapsed ? 0 : (int) $elapsed;
+    }
+
+    /**
+     * Note that an attempt lost its answer, so the next one looks in Sent
+     * before sending. See SendOutcomeUnknownException.
+     */
+    public function markSendUnconfirmed(int $messageId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message SET send_unconfirmed_at = LOCALTIMESTAMP WHERE id = :id AND sent_at IS NULL',
+            ['id' => $messageId],
+        );
+    }
+
+    /**
+     * Mark a draft whose send finally failed, and stop its retry clock (#125).
+     *
+     * Raw SQL for the reason releaseSendClaim() is: it is written on the way
+     * out of a failed send, after the entity manager has been cleared. Not on
+     * a message that went out after all — sent_at is the one fact that wins.
+     */
+    public function markSendFailed(int $messageId, SendFailure $failure): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE message
+                SET send_failed_at = LOCALTIMESTAMP,
+                    send_failure = :failure,
+                    send_retrying_since = NULL,
+                    send_unconfirmed_at = NULL
+              WHERE id = :id
+                AND sent_at IS NULL',
+            ['id' => $messageId, 'failure' => $failure->value],
+        );
+    }
+
+    /**
+     * How many of a user's drafts carry a failed-send warning — the sidebar's
+     * mark on Drafts. Drafts only, by label as the Drafts list selects them, so
+     * a marked draft that was thrown away stops counting with it.
+     */
+    public function countUnsentDraftsForUser(User $user): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(DISTINCT m.id)
+               FROM message m
+               JOIN account a ON a.id = m.account_id
+               JOIN message_label ml ON ml.message_id = m.id
+               JOIN label l ON l.id = ml.label_id
+              WHERE a.usr_id = :user
+                AND m.send_failed_at IS NOT NULL
+                AND m.sent_at IS NULL
+                AND l.role = :drafts',
+            ['user' => $user->id, 'drafts' => LabelRole::Drafts->value],
         );
     }
 
@@ -2727,6 +2807,8 @@ class MessageRepository extends ServiceEntityRepository
                 'm.sentAt',
                 'm.createdAt',
                 'm.submissionSendAt',
+                // The warning a draft whose send failed wears in the list (#125).
+                'm.sendFailure',
                 // Whether the message is filed under Sent or Drafts, for
                 // ThreadRowMessage::$filedAsSent. A count in the same statement
                 // rather than a join: a join would repeat the row per label,

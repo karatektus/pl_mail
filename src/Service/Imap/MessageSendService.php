@@ -18,7 +18,13 @@ use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\Mime\DataImageEmbedder;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
+use App\Domain\Enum\Mail\SendFailure;
+use App\Domain\Exception\SendFailureException;
+use App\Domain\Exception\SendOutcomeUnknownException;
+use App\Domain\Exception\SendRefusedException;
+use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\MailSenderInterface;
+use App\Domain\Interface\SentCopyLookupInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Throwable;
@@ -49,6 +55,16 @@ class MessageSendService
     ) {
     }
 
+    /**
+     * Send the message, or say why not.
+     *
+     * @return bool true once the provider has the mail and the row says so;
+     *              false only for a message with no account to send from
+     *
+     * @throws SendFailureException a send that did not go through, classified
+     *                              by what the next attempt should do — see
+     *                              SendMessageHandler
+     */
     public function send(Message $message): bool
     {
         $account = $message->account;
@@ -59,20 +75,79 @@ class MessageSendService
 
         $email = $this->buildEmail($message, $account);
 
-        $this->stampMessageId($message, $email);
-
-        $sender      = $this->senderRegistry->resolve($account);
-        $sendSuccess = $sender->send($email, $account);
-
-        if (false === $sendSuccess) {
-            // Nothing to record. Senders take a Symfony\Mime\Email and hand
-            // back a bool — a refused send never reaches the row, so there is
-            // no error flag, retry counter or bounce state for a client to be
-            // told about, and the draft it already holds is still accurate.
-            // The retry lives on the messenger transport, not on the message.
-            return false;
+        // Committed before the first attempt, not after the last: a send whose
+        // answer is lost is settled by looking for this id in Sent, and the
+        // handler clears the entity manager after a failed attempt, which took
+        // a freshly minted id with it. The retry then minted another, and
+        // looked for a mail that had never been sent under it (#125).
+        if (true === $this->stampMessageId($message, $email)) {
+            $this->em->flush();
         }
 
+        $sender = $this->senderRegistry->resolve($account);
+
+        // An earlier attempt lost its answer, so the mail may already be out.
+        // Look before sending it again. See SendOutcomeUnknownException.
+        if (null !== $message->sendUnconfirmedAt) {
+            if (true === $this->foundInSent($sender, $account, $message)) {
+                return $this->recordSent($message, $account, $email, $sender);
+            }
+
+            $message->sendUnconfirmedAt = null;
+            $this->em->flush();
+        }
+
+        if ($sender instanceof MailDeliveryInterface) {
+            // Throws what kind of failure it was; the handler decides what
+            // happens next. Nothing is recorded on the row here.
+            $sender->deliver($email, $account);
+        } elseif (false === $sender->send($email, $account)) {
+            // A sender that only says yes or no — the demo sender, a test
+            // double. No reason to go on, so it is taken at its word as a
+            // refusal: not retried, and said at once, as it always was.
+            throw new SendRefusedException('The sender refused the message.', SendFailure::Refused);
+        }
+
+        return $this->recordSent($message, $account, $email, $sender);
+    }
+
+    /**
+     * Whether this message's sender can be asked if a mail went out, which is
+     * what decides how a lost answer is handled. See SendMessageHandler.
+     */
+    public function canCheckSent(Message $message): bool
+    {
+        return $this->senderRegistry->resolve($message->account) instanceof SentCopyLookupInterface;
+    }
+
+    /**
+     * Whether the provider's Sent mail already holds this message.
+     *
+     * @throws SendOutcomeUnknownException when it cannot be asked, or this
+     *                                      sender is not one that can be: then
+     *                                      nobody knows, and the mail must not
+     *                                      be sent again
+     */
+    private function foundInSent(MailSenderInterface $sender, Account $account, Message $message): bool
+    {
+        $messageId = MessageIdHelper::normalise((string) $message->messageId);
+
+        if (false === $sender instanceof SentCopyLookupInterface || '' === $messageId) {
+            throw new SendOutcomeUnknownException('Whether the earlier attempt delivered the mail cannot be checked.');
+        }
+
+        try {
+            return $sender->isInSent($account, $messageId);
+        } catch (Throwable $failure) {
+            throw new SendOutcomeUnknownException('Sent could not be searched for the earlier attempt: ' . $failure->getMessage(), $failure);
+        }
+    }
+
+    /**
+     * The provider has the mail: write that down first, then the rest.
+     */
+    private function recordSent(Message $message, Account $account, Email $email, MailSenderInterface $sender): bool
+    {
         // THE PROVIDER HAS THE MAIL. From this line on nothing may throw out of
         // this method, and the order below is what guarantees it.
         //
@@ -84,6 +159,13 @@ class MessageSendService
         // committed first, on its own, which makes every later claimForSend()
         // refuse; the bookkeeping after it is best effort and only logged.
         $message->sentAt = new DateTimeImmutable();
+
+        // Whatever an earlier attempt left on the row is over: no warning, no
+        // retry clock, nothing waiting to be checked.
+        $message->sendFailedAt      = null;
+        $message->sendFailure       = null;
+        $message->sendRetryingSince = null;
+        $message->sendUnconfirmedAt = null;
 
         try {
             $this->em->flush();
@@ -236,11 +318,14 @@ class MessageSendService
      * Kept if the row already has one: a resend of the same row is the same
      * message, and re-minting would strand the copy already on the server.
      */
-    private function stampMessageId(Message $message, Email $email): void
+    /** @return bool whether the id was minted just now, and so is not on the row yet */
+    private function stampMessageId(Message $message, Email $email): bool
     {
         $existing = MessageIdHelper::normalise((string) $message->messageId);
+        $minted   = false;
 
         if ('' === $existing) {
+            $minted = true;
             $existing = MessageIdHelper::mint(
                 (string) ($email->getFrom()[0]->getAddress() ?? ''),
             );
@@ -257,6 +342,8 @@ class MessageSendService
         // addIdHeader wants the bare id and writes the angle brackets itself,
         // which is why the column stores the canonical bracket-less form.
         $headers->addIdHeader('Message-ID', $existing);
+
+        return $minted;
     }
 
     /**

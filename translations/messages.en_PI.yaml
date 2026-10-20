@@ -4020,6 +4020,7 @@ sidebar:
     badge:
         total: '%count% all told'
         unread: '%count% unread'
+        unsent: A draft never sailed
     compose: Scribble
     labels:
         add: Hoist a new flag
@@ -4115,6 +4116,12 @@ thread_row:
     new_badge: Fresh
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
+    send_failed:
+        failed: Never sailed
+        may_have_sent: 'May have sailed: search th'' Sent hold afore firin'' again'
+        rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
+        refused: 'Never sailed: th'' harbour master turned it away'
+        unavailable: 'Never sailed: yer mail port could not be reached'
     scheduled: 'Due %when%'
     select: Pick it
     star: Mark this bottle with an X
@@ -4131,6 +4138,10 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
+    send_failed_may_have_sent: '%subject% may have sailed, but no word came back. Search th'' Sent hold before ye fire it again.'
+    send_failed_rate_limited: 'That message could not be hoisted: %subject%. Yer mail port be rationin'' sailings; try again in a few minutes.'
+    send_failed_refused: 'That message could not be hoisted: %subject%. Th'' harbour master turned it away.'
+    send_failed_unavailable: 'That message could not be hoisted: %subject%. Yer mail port could not be reached.'
     sent: Message away!
     spam_filtered: 'Pumped into th'' bilge. Whatever %sender% sends next goes th'' same way.'
     undo: Belay that

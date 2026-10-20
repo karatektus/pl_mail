@@ -552,6 +552,8 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
                 {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) }}
+                {% import '_partials/_unsent_mark.html.twig' as unsent %}
+                {{ unsent.sidebar(sidebarCounts.unsentDrafts()) }}
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>

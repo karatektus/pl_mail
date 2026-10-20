@@ -7,6 +7,7 @@ use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
@@ -36,6 +37,9 @@ use Doctrine\ORM\Mapping as ORM;
 // nearly every row. Serves "which mail is in this category" and the SET NULL a
 // category's removal performs.
 #[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => 'rule_category_id IS NOT NULL'])]
+// The sidebar's unsent-draft warning counts these on every refresh; partial,
+// because nearly every row is null here and only the few marked ones matter.
+#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => 'send_failed_at IS NOT NULL'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -347,6 +351,47 @@ class Message extends MessageModel
      */
     #[ORM\Column(name: 'submission_cancelled_at', nullable: true)]
     public ?DateTimeImmutable $submissionCancelledAt = null;
+
+    /**
+     * When the last send of this draft finally failed, or null — the warning
+     * the Drafts list and the sidebar show (#125).
+     *
+     * Final means after the retries: a send that is still being retried has
+     * no warning yet, and a refusal or a lost answer that cannot be checked
+     * has one at once. Cleared when the draft is claimed for another send, so
+     * a second attempt starts clean, and when a send succeeds. Editing the
+     * draft leaves it: the mail has still not gone.
+     *
+     * Written with SQL by MessageRepository, never through the entity, for the
+     * reason releaseSendClaim() is: it is written on the way out of a failed
+     * send, after the entity manager has been cleared of whatever the attempt
+     * left half-done.
+     */
+    #[ORM\Column(name: 'send_failed_at', nullable: true)]
+    public ?DateTimeImmutable $sendFailedAt = null;
+
+    /** Why it failed — see SendFailure. Set and cleared with sendFailedAt. */
+    #[ORM\Column(name: 'send_failure', length: 20, nullable: true, enumType: SendFailure::class)]
+    public ?SendFailure $sendFailure = null;
+
+    /**
+     * When this send began waiting out a passing failure — the start of the
+     * two minutes a send may spend being retried. See SendMessageHandler.
+     *
+     * Kept across attempts, which is the point: the claim is released between
+     * them, and the wait has to be measured from the first. Cleared when the
+     * send succeeds or finally fails, so the next send gets its own two minutes.
+     */
+    #[ORM\Column(name: 'send_retrying_since', nullable: true)]
+    public ?DateTimeImmutable $sendRetryingSince = null;
+
+    /**
+     * When an attempt lost its answer: the provider may have the mail. The
+     * next attempt looks for it in Sent before sending again, and clears this
+     * either way. See SendOutcomeUnknownException.
+     */
+    #[ORM\Column(name: 'send_unconfirmed_at', nullable: true)]
+    public ?DateTimeImmutable $sendUnconfirmedAt = null;
 
     /**
      * How urgent this message claims to be, or null if nobody said.

@@ -952,6 +952,11 @@ final class MailController extends AbstractController
             $payload[NewMailMarkers::roleKey($role)] = $newMail->forRole($role);
         }
 
+        // The warning on Drafts while any draft's send has finally failed
+        // (#125). Its own "unsent:" family, so a number meant for it cannot
+        // be read as a badge's, nor a badge's as it. See _unsent_mark.html.twig.
+        $payload['unsent:role:drafts'] = $counts->unsentDrafts();
+
         // One key per label now that the sidebar renders labels directly —
         // this used to also emit "node:<path>" keys for the merged tree.
         $labels = $this->labelRepository->findVisibleForUser($this->getUser());

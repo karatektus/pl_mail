@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Mail;
 
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Helper\OwnAddressHelper;
 use App\Entity\Mail\Message;
 use DateTimeImmutable;
@@ -43,6 +44,8 @@ final readonly class ThreadRowMessage
          * mailbox of their own when it is not. See OwnAddressHelper.
          */
         public bool $filedAsSent = false,
+        /** Why this draft's last send finally failed, or null — the row's warning (#125). */
+        public ?SendFailure $sendFailure = null,
     ) {
     }
 
@@ -64,6 +67,7 @@ final readonly class ThreadRowMessage
             // labels of each message on the row — a lazy load apiece.
             true === ($message->account ?? null)?->catchesAddress($message->fromAddress)
                 && true === OwnAddressHelper::sentByAccount($message),
+            $message->sendFailure,
         );
     }
 }

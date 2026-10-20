@@ -73,6 +73,52 @@ final class GmailApiClient
     // ── messages ─────────────────────────────────────────────────────────────
 
     /**
+     * Send a message: the RFC 822 source, base64url without padding (#125).
+     *
+     * Through assertSuccess() like every other call here, so a quota refusal
+     * is a GmailThrottledException — reported to the pacer, and carrying how
+     * long the account is being left alone — and a refusal that will not
+     * clear is a GmailPermanentException. Not charged to the pacer: sends are
+     * few, and pacing them is out of scope until it causes trouble.
+     *
+     * A network failure is left as the HttpClient's TransportException, for
+     * GmailApiSender to tell "never left" from "answer lost".
+     */
+    public function sendRaw(Account $account, string $raw): void
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('POST', self::BASE . '/messages/send', [
+            'auth_bearer' => $token,
+            'json'        => ['raw' => $raw],
+        ]);
+
+        $this->assertSuccess($account, $response, 'messages.send');
+    }
+
+    /**
+     * Whether Sent holds a message with this Message-ID — how a send whose
+     * answer was lost is settled before it is tried again (#125).
+     */
+    public function hasSentMessage(Account $account, string $messageId): bool
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/messages', [
+            'auth_bearer' => $token,
+            'query'       => [
+                'q'          => 'in:sent rfc822msgid:' . $messageId,
+                'maxResults' => 1,
+            ],
+        ]);
+
+        $body = $this->decode($account, $response, 'messages.list');
+
+        return [] !== ($body['messages'] ?? []);
+    }
+
+
+    /**
      * List message IDs (and optional thread IDs) matching a query.
      *
      * Returns the raw `messages` array from the API response.

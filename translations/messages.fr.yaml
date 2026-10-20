@@ -4247,6 +4247,7 @@ sidebar:
     badge:
         total: '%count% au total'
         unread: '%count% non lus'
+        unsent: Un brouillon n’a pas pu être envoyé
     compose: Nouveau message
     labels:
         add: Créer un libellé
@@ -4345,6 +4346,12 @@ thread_row:
     new_badge: Nouveau
     no_recipient: (sans destinataire)
     no_subject: (sans objet)
+    send_failed:
+        failed: Non envoyé
+        may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
+        rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
+        refused: 'Non envoyé : le serveur de messagerie l’a refusé'
+        unavailable: 'Non envoyé : votre fournisseur était injoignable'
     scheduled: 'Programmé %when%'
     select: Sélectionner
     star: Suivre ce message
@@ -4377,6 +4384,10 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
+    send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
+    send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
+    send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'
+    send_failed_unavailable: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur était injoignable.'
     sent: Message envoyé.
     spam_filtered: 'Déplacé vers Spam. Le courrier futur de %sender% y ira aussi.'
     undo: Annuler
