@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d39cfffa143114c313d19f8ecc9a5a3f1d5266f8 -->
+<!-- translated-from: features/mail.md sha1:208c05b3a6db67dd51382a1ed83613d8bd89ef57 -->
 
 # Mail
 
@@ -337,7 +337,9 @@ Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt ein
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
-landet auf demselben Tag wie beim ersten Mal.
+landet auf demselben Tag wie beim ersten Mal. Gelesen werden die Amazon-Shops amazon.de, amazon.com,
+amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer
+Karte öffnet den Shop, der die Mail geschickt hat.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr

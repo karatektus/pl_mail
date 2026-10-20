@@ -103,9 +103,22 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * Shops that ship but also send marketing all day long, so the domain
      * alone admits nothing: the subject has to talk about a shipment too.
      *
+     * Each is a storefront of its own, and the card's button goes back to the
+     * one that sent the mail (see merchantTrackingUrl()): an amazon.co.uk
+     * order is not found on amazon.de. Matched as domainIs() matches, so
+     * amazon.com.au is its own entry and not a subdomain of amazon.com.
+     *
+     * Only storefronts whose mail is written in a language SHIPPING_WORDS and
+     * statusIn() read — English, German, French. An amazon.it subject says
+     * "Spedito", which the gate does not know, so listing that domain would
+     * promise parcels the extractor still cannot read.
+     *
      * @var list<string>
      */
-    private const array MERCHANT_DOMAINS = ['amazon.de', 'amazon.com', 'amazon.fr'];
+    private const array MERCHANT_DOMAINS = [
+        'amazon.de', 'amazon.com', 'amazon.fr',
+        'amazon.co.uk', 'amazon.ca', 'amazon.com.au', 'amazon.in', 'amazon.sg',
+    ];
 
     /**
      * Subject words that make a mail about a shipment, EN and DE, lowercase.
@@ -500,11 +513,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      */
     private function merchantTrackingUrl(string $domain, string $order, int $index, ?string $shipment): string
     {
-        $root = match (true) {
-            true === $this->domainIs($domain, 'amazon.com') => 'amazon.com',
-            true === $this->domainIs($domain, 'amazon.fr')  => 'amazon.fr',
-            default                                         => 'amazon.de',
-        };
+        $root = $this->merchantDomainOf($domain) ?? 'amazon.de';
 
         if (null === $shipment) {
             return sprintf('https://www.%s/gp/your-account/order-details?orderID=%s', $root, $order);
@@ -1088,13 +1097,19 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
 
     private function isMerchantDomain(string $domain): bool
     {
+        return null !== $this->merchantDomainOf($domain);
+    }
+
+    /** The storefront this sender belongs to — shipment-tracking@amazon.co.uk is amazon.co.uk. */
+    private function merchantDomainOf(string $domain): ?string
+    {
         foreach (self::MERCHANT_DOMAINS as $known) {
             if (true === $this->domainIs($domain, $known)) {
-                return true;
+                return $known;
             }
         }
 
-        return false;
+        return null;
     }
 
     /** Exact or subdomain-of — mail.amazon.de is amazon.de, notamazon.de is not. */

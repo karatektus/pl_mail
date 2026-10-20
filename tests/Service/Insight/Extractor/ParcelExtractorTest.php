@@ -297,6 +297,79 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // #207: amazon.co.uk was not a shop the gate knew, so the subject
+            // let the mail in and extract() found no carrier number and no
+            // merchant to fall back on — nothing on the radar. The mail is
+            // invented, in the shape of the one reported.
+            'amazon.co.uk out for delivery: read like amazon.de, and the button stays on amazon.co.uk' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.co.uk',
+                    'fromName'   => 'Amazon.co.uk',
+                    'subject'    => 'Out for delivery: ‘Wireless Headphones...’',
+                    'body'       => "Your Orders\r\n\r\n"
+                        . "    Your package is out for delivery!\r\n"
+                        . "Ordered\r\n\r\nDispatched\r\n\r\nOut for delivery\r\n\r\nDelivered\r\n\r\n"
+                        . "Arriving today 5:15 pm - 8:15 pm\r\n\r\n"
+                        . "Alex – Leeds\r\n\r\n"
+                        . "Order #\r\n202-1234567-7654321\r\n\r\n"
+                        . "Track package\r\n"
+                        . 'https://www.amazon.co.uk/progress-tracker/package?_encoding=UTF8&orderId=202-1234567-7654321&packageIndex=0&shipmentId=QwErTy123&vt=NOTIFICATIONS',
+                    'receivedAt' => '2026-10-17 10:25:39',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 202-1234567-7654321',
+                    'dedupeKey' => '202-1234567-7654321#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '202-1234567-7654321',
+                        'shipmentId'     => 'QwErTy123',
+                        'trackingUrl'    => 'https://www.amazon.co.uk/progress-tracker/package?orderId=202-1234567-7654321&packageIndex=0&shipmentId=QwErTy123',
+                        'merchant'       => 'Amazon.co.uk',
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => '2026-10-17 12:00',
+                ]],
+            ],
+
+            // amazon.com.au does not end in ".amazon.com", so it is its own
+            // storefront and not taken for the American one.
+            'amazon.com.au dispatched with no shipment id: the button opens the order on amazon.com.au' => [
+                [
+                    'from'     => 'shipment-tracking@amazon.com.au',
+                    'fromName' => 'Amazon.com.au',
+                    'subject'  => 'Dispatched: ‘Garden Hose 30m...’',
+                    'body'     => "Your package has been dispatched.\nOrder # 250-7654321-1234567\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 250-7654321-1234567',
+                    'dedupeKey' => '250-7654321-1234567#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '250-7654321-1234567',
+                        'shipmentId'     => null,
+                        'trackingUrl'    => 'https://www.amazon.com.au/gp/your-account/order-details?orderID=250-7654321-1234567',
+                        'merchant'       => 'Amazon.com.au',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'amazon.co.uk marketing without a shipping subject is refused like amazon.de' => [
+                [
+                    'from'     => 'store-news@amazon.co.uk',
+                    'fromName' => 'Amazon.co.uk',
+                    'subject'  => 'Deals picked for you',
+                    'body'     => 'Picks inspired by your recent orders.',
+                ],
+                false,
+                [],
+            ],
+
             'amazon dispatched: the subject beats a progress bar that lists every stage' => [
                 [
                     'from'       => 'versandbestaetigung@amazon.de',

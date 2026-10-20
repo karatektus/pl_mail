@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Amazon parcels from amazon.co.uk are on the radar.** Parcels were read from the German,
+American and French Amazon shops only, so an "Out for delivery" mail from amazon.co.uk gave no card.
+amazon.co.uk, amazon.ca, amazon.com.au, amazon.in and amazon.sg are now read the same way, and the
+card's Track button opens the shop that sent the mail. Mail that is already in plMail gets its card
+when `app:backfill insights --since=7d` reads it again. No schema change.
+[#207](https://github.com/karatektus/pl_mail/issues/207).
+
 **A short outage of the AI host no longer leaves mail without a category for good.** When the
 assistant's host could not be reached, the message was still marked as asked, so the catch-up never
 offered it again: a one-minute outage left 327 messages with no AI category and no second attempt.
