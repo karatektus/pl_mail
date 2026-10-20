@@ -15,6 +15,17 @@ from this changelog and the image to pull, once that image is published. Subscri
 GitHub. Releases from v0.3.0 on have a page. Nothing changes in the image.
 [Discussion #226](https://github.com/karatektus/pl_mail/discussions/226), asked by @adrianfurgol.
 
+**A parcel on its way no longer says Delivered, and an order number is not taken for its tracking
+number.** A FedEx or UPS mail that said the parcel "will be delivered tomorrow", or offered a text
+"when it's delivered", gave a card marked Delivered beside tomorrow's date, because any "delivered"
+in the mail counted. Only a delivery the mail says has happened counts now. A FedEx mail for an eBay
+purchase also put the eBay order number on the card instead of the tracking number, since both are
+twelve digits, so Track led nowhere; a number labelled "Order number", "Reference", "Bestellnummer"
+or the like is no longer read as a tracking number. A card wrongly marked Delivered is put right
+by the carrier's next mail or by `app:backfill insights --since=7d`; a card that already carries an
+order number stays until you dismiss it from its `⋮` menu. No schema change.
+[#120](https://github.com/karatektus/pl_mail/issues/120), reported by @sbach89.
+
 **Amazon parcels from amazon.co.uk are on the radar, on the right day.** Parcels were read from
 the German, American and French Amazon shops only, so an "Out for delivery" mail from amazon.co.uk
 gave no card. amazon.co.uk, amazon.ca, amazon.com.au, amazon.in and amazon.sg are now read the same

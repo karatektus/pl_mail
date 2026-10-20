@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:19b1ad812f018d4c44683e43afc832a05b7f5a15 -->
+<!-- translated-from: features/mail.md sha1:dcf5971012b11da80f145606ceb21145412fcb6e -->
 
 # Mail
 
@@ -357,7 +357,11 @@ Zusteller aus dem Absendernamen, wenn der mit Chronopost oder Colissimo beginnt,
 die Überschrift **Pickup**, ohne Zusteller und ohne Sendungslink. Noch nicht gelesen werden die
 Stufen "an den Absender zurück" und "Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die
 ein Zusteller nach der Zustellung schickt, wird ignoriert, damit sie eine Karte **Zugestellt**
-nicht in etwas anderes zurückverwandelt.
+nicht in etwas anderes zurückverwandelt. **Zugestellt** ist ein Paket erst, wenn die Mail sagt, dass
+es passiert ist: "will be delivered", "scheduled to be delivered" oder "when it's delivered" meinen
+eine Zustellung, die noch kommt. Und eine Nummer, die als etwas anderes beschriftet ist, etwa
+"Order number", "Reference" oder "Bestellnummer", gilt nicht als Sendungsnummer, auch wenn sie so
+aussieht.
 
 ### Die Leiste über der Mailliste
 

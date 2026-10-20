@@ -192,6 +192,49 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      */
     private const string ORDER_PLACED = '~^\s*(bestellt|ordered)\b~iu';
 
+    /**
+     * "Delivered" that has not happened: the future and the conditional a
+     * carrier writes before the parcel arrives. "Your package will be
+     * delivered tomorrow", "scheduled to be delivered", "is being
+     * delivered", "Want a text when it's delivered?". Each contains the word
+     * statusIn() takes for the last stage, and read as that, a parcel still
+     * a day out wears a Delivered badge next to tomorrow's date (#120).
+     *
+     * Removed from the text before "delivered" is looked for, rather than
+     * the past tense being required: "Delivered" alone, as a subject or a
+     * heading, is how half the carriers say it, and it has no tense to ask.
+     * The "when"/"once" clause allows up to three words between the
+     * conjunction and the verb ("once your package is delivered") and no
+     * more, so it cannot reach across a sentence into a real statement.
+     */
+    private const string NOT_YET_DELIVERED = '~\b(?:will|to|would|should|could|can|may|might|must|shall)\s+(?:not\s+)?be\s+delivered\b'
+        . '|\bbeing\s+delivered\b'
+        . '|\b(?:when|once|until|before|if|as soon as)\s+(?:[\w\']+\s+){0,3}?(?:is\s+|are\s+|gets?\s+|has been\s+)?delivered\b~u';
+
+    /**
+     * The label a bare digit run wears when it is somebody else's number:
+     * "eBay order number: 123456789012", "Reference: …", "Bestellnummer …",
+     * "N° de commande …". Twelve digits after "order number" are the shape
+     * of a FedEx tracking number and the meaning of an order, and a FedEx
+     * mail for an eBay purchase states both — the card took the order and
+     * its Track button led nowhere (#120).
+     *
+     * Asked of the text right before the number — nothing but a colon, a
+     * hash or whitespace (a line break included, for "Order #" over the
+     * number) may stand between them — so the label has to be the number's
+     * own: "Tracking number" two lines above an order number does not lend
+     * it its meaning, and an order number mentioned in the same sentence as
+     * a tracking number does not take the tracking number's away. Only the bare digit runs are asked;
+     * the distinctive shapes are tracking numbers whatever stands in front.
+     */
+    private const string FOREIGN_NUMBER_LABEL = '~\b(?:order|purchase|invoice|item|reference|ref\.?|customer|account'
+        . '|bestell\w*|auftrag\w*|rechnung\w*|artikel\w*|kunden\w*|referenz'
+        . '|commande|facture|r[ée]f[ée]rence|client)'
+        . '(?:\s*(?:number|no\.?|nr\.?|nummer|num[ée]ro|n[°º]|id|#))?\s*[:#]?\s*$~iu';
+
+    /** How much text before a digit run FOREIGN_NUMBER_LABEL is asked of. */
+    private const int LABEL_REACH = 40;
+
     /** @var array<string, string> carrier id to the name a card wears */
     private const array CARRIER_NAMES = [
         'dhl'           => 'DHL',
@@ -637,7 +680,13 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             }
         }
 
-        foreach ($this->allMatches('~\b\d{12,20}\b~', $text) as $number) {
+        preg_match_all('~\b\d{12,20}\b~', $text, $runs, PREG_OFFSET_CAPTURE);
+
+        foreach ($runs[0] as [$number, $offset]) {
+            if (true === $this->labelledAsAnotherNumber($text, $offset)) {
+                continue;
+            }
+
             // A mail that literally says "fedex" outranks DHL's generic
             // context words for the 12-digit shape — "tracking" appears in
             // every carrier's mail, the competitor's name only deliberately.
@@ -655,6 +704,16 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         return $found;
+    }
+
+    /** Whether the digit run at $offset is labelled as an order, an invoice or the like. */
+    private function labelledAsAnotherNumber(string $text, int $offset): bool
+    {
+        // mb_strcut and not substr: the offset is in bytes, and a cut through
+        // an "é" would make the pattern refuse the whole window.
+        $before = mb_strcut($text, max(0, $offset - self::LABEL_REACH), min($offset, self::LABEL_REACH));
+
+        return 1 === preg_match(self::FOREIGN_NUMBER_LABEL, $before);
     }
 
     /**
@@ -804,8 +863,10 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         // and say the opposite; a failed attempt must not read as delivered.
         $negated = 1 === preg_match('~\bpas (encore )?(été|est) (livr|retir|récupér)~u', $text);
 
+        $done = (string) preg_replace(self::NOT_YET_DELIVERED, '', $text);
+
         foreach (['delivered', 'zugestellt', 'été livré', 'est livré', 'livraison réussie', 'livré :', 'livrée :'] as $phrase) {
-            if (false === $negated && true === str_contains($text, $phrase)) {
+            if (false === $negated && true === str_contains($done, $phrase)) {
                 return 'delivered';
             }
         }
