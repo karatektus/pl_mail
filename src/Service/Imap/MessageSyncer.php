@@ -177,7 +177,9 @@ class MessageSyncer
         try {
             // Not the library's chunked(): one message it cannot parse ends
             // that loop for the whole folder, on every sync. See ImapPagedFetch.
-            $query = $folder->messages()->where(self::uidRangeCriteria($uidRange));
+            // A range that finds nothing moves nothing, so a server's "no such
+            // message" for it is read as the empty answer it means (#219).
+            $query = ImapQuery::of($folder)->emptyWhenNoSuchMessage()->where(self::uidRangeCriteria($uidRange));
 
             foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
                 $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);

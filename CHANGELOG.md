@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**IMAP mail with a repeated Date header is imported, and Proton Mail Bridge folders sync.** A
+message carrying its Date header two or three times (some gateways add their own) could not be read
+by the IMAP library: it stopped with an error, and that took the rest of its page of the sync or
+import with it, every time. Such a message is now read with only the first of each repeated Date,
+Message-ID, In-Reply-To and References, and the stored source keeps every line the server sent. A
+message that still cannot be read costs only itself: it is tried again on the next syncs and then
+skipped, like other unreadable mail. And Proton Mail Bridge answered the search for new mail with
+"no such message", which failed that folder's sync on every poll; that answer now counts as no new
+mail. No schema change. [#219](https://github.com/karatektus/pl_mail/issues/219), reported by
+@sponger544.
+
 **Releases are published on GitHub, so you can follow them in a feed reader.** Each tagged release
 now gets a page under [Releases](https://github.com/karatektus/pl_mail/releases) with its notes
 from this changelog and the image to pull, once that image is published. Subscribe to
