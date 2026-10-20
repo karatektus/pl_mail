@@ -8,6 +8,13 @@ on:
     #    deployment follows. This builds amd64 ONLY — one job — because that
     #    deployment is amd64 and the arm64 image is a release artifact nobody
     #    pulls from `main`.
+    #  - A push to a milestone branch does the same under that branch's name:
+    #    `milestone/v0.3.8` publishes `milestone-v0.3.8` (the metadata action
+    #    turns the slash into a dash) and `sha-…`, so an install can follow a
+    #    release before it reaches `main`. Never `latest` and never the
+    #    catalogue, which move on a `v*` tag alone. A push runs the workflow
+    #    file of the commit pushed, so a milestone branch publishes once `main`
+    #    with this line has been merged into it.
     #  - A `v*` tag builds the published release: amd64 + arm64, merged into one
     #    manifest, tagged with the version, `0.0`, and `latest` — and then
     #    publishes the GitHub Release that announces it (the `release` job).
@@ -17,7 +24,7 @@ on:
     # prove the Dockerfile compiles twice and push nothing. Use
     # workflow_dispatch to build an untagged commit by hand.
     push:
-        branches: [main]
+        branches: [main, 'milestone/**']
         tags: ['v*']
     workflow_dispatch:
 

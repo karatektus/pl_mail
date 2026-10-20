@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:3b59d99e47f165dc137b889aa6021578afea1e24 -->
+<!-- translated-from: install/upgrading.md sha1:8843e5bc0db3bd70577a5d29c566a6d5db35b950 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -51,6 +51,7 @@ Der Release-Workflow veröffentlicht ein Multi-Architektur-Manifest und richtet 
 |---|---|
 | `latest` | der jüngsten **Veröffentlichung** — er bewegt sich nur, wenn ein `v*`-Tag gepusht wird |
 | `main` | der Spitze des Standard-Branches, veröffentlicht oder nicht |
+| `milestone-v0.3.8` | der Arbeit, die für eine Veröffentlichung auf ihrem Milestone-Branch gesammelt wird, bevor sie `main` erreicht. Zum frühen Ausprobieren einer Veröffentlichung; er kann Migrationen enthalten, die `main` noch nicht hat, deshalb ist der Weg zurück zu `main` nicht immer möglich |
 | `0.0.16` | einer Veröffentlichung, festgenagelt. Ohne führendes `v`: Der Git-Tag heißt `v0.0.16`, der Image-Tag nicht |
 | `0.0` | dem neuesten Patch einer Minor-Linie |
 | `sha-1a2b3c` | einem Commit, exakt festgenagelt |

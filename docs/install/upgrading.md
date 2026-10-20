@@ -48,6 +48,7 @@ The release workflow publishes one multi-architecture manifest and points severa
 |---|---|
 | `latest` | the most recent **release** — it moves only when a `v*` tag is pushed |
 | `main` | the tip of the default branch, released or not |
+| `milestone-v0.3.8` | the work collected for one release on its milestone branch, before it reaches `main`. For trying a release early; it can carry migrations `main` does not have yet, so going back to `main` from it is not always possible |
 | `0.0.16` | one release, pinned. No leading `v`: the git tag is `v0.0.16`, the image tag is not |
 | `0.0` | the newest patch of one minor line |
 | `sha-1a2b3c` | one commit, pinned exactly |

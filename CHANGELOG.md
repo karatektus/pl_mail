@@ -4,7 +4,8 @@ Notable changes per release. plMail runs its migrations automatically on boot,
 so anything that changes the schema irreversibly is called out explicitly.
 
 The published image tags: `latest` follows the most recent release below,
-`main` follows the tip of the default branch, and `sha-…` pins one commit.
+`main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
+release before it reaches `main`, and `sha-…` pins one commit.
 
 ## v0.3.7 — 2026-10-20
 
