@@ -1160,7 +1160,7 @@ admin:
             name_first: Vorname
             name_last: Nachname
             password: Erstes Passwort
-            password_help: 'Wird einmalig beim Anlegen gesetzt. Danach lässt es sich hier nicht mehr ändern: Ein vergessenes Passwort setzt du auf der Server-Konsole mit `app:user:password` zurück.'
+            password_help: 'Ein Einmal-Passwort: Bei der ersten Anmeldung legt die Person ihr eigenes fest. Ein vergessenes Passwort setzt du auf der Server-Konsole mit `app:user:password` zurück.'
         flash:
             deactivated: 'Abgeschaltet. Eine Anmeldung ist erst wieder möglich, wenn du das Konto einschaltest.'
             demote_last_refused: 'Das ist die letzte Person mit Administratorrechten — das Häkchen blieb, wie es war. Ernenne zuerst jemand anderen.'
@@ -1901,6 +1901,7 @@ compose:
         save_failed: Entwurf konnte nicht gespeichert werden
         saved: Entwurf gespeichert
         saving: "Wird gespeichert…"
+        sealing: "Wird verschlüsselt…"
         uploading: "Wird hochgeladen…"
     upload:
         failed: Hochladen fehlgeschlagen
@@ -1922,7 +1923,29 @@ compose:
     discard: Entwurf löschen
     empty_draft: (leerer Entwurf)
     encrypt: Nachricht verschlüsseln
-    encrypt_unavailable: Verschlüsselung ist noch nicht verfügbar.
+    crypto:
+        encrypt: Verschlüsseln
+        sign: Signieren
+        encrypted: Verschlüsselt
+        encrypted_hint: "Diese Nachricht wird Ende-zu-Ende verschlüsselt: Nur du und die Empfänger können sie lesen."
+        has_key: "plMail kennt einen Schlüssel für diese Adresse, Mails an sie lassen sich also verschlüsseln."
+        has_certificate: "plMail hat ein S/MIME-Zertifikat für diese Adresse, Mail dorthin lässt sich also verschlüsseln."
+        key_changed: "Für diese Adresse wartet ein neuer Schlüssel unter Einstellungen → Verschlüsselung darauf, angenommen zu werden. Bis dahin wird der bekannte verwendet."
+        partial: "%emails% ist nicht verschlüsselt erreichbar, deshalb geht diese Nachricht unverschlüsselt an alle."
+        partial_blocked: "%emails% ist nicht verschlüsselt erreichbar. Entferne die Adresse oder schalte die Verschlüsselung für diese Nachricht aus."
+        missing: "Für %emails% gibt es keinen Schlüssel. Entferne die Adresse oder schalte die Verschlüsselung für diese Nachricht aus."
+        locked: "Deine Schlüssel sind in diesem Browser gesperrt. Öffne sie unter Einstellungen → Verschlüsselung oder schalte die Verschlüsselung für diese Nachricht aus."
+        locked_not_saved: "Nicht gespeichert: Dieser Entwurf ist verschlüsselt, und deine Schlüssel sind in diesem Browser gesperrt."
+        locked_draft: "Dieser Entwurf ist verschlüsselt, und deine Schlüssel sind in diesem Browser gesperrt. Öffne sie unter Einstellungen → Verschlüsselung, um weiterzuschreiben."
+        failed_draft: "Dieser verschlüsselte Entwurf ließ sich nicht öffnen."
+        no_own_key: "Für diese Absenderadresse hast du keinen Schlüssel, also lässt sich von ihr aus nichts signieren oder verschlüsseln."
+        no_own_certificate: "Du hast kein S/MIME-Zertifikat für diese Absenderadresse, deshalb lässt sich diese Nachricht nicht mit S/MIME signieren oder verschlüsseln."
+        failed: "Die Nachricht ließ sich nicht verschlüsseln. Es wurde nichts gesendet."
+        sealed_attachment: "Verschlüsselt: Bis die Nachricht gesendet ist, kannst nur du sie öffnen."
+    seal:
+        refused: "Die verschlüsselte Nachricht kam nicht vollständig an. Es wurde nichts gesendet; versuch es noch einmal."
+        keys_changed: "Der Schlüssel eines Empfängers hat sich beim Schreiben geändert. Es wurde nichts gesendet; sende sie noch einmal."
+        unbuilt: "Dieser Entwurf ist verschlüsselt und lässt sich nur aus einem Browser senden, in dem deine Schlüssel offen sind."
     expand: Fenster vergrößern
     formatting: Formatierung
     forward: Weiterleiten
@@ -2000,6 +2023,83 @@ compose:
         search: 'Vorlage suchen'
         untitled: 'Unbenannte Vorlage'
 
+contact_keys:
+    heading: "Schlüssel deiner Kontakte"
+    subheading: "Die öffentlichen Schlüssel, mit denen plMail die Signaturen deiner Kontakte prüft — und an die es verschlüsselt, sobald plMail verschlüsselt senden kann."
+    loading: "Schlüssel der Kontakte werden geladen…"
+    empty: "Noch keine Schlüssel. plMail übernimmt sie aus signierten Mails; du kannst oben auch einen suchen oder importieren."
+    verified: "Verifiziert"
+    first_seen: "zuerst gesehen %date%"
+    last_seen: "zuletzt gesehen %date%"
+    expires: "läuft ab %date%"
+    origin:
+        attached: "An einer Mail angehängt"
+        autocrypt: "Aus dem Autocrypt-Header einer Mail"
+        keyserver: "Vom Schlüsselserver %host%"
+        manual: "Von dir importiert"
+        wkd: "Aus dem Schlüsselverzeichnis der Domain (WKD)"
+    pin: "Als verifiziert markieren"
+    unpin: "Häkchen entfernen"
+    accept: "Diesen Schlüssel verwenden"
+    remove: "Entfernen"
+    confirm_remove: "Diesen Schlüssel entfernen? Damit erstellte Signaturen lassen sich nicht mehr prüfen, bis plMail ihn wieder findet."
+    changed_warning: "Für diese Adresse ist ein anderer Schlüssel aufgetaucht. Das kann der neue Schlüssel deines Kontakts sein — oder jemand, der sich als dieser ausgibt. plMail verwendet weiter den bekannten Schlüssel, bis du diesen Fingerprint mit deinem Kontakt vergleichst und ihn akzeptierst."
+    pinned: "Als verifiziert markiert."
+    accepted: "Dieser Schlüssel wird jetzt für die Adresse verwendet."
+    removed: "Schlüssel entfernt."
+    preferences_saved: "Gespeichert."
+    not_found: "Diesen Schlüssel gibt es nicht mehr."
+    signer_unknown: "plMail hat den Schlüssel nicht, mit dem signiert wurde. Suche oder importiere ihn zuerst."
+    certificates:
+        heading: "S/MIME-Zertifikate deiner Kontakte"
+        hint: "Aus signierten Mails deiner Kontakte übernommen. Mail an sie wird mit S/MIME verschlüsselt, wenn jeder Empfänger eines hat und du ein eigenes Zertifikat hast."
+        empty: "Noch keine. plMail behält das Zertifikat jeder S/MIME-signierten Mail, deren Signatur stimmt."
+        verified: "Bestätigt von %issuer%"
+        unverified: "Von keiner Zertifizierungsstelle bestätigt"
+        confirm_remove: "Dieses Zertifikat entfernen? Mail an diese Adresse lässt sich erst wieder mit S/MIME verschlüsseln, wenn plMail ein neues sieht."
+        changed_warning: "Für diese Adresse ist ein anderes Zertifikat aufgetaucht, und keine Zertifizierungsstelle bürgt für den Wechsel. plMail nutzt weiter das bekannte, bis du den Fingerabdruck mit deinem Kontakt vergleichst und das neue übernimmst."
+        removed: "Zertifikat entfernt."
+    import:
+        heading: "Schlüssel importieren"
+        hint: "Füge einen öffentlichen Schlüsselblock ein oder wähle eine Datei. Der Schlüssel wird für jede Adresse gespeichert, die er nennt."
+        file: "Schlüsseldatei"
+        paste: "Öffentlicher Schlüssel"
+        submit: "Schlüssel hinzufügen"
+        done: "Importiert. Adressen mit diesem Schlüssel: %count%."
+        changed: "Importiert — aber %count% der Adressen hatten schon einen anderen Schlüssel. Vergleiche die Fingerprints unten, bevor du den neuen akzeptierst."
+        unusable: "Der Schlüssel ist nicht verwendbar: widerrufen, abgelaufen oder ohne Adresse."
+        not_a_key: "Das ist kein öffentlicher OpenPGP-Schlüssel."
+        private_key: "Das ist ein privater Schlüssel. Importiere hier nur öffentliche Schlüssel deiner Kontakte — deine eigenen Schlüssel gehören in den Schlüsselbund oben."
+    lookup:
+        heading: "Schlüssel suchen"
+        hint: "Fragt die Domain der Adresse nach ihrem Schlüssel (Web Key Directory). Die Anfrage läuft über diesen Server."
+        hint_keyservers: "Fragt die Domain der Adresse nach ihrem Schlüssel (Web Key Directory), danach die Schlüsselserver %servers%. Die Anfrage läuft über diesen Server."
+        email: "E-Mail-Adresse"
+        submit: "Suchen"
+        found: "Schlüssel im Schlüsselverzeichnis der Domain (WKD) gefunden und gespeichert."
+        found_keyserver: "Schlüssel auf dem Schlüsselserver %host% gefunden und gespeichert. Der Server hat nur geprüft, dass jemand die Mail an diese Adresse liest — vergleiche den Fingerprint mit deinem Kontakt, bevor du ihn als geprüft markierst."
+        changed: "Schlüssel im Schlüsselverzeichnis der Domain gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
+        changed_keyserver: "Schlüssel auf dem Schlüsselserver %host% gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
+        nothing: "Die Domain veröffentlicht keinen verwendbaren Schlüssel für diese Adresse."
+        nothing_keyservers: "Weder die Domain noch die Schlüsselserver haben einen verwendbaren Schlüssel für diese Adresse."
+        invalid_address: "Diese Adresse lässt sich nicht nachschlagen."
+        rate_limited: "Zu viele Suchen hintereinander. Versuch es in ein paar Minuten noch einmal."
+    key_servers:
+        label: "Auch auf öffentlichen Schlüsselservern suchen"
+        hint: "Hat die Domain der Adresse keinen Schlüssel, fragt plMail auch %servers%. Eine Suche verrät ihnen, nach welcher Adresse du suchst."
+    preferences:
+        heading: "Einstellungen für diesen Empfänger"
+        hint: "Gilt, wenn plMail verschlüsselte Mails sendet."
+        encrypt: "Verschlüsseln"
+        sign: "Signieren"
+        scheme: "Format"
+        save: "Speichern"
+        policy:
+            always: "Immer"
+            auto: "Automatisch"
+            never: "Nie"
+        scheme_pgp-inline: "Inline-PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Demo
@@ -2104,6 +2204,236 @@ dnd:
 drafts:
     empty: Keine Entwürfe.
     heading: Entwürfe
+
+encryption:
+    decrypted:
+        heading: Entschlüsselte Mails auf diesem Server
+        subheading: "Aus, solange du es nicht wählst, pro Konto. Dein Mail-Anbieter kann deine verschlüsselten Mails so oder so nicht lesen."
+        forbidden: "Diese Installation bewahrt keine entschlüsselten Mails auf. Deine verschlüsselten Mails bleiben auf dem Server verschlüsselt."
+        state_on: "Verschlüsselte Mails werden in deinem Browser entschlüsselt und hier lesbar aufbewahrt, damit Suche, Pakete, Termine und Regeln mit ihnen funktionieren."
+        state_off: "Verschlüsselte Mails bleiben hier verschlüsselt: Durchsuchbar sind nur Absender und Betreff."
+        confirm: "Verschlüsselte Mails dieses Kontos werden nach dem Entschlüsseln auf diesem plMail-Server gespeichert. Dadurch funktionieren Suche, Pakete und Termine. Wer Zugriff auf den Server hat, kann sie lesen. Dein Mail-Anbieter kann sie weiterhin nicht lesen."
+        confirm_needed: "Setz das Häkchen, um zu bestätigen, dass entschlüsselte Mails auf diesem Server bleiben sollen."
+        turn_on: Entschlüsselte Mails hier aufbewahren
+        turn_off: Beenden und entschlüsselte Kopien löschen
+        ai:
+            label: Auch die Modelle lesen lassen
+            local: "Einordnen, Suche nach Bedeutung und Zusammenfassungen, mit dem Modell-Host %host%, der im eigenen Netz dieser Installation steht."
+            external: "Der Modell-Host %host% steht außerhalb des Netzes dieser Installation: Entschlüsselte Mails würden an ihn geschickt."
+            no_model: "Auf dieser Installation ist kein Modell-Host eingerichtet."
+            consent: "Ich bin einverstanden, dass entschlüsselte Mails dieses Kontos an %host% geschickt werden."
+            consent_needed: "Setz das Häkchen, um zuzustimmen, dass entschlüsselte Mails an den Modell-Host gehen."
+            turn_on: Die Modelle lesen lassen
+            turn_off: Beenden und löschen, was sie daraus gemacht haben
+    sending:
+        heading: Versand
+        subheading: "Wie Mails rausgehen, seit plMail verschlüsseln kann. Mails an Menschen, deren Schlüssel plMail kennt, werden von selbst verschlüsselt."
+        on: "An"
+        off: "Aus"
+        autocrypt:
+            label: Deinen Schlüssel mit jeder Mail teilen
+            hint: "Ein unsichtbarer Autocrypt-Header trägt deinen öffentlichen Schlüssel, damit Thunderbird, Delta Chat und andere verschlüsselt antworten können."
+        attach_key:
+            label: Öffentlichen Schlüssel anhängen
+            hint: "Als Datei an jeder Mail, für Empfänger, deren Mailprogramm Autocrypt nicht liest. Wer kein PGP nutzt, sieht einen Anhang, den er nicht braucht."
+        sign_plain:
+            label: Unverschlüsselte Mails signieren
+            hint: "Wer kein PGP nutzt, sieht einen Anhang signature.asc. Mails an jemanden, dessen Schlüssel plMail kennt, werden ohnehin signiert."
+        block_partial:
+            label: Nicht senden, wenn nicht alle verschlüsselt erreichbar sind
+            hint: "Aus: Eine solche Mail geht unverschlüsselt an alle, mit einem Hinweis im Schreibfenster. An: Sie wird erst gesendet, wenn du diese Empfänger entfernst oder die Verschlüsselung für sie ausschaltest."
+        protect_subject:
+            label: Betreff verschlüsseln
+            hint: "Der Betreff einer verschlüsselten Nachricht reist innerhalb der Verschlüsselung, außen steht nur „...“. Thunderbird und andere zeigen den echten Betreff; ein Programm, das das nicht kann, zeigt „...“."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Dein öffentlicher Schlüssel, veröffentlicht unter den eigenen Domains dieser Installation, damit Thunderbird, Proton und GnuPG ihn über deine Adresse finden."
+        disabled: "Diese Installation veröffentlicht keine Schlüssel. Ein Admin kann das einschalten."
+        no_addresses: "Keine deiner Adressen liegt auf einer Domain, für die diese Installation Schlüssel veröffentlicht (%domains%)."
+        publish: "Schlüssel für %email% veröffentlichen"
+        url_advanced: "Erweiterte Methode (Subdomain openpgpkey)"
+        url_direct: "Direkte Methode"
+        state:
+            published: "Veröffentlicht. Wer die Adresse kennt, kann deinen öffentlichen Schlüssel abrufen."
+            switched_off: "Nicht veröffentlicht — du hast es ausgeschaltet."
+            no_key: "Noch nichts zu veröffentlichen: Diese Adresse hat keinen aktiven Schlüssel."
+            not_sign_in_address: "Nicht veröffentlicht: plMail veröffentlicht nur die Adresse, mit der du dich anmeldest und die dir ein Admin gegeben hat."
+        check:
+            button: "Von außen prüfen"
+            heading: "%email% von außen geprüft, jede Methode für sich:"
+            method:
+                advanced: "Erweitert (openpgpkey.%domain%)"
+                direct: "Direkt (%domain%)"
+            result:
+                current: "dein aktueller Schlüssel wurde gefunden"
+                outdated: "ein Schlüssel wurde gefunden, aber nicht dein aktueller — vielleicht antwortet ein anderer Server für die Domain, oder ein Cache hält noch den alten Schlüssel"
+                missing: "antwortet, hat aber keinen Schlüssel für diese Adresse"
+                unreachable: "nicht erreichbar — der Name löst nicht auf, oder die Verbindung oder ihr Zertifikat ist fehlgeschlagen"
+            one_good: "Mailprogramme, die zuerst die andere Methode fragen, finden deinen Schlüssel trotzdem. Richte diese Methode aber auch ein — manche fragen nur eine."
+            none_good: "Keine der beiden Methoden gibt deinen aktuellen Schlüssel heraus. Vielleicht zeigt die Domain noch nicht auf plMail — sieh in die Hinweise zur Einrichtung oder frag deinen Admin."
+        setup:
+            heading: "Domain einrichten (Admins)"
+            enable: "Trag die Domains in die Umgebungsvariable APP_WKD_DOMAINS ein und starte plMail neu:"
+            domains: "Schlüssel werden veröffentlicht für: %domains%. Jede Domain braucht einen dieser beiden Wege zu plMail."
+            advanced: "Erweiterte Methode, bevorzugt: ein DNS-Eintrag für openpgpkey.%domain%, der auf %host% zeigt, und ein TLS-Zertifikat für diesen Namen auf dem plMail-Server."
+            direct: "Direkte Methode: Die Website unter %domain% leitet alles unter /.well-known/openpgpkey/ an plMail weiter und reicht den Host-Header durch."
+            check: "Danach prüfst du deine eigene Adresse mit „Von außen prüfen“. Die Prüfung läuft von diesem Server aus; eine Domain, die hier auf eine private Adresse auflöst, gilt deshalb als nicht gefunden, auch wenn sie von außen funktioniert."
+    devices:
+        empty: "Noch keine Geräte."
+        heading: "Bekannte Geräte"
+        last_used: "benutzt"
+        remember: "Dieses Gerät merken"
+        remove: "Entfernen"
+        subheading: "Browser, die deine Schlüssel nach einem Passwort-Reset von selbst wieder öffnen können, ohne Recovery-Phrase."
+        this_device: "Dieses Gerät"
+        unavailable: "Dieser Browser kann hier keinen Geräteschlüssel aufbewahren — dafür braucht es HTTPS und Website-Speicher."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Schlüssel exportieren"
+        hint: "Alle Privatschlüssel, auch die alten, als eine Datei, die GnuPG, Thunderbird und Proton lesen können."
+        passphrase: "Passphrase für die Datei"
+        submit: "Exportieren"
+    failed: "Das hat nicht geklappt. Lade die Seite neu und versuche es noch einmal."
+    import:
+        done: "%count% Schlüssel importiert."
+        hardware_key: "Die geheimen Teile dieses Schlüssels liegen auf einer Smartcard oder einem Security-Key, die ein Browser nicht benutzen kann."
+        heading: "Schlüssel importieren"
+        hint: "Ein OpenPGP-Privatschlüssel, den du schon benutzt, exportiert aus GnuPG, Thunderbird oder Proton. Er wird zum Schlüssel der Adressen, die er nennt."
+        no_match: "Keiner dieser Schlüssel nennt eine deiner Adressen."
+        not_a_key: "Das ist kein OpenPGP-Privatschlüssel."
+        passphrase: "Passphrase des Schlüssels"
+        submit: "Importieren"
+        wrong_passphrase: "Diese Passphrase öffnet den Schlüssel nicht."
+    publish:
+        button: "Auf %host% veröffentlichen"
+        again: "Bestätigungslink erneut schicken"
+        refresh: "Erneut prüfen"
+        saved: "Der Schlüsselserver hat geantwortet; unten steht, was er gesagt hat."
+        confirm: "Diesen Schlüssel auf %host% veröffentlichen? Danach findet ihn jeder über %addresses%. Damit sind diese Adressen öffentlich mit dem Schlüssel verbunden, und ein Schlüsselserver vergisst das nicht wirklich. %host% schickt jeder Adresse einen Link, und erst wenn du ihn anklickst, ist der Schlüssel über die Adresse zu finden."
+        renewed: "Dein bisheriger Schlüssel war auf %host% veröffentlicht. Den neuen Schlüssel für %addresses% dort auch veröffentlichen? %host% schickt jeder Adresse erneut einen Link zur Bestätigung."
+        state:
+            none: "%email% — nicht auf %host% veröffentlicht"
+            unpublished: "%email% — auf %host%, aber noch nicht über diese Adresse zu finden"
+            pending: "%email% — wartet auf dich: %host% hat dieser Adresse einen Bestätigungslink geschickt"
+            published: "%email% — veröffentlicht: jeder findet ihn auf %host%"
+            revoked: "%email% — auf %host% widerrufen: der Server gibt den widerrufenen Schlüssel heraus"
+        unavailable: "Veröffentlichen auf diesem Schlüsselserver ist nicht möglich — die Installation nutzt ihn nicht, oder Schlüsselserver sind unter „Schlüssel deiner Kontakte“ ausgeschaltet."
+        not_active: "Nur ein Schlüssel, der in Gebrauch ist, kann veröffentlicht werden."
+        not_found: "Diesen Schlüssel gibt es nicht mehr."
+        not_published: "Dieser Schlüssel ist dort nicht veröffentlicht."
+        failed: "Der Schlüsselserver war nicht erreichbar oder hat den Schlüssel nicht angenommen. Versuch es später noch einmal."
+        not_a_revocation: "Das ist nicht der Widerruf dieses Schlüssels."
+    keys:
+        advanced: "Schlüssel anzeigen"
+        compromised: "Als kompromittiert markieren"
+        confirm_compromised: "Diesen Schlüssel als kompromittiert markieren? Er wird nicht mehr benutzt, und seine Adressen bekommen einen neuen."
+        confirm_renew: "Einen neuen Schlüssel für diese Adressen erstellen? Der alte bleibt, um Mails zu öffnen, die an ihn gingen."
+        created: "erstellt"
+        expires: "läuft ab"
+        heading: "Schlüssel"
+        locked: "gesperrt — öffne ihn mit deiner Recovery-Phrase"
+        make_primary: "Primär machen"
+        origin:
+            generated: "von plMail erstellt"
+            imported: "importiert"
+        primary: "primär"
+        renew: "Erneuern"
+        status:
+            active: "Aktiv"
+            compromised: "Kompromittiert"
+            obsolete: "Ersetzt"
+        subheading: "Die OpenPGP-Schlüssel deiner Adressen. Bring einen mit, den du schon benutzt, oder nimm deine mit."
+    smime:
+        heading: "S/MIME-Zertifikate"
+        subheading: "Zertifikate einer Zertifizierungsstelle oder deiner Organisation, die Outlook, Apple Mail und Thunderbird verstehen. Sie kommen zum Einsatz, wenn jeder Empfänger eines hat und nicht jeder einen OpenPGP-Schlüssel."
+        empty: "Noch kein S/MIME-Zertifikat."
+        import_heading: "Zertifikat importieren"
+        import_hint: "Eine .p12- oder .pfx-Datei mit deinem Zertifikat und seinem privaten Schlüssel. Die Datei wird in diesem Browser geöffnet; der Server bewahrt den Schlüssel nur verschlüsselt auf."
+        file: "Zertifikatsdatei"
+        password: "Passwort der Datei"
+        import_submit: "Zertifikat importieren"
+        imported: "Importiert. Es signiert und entschlüsselt jetzt Mail für %addresses%."
+        export_heading: "Zertifikat exportieren"
+        export_hint: "Gib hier ein Passwort für die Datei ein und wähle dann oben neben einem Zertifikat „Exportieren“."
+        export_password: "Passwort für die exportierte Datei"
+        export_password_missing: "Gib zuerst ein Passwort mit mindestens 8 Zeichen für die exportierte Datei ein."
+        export: "Als .p12 exportieren"
+        remove: "Entfernen"
+        confirm_remove: "Dieses Zertifikat samt privatem Schlüssel entfernen? Damit verschlüsselte Mail lässt sich hier dann nicht mehr lesen."
+        valid_until: "gültig bis"
+        expired: "abgelaufen am"
+        issued_by: "ausgestellt von"
+        retired: "durch ein neueres Zertifikat ersetzt"
+        wrong_password: "Mit diesem Passwort lässt sich die Datei nicht öffnen."
+        not_pkcs12: "Das ist keine .p12- oder .pfx-Datei."
+        legacy: "Diese Datei nutzt eine alte Verschlüsselung (RC2 oder 3DES), die plMail nicht öffnen kann. Exportiere sie erneut mit AES – OpenSSL 3 macht das von sich aus, Windows mit der Option AES-256."
+        not_rsa: "Hier lassen sich nur Zertifikate mit RSA-Schlüssel verwenden."
+        no_key: "Die Datei enthält keinen privaten Schlüssel, der zu einem ihrer Zertifikate gehört."
+        no_match: "Das Zertifikat gilt für keine deiner Adressen."
+    nag:
+        action: "Einstellungen öffnen"
+        locked_keys: "Einige deiner älteren Schlüssel sind seit dem Passwort-Reset gesperrt."
+        recovered: "Deine älteren Schlüssel wurden über dieses Gerät wieder geöffnet."
+    phrase:
+        create: "Recovery-Phrase erstellen"
+        download: "Herunterladen"
+        file_intro: "plMail-Recovery-Phrase. Bewahre diese Datei sicher und offline auf. Die Blöcke darunter sind die Widerrufszertifikate deiner Schlüssel."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Recovery-Phrase"
+        invalid: "Das sind keine zwölf gültigen Recovery-Wörter. Prüfe sie auf Tippfehler."
+        missing: "Du hast noch keine Recovery-Phrase."
+        opens_nothing: "Diese Phrase öffnet keinen deiner gesperrten Schlüssel."
+        recover_heading: "Ältere Schlüssel öffnen"
+        recover_hint: "Einige deiner Schlüssel wurden gesperrt, als dein Passwort zurückgesetzt wurde. Gib deine Recovery-Phrase ein, um sie wieder zu öffnen."
+        recover_submit: "Mit Recovery-Phrase öffnen"
+        recovered: "%count% Schlüssel wieder geöffnet."
+        recreate: "Neue Recovery-Phrase erstellen"
+        saved: "Deine Recovery-Phrase ist eingerichtet. Erstelle eine neue, falls die alte jemand gesehen haben könnte."
+        shown_once: "Schreib diese Wörter auf oder lade sie jetzt herunter — sie werden nur dieses eine Mal angezeigt. Wer sie hat, kann deine Schlüssel öffnen."
+        subheading: "Zwölf Wörter, die deine Schlüssel öffnen, falls du dein Passwort vergisst. Ohne sie gehen verschlüsselte Mails mit dem Passwort verloren."
+    passphrase:
+        heading: "Verschlüsselungs-Passphrase"
+        subheading: "Sie öffnet deine Schlüssel. Deine Anmeldung bleibt unberührt, wenn du sie änderst."
+        current: "Aktuelle Passphrase"
+        new: "Neue Passphrase"
+        repeat: "Neue Passphrase wiederholen"
+        submit: "Passphrase ändern"
+        done: "Passphrase geändert. Ab jetzt gilt die neue."
+    setup:
+        heading: "Verschlüsselung einrichten"
+        intro: "Wähle eine Verschlüsselungs-Passphrase. Sie schützt deine Schlüssel und wird einmal pro Sitzung abgefragt, wenn etwas sie zum ersten Mal braucht. Sie ist nicht das Passwort deines Anmeldedienstes und verlässt diesen Browser nie."
+        warning: "plMail kann diese Passphrase nicht zurücksetzen. Vergisst du sie, öffnet nur deine Recovery-Phrase — erstelle sie gleich danach — oder ein Browser, den du schon benutzt hast, deine verschlüsselten Mails wieder. Ohne beides sind diese Mails verloren."
+        passphrase: "Verschlüsselungs-Passphrase"
+        repeat: "Passphrase wiederholen"
+        submit: "Verschlüsselung einrichten"
+        too_short: "Mindestens %min% Zeichen."
+        mismatch: "Die beiden Passphrasen stimmen nicht überein."
+        done: "Die Verschlüsselung ist eingerichtet. Erstelle als Nächstes eine Recovery-Phrase."
+    status:
+        broken: "Deine Schlüssel ließen sich nicht öffnen. Melde dich ab und wieder an; hilft das nicht, findet eine Administratorin den Grund im Log."
+        disabled: "Auf dieser Installation nicht verfügbar."
+        insecure: "Braucht HTTPS. Diese Seite wurde über reines http:// geöffnet, wo der Browser keine eigene Kryptografie anbietet — öffne plMail über seine https://-Adresse."
+        heading: "Ende-zu-Ende-Verschlüsselung"
+        key_count: "Aktive Schlüssel: %keys% · Adressen: %addresses%"
+        loading: "Deine Schlüssel werden geöffnet …"
+        locked: "In diesem Browser gesperrt. Gib dein Passwort ein, um sie zu entsperren."
+        locked_passphrase: "In diesem Browser gesperrt. Gib deine Verschlüsselungs-Passphrase ein, um sie zu entsperren."
+        open: "Eingerichtet und in diesem Browser entsperrt."
+        subheading: "Mails, die nur du und die Menschen lesen können, denen du schreibst — nicht dieser Server und nicht dein Mail-Anbieter."
+        unset: "Noch nicht eingerichtet. Du meldest dich über Single Sign-on an, deshalb brauchen deine Schlüssel eine eigene Passphrase — wähle unten eine."
+    unlock:
+        rate_limited: "Zu viele Versuche. Warte ein paar Minuten und versuche es dann noch einmal."
+        submit: "Entsperren"
+        wrong_password: "Das ist nicht dein Passwort."
+    unlock_dialog:
+        heading: "Schlüssel entsperren"
+        password_intro: "Dafür werden deine Schlüssel gebraucht. Gib dein Passwort ein, um sie zu öffnen — einmal, für den Rest dieser Sitzung."
+        passphrase_intro: "Dafür werden deine Schlüssel gebraucht. Gib deine Verschlüsselungs-Passphrase ein, um sie zu öffnen — einmal, für den Rest dieser Sitzung. Sie ist nicht das Passwort deines Anmeldedienstes."
+        password_label: "Passwort"
+        passphrase_label: "Verschlüsselungs-Passphrase"
+        wrong_passphrase: "Diese Passphrase öffnet deine Schlüssel nicht."
+        cancel: "Nicht jetzt"
+        submit: "Entsperren"
 
 errors:
     page:
@@ -2366,9 +2696,13 @@ login:
         email: E-Mail-Adresse
         forgot_password: Passwort vergessen?
         forgot_password_hint: 'Die Wiederherstellung läuft über die Server-Konsole: bin/console und ein neues Passwort, gesetzt von einer Administratorin oder einem Administrator.'
+        needs_script: 'Die Anmeldung braucht JavaScript: Dein Passwort wird im Browser geschützt, bevor etwas gesendet wird.'
         password: Passwort
+        prelogin_failed: 'Der Server war für die Anmeldung nicht erreichbar. Prüfe deine Verbindung und versuche es noch einmal.'
+        prelogin_rate_limited: 'Zu viele Anmeldeversuche von hier. Warte ein paar Minuten und versuche es dann noch einmal.'
         remember_me: Angemeldet bleiben
         submit: Anmelden
+        submitting: Anmeldung läuft…
     oidc:
         button: Mit Single Sign-on anmelden
         button_named: Mit %provider% anmelden
@@ -2400,6 +2734,53 @@ message:
         failed: 'Diese Nachricht wurde nicht zugestellt.'
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
+    crypto:
+        attached_key:
+            heading: "Der Schlüssel des Absenders ist angehängt"
+            own: "Dein öffentlicher Schlüssel ist angehängt"
+            keep: "Diesen Schlüssel behalten"
+            accept: "Stattdessen diesen Schlüssel verwenden"
+            none_hint: "plMail hat diesen Schlüssel noch nicht. Behalte ihn, um die Signaturen des Absenders zu prüfen und an ihn zu verschlüsseln — vergleiche den Fingerabdruck mit dem Absender, um sicher zu sein, dass es seiner ist."
+            changed_hint: "Er unterscheidet sich von dem Schlüssel, den plMail für diesen Absender kennt. Es kann sein neuer Schlüssel sein — oder jemand gibt sich als er aus. Vergleiche den Fingerabdruck mit dem Absender, bevor du ihn verwendest."
+            kept: "Der Schlüssel des Absenders wurde behalten."
+            kept_changed: "Behalten — aber er unterscheidet sich von dem Schlüssel, den plMail für diesen Absender kennt. Vergleiche die Fingerabdrücke, bevor du ihn verwendest."
+            unusable: "Dieser Schlüssel kann nicht behalten werden: Er ist widerrufen, abgelaufen oder nennt keine Benutzerkennung für die Adresse des Absenders."
+        subject: "Betreff: %subject%"
+        encrypted_kept: "Verschlüsselt empfangen · auf diesem Server lesbar gespeichert"
+        sealed_draft: "Verschlüsselter Entwurf. Öffne ihn, um weiterzuschreiben; lesen kann ihn nur ein Browser mit deinen Schlüsseln."
+        sending: "Verschlüsselte Nachricht wird gesendet. Sobald sie verschickt ist, öffnet sie sich hier."
+        action:
+            accept: "Neuen Schlüssel verwenden"
+            lookup: "Schlüssel suchen"
+            manage: "Schlüssel der Kontakte"
+            trust: "Diesem Schlüssel vertrauen"
+        compare_hint: "Vergleiche den Fingerprint mit dem Absender — am Telefon, persönlich —, bevor du ihm vertraust."
+        key_changed_hint: "Das kann der neue Schlüssel des Absenders sein oder jemand, der sich als dieser ausgibt. Vergleiche den Fingerprint mit dem Absender, bevor du ihn verwendest."
+        decrypting: "Wird entschlüsselt …"
+        encrypted: "Ende-zu-Ende verschlüsselt"
+        encrypted_smime: "Mit S/MIME verschlüsselt"
+        failed: "Diese Nachricht ließ sich nicht entschlüsseln."
+        inner:
+            invalid: "Die Signatur in der Nachricht passt nicht"
+            key_changed: "Signiert mit dem Schlüssel %signer% — nicht dem, den plMail für diesen Absender kennt"
+            unchecked: "In der Verschlüsselung signiert; die Signatur wurde nicht geprüft"
+            unknown_key: "Mit dem Schlüssel %signer% signiert, den plMail noch nicht kennt"
+            untrusted: "Innerhalb der Verschlüsselung signiert — unverändert, aber niemand hat den Schlüssel %signer% bestätigt"
+            valid: "Innerhalb der Verschlüsselung signiert, mit deinem eigenen oder einem verifizierten Schlüssel"
+        locked: "Deine Schlüssel sind in diesem Browser gesperrt."
+        no_key: "Diese Nachricht wurde für einen Schlüssel verschlüsselt, den du hier nicht hast."
+        no_source: "Das Original dieser Nachricht ist nicht verfügbar, darum lässt sie sich nicht entschlüsseln."
+        open_settings: "Entsperren"
+        signed:
+            invalid: "Die Signatur passt nicht — die Nachricht wurde verändert oder stammt nicht vom Absender"
+            key_changed: "Mit einem anderen Schlüssel signiert als dem, den plMail für diesen Absender kennt"
+            pending: "Signiert — die Signatur wird geprüft …"
+            unknown_key: "Mit einem Schlüssel signiert, den plMail noch nicht kennt"
+            untrusted: "Signiert — die Nachricht ist unverändert, aber nichts bestätigt, wer signiert hat"
+            valid: "Signiert, und die Signatur stimmt"
+        signer: "Signiert von %signer%"
+        smime_unreadable: "Diese Nachricht ist mit S/MIME für ein Zertifikat verschlüsselt, das plMail nicht hat. Importiere es unter Einstellungen → Verschlüsselung oder öffne die Nachricht in einem Mailprogramm, das es hat."
+        smime_unsupported: "Diese Nachricht ist mit einem Verfahren verschlüsselt, das plMail nicht öffnen kann; unterstützt wird nur AES."
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
@@ -2631,6 +3012,14 @@ onboarding:
             lead: Das eine Konto, das sich richtig abzuschließen lohnt. Dauert etwa eine Minute.
             title: Konto schützen
     title: plMail einrichten
+
+password_required:
+    explanation: 'Das Passwort, mit dem du dich gerade angemeldet hast, hat jemand anderes festgelegt. Wähle eines, das nur du kennst — vorher lässt dich plMail nicht weiter.'
+    page_title: Eigenes Passwort wählen
+    sign_out: Stattdessen abmelden
+    submit: Speichern und weiter
+    submitting: Wird gespeichert…
+    tagline: Noch ein Schritt
 
 profile:
     avatar_current: Aktuelles Bild
@@ -2967,6 +3356,7 @@ settings:
         scan_title: "Mit der plMail-App scannen"
         scan_hint: "Der Code funktioniert einmal und läuft in zwei Minuten ab. Er enthält nicht dein App-Passwort — die App tauscht ihn gegen ein neues ein."
         qr_alt: "Kopplungscode"
+        with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
     app_passwords:
@@ -3944,6 +4334,7 @@ settings:
         categories: "Kategorien"
         contacts: Kontakte
         disposal: Entsorgen
+        encryption: "Verschlüsselung"
         filters: Filter
         general: Allgemein
         group:
@@ -4035,6 +4426,7 @@ settings:
         remember_me_note: 'Ein Passwortwechsel meldet jeden gemerkten Browser ab, außer diesem. Genau deshalb lohnt er sich, wenn ein Gerät abhandenkommt.'
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
+        submitting: Wird gespeichert…
     reading_pane:
         heading: Lesebereich
         hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'

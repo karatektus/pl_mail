@@ -40,3 +40,8 @@ admin.ai.headers.value: 'Une valeur d’en-tête ne peut pas être vide, ne peut
 admin.ai.headers.reserved: 'Un de ces en-têtes est défini par plMail lui-même et ne peut pas être remplacé : Host, Content-Type, Content-Length, Connection et consorts.'
 admin.ai.headers.duplicate: 'Le même en-tête est listé deux fois.'
 admin.ai.headers.too_many: 'Au plus %max% en-têtes supplémentaires.'
+settings:
+    password:
+        needs_script: Changer votre mot de passe nécessite JavaScript — il est protégé dans le navigateur avant tout envoi.
+        malformed: Votre navigateur a envoyé quelque chose que plMail n’attendait pas. Rechargez la page et réessayez.
+        keys_not_rewrapped: Vos clés de chiffrement n’ont pas pu être transférées vers le nouveau mot de passe. Rechargez la page et réessayez.

@@ -2261,7 +2261,12 @@ export default class extends Controller {
             return;
         }
 
-        dock.src = `/compose/edit/${id}`;
+        // With the thread, as a reply opened below md carries it: the window
+        // is still answering this conversation, and without it the send had
+        // nowhere to put the sent message — compose/_sent.stream.html.twig
+        // only touches the conversation the window says it belongs to, so a
+        // reply sent from the popped-out window never appeared in the thread.
+        dock.src = `/compose/edit/${id}${this.hasThreadValue ? `?thread=${this.threadValue}` : ''}`;
 
         // Put the row back rather than emptying the frame. Popping out moves
         // where the draft is edited; it does not remove the draft from the
@@ -2368,12 +2373,24 @@ export default class extends Controller {
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
+        const body   = new FormData(form);
+
+        // A draft that is to be encrypted is sealed here, in the browser,
+        // before it is saved, and the body fields go empty — see
+        // compose--encryption. False means it cannot be sealed right now (the
+        // keyring is shut, the sealed draft has not been opened yet), and then
+        // nothing is saved: an unsealed save is the one thing that must not
+        // happen to it.
+        if (false === await this._encryption()?.prepareDraft(body)) {
+            return;
+        }
+
         this._setStatus(this._t('saving', 'Saving…'), 'text-ink-faint');
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                body: new FormData(form),
+                body,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
@@ -2534,9 +2551,10 @@ export default class extends Controller {
         const clone = this.bodyTarget.cloneNode(true);
 
         // The last two selectors cover drafts written before buildQuotedHtml
-        // marked the quote with data-quoted.
+        // marked the quote with data-quoted. A blockquote in the signature is
+        // the signature's, and goes with it below only while it is untouched.
         clone.querySelectorAll(
-            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+            '[data-quote-wrapped], [data-quoted], blockquote:not([data-pl-signature] blockquote), div[style*="border-top"], div[style*="font-size:0.85em"]',
         ).forEach((node) => node.remove());
 
         // The signature is dropped for the same reason the quote is: it is not
@@ -2872,13 +2890,28 @@ export default class extends Controller {
      * tidy up. See _send_pill.html.twig for why that costs no layout shift.
      */
     _handleSubmit(event) {
-        if (true === this._submitting) {
+        if (true === this._submitting || true === this._building) {
             event.preventDefault();
             return;
         }
 
-        if (false === this._guardSend(event.submitter)) {
+        // The second pass of a send whose message the browser has just built:
+        // every guard below was already answered on the first.
+        const built = true === this._builtResubmit;
+        this._builtResubmit = false;
+
+        if (false === built && false === this._guardSend(event.submitter)) {
             event.preventDefault();
+
+            return;
+        }
+
+        // Encrypted, signed, or from a draft the server cannot read: the
+        // message is built here before the form goes. Asynchronous, so this
+        // submit is stopped and a second one is sent once it is ready.
+        if (false === built && true === this._encryption()?.mustBuild()) {
+            event.preventDefault();
+            this._buildAndSubmit(event.submitter);
 
             return;
         }
@@ -2898,6 +2931,33 @@ export default class extends Controller {
         const scheduling = true === event.submitter?.hasAttribute('formaction');
 
         this._beginSending(false === scheduling);
+    }
+
+    async _buildAndSubmit(submitter) {
+        const encryption = this._encryption();
+
+        clearTimeout(this.#autosaveTimer);
+        this._building = true;
+        this._setStatus(this._t('sealing', 'Encrypting…'), 'text-ink-faint');
+
+        try {
+            await encryption.build();
+        } catch (error) {
+            this._building = false;
+            this._setStatus('', '');
+            this._reportError(encryption.report(error));
+
+            return;
+        }
+
+        this._building = false;
+        this._builtResubmit = true;
+        this.element.querySelector('form')?.requestSubmit(submitter ?? undefined);
+    }
+
+    /** The window's encryption controller, when this window has one. */
+    _encryption() {
+        return this.application.getControllerForElementAndIdentifier(this.element, 'compose--encryption');
     }
 
     /**
@@ -3504,7 +3564,14 @@ export default class extends Controller {
         }
 
         const body = new FormData();
-        files.forEach((file) => body.append('files[]', file));
+        const sealed = await this._encryption()?.sealUploads(files) ?? null;
+
+        if (null !== sealed) {
+            sealed.forEach((file) => body.append('files[]', file));
+            body.append('sealed', '1');
+        } else {
+            files.forEach((file) => body.append('files[]', file));
+        }
 
         this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
@@ -3728,6 +3795,26 @@ export default class extends Controller {
                     .replace('%d', String(limit)),
                 'text-danger',
             );
+
+            return;
+        }
+
+        // A sealed draft keeps its pictures inside itself, as data: URIs:
+        // uploaded, they would sit on the server readable. The browser turns
+        // them into parts of the message when it builds it.
+        if (true === this._encryption()?.isSealing()) {
+            const url = await new Promise((resolve) => {
+                const reader = new FileReader();
+
+                reader.onload = () => resolve(String(reader.result));
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+
+            if (null !== url) {
+                this._toolbar()?.insertInlineImage({ url });
+                await this.saveDraft(null, { force: true, allowEmpty: true });
+            }
 
             return;
         }

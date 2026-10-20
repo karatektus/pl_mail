@@ -46,6 +46,21 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $this->urlGenerator = $urlGenerator;
     }
 
+    /**
+     * Two fields can carry the credential, and which one does decides the
+     * scheme — see App\Security\PasswordKdf.
+     *
+     * `auth_hash` alone is the normal case: the browser stretched the password
+     * and the password field was never posted. `password` is the password
+     * itself, for an account whose stored hash is still of it — sent by the
+     * form only when the prelogin said `migrate`, and then together with
+     * `auth_hash`, which is what PasswordKdfUpgradeBadge carries over.
+     *
+     * `password` on its own is still accepted: a browser without JavaScript, or
+     * a login page cached from before this shipped, still signs a not-yet-moved
+     * account in. It cannot sign in a moved one — the stored hash is of an auth
+     * hash, which no typed password matches — and that is the point.
+     */
     public function authenticate(Request $request): Passport
     {
         // The server's half of "single sign-on only". Hiding the form is not
@@ -56,19 +71,27 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
             throw new CustomUserMessageAuthenticationException('login.password_disabled');
         }
 
-        $email = $request->request->get('email', '');
+        $email    = $request->request->getString('email');
+        $password = $request->request->getString('password');
+        $authHash = $request->request->getString('auth_hash');
 
         $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $email);
 
+        $badges = [
+            new CsrfTokenBadge('authenticate', $request->request->get('_csrf_token')),
+            // Required for the firewall's remember_me to issue a cookie;
+            // it only does so when the login form ticked _remember_me.
+            new RememberMeBadge(),
+        ];
+
+        if ('' !== $password && '' !== $authHash) {
+            $badges[] = new PasswordKdfUpgradeBadge($authHash, $email);
+        }
+
         return new Passport(
             new UserBadge($email),
-            new PasswordCredentials($request->request->get('password', '')),
-            [
-                new CsrfTokenBadge('authenticate', $request->request->get('_csrf_token')),
-                // Required for the firewall's remember_me to issue a cookie;
-                // it only does so when the login form ticked _remember_me.
-                new RememberMeBadge(),
-            ]
+            new PasswordCredentials('' !== $password ? $password : $authHash),
+            $badges,
         );
     }
 

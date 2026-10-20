@@ -59,7 +59,8 @@ final readonly class AttachmentThumbnailer
      */
     public function isPreviewable(MessagePart $part): bool
     {
-        if (false === function_exists('imagecreatetruecolor')) {
+        // Ciphertext: there is no picture in it to draw. See MessagePart::$sealed.
+        if (true === $part->sealed || false === function_exists('imagecreatetruecolor')) {
             return false;
         }
 

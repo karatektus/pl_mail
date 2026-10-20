@@ -27,7 +27,10 @@ compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du se
 integration.name_taken: Du hast schon eine Verbindung zu diesem Dienst mit dem Namen {{ value }}. Gib dieser einen anderen Namen — etwa Privat und Arbeit.
 settings.password.current_required: Gib dein aktuelles Passwort ein — es verhindert, dass jemand an deinem offenen Bildschirm es einfach ändert.
 settings.password.current_wrong: Das ist nicht dein aktuelles Passwort.
+settings.password.keys_not_rewrapped: "Deine Verschlüsselungsschlüssel konnten nicht auf das neue Passwort übertragen werden. Lade die Seite neu und versuche es noch einmal."
+settings.password.malformed: Dein Browser hat etwas gesendet, das plMail nicht erwartet hat. Lade die Seite neu und versuche es noch einmal.
 settings.password.mismatch: Die beiden neuen Passwörter stimmen nicht überein.
+settings.password.needs_script: Zum Ändern des Passworts wird JavaScript gebraucht — es wird im Browser geschützt, bevor etwas gesendet wird.
 settings.password.too_short: Mindestens {{ limit }} Zeichen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

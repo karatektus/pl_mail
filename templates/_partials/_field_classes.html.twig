@@ -1,0 +1,48 @@
+{#
+The field classes, defined once.
+
+The form theme (_layout/form/modal_form_theme.html.twig) styles every field a
+Symfony form renders, and most of Settings is Symfony forms. The encryption
+cards are not: they are drawn and driven by settings--encryption, or are plain
+forms in the contacts' keys frame, so they hand-wrote their inputs — and the
+hand-written copy had lost the theme's shadow, its disabled state and its
+height, and its labels were a smaller, fainter size than every other label
+in Settings. That was reported as "the textareas and inputs of the encryption
+cards are unstyled" (#28, comment 6216080577).
+
+So both draw from here: the theme's widget blocks and every hand-written field
+return these strings, the way settings cards and admin panels share
+_partials/_card_chrome.html.twig. Class strings and nothing else, for the
+reason given there: the tokens (`bg-field`, `border-field`, `ring-accent`)
+carry the theme's alpha and dark-mode variables, and a CSS @utility
+re-deriving them would be the next copy to drift.
+
+Usage:
+    {% import '_partials/_field_classes.html.twig' as fields %}
+    <label for="x" class="{{ fields.label() }} mb-2">…</label>
+    <input id="x" class="{{ fields.input() }}">
+
+A file input needs nothing from here beyond its width: its button is styled
+for every file input there is, in app.css (`::file-selector-button`).
+tests/e2e/settings-fields.spec.ts compares the encryption fields with a form
+field of the theme, in both themes.
+#}
+
+{# A one-line field: text, email, password, search. #}
+{% macro input() %}block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint shadow-sm shadow-zinc-950/5 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors duration-100 disabled:opacity-50 disabled:cursor-not-allowed{% endmacro %}
+
+{# The same field over several lines; it grows downwards only. #}
+{% macro textarea() %}block w-full rounded-lg border border-field bg-field px-3 py-2 text-sm text-ink placeholder:text-ink-faint shadow-sm shadow-zinc-950/5 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-y transition-colors duration-100 disabled:opacity-50 disabled:cursor-not-allowed{% endmacro %}
+
+{# A file input: full width, and the theme's disabled state. #}
+{% macro file() %}block w-full text-xs disabled:opacity-50 disabled:cursor-not-allowed{% endmacro %}
+
+{# A checkbox, as the theme's checkbox_widget draws it. `shrink-0` because a
+   checkbox usually sits in a flex label beside a sentence, and a flex item
+   gives way to the sentence: it rendered 13px wide beside the decrypted-mail
+   consent instead of 16. #}
+{% macro checkbox() %}size-4 shrink-0 rounded border-field accent-accent bg-field focus:ring-2 focus:ring-accent focus:ring-offset-0 cursor-pointer{% endmacro %}
+
+{# A field's label. The theme puts its gap in the row (`gap-2`); a hand-written
+   field adds `mb-2` at the call site. #}
+{% macro label() %}block text-[13px] font-medium leading-none text-ink-soft{% endmacro %}

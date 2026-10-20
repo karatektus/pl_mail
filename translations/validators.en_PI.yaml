@@ -26,7 +26,10 @@ compose.recipient_required: Name at least one soul afore ye cast off.
 integration.name_taken: Ye already have a line to this port named {{ value }}. Christen this one somethin' else — home an' work, say.
 settings.password.current_required: Say yer current word — 'tis what keeps a passing hand from changing it at yer open desk.
 settings.password.current_wrong: That be not yer current word.
+settings.password.keys_not_rewrapped: "Yer sealin' keys could not be carried over to th' new secret word. Reload th' page an' try again."
+settings.password.malformed: Yer browser sent somethin' plMail did not expect. Reload th' page an' try again.
 settings.password.mismatch: Th' two new words don't match.
+settings.password.needs_script: Changin' yer secret word needs JavaScript — it be guarded in th' browser afore aught be sent.
 settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: Them two secret words don't match, matey.
 setup.install.password_too_short: Use {{ limit }} marks at least. There be no gettin' this one back.

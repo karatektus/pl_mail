@@ -56,8 +56,18 @@ on:
     # Kept, and cheap: a pull request is somebody proposing a change, which is
     # exactly when a second opinion from the suite is worth having, and there
     # are few of them.
+    #
+    # `wip/**` as well: a feature too big for one pull request is built on a
+    # `wip/` branch and reviewed in phases, each phase a pull request into that
+    # branch (issue #28 is the first). Those merges are where the phases meet,
+    # so they get the same second opinion a pull request into main does. A
+    # push to a wip branch still does not — the pull request is the check.
+    #
+    # `milestone/**` too: a release's work is collected on a milestone branch
+    # (`milestone/v0.4.0`) before it reaches main, and a pull request into one
+    # is the same proposal a pull request into main is.
     pull_request:
-        branches: [main]
+        branches: [main, 'wip/**', 'milestone/**']
     workflow_dispatch:
 
 # Six runners per push adds up, so a superseded pull request stops paying for

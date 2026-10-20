@@ -28,6 +28,30 @@ Variables:
   message  Message
 #}
 {% set render = message_render(message) %}
+{# Sent, and not gone yet: the browser built the message, and until the send
+   job has handed it over there is nothing here to read. The draft is sealed,
+   or the body was blanked because only the recipients may read it, and the
+   raw source — the bytes that went out — does not exist until they have gone.
+   Shown as being sent, not as a draft and not as something to decrypt: asking
+   the keyring for a source that is not there yet is how a reply to encrypted
+   mail came to say the keys were locked. The worker's outcome stream swaps
+   the whole message for its sent self once it has gone (see
+   mail/_send_outcome.stream.html.twig). outgoingSeal rather than sentAt: it
+   is cleared in the same flush that stores the raw source, and sentAt is
+   written before either. #}
+{% set sendingSealed = message.outgoingSeal is not null
+    and (message.sealedDraft or (message.outgoingSeal.kind ?? null) == 'encrypted') %}
+{# A draft sealed in the browser has no raw source to decrypt: it is opened in
+   the composer, never here. See App\Service\Crypto\SealedDrafts. #}
+{% set sealedDraft = message.sealedDraft and not sendingSealed %}
+{# A decrypted body a browser handed over (DecryptedMail) is shown like any
+   body the server holds; only the banner says where it came from. #}
+{% set decryptedKept = message.plaintextSource.value == 'client' %}
+{# Opened in the browser: OpenPGP always — every person has address keys —
+   and S/MIME once the person has a certificate of their own to open it with
+   (phase 6c of #28). Without one, S/MIME is only said to be unreadable. #}
+{% set encryptedHere = not sendingSealed and not sealedDraft and not decryptedKept and message.crypto is not null and message.crypto.encrypted %}
+{% set encryptedInBrowser = encryptedHere and (message.crypto.pgp or has_smime_certificate()) %}
 
 <div id="message_body_{{ message.id }}" class="mail-message-body">
 
@@ -112,64 +136,114 @@ Variables:
         </div>
     {% endif %}
 
+    {# ── OpenPGP and S/MIME ─────────────────────────────────────────────── #}
+    {# The banner, and for an encrypted message the whole body: the server
+       holds none, so the browser decrypts the raw source — OpenPGP or S/MIME
+       — and fills the same frame the branch below would have
+       (mail--encrypted-message). The frame document is rendered here with a
+       placeholder for the body, so both paths show a message in exactly the
+       same document. #}
+    {% if sendingSealed %}
+        <p class="flex items-center gap-2 text-sm text-ink-muted" data-testid="sending-encrypted" data-sending-sealed>
+            <i class="fa-solid fa-lock text-success text-xs" aria-hidden="true"></i>
+            {{ 'message.crypto.sending'|trans }}
+        </p>
+    {% elseif sealedDraft %}
+        <p class="flex items-center gap-2 text-sm text-ink-muted" data-testid="sealed-draft-note">
+            <i class="fa-solid fa-lock text-success text-xs" aria-hidden="true"></i>
+            {{ 'message.crypto.sealed_draft'|trans }}
+        </p>
+    {% elseif encryptedInBrowser %}
+        {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: '<!--plmail:body-->' } only %}{% endset %}
+        <div data-controller="mail--encrypted-message"
+             data-mail--encrypted-message-outer-subject-value="{{ message.subject }}"
+             data-mail--encrypted-message-raw-url-value="{{ path('app_mail_message_raw', { id: message.id }) }}"
+             data-mail--encrypted-message-upload-url-value="{{ keeps_decrypted(message.account) ? path('app_mail_decrypted_upload', { id: message.id }) : '' }}"
+             data-mail--encrypted-message-sender-keys-url-value="{{ path('app_contact_keys_sender', { email: message.fromAddress }) }}"
+             data-mail--encrypted-message-smime-signer-url-value="{{ message.crypto.pgp ? '' : path('app_contact_keys_message_smime_signer', { id: message.id }) }}"
+             data-mail--encrypted-message-document-value="{{ frameDocument|e('html') }}"
+             data-mail--encrypted-message-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
+             data-mail--encrypted-message-keyring-value="{{ {
+                 stateUrl:    path('app_keyring_state'),
+                 unlockUrl:   path('app_keyring_unlock_current'),
+                 preloginUrl: path('app_login_prelogin'),
+                 csrf:        csrf_token('keyring'),
+                 userId:      app.user.id,
+                 email:       app.user.email,
+             }|json_encode }}"
+             data-mail--encrypted-message-messages-value="{{ {
+                 decrypting:    'message.crypto.decrypting'|trans,
+                 locked:        'message.crypto.locked'|trans,
+                 openSettings:  'message.crypto.open_settings'|trans,
+                 noKey:         'message.crypto.no_key'|trans,
+                 noCertificate: 'message.crypto.smime_unreadable'|trans,
+                 unsupported:   'message.crypto.smime_unsupported'|trans,
+                 noSource:      'message.crypto.no_source'|trans,
+                 failed:        'message.crypto.failed'|trans,
+                 subject:       'message.crypto.subject'|trans({ '%subject%': '%subject%' }),
+                 signature: {
+                     valid:       'message.crypto.inner.valid'|trans,
+                     invalid:     'message.crypto.inner.invalid'|trans,
+                     unknown_key: 'message.crypto.inner.unknown_key'|trans,
+                     untrusted:   'message.crypto.inner.untrusted'|trans,
+                     key_changed: 'message.crypto.inner.key_changed'|trans,
+                     unchecked:   'message.crypto.inner.unchecked'|trans,
+                 },
+                 attachedKey: {
+                     heading:     'message.crypto.attached_key.heading'|trans,
+                     own:         'message.crypto.attached_key.own'|trans,
+                     keep:        'message.crypto.attached_key.keep'|trans,
+                     accept:      'message.crypto.attached_key.accept'|trans,
+                     noneHint:    'message.crypto.attached_key.none_hint'|trans,
+                     changedHint: 'message.crypto.attached_key.changed_hint'|trans,
+                 },
+             }|json_encode }}">
+            {% include 'mail/_crypto_banner.html.twig' with { message: message } only %}
+
+            <p class="text-sm text-ink-muted" data-mail--encrypted-message-target="status" role="status">
+                {{ 'message.crypto.decrypting'|trans }}
+            </p>
+
+            <div class="flex flex-wrap gap-2 mb-3" data-mail--encrypted-message-target="attachments" hidden></div>
+
+            <div data-controller="mail--message-frame"
+                 data-mail--message-frame-min-height-value="80"
+                 data-mail--encrypted-message-target="frameHost"
+                 class="relative"
+                 hidden>
+                <iframe data-mail--message-frame-target="frame"
+                        data-mail--encrypted-message-target="frame"
+                        aria-label="{{ 'message.body_frame'|trans }}"
+                        sandbox="{{ render.sandbox }}"
+                        referrerpolicy="no-referrer"
+                        class="w-full block border-0 bg-transparent"
+                        style="height: 80px;"></iframe>
+                <div data-mail--message-frame-target="status"
+                     class="hidden absolute bottom-0 left-0 max-w-full truncate rounded-tr-md bg-ink/85 text-inverse-ink px-2 py-1 text-[11px] font-mono pointer-events-none z-10"></div>
+            </div>
+
+            <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm" data-mail--encrypted-message-target="text" hidden></pre>
+        </div>
+    {% elseif message.crypto is not null or attached_sender_key(message) is not null %}
+        {# Also for a plain message that only carries its sender's key: the
+           banner is where that key is said, since it is no longer listed
+           among the attachments. #}
+        {% include 'mail/_crypto_banner.html.twig' with { message: message } only %}
+
+        {% if encryptedHere %}
+            {# S/MIME, and the person has no certificate of their own to open
+               it with: nothing for the browser to try. #}
+            <p class="text-sm text-ink-muted" data-testid="smime-unreadable">{{ 'message.crypto.smime_unreadable'|trans }}</p>
+        {% endif %}
+    {% endif %}
+
     {# ── The reading frame ──────────────────────────────────────────────── #}
-    {% if render.content.html is not empty %}
+    {% if encryptedHere or sealedDraft or sendingSealed %}
+        {# Drawn above, by the browser — or, for a sealed draft and a message
+           still being sent, not at all. #}
+    {% elseif render.content.html is not empty %}
 
-        {% set frameDocument %}<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="{{ render.csp }}">
-{# Every link in a mail body opens away from the app. MailBodySanitizer already
-   forces target="_blank" per link; this covers anything it did not author. #}
-<base target="_blank">
-<style>
-    /* The mail sheet, carried across the document boundary.
-       CSS custom properties do not inherit into a frame, and an opaque-origin
-       frame cannot be reached from outside to be styled — so these are the
-       fallbacks that paint immediately, and the parent controller posts the
-       live theme values over the top as soon as it can read them. Every theme's
-       sheet is light (see app.css), so a light default is never far wrong and
-       there is no flash of the wrong colours. */
-    :root { color-scheme: light; }
-    html, body { margin: 0; padding: 0; }
-    body {
-        background: #fff;
-        color: #27272a;
-        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        word-break: break-word;
-        overflow-x: auto;
-    }
-    a { color: #1d4ed8; }
-    /* Senders assume a viewport. Without this a 700px table adds a horizontal
-       scrollbar to a pane that used to just show it. */
-    img { max-width: 100%; height: auto; }
-    /* A blocked image keeps its box so the layout holds, and says so. */
-    img[data-plmail-blocked] {
-        min-width: 12px; min-height: 12px;
-        background: repeating-linear-gradient(135deg, #f4f4f5 0 6px, #e4e4e7 6px 12px);
-        outline: 1px dashed #a1a1aa;
-        outline-offset: -1px;
-    }
-    /* Two ceilings, because a placeholder's job is to say an image was here,
-       not to reserve every pixel of one.
-
-       The generous one applies to a box we shaped from the sender's own
-       numbers: those are honest, and the only thing wrong with an honest
-       1200px box is that it is 1200px of hatching. It can grow to a screenful
-       and no further. The cost is a jump when such an image is un-blocked,
-       paid only by images already too tall to take in at once.
-
-       The tight one is for an image whose shape nobody declared. `height:auto`
-       needs an intrinsic ratio to compute from and the blank placeholder's is
-       1:1, so a width and no height makes a square — 600px of hatching for a
-       banner. There is nothing to be faithful to there, so it stays small. */
-    img[data-plmail-blocked] { max-height: 24rem; }
-    img[data-plmail-blocked]:not([data-plmail-box]) { max-height: 8rem; }
-</style>
-</head><body>
-{{ render.content.html|raw }}
-<script>{{ render.frameScript|raw }}</script>
-</body></html>{% endset %}
+        {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: render.content.html } only %}{% endset %}
 
         <div
             data-controller="mail--message-frame"

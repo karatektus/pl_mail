@@ -35,7 +35,7 @@ use App\Entity\Mail\Message;
  * Costs no query of its own. The list fetches the two body columns of each
  * row's latest message only — see App\Service\Mail\ThreadRows.
  */
-final class MessageSnippet
+final readonly class MessageSnippet
 {
     /** Enough for the widest row; the template truncates for narrower ones. */
     private const int LENGTH = 200;
@@ -88,6 +88,13 @@ final class MessageSnippet
      */
     public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText): string
     {
+        // An encrypted message has no body here to preview — the server keeps
+        // none, unless the account keeps decrypted mail and a browser has
+        // handed it over (DecryptedMail) — so its preview is empty. It used to
+        // be "Encrypted message", appended after the subject; the row now says
+        // that with a lock in front of the subject (ThreadRow::$encrypted), in
+        // the place a reader looks first, and the preview line is left to
+        // what the message says when the server has it.
         $fromHtml = $this->flatten((string) $bodyHtmlSafe);
 
         if ('' !== $fromHtml) {

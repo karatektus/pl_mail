@@ -84,8 +84,31 @@
                 {% if oidc.passwordLoginAllowed %}
                 {# Full page load on submit: Turbo swaps the <body> only, so the
                    appearance the server renders onto <html> would be ignored
-                   until the next real navigation. #}
-                <form method="post" data-turbo="false">
+                   until the next real navigation.
+
+                   The password is stretched in the browser and only the result
+                   is posted — see controllers/auth/login_controller.js and
+                   App\Security\PasswordKdf. Without JavaScript the box is
+                   posted as it is, which still signs in an account that has not
+                   been moved over yet and no other; the <noscript> says so. #}
+                <noscript>
+                    <div class="mb-4 px-4 py-3 rounded-lg alert-danger text-sm text-danger">
+                        {{ 'login.form.needs_script'|trans }}
+                    </div>
+                </noscript>
+
+                <form method="post" data-turbo="false"
+                      data-controller="auth--login"
+                      data-action="submit->auth--login#submit"
+                      data-auth--login-prelogin-url-value="{{ path('app_login_prelogin') }}"
+                      data-auth--login-busy-label-value="{{ 'login.form.submitting'|trans }}"
+                      data-auth--login-failed-message-value="{{ 'login.form.prelogin_failed'|trans }}"
+                      data-auth--login-rate-limited-message-value="{{ 'login.form.prelogin_rate_limited'|trans }}">
+
+                    {# Inside the form: a Stimulus target has to be. #}
+                    <div data-auth--login-target="error" hidden
+                         role="alert"
+                         class="mb-4 px-4 py-3 rounded-lg alert-danger text-sm text-danger"></div>
 
                     <div class="space-y-4">
                         <div>
@@ -96,6 +119,7 @@
                                 type="email"
                                 id="inputEmail"
                                 name="email"
+                                data-auth--login-target="email"
                                 {# The dev prefill is a local convenience and must not reach a
                                    real deployment. It is empty in the shipped .env, so nothing
                                    leaked by default — but nothing stopped it being set either,
@@ -127,6 +151,7 @@
                                 type="password"
                                 id="password"
                                 name="password"
+                                data-auth--login-target="password"
                                 autocomplete="current-password"
                                 required
                                 {# Two prefills, and neither is a leak. The dev one is
@@ -153,9 +178,12 @@
                     </div>
 
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                    <input type="hidden" name="auth_hash" value="" data-auth--login-target="authHash">
+                    <input type="hidden" name="unlock_key" value="" data-auth--login-target="unlockKey">
 
                     <button
                         type="submit"
+                        data-auth--login-target="submit"
                         class="mt-6 w-full bg-accent hover:bg-accent-strong text-accent-ink text-sm font-medium py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 ring-offset-surface"
                     >
                         {{ 'login.form.submit'|trans }}

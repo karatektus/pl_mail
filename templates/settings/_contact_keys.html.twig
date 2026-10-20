@@ -1,0 +1,266 @@
+{#
+settings/_contact_keys.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Encryption → Contacts' keys: the public keys plMail holds for the
+people a person writes with (App\Entity\Crypto\ContactKey).
+
+A Turbo Frame of its own, loaded into the card in _encryption and
+served by ContactKeyController::index(). Every form posts to the controller
+and comes back here by redirect, with what happened in the `contact_keys`
+flash bag — no script, so nothing here needs the keyring open or a CSP
+exception.
+
+One row per address and key. A Changed key sits under the address's Current
+one with the warning that is the whole point of trust on first use: plMail
+will not use it until the person compares it and accepts it.
+
+Below the keys, the S/MIME certificates plMail picked up from contacts'
+signed mail (App\Entity\Crypto\ContactCertificate, phase 6c). Nothing to
+import or look up there — certificates only ever arrive on a signature — so
+the list is all there is: which one is in use, whether an authority vouches
+for it, and accept or remove for the ones waiting.
+
+Beside the lookup, the person's switch for the public key servers
+(User::$lookUpKeyServers, KeyServerLookup) — only when the installation asks
+any (APP_KEY_SERVERS), since a switch for nothing would be a promise. Its hint
+names the servers and what a lookup tells them, before anybody is asked.
+
+Variables:
+  contactKeys  list<ContactKey>, by address, the Current key first
+  contactCertificates  list<ContactCertificate>, the same order
+  policies     RecipientPolicy::cases()
+  schemes      PgpScheme::cases()
+  keyServers   list<string>, the key servers the installation asks, in order
+  keyServersOn bool, the person's switch for them
+#}
+{% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
+{# The fields' classes come from _partials/_field_classes.html.twig, which the
+   form theme draws from too: this frame is plain forms, and its hand-written
+   copy had drifted from every other field in Settings. #}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% set field = fields.input() %}
+{% set textarea = fields.textarea() %}
+{% set fileField = fields.file() %}
+{% set fieldLabel = fields.label() %}
+{% set select = 'px-2 h-8 text-xs rounded-lg border border-field bg-field text-ink' %}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+{% set serverList = keyServers|join(', ') %}
+{% set asksKeyServers = keyServers is not empty and keyServersOn %}
+
+<turbo-frame id="contact-keys">
+    {% for flash in app.flashes('contact_keys') %}
+        <p class="mb-3 rounded-lg px-3 py-2 text-xs
+                  {{ flash.tone == 'error' ? 'bg-danger/10 text-danger' : (flash.tone == 'warning' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400') }}"
+           role="status" data-testid="contact-keys-notice">{{ flash.key|trans(flash.parameters) }}</p>
+    {% endfor %}
+
+    <div class="grid gap-6 md:grid-cols-2 mb-5">
+        <form method="post" action="{{ path('app_contact_keys_import') }}" enctype="multipart/form-data">
+            <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
+            <h3 class="text-xs font-semibold text-ink mb-1">{{ 'contact_keys.import.heading'|trans }}</h3>
+            <p class="text-[11px] text-ink-muted mb-2">{{ 'contact_keys.import.hint'|trans }}</p>
+            <input type="file" name="file" accept=".asc,.gpg,.key,.pub,.txt,application/pgp-keys"
+                   aria-label="{{ 'contact_keys.import.file'|trans }}"
+                   class="{{ fileField }} mb-2">
+            <textarea name="key" rows="3" spellcheck="false" placeholder="-----BEGIN PGP PUBLIC KEY BLOCK-----"
+                      aria-label="{{ 'contact_keys.import.paste'|trans }}"
+                      class="{{ textarea }} font-mono text-xs"></textarea>
+            <button type="submit" class="{{ button }} mt-2">{{ 'contact_keys.import.submit'|trans }}</button>
+        </form>
+
+        <form method="post" action="{{ path('app_contact_keys_lookup') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
+            <h3 class="text-xs font-semibold text-ink mb-1">{{ 'contact_keys.lookup.heading'|trans }}</h3>
+            <p class="text-[11px] text-ink-muted mb-2">{{ asksKeyServers ? 'contact_keys.lookup.hint_keyservers'|trans({ '%servers%': serverList }) : 'contact_keys.lookup.hint'|trans }}</p>
+            <label for="contact-keys-lookup" class="{{ fieldLabel }} mb-2">{{ 'contact_keys.lookup.email'|trans }}</label>
+            <input type="email" name="email" id="contact-keys-lookup" required autocomplete="off" class="{{ field }}">
+            <button type="submit" class="{{ button }} mt-2">
+                <i class="fa-solid fa-magnifying-glass text-[10px]" aria-hidden="true"></i>
+                {{ 'contact_keys.lookup.submit'|trans }}
+            </button>
+        </form>
+    </div>
+
+    {% if keyServers is not empty %}
+        <form method="post" action="{{ path('app_contact_keys_key_servers') }}"
+              data-controller="ui--auto-submit" class="mb-5 border-t border-line pt-3" data-testid="key-servers-switch">
+            <input type="hidden" name="_token" value="{{ csrf_token('contact-keys') }}">
+            <div class="flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ 'contact_keys.key_servers.label'|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'contact_keys.key_servers.hint'|trans({ '%servers%': serverList }) }}</span>
+                </span>
+                <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                     role="radiogroup" aria-label="{{ 'contact_keys.key_servers.label'|trans }}">
+                    {% for on in [true, false] %}
+                        <label>
+                            <input type="radio" name="key_servers" class="peer sr-only"
+                                   value="{{ on ? '1' : '0' }}"
+                                   data-action="change->ui--auto-submit#submit"
+                                   {{ keyServersOn == on ? 'checked' : '' }}>
+                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+    {% endif %}
+
+    {% if contactKeys is empty %}
+        <p class="text-sm text-ink-muted">{{ 'contact_keys.empty'|trans }}</p>
+    {% else %}
+        <ul class="divide-y divide-line border-t border-line" data-testid="contact-keys-list">
+            {% for key in contactKeys %}
+                {% set token = csrf_token('contact-key-' ~ key.id) %}
+                {% set changed = not key.isCurrent() %}
+                <li class="py-3 {{ changed ? 'pl-3 border-l-2 border-danger' : '' }}" data-testid="contact-key">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-ink break-all">
+                                {{ key.email }}
+                                {% if key.pinned %}
+                                    <span class="ml-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>{{ 'contact_keys.verified'|trans }}
+                                    </span>
+                                {% endif %}
+                            </p>
+                            <p class="font-mono text-xs text-ink break-all mt-0.5" data-testid="contact-key-fingerprint">{{ key.fingerprint|upper|split('', 4)|join(' ') }}</p>
+                            <p class="text-[11px] text-ink-faint mt-0.5">
+                                <span data-testid="contact-key-origin">{{ ('contact_keys.origin.' ~ key.origin.value)|trans({ '%host%': key.originHost ?? '' }) }}</span>
+                                · {{ 'contact_keys.first_seen'|trans({ '%date%': key.firstSeenAt|date('Y-m-d') }) }}
+                                · {{ 'contact_keys.last_seen'|trans({ '%date%': key.lastSeenAt|date('Y-m-d') }) }}
+                                {% if key.expiresAt %}· {{ 'contact_keys.expires'|trans({ '%date%': key.expiresAt|date('Y-m-d') }) }}{% endif %}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% if changed %}
+                                <form method="post" action="{{ path('app_contact_keys_accept', { id: key.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <button type="submit" class="{{ button }}">{{ 'contact_keys.accept'|trans }}</button>
+                                </form>
+                            {% elseif key.pinned %}
+                                <form method="post" action="{{ path('app_contact_keys_unpin', { id: key.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <button type="submit" class="{{ button }}">{{ 'contact_keys.unpin'|trans }}</button>
+                                </form>
+                            {% else %}
+                                <form method="post" action="{{ path('app_contact_keys_pin', { id: key.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <button type="submit" class="{{ button }}">
+                                        <i class="fa-solid fa-circle-check text-[10px]" aria-hidden="true"></i>
+                                        {{ 'contact_keys.pin'|trans }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <form method="post" action="{{ path('app_contact_keys_remove', { id: key.id }) }}"
+                                  data-turbo-confirm="{{ 'contact_keys.confirm_remove'|trans }}">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <button type="submit" class="{{ button }}">{{ 'contact_keys.remove'|trans }}</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {% if changed %}
+                        <p class="mt-2 flex items-start gap-2 text-xs text-danger" role="alert" data-testid="contact-key-changed">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
+                            {{ 'contact_keys.changed_warning'|trans }}
+                        </p>
+                    {% else %}
+                        <details class="mt-2">
+                            <summary class="text-[11px] text-ink-muted cursor-pointer">{{ 'contact_keys.preferences.heading'|trans }}</summary>
+                            <form method="post" action="{{ path('app_contact_keys_preferences', { id: key.id }) }}" class="mt-2 flex flex-wrap items-end gap-3">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <label class="text-[11px] text-ink-faint">
+                                    <span class="block mb-1">{{ 'contact_keys.preferences.encrypt'|trans }}</span>
+                                    <select name="encrypt" class="{{ select }}">
+                                        {% for policy in policies %}
+                                            <option value="{{ policy.value }}" {{ key.encrypt == policy ? 'selected' }}>{{ ('contact_keys.preferences.policy.' ~ policy.value)|trans }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <label class="text-[11px] text-ink-faint">
+                                    <span class="block mb-1">{{ 'contact_keys.preferences.sign'|trans }}</span>
+                                    <select name="sign" class="{{ select }}">
+                                        {% for policy in policies %}
+                                            <option value="{{ policy.value }}" {{ key.sign == policy ? 'selected' }}>{{ ('contact_keys.preferences.policy.' ~ policy.value)|trans }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <label class="text-[11px] text-ink-faint">
+                                    <span class="block mb-1">{{ 'contact_keys.preferences.scheme'|trans }}</span>
+                                    <select name="scheme" class="{{ select }}">
+                                        {% for scheme in schemes %}
+                                            <option value="{{ scheme.value }}" {{ key.scheme == scheme ? 'selected' }}>{{ ('contact_keys.preferences.scheme_' ~ scheme.value)|trans }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <button type="submit" class="{{ button }}">{{ 'contact_keys.preferences.save'|trans }}</button>
+                            </form>
+                            <p class="text-[11px] text-ink-faint mt-1">{{ 'contact_keys.preferences.hint'|trans }}</p>
+                        </details>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {# ── S/MIME certificates ─────────────────────────────────────────────── #}
+    <h3 class="text-xs font-semibold text-ink mt-6 mb-1">{{ 'contact_keys.certificates.heading'|trans }}</h3>
+    <p class="text-[11px] text-ink-muted mb-2">{{ 'contact_keys.certificates.hint'|trans }}</p>
+
+    {% if contactCertificates is empty %}
+        <p class="text-sm text-ink-muted">{{ 'contact_keys.certificates.empty'|trans }}</p>
+    {% else %}
+        <ul class="divide-y divide-line border-t border-line" data-testid="contact-certificates-list">
+            {% for certificate in contactCertificates %}
+                {% set token = csrf_token('contact-certificate-' ~ certificate.id) %}
+                {% set changed = not certificate.isCurrent() %}
+                <li class="py-3 {{ changed ? 'pl-3 border-l-2 border-danger' : '' }}" data-testid="contact-certificate">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-ink break-all">
+                                {{ certificate.email }}
+                                {% if certificate.verified %}
+                                    <span class="ml-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>{{ 'contact_keys.certificates.verified'|trans({ '%issuer%': certificate.issuer }) }}
+                                    </span>
+                                {% else %}
+                                    <span class="ml-1 text-xs text-ink-muted">{{ 'contact_keys.certificates.unverified'|trans }}</span>
+                                {% endif %}
+                            </p>
+                            <p class="font-mono text-xs text-ink break-all mt-0.5">{{ certificate.fingerprint|upper|split('', 4)|join(' ') }}</p>
+                            <p class="text-[11px] text-ink-faint mt-0.5">
+                                {{ certificate.subject }}
+                                · {{ 'contact_keys.first_seen'|trans({ '%date%': certificate.firstSeenAt|date('Y-m-d') }) }}
+                                · {{ 'contact_keys.expires'|trans({ '%date%': certificate.notAfter|date('Y-m-d') }) }}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% if changed %}
+                                <form method="post" action="{{ path('app_contact_keys_certificate_accept', { id: certificate.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <button type="submit" class="{{ button }}">{{ 'contact_keys.accept'|trans }}</button>
+                                </form>
+                            {% endif %}
+                            <form method="post" action="{{ path('app_contact_keys_certificate_remove', { id: certificate.id }) }}"
+                                  data-turbo-confirm="{{ 'contact_keys.certificates.confirm_remove'|trans }}">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <button type="submit" class="{{ button }}">{{ 'contact_keys.remove'|trans }}</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {% if changed %}
+                        <p class="mt-2 flex items-start gap-2 text-xs text-danger" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
+                            {{ 'contact_keys.certificates.changed_warning'|trans }}
+                        </p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</turbo-frame>

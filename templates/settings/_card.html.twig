@@ -21,7 +21,7 @@ Params:
     subheading  optional, already translated
     padded      body gets its own inset — see chrome.body(); default false,
                 because most bodies are lists that pad their own rows
-    class       extra classes on the <section>, for margins at the call site
+    class       extra classes on the <section>
 
 Blocks:
     body        the card's content
@@ -31,13 +31,25 @@ The heading is an <h2> and there is exactly one per card, so a section of four
 cards is four h2s at the same level rather than a nest. Groups INSIDE a body
 use h3.
 
+THE CARD CARRIES ITS OWN GAP to whatever follows it (`mb-4`), so a section
+never has to remember one. It used to be left to the call site — a
+`space-y-4` around the cards, or `class: 'mb-6'` on some of them — and the
+sections that forgot rendered two cards as one with a rule through it:
+Encryption's contacts' keys, decrypted mail and sending cards sat flush on
+each other, because only the first five had been given a margin. A bottom
+margin rather than a gap on a wrapper, because cards reach the page through
+wrappers of every kind (a Turbo Stream target, a `hidden` card that only the
+keyring shows, a whole include); block margins collapse through all of them,
+so a card inside a `space-y-4` is still 16px from the next, not 32px.
+tests/e2e/settings-card-insets.spec.ts measures it on every section.
+
 Not interactive and must not look it: no tabindex, no role, no aria-expanded.
 Admin panels collapse and carry those; a settings card is a surface, not a
 control. Both draw their chrome from _partials/_card_chrome.html.twig.
 #}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
 
-<section class="{{ chrome.shell() }}{{ class|default('') ? ' ' ~ class|default('') : '' }}">
+<section class="{{ chrome.shell() }} mb-4{{ class|default('') ? ' ' ~ class|default('') : '' }}">
     <header class="flex items-center justify-between gap-3 {{ chrome.band() }}">
         <div class="min-w-0">
             <h2 class="text-sm font-semibold text-ink">{{ heading }}</h2>

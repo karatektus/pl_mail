@@ -41,7 +41,7 @@ final class AttachmentPreviewExtension extends AbstractExtension
      */
     public function isPdf(MessagePart $part): bool
     {
-        return PdfAttachment::matches($part->contentType, $part->filename);
+        return false === $part->sealed && PdfAttachment::matches($part->contentType, $part->filename);
     }
 
     public function hasPreview(MessagePart $part): bool

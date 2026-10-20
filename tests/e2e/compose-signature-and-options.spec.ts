@@ -9,7 +9,8 @@ import { seed } from "./support/config";
  * From change is a DOM operation with one rule that matters — it must not
  * touch what the user typed — and plain-text mode is a swap of one editing
  * surface for another that has to leave a submittable form behind. The encrypt
- * button is here because "visible, named and disabled" is a browser fact.
+ * switch is here because "visible, named, and says what it will do" is a
+ * browser fact; what encrypting does is encryption-sending.spec.ts.
  *
  * Everything about what is STORED lives in the PHPUnit tests next door; this
  * file is only about what the window does before it posts.
@@ -531,16 +532,26 @@ test.describe("compose more options", () => {
 
 test.describe("compose encrypt", () => {
     /**
-     * Visible, named, and demonstrably not clickable. A lock icon that looked
-     * live would tell the user their mail was encrypted when it was not.
+     * Visible, named, and saying what it will do. Not pressed for a message
+     * with nobody to encrypt to; pressed, it says the message will go out
+     * encrypted, and pressed again it says it will not — the lock must never
+     * look the same for mail that leaves readable.
      */
-    test("the encrypt button is present, named and disabled", async ({ page }) => {
+    test("the encrypt switch is present, named and says whether the message will be encrypted", async ({ page }) => {
         await openCompose(page);
 
-        const button = page.locator(`${DOCK} .fa-lock`).locator("..");
+        const button = page.locator(DOCK).getByRole("button", { name: "Encrypt message", exact: true });
 
         await expect(button).toBeVisible();
-        await expect(button).toBeDisabled();
-        await expect(button).toHaveAttribute("aria-label", /encrypt/i);
+        await expect(button).toBeEnabled();
+        await expect(button).toHaveAttribute("aria-pressed", "false");
+
+        await button.click();
+        await expect(button).toHaveAttribute("aria-pressed", "true");
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeVisible();
+
+        await button.click();
+        await expect(button).toHaveAttribute("aria-pressed", "false");
+        await expect(page.locator(`${DOCK} [data-testid=compose-encrypted]`)).toBeHidden();
     });
 });

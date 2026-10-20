@@ -1,4 +1,4 @@
-<!-- translated-from: features/security.md sha1:fd6e241cab9a90d68cf70059a1a4d27bdd9558b8 -->
+<!-- translated-from: features/security.md sha1:a9dd9de5842bda4bb6ab750d8a60c40989b62cf9 -->
 
 # Sicherheit
 
@@ -110,17 +110,44 @@ Es gibt keine Sitzungsliste und keinen Knopf „überall abmelden“. Was plMail
 ist ein gemerktes Gerät, ein App-Passwort oder — durch eine Passwortänderung — jedes
 Angemeldet-bleiben-Cookie auf einmal.
 
+**Dein Passwort verlässt den Browser nicht.** Bevor etwas gesendet wird, streckt das
+Anmeldeformular es (PBKDF2-SHA256, 600 000 Runden) und schickt nur das Ergebnis; der Server prüft
+das und sieht das Passwort selbst nie. Daran hängt die Ende-zu-Ende-Verschlüsselung: Deine
+Schlüssel werden mit demselben Passwort entsperrt — ein Server, der es nie sieht, kann sie auch
+nicht entsperren. Dafür wird JavaScript gebraucht, und das Anmeldeformular sagt es, wenn es
+fehlt. Auf einer Installation, die über reines `http://` erreicht wird, schaltet der Browser seine
+eigene Kryptografie ab; das Strecken dauert dann ein bis zwei Sekunden statt eines Augenblicks.
+
+Bei der ersten Anmeldung nach diesem Update schickt das Formular dein Passwort ein letztes Mal mit,
+damit der gespeicherte Hash umgestellt werden kann. Diese Anmeldung beendet einmalig deine anderen
+Sitzungen — siehe *Fallstricke*.
+
+**Anmelden ist nicht Entsperren.** Nur eine Anmeldung über dieses Formular entsperrt deine
+Verschlüsselungsschlüssel gleich mit. Eine Sitzung, die **Angemeldet bleiben** oder Single Sign-on
+geöffnet hat, fragt bei der Anmeldung nichts; das Erste, was die Schlüssel braucht, fragt einmal nach
+deinem Passwort — oder, bei einem Konto, das sich nur über Single Sign-on anmeldet, nach deiner
+Verschlüsselungs-Passphrase. Siehe [Verschlüsselung](encryption.md#du-entsperrst-einmal).
+
 **Es gibt keinen Ablauf zum Zurücksetzen des Passworts.** Das Anmeldeformular sagt das, statt
 einen Link anzubieten, der ins Leere führt: Die Wiederherstellung läuft über die
 Server-Konsole, und dort kann eine Administratorin oder ein Administrator ein neues Passwort
 setzen. Das ist der Weg für jemanden, der *nicht mehr hereinkommt*. Wer hereinkommt, ist im
 nächsten Abschnitt.
 
+### Ein Passwort, das jemand anderes gewählt hat
+
+Wenn eine Administratorin dein Konto anlegt oder dir mit `app:user:password` ein Passwort setzt,
+kennt sie es. Deshalb gilt es nur einmal: Direkt nach der Anmeldung wirst du gebeten, ein eigenes
+zu wählen, und plMail zeigt bis dahin nichts anderes. Deine Mail-Programme und die Handy-App
+synchronisieren in der Zeit weiter — App-Passwörter sind eigene Zugangsdaten.
+
 ## Dein Passwort ändern
 
 **Einstellungen → Sicherheit → Passwort**. Gefragt wird nach deinem aktuellen Passwort, dann
 zweimal nach dem neuen, und das neue braucht mindestens zwölf Zeichen — dieselbe Untergrenze, die
-das Anlege-Formular einer Administratorin anwendet, weil es dieselbe Frage ist.
+das Anlege-Formular einer Administratorin anwendet, weil es dieselbe Frage ist. Keines der beiden
+Passwörter wird gesendet: Der Browser prüft die Länge und dass beide Felder übereinstimmen, streckt
+beide und schickt die Ergebnisse.
 
 Nach dem aktuellen Passwort zu fragen ist keine Formsache. Angemeldet zu sein ist kein Beweis, dass
 du selbst an der Tastatur sitzt: Ein offener Bildschirm ist der ganze Angriff, und ohne diese Prüfung
@@ -186,6 +213,15 @@ einer gestohlenen Admin-Sitzung.
 - [Fehlersuche](../install/troubleshooting.md) — wenn etwas dich nicht hereinlässt.
 
 ## Fallstricke
+
+**Die erste Anmeldung nach dem Update meldet deine anderen Browser einmal ab.** Die Umstellung
+ändert den gespeicherten Hash, und jede Sitzung und jedes **Angemeldet bleiben**-Cookie hängt an
+diesem Hash. Melde dich auf jedem neu an; ein zweites Mal passiert das nicht.
+
+**Ein Passwortmanager speichert das Passwort, nicht das, was gesendet wird.** Die Felder behalten,
+was du getippt hast, und nur das gestreckte Ergebnis wird gesendet — für deinen Passwortmanager
+ändert sich also nichts. Bietet einer doch einmal an, eine lange Folge aus Buchstaben und Ziffern zu
+speichern, lehne ab: Das ist der gestreckte Wert, und mit ihm kommst du nicht hinein.
 
 **Die Zwei-Faktor-Authentifizierung deckt `/jmap` nicht ab.** Sie kann es nicht: App-Passwörter
 gibt es gerade deshalb, weil ein IMAP- oder JMAP-Client keine Möglichkeit hat, einen Code

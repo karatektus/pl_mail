@@ -46,6 +46,16 @@ final readonly class DevicePairingService
 
     private const string PREFIX = 'device_pairing_';
 
+    /**
+     * The associated data the browser seals the keys for a new device under
+     * (assets/crypto/pairing.js), and the app opens them with. See
+     * issue()'s $keys.
+     */
+    public const string TRANSFER_PURPOSE = 'plmail/pairing-transfer';
+
+    /** A few user keys sealed as JSON; nothing legitimate comes near it. */
+    public const int MAX_KEYS_BYTES = 16384;
+
     public function __construct(
         private CacheItemPoolInterface $cache,
         private EntityManagerInterface $entityManager,
@@ -55,14 +65,25 @@ final readonly class DevicePairingService
     /**
      * Mints a pairing code for a signed-in user.
      *
+     * $keys, when the browser that asked has the person's keyring open: their
+     * user keys, sealed by the browser under a transfer key that goes into
+     * the QR code's fragment and nowhere else (issue #28, phase 6 — the way
+     * Signal hands keys to a linked device). Kept beside the code for as long
+     * as the code lives, handed to the app with its app password, and
+     * readable by nothing that has not seen the QR code.
+     *
      * @return array{code:string,expiresAt:\DateTimeImmutable}
      */
-    public function issue(User $user): array
+    public function issue(User $user, ?string $keys = null): array
     {
         $code = rtrim(strtr(base64_encode(random_bytes(self::CODE_BYTES)), '+/', '-_'), '=');
 
+        if (null !== $keys && (strlen($keys) > self::MAX_KEYS_BYTES || 1 !== preg_match('/^v1\.[A-Za-z0-9+\/=]+\.[A-Za-z0-9+\/=]+$/', $keys))) {
+            $keys = null;
+        }
+
         $item = $this->cache->getItem(self::PREFIX.hash('sha256', $code));
-        $item->set((int) $user->id);
+        $item->set(null === $keys ? (int) $user->id : ['user' => (int) $user->id, 'keys' => $keys]);
         $item->expiresAfter(self::TTL_SECONDS);
 
         $this->cache->save($item);
@@ -82,7 +103,10 @@ final readonly class DevicePairingService
      * distinguish those, because doing so would confirm which codes had once
      * been real.
      *
-     * @return array{secret:string,username:string}|null
+     * `keys` is there only when the browser sealed the keyring for the new
+     * device; see issue().
+     *
+     * @return array{secret:string,username:string,keys?:string}|null
      */
     public function redeem(string $code, string $deviceName): ?array
     {
@@ -93,7 +117,9 @@ final readonly class DevicePairingService
             return null;
         }
 
-        $userId = $item->get();
+        $stored = $item->get();
+        $userId = is_array($stored) ? $stored['user'] : $stored;
+        $keys   = is_array($stored) ? $stored['keys'] : null;
         $this->cache->deleteItem($key);
 
         $user = $this->entityManager->find(User::class, $userId);
@@ -107,7 +133,7 @@ final readonly class DevicePairingService
         $this->entityManager->persist($token);
         $this->entityManager->flush();
 
-        return ['secret' => $secret, 'username' => (string) $user->email];
+        return ['secret' => $secret, 'username' => (string) $user->email] + (null === $keys ? [] : ['keys' => $keys]);
     }
 
     /**

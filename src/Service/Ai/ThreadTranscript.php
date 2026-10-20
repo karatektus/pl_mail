@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\DecryptedMailPolicy;
 
 /**
  * A conversation as the one piece of text a summary is made from — and the one
@@ -70,8 +72,10 @@ final readonly class ThreadTranscript
     /** The same honesty, one level down: this turn is not all here. */
     private const string CLIPPED = '[… the rest of this message is not shown …]';
 
-    public function __construct(private MessageRepository $messages)
-    {
+    public function __construct(
+        private MessageRepository    $messages,
+        private ?DecryptedMailPolicy $decrypted = null,
+    ) {
     }
 
     /**
@@ -109,7 +113,9 @@ final readonly class ThreadTranscript
         // which is the honest answer rather than a promise this cannot keep.
         // See ThreadSummariser::FULL_TRANSCRIPT_CEILING.
         $limit  = $full ? ThreadSummariser::FULL_TRANSCRIPT_CEILING : self::turnLimit();
-        $blocks = array_map(static fn (Message $turn): string => self::block($turn, $limit), $messages);
+        // Decrypted mail the models may not read is a turn without its text,
+        // the way a message with no text part is. See DecryptedMailPolicy.
+        $blocks = array_map(fn (Message $turn): string => self::block($turn, $limit, $this->decrypted?->allowsAi($turn, AiFeature::Summary) ?? true), $messages);
 
         if ([] === $blocks) {
             return '';
@@ -178,9 +184,9 @@ final readonly class ThreadTranscript
         return intdiv(ThreadSummariser::TRANSCRIPT_BUDGET * 2, 3);
     }
 
-    private static function block(Message $turn, int $limit): string
+    private static function block(Message $turn, int $limit, bool $readable = true): string
     {
-        $body = trim((string) ($turn->bodyText ?? ''));
+        $body = true === $readable ? trim((string) ($turn->bodyText ?? '')) : '';
 
         // CLIPPED PER TURN, because dropping whole turns is not a bound.
         //

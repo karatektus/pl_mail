@@ -328,6 +328,15 @@ final class ReplyDraftBuilder
         $text = trim($original->bodyText ?? '');
         $body = '' !== $html ? $html : nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
 
+        // Encrypted mail has no body here to quote. The composer decrypts the
+        // original in the browser and puts it where this marker stands
+        // (assets/controllers/compose/encryption_controller.js) — the quote
+        // never reaches the server, and the draft it is part of is sealed
+        // before it is saved. OpenPGP and S/MIME alike: the browser opens both.
+        if (true === $original->crypto?->isEncrypted() && null !== $original->id) {
+            $body = sprintf('<div data-quote-sealed="%d"></div>', $original->id);
+        }
+
         if ('reply' === $mode) {
             return <<<HTML
                 <p><br></p>

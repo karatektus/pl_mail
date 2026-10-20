@@ -151,6 +151,17 @@ Variables:
                    of you did not have, and hid the one it did. Same chips as
                    the list, so a label looks like itself everywhere. #}
                 {% include '_partials/_thread_labels.html.twig' with { item: message } only %}
+
+                {# A lock for an encrypted message, a seal for a signed one. The
+                   banner above the body says what either means; this is so the
+                   collapsed message says it too. #}
+                {% if message.crypto is not null %}
+                    <span class="text-[11px] {{ message.crypto.encrypted ? 'text-emerald-600' : 'text-ink-faint' }}"
+                          title="{{ (message.crypto.encrypted ? 'message.crypto.encrypted' : 'message.crypto.signed.' ~ (message.signatureState ? message.signatureState.value : 'pending'))|trans }}">
+                        <i class="fa-solid {{ message.crypto.encrypted ? 'fa-lock' : 'fa-signature' }}" aria-hidden="true"></i>
+                        <span class="sr-only">{{ (message.crypto.encrypted ? 'message.crypto.encrypted' : 'message.crypto.signed.' ~ (message.signatureState ? message.signatureState.value : 'pending'))|trans }}</span>
+                    </span>
+                {% endif %}
             </div>
 
             {# The details popover must not toggle the message, so it stops
@@ -164,7 +175,15 @@ Variables:
                 data-mail--thread-message-target="snippet"
                 class="text-xs text-ink-muted truncate py-0.5 {{ expanded ? 'hidden' : '' }}"
             >
-                {{ message.bodyText|slice(0, 200) }}…
+                {# An encrypted message with no body here has nothing to
+                   preview: the lock beside the sender says what it is, as the
+                   lock in front of the subject does in the list, and the
+                   "Encrypted message" placeholder this line used to carry is
+                   gone with the list's. A decrypted copy kept on the server
+                   previews like any message. #}
+                {% if message.bodyText %}
+                    {{ message.bodyText|slice(0, 200) }}…
+                {% endif %}
             </div>
         </div>
 
@@ -215,11 +234,18 @@ Variables:
            put them some 750px below the fold — an attachment nobody scrolled
            to is an attachment nobody was sent. The chips themselves are
            untouched; this is the same partial, moved. #}
+        {# Asked before the list, not only in the banner below it: for a message
+           that arrived before phase 6g this is where its key-looking
+           attachment is first looked at, and the answer decides both what is
+           listed and whether there is a list at all. #}
+        {% do attached_sender_key(message) %}
         {% if message.hasAttachments %}
             <div class="flex flex-wrap items-center gap-2 mb-4">
                 <span class="text-xs font-medium text-ink-faint">{{ 'message.attachments'|trans }}</span>
+                {# isListed: not inline, and not the sender's own public key,
+                   which the crypto banner says instead (phase 6g of #28). #}
                 {% for part in message.messageParts %}
-                    {% if not part.isInline %}
+                    {% if part.isListed %}
                         {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
                     {% endif %}
                 {% endfor %}
