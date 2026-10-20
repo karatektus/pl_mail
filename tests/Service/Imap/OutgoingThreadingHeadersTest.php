@@ -46,6 +46,22 @@ final class OutgoingThreadingHeadersTest extends KernelTestCase
         self::assertSame(['root@example.test', 'parent@example.test'], $references);
     }
 
+    /**
+     * A list that names the parent somewhere other than last — a JMAP client
+     * is free to send its own order — still ends with it, which is the one
+     * position a threading client reads it from.
+     */
+    public function testReferencesEndsWithTheParentEvenWhenTheDraftListedItEarlier(): void
+    {
+        $message             = $this->message();
+        $message->inReplyTo  = ['parent@example.test'];
+        $message->references = ['parent@example.test', 'root@example.test'];
+
+        $references = $this->ids($this->build($message), 'References');
+
+        self::assertSame(['root@example.test', 'parent@example.test'], $references);
+    }
+
     public function testAReplyWithNoReferencesListStillGetsTheParentAsOne(): void
     {
         $message            = $this->message();

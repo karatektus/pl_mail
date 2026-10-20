@@ -470,12 +470,18 @@ class MessageSendService
      * References ends with the parent: RFC 5322 §3.6.4 has a reply carry its
      * parent's References plus the parent's Message-ID, and a draft whose
      * list lacks the parent (a JMAP client that set only inReplyTo) would
-     * otherwise send a chain that stops one short.
+     * otherwise send a chain that stops one short. The parent is taken out of
+     * the list before it is appended, so a list that already names it
+     * somewhere else — a client's own ordering — still ends with it rather
+     * than keeping it where normaliseList()'s de-duplication found it first.
      */
     private function applyThreadingHeaders(Message $message, Email $email): void
     {
         $inReplyTo  = MessageIdHelper::normaliseList($message->inReplyTo);
-        $references = MessageIdHelper::normaliseList(array_merge($message->references ?? [], $inReplyTo));
+        $references = MessageIdHelper::normaliseList(array_merge(
+            array_diff(MessageIdHelper::normaliseList($message->references), $inReplyTo),
+            $inReplyTo,
+        ));
 
         if ([] !== $inReplyTo) {
             $email->getHeaders()->addIdHeader('In-Reply-To', $inReplyTo);
