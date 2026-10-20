@@ -64,8 +64,8 @@ final readonly class SendGaveUpSubscriber implements EventSubscriberInterface
             return;
         }
 
-        // The row was written by SQL just now; what the identity map holds
-        // from the attempt is older than that.
+        // The row was written by a bulk update just now; what the identity
+        // map holds from the attempt is older than that.
         $this->em->refresh($message);
 
         // Nothing to say about a mail that went out after all — markSendFailed

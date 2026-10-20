@@ -383,6 +383,11 @@ class MessageRepository extends ServiceEntityRepository
      *
      * One statement for both, so two attempts racing each other cannot each
      * start their own clock. The database's clock, as for the claim.
+     *
+     * Raw DBAL because that one statement is the point and DQL cannot write
+     * it: it has no `UPDATE … RETURNING`, and no `EXTRACT(EPOCH FROM …)` to
+     * turn the interval into seconds. Split into an UPDATE and a SELECT it
+     * would be two statements again, and the race back.
      */
     public function secondsRetryingSend(int $messageId): int
     {
@@ -403,31 +408,39 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function markSendUnconfirmed(int $messageId): void
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
-            'UPDATE message SET send_unconfirmed_at = LOCALTIMESTAMP WHERE id = :id AND sent_at IS NULL',
-            ['id' => $messageId],
-        );
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendUnconfirmedAt', 'CURRENT_TIMESTAMP()')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->getQuery()
+            ->execute();
     }
 
     /**
      * Mark a draft whose send finally failed, and stop its retry clock (#125).
      *
-     * Raw SQL for the reason releaseSendClaim() is: it is written on the way
-     * out of a failed send, after the entity manager has been cleared. Not on
-     * a message that went out after all — sent_at is the one fact that wins.
+     * A bulk UPDATE rather than a change to the entity: it is written on the
+     * way out of a failed send, after the entity manager has been cleared of
+     * whatever the attempt left half-done, and a bulk update goes to the
+     * database without reading anything back into it. Not on a message that
+     * went out after all — sent_at is the one fact that wins.
      */
     public function markSendFailed(int $messageId, SendFailure $failure): void
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
-            'UPDATE message
-                SET send_failed_at = LOCALTIMESTAMP,
-                    send_failure = :failure,
-                    send_retrying_since = NULL,
-                    send_unconfirmed_at = NULL
-              WHERE id = :id
-                AND sent_at IS NULL',
-            ['id' => $messageId, 'failure' => $failure->value],
-        );
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendFailedAt', 'CURRENT_TIMESTAMP()')
+            ->set('m.sendFailure', ':failure')
+            ->set('m.sendRetryingSince', 'NULL')
+            ->set('m.sendUnconfirmedAt', 'NULL')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->setParameter('failure', $failure->value)
+            ->getQuery()
+            ->execute();
     }
 
     /**
@@ -437,18 +450,18 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function countUnsentDraftsForUser(User $user): int
     {
-        return (int) $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT COUNT(DISTINCT m.id)
-               FROM message m
-               JOIN account a ON a.id = m.account_id
-               JOIN message_label ml ON ml.message_id = m.id
-               JOIN label l ON l.id = ml.label_id
-              WHERE a.usr_id = :user
-                AND m.send_failed_at IS NOT NULL
-                AND m.sent_at IS NULL
-                AND l.role = :drafts',
-            ['user' => $user->id, 'drafts' => LabelRole::Drafts->value],
-        );
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(DISTINCT m.id)')
+            ->innerJoin('m.account', 'a')
+            ->innerJoin('m.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('m.sendFailedAt IS NOT NULL')
+            ->andWhere('m.sentAt IS NULL')
+            ->andWhere('l.role = :drafts')
+            ->setParameter('user', $user)
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**

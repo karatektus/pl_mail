@@ -362,10 +362,9 @@ class Message extends MessageModel
      * a second attempt starts clean, and when a send succeeds. Editing the
      * draft leaves it: the mail has still not gone.
      *
-     * Written with SQL by MessageRepository, never through the entity, for the
-     * reason releaseSendClaim() is: it is written on the way out of a failed
-     * send, after the entity manager has been cleared of whatever the attempt
-     * left half-done.
+     * Written by a bulk update in MessageRepository, never through the entity:
+     * it is written on the way out of a failed send, after the entity manager
+     * has been cleared of whatever the attempt left half-done.
      */
     #[ORM\Column(name: 'send_failed_at', nullable: true)]
     public ?DateTimeImmutable $sendFailedAt = null;
