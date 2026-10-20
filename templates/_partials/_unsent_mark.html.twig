@@ -12,6 +12,12 @@ The sidebar's is rendered at every count and hidden at zero, the idiom every
 patched marker follows (see _new_dot.html.twig): ui--sidebar finds it by
 `data-count-key` after a counts refresh, and an element never rendered cannot
 be found.
+
+`hidden` goes on a wrapper, never on the <i>: Font Awesome's .fa-solid sets
+`display` and lands after Tailwind's utilities, so a `hidden` on the icon is
+overridden and the mark shows at zero — which is how it first shipped, on every
+install, with no draft marked at all. _thread_row.html.twig wraps its icons for
+the same reason.
 #}
 {% macro row(failure) %}
     {% set reason = ('thread_row.send_failed.' ~ failure.value)|trans %}
@@ -23,10 +29,14 @@ be found.
 {% endmacro %}
 
 {% macro sidebar(count) %}
-    <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400 text-xs{{ count > 0 ? '' : ' hidden' }}"
-       role="img"
-       data-unsent-mark
-       data-count-key="unsent:role:drafts"
-       title="{{ 'sidebar.badge.unsent'|trans }}"
-       aria-label="{{ 'sidebar.badge.unsent'|trans }}"></i>
+    {# No display utility beside `hidden`: one of those would be a second
+       `display` competing with it, and it lost to `inline-flex` here once. #}
+    <span class="text-xs{{ count > 0 ? '' : ' hidden' }}"
+          role="img"
+          data-unsent-mark
+          data-count-key="unsent:role:drafts"
+          title="{{ 'sidebar.badge.unsent'|trans }}"
+          aria-label="{{ 'sidebar.badge.unsent'|trans }}">
+        <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400" aria-hidden="true"></i>
+    </span>
 {% endmacro %}

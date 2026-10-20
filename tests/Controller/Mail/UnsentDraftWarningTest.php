@@ -58,7 +58,7 @@ final class UnsentDraftWarningTest extends WebTestCase
 
         $mark = $crawler->filter('[data-unsent-mark]')->first();
         self::assertStringNotContainsString('hidden', (string) $mark->attr('class'), 'and Drafts in the sidebar shows it');
-        self::assertStringContainsString('fa-triangle-exclamation', (string) $mark->attr('class'), 'as the same triangle');
+        self::assertCount(1, $mark->filter('i.fa-triangle-exclamation'), 'as the same triangle');
 
         self::assertSame(1, $this->counts($client)['unsent:role:drafts'], 'and the live counts agree');
     }
@@ -72,7 +72,14 @@ final class UnsentDraftWarningTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         self::assertCount(0, $crawler->filter('[data-unsent-draft]'));
-        self::assertStringContainsString('hidden', (string) $crawler->filter('[data-unsent-mark]')->first()->attr('class'), 'rendered, but hidden at zero');
+
+        $mark = $crawler->filter('[data-unsent-mark]')->first();
+        self::assertStringContainsString('hidden', (string) $mark->attr('class'), 'rendered, but hidden at zero');
+        self::assertStringNotContainsString('fa-', (string) $mark->attr('class'),
+            'and hidden by an element Font Awesome does not style: its .fa-solid sets display after '
+            . 'Tailwind, so `hidden` on the icon itself does not hide it');
+        self::assertDoesNotMatchRegularExpression('/(^|\s)(inline-flex|inline-block|flex|block|inline|grid)(\s|$)/', (string) $mark->attr('class'),
+            'and with no other display utility competing with `hidden`');
         self::assertSame(0, $this->counts($client)['unsent:role:drafts']);
     }
 
