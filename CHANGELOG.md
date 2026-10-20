@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->
 **Single sign-on can be the only way in.** A new setting under Admin → SSO, **Single sign-on only**
