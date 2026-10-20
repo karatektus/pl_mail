@@ -321,7 +321,10 @@ carriers, so its address names none of them: a card takes its carrier from the s
 that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
 link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
 satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
-card back into something else.
+card back into something else. A parcel is only **Delivered** when the mail says it happened: "will
+be delivered", "scheduled to be delivered" or "when it's delivered" are about a delivery still to
+come. And a number labelled as something else, such as "Order number", "Reference" or
+"Bestellnummer", is not taken for a tracking number even when it has the same shape.
 
 ### The strip above the mail list
 

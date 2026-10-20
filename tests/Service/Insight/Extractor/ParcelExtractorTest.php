@@ -590,6 +590,96 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // #120: a FedEx and a UPS card said Delivered beside tomorrow's
+            // date. A carrier writes "delivered" long before it happens —
+            // "will be delivered", "scheduled to be delivered", "when it's
+            // delivered" — and the subject named no stage, so the body's
+            // first "delivered" was taken for the last one. The mails are
+            // invented; the reporter's were not available.
+            'fedex "will be delivered tomorrow" is not delivered' => [
+                [
+                    'from'       => 'TrackingUpdates@fedex.com',
+                    'fromName'   => 'FedEx',
+                    'subject'    => 'Your package is scheduled for delivery tomorrow',
+                    'body'       => "Hi. Your package will be delivered tomorrow.\nEstimated delivery: tomorrow\nTracking number: 771234567890\n",
+                    'receivedAt' => '2026-10-21 14:00:00',
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', '2026-10-22 12:00')],
+            ],
+
+            'ups "scheduled to be delivered" is not delivered' => [
+                [
+                    'from'     => 'pkginfo@ups.com',
+                    'fromName' => 'UPS',
+                    'subject'  => 'UPS Update: Package Scheduled for Delivery Tomorrow',
+                    'body'     => "Your package is scheduled to be delivered tomorrow.\nTracking Number: 1Z999AA10123456784\n",
+                ],
+                true,
+                [self::carrierDraft('ups', '1Z999AA10123456784', 'announced', null)],
+            ],
+
+            'fedex footer: "when it\'s delivered", "once … is delivered" and "being delivered" are not delivered' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Delivery scheduled',
+                    'body'     => "Tracking number: 771234567890\n"
+                        . "Want a text when it's delivered? Sign up for alerts.\n"
+                        . "Once your package is delivered, we will let you know.\n"
+                        . "Your shipment is being delivered by a local partner.\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', null)],
+            ],
+
+            'fedex "has been delivered" is still delivered' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'FedEx shipment 771234567890',
+                    'body'     => "Your package has been delivered.\nTracking number: 771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'delivered', null)],
+            ],
+
+            // #120 again: twelve digits are the shape of a FedEx tracking
+            // number and of an eBay order number, and the FedEx mail for an
+            // eBay purchase states both. The label in front decides.
+            'fedex for an ebay order: the order number is not a tracking number' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Your eBay order is on its way',
+                    'body'     => "eBay order number: 123456789012\nTracking number: 771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'in_transit', null)],
+            ],
+
+            'fedex: a reference and an order number on the line above are skipped too' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Shipment notification',
+                    'body'     => "Reference: 123456789012\nOrder #\n210987654321\nTracking ID\n771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', null)],
+            ],
+
+            'fedex mail that states only an order number gives no card' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Shipment notification',
+                    'body'     => "Your order is being prepared.\nOrder number: 123456789012\n",
+                ],
+                true,
+                [],
+            ],
+
             'delivered, said in german' => [
                 [
                     'from'     => 'noreply@dhl.de',
@@ -2054,6 +2144,31 @@ final class ParcelExtractorTest extends TestCase
                 'shipmentId'     => null,
                 'trackingUrl'    => sprintf('https://www.%s/gp/your-account/order-details?orderID=%s', $root, $order),
                 'merchant'       => $merchant,
+                'status'         => $status,
+            ],
+            'happensAt' => $happensAt,
+        ];
+    }
+
+    /**
+     * The card a carrier's own mail gives: the sender names the carrier, so
+     * there is no merchant, and the link is the carrier's tracking page.
+     *
+     * @return array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}
+     */
+    private static function carrierDraft(string $carrier, string $number, string $status, ?string $happensAt): array
+    {
+        return [
+            'title'     => ['fedex' => 'FedEx', 'ups' => 'UPS'][$carrier] . ' · ' . $number,
+            'dedupeKey' => $number,
+            'payload'   => [
+                'carrier'        => $carrier,
+                'trackingNumber' => $number,
+                'trackingUrl'    => [
+                    'fedex' => 'https://www.fedex.com/fedextrack/?trknbr=',
+                    'ups'   => 'https://www.ups.com/track?tracknum=',
+                ][$carrier] . $number,
+                'merchant'       => null,
                 'status'         => $status,
             ],
             'happensAt' => $happensAt,
