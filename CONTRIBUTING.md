@@ -298,6 +298,18 @@ as `X.Y.Z`, `X.Y` and `latest`, and from there it travels without anybody here d
 4. The merge publishes the catalogue, and TrueNAS offers the update to everyone who installed plMail
    from **Apps → Discover**.
 
+The tag also publishes a GitHub Release, once the image is up: the `release` job in `docker.yml`
+cuts the version's section out of `CHANGELOG.md` with `bin/release-notes.sh` and makes it the
+release's notes. Nothing is attached; it is the page `releases.atom` and **Watch → Releases**
+follow. The job reads the CHANGELOG of the tagged commit, so the `## vX.Y.Z — date` heading has to
+be in that commit and spelled as the tag is, or the job fails with the image already out.
+Re-running it reads the same commit and fails again; fix the heading on `main` and publish the
+release from there by hand:
+
+```bash
+bin/release-notes.sh vX.Y.Z > notes.md && gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file notes.md
+```
+
 So a tag reaches other people's NAS boxes within about a day, with migrations that run on boot, and
 **it cannot be taken back**: there is no cool-down in that Renovate configuration and no way to
 unpublish a catalogue version. A bad release is repaired by tagging the next one.

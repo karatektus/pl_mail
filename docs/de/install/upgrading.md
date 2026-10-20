@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:86de4574a5dd3df515000f98f4e2ababc44d535e -->
+<!-- translated-from: install/upgrading.md sha1:3b59d99e47f165dc137b889aa6021578afea1e24 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -151,6 +151,14 @@ Welches Image die Prüfungen lesen, wird beim Bauen als `APP_IMAGE` eingestempel
 Image veröffentlicht, prüft also sein eigenes. Ein gesetztes `APP_IMAGE` in der Umgebung hat Vorrang.
 
 Die Seite installiert noch nichts; das erledigen die Befehle unter [Das Upgrade](#das-upgrade) oben.
+
+**Ohne Installation, die du fragen kannst**, folgst du den Veröffentlichungen auf GitHub. Jede
+getaggte Veröffentlichung ab v0.3.0 hat eine Seite unter
+[Releases](https://github.com/karatektus/pl_mail/releases), mit ihren Notizen aus `CHANGELOG.md` und
+dem Image, das du ziehst. Ein Feedreader kann `https://github.com/karatektus/pl_mail/releases.atom`
+abonnieren, und **Watch → Custom → Releases** im Repository schickt dir eine GitHub-Benachrichtigung.
+Die Seite erscheint erst, wenn das Image der Veröffentlichung veröffentlicht ist; was sie ankündigt,
+lässt sich also auch ziehen.
 
 **Der Fehlerfall ist eine Prüfung, die die Registry nicht erreicht.** Eine Installation hinter einer
 Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte beantwortete Prüfung

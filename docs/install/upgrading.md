@@ -140,6 +140,13 @@ own image checks its own. Setting `APP_IMAGE` in the environment overrides it.
 
 The page does not install anything yet; the commands under [Upgrading](#upgrading) above do.
 
+**From outside an installation**, follow the releases on GitHub. Every tagged release, from v0.3.0
+on, has a page under [Releases](https://github.com/karatektus/pl_mail/releases) with its notes from
+`CHANGELOG.md` and the image to pull. A feed reader can subscribe to
+`https://github.com/karatektus/pl_mail/releases.atom`, and **Watch → Custom → Releases** on the
+repository sends a GitHub notification. The page appears once the release's image is published, so
+what it announces can be pulled.
+
 **The failure mode is a check that cannot reach the registry.** An installation behind a firewall
 gets no answer. The page says so and keeps what the last answered check found, and the hourly
 command does not count it as an error. GitHub's anonymous API allows sixty requests an hour per

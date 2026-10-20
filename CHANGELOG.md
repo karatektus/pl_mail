@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Releases are published on GitHub, so you can follow them in a feed reader.** Each tagged release
+now gets a page under [Releases](https://github.com/karatektus/pl_mail/releases) with its notes
+from this changelog and the image to pull, once that image is published. Subscribe to
+`https://github.com/karatektus/pl_mail/releases.atom`, or use **Watch → Custom → Releases** on
+GitHub. Releases from v0.3.0 on have a page. Nothing changes in the image.
+[Discussion #226](https://github.com/karatektus/pl_mail/discussions/226), asked by @adrianfurgol.
+
 **Amazon parcels from amazon.co.uk are on the radar, on the right day.** Parcels were read from
 the German, American and French Amazon shops only, so an "Out for delivery" mail from amazon.co.uk
 gave no card. amazon.co.uk, amazon.ca, amazon.com.au, amazon.in and amazon.sg are now read the same
