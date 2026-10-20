@@ -76,8 +76,8 @@ jobs:
                   # branch links nothing that way and its closing references
                   # stay empty, whatever the description says. There the
                   # description is read here instead, with the keywords GitHub
-                  # itself accepts. The issue closes when the milestone's own
-                  # pull request reaches main and lists it (see #250).
+                  # itself accepts. The issue closes when the pull request is
+                  # merged into a milestone branch (close-milestone-issues.yml).
                   if [ "$BASE" != "$DEFAULT_BRANCH" ] \
                       && printf '%s' "$BODY" | grep -Eiq '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+'; then
                       echo "Into \`$BASE\`: names the issue it closes in its description." >> "$GITHUB_STEP_SUMMARY"
