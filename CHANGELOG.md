@@ -7,6 +7,17 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Trashing a conversation with one message already in the bin no longer fails.** On an IMAP account,
+the message that was already in the Trash was sent to the server as a move from Trash into Trash,
+which the server refused with "NO Not permitted in EXAMINE state". The rest of the conversation
+moved, but the refusal was logged as an error and recorded on the account as a change the server
+would not take, and the binned message lost its address until the next sync found it again. A
+message that is already where a trash, archive or restore sends it now stays put and keeps its
+address; its labels change as before. No schema change.
+[#269](https://github.com/karatektus/pl_mail/issues/269), by @phdelodder.
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->
