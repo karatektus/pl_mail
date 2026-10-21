@@ -331,12 +331,20 @@ That makes the tag the only gate there is, and two things have to be true before
   for: pull one onto the production install, let the migrations run against real data, and read
   mail with it. The suites start from an empty database every time; an upgrade never does.
 
-Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date` in a pull
-request titled `Release vX.Y.Z` — `main` is protected, so the release commit goes through one like
-everything else — merge it, tag the commit it made on `main` and push the tag. The release commit
-changes the changelog and nothing else, so what was tested is what is tagged — except for the
-highlight pictures that release pushes past their ten releases, which it deletes (see
-[Release notes](#release-notes)). Then close the
+Then, and in this order: write the release's section in a pull request titled `Release vX.Y.Z`
+— `main` is protected, so the release commit goes through one like everything else — merge it, tag
+the commit it made on `main` and push the tag. The section is written by
+
+```bash
+bin/changelog-release.sh vX.Y.Z
+```
+
+which puts the entries waiting in `changelog.d/` (highlights first) and whatever is still under
+`## Unreleased` under a new `## vX.Y.Z — date` heading, dated today unless a second argument says
+otherwise, and deletes the fragments. It refuses a version that already has a section, and a
+release with nothing in it. The release commit changes the changelog and `changelog.d/` and nothing
+else, so what was tested is what is tagged — except for the highlight pictures that release pushes
+past their ten releases, which it deletes (see [Release notes](#release-notes)). Then close the
 milestone of that name, moving anything still open in it to the next one (see
 [How work gets in](#how-work-gets-in)).
 
@@ -380,7 +388,19 @@ Never point it at a stack holding real mail.
 `CHANGELOG.md` is not only for people reading GitHub: every installation reads it from its own image
 and shows it in **What's new** after an update (see
 [What everyone sees after an update](docs/install/upgrading.md#what-everyone-sees-after-an-update)).
-So an entry is written for the person using plMail, and three conventions decide how it is shown:
+So an entry is written for the person using plMail.
+
+**A pull request adds its entry as a file of its own in `changelog.d/`**, named after the issue
+(`266-jmap-read-state.md`), not as a paragraph in `CHANGELOG.md`. Every pull request used to add
+its paragraph under `## Unreleased`, at the same place in the same file, so the second of any two
+conflicted with the first as soon as that one merged — and fixing the conflict is a push that
+re-runs the whole suite, once per pull request in a batch. The release pull request collects the
+files (see [Releasing](#releasing)). [`changelog.d/README.md`](changelog.d/README.md) has the
+details; the one rule that differs from writing in `CHANGELOG.md` is that a fragment has no
+headings, since the files are put one after the other. `### Before you upgrade` is still written
+under `## Unreleased` in `CHANGELOG.md`, and so are entries from pull requests that predate this.
+
+Three conventions decide how an entry is shown:
 
 - **An entry is a paragraph that opens with a bold sentence.** The bold part is its headline in the
   dialog; the rest, until the next bold paragraph, is what opens under it.

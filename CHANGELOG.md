@@ -3,6 +3,9 @@
 Notable changes per release. plMail runs its migrations automatically on boot,
 so anything that changes the schema irreversibly is called out explicitly.
 
+Changes not yet released wait in [`changelog.d/`](changelog.d/), one file each, and are collected
+here by the release.
+
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
