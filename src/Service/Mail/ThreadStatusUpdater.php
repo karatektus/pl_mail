@@ -606,13 +606,13 @@ final readonly class ThreadStatusUpdater
      * doing the same three things. Its inbound twin — applyRemoteFlags(),
      * thirty lines down — takes the provider's word for a flag and
      * deliberately does not call this, so a sync that discovers a message was
-     * already \Seen on another device sends nothing. That distinction is the entire correctness question in read
-     * receipts: a receipt claims a person displayed the message, and a sync
-     * pass learning about a read that happened elsewhere, possibly weeks ago,
-     * cannot make that claim. Two other writers of seenAt exist and are
-     * likewise silent — the rule engine's markRead action, which is software
-     * filing mail rather than a person reading it, and ThreadSnoozeService,
-     * which only ever un-reads.
+     * already \Seen on another device sends nothing. That distinction is the
+     * entire correctness question in read receipts: a receipt claims a
+     * person displayed the message, and a sync pass learning about a read
+     * that happened elsewhere, possibly weeks ago, cannot make that claim.
+     * Two other writers of seenAt exist and are likewise silent — the rule
+     * engine's markRead action, which is software filing mail rather than a
+     * person reading it, and ThreadSnoozeService, which only ever un-reads.
      *
      * Only genuine transitions, so re-marking an already-read message read —
      * which the bulk toolbar does routinely over a mixed selection — cannot
