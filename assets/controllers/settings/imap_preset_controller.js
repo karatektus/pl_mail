@@ -11,10 +11,59 @@ import { Controller } from "@hotwired/stimulus";
  * the whole table is a couple of kilobytes, so no round-trip is needed.
  */
 export default class extends Controller {
-    static targets = ["note"];
+    static targets = ["note", "incomingLabel", "portHint", "pop3Options"];
+
+    /**
+     * What each incoming protocol calls itself in the form.
+     *
+     * The host field is one column whatever is on the other end — see
+     * Account::$imapHost — so the label is the only thing on screen that says
+     * which protocol this account is being set up for, and it has to move when
+     * the radio does.
+     */
+    static PROTOCOLS = {
+        imap: { label: "IMAP host", port: "993" },
+        pop3: { label: "POP3 host", port: "995" },
+    };
 
     connect() {
         this.presets = this._readPresets();
+        this.protocolChanged();
+    }
+
+    /**
+     * The incoming-protocol radio was changed.
+     *
+     * Three things follow, and all three are the same fact stated three ways:
+     * the host field is renamed, its port placeholder follows, and the POP3
+     * delete option appears only where it means something. Nothing already
+     * typed is cleared — switching back and forth should not cost the user
+     * their host name.
+     */
+    protocolChanged() {
+        const protocol = this._currentProtocol();
+        const copy = this.constructor.PROTOCOLS[protocol] ?? this.constructor.PROTOCOLS.imap;
+
+        if (this.hasIncomingLabelTarget) {
+            this.incomingLabelTarget.textContent = copy.label;
+        }
+
+        const port = this._field("imapPort");
+
+        if (port !== null) {
+            port.placeholder = copy.port;
+        }
+
+        if (this.hasPop3OptionsTarget) {
+            this.pop3OptionsTarget.classList.toggle("hidden", protocol !== "pop3");
+        }
+    }
+
+    /** Which radio is checked, defaulting to IMAP like the entity does. */
+    _currentProtocol() {
+        const checked = this.element.querySelector('[name$="[incomingProtocol]"]:checked');
+
+        return checked === null ? "imap" : checked.value;
     }
 
     /** Explicit choice from the dropdown — always wins. */

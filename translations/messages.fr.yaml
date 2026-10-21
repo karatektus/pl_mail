@@ -12,6 +12,15 @@ account:
             host: Serveur
         password: Mot de passe
         port: Port
+        protocol:
+            label: Protocole de réception
+            imap: IMAP
+            pop3: POP3
+        pop3:
+            delete_label: Après le relève
+            delete_on_fetch: Supprimer le message sur le serveur
+            keep_on_server: Le laisser sur le serveur (recommandé)
+            delete_help: POP3 n'a ni dossiers ni push. Un message laissé sur le serveur est reconnu à la prochaine synchronisation par son UIDL et n'est pas relevé deux fois. Le supprimer libère du quota sur le serveur mais retire la seule seconde copie.
         preset:
             label: Fournisseur
             placeholder: Choisissez un fournisseur…
@@ -45,6 +54,7 @@ account:
             failed: 'La connexion n’a pas fonctionné. Vérifiez le serveur, le port et le chiffrement.'
             host_invalid: 'Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.'
             imap_ok: 'Connecté — %count% dossiers visibles.'
+            pop3_ok: 'Connecté — %count% messages dans la boîte.'
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'

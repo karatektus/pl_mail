@@ -55,9 +55,23 @@ genuinely needed, merge onto form.<field>.vars.attr.
 
 <div class="border-t border-line"></div>
 
-{# ── Incoming — IMAP ──────────────────────────────────────────────────── #}
+{# ── Which protocol the incoming half speaks ───────────────────────────
+   Above the connection fields because it decides what they are called and
+   what port they start from. Two radios and no select: there are two, they
+   are mutually exclusive, and the non-default one is why somebody is here. #}
+<div class="space-y-2">
+    {{ form_row(form.incomingProtocol, { label: 'account.form.protocol.label'|trans }) }}
+</div>
+
+<div class="border-t border-line"></div>
+
+{# ── Incoming — IMAP or POP3 ────────────────────────────────────────────
+   One block, both protocols: the host, port and encryption fields are the
+   same three either way, and only their labels and defaults differ. The
+   Stimulus controller renames the heading and the host label on change. #}
 <div class="space-y-3">
-    <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+    <p data-settings--imap-preset-target="incomingLabel"
+       class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
         {{ 'account.form.imap.heading'|trans }}
     </p>
     <div class="grid grid-cols-[1fr_100px] gap-3">
@@ -65,6 +79,16 @@ genuinely needed, merge onto form.<field>.vars.attr.
         {{ form_row(form.imapPort, { label: 'account.form.port'|trans }) }}
     </div>
     {{ form_row(form.imapEncryption, { label: 'account.form.encryption'|trans }) }}
+
+    {# POP3 only. Hidden — not removed — when IMAP is chosen, so a radio
+       switched back and forth keeps whatever the user picked. The server
+       reads it either way; AccountType's POST_SUBMIT writes it to the bag. #}
+    <div data-settings--imap-preset-target="pop3Options" class="hidden">
+        {{ form_row(form.pop3DeleteMode, {
+            label: 'account.form.pop3.delete_label'|trans,
+            help:  'account.form.pop3.delete_help'|trans,
+        }) }}
+    </div>
 </div>
 
 <div class="border-t border-line"></div>

@@ -2,6 +2,8 @@
 
 namespace App\Form;
 
+use App\Domain\Enum\Account\IncomingProtocol;
+use App\Domain\Enum\Account\Pop3DeleteMode;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Service\Mail\MailPresetProvider;
@@ -70,6 +72,51 @@ class AccountType extends AbstractType
                 'label' => 'Password',
                 'required' => $options['require_password'],
             ])
+            // ── Which protocol the incoming half speaks ────────────────────
+            // Above the host fields, because it decides what they are called
+            // and what port they start on. Not mapped to a setting but to the
+            // column itself: this is what every syncer branches on.
+            //
+            // The choices are a plain radio pair rather than a dropdown. There
+            // are two, they are mutually exclusive, and the one that is not
+            // the default is the whole reason somebody opens this form.
+            ->add('incomingProtocol', ChoiceType::class, [
+                'choices'  => [
+                    'account.form.protocol.imap' => IncomingProtocol::Imap,
+                    'account.form.protocol.pop3' => IncomingProtocol::Pop3,
+                ],
+                'choice_value' => static fn (?IncomingProtocol $protocol): string => $protocol->value ?? '',
+                'expanded'     => true,
+                'multiple'     => false,
+                'required'     => true,
+                // No radio checked and none submitted reads as IMAP, which is
+                // what the column's default says an account without an answer
+                // is. A string, because ChoiceType casts empty_data to one
+                // before matching it against the choice values.
+                'empty_data'   => IncomingProtocol::Imap->value,
+                'label'        => 'account.form.protocol.label',
+                'attr'         => [
+                    'class'                             => 'form-radio-group',
+                    'data-settings--imap-preset-target' => 'protocol',
+                    'data-action'                       => 'change->settings--imap-preset#protocolChanged',
+                ],
+            ])
+            ->add('pop3DeleteMode', ChoiceType::class, [
+                // Rendered only for a POP3 account; the template hides it for
+                // an IMAP one. Kept on the form either way so a submitted form
+                // — which includes hidden fields — round-trips without
+                // resetting a choice the user made before switching protocol.
+                'choices' => [
+                    'account.form.pop3.delete_on_fetch' => Pop3DeleteMode::Delete,
+                    'account.form.pop3.keep_on_server'  => Pop3DeleteMode::Keep,
+                ],
+                'choice_value' => static fn (?Pop3DeleteMode $mode): string => $mode->value ?? '',
+                'mapped'       => false,
+                'required'     => false,
+                'label'        => 'account.form.pop3.delete_label',
+                'help'         => 'account.form.pop3.delete_help',
+                'attr'         => ['class' => 'form-select'],
+            ])
             ->add('imapHost', TextType::class, [
                 'attr' => [
                     'placeholder' => 'imap.example.com',
@@ -80,10 +127,14 @@ class AccountType extends AbstractType
             ])
             ->add('imapPort', IntegerType::class, [
                 'attr' => [
-                    'placeholder' => '993',
-                    'class' => 'form-input',
+                    // Both ports, because the placeholder has to say the same
+                    // thing whichever protocol is chosen; the Stimulus
+                    // controller swaps it when the radio changes. A POP3
+                    // server that wants 110 is typed in, not offered.
+                    'placeholder' => '993 / 995',
+                    'class'       => 'form-input',
                 ],
-                'label' => 'IMAP port',
+                'label' => 'account.form.imap.port',
                 'constraints' => [new NotBlank(), new Range(min: 1, max: 65535)],
             ])
             ->add('imapEncryption', ChoiceType::class, [
@@ -150,6 +201,34 @@ class AccountType extends AbstractType
                 'label'        => 'account.form.smtp.password',
                 'required'     => false,
             ]);
+
+        // ── The POP3 delete mode: a form field, a jsonb setting ────────────
+        // Not a column, so it cannot be mapped. The value lives in the
+        // account's settings bag behind Account::$pop3DeleteMode, and this is
+        // the one writer. Filled from the entity on the way in and written
+        // back on the way out, so the form and the bag never disagree about
+        // which of the two the user last chose.
+        $builder->addEventListener(FormEvents::POST_SET_DATA, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if ($account instanceof Account) {
+                $event->getForm()->get('pop3DeleteMode')->setData($account->pop3DeleteMode);
+            }
+        });
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if (false === $account instanceof Account) {
+                return;
+            }
+
+            $chosen = $event->getForm()->get('pop3DeleteMode')->getData();
+
+            // Unrecognised reads as Keep, which is Pop3DeleteMode's own rule
+            // and not repeated here.
+            $account->pop3DeleteMode = Pop3DeleteMode::fromSetting($chosen);
+        });
 
         // What the account had before the form wrote on it: `always_empty`
         // submits a blank for an untouched field, and by POST_SUBMIT that

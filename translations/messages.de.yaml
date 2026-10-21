@@ -12,6 +12,15 @@ account:
             host: Server
         password: Passwort
         port: Port
+        protocol:
+            label: Eingehendes Protokoll
+            imap: IMAP
+            pop3: POP3
+        pop3:
+            delete_label: Nach dem Abruf
+            delete_on_fetch: Nachricht auf dem Server löschen
+            keep_on_server: Auf dem Server belassen (empfohlen)
+            delete_help: POP3 hat keine Ordner und kein Push. Eine auf dem Server belassene Nachricht wird beim nächsten Abgleich über ihre UIDL erkannt und nicht erneut geladen. Löschen schafft Speicherplatz auf dem Server, entfernt aber die einzige zweite Kopie.
         preset:
             label: Anbieter
             placeholder: Anbieter wählen…
@@ -45,6 +54,7 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'

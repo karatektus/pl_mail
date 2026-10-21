@@ -105,8 +105,8 @@ final class AccountFoldersController extends AbstractController
 
     private function assertSyncsOverImap(Account $account): void
     {
-        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
-            throw $this->createNotFoundException('This account syncs over its provider API; it has no IMAP folders to choose from.');
+        if (false === $account->isPlainImap()) {
+            throw $this->createNotFoundException('This account has no IMAP folders to choose from: it syncs over a provider API or over POP3.');
         }
     }
 }
