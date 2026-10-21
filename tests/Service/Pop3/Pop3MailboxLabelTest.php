@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
@@ -116,7 +117,67 @@ final class Pop3MailboxLabelTest extends KernelTestCase
         self::assertSame(LabelRole::Inbox, $mailbox->label->role);
     }
 
+    /**
+     * Messages already sitting in the mailbox with no label get the Inbox one.
+     *
+     * The half the deployment exposed: binding the mailbox is not enough,
+     * because a message's labels are set when it is built and never revisited.
+     * A message whose UIDL is in the ledger is never fetched again, so without
+     * this it stays invisible for ever.
+     */
+    public function testMessagesWithNoLabelsAreGivenTheInboxLabel(): void
+    {
+        $account = $this->pop3Account();
+        $syncer  = static::getContainer()->get(Pop3AccountSyncer::class);
+
+        // First call creates and binds the mailbox.
+        $mailbox = $this->invokeMailboxFor($syncer, $account);
+
+        // Two messages filed into it with no labels, as the broken code left them.
+        $orphanA = $this->message($account, $mailbox, 'orphan-a');
+        $orphanB = $this->message($account, $mailbox, 'orphan-b');
+
+        // One that carries a label of its own — filed by the user — and must be
+        // left alone: adding Inbox to it would pull it back into the inbox.
+        $filed = $this->message($account, $mailbox, 'filed-elsewhere');
+        $other = static::getContainer()->get(LabelResolver::class)
+            ->systemLabel(LabelRole::Archive, $account);
+        $filed->addLabel($other);
+        $this->em->flush();
+
+        $this->invokeMailboxFor($syncer, $account);
+
+        $this->em->refresh($orphanA);
+        $this->em->refresh($orphanB);
+        $this->em->refresh($filed);
+
+        self::assertCount(1, $orphanA->labels, 'an unlabelled message gets exactly the Inbox label');
+        self::assertSame(LabelRole::Inbox, $orphanA->labels->first()->role);
+        self::assertCount(1, $orphanB->labels);
+
+        self::assertCount(1, $filed->labels, 'a filed message keeps only the label it was given');
+        self::assertSame(LabelRole::Archive, $filed->labels->first()->role);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function message(Account $account, Mailbox $mailbox, string $tag): Message
+    {
+        $message               = new Message();
+        $message->account      = $account;
+        $message->mailbox      = $mailbox;
+        $message->messageId    = $tag . '-' . bin2hex(random_bytes(4)) . '@plmail.test';
+        $message->subject      = 'Fixture ' . $tag;
+        $message->fromAddress  = 'sender@example.test';
+        $message->receivedAt   = new \DateTimeImmutable();
+        $message->syncedAt     = new \DateTimeImmutable();
+        $message->hasAttachments = false;
+
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $message;
+    }
 
     private function pop3Account(): Account
     {
