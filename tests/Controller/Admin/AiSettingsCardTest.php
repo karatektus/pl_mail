@@ -6,6 +6,7 @@ namespace App\Tests\Controller\Admin;
 
 use App\Domain\Ai\EmbeddingPreset;
 use App\Domain\Enum\Ai\AiProvider;
+use App\Entity\Ai\AiSettings;
 use App\Entity\User\User;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\User\UserRepository;
@@ -147,6 +148,48 @@ final class AiSettingsCardTest extends WebTestCase
 
         self::assertSame("Instruct: find mail\nQuery: ", $stored->searchQueryInstruction);
         self::assertSame(0.42, $stored->semanticMinSimilarity);
+    }
+
+    /**
+     * The age limit on bulk sorting (#208) is on the page with the shipped
+     * thirty days, saves, and takes zero — "any age" — as a real answer.
+     */
+    public function testTheBacklogAgeIsOfferedAndSavedAndZeroIsAllowed(): void
+    {
+        // One kernel for both requests, so the save happens on the connection
+        // whose transaction tearDown() rolls back. A rebooted kernel opens a
+        // connection of its own and the zero would be committed — left behind
+        // for every later test that reads the settings row.
+        $this->client->disableReboot();
+
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $form    = $crawler->filter('form[name="ai_settings"]')->form();
+
+        self::assertSame((string) AiSettings::DEFAULT_CATEGORISE_BACKLOG_DAYS, $form['ai_settings[categoriseBacklogDays]']->getValue());
+
+        $form['ai_settings[categoriseBacklogDays]'] = '0';
+        $this->client->submit($form);
+
+        $this->em->clear();
+
+        self::assertSame(0, $this->settings->currentOrDefault()->categoriseBacklogDays);
+    }
+
+    /** A negative age has no meaning, and is refused rather than read as some other one. */
+    public function testANegativeBacklogAgeIsNotSaved(): void
+    {
+        // See the test above.
+        $this->client->disableReboot();
+
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $form    = $crawler->filter('form[name="ai_settings"]')->form();
+
+        $form['ai_settings[categoriseBacklogDays]'] = '-1';
+        $this->client->submit($form);
+
+        $this->em->clear();
+
+        self::assertSame(AiSettings::DEFAULT_CATEGORISE_BACKLOG_DAYS, $this->settings->currentOrDefault()->categoriseBacklogDays);
     }
 
     /** A host and both models on file: folded away, with the chip still speaking. */

@@ -36,5 +36,18 @@ final readonly class ClassifyMailMessage
          * transport, and they must still deserialise.
          */
         public bool $force = false,
+        /**
+         * Sort this mail however old it is.
+         *
+         * Bulk work stops at the age Admin → AI sets (#208) — see
+         * AiSettings::$categoriseBacklogDays. This is the way past it, for
+         * somebody who asked for the older mail on purpose:
+         * `app:ai:classify-backlog --any-age`. It travels with the message
+         * because the limit is applied again when the message is handled, on
+         * the same queue the scheduled catch-up uses.
+         *
+         * Defaulted and last, for the reason $force is.
+         */
+        public bool $anyAge = false,
     ) {}
 }

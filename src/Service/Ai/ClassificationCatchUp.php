@@ -7,6 +7,7 @@ namespace App\Service\Ai;
 use App\Entity\Ai\AiFeature;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
+use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Monitoring\MessengerQueueRepository;
@@ -61,6 +62,7 @@ final readonly class ClassificationCatchUp
         private InteractiveAiActivity    $interactive,
         private BackfillPolicy           $policy,
         private MessengerQueueRepository $queues,
+        private AiSettingsRepository     $settings,
         private MessageBusInterface      $bus,
         private LoggerInterface          $logger,
     ) {
@@ -102,9 +104,16 @@ final readonly class ClassificationCatchUp
     /**
      * Queue the newest unasked mail of one person's.
      *
+     * NO OLDER THAN ADMIN → AI ALLOWS (#208), unless $anyAge. The scheduled run
+     * stops at the limit, which is what keeps a large mailbox from being days
+     * of a slow host; somebody who wants the older mail sorted all the same
+     * asks for it with `app:ai:classify-backlog --any-age`, which comes through
+     * here with the flag and carries it on each envelope, because the handler
+     * checks the limit again when it takes the envelope off the queue.
+     *
      * @return int how many messages were queued
      */
-    public function sweep(User $user, int $limit): int
+    public function sweep(User $user, int $limit, bool $anyAge = false): int
     {
         $userId = (int) $user->id;
 
@@ -126,7 +135,8 @@ final readonly class ClassificationCatchUp
             return 0;
         }
 
-        $ids = $this->messages->unclassifiedIdsForUser($userId, $limit);
+        $since = true === $anyAge ? null : $this->settings->currentOrDefault()->bulkSortCutoff();
+        $ids   = $this->messages->unclassifiedIdsForUser($userId, $limit, $since);
 
         if ([] === $ids) {
             return 0;
@@ -135,12 +145,13 @@ final readonly class ClassificationCatchUp
         // CHUNKED BY BackfillPolicy::$batchSize, the tuned answer to "how long
         // may one job hold the host before something else gets a turn".
         foreach (array_chunk($ids, $this->policy->batchSize) as $chunk) {
-            $this->bus->dispatch(new ClassifyMailMessage(array_values($chunk)), EnrichmentRouter::backlog());
+            $this->bus->dispatch(new ClassifyMailMessage(array_values($chunk), anyAge: $anyAge), EnrichmentRouter::backlog());
         }
 
         $this->logger->info('ClassificationCatchUp: queued old mail for the assistant', [
             'userId'   => $userId,
             'messages' => count($ids),
+            'anyAge'   => $anyAge,
         ]);
 
         return count($ids);

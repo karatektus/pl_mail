@@ -177,6 +177,8 @@ admin:
             hold_help: 'Für alle, die ihre Mail vom Assistenten sortieren lassen. Neue Mail bleibt für den Moment, den der Assistent braucht, aus den Posteingangs-Tabs heraus — sie erscheint dann einmal, im richtigen Tab, statt in einem aufzutauchen und in einen anderen zu wandern. Mail aus dem ersten Import wird nie zurückgehalten.'
             hold_max_seconds: 'Höchstens warten (Sekunden)'
             hold_max_seconds_help: 'Danach wird die Mail dort angezeigt, wo die normalen Regeln sie einordnen — egal, was der Assistent gerade tut — und verschoben, falls der Assistent später antwortet. Zwischen 2 und 300.'
+            categorise_backlog_days: 'Importierte Mail einsortieren bis (Tage alt)'
+            categorise_backlog_days_help: 'Wie weit zurück der Assistent einsortiert, wenn ein Konto hinzukommt oder seine Vorgeschichte nachgeholt wird. Ältere Mail behält den Tab, den die normalen Regeln ihr gegeben haben — „Allgemein“, wenn keine Regel gegriffen hat — und bleibt durchsuchbar. Neue Mail wird immer einsortiert, egal welches Datum sie trägt. 0 sortiert alles ein; `app:ai:classify-backlog --any-age` sortiert die ältere Mail auf Wunsch ein.'
             search_query_instruction: 'Anweisung für die Suchanfrage'
             search_query_instruction_help: 'Wird vor den Suchtext gesetzt, bevor er in einen Vektor umgewandelt wird. Die meisten Modelle brauchen eine und antworten ohne sie schlecht; für Modelle ohne lässt du das Feld leer. Betrifft nur Suchanfragen — du musst deine Mail dafür nie neu indexieren.'
             semantic_min_similarity: 'Mindest-Ähnlichkeit'

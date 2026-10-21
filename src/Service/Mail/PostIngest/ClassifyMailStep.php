@@ -7,6 +7,7 @@ namespace App\Service\Mail\PostIngest;
 use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Entity\Ai\AiFeature;
+use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
 use App\Repository\Ai\AiSettingsRepository;
@@ -39,8 +40,9 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  *
  *   OLD mail is not queued at all. It keeps the rules' answer, which is the
  *   one it would have been shown under anyway, and is asked about later, in
- *   the background, once the import is over. See RecentMailPolicy and
- *   App\Service\Ai\ClassificationCatchUp.
+ *   the background, once the import is over — back as far as the age limit
+ *   in Admin → AI, and no further. See RecentMailPolicy,
+ *   App\Service\Ai\ClassificationCatchUp and AiSettings::$categoriseBacklogDays.
  *
  * THE GUARD IS HERE AND NOT ONLY IN THE HANDLER
  * ─────────────────────────────────────────────
@@ -69,6 +71,7 @@ final readonly class ClassifyMailStep implements PostIngestStepInterface
     public function afterCommit(PostIngestResult $result): void
     {
         $held   = [];
+        /** @var list<Message> $recent */
         $recent = [];
 
         foreach ($result->messages as $message) {
@@ -90,7 +93,7 @@ final readonly class ClassifyMailStep implements PostIngestStepInterface
             }
 
             if (true === $this->recent->isRecent($message)) {
-                $recent[] = (int) $id;
+                $recent[] = $message;
             }
         }
 
@@ -114,10 +117,24 @@ final readonly class ClassifyMailStep implements PostIngestStepInterface
             $this->bus->dispatch(new ClassifyMailMessage([$id]), EnrichmentRouter::live());
         }
 
+        // An import is bulk work, and bulk work stops at the age Admin → AI
+        // sets (#208). Usually that changes nothing here — thirty days against
+        // RecentMailPolicy's thirty — but an administrator who chose a week
+        // means a week for an import as much as for the catch-up after it.
+        // Never for live mail: see AiSettings::$categoriseBacklogDays. The
+        // handler applies the same limit again, by the queue, so this is the
+        // saving of an envelope rather than the guarantee.
+        if (false === $result->live) {
+            $settings = $this->settings->currentOrDefault();
+            $recent   = array_filter($recent, static fn (Message $message): bool => false === $settings->isTooOldToSortInBulk($message));
+        }
+
+        $recentIds = array_map(static fn (Message $message): int => (int) $message->id, array_values($recent));
+
         // WHICH of these are worth asking about is the handler's decision, not
         // this one — it needs the owner's own preference, which is a query, and
         // a query does not belong in a step that runs inside a sync.
-        foreach (array_chunk($recent, $this->policy->batchSize) as $chunk) {
+        foreach (array_chunk($recentIds, $this->policy->batchSize) as $chunk) {
             $this->bus->dispatch(new ClassifyMailMessage(array_values($chunk)), $this->router->stampsFor($result));
         }
     }

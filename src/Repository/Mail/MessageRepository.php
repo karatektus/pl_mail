@@ -2887,25 +2887,51 @@ class MessageRepository extends ServiceEntityRepository
      * A host that could not be reached leaves it unstamped, so it is offered
      * again here once the host is back.
      *
+     * $since is the age limit from Admin → AI (#208), applied to the date the
+     * way AiSettings::isTooOldToSortInBulk() applies it — receivedAt, else
+     * sentAt, and a message with neither is not too old — so the query and
+     * the handler that checks again cannot disagree about a message. Without
+     * it the walk would reach past the limit once the recent mail was done,
+     * and queue envelopes the handler would only throw away.
+     *
+     * @param DateTimeImmutable|null $since nothing older than this; null for any age
+     *
      * @return list<int>
      */
-    public function unclassifiedIdsForUser(int $userId, int $limit): array
+    public function unclassifiedIdsForUser(int $userId, int $limit, ?DateTimeImmutable $since = null): array
     {
-        /** @var list<int|string> $ids */
-        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            <<<'SQL'
+        $sql = <<<'SQL'
             SELECT m.id
               FROM message m
               JOIN account a ON a.id = m.account_id
              WHERE a.usr_id = :userId
                AND a.is_active = true
                AND m.ai_categorised_at IS NULL
+            SQL;
+
+        $parameters = ['userId' => $userId, 'limit' => $limit];
+        $types      = ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER];
+
+        // Appended rather than written in as "IS NULL OR", for the reason
+        // candidateSince() gives: Postgres cannot type a parameter that is only
+        // ever compared with NULL.
+        if (null !== $since) {
+            $sql .= "\n" . <<<'SQL'
+                   AND (m.received_at >= :since
+                        OR (m.received_at IS NULL AND (m.sent_at IS NULL OR m.sent_at >= :since)))
+                SQL;
+
+            $parameters['since'] = $since;
+            $types['since']      = Types::DATETIME_IMMUTABLE;
+        }
+
+        $sql .= "\n" . <<<'SQL'
              ORDER BY m.received_at DESC NULLS LAST, m.id DESC
              LIMIT :limit
-            SQL,
-            ['userId' => $userId, 'limit' => $limit],
-            ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER],
-        );
+            SQL;
+
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn($sql, $parameters, $types);
 
         return array_map(intval(...), $ids);
     }

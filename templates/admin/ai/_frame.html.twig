@@ -354,13 +354,17 @@ poll would empty a field mid-word.
                         {{ form_row(form.searchEnabled) }}
                         {{ form_row(form.categorisationEnabled) }}
 
-                        {# The two that qualify the switch above, set in from
-                           it so they read as belonging to it, and the measured
-                           cost directly underneath: holding is a trade of a
-                           short wait for mail that never moves tabs, and how
+                        {# The three that qualify the switch above, set in from
+                           it so they read as belonging to it. How far back
+                           bulk sorting goes comes first: it is about which
+                           mail is sorted at all, the two after it about when
+                           arriving mail is shown. Then the measured cost
+                           directly underneath those two: holding is a trade of
+                           a short wait for mail that never moves tabs, and how
                            short is a property of this host that only a
                            measurement can state. #}
                         <div class="flex flex-col gap-4 pl-4 border-l border-subtle">
+                            {{ form_row(form.categoriseBacklogDays) }}
                             {{ form_row(form.holdUntilClassified) }}
                             {{ form_row(form.holdMaxSeconds) }}
 

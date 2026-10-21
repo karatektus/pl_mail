@@ -18,6 +18,7 @@ use App\Service\Ai\AiPermissions;
 use App\Service\Ai\LiveMailPriority;
 use App\Service\Ai\OllamaClient;
 use App\Service\Mail\HeldMailReleaser;
+use App\Service\Mail\PostIngest\EnrichmentRouter;
 use App\Service\Ai\PromptLibrary;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -96,7 +97,12 @@ final readonly class ClassifyMailHandler
     ) {
     }
 
-    public function __invoke(ClassifyMailMessage $message): void
+    /**
+     * @param string|null $queue the transport the message was taken off, passed
+     *                           by TellClassificationItsQueue; null when the
+     *                           handler is invoked directly
+     */
+    public function __invoke(ClassifyMailMessage $message, ?string $queue = null): void
     {
         // Checked again, and not redundantly: settings can change between
         // dispatch and delivery, and a job already on the queue when somebody
@@ -109,10 +115,30 @@ final readonly class ClassifyMailHandler
             return;
         }
 
-        $touched = [];
+        $settings = $this->ai->settings();
+        $bulk     = $this->sortedInBulk($message, $queue);
+        $touched  = [];
 
         foreach ($this->messages->findByIds($message->messageIds) as $mail) {
             if (false === $this->worthAsking($mail, $message->force)) {
+                continue;
+            }
+
+            // Too old for bulk work, by the limit in Admin → AI (#208). Checked
+            // HERE as well as where the work is queued, because the queue
+            // outlives the setting: whatever was already waiting on
+            // enrich_backlog when the limit was set, or lowered, is stopped at
+            // this line rather than costing a model call each.
+            //
+            // Skipped WITHOUT the aiCategorisedAt stamp. The stamp means "the
+            // model was asked", and writing it here would hide this mail from
+            // `app:ai:classify-backlog --any-age`, which selects on its absence
+            // — the one way left to have it sorted.
+            //
+            // Held mail is never skipped, wherever it came from: it is out of
+            // the tabs until something answers, and the hold's own timeout is
+            // the only other thing that will.
+            if (true === $bulk && null === $mail->categoryHeldAt && true === $settings->isTooOldToSortInBulk($mail)) {
                 continue;
             }
 
@@ -319,6 +345,25 @@ final readonly class ClassifyMailHandler
         }
 
         return $this->permissions->allows($user, AiFeature::Categorise);
+    }
+
+    /**
+     * Whether this envelope is bulk work, and so subject to the age limit.
+     *
+     * BY THE QUEUE, NEVER BY THE MAIL. An import and the catch-up after it put
+     * their work on `enrich` and `enrich_backlog`; mail that has just arrived
+     * goes on `enrich_live`. The mail's own date cannot stand in for that: a
+     * message delivered a minute ago may carry a date from last year — a
+     * delayed delivery, a resent message, a sender with a wrong clock — and it
+     * is still somebody's new mail. So live mail is never limited, by
+     * construction rather than by a date that happens to be recent.
+     *
+     * Not bulk when invoked directly (no queue): that is ReclassifyRecentHandler
+     * answering a button. Not bulk when somebody asked for any age.
+     */
+    private function sortedInBulk(ClassifyMailMessage $message, ?string $queue): bool
+    {
+        return false === $message->anyAge && true === EnrichmentRouter::isBulk($queue);
     }
 
     /**

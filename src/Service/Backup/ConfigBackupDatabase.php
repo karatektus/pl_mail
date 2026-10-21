@@ -285,6 +285,7 @@ final readonly class ConfigBackupDatabase
             'categorisationEnabled' => $settings->categorisationEnabled,
             'holdUntilClassified'   => $settings->holdUntilClassified,
             'holdMaxSeconds'        => $settings->holdMaxSeconds,
+            'categoriseBacklogDays' => $settings->categoriseBacklogDays,
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
             'prompts'               => $prompts,
@@ -373,6 +374,11 @@ final readonly class ConfigBackupDatabase
         // thing that quietly switches a behaviour off.
         $settings->holdUntilClassified   = false !== ($values['holdUntilClassified'] ?? true);
         $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
+        // The same rule, and it has teeth here: an older backup restored as 0
+        // would switch the age limit off, and the first catch-up after the
+        // restore would set off down the whole history. Out-of-range values
+        // are left for AiSettings::bulkSortCutoff() to clamp.
+        $settings->categoriseBacklogDays = is_int($values['categoriseBacklogDays'] ?? null) ? $values['categoriseBacklogDays'] : AiSettings::DEFAULT_CATEGORISE_BACKLOG_DAYS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
 

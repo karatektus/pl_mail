@@ -155,6 +155,37 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         }
     }
 
+    /**
+     * An import is bulk work, and a week's limit in Admin → AI (#208) means a
+     * week for it too — even though the mail is recent enough for every other
+     * step's thirty days.
+     */
+    public function testAnImportDoesNotQueueMailOlderThanTheLimit(): void
+    {
+        $this->assistantSorts(backlogDays: 7);
+        // No importFinished(): the folder has never completed a sync.
+
+        $this->ingest($this->message('last-fortnight', '-10 days'));
+
+        self::assertNotContains(ClassifyMailMessage::class, $this->classesOn('enrich'));
+        self::assertContains(ExtractEventsMessage::class, $this->classesOn('enrich'), 'only the sorting is limited');
+    }
+
+    /**
+     * The same message, arriving on a finished account: live mail is never
+     * limited, however low the number. Not held, so it takes the chunked path
+     * rather than the one-message envelope held mail always gets.
+     */
+    public function testLiveMailIsQueuedHoweverLowTheLimit(): void
+    {
+        $this->assistantSorts(hold: false, backlogDays: 1);
+        $this->importFinished();
+
+        $this->ingest($this->message('last-fortnight', '-10 days'));
+
+        self::assertContains(ClassifyMailMessage::class, $this->classesOn('enrich_live'));
+    }
+
     public function testArrivingMailIsKeptOutOfTheTabsWhileTheAssistantSorts(): void
     {
         $this->assistantSorts();
@@ -524,7 +555,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     }
 
     /** The installation has the assistant sorting mail, and so does this person. */
-    private function assistantSorts(CategorySource $source = CategorySource::Assistant, bool $hold = true): void
+    private function assistantSorts(CategorySource $source = CategorySource::Assistant, bool $hold = true, int $backlogDays = AiSettings::DEFAULT_CATEGORISE_BACKLOG_DAYS): void
     {
         $settings = $this->em->getRepository(AiSettings::class)->findOneBy([]) ?? new AiSettings();
 
@@ -534,6 +565,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $settings->categorisationEnabled = true;
         $settings->holdUntilClassified   = $hold;
         $settings->holdMaxSeconds        = AiSettings::DEFAULT_HOLD_MAX_SECONDS;
+        $settings->categoriseBacklogDays = $backlogDays;
 
         $this->em->persist($settings);
 

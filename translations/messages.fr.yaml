@@ -168,6 +168,8 @@ admin:
             hold_help: 'Pour ceux qui laissent l’assistant trier leur courrier. Le nouveau courrier est tenu hors des onglets le temps dont l’assistant a besoin, pour qu’il apparaisse une seule fois, dans le bon onglet, au lieu d’apparaître dans un onglet puis de passer dans un autre. Le courrier d’un premier import n’est jamais retenu.'
             hold_max_seconds: 'Attendre au plus (secondes)'
             hold_max_seconds_help: 'Au-delà, le courrier est affiché là où les règles ordinaires le placent, quoi que fasse l’assistant — et déplacé si l’assistant répond plus tard. Entre 2 et 300.'
+            categorise_backlog_days: 'Trier le courrier importé jusqu’à (jours)'
+            categorise_backlog_days_help: 'Jusqu’où l’assistant remonte quand un compte est ajouté ou que son historique est rattrapé. Le courrier plus ancien garde l’onglet que les règles ordinaires lui ont donné — Principal quand aucune règle ne l’a reconnu — et reste consultable par la recherche. Le nouveau courrier est toujours trié, quelle que soit sa date. 0 trie tout ; `app:ai:classify-backlog --any-age` trie le courrier plus ancien sur demande.'
             search_query_instruction: 'Instruction de requête'
             search_query_instruction_help: 'Placée devant le texte recherché avant sa vectorisation. La plupart des modèles en ont besoin et répondent mal sans ; laissez vide pour les modèles qui n’en veulent pas. Seules les recherches sont concernées : la changer n’oblige jamais à réindexer votre courrier.'
             semantic_min_similarity: 'Similarité minimale'
