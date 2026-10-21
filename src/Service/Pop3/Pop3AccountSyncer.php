@@ -420,6 +420,20 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
                 $this->em->flush();
             }
 
+            // The mailbox's own binding is only half of it. Messages already
+            // stored carry the labels THEY were given at build time, and the
+            // ones written before this fix were given none — binding the
+            // mailbox now does not retroactively label them, and the sync will
+            // never see them again because their UIDLs are in the ledger. So
+            // anything sitting in this mailbox with no labels at all gets the
+            // Inbox label now.
+            //
+            // Deliberately "no labels at all" rather than "not this label":
+            // a message the user has since filed somewhere else carries its own
+            // labels and must be left alone, and re-adding Inbox to it would
+            // pull it back into a list they had taken it out of.
+            $this->labelOrphanedMessages($existing);
+
             return $existing;
         }
 
@@ -450,6 +464,61 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         $this->em->flush();
 
         return $mailbox;
+    }
+
+    /**
+     * Give the Inbox label to messages in this mailbox that carry no label at
+     * all.
+     *
+     * The repair half of the label fix, and deliberately narrow: "no labels"
+     * means no view can show the message, which is unambiguously wrong. A
+     * message with ANY label is one somebody or something has filed on purpose,
+     * and adding Inbox to it would pull it back into a list it was taken out of
+     * — which is what archiving is. So this touches only the invisible ones.
+     *
+     * One query and one flush, and only when there is something to repair: a
+     * healthy account finds nothing and pays an indexed count.
+     */
+    private function labelOrphanedMessages(Mailbox $mailbox): void
+    {
+        $label = $mailbox->label;
+
+        if (null === $label) {
+            return;
+        }
+
+        $accountId = (int) $mailbox->account->id;
+        $mailboxId = (int) $mailbox->id;
+
+        /** @var list<Message> $orphans */
+        $orphans = $this->em->createQueryBuilder()
+            ->select('m')
+            ->from(Message::class, 'm')
+            ->where('m.account = :accountId')
+            ->andWhere('m.mailbox = :mailboxId')
+            // A DQL subselect cannot name the join table, so this is written as
+            // "has no labels" through the collection, which Doctrine compiles
+            // to the same NOT EXISTS on message_label.
+            ->andWhere('m.labels IS EMPTY')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('mailboxId', $mailboxId)
+            ->getQuery()
+            ->getResult();
+
+        if ([] === $orphans) {
+            return;
+        }
+
+        foreach ($orphans as $orphan) {
+            $orphan->addLabel($label);
+        }
+
+        $this->logger->info('POP3 sync: gave the Inbox label to messages that had none', [
+            'accountId' => $accountId,
+            'count'     => count($orphans),
+        ]);
+
+        $this->em->flush();
     }
 
     /**
