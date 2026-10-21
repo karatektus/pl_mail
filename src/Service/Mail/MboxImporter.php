@@ -121,7 +121,7 @@ final readonly class MboxImporter
 
             try {
                 $message = $this->messageSyncer->buildMessageFromParsed(
-                    ImapMessage::fromString($rawMessage, $this->imapConfig()),
+                    ImapMessage::fromString($this->normalised($rawMessage), $this->imapConfig()),
                     $mailbox,
                     (int) $account->id,
                 );
@@ -352,6 +352,26 @@ final readonly class MboxImporter
                 sprintf('Mbox import does not carry the %s role.', $role->value),
             ),
         };
+    }
+
+    /**
+     * Mixed line endings made one newsletter parse to NOTHING — no subject, no
+     * date, no sender, an empty row in the inbox. webklex's fromString()
+     * normalises LF to CRLF only when the blob contains no "\r\n" at all, and
+     * this message contained some (in body base64), so the normalisation was
+     * skipped — and then the header/body split looked for "\r\n\r\n", which a
+     * header block terminated with a bare "\n\n" does not contain. strpos
+     * returned false, substr took that as 0, and the "header" was the empty
+     * string.
+     *
+     * Normalising the whole message here is safe: RFC822 requires CRLF anyway,
+     * a live IMAP fetch delivers it, and the only bytes that change are the
+     * line ends of a Thunderbird mbox file, whose bare-LF convention is a
+     * local-file artefact and not what the message said.
+     */
+    private function normalised(string $rawMessage): string
+    {
+        return preg_replace('/(\r\n|\n|\r)/', "\r\n", $rawMessage);
     }
 
     private function imapConfig(): Config

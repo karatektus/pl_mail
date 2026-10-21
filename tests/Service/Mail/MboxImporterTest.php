@@ -245,6 +245,34 @@ final class MboxImporterTest extends KernelTestCase
         self::assertSame($realId, $stored->messageId, 'the identity is the real header, not a tag inside a signature');
     }
 
+
+    public function testMixedLineEndingsStillParse(): void
+    {
+        // webklex's fromString() normalises LF to CRLF only when the blob
+        // contains no \r\n anywhere. A message with mixed endings — a bare-LF
+        // header block and a CRLF somewhere in the body — therefore skipped the
+        // normalisation and then found no "\r\n\r\n" to split on, and parsed
+        // to an empty row: no subject, no date, no sender. Real Thunderbird
+        // mbox files contain exactly this shape.
+        $body = "From: mixed@example.test\r\n"
+            . "Subject: Mixed endings\r\n"
+            . "Date: 2024-06-01 10:00:00 +0000\r\n"
+            . "Message-ID: <mixed-" . bin2hex(random_bytes(4)) . "@example.test>\r\n"
+            . "\n"                      // bare-LF terminator — the trap
+            . "Line one.\nLine two.\r\nLine three.\n";
+
+        $file = $this->tmpDir . '/Inbox';
+        file_put_contents($file, 'From x@y ' . date('r') . "\n" . $body . "\n");
+
+        $result = $this->importer->importFile($file, $this->account, LabelRole::Inbox);
+
+        self::assertSame(1, $result->imported);
+
+        $stored = $this->em->getRepository(Message::class)->findOneBy(['account' => $this->account]);
+        self::assertSame('Mixed endings', $stored->subject, 'the header block must survive mixed line endings');
+        self::assertNotNull($stored->receivedAt);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function writeMbox(string $folder, array $messages): string
