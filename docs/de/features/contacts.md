@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:206a1884cef85ac08451ee963e58a8b427ea620d -->
+<!-- translated-from: features/contacts.md sha1:49c4d9dde9ba2c50954b3d7f30351d7a4a1f60fb -->
 
 # Kontakte
 
@@ -46,7 +46,9 @@ zu gehen.
 ## Ein Kontakt
 
 Die Seite eines Kontakts zeigt seine Angaben, seine Notizen, verwandte Kontakte und
-**Referenz-E-Mails**: jede nicht gelöschte Nachricht an ihn oder von ihm, in jedem Ordner.
+**Referenz-E-Mails**: jede nicht gelöschte Nachricht an ihn oder von ihm, in jedem Ordner. Ein
+Klick öffnet sie in der Mail neben dem Kontakt, der bleibt, wie er ist; auf der ganzen Seite schiebt
+sich die Mail von links herein.
 
 **Neuer Kontakt** fragt nach einem Namen; alles andere ist freiwillig. Ein Kontakt hat:
 

@@ -371,14 +371,47 @@ export default class extends Controller {
     }
 
     async _openUrl(url) {
-        // Remember where to go back to, if we don't already know.
-        if (!this._listUrl) {
+        const fromContacts = this._contactsFull();
+
+        // Remember where to go back to, if we don't already know. Not the full
+        // contacts page's own address: closing a message opened from it shows
+        // the Inbox, in the mail column the message brought in.
+        if (fromContacts) {
+            this._listUrl = this.inboxUrlValue;
+        } else if (!this._listUrl) {
             this._listUrl = window.location.href;
         }
 
         await this._loadMessage(url);
 
         history.pushState({ mailPaneOpen: true }, "", url);
+
+        // Loaded while the column was still put away, so it arrives filled.
+        if (fromContacts) {
+            await this._revealFromContacts();
+            this._fillBesideList();
+        }
+    }
+
+    /**
+     * Whether this is the full contacts page, with the mail column put away
+     * (contacts/_page_shell.html.twig).
+     */
+    _contactsFull() {
+        return null !== document.querySelector("[data-contacts-full]");
+    }
+
+    /**
+     * Asks contacts--pane to bring the mail column in beside the address book,
+     * and waits until it is in the DOM — the transition itself may still be
+     * running. The shell owns that state, so it is asked rather than told;
+     * nobody answering is a page without one, where there is nothing to wait for.
+     */
+    async _revealFromContacts() {
+        const request = new CustomEvent("contacts-pane:reveal", { detail: { done: null } });
+        document.dispatchEvent(request);
+
+        await request.detail.done;
     }
 
     close(event) {
@@ -406,6 +439,13 @@ export default class extends Controller {
 
     async _handlePopState(event) {
         const state = event.state;
+
+        // Back to the full contacts page a message was opened from. That entry
+        // is Turbo's, and Turbo restores the page; a list fetched here for its
+        // address would be a contacts page, not a list.
+        if (false === window.location.pathname.startsWith("/mail")) {
+            return;
+        }
 
         if (state && state.mailPaneOpen) {
             await this._loadMessage(window.location.href);
@@ -486,7 +526,8 @@ export default class extends Controller {
      * widened after the page loaded is the same situation arriving late.
      */
     _fillBesideList() {
-        if (false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
+        // Nothing is beside anything while the contacts have the row.
+        if (this._contactsFull() || false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
             return;
         }
 
@@ -775,6 +816,13 @@ export default class extends Controller {
         if (frame === null) {
             console.warn("[mail-pane] no list frame to refresh");
 
+            return;
+        }
+
+        // The full contacts page: no list on screen, and its address would
+        // answer with a contacts page. The list is fetched when the mail
+        // column comes in.
+        if (this._contactsFull()) {
             return;
         }
 

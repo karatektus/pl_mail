@@ -19,8 +19,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *   - the mailbox draws it as it was left — open with the list already in it,
  *     or closed with an empty lazy frame — and the topbar button says so;
  *   - a contacts page asked for by the pane's frame is the frame alone, with
- *     the pane's own buttons, and the same page asked for normally is the full
- *     page without them.
+ *     the pane's own buttons, and the same page asked for normally is the
+ *     mailbox with that page in the dock and the mail column put away, so a
+ *     message opened from it can come in beside it without a visit.
  *
  * How it shares the row with the calendar is behaviour in the browser, and is
  * contacts-pane.spec.ts's.
@@ -123,9 +124,35 @@ final class ContactsPaneTest extends WebTestCase
         $crawler = $client->request('GET', '/contacts/new');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('turbo-frame#contacts-pane-frame'));
-        self::assertCount(0, $crawler->filter('[data-contacts-pane-actions]'));
         self::assertCount(1, $crawler->filter('[data-controller~="ui--sidebar-drawer"]'));
+
+        // The mailbox, in its full-contacts state: the page in the dock, which
+        // is open whatever is remembered, and a mail pane beside it to open a
+        // message in.
+        $shell = $crawler->filter('[data-contacts-full]');
+
+        self::assertCount(1, $shell);
+        self::assertSame('true', $shell->attr('data-contacts--pane-open-value'));
+        self::assertCount(1, $crawler->filter('[data-mail-column] [data-mail--mail-pane-target="reading"]'));
+
+        $frame = $crawler->filter('[data-side-pane="contacts"] turbo-frame#contacts-pane-frame');
+
+        self::assertCount(1, $frame->filter('[data-contacts-page] form'));
+        self::assertSame('advance', $frame->attr('data-turbo-action'), 'a navigation inside it is the page\'s, while it has the row');
+        self::assertNull($frame->attr('src'), 'the page itself, not fetched after it');
+        // Drawn for when it docks beside the mail; app.css hides them until then.
+        self::assertCount(1, $frame->filter('[data-contacts-pane-actions]'));
+    }
+
+    public function testTheMailboxIsNotTheFullContactsPage(): void
+    {
+        [$client] = $this->signedIn();
+
+        $crawler = $client->request('GET', '/mail/inbox');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-contacts-full]'));
+        self::assertNull($crawler->filter('turbo-frame#contacts-pane-frame')->attr('data-turbo-action'));
     }
 
     protected function tearDown(): void

@@ -173,8 +173,13 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              {# contacts--pane after ui--split: it reads the calendar's position
                 on connect, once ui--split has settled it for this window. #}
              data-controller="ui--split contacts--pane"
-             data-contacts--pane-open-value="{{ app.user.contactsPaneOpen ? 'true' : 'false' }}"
+             {# A contacts page at full size: the mail column put away and the
+                dock given the row, open whatever is remembered. See
+                contacts/_page_shell.html.twig. #}
+             {% if contactsFull|default(false) %}data-contacts-full{% endif %}
+             data-contacts--pane-open-value="{{ contactsFull|default(false) or app.user.contactsPaneOpen ? 'true' : 'false' }}"
              data-contacts--pane-src-value="{{ path('app_contacts_list') }}"
+             data-contacts--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
              data-contacts--pane-state-url-value="{{ path('app_contacts_pane_state') }}"
              data-contacts--pane-token-value="{{ csrf_token('contacts_pane_state') }}"
              data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
@@ -400,8 +405,12 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                    to the full page instead. #}
                 {% if app.user %}
                     {% include '_partials/_calendar_pane.html.twig' %}
-                    {# The address book, the same kind of pane, after it. #}
-                    {% include '_partials/_contacts_pane.html.twig' %}
+                    {# The address book, the same kind of pane, after it. A
+                       block, because the full contacts page fills it with its
+                       own content — see contacts/_page_shell.html.twig. #}
+                    {% block contacts_dock %}
+                        {% include '_partials/_contacts_pane.html.twig' %}
+                    {% endblock %}
                 {% endif %}
             </div>
         </div>

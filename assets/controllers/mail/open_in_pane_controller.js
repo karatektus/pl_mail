@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import * as Turbo from "@hotwired/turbo";
 
 /**
  * mail--open-in-pane: a message link outside the mail pane that opens the
@@ -12,10 +13,15 @@ import { Controller } from "@hotwired/stimulus";
  *
  * So the click is offered to the mail pane as a `mail-pane:open` event; the
  * pane cancels it to say it opened the message, beside the contacts as they
- * were. On a page with no mail pane (the full-size contacts page) nobody
- * cancels it, and the link's own `data-turbo-frame="_top"` makes it an
- * ordinary visit to the message, in the mailbox. A middle- or modified click
- * is left to the browser.
+ * were — on the full contacts page too, which is the mailbox with its mail
+ * column put away (contacts/_page_shell.html.twig). A page with no mail pane
+ * at all gets a visit to the message instead.
+ *
+ * Not `data-turbo-frame="_top"` on the links for that last case: ui--split
+ * reads a `_top` mail link as a full visit to come, and leaves a calendar
+ * position behind for it (its handoff). The visit then never came, and the
+ * next page opened on the calendar. A middle- or modified click is left to the
+ * browser.
  */
 export default class extends Controller {
     open(event) {
@@ -29,10 +35,12 @@ export default class extends Controller {
             return;
         }
 
+        event.preventDefault();
+
         const request = new CustomEvent("mail-pane:open", { cancelable: true, detail: { url: link.href } });
 
-        if (false === document.dispatchEvent(request)) {
-            event.preventDefault();
+        if (true === document.dispatchEvent(request)) {
+            Turbo.visit(link.href);
         }
     }
 }

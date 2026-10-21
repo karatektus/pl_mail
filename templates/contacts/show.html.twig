@@ -223,12 +223,12 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
                 {% if refEmails is empty %}
                     <p class="text-sm text-ink-faint">{{ 'contacts.reference_emails_empty'|trans }}</p>
                 {% else %}
-                    {# Opened in the mail pane when there is one, else a visit to
-                       the mailbox: see mail--open-in-pane. #}
+                    {# Opened in the mail pane, beside the contact: see
+                       mail--open-in-pane. #}
                     <ul class="flex flex-col divide-y divide-line" data-controller="mail--open-in-pane" data-action="click->mail--open-in-pane#open">
                         {% for row in refEmails %}
                             <li>
-                                <a href="{{ path('app_mail_message', { id: row.id }) }}" data-turbo-frame="_top" data-reference-email
+                                <a href="{{ path('app_mail_message', { id: row.id }) }}" data-reference-email
                                    class="flex items-center gap-3 py-2.5 hover:bg-hover rounded-lg px-2 -mx-2 transition-colors min-w-0">
                                     {% if row.isStarred %}
                                         <i class="fa-solid fa-star text-warning text-xs shrink-0" aria-hidden="true"></i>

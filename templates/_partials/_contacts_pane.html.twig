@@ -20,7 +20,10 @@ The pane runs the whole address book. Every contacts page renders into
 mail beside it never reloads.
 #}
 
-{% set paneOpen = app.user.contactsPaneOpen %}
+{# The full contacts page hands over its own page as `contactsPaneBody` (see
+   contacts/_page_shell.html.twig): open, whatever is remembered, and with no
+   list rendered only to be replaced. #}
+{% set paneOpen = contactsPaneBody is defined or app.user.contactsPaneOpen %}
 
 {% embed '_partials/_side_pane.html.twig' with {
     name: 'contacts',
@@ -45,7 +48,9 @@ mail beside it never reloads.
            empty otherwise — the calendar pane's reasoning. The attribute is
            what tells the contacts layout this is the pane, as the frame's
            header does for a navigation inside it. #}
-        {% if open %}
+        {% if contactsPaneBody is defined %}
+            {{ contactsPaneBody }}
+        {% elseif open %}
             {{ render(controller('App\\Controller\\Contacts\\ContactController::list', { _contacts_pane: true })) }}
         {% else %}
             <turbo-frame

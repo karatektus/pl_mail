@@ -2714,6 +2714,82 @@
     }
 }
 
+/* ═══ The address book at full size ═════════════════════════════════════════
+   The full contacts page is the mailbox with `data-contacts-full` on the shell
+   (contacts/_page_shell.html.twig): the mail column put away and the address
+   book's dock given what is left of the row, at every width. A calendar the
+   user keeps open stays beside it — there is no mail here to take turns with.
+
+   After the rules above, which they have to beat: a calendar that covers the
+   mail, or splits it on a notebook, hides the dock, and its .main-pane rule
+   catches the dock's pane as well. Same specificity, later in the file.
+
+   The dock's own way out to the full page, its × and its handle go while it
+   has the row — each of them is about a boundary that is not there. */
+[data-contacts-full] [data-mail-column] {
+    display: none;
+}
+
+[data-contacts-full] [data-side-pane="contacts"],
+[data-contacts-full] [data-side-pane="contacts"] .main-pane {
+    display: flex;
+    flex: 1 1 0%;
+    width: auto;
+}
+
+[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"],
+[data-contacts-full] [data-contacts-pane-actions] {
+    display: none;
+}
+
+/* Leaving it — a message opened from the contact — is a view transition (see
+   contacts--pane#reveal): the mail column comes in from the left and the
+   address book draws back to its docked width, the same DOM throughout. The
+   names are only given for the length of it, so no other change of the page
+   is animated by accident. The two pictures of the address book are pinned to
+   its right edge and not stretched: the contact narrows, it does not squash. */
+[data-contacts-revealing] [data-mail-column] {
+    view-transition-name: contacts-reveal-mail;
+}
+
+[data-contacts-revealing] [data-side-pane="contacts"] {
+    view-transition-name: contacts-reveal-dock;
+}
+
+[data-contacts-revealing] [data-side-pane="calendar"] {
+    view-transition-name: contacts-reveal-calendar;
+}
+
+::view-transition-group(contacts-reveal-mail),
+::view-transition-group(contacts-reveal-dock),
+::view-transition-group(contacts-reveal-calendar) {
+    animation-duration: 280ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-group(contacts-reveal-dock) {
+    overflow: clip;
+}
+
+::view-transition-old(contacts-reveal-dock),
+::view-transition-new(contacts-reveal-dock) {
+    height: 100%;
+    object-fit: none;
+    object-position: right top;
+    animation-duration: 280ms;
+}
+
+::view-transition-new(contacts-reveal-mail) {
+    animation: contacts-reveal-mail 280ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes contacts-reveal-mail {
+    from {
+        opacity: 0;
+        transform: translateX(-2rem);
+    }
+}
+
 /* The switch itself needs no rule here, deliberately. Which icon is drawn is
    the `hidden` ATTRIBUTE on the other two, and the accented state is two
    utility classes — both written by the server and toggled by ui--split. A

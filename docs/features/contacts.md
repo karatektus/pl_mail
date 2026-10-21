@@ -38,7 +38,9 @@ sent to the server.
 ## A contact
 
 The contact's page shows its details, its notes, related contacts, and **Reference emails**: every
-message to or from the contact that has not been deleted, in any folder.
+message to or from the contact that has not been deleted, in any folder. Clicking one opens it in
+the mail beside the contact, which stays as it was; on the full page the mail slides in from the
+left.
 
 **New contact** asks for a name; everything else is optional. A contact holds:
 

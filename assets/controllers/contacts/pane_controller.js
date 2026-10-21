@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import * as Turbo from "@hotwired/turbo";
 
 /*
  * The address book docked beside the mail: whether it is open, and whether it
@@ -23,6 +24,16 @@ import { Controller } from "@hotwired/stimulus";
  * window made narrower with both open: the address book is simply not drawn
  * while the calendar is beside the mail there. This controller keeps what is
  * remembered in step with what the user did.
+ *
+ * ── At full size ──────────────────────────────────────────────────────────
+ *
+ * The full contacts page is this same shell with `data-contacts-full` on it
+ * (contacts/_page_shell.html.twig): the mail column put away and the dock
+ * given the row. Leaving that is `reveal`, asked for by mail--mail-pane when a
+ * message is opened from a contact, and by a list loaded into the mail column
+ * from the sidebar: the mail comes in from the left and the dock draws back to
+ * its width, as a view transition, with the contact as it was. From then on it
+ * is the mailbox with the pane open, and remembered so.
  */
 export default class extends Controller {
     static targets = ["dock", "toggle"];
@@ -31,6 +42,7 @@ export default class extends Controller {
         src: String,
         stateUrl: String,
         token: String,
+        inboxUrl: String,
     };
 
     /** Where the row starts to hold both panes. Matches app.css. */
@@ -40,6 +52,31 @@ export default class extends Controller {
         // The topbar's first-paint accent, from lg up — see the button in
         // _topbar.html.twig. _render draws the real state from here on.
         this.toggleTargets.forEach((toggle) => toggle.classList.remove("lg:bg-accent-soft", "lg:text-accent"));
+
+        this._onReveal = (event) => {
+            event.detail.done = this.reveal();
+        };
+        document.addEventListener("contacts-pane:reveal", this._onReveal);
+
+        // A list loaded into the mail column — the sidebar's mail links and
+        // search target its frame (see ui--split) — is somebody going to the
+        // mail. The syncs refresh it by fetch, not as a frame load, so this
+        // hears only a navigation.
+        this._onFrameLoad = (event) => {
+            if ("inbox-list-frame" === event.target.id) {
+                this.reveal();
+            }
+        };
+        document.addEventListener("turbo:frame-load", this._onFrameLoad);
+
+        // At full size the pane is open whatever is remembered, and has the
+        // calendar beside it rather than taking turns — there is no mail on
+        // screen to share the row with.
+        if (this._isFull()) {
+            this._render(true);
+
+            return;
+        }
 
         // Remembered open from a wider screen, beside a calendar this one
         // shows: the calendar keeps the room, as app.css already drew it. Not
@@ -53,9 +90,17 @@ export default class extends Controller {
         this._render(this.openValue);
     }
 
+    disconnect() {
+        document.removeEventListener("contacts-pane:reveal", this._onReveal);
+        document.removeEventListener("turbo:frame-load", this._onFrameLoad);
+    }
+
     /**
      * The topbar button. Below lg it is the link to /contacts it looks like,
      * and so is a middle click or a modified one anywhere.
+     *
+     * On the full contacts page it puts the address book away, which leaves
+     * the mail: the Inbox, with the pane remembered closed.
      */
     toggle(event) {
         if (true === this._isNarrow() || event.metaKey || event.ctrlKey || event.shiftKey || 1 === event.button) {
@@ -63,6 +108,14 @@ export default class extends Controller {
         }
 
         event.preventDefault();
+
+        // After the write, not beside it: the Inbox is rendered from what is
+        // remembered, and a visit that overtook the write drew the pane open.
+        if (this._isFull()) {
+            this._persist(false).then(() => Turbo.visit(this.inboxUrlValue));
+
+            return;
+        }
         this._set(!this.openValue);
     }
 
@@ -75,6 +128,11 @@ export default class extends Controller {
     /** The calendar moved — see ui--split's `mode` event. */
     calendarMoved(event) {
         const mode = event.detail?.mode;
+
+        // Beside the full page the two do not take turns: no mail is showing.
+        if (this._isFull()) {
+            return;
+        }
 
         if (true === this.openValue && "mail" !== mode && false === this._isWide()) {
             this._set(false);
@@ -129,6 +187,61 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * From the full page to the mailbox with the pane open: the mail column
+     * comes in from the left, the dock draws back to its own width, and the
+     * contact in it is the same DOM throughout — nothing reloads, nothing
+     * scrolls. A view transition, where the browser has them and motion is
+     * welcome; the same change without one otherwise.
+     *
+     * Below lg the mail does not sit beside the pane, so there it replaces it,
+     * as the mail does everything below lg, and nothing is remembered: a phone
+     * is not somebody docking the address book.
+     *
+     * @returns {Promise<void>} once the change is in the DOM
+     */
+    reveal() {
+        if (false === this._isFull()) {
+            return Promise.resolve();
+        }
+
+        const change = () => {
+            this.element.removeAttribute("data-contacts-full");
+
+            // The frame's navigations were the page's while it had the row;
+            // the address is the mail's from here on.
+            this.dockTarget.querySelector("turbo-frame#contacts-pane-frame")?.removeAttribute("data-turbo-action");
+
+            if (this._isNarrow()) {
+                this._render(true);
+            } else {
+                this._set(true);
+            }
+        };
+
+        if (
+            "function" !== typeof document.startViewTransition
+            || this._isNarrow()
+            || window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ) {
+            change();
+
+            return Promise.resolve();
+        }
+
+        // Names for the two panes, for this transition only — see app.css.
+        this.element.setAttribute("data-contacts-revealing", "");
+
+        const transition = document.startViewTransition(change);
+        transition.finished.finally(() => this.element.removeAttribute("data-contacts-revealing"));
+
+        return transition.updateCallbackDone;
+    }
+
+    _isFull() {
+        return this.element.hasAttribute("data-contacts-full");
+    }
+
     _calendarShowing() {
         return "mail" !== (this.element.dataset.calendarMode ?? "mail");
     }
@@ -141,17 +254,20 @@ export default class extends Controller {
         return window.matchMedia("(max-width: 1023px)").matches;
     }
 
-    /** Best-effort, as ui--split's is: a lost write costs the memory, not the layout. */
+    /**
+     * Best-effort, as ui--split's is: a lost write costs the memory, not the
+     * layout. Settles either way, for a caller that has to come after it.
+     */
     _persist(open) {
         if (!this.hasStateUrlValue) {
-            return;
+            return Promise.resolve();
         }
 
         const body = new FormData();
         body.append("_token", this.tokenValue);
         body.append("open", open ? "1" : "0");
 
-        fetch(this.stateUrlValue, {
+        return fetch(this.stateUrlValue, {
             method: "POST",
             body,
             headers: { "X-Requested-With": "fetch" },

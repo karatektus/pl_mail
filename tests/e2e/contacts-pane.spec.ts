@@ -18,6 +18,20 @@ const toggle = (page: Page) => page.locator("[data-contacts--pane-target='toggle
 const frame = (page: Page) => page.locator("turbo-frame#contacts-pane-frame");
 
 /**
+ * A contact for the sender every worker's seeded inbox is from, so its page
+ * lists those threads under "Reference emails". Made in the docked pane, and
+ * left open there.
+ */
+async function createSender(page: Page): Promise<void> {
+    await frame(page).getByRole("link", { name: "New contact" }).first().click();
+    await frame(page).locator("[name='displayName']").fill("E2E Sender");
+    await frame(page).getByRole("button", { name: "Add email" }).click();
+    await frame(page).locator("[name='emails[0][value]']").fill("sender@e2e.test");
+    await frame(page).getByRole("button", { name: "Save" }).click();
+    await expect(frame(page).locator("a[data-reference-email]").first()).toBeVisible();
+}
+
+/**
  * Both panes back to closed. The state is server-side on the per-worker user,
  * which every other spec file this worker runs shares — see calendar-pane.
  */
@@ -84,14 +98,7 @@ test.describe("contacts pane on a notebook", () => {
     test("a contact's reference email opens in the mail pane, beside the contact", async ({ page }) => {
         await page.goto("/mail/inbox");
         await toggle(page).click();
-
-        // A contact for the sender every worker's seeded inbox is from, so its
-        // page lists those threads under "Reference emails".
-        await frame(page).getByRole("link", { name: "New contact" }).first().click();
-        await frame(page).locator("[name='displayName']").fill("E2E Sender");
-        await frame(page).getByRole("button", { name: "Add email" }).click();
-        await frame(page).locator("[name='emails[0][value]']").fill("sender@e2e.test");
-        await frame(page).getByRole("button", { name: "Save" }).click();
+        await createSender(page);
 
         const reference = frame(page).locator("a[data-reference-email]", { hasText: INBOX_SUBJECTS.read });
         await reference.click();
@@ -100,6 +107,46 @@ test.describe("contacts pane on a notebook", () => {
         await expect(page).toHaveURL(/\/mail\/message\/\d+/);
         await expect(page.locator("[data-mail--mail-pane-target='reading']")).toContainText(INBOX_SUBJECTS.read);
         await expect(reference).toBeVisible();
+    });
+
+    test("from the full contacts page, the mail comes in beside the contact, which stays as it was", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+        await createSender(page);
+
+        // The contact's own page, full size, with the calendar beside it — the
+        // state a notebook came back to on the calendar when this was a visit.
+        await frame(page).getByRole("link", { name: "Open contacts full page" }).click();
+        await expect(page).toHaveURL(/\/contacts\/\d+$/);
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+        await page.locator("[data-calendar-toggle]").first().click();
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+        await expect(dock(page)).toBeVisible();
+
+        // Anything a reload or a visit would lose: a mark on the window, and
+        // the contact's own element.
+        await page.evaluate(() => {
+            (window as unknown as { __stayed: boolean }).__stayed = true;
+            (window as unknown as { __page: Element | null }).__page = document.querySelector("#contacts-pane-frame [data-contacts-page]");
+        });
+
+        await frame(page).locator("a[data-reference-email]", { hasText: INBOX_SUBJECTS.read }).click();
+
+        // The message is fetched before the mail column comes in, and on a
+        // cold stack it can queue behind the calendar's own first load.
+        await expect(shell(page)).not.toHaveAttribute("data-contacts-full", "", { timeout: 15_000 });
+        await expect(page).toHaveURL(/\/mail\/message\/\d+/);
+        await expect(page.locator("[data-mail--mail-pane-target='reading']")).toContainText(INBOX_SUBJECTS.read);
+        await expect(dock(page)).toBeVisible();
+        // A notebook holds one pane beside the mail: the calendar made room.
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+
+        const kept = await page.evaluate(() => {
+            const w = window as unknown as { __stayed?: boolean; __page?: Element | null };
+
+            return true === w.__stayed && w.__page === document.querySelector("#contacts-pane-frame [data-contacts-page]");
+        });
+        expect(kept).toBe(true);
     });
 
     test("it is remembered across a reload", async ({ page }) => {
