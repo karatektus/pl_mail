@@ -161,8 +161,7 @@ final class UnreadFilteredListsTest extends KernelTestCase
         self::assertSame(1, $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
         self::assertCount(1, $repository->findForLabel($work, unreadOnly: true));
 
-        $thread->addLabel($trash);
-        $this->em->flush();
+        $this->binThread($thread, $trash);
 
         self::assertSame(0, $repository->countUnreadPerUserLabel($this->user)[(int) $work->id] ?? 0);
         self::assertCount(0, $repository->findForLabel($work, unreadOnly: true));

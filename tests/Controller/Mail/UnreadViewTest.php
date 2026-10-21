@@ -125,6 +125,12 @@ final class UnreadViewTest extends WebTestCase
         $thread->removeLabel($this->inbox);
         $thread->addLabel($label);
 
+        // On the messages too, where filing puts it: the bin counts a
+        // conversation as deleted only when every message is in it (#268).
+        foreach ($thread->messages as $message) {
+            $message->addLabel($label);
+        }
+
         $this->em->flush();
 
         return $thread;

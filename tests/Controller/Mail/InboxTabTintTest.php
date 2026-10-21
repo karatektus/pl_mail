@@ -211,8 +211,7 @@ final class InboxTabTintTest extends WebTestCase
         $binned  = $this->thread('binned but unread', category: MessageCategory::Promotions, unread: 1);
 
         // Exactly the shape the bin leaves behind: both labels, not a swap.
-        $binned->addLabel($trash);
-        $this->em->flush();
+        $this->binThread($binned, $trash);
 
         $this->thread('genuinely unread', category: MessageCategory::Social, unread: 1);
 

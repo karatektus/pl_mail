@@ -268,6 +268,38 @@ final class MessageSearchTest extends KernelTestCase
         self::assertSame(['Binned invoice'], $this->search('in:bin'));
     }
 
+    /**
+     * A conversation with one message in the bin and one out of it is not
+     * deleted, so search finds it without `in:trash` (#268), as the lists do.
+     * Search writes its own SQL for the rule, which is why it has its own test.
+     */
+    public function testAPartlyDeletedConversationIsFound(): void
+    {
+        $trash = $this->seedLabel('Trash', LabelRole::Trash);
+
+        $this->seedMessage(subject: 'Half deleted invoice', body: 'the quarterly invoice', labels: [$trash]);
+
+        $thread = $this->em->getRepository(MessageThread::class)->findOneBy(['subject' => 'Half deleted invoice']);
+        self::assertInstanceOf(MessageThread::class, $thread);
+
+        $reply                 = new Message();
+        $reply->account        = $this->account;
+        $reply->thread         = $thread;
+        $reply->subject        = 'Re: Half deleted invoice';
+        $reply->fromAddress    = 'sender@example.test';
+        $reply->bodyText       = 'Nothing in particular.';
+        $reply->receivedAt     = new DateTimeImmutable('2026-01-02');
+        $reply->sentAt         = $reply->receivedAt;
+        $reply->hasAttachments = false;
+        $reply->flags          = [];
+        $thread->addMessage($reply);
+        $this->em->persist($reply);
+        $this->em->flush();
+
+        self::assertSame(['Half deleted invoice'], $this->search('invoice'));
+        self::assertSame(['Half deleted invoice'], $this->search('in:trash'));
+    }
+
     public function testFlagsAndDatesNarrowTheSameWay(): void
     {
         $this->seedMessage(subject: 'Unread old', receivedAt: '2024-03-01', seen: false);
