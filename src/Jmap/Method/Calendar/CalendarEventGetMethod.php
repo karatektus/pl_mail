@@ -13,6 +13,8 @@ use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use App\Repository\Calendar\CalendarEventRepository;
+use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Repository\Note\NoteRepository;
 
 /**
  * "CalendarEvent/get".
@@ -56,6 +58,8 @@ final class CalendarEventGetMethod implements JmapMethod
         private readonly CalendarEventOccurrenceRepository $occurrences,
         private readonly CalendarEventMapper $mapper,
         private readonly CalendarChangeReader $changes,
+        private readonly ?EventSourceLinkRepository $sourceLinks = null,
+        private readonly ?NoteRepository $notes = null,
     ) {
     }
 
@@ -125,6 +129,8 @@ final class CalendarEventGetMethod implements JmapMethod
             $list[] = $this->mapper->toJmap($event, $properties);
         }
 
+        $list = $this->markLinked($context, $list, $properties);
+
         return [
             'accountId' => (string) $account->id,
             'state' => $this->changes->stateForUser((int) $context->user->id),
@@ -168,5 +174,34 @@ final class CalendarEventGetMethod implements JmapMethod
         }
 
         return $this->mapper->toJmapInstance($occurrence, $properties);
+    }
+
+    /**
+     * plMail extension `isLinked`: the event came from an email, or one of
+     * the user's notes links to it — the link icon on the phone's calendar
+     * widget. Worked out for the whole list in two queries, and only when it was asked for (or everything was).
+     *
+     * @param list<array<string,mixed>> $list
+     * @param list<string>|null         $properties
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function markLinked(JmapContext $context, array $list, ?array $properties): array
+    {
+        if ([] === $list || (null !== $properties && false === in_array('isLinked', $properties, true))) {
+            return $list;
+        }
+
+        $seriesOf = static fn (array $object): int => (int) ($object['seriesId'] ?? $object['id'] ?? 0);
+        $ids      = array_values(array_unique(array_filter(array_map($seriesOf, $list))));
+
+        $linked = ($this->sourceLinks?->eventIdsWithMessage($ids) ?? [])
+            + ($this->notes?->linkedEventIds($context->user) ?? []);
+
+        foreach ($list as $i => $object) {
+            $list[$i]['isLinked'] = isset($linked[$seriesOf($object)]);
+        }
+
+        return $list;
     }
 }

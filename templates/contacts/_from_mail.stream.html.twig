@@ -1,0 +1,6 @@
+{# Swaps every badge for this sender to the "in your contacts" state. #}
+<turbo-stream action="replace" targets="[data-contact-badge='{{ address_book_key(address) }}']">
+    <template>
+        {% include 'contacts/_sender_badge.html.twig' with {address: address, name: name, contactId: contactId} only %}
+    </template>
+</turbo-stream>

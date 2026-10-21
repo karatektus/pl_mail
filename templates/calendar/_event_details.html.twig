@@ -218,6 +218,10 @@ provenance link carries it too.
                 {% endif %}
             </div>
         {% endif %}
+
+        {# ── Notes about this event ─────────────────────────────────────── #}
+        {% import 'notes/_macros.html.twig' as nm %}
+        {{ nm.linkedNotes(notes, 'event', event.id, title, path('app_calendar_index')) }}
     </div>
 
     {# ── Edit, one step in ──────────────────────────────────────────────── #}

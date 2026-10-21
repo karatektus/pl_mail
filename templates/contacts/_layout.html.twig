@@ -1,0 +1,46 @@
+{#
+contacts/_layout.html.twig — the address book inside the app shell.
+
+Drawn the way Drive is: topbar, the mail sidebar, and one main pane. Button
+and field classes are shared here so every contacts page matches.
+
+Pages extend this and fill `contacts_content`; they may override `title`.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% set btnGhost = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover hover:text-ink border border-line transition-colors cursor-pointer' %}
+{% set btnPrimary = 'inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer' %}
+{% set btnDanger = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-danger hover:bg-danger-soft border border-line transition-colors cursor-pointer' %}
+{% set iconBtn = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer' %}
+{% set fieldCls = 'w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent' %}
+{% set labelCls = 'block text-xs font-semibold text-ink-faint uppercase tracking-wider mb-1' %}
+{% set cardCls = 'rounded-pane border border-line bg-surface p-4' %}
+
+{% block body %}
+    <div class="h-full overflow-hidden app-bg" data-controller="ui--sidebar-drawer">
+
+        <div data-ui--sidebar-drawer-target="backdrop" data-action="click->ui--sidebar-drawer#backdropClick"
+             class="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"
+             aria-hidden="true"></div>
+        <div data-ui--sidebar-drawer-target="drawer" id="sidebar-drawer" inert
+             class="md:hidden fixed inset-y-0 left-0 z-40 w-64 p-3 -translate-x-full transition-transform duration-200 ease-out">
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } %}
+        </div>
+
+        <div class="shell-frame flex h-full flex-col p-gutter gap-gutter">
+            {% include '_partials/_topbar.html.twig' %}
+
+            <div class="flex flex-1 gap-gutter overflow-hidden">
+                <div class="hidden md:flex">
+                    {% include '_partials/_sidebar.html.twig' %}
+                </div>
+
+                <div class="flex flex-1 overflow-hidden main-pane">
+                    <div class="relative flex flex-col flex-1 min-w-0 overflow-hidden">
+                        {% block contacts_content %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

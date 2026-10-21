@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Entity\Note\Note;
+use App\Repository\Note\NoteRepository;
 use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
 use App\Entity\Template\MailTemplate;
@@ -56,6 +58,7 @@ final class ComposeTemplateController extends AbstractController
         private readonly MailBodySanitizer      $sanitizer,
         private readonly EntityManagerInterface $em,
         private readonly TranslatorInterface    $translator,
+        private readonly NoteRepository         $notes,
     ) {
     }
 
@@ -77,6 +80,11 @@ final class ComposeTemplateController extends AbstractController
             'tree'       => $this->library->tree($user),
             'current'    => $this->account($request->query->get('account'), $user),
             'chipLabels' => $this->editorData->chipLabels($user),
+            // The user's notes, to drop into the message (see NoteController::asMessage).
+            'notes'      => array_values(array_filter(
+                $this->notes->findForUser($user),
+                static fn (Note $note): bool => null === $note->trashedAt,
+            )),
         ]);
     }
 

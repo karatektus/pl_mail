@@ -85,8 +85,9 @@
                 Referrer-Policy "strict-origin-when-cross-origin"
 
                 # Nothing here asks for any of them, and a compromised page
-                # should not be able to start.
-                Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()"
+                # should not be able to start — apart from the microphone, on
+                # this origin only, for voice notes (notes--media).
+                Permissions-Policy "geolocation=(), microphone=(self), camera=(), payment=(), usb=(), interest-cohort=()"
 
                 # The version banner. Not a vulnerability, just free
                 # reconnaissance.

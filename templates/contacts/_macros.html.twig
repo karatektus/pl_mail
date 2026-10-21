@@ -1,0 +1,26 @@
+{#
+contacts/_macros.html.twig — shared contact bits.
+
+avatar(contact, cls): the photo, or a single-initial fallback tile. The photo
+comes from app_contacts_photo_show, on the page's own session — not the JMAP
+route, whose stateless firewall answers a browser with a Basic "Sign in" box.
+#}
+{% macro avatar(contact, cls) %}
+    {% if contact.photoPath %}
+        <img src="{{ path('app_contacts_photo_show', { id: contact.id }) }}"
+             alt="" loading="lazy"
+             class="{{ cls }} rounded-full object-cover shrink-0">
+    {% else %}
+        <span class="{{ cls }} rounded-full bg-accent-soft text-accent inline-flex items-center justify-center font-semibold shrink-0"
+              aria-hidden="true">{{ contact.displayName|slice(0, 1)|upper }}</span>
+    {% endif %}
+{% endmacro %}
+
+{#
+field(key, draft, contact): the value a form input should show — the failed
+submit's draft value when present, else the contact's, else empty. (Twig
+cannot call an arrow function stored in a variable, so this is a macro.)
+#}
+{% macro field(key, draft, contact) -%}
+    {{- draft ? (draft[key]|default('')) : (contact ? attribute(contact, key) : '') -}}
+{%- endmacro %}

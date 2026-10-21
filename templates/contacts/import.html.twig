@@ -1,0 +1,96 @@
+{#
+contacts/import.html.twig — import from a .vcf/.vcard or .csv file.
+
+Two steps on one URL: POST /contacts/import parses and shows a preview;
+POST /contacts/import/confirm persists. The staged file lives under
+var/contacts/_staging/<userId>/ between the steps and is re-parsed on
+confirm, so nothing large ever sits in the session.
+
+Variables: preview (ParsedContact[]|null), previewTotal, format, tokenId.
+#}
+{% extends 'contacts/_layout.html.twig' %}
+
+{% block title %}{{ 'contacts.import'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.back'|trans }}">
+            <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+        </a>
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ 'contacts.import'|trans }}</h1>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        <div class="max-w-3xl mx-auto flex flex-col gap-5">
+
+            <section class="{{ cardCls }}">
+                <h2 class="text-sm font-semibold text-ink mb-1">{{ 'contacts.import_step1'|trans }}</h2>
+                <p class="text-xs text-ink-faint mb-3">{{ 'contacts.import_hint'|trans }}</p>
+                <form method="post" action="{{ path('app_contacts_import_upload') }}" enctype="multipart/form-data"
+                      class="flex items-center gap-2 flex-wrap"
+                      data-turbo="false"
+                      data-controller="contacts--form" data-action="submit->contacts--form#uploading">
+                    <input type="hidden" name="_token" value="{{ csrf_token('contacts_import') }}">
+                    <label class="{{ btnGhost }} cursor-pointer">
+                        <i class="fa-solid fa-file-arrow-up text-xs" aria-hidden="true"></i>{{ 'contacts.import_choose'|trans }}
+                        <input type="file" name="file" accept=".vcf,.vcard,.csv" required class="sr-only"
+                               data-contacts--form-target="fileInput"
+                               data-action="change->contacts--form#fileChosen">
+                    </label>
+                    <button type="submit" class="{{ btnPrimary }}" data-contacts--form-target="uploadBtn"
+                            data-action="click->contacts--form#uploadClicked">
+                        <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>{{ 'contacts.import_upload'|trans }}
+                    </button>
+                    <span class="text-xs text-ink-faint" data-contacts--form-target="status"
+                          data-uploading="{{ 'contacts.import_uploading'|trans }}">{{ 'contacts.import_formats'|trans }}</span>
+                </form>
+            </section>
+
+            {% if preview is not null %}
+                <section class="{{ cardCls }}">
+                    <h2 class="text-sm font-semibold text-ink mb-1">{{ 'contacts.import_step2'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mb-3">
+                        {{ 'contacts.import_preview_count'|trans({'%count%': previewTotal, '%format%': format|upper}) }}
+                    </p>
+
+                    <div class="overflow-x-auto rounded-lg border border-line mb-4">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs uppercase tracking-wider text-ink-faint border-b border-line">
+                                    <th class="px-3 py-2 font-semibold">{{ 'contacts.display_name'|trans }}</th>
+                                    <th class="px-3 py-2 font-semibold">{{ 'contacts.section_emails'|trans }}</th>
+                                    <th class="px-3 py-2 font-semibold">{{ 'contacts.section_phones'|trans }}</th>
+                                    <th class="px-3 py-2 font-semibold">{{ 'contacts.company'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-line">
+                                {% for dto in preview %}
+                                    <tr>
+                                        <td class="px-3 py-2 text-ink font-medium">{{ dto.displayName|default('—') }}</td>
+                                        <td class="px-3 py-2 text-ink-muted text-xs">
+                                            {{ dto.emails|map(e => e.email)|join(', ') }}
+                                        </td>
+                                        <td class="px-3 py-2 text-ink-muted text-xs">
+                                            {{ dto.phones|map(p => p.phone)|join(', ') }}
+                                        </td>
+                                        <td class="px-3 py-2 text-ink-muted text-xs">{{ dto.company|default('') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <form method="post" action="{{ path('app_contacts_import_confirm') }}" class="flex items-center gap-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
+                        <button type="submit" class="{{ btnPrimary }}">
+                            <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>
+                            {{ 'contacts.import_confirm'|trans({'%count%': previewTotal}) }}
+                        </button>
+                        <span class="text-xs text-ink-faint">{{ 'contacts.import_dedupe_note'|trans }}</span>
+                    </form>
+                </section>
+            {% endif %}
+
+        </div>
+    </div>
+{% endblock %}

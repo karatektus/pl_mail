@@ -53,7 +53,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * in them only files laid out the way the writer lays them out. The roots are
  * shared volumes, and other owners keep files there that no column of ours
  * names: profile pictures (uploads/avatars), signature images
- * (uploads/signatures), appearance backgrounds (uploads/backgrounds). Until
+ * (uploads/signatures), appearance backgrounds (uploads/backgrounds), note
+ * pictures and recordings (uploads/notes). Until
  * #214 the sweep walked the whole root, took those for orphans and deleted
  * them every Sunday, along with every attachment thumbnail (attachments/thumbs),
  * which the third pass below now handles by its own rule.

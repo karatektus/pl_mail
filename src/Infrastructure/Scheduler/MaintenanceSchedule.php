@@ -109,6 +109,9 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // starts_at and asks for a jsonb key most events do not have.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:calendar:alerts')),
 
+                // Note reminders, on the same minute and for the same reason.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:notes:reminders')),
+
                 // The sweep two docblocks already claimed was running. An
                 // event's occurrences are drawn when it is saved and the window
                 // never moved afterwards, so a weekly standup created today ran

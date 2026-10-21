@@ -109,6 +109,7 @@ final class CalendarController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly EntityManagerInterface $em,
         private readonly EventSourceLinkRepository $sourceLinks,
+        private readonly \App\Repository\Note\NoteRepository $noteRepository,
     ) {
     }
 
@@ -297,6 +298,7 @@ final class CalendarController extends AbstractController
             'recurrenceId' => $this->instances->identify($instance),
             'source'       => $source,
             'returnTo'     => $this->returnTo($request),
+            'notes'        => $this->noteRepository->findLinkedTo($this->currentUser(), 'event', (string) $event->id),
         ]);
     }
 

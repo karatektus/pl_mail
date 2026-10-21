@@ -18,6 +18,7 @@ use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Domain\Enum\Template\DateFormatPreset;
 use App\Domain\Enum\Template\TemplateVariable;
+use App\Entity\Note\Note;
 use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Mapper\AppearanceMapper;
@@ -147,8 +148,20 @@ final class SessionBuilder
                 // property of one account, and every value lives in that
                 // account's entry under the same URN.
                 Capability::SYNC => new \stdClass(),
-                Capability::CONTACTS => $this->contactsCapabilities(),
+                Capability::CONTACTS => $this->contactsCapabilities($base),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
+                Capability::NOTES => [
+                    'colors'    => Note::COLORS,
+                    'linkTypes' => Note::LINK_TYPES,
+                    'maxBody'   => 50_000,
+                    'maxItems'  => 300,
+                    'maxLinks'  => 50,
+                    'maxLabels' => 20,
+                    // Pictures, drawings and voice notes: {noteId} filled in by
+                    // the client (see NoteMediaApiController).
+                    'mediaUrl'  => $base.'/jmap/notes/{noteId}/media',
+                    'maxMedia'  => \App\Service\Note\NoteMediaStorage::MAX_ITEMS,
+                ],
                 Capability::INBOX_TABS => new \stdClass(),
             ],
             'accounts' => $accountsValue,
@@ -422,9 +435,10 @@ final class SessionBuilder
      *
      * @return array<string,mixed>
      */
-    private function contactsCapabilities(): array
+    private function contactsCapabilities(string $base): array
     {
         return [
+            'apiUrl' => $base.'/jmap/contacts',
             'maxSuggestions' => ContactAutocompleteMethod::MAX_LIMIT,
             'defaultSuggestions' => ContactAutocompleteMethod::DEFAULT_LIMIT,
         ];

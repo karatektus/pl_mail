@@ -1,0 +1,124 @@
+{#
+contacts/duplicates.html.twig — duplicate review queue.
+
+Each candidate pair renders side by side with its confidence, the human
+reasons, and any caution flags; the reviewer picks which contact to keep and
+merges. Recent merges list below with undo while the 90-day window is open.
+
+Variables: pairs (DuplicatePair[]), merges (ContactMergeRecord[]), now.
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% block title %}{{ 'contacts.duplicates'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% macro pairCard(contact, side) %}
+    <div class="flex-1 min-w-0 rounded-lg border border-line bg-sunken/50 p-3">
+        <div class="flex items-center gap-2.5 mb-2">
+            {{ cm.avatar(contact, 'w-9 h-9 text-sm') }}
+            <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-ink">{{ contact.displayName }}</p>
+                {% if contact.company %}<p class="truncate text-xs text-ink-muted">{{ contact.company }}</p>{% endif %}
+            </div>
+        </div>
+        <dl class="text-xs text-ink-muted flex flex-col gap-1">
+            {% for e in contact.emails|slice(0, 3) %}
+                <div class="truncate"><i class="fa-solid fa-envelope w-3.5 text-ink-faint" aria-hidden="true"></i> {{ e.email }}</div>
+            {% endfor %}
+            {% for p in contact.phones|slice(0, 3) %}
+                <div class="truncate"><i class="fa-solid fa-phone w-3.5 text-ink-faint" aria-hidden="true"></i> {{ p.phone }}</div>
+            {% endfor %}
+            {% if contact.notes %}<div class="truncate italic">{{ contact.notes|slice(0, 60) }}</div>{% endif %}
+        </dl>
+        <label class="mt-2.5 flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
+            <input type="radio" name="keep_id" value="{{ contact.id }}" {{ side == 'a' ? 'checked' }} class="accent-[var(--color-accent)]">
+            {{ 'contacts.keep_this'|trans }}
+        </label>
+    </div>
+{% endmacro %}
+
+{% block contacts_content %}
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.back'|trans }}">
+            <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+        </a>
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ 'contacts.duplicates'|trans }}</h1>
+        {% if pairs is not empty %}
+            <span class="text-xs text-ink-faint">{{ 'contacts.duplicates_count'|trans({'%count%': pairs|length}) }}</span>
+        {% endif %}
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        <div class="max-w-3xl mx-auto flex flex-col gap-5">
+
+            {% if pairs is empty %}
+                <div class="flex flex-col items-center justify-center gap-3 text-center py-16">
+                    <i class="fa-solid fa-clone text-4xl text-ink-faint" aria-hidden="true"></i>
+                    <p class="text-sm text-ink-muted max-w-sm">{{ 'contacts.duplicates_none'|trans }}</p>
+                </div>
+            {% else %}
+                {% for pair in pairs %}
+                    <form method="post" action="{{ path('app_contacts_merge') }}" class="{{ cardCls }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('contacts_merge') }}">
+                        <input type="hidden" name="merge_ids[]" value="{{ pair.a.id }}">
+                        <input type="hidden" name="merge_ids[]" value="{{ pair.b.id }}">
+
+                        <div class="flex items-center gap-2 mb-3 flex-wrap">
+                            <span class="h-6 px-2 inline-flex items-center rounded-full text-xs font-semibold {{ pair.confidence >= 95 ? 'bg-accent-soft text-accent' : 'bg-sunken text-ink-muted' }}">
+                                {{ 'contacts.confidence'|trans({'%pct%': pair.confidence}) }}
+                            </span>
+                            {% for reason in pair.reasons %}
+                                <span class="text-xs text-ink-muted">{{ reason }}</span>
+                                {% if not loop.last %}<span class="text-ink-faint">·</span>{% endif %}
+                            {% endfor %}
+                            {% if not pair.autoMergeable %}
+                                <span class="h-6 px-2 inline-flex items-center gap-1 rounded-full text-xs font-medium bg-sunken text-warning">
+                                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>{{ 'contacts.check_carefully'|trans }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex gap-3 flex-col sm:flex-row">
+                            {{ _self.pairCard(pair.a, 'a') }}
+                            {{ _self.pairCard(pair.b, 'b') }}
+                        </div>
+
+                        <div class="flex justify-end mt-3">
+                            <button type="submit" class="{{ btnPrimary }}">
+                                <i class="fa-solid fa-code-merge text-xs" aria-hidden="true"></i>{{ 'contacts.merge'|trans }}
+                            </button>
+                        </div>
+                    </form>
+                {% endfor %}
+            {% endif %}
+
+            {% if merges is not empty %}
+                <section class="{{ cardCls }}">
+                    <h3 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.recent_merges'|trans }}</h3>
+                    <ul class="flex flex-col divide-y divide-line">
+                        {% for record in merges %}
+                            <li class="flex items-center gap-3 py-2 min-w-0">
+                                <i class="fa-solid fa-code-merge text-ink-faint text-xs shrink-0" aria-hidden="true"></i>
+                                <span class="flex-1 min-w-0 text-sm text-ink-muted truncate">
+                                    {{ 'contacts.merged_into'|trans({'%name%': record.keptContact ? record.keptContact.displayName : 'contacts.deleted_contact'|trans, '%count%': record.mergedIds|length}) }}
+                                    <span class="text-xs text-ink-faint">· {{ record.mergedAt|date('M j, Y') }}</span>
+                                </span>
+                                {% if record.undoUntil > now %}
+                                    <form method="post" action="{{ path('app_contacts_merge_undo', { recordId: record.id }) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('contacts_merge_undo_' ~ record.id) }}">
+                                        <button type="submit" class="{{ btnGhost }}">
+                                            <i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>{{ 'contacts.merge_undo'|trans }}
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-xs text-ink-faint">{{ 'contacts.merge_undo_expired'|trans }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endif %}
+
+        </div>
+    </div>
+{% endblock %}

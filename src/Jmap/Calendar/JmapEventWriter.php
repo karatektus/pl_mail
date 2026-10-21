@@ -43,9 +43,16 @@ use Doctrine\ORM\EntityManagerInterface;
  *                 would record answers nobody was told about.
  *   privacy       There is no writer parameter for it, and writing the column
  *                 directly is exactly what this class must not do.
- *   alerts, links Nowhere to project them from, and the writer rebuilds the
+ *   links         Nowhere to project them from, and the writer rebuilds the
  *                 canonical object from the columns on every write — so they
  *                 would survive one save and vanish on the next.
+ *
+ * `alerts` IS settable: the writer carries alerts across a
+ * rewrite, and app:calendar:alerts delivers them, so a phone can set "30
+ * minutes before" and "1 day before" on an event the same way the web editor
+ * does. Offset triggers only — the kind every editor offers — `display` or
+ * `email`, at most AlertReader::MAX_ALERTS; an absent `alerts` keeps what is
+ * stored and an empty one clears it.
  */
 final class JmapEventWriter
 {
@@ -84,12 +91,14 @@ final class JmapEventWriter
         'status',
         'recurrenceRules',
         'recurrenceOverrides',
+        'alerts',
     ];
 
     public function __construct(
         private readonly CalendarRepository $calendars,
         private readonly CalendarEventWriter $writer,
         private readonly EntityManagerInterface $entityManager,
+        private readonly \App\Service\Calendar\Alert\AlertReader $alertReader,
     ) {
     }
 
@@ -224,6 +233,7 @@ final class JmapEventWriter
             description:    $this->stringOrNull($values['description'] ?? null, 'description'),
             status:         $this->status($values['status'] ?? null),
             recurrenceRule: $this->recurrenceRule($values['recurrenceRules'] ?? null),
+            alerts:         true === array_key_exists('alerts', $patch) ? $this->alerts($patch['alerts']) : null,
         );
 
         // After write(), which rebuilds the canonical object and carries the
@@ -530,5 +540,49 @@ final class JmapEventWriter
         }
 
         return $value;
+    }
+
+    /**
+     * A JSCalendar `alerts` map (or list) as the writer's alerts: offset
+     * triggers only, relative to the start or the end, `display` or `email`.
+     *
+     * @return list<\App\Domain\DTO\Calendar\EventAlert>
+     */
+    private function alerts(mixed $value): array
+    {
+        if (null === $value) {
+            return [];
+        }
+
+        if (false === is_array($value)) {
+            throw new MethodException('invalidProperties', '"alerts" must be an object of Alert objects, or null.', ['properties' => ['alerts']]);
+        }
+
+        $alerts = [];
+
+        foreach ($value as $alert) {
+            $trigger = is_array($alert) ? ($alert['trigger'] ?? null) : null;
+            $offset  = is_array($trigger) ? ($trigger['offset'] ?? null) : null;
+
+            if (false === is_string($offset) || 'OffsetTrigger' !== ($trigger['@type'] ?? 'OffsetTrigger')) {
+                throw new MethodException('invalidProperties', 'Each alert needs an OffsetTrigger with an "offset" such as "-PT30M".', ['properties' => ['alerts']]);
+            }
+
+            $parsed = $this->alertReader->offsetAlert(
+                $offset,
+                \App\Domain\Enum\Calendar\AlertAction::Email->value === ($alert['action'] ?? null)
+                    ? \App\Domain\Enum\Calendar\AlertAction::Email
+                    : \App\Domain\Enum\Calendar\AlertAction::Display,
+                'end' === ($trigger['relativeTo'] ?? 'start'),
+            );
+
+            if (null === $parsed) {
+                throw new MethodException('invalidProperties', sprintf('"%s" is not a duration such as "-PT30M".', $offset), ['properties' => ['alerts']]);
+            }
+
+            $alerts[$parsed->key] = $parsed;
+        }
+
+        return array_slice(array_values($alerts), 0, \App\Service\Calendar\Alert\AlertReader::MAX_ALERTS);
     }
 }

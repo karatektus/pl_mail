@@ -1,0 +1,391 @@
+{#
+notes/edit.html.twig — one note, laid out like Keep's: the title, then the
+text or the checklist, then a toolbar along the bottom (formatting, colour,
+checkboxes on/off, link, undo/redo) and Close.
+
+notes--editor saves the whole note as you type. Links are added and removed
+with small forms of their own, because they change what the page lists.
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'notes/_macros.html.twig' as nm %}
+
+{% block title %}{{ note.title ?: 'notes.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    {% set token = csrf_token('notes_' ~ note.id) %}
+    {% set trashed = note.trashedAt is not null %}
+    {% set checklist = note.items is not empty %}
+    {% set bg = '' ~ nm.fill(note.color) %}
+    {% set palette = {} %}
+    {% for c in colors %}{% set palette = palette|merge({ (c): '' ~ nm.fill(c) }) %}{% endfor %}
+
+    <div class="flex items-center gap-1 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ note.title ?: 'notes.untitled'|trans }}</h1>
+        {% if trashed %}
+            {{ nm.actionButton(note, 'restore', 'fa-trash-arrow-up', 'notes.restore', token, null, 'edit') }}
+            {{ nm.actionButton(note, 'destroy', 'fa-trash-can', 'notes.delete_forever', token, 'notes.delete_forever_confirm'|trans) }}
+        {% else %}
+            {{ nm.actionButton(note, 'archive', note.archived ? 'fa-box-open' : 'fa-box-archive', note.archived ? 'notes.unarchive' : 'notes.archive', token) }}
+            {{ nm.actionButton(note, 'trash', 'fa-trash', 'notes.delete', token) }}
+        {% endif %}
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        <div class="max-w-2xl mx-auto rounded-xl border shadow-sm {{ bg ? 'border-black/10 text-[#202124]' : 'border-line bg-surface text-ink' }}"
+             data-controller="notes--editor notes--reminder notes--media"
+             data-notes--media-upload-url-value="{{ path('app_notes_media_add', { id: note.id }) }}"
+             data-notes--media-token-value="{{ token }}"
+             data-notes--media-failed-value="{{ 'notes.media.failed'|trans }}"
+             data-notes--media-delete-label-value="{{ 'notes.media.delete'|trans }}"
+             data-notes--media-mic-denied-value="{{ 'notes.media.mic_denied'|trans }}"
+             data-notes--reminder-url-value="{{ path('app_notes_reminder', { id: note.id }) }}"
+             data-notes--reminder-token-value="{{ token }}"
+             data-notes--reminder-at-value="{{ note.reminderAt ? note.reminderAt|date('Y-m-d\\TH:i:s\\Z', 'UTC') }}"
+             data-notes--reminder-failed-value="{{ 'notes.reminder.failed'|trans }}"
+             data-notes--editor-url-value="{{ path('app_notes_autosave', { id: note.id }) }}"
+             data-notes--editor-token-value="{{ token }}"
+             data-notes--editor-palette-value="{{ palette|json_encode }}"
+             data-notes--editor-saving-value="{{ 'notes.saving'|trans }}"
+             data-notes--editor-saved-value="{{ 'notes.saved'|trans }}"
+             data-notes--editor-failed-value="{{ 'notes.save_failed'|trans }}"
+             data-notes--editor-item-placeholder-value="{{ 'notes.list_item'|trans }}"
+             {% if bg %}style="background: {{ bg }}"{% endif %}>
+
+            {# Pictures and drawings across the top, as Keep has them; recordings
+               under them. notes--media adds and removes them without a reload. #}
+            {% set pictures = note.media|filter(m => m.kind != 'audio') %}
+            {% set recordings = note.media|filter(m => m.kind == 'audio') %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1 p-1 {{ pictures is empty ? 'hidden' }}" data-notes--media-target="grid">
+                {% for m in pictures %}
+                    {{ nm.mediaTile(note, m, token, trashed) }}
+                {% endfor %}
+            </div>
+            <div class="px-3 pt-2 space-y-1.5 {{ recordings is empty ? 'hidden' }}" data-notes--media-target="audioList">
+                {% for m in recordings %}
+                    {{ nm.mediaAudio(note, m, token, trashed) }}
+                {% endfor %}
+            </div>
+
+            <div class="flex items-start gap-2 px-4 pt-3">
+                <input type="text" maxlength="255" value="{{ note.title }}" placeholder="{{ 'notes.title_placeholder'|trans }}"
+                       data-notes--editor-target="title" data-action="input->notes--editor#changed"
+                       {{ trashed ? 'disabled' }}
+                       class="flex-1 min-w-0 bg-transparent text-lg font-semibold placeholder:opacity-50 focus:outline-none">
+                {% if not trashed %}
+                    {{ nm.actionButton(note, 'pin', 'fa-thumbtack', note.pinned ? 'notes.unpin' : 'notes.pin', token, null, 'edit', note.pinned) }}
+                {% endif %}
+            </div>
+
+            {# Text mode #}
+            <div class="px-4 pb-2 {{ checklist ? 'hidden' }}" data-notes--editor-target="textPane">
+                <textarea rows="10" placeholder="{{ 'notes.take_a_note'|trans }}"
+                          data-notes--editor-target="body" data-action="input->notes--editor#changed"
+                          {{ trashed ? 'disabled' }}
+                          class="w-full bg-transparent text-sm leading-relaxed placeholder:opacity-50 focus:outline-none resize-y">{{ note.body }}</textarea>
+            </div>
+
+            {# Checklist mode #}
+            <div class="px-2 pb-2 {{ not checklist ? 'hidden' }}" data-notes--editor-target="listPane">
+                <ul data-notes--editor-target="items" class="space-y-0.5">
+                    {% for item in note.items %}
+                        <li data-item class="flex items-center gap-2 px-2 rounded hover:bg-black/5">
+                            <input type="checkbox" data-done {{ item.done ? 'checked' }} {{ trashed ? 'disabled' }}
+                                   data-action="change->notes--editor#changed" class="shrink-0">
+                            <input type="text" data-text value="{{ item.text }}" maxlength="1000" {{ trashed ? 'disabled' }}
+                                   placeholder="{{ 'notes.list_item'|trans }}"
+                                   data-action="input->notes--editor#changed keydown->notes--editor#itemKey"
+                                   class="flex-1 min-w-0 bg-transparent py-1 text-sm focus:outline-none {{ item.done ? 'line-through opacity-60' }}">
+                            <button type="button" data-action="notes--editor#removeItem" title="{{ 'notes.remove_item'|trans }}"
+                                    class="w-7 h-7 opacity-50 hover:opacity-100 cursor-pointer" {{ trashed ? 'hidden' }}>
+                                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if not trashed %}
+                    <label class="flex items-center gap-2 px-2 py-1 text-sm opacity-70">
+                        <i class="fa-solid fa-plus text-xs w-[13px]" aria-hidden="true"></i>
+                        <input type="text" placeholder="{{ 'notes.list_item'|trans }}" data-notes--editor-target="newItem"
+                               data-action="input->notes--editor#addItem"
+                               class="flex-1 bg-transparent py-1 focus:outline-none">
+                    </label>
+                {% endif %}
+            </div>
+
+            {# Labels and links #}
+            <div class="px-4 pb-2 space-y-2">
+                {# The reminder, when there is one (notes--reminder fills the time in). #}
+                <span data-notes--reminder-target="chip" hidden
+                      class="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full text-xs bg-black/5">
+                    <i class="fa-regular fa-bell text-[11px] opacity-70" aria-hidden="true"></i>
+                    <span data-notes--reminder-target="chipText"></span>
+                    {% if not trashed %}
+                        <button type="button" data-action="notes--reminder#clear" class="w-5 h-5 rounded-full hover:bg-black/10 cursor-pointer"
+                                title="{{ 'notes.reminder.remove'|trans }}" aria-label="{{ 'notes.reminder.remove'|trans }}">
+                            <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                        </button>
+                    {% endif %}
+                </span>
+                <input type="text" value="{{ note.labels|join(', ') }}" placeholder="{{ 'notes.labels_placeholder'|trans }}"
+                       data-notes--editor-target="labels" data-action="input->notes--editor#changed"
+                       {{ trashed ? 'disabled' }}
+                       class="w-full bg-transparent text-xs placeholder:opacity-50 focus:outline-none">
+                {% if note.links is not empty %}
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for link in note.links %}
+                            <span class="inline-flex items-center gap-1 h-7 pl-2 pr-1 rounded-full text-xs bg-black/5 max-w-full">
+                                <i class="fa-solid {{ nm.linkIcon(link.type) }} text-[10px] opacity-70" aria-hidden="true"></i>
+                                {% set href = nm.linkHref(link) ~ '' %}
+                                {% if href %}
+                                    <a href="{{ href }}" class="truncate hover:underline">{{ link.title ?: ('notes.link_types.' ~ link.type)|trans }}</a>
+                                {% else %}
+                                    <span class="truncate">{{ link.title ?: ('notes.link_types.' ~ link.type)|trans }}</span>
+                                {% endif %}
+                                {% if not trashed %}
+                                    <form method="post" action="{{ path('app_notes_unlink', { id: note.id }) }}">
+                                        <input type="hidden" name="_token" value="{{ token }}">
+                                        <input type="hidden" name="type" value="{{ link.type }}">
+                                        <input type="hidden" name="link_id" value="{{ link.id }}">
+                                        <button type="submit" class="w-5 h-5 rounded-full hover:bg-black/10 cursor-pointer" title="{{ 'notes.unlink'|trans }}" aria-label="{{ 'notes.unlink'|trans }}">
+                                            <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if not trashed %}
+                {# Colour row, shown by the palette button #}
+                <div class="hidden px-4 pb-2" data-notes--editor-target="colorRow">
+                    {{ nm.colorPicker(colors, note.color, 'change->notes--editor#colorChanged') }}
+                </div>
+
+                {# Reminder row, shown by the bell button #}
+                <div hidden class="px-4 pb-2 space-y-2" data-notes--reminder-target="row">
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for when in ['later', 'tomorrow', 'week'] %}
+                            <button type="button" data-action="notes--reminder#preset" data-notes--reminder-when-param="{{ when }}"
+                                    class="h-8 px-3 rounded-full text-xs font-medium bg-black/5 hover:bg-black/10 cursor-pointer">
+                                {{ ('notes.reminder.' ~ when)|trans }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="datetime-local" data-notes--reminder-target="input" aria-label="{{ 'notes.reminder.pick'|trans }}"
+                               class="flex-1 min-w-0 h-8 rounded-lg border border-black/15 bg-white/60 text-sm px-2 text-[#202124]">
+                        <button type="button" data-action="notes--reminder#pick"
+                                class="h-8 px-3 rounded-lg text-sm font-medium bg-black/10 hover:bg-black/15 cursor-pointer">{{ 'notes.reminder.save'|trans }}</button>
+                    </div>
+                </div>
+
+                {# Link picker, shown by the link button #}
+                <form method="post" action="{{ path('app_notes_link', { id: note.id }) }}"
+                      class="hidden px-4 pb-2 flex items-center gap-2" data-notes--editor-target="linkRow">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <select name="target" class="flex-1 min-w-0 h-8 rounded-lg border border-black/15 bg-white/60 text-sm px-2">
+                        {% if contacts is not empty %}
+                            <optgroup label="{{ 'notes.link_types.contact'|trans }}">
+                                {% for c in contacts %}
+                                    <option value="contact|{{ c.id }}|{{ c.displayName }}">{{ c.displayName }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                        {% if events is not empty %}
+                            <optgroup label="{{ 'notes.link_types.event'|trans }}">
+                                {% for e in events %}
+                                    <option value="event|{{ e.id }}|{{ e.title }}">{{ e.startsAt ? e.startsAt|date('Y-m-d') ~ ' · ' }}{{ e.title }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                    </select>
+                    <button type="submit" class="h-8 px-3 rounded-lg text-sm font-medium bg-black/10 hover:bg-black/15 cursor-pointer">{{ 'notes.add_link'|trans }}</button>
+                </form>
+
+                {# Toolbar #}
+                <div class="flex flex-wrap items-center gap-0.5 px-2 pb-2">
+                    {% for mark, spec in {
+                        '**': ['fa-bold', 'notes.format.bold'],
+                        '*': ['fa-italic', 'notes.format.italic'],
+                        '__': ['fa-underline', 'notes.format.underline'],
+                        '# ': ['fa-heading', 'notes.format.heading'],
+                        '- ': ['fa-list-ul', 'notes.format.bullets'],
+                    } %}
+                        <button type="button" data-action="notes--editor#format" data-notes--editor-mark-param="{{ mark }}"
+                                data-notes--editor-target="formatButton"
+                                class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer {{ checklist ? 'hidden' }}"
+                                title="{{ spec[1]|trans }}" aria-label="{{ spec[1]|trans }}">
+                            <i class="fa-solid {{ spec[0] }} text-sm" aria-hidden="true"></i>
+                        </button>
+                    {% endfor %}
+                    <button type="button" data-action="notes--editor#toggleColors" class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer"
+                            title="{{ 'notes.color'|trans }}" aria-label="{{ 'notes.color'|trans }}">
+                        <i class="fa-solid fa-palette text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" data-action="notes--editor#toggleChecklist" class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer"
+                            data-notes--editor-target="checklistButton"
+                            data-show-label="{{ 'notes.show_checkboxes'|trans }}" data-hide-label="{{ 'notes.hide_checkboxes'|trans }}"
+                            title="{{ checklist ? 'notes.hide_checkboxes'|trans : 'notes.show_checkboxes'|trans }}"
+                            aria-label="{{ checklist ? 'notes.hide_checkboxes'|trans : 'notes.show_checkboxes'|trans }}">
+                        <i class="fa-regular fa-square-check text-sm" aria-hidden="true"></i>
+                    </button>
+                    <label class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer inline-flex items-center justify-center"
+                           title="{{ 'notes.media.add_image'|trans }}">
+                        <i class="fa-regular fa-image text-sm" aria-hidden="true"></i>
+                        <span class="sr-only">{{ 'notes.media.add_image'|trans }}</span>
+                        <input type="file" accept="image/*" multiple class="sr-only" data-action="change->notes--media#pickImages">
+                    </label>
+                    <button type="button" data-action="notes--media#openDrawing" class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer"
+                            title="{{ 'notes.media.draw'|trans }}" aria-label="{{ 'notes.media.draw'|trans }}">
+                        <i class="fa-solid fa-paintbrush text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" data-action="notes--media#toggleRecording" data-notes--media-target="recordButton"
+                            class="h-9 min-w-9 px-2 rounded-full hover:bg-black/10 cursor-pointer inline-flex items-center gap-1.5"
+                            title="{{ 'notes.media.record'|trans }}" aria-label="{{ 'notes.media.record'|trans }}">
+                        <i class="fa-solid fa-microphone text-sm" aria-hidden="true"></i>
+                        <span class="text-xs tabular-nums hidden" data-notes--media-target="recordTime">0:00</span>
+                    </button>
+                    <button type="button" data-action="notes--reminder#toggle" class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer"
+                            title="{{ 'notes.reminder.title'|trans }}" aria-label="{{ 'notes.reminder.title'|trans }}">
+                        <i class="fa-regular fa-bell text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" data-action="notes--editor#toggleLinks" class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer"
+                            title="{{ 'notes.add_link'|trans }}" aria-label="{{ 'notes.add_link'|trans }}">
+                        <i class="fa-solid fa-link text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" data-action="notes--editor#undo" data-notes--editor-target="undoButton" disabled
+                            class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                            title="{{ 'notes.undo'|trans }}" aria-label="{{ 'notes.undo'|trans }}">
+                        <i class="fa-solid fa-rotate-left text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" data-action="notes--editor#redo" data-notes--editor-target="redoButton" disabled
+                            class="w-9 h-9 rounded-full hover:bg-black/10 cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                            title="{{ 'notes.redo'|trans }}" aria-label="{{ 'notes.redo'|trans }}">
+                        <i class="fa-solid fa-rotate-right text-sm" aria-hidden="true"></i>
+                    </button>
+                    <span class="ml-2 text-xs opacity-60" data-notes--editor-target="status" aria-live="polite"></span>
+
+                    <form method="post" action="{{ path('app_notes_close', { id: note.id }) }}" class="ml-auto"
+                          data-action="submit->notes--editor#close">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        {% if returnTo %}<input type="hidden" name="return" value="{{ returnTo }}">{% endif %}
+                        <button type="submit" class="h-9 px-4 rounded-lg text-sm font-semibold hover:bg-black/10 cursor-pointer">{{ 'notes.close'|trans }}</button>
+                    </form>
+                </div>
+            {% else %}
+                <div class="px-4 pb-3">
+                    <a href="{{ path('app_notes_list', { view: 'trash' }) }}" class="text-sm font-semibold hover:underline">{{ 'notes.close'|trans }}</a>
+                </div>
+            {% endif %}
+
+            {% if not trashed %}
+                {# Share and download. Plain <details>, no script: open while the
+                   note has links, so a link just made is in view. #}
+                <details id="share" class="mx-4 mb-3 rounded-lg bg-black/5" {{ shares is not empty ? 'open' }}>
+                    <summary class="px-3 py-2 text-sm font-medium cursor-pointer select-none">
+                        <i class="fa-solid fa-share-nodes text-xs mr-1.5 opacity-70" aria-hidden="true"></i>{{ 'notes.share.heading'|trans }}
+                    </summary>
+                    <div class="px-3 pb-3 space-y-3">
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ path('app_notes_download_txt', { id: note.id }) }}" download data-turbo="false"
+                               class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium bg-black/10 hover:bg-black/15">
+                                <i class="fa-solid fa-file-lines text-[11px]" aria-hidden="true"></i>{{ 'notes.share.download_txt'|trans }}
+                            </a>
+                            <button type="button" data-controller="notes--export" data-action="notes--export#png"
+                                    data-notes--export-title-value="{{ note.title }}"
+                                    data-notes--export-body-value="{{ note.body }}"
+                                    data-notes--export-items-value="{{ note.items|json_encode }}"
+                                    data-notes--export-color-value="{{ bg ?: '#ffffff' }}"
+                                    data-notes--export-name-value="{{ note.title ?: 'note-' ~ note.id }}"
+                                    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium bg-black/10 hover:bg-black/15 cursor-pointer">
+                                <i class="fa-solid fa-image text-[11px]" aria-hidden="true"></i>{{ 'notes.share.download_png'|trans }}
+                            </button>
+                        </div>
+
+                        {% for share in shares %}
+                            {% set url = url('app_note_share', { token: share.token }) %}
+                            <div class="rounded-lg bg-white/60 border border-black/10 px-3 py-2 text-xs space-y-1.5 text-[#202124]"
+                                 data-controller="ui--clipboard"
+                                 data-ui--clipboard-confirm-text-value="{{ 'notes.share.copied'|trans }}"
+                                 data-ui--clipboard-failed-text-value="{{ 'notes.share.copy_failed'|trans }}">
+                                <div class="flex items-center gap-2">
+                                    <code class="flex-1 min-w-0 truncate" data-ui--clipboard-target="source">{{ url }}</code>
+                                    <button type="button" data-action="click->ui--clipboard#copy" class="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-black/10 hover:bg-black/15 cursor-pointer">
+                                        <i class="fa-solid fa-copy text-[10px]" aria-hidden="true"></i><span data-ui--clipboard-target="label">{{ 'notes.share.copy'|trans }}</span>
+                                    </button>
+                                    <form method="post" action="{{ path('app_notes_share_delete', { id: note.id, shareId: share.id }) }}">
+                                        <input type="hidden" name="_token" value="{{ token }}">
+                                        <button type="submit" class="w-7 h-7 rounded-md hover:bg-black/10 cursor-pointer" title="{{ 'notes.share.delete'|trans }}" aria-label="{{ 'notes.share.delete'|trans }}">
+                                            <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="flex flex-wrap gap-x-3 gap-y-1 opacity-70">
+                                    <span><i class="fa-solid {{ share.canEdit ? 'fa-pen' : 'fa-eye' }} text-[10px] mr-1" aria-hidden="true"></i>{{ (share.canEdit ? 'notes.share.can_edit' : 'notes.share.view_only')|trans }}</span>
+                                    {% if share.passwordHash %}<span><i class="fa-solid fa-lock text-[10px] mr-1" aria-hidden="true"></i>{{ 'notes.share.has_password'|trans }}</span>{% endif %}
+                                    <span>{{ share.expiresAt ? (share.isExpired ? 'notes.share.expired' : 'notes.share.expires')|trans({'%date%': share.expiresAt|date('d M Y')}) : 'notes.share.never_expires'|trans }}</span>
+                                    <span>{{ 'notes.share.views'|trans({'%count%': share.viewCount}) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        <form method="post" action="{{ path('app_notes_share_create', { id: note.id }) }}" class="space-y-2">
+                            <input type="hidden" name="_token" value="{{ token }}">
+                            <div class="flex flex-wrap gap-2">
+                                <input type="password" name="password" autocomplete="new-password" placeholder="{{ 'notes.share.password_optional'|trans }}"
+                                       class="flex-1 min-w-[10rem] h-8 rounded-lg border border-black/15 bg-white/60 text-sm px-2 text-[#202124]">
+                                <select name="expires" aria-label="{{ 'notes.share.expiry'|trans }}" class="h-8 rounded-lg border border-black/15 bg-white/60 text-sm px-2 text-[#202124]">
+                                    <option value="0">{{ 'notes.share.never_expires'|trans }}</option>
+                                    {% for d in [1, 7, 30, 365] %}<option value="{{ d }}">{{ ('notes.share.expires_in.' ~ d)|trans }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <label class="flex items-center gap-2 text-xs">
+                                <input type="checkbox" name="can_edit" value="1" class="w-4 h-4">
+                                {{ 'notes.share.allow_edit'|trans }}
+                            </label>
+                            <button type="submit" class="h-8 px-3 rounded-lg text-sm font-medium bg-black/10 hover:bg-black/15 cursor-pointer">
+                                <i class="fa-solid fa-link text-[11px] mr-1" aria-hidden="true"></i>{{ 'notes.share.create'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                </details>
+            {% endif %}
+
+            <p class="px-4 pb-3 text-xs opacity-50">{{ 'notes.edited'|trans({'%when%': note.updatedAt|date('Y-m-d H:i')}) }}</p>
+
+            {# The drawing pad: a canvas in a dialog. Saved as a PNG "drawing". #}
+            <dialog data-notes--media-target="drawDialog" class="m-auto w-[min(96vw,56rem)] rounded-xl p-0 backdrop:bg-black/50 bg-white text-[#202124]">
+                <div class="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-black/10">
+                    {% for c in ['#202124', '#d93025', '#1a73e8', '#188038', '#f9ab00', '#9334e6', '#ffffff'] %}
+                        <button type="button" data-action="notes--media#pen" data-notes--media-color-param="{{ c }}"
+                                class="w-7 h-7 rounded-full border border-black/20 cursor-pointer" style="background: {{ c }}"
+                                title="{{ c == '#ffffff' ? 'notes.media.eraser'|trans : c }}"></button>
+                    {% endfor %}
+                    <input type="range" min="2" max="40" value="6" data-notes--media-target="size" aria-label="{{ 'notes.media.pen_size'|trans }}" class="w-28 ml-2">
+                    <button type="button" data-action="notes--media#undoStroke" class="ml-auto h-8 px-3 rounded-lg text-sm hover:bg-black/10 cursor-pointer">{{ 'notes.undo'|trans }}</button>
+                    <button type="button" data-action="notes--media#clearDrawing" class="h-8 px-3 rounded-lg text-sm hover:bg-black/10 cursor-pointer">{{ 'notes.media.clear'|trans }}</button>
+                </div>
+                <canvas data-notes--media-target="canvas" class="block w-full touch-none bg-white" style="aspect-ratio: 4 / 3"></canvas>
+                <div class="flex justify-end gap-2 px-3 py-2 border-t border-black/10">
+                    <button type="button" data-action="notes--media#closeDrawing" class="h-9 px-4 rounded-lg text-sm hover:bg-black/10 cursor-pointer">{{ 'notes.media.cancel'|trans }}</button>
+                    <button type="button" data-action="notes--media#saveDrawing" class="h-9 px-4 rounded-lg text-sm font-semibold bg-black/10 hover:bg-black/15 cursor-pointer">{{ 'notes.media.save_drawing'|trans }}</button>
+                </div>
+            </dialog>
+
+            <template data-notes--editor-target="itemTemplate">
+                <li data-item class="flex items-center gap-2 px-2 rounded hover:bg-black/5">
+                    <input type="checkbox" data-done data-action="change->notes--editor#changed" class="shrink-0">
+                    <input type="text" data-text maxlength="1000" placeholder="{{ 'notes.list_item'|trans }}"
+                           data-action="input->notes--editor#changed keydown->notes--editor#itemKey"
+                           class="flex-1 min-w-0 bg-transparent py-1 text-sm focus:outline-none">
+                    <button type="button" data-action="notes--editor#removeItem" title="{{ 'notes.remove_item'|trans }}"
+                            class="w-7 h-7 opacity-50 hover:opacity-100 cursor-pointer">
+                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                    </button>
+                </li>
+            </template>
+        </div>
+    </div>
+{% endblock %}

@@ -65,6 +65,11 @@ self.addEventListener("push", (event) => {
         return;
     }
 
+    if (payload["@type"] === "NoteReminder") {
+        event.waitUntil(notifyNoteReminder(payload));
+        return;
+    }
+
     if (payload["@type"] === "UpdateAvailable") {
         event.waitUntil(notifyUpdateAvailable(payload));
     }
@@ -146,6 +151,22 @@ async function notifyCalendarAlert(payload) {
         tag: `plmail-alert-${payload.tag || ""}`,
         renotify: false,
         data: { url: payload.url || "/calendar" },
+    });
+}
+
+/**
+ * A note's reminder (app:notes:reminders). Tagged by the note, so a replay
+ * replaces it; requireInteraction keeps it up until it is dealt with.
+ */
+async function notifyNoteReminder(payload) {
+    await self.registration.showNotification(payload.title || "plMail", {
+        body: payload.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: `plmail-note-${payload.tag || ""}`,
+        renotify: false,
+        requireInteraction: true,
+        data: { url: payload.url || "/notes" },
     });
 }
 

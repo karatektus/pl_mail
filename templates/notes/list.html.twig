@@ -1,0 +1,97 @@
+{#
+notes/list.html.twig — the notes wall: "take a note" on top, pinned notes,
+then the rest, as Keep lays them out. ?view=archive and ?view=trash show
+those instead; ?q= filters by text.
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'notes/_macros.html.twig' as nm %}
+
+{% block title %}{{ 'notes.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <nav class="flex items-center gap-1 min-w-0 flex-1 text-sm" aria-label="{{ 'notes.title'|trans }}">
+            <i class="fa-solid fa-note-sticky text-ink-faint mr-1.5" aria-hidden="true"></i>
+            <h1 class="text-base font-semibold text-ink">{{ 'notes.title'|trans }}</h1>
+        </nav>
+
+        <form method="get" action="{{ path('app_notes_list') }}" class="relative hidden sm:block" role="search">
+            {% if view != 'notes' %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
+            <span class="sr-only">{{ 'notes.search'|trans }}</span>
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
+            <input type="search" name="q" value="{{ q }}" placeholder="{{ 'notes.search'|trans }}"
+                   class="h-8 w-44 lg:w-56 rounded-lg border border-field bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        </form>
+    </div>
+
+    <div class="flex items-center gap-1.5 px-4 md:px-6 py-2 border-b border-line shrink-0 overflow-x-auto">
+        {% for v, icon in { notes: 'fa-lightbulb', archive: 'fa-box-archive', trash: 'fa-trash' } %}
+            <a href="{{ path('app_notes_list', v == 'notes' ? {} : { view: v }) }}"
+               class="shrink-0 h-7 px-2.5 inline-flex items-center gap-1.5 rounded-full text-xs font-medium border transition-colors {{ view == v and not label ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
+                <i class="fa-solid {{ icon }} text-[10px]" aria-hidden="true"></i>{{ ('notes.views.' ~ v)|trans }}
+            </a>
+        {% endfor %}
+        {% for name in labels %}
+            <a href="{{ path('app_notes_list', label|lower == name|lower ? {} : { label: name }) }}"
+               class="shrink-0 h-7 px-2.5 inline-flex items-center gap-1.5 rounded-full text-xs font-medium border transition-colors {{ label|lower == name|lower ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
+                <i class="fa-solid fa-tag text-[10px]" aria-hidden="true"></i>{{ name }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        {% if view == 'notes' and q == '' and label == '' %}
+            <div class="max-w-xl mx-auto mb-2 flex justify-end gap-2">
+                {% for checklist, spec in { 0: ['fa-pen', 'notes.new_note'], 1: ['fa-square-check', 'notes.new_list'] } %}
+                    <form method="post" action="{{ path('app_notes_new') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('notes_new') }}">
+                        {% if checklist %}<input type="hidden" name="checklist" value="1">{% endif %}
+                        <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover border border-line cursor-pointer">
+                            <i class="fa-solid {{ spec[0] }} text-xs" aria-hidden="true"></i>{{ spec[1]|trans }}
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+            <form method="post" action="{{ path('app_notes_create') }}"
+                  class="max-w-xl mx-auto mb-8 rounded-xl border border-line bg-surface shadow-sm p-3 space-y-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('notes_create') }}">
+                <input type="text" name="title" maxlength="255" placeholder="{{ 'notes.title_placeholder'|trans }}"
+                       class="w-full bg-transparent px-1 text-[15px] font-semibold text-ink placeholder:text-ink-faint focus:outline-none">
+                <textarea name="body" rows="3" placeholder="{{ 'notes.take_a_note'|trans }}"
+                          class="w-full bg-transparent px-1 text-sm text-ink placeholder:text-ink-faint focus:outline-none resize-y"></textarea>
+                <div class="flex flex-wrap items-center gap-3 pt-1">
+                    {{ nm.colorPicker(colors, null) }}
+                    <label class="inline-flex items-center gap-1.5 text-xs text-ink-muted cursor-pointer">
+                        <input type="checkbox" name="checklist" value="1" class="accent-[var(--color-accent)]">
+                        {{ 'notes.as_checklist'|trans }}
+                    </label>
+                    <button type="submit" class="ml-auto inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink cursor-pointer">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'notes.add'|trans }}
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {% if pinned is empty and others is empty %}
+            <div class="flex flex-col items-center justify-center gap-3 text-center py-16">
+                <i class="fa-solid fa-note-sticky text-4xl text-ink-faint" aria-hidden="true"></i>
+                <p class="text-sm text-ink-muted max-w-sm">
+                    {{ q or label ? 'notes.empty_search'|trans : ('notes.empty.' ~ view)|trans }}
+                </p>
+            </div>
+        {% else %}
+            {% if pinned is not empty %}
+                <h2 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint mb-2">{{ 'notes.pinned'|trans }}</h2>
+                <div class="columns-1 sm:columns-2 lg:columns-3 2xl:columns-4 gap-4 mb-6">
+                    {% for note in pinned %}{{ nm.card(note, view) }}{% endfor %}
+                </div>
+                {% if others is not empty %}
+                    <h2 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint mb-2">{{ 'notes.others'|trans }}</h2>
+                {% endif %}
+            {% endif %}
+            <div class="columns-1 sm:columns-2 lg:columns-3 2xl:columns-4 gap-4">
+                {% for note in others %}{{ nm.card(note, view) }}{% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

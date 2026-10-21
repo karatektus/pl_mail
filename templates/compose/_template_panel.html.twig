@@ -73,7 +73,7 @@ Variables:
      class="md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]">
 
     <div class="min-w-0 p-1.5 md:border-r border-line">
-        {% if tree.empty %}
+        {% if tree.empty and notes is empty %}
             <p class="px-2 py-6 text-center text-sm text-ink-faint">{{ 'compose.template.empty'|trans }}</p>
         {% else %}
             <label class="flex items-center gap-2 h-8 px-2 rounded-lg border border-field bg-field text-ink-faint">
@@ -110,6 +110,36 @@ Variables:
                 {% for node in tree.folders %}
                     {{ _self.group(node, node.name) }}
                 {% endfor %}
+
+                {# The user's notes: inserted as text, the same way a template
+                   is (NoteController::asMessage answers in a template's shape). #}
+                {% if notes is not empty %}
+                    <li data-compose--template-picker-target="group">
+                        <p class="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{{ 'notes.title'|trans }}</p>
+                        <ul>
+                            {% for note in notes|slice(0, 100) %}
+                                {% set firstItem = note.items is not empty ? note.items|first : null %}
+                                {% set name = note.title ?: (firstItem ? firstItem.text : (note.body|split("\n")|first)) %}
+                                {% set name = name|length > 60 ? name|slice(0, 60) ~ '…' : name %}
+                                <li>
+                                    <button type="button"
+                                            data-compose--template-picker-target="item"
+                                            data-url="{{ path('app_notes_as_message', { id: note.id }) }}"
+                                            data-name="{{ (note.title ~ ' ' ~ note.body)|lower|slice(0, 400) }}"
+                                            data-subject=""
+                                            data-action="click->compose--template-picker#choose mouseenter->compose--template-picker#preview focus->compose--template-picker#preview"
+                                            class="flex w-full items-center gap-2 min-h-9 md:min-h-8 px-2 py-1 rounded-lg text-sm text-left
+                                                   text-ink-muted hover:bg-hover hover:text-ink focus:bg-hover focus:text-ink focus:outline-none
+                                                   transition-colors cursor-pointer">
+                                        <i class="fa-regular fa-note-sticky w-4 text-center text-ink-faint shrink-0" aria-hidden="true"></i>
+                                        <span class="truncate flex-1 min-w-0">{{ name ?: 'notes.untitled'|trans }}</span>
+                                        <template>{% if note.items is not empty %}<ul>{% for i in note.items %}<li>{{ i.done ? '☑' : '☐' }} {{ i.text }}</li>{% endfor %}</ul>{% else %}{{ note.body|note_format }}{% endif %}</template>
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endif %}
             </ul>
 
             <p data-compose--template-picker-target="noMatch" hidden

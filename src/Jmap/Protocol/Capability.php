@@ -68,7 +68,9 @@ final class Capability
 
     /**
      * Vendor extension: the harvested address book, read-only, for recipient
-     * autocomplete.
+     * autocomplete — and now also the front door of the writable address
+     * book: Contact/query, Contact/get, Contact/set, Contact/referenceEmails,
+     * Contact/duplicates, Contact/merge and Contact/mergeUndo.
      *
      * Deliberately NOT "urn:ietf:params:jmap:contacts". RFC 8621 has no
      * Contacts section at all and the JMAP Contacts draft describes an
@@ -82,6 +84,11 @@ final class Capability
      * The same call PUSH and CALENDARS already made. Should plMail ever grow a
      * real address book, the standard URN can be advertised alongside this one
      * rather than in place of it.
+     *
+     * (It did grow one: Contact/set writes it. The URN stays, because the
+     * object shapes are plMail's own and the reasoning above still holds —
+     * renaming would break every client that reads it for no gain, the same
+     * reason SYNC kept its URN when its meaning widened.)
      */
     public const string CONTACTS = 'urn:plmail:params:jmap:contacts';
 
@@ -91,6 +98,13 @@ final class Capability
      * so it appears at the top level of the Session and under no account.
      */
     public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
+
+    /**
+     * Notes, after Google Keep: short text or checklist notes, colour, pinned and archived, and
+     * links to events, files, contacts and mails. Per user, like TEMPLATES, so it appears at
+     * the top level of the Session and under no account. Note/get and Note/set.
+     */
+    public const string NOTES = 'urn:plmail:params:jmap:notes';
 
     /**
      * Vendor extension: the inbox tabs, as the reader arranged them — which
@@ -125,6 +139,7 @@ final class Capability
         self::SYNC,
         self::CONTACTS,
         self::TEMPLATES,
+        self::NOTES,
         self::INBOX_TABS,
     ];
 }

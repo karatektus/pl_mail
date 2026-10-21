@@ -214,6 +214,11 @@ security:
         # DTOs rather than events — a template here cannot leak a title because
         # it never receives one. Read only: both routes are GETs.
         - { path: ^/share/, roles: PUBLIC_ACCESS }
+        # A note share link (/n/<token>, /n/<token>/save for a collaborator
+        # link, and its pictures). Same reasoning as /share/: the 32-byte token
+        # is the gate, an optional password a second one, rate-limited — see
+        # App\Controller\Notes\NoteShareController.
+        - { path: '^/n/[a-f0-9]{64}(/save|/media/[a-f0-9]{24})?$', roles: PUBLIC_ACCESS }
         # A public booking page, and the one unauthenticated POST on this
         # install that both creates rows and sends mail. Same token, same
         # reasoning; what proves the caller is holding the published URL. The

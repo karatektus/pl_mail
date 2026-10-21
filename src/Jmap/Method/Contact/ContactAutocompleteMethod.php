@@ -9,9 +9,11 @@ use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Repository\Contacts\ContactRepository as AddressBookRepository;
 use App\Repository\Mail\ContactRepository;
 use DateTimeImmutable;
 use DateTimeZone;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * "Contact/autocomplete": the addresses to offer while somebody types a
@@ -28,10 +30,12 @@ use DateTimeZone;
  *
  * **Not RFC 8621, and not the JMAP Contacts draft**, which is why the method is
  * `autocomplete` rather than `query` and why Capability::CONTACTS is a vendor
- * URN. A `/query` returns ids for a `/get` to resolve; there is no
- * `Contact/get`, no id space, and nothing here a client may create or destroy.
- * Naming it `query` would promise that pattern and hand back objects instead of
- * ids, which is a worse lie than an unfamiliar verb.
+ * URN. A `/query` returns ids for a `/get` to resolve; this method returns
+ * ranked suggestions, not ids — there is still no getter behind a suggestion
+ * and nothing here a client may create or destroy (that is Contact/query,
+ * Contact/get and Contact/set's job now). Naming it `query` would promise
+ * the id pattern and hand back objects instead of ids, which is a worse lie
+ * than an unfamiliar verb.
  *
  * **No `id` on a suggestion, deliberately.** A `contact` row's primary key is
  * an implementation detail of the harvest — the row is deleted and re-inserted
@@ -90,6 +94,8 @@ final class ContactAutocompleteMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver $accountResolver,
         private readonly ContactRepository $contacts,
+        private readonly AddressBookRepository $addressBook,
+        private readonly RouterInterface $router,
     ) {
     }
 
@@ -109,8 +115,19 @@ final class ContactAutocompleteMethod implements JmapMethod
 
         $suggestions = [];
 
-        foreach ($this->contacts->findForAutocomplete($context->user, $query, $limit) as $contact) {
-            $suggestions[] = $this->toSuggestion($contact);
+        // The address book outranks the harvest: a person the user bothered
+        // to save is a person, not a header the sync once saw. These come
+        // first and say so, so a client can mark them in the list.
+        foreach ($this->addressBook->findAddressBookForAutocomplete($context->user, $query, $limit) as $hit) {
+            $suggestions[] = $this->toAddressBookSuggestion($hit['contact'], $hit['email']);
+        }
+
+        $remaining = $limit - count($suggestions);
+
+        if ($remaining > 0) {
+            foreach ($this->contacts->findForAutocomplete($context->user, $query, $remaining) as $contact) {
+                $suggestions[] = $this->toSuggestion($contact);
+            }
         }
 
         return [
@@ -150,6 +167,36 @@ final class ContactAutocompleteMethod implements JmapMethod
             // MessageCategorizer uses to pull somebody out of Promotions, and
             // enough for a client to mark a real correspondent in the list.
             'isCorrespondent' => $contact->isCorrespondent,
+            // Harvested, not saved: the address book hits above carry true.
+            'isAddressBook' => false,
+            'photoUrl' => null,
+        ];
+    }
+
+    /**
+     * An address-book suggestion wears the same shape as a harvested one, so
+     * a client sorts and renders one list. What differs is the provenance:
+     * no frequency or last-seen — the harvest's ranking signals, meaningless
+     * for a saved contact — and the photo, served by the authenticated photo
+     * route as an absolute URL.
+     *
+     * @return array<string,mixed>
+     */
+    private function toAddressBookSuggestion(\App\Entity\Contacts\Contact $contact, string $email): array
+    {
+        return [
+            'name' => '' === (string) $contact->displayName ? null : $contact->displayName,
+            'email' => $email,
+            'frequency' => null,
+            'lastSeenAt' => null,
+            // In the address book, which is what "a real person" means here.
+            'isCorrespondent' => true,
+            'isAddressBook' => true,
+            'photoUrl' => null === $contact->photoPath ? null : $this->router->generate(
+                'jmap_contacts_photo_serve',
+                ['contactId' => (string) $contact->id],
+                RouterInterface::ABSOLUTE_URL,
+            ),
         ];
     }
 

@@ -28,6 +28,27 @@ class CalendarEventRepository extends ServiceEntityRepository
         return $this->findOneBy(['id' => $id, 'usr' => $user]);
     }
 
+    /**
+     * Events a note can be linked to from the web notes editor: anything from
+     * a month ago on, soonest first. A recurring series is listed by its first
+     * start, which is still the event a note about "the weekly meeting" means.
+     *
+     * @return list<CalendarEvent>
+     */
+    public function findForNoteLinks(UserInterface $user, int $limit = 200): array
+    {
+        /** @var list<CalendarEvent> */
+        return $this->createQueryBuilder('e')
+            ->where('e.usr = :user')
+            ->andWhere('e.startsAt >= :from OR (e.isRecurring = true AND (e.recurrenceUntil IS NULL OR e.recurrenceUntil >= :from))')
+            ->setParameter('user', $user)
+            ->setParameter('from', new \DateTimeImmutable('-30 days'))
+            ->orderBy('e.startsAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     /** The identity a later message updates or cancels against. */
     public function findOneByUid(Calendar $calendar, string $uid): ?CalendarEvent
     {

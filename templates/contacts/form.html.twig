@@ -1,0 +1,263 @@
+{#
+contacts/form.html.twig — new + edit.
+
+Dynamic email/phone/address rows are server-rendered; the "add" buttons are
+handled by contacts--form (a tiny Stimulus controller — inline handlers are
+refused by the CSP). Removed rows simply never submit, and update() treats
+the submitted set as replace-all.
+
+Variables: contact (Contact|null), isNew, postUrl, tokenId, draft (optional,
+the failed create's submitted values).
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% block title %}{{ (isNew ? 'contacts.new' : 'contacts.edit')|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% set d = draft|default(null) %}
+{% set draftEmails = d ? (d.emails|default([])) : (contact ? contact.emails : []) %}
+{% set draftPhones = d ? (d.phones|default([])) : (contact ? contact.phones : []) %}
+{% set draftAddresses = d ? (d.addresses|default([])) : (contact ? contact.addresses : []) %}
+{% set tagsValue = d ? (d.tags|default('')) : (contact ? contact.tags|join(', ') : '') %}
+
+{% block contacts_content %}
+<form method="post" action="{{ postUrl }}" data-controller="contacts--form" class="flex flex-col h-full min-h-0">
+    <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
+
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+        <a href="{{ contact ? path('app_contacts_show', { id: contact.id }) : path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.cancel'|trans }}">
+            <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+        </a>
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">
+            {{ (isNew ? 'contacts.new' : 'contacts.edit')|trans }}
+        </h1>
+        <button type="submit" class="{{ btnPrimary }}">
+            <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>{{ 'contacts.save'|trans }}
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+        <div class="max-w-2xl mx-auto flex flex-col gap-5">
+
+            <section class="{{ cardCls }}">
+                <h2 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_name'|trans }}</h2>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="{{ labelCls }}" for="f-displayName">{{ 'contacts.display_name'|trans }}</label>
+                        <input id="f-displayName" name="displayName" required maxlength="255" value="{{ cm.field('displayName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="{{ labelCls }}" for="f-givenName">{{ 'contacts.given_name'|trans }}</label>
+                        <input id="f-givenName" name="givenName" maxlength="255" value="{{ cm.field('givenName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="{{ labelCls }}" for="f-familyName">{{ 'contacts.family_name'|trans }}</label>
+                        <input id="f-familyName" name="familyName" maxlength="255" value="{{ cm.field('familyName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="{{ labelCls }}" for="f-nickname">{{ 'contacts.nickname'|trans }}</label>
+                        <input id="f-nickname" name="nickname" maxlength="255" value="{{ cm.field('nickname', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="{{ labelCls }}" for="f-company">{{ 'contacts.company'|trans }}</label>
+                        <input id="f-company" name="company" maxlength="255" value="{{ cm.field('company', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="{{ labelCls }}" for="f-jobTitle">{{ 'contacts.job_title'|trans }}</label>
+                        <input id="f-jobTitle" name="jobTitle" maxlength="255" value="{{ cm.field('jobTitle', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                </div>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_emails'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addEmail">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_email'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2" data-contacts--form-target="emailRows" data-next-index="{{ draftEmails|length }}">
+                    {% for email in draftEmails %}
+                        {% set _val = email.value is defined ? email.value : email.email %}
+                        {% set _prim = email.primary is defined ? email.primary : email.isPrimary %}
+                        <div class="flex items-center gap-2" data-row>
+                            <input name="emails[{{ loop.index0 }}][value]" value="{{ _val }}" type="email" maxlength="320"
+                                   placeholder="{{ 'contacts.email_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                            <select name="emails[{{ loop.index0 }}][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0" aria-label="{{ 'contacts.label'|trans }}">
+                                {% for l in ['home', 'work', 'other'] %}
+                                    <option value="{{ l }}" {{ email.label == l ? 'selected' }}>{{ ('contacts.label_' ~ l)|trans }}</option>
+                                {% endfor %}
+                            </select>
+                            <label class="flex items-center gap-1.5 text-xs text-ink-muted shrink-0 cursor-pointer" title="{{ 'contacts.primary'|trans }}">
+                                <input type="checkbox" name="emails[{{ loop.index0 }}][primary]" value="1" {{ _prim ? 'checked' }} class="accent-[var(--color-accent)]">
+                                {{ 'contacts.primary_short'|trans }}
+                            </label>
+                            <button type="button" class="{{ iconBtn }}" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+                <template data-contacts--form-target="emailTemplate">
+                    <div class="flex items-center gap-2" data-row>
+                        <input name="emails[__INDEX__][value]" type="email" maxlength="320"
+                               placeholder="{{ 'contacts.email_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                        <select name="emails[__INDEX__][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0" aria-label="{{ 'contacts.label'|trans }}">
+                            {% for l in ['home', 'work', 'other'] %}
+                                <option value="{{ l }}">{{ ('contacts.label_' ~ l)|trans }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="flex items-center gap-1.5 text-xs text-ink-muted shrink-0 cursor-pointer" title="{{ 'contacts.primary'|trans }}">
+                            <input type="checkbox" name="emails[__INDEX__][primary]" value="1" class="accent-[var(--color-accent)]">
+                            {{ 'contacts.primary_short'|trans }}
+                        </label>
+                        <button type="button" class="{{ iconBtn }}" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </template>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_phones'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addPhone">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_phone'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2" data-contacts--form-target="phoneRows" data-next-index="{{ draftPhones|length }}">
+                    {% for phone in draftPhones %}
+                        {% set _val = phone.value is defined ? phone.value : phone.phone %}
+                        {% set _prim = phone.primary is defined ? phone.primary : phone.isPrimary %}
+                        <div class="flex items-center gap-2" data-row>
+                            <input name="phones[{{ loop.index0 }}][value]" value="{{ _val }}" type="tel" maxlength="64"
+                                   placeholder="{{ 'contacts.phone_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                            <select name="phones[{{ loop.index0 }}][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0" aria-label="{{ 'contacts.label'|trans }}">
+                                {% for l in ['home', 'work', 'other'] %}
+                                    <option value="{{ l }}" {{ phone.label == l ? 'selected' }}>{{ ('contacts.label_' ~ l)|trans }}</option>
+                                {% endfor %}
+                            </select>
+                            <label class="flex items-center gap-1.5 text-xs text-ink-muted shrink-0 cursor-pointer" title="{{ 'contacts.primary'|trans }}">
+                                <input type="checkbox" name="phones[{{ loop.index0 }}][primary]" value="1" {{ _prim ? 'checked' }} class="accent-[var(--color-accent)]">
+                                {{ 'contacts.primary_short'|trans }}
+                            </label>
+                            <button type="button" class="{{ iconBtn }}" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+                <template data-contacts--form-target="phoneTemplate">
+                    <div class="flex items-center gap-2" data-row>
+                        <input name="phones[__INDEX__][value]" type="tel" maxlength="64"
+                               placeholder="{{ 'contacts.phone_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                        <select name="phones[__INDEX__][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0" aria-label="{{ 'contacts.label'|trans }}">
+                            {% for l in ['home', 'work', 'other'] %}
+                                <option value="{{ l }}">{{ ('contacts.label_' ~ l)|trans }}</option>
+                            {% endfor %}
+                        </select>
+                        <label class="flex items-center gap-1.5 text-xs text-ink-muted shrink-0 cursor-pointer" title="{{ 'contacts.primary'|trans }}">
+                            <input type="checkbox" name="phones[__INDEX__][primary]" value="1" class="accent-[var(--color-accent)]">
+                            {{ 'contacts.primary_short'|trans }}
+                        </label>
+                        <button type="button" class="{{ iconBtn }}" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                            <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </template>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_addresses'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addAddress">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_address'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-3" data-contacts--form-target="addressRows" data-next-index="{{ draftAddresses|length }}">
+                    {% for addr in draftAddresses %}
+                        <div class="rounded-lg border border-line p-3 flex flex-col gap-2" data-row>
+                            <div class="flex items-center gap-2">
+                                <select name="addresses[{{ loop.index0 }}][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink" aria-label="{{ 'contacts.label'|trans }}">
+                                    {% for l in ['home', 'work', 'other'] %}
+                                        <option value="{{ l }}" {{ addr.label == l ? 'selected' }}>{{ ('contacts.label_' ~ l)|trans }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="{{ iconBtn }} ml-auto" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                                    <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <input name="addresses[{{ loop.index0 }}][street]" value="{{ addr.street|default('') }}" placeholder="{{ 'contacts.street'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input name="addresses[{{ loop.index0 }}][city]" value="{{ addr.city|default('') }}" placeholder="{{ 'contacts.city'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                                <input name="addresses[{{ loop.index0 }}][region]" value="{{ addr.region|default('') }}" placeholder="{{ 'contacts.region'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                                <input name="addresses[{{ loop.index0 }}][postcode]" value="{{ addr.postcode|default('') }}" placeholder="{{ 'contacts.postcode'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                                <input name="addresses[{{ loop.index0 }}][country]" value="{{ addr.country|default('') }}" placeholder="{{ 'contacts.country'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <template data-contacts--form-target="addressTemplate">
+                    <div class="rounded-lg border border-line p-3 flex flex-col gap-2" data-row>
+                        <div class="flex items-center gap-2">
+                            <select name="addresses[__INDEX__][label]" class="h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink" aria-label="{{ 'contacts.label'|trans }}">
+                                {% for l in ['home', 'work', 'other'] %}
+                                    <option value="{{ l }}">{{ ('contacts.label_' ~ l)|trans }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="{{ iconBtn }} ml-auto" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+                                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <input name="addresses[__INDEX__][street]" placeholder="{{ 'contacts.street'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input name="addresses[__INDEX__][city]" placeholder="{{ 'contacts.city'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                            <input name="addresses[__INDEX__][region]" placeholder="{{ 'contacts.region'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                            <input name="addresses[__INDEX__][postcode]" placeholder="{{ 'contacts.postcode'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                            <input name="addresses[__INDEX__][country]" placeholder="{{ 'contacts.country'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                        </div>
+                    </div>
+                </template>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <h2 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_notes'|trans }}</h2>
+                <div class="flex flex-col gap-3">
+                    <div>
+                        <label class="{{ labelCls }}" for="f-notes">{{ 'contacts.notes'|trans }}</label>
+                        <textarea id="f-notes" name="notes" rows="4" class="{{ fieldCls }} h-auto py-2">{{ cm.field('notes', d, contact) }}</textarea>
+                    </div>
+                    <div>
+                        <label class="{{ labelCls }}" for="f-tags">{{ 'contacts.tags'|trans }}</label>
+                        <input id="f-tags" name="tags" value="{{ tagsValue }}" placeholder="{{ 'contacts.tags_placeholder'|trans }}" class="{{ fieldCls }}" autocomplete="off">
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+</form>
+
+{% if not isNew %}
+    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-t border-line shrink-0">
+        <form method="post" action="{{ path('app_contacts_photo', { id: contact.id }) }}" enctype="multipart/form-data"
+              data-controller="contacts--form" class="flex items-center gap-2 min-w-0">
+            <input type="hidden" name="_token" value="{{ csrf_token('contacts_photo_' ~ contact.id) }}">
+            {{ cm.avatar(contact, 'w-9 h-9 text-sm') }}
+            <label class="{{ btnGhost }} cursor-pointer">
+                <i class="fa-solid fa-camera text-xs" aria-hidden="true"></i>{{ 'contacts.photo_upload'|trans }}
+                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="sr-only"
+                       data-action="change->contacts--form#submitForm">
+            </label>
+            <span class="text-xs text-ink-faint hidden sm:inline">{{ 'contacts.photo_hint'|trans }}</span>
+        </form>
+        <form method="post" action="{{ path('app_contacts_delete', { id: contact.id }) }}"
+              data-turbo-confirm="{{ 'contacts.delete_confirm'|trans({'%name%': contact.displayName}) }}" class="ml-auto">
+            <input type="hidden" name="_token" value="{{ csrf_token('contacts_delete_' ~ contact.id) }}">
+            <button type="submit" class="{{ btnDanger }}">
+                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>{{ 'contacts.delete'|trans }}
+            </button>
+        </form>
+    </div>
+{% endif %}
+{% endblock %}

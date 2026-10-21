@@ -1,0 +1,159 @@
+{#
+notes/share_public.html.twig — a note someone was sent a link to (/n/<token>).
+
+Through sharing/_layout: no session, the owner's theme, no names. A password
+link asks first; the note is the response to that POST. A collaborator link
+(share.canEdit) shows the note as fields that save themselves through
+notes--shared, with the grant that proves the password was entered.
+
+Variables: share, note, unlocked, grant, error, appearance
+#}
+{% extends 'sharing/_layout.html.twig' %}
+{% import 'notes/_macros.html.twig' as nm %}
+
+{% block title %}{{ unlocked and note.title ? note.title : 'notes.share.page_title'|trans }}{% endblock %}
+{% block container_class %}max-w-2xl{% endblock %}
+
+{% block body %}
+    {% if not unlocked %}
+        <div class="max-w-md mx-auto rounded-pane border border-line bg-surface px-6 py-8">
+            <h1 class="text-lg font-semibold text-ink text-center">
+                <i class="fa-solid fa-lock text-sm mr-1 text-ink-faint" aria-hidden="true"></i>{{ 'notes.share.locked'|trans }}
+            </h1>
+            {# data-turbo="false": the unlocked note is the 200 answer to this POST,
+               and Turbo drops a form answer that is not a redirect — the right
+               password looked like it did nothing. #}
+            <form method="post" class="mt-6 space-y-3" data-turbo="false">
+                <label for="note-share-password" class="block text-[13px] font-medium text-ink-soft">{{ 'notes.share.password'|trans }}</label>
+                <input id="note-share-password" type="password" name="password" required autofocus autocomplete="current-password"
+                       class="block w-full h-10 rounded-lg border border-field bg-field px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                {% if error %}<p role="alert" class="text-sm text-danger">{{ error|trans }}</p>{% endif %}
+                <button type="submit" class="w-full h-10 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink">{{ 'notes.share.open'|trans }}</button>
+            </form>
+        </div>
+    {% else %}
+        {% set bg = '' ~ nm.fill(note.color) %}
+        {% set pictures = note.media|filter(m => m.kind != 'audio') %}
+        {% set recordings = note.media|filter(m => m.kind == 'audio') %}
+        {% set mediaQuery = share.passwordHash ? { g: grant } : {} %}
+        <article class="rounded-xl border shadow-sm overflow-hidden {{ bg ? 'border-black/10 text-[#202124]' : 'border-line bg-surface text-ink' }}"
+                 {% if bg %}style="background: {{ bg }}"{% endif %}
+                 {% if share.canEdit %}
+                     data-controller="notes--shared"
+                     data-notes--shared-url-value="{{ path('app_note_share_save', { token: share.token }) }}"
+                     data-notes--shared-grant-value="{{ grant }}"
+                     data-notes--shared-saved-value="{{ 'notes.saved'|trans }}"
+                     data-notes--shared-failed-value="{{ 'notes.save_failed'|trans }}"
+                 {% endif %}>
+            {% if pictures is not empty %}
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1 p-1">
+                    {% for m in pictures %}
+                        {% set src = path('app_note_share_media', { token: share.token, mediaId: m.id }|merge(mediaQuery)) %}
+                        <a href="{{ src }}" target="_blank" rel="noopener" data-turbo="false">
+                            <img src="{{ src }}" alt="{{ m.name }}" loading="lazy" class="w-full h-40 object-cover rounded-lg bg-white">
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if recordings is not empty %}
+                <div class="px-3 pt-2 space-y-1.5">
+                    {% for m in recordings %}
+                        <audio controls preload="metadata" class="w-full h-9"
+                               src="{{ path('app_note_share_media', { token: share.token, mediaId: m.id }|merge(mediaQuery)) }}"></audio>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if share.canEdit %}
+                <div class="px-4 pt-3">
+                    <input type="text" maxlength="255" value="{{ note.title }}" placeholder="{{ 'notes.title_placeholder'|trans }}"
+                           data-notes--shared-target="title" data-action="input->notes--shared#changed"
+                           class="w-full bg-transparent text-lg font-semibold placeholder:opacity-50 focus:outline-none">
+                </div>
+                {% if note.items is not empty %}
+                    <ul class="px-3 py-2 space-y-1" data-notes--shared-target="list">
+                        {% for item in note.items %}
+                            <li class="flex items-center gap-2" data-notes--shared-target="item">
+                                <input type="checkbox" {{ item.done ? 'checked' }} data-action="change->notes--shared#changed"
+                                       class="shrink-0 w-4 h-4" style="color-scheme: light">
+                                <input type="text" value="{{ item.text }}" maxlength="1000" data-action="input->notes--shared#changed"
+                                       class="flex-1 min-w-0 bg-transparent text-sm focus:outline-none {{ item.done ? 'line-through opacity-60' }}">
+                                <button type="button" data-action="notes--shared#removeItem" class="w-7 h-7 opacity-50 hover:opacity-100 cursor-pointer"
+                                        title="{{ 'notes.remove_item'|trans }}" aria-label="{{ 'notes.remove_item'|trans }}">
+                                    <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                </button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <label class="flex items-center gap-2 px-3 pb-2 text-sm opacity-70">
+                        <i class="fa-solid fa-plus text-xs w-4 text-center" aria-hidden="true"></i>
+                        <input type="text" placeholder="{{ 'notes.list_item'|trans }}" data-notes--shared-target="newItem"
+                               data-action="keydown->notes--shared#addItem" class="flex-1 bg-transparent py-1 focus:outline-none">
+                    </label>
+                {% else %}
+                    <div class="px-4 pb-3">
+                        <textarea rows="12" data-notes--shared-target="body" data-action="input->notes--shared#changed"
+                                  placeholder="{{ 'notes.take_a_note'|trans }}"
+                                  class="w-full bg-transparent text-sm leading-relaxed resize-y focus:outline-none">{{ note.body }}</textarea>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="px-4 pt-3 pb-1">
+                    {% if note.title %}<h1 class="text-lg font-semibold mb-2 break-words">{{ note.title }}</h1>{% endif %}
+                    {% if note.body %}<div class="text-sm leading-relaxed break-words">{{ note.body|note_format }}</div>{% endif %}
+                    {% if note.items is not empty %}
+                        <ul class="space-y-1">
+                            {% for item in note.items|filter(i => not i.done) %}
+                                <li class="flex items-start gap-2 text-sm">
+                                    <i class="fa-regular fa-square mt-0.5 opacity-70" aria-hidden="true"></i>
+                                    <span class="break-words">{{ item.text }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% set done = note.items|filter(i => i.done) %}
+                        {% if done is not empty %}
+                            <p class="mt-3 mb-1 text-xs opacity-60">{{ 'notes.share.done_items'|trans({'%count%': done|length}) }}</p>
+                            <ul class="space-y-1">
+                                {% for item in done %}
+                                    <li class="flex items-start gap-2 text-sm">
+                                        <i class="fa-regular fa-square-check mt-0.5 opacity-70" aria-hidden="true"></i>
+                                        <span class="break-words line-through opacity-60">{{ item.text }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {# What else is on the note: its reminder, labels and what it is linked
+               to. Shown, not linked — the contact or event is the owner's, not
+               the visitor's. #}
+            {% if note.reminderAt or note.labels is not empty or note.links is not empty %}
+                <div class="px-4 pt-2 pb-1 flex flex-wrap gap-1.5">
+                    {% if note.reminderAt %}
+                        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs bg-black/5 {{ note.reminderSentAt ? 'line-through opacity-70' }}">
+                            <i class="fa-regular fa-bell text-[11px] opacity-70" aria-hidden="true"></i>
+                            <time datetime="{{ note.reminderAt|date('Y-m-d\\TH:i:s\\Z', 'UTC') }}" data-controller="notes--local-time">{{ note.reminderAt|date('D, M j, H:i', 'UTC') }} UTC</time>
+                        </span>
+                    {% endif %}
+                    {% for name in note.labels %}
+                        <span class="inline-flex items-center h-7 px-2.5 rounded-full text-xs bg-black/5">{{ name }}</span>
+                    {% endfor %}
+                    {% for link in note.links %}
+                        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs bg-black/5 max-w-full">
+                            <i class="fa-solid {{ nm.linkIcon(link.type) }} text-[10px] opacity-70" aria-hidden="true"></i>
+                            <span class="truncate">{{ link.title ?: ('notes.link_types.' ~ link.type)|trans }}</span>
+                        </span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <p class="px-4 pt-1 pb-3 text-xs opacity-60" {% if share.canEdit %}data-notes--shared-target="status" aria-live="polite"{% endif %}>
+                {{ share.canEdit ? 'notes.share.editable_hint'|trans : 'notes.edited'|trans({'%when%': note.updatedAt|date('Y-m-d H:i', 'UTC') ~ ' UTC'}) }}
+            </p>
+        </article>
+        {% if share.expiresAt %}
+            <p class="mt-3 text-center text-xs text-ink-faint">{{ 'notes.share.expires'|trans({'%date%': share.expiresAt|date('d M Y')}) }}</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

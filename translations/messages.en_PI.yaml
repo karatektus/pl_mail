@@ -4299,3 +4299,236 @@ whats_new:
     screenshot_close: 'Stow the likeness'
     screenshot_open: 'Open the likeness full size'
     title: 'What''s new aboard'
+contacts:
+    nav: Shipmates
+    title: Shipmates
+    back: Back
+    cancel: Belay that
+    save: Stow it
+    new: New shipmate
+    edit: Mend shipmate
+    delete: Make 'em walk the plank
+    delete_confirm: 'Send %name% to Davy Jones? They sit in the brig 90 days afore they be gone for good.'
+    created: Shipmate signed aboard.
+    updated: Shipmate stowed.
+    trashed: Shipmate sent to the brig.
+    count: '%count% shipmates'
+    search: Search the crew
+    search_placeholder: Search name, company or bottle address…
+    empty: 'No shipmates yet. Sign on yer first, or haul some in from a vCard or CSV file.'
+    empty_search: No shipmate answers to that.
+    tag_all: All hands
+    prev: Astern
+    next: Ahead
+    page: 'Page %page%'
+    section_name: Name
+    display_name: Full name
+    given_name: First name
+    family_name: Family name
+    nickname: Pirate name
+    company: Crew
+    job_title: Rank
+    section_emails: Bottle addresses
+    add_email: Add bottle address
+    email_placeholder: name@example.com
+    section_phones: Speakin' tubes
+    add_phone: Add speakin' tube
+    phone_placeholder: '+1 555 010 2030'
+    section_addresses: Ports
+    add_address: Add port
+    label: Label
+    label_home: Home port
+    label_work: Ship
+    label_other: Other
+    primary: First mate
+    primary_short: First
+    remove: Toss overboard
+    street: Street
+    city: Port town
+    region: Waters
+    postcode: Postcode
+    country: Land
+    section_notes: Scribblings
+    notes: Scribblings
+    tags: Markings
+    tags_placeholder: 'Comma-separated, e.g. kin, traders'
+    section_details: Particulars
+    no_details: No particulars yet.
+    related: Kin and crew
+    rel_related: Kin
+    rel_assistant: Cabin hand
+    rel_manager: Captain
+    rel_partner: Partner
+    photo_upload: Hang a portrait
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_invalid: 'That portrait won''t hang. JPG, PNG or WebP up to 5 MB.'
+    photo_uploaded: Portrait hung.
+    reference_emails: Letters exchanged
+    reference_emails_hint: Every bottle to or from this shipmate not yet sunk — inbox, sent, drafts, bin and labels.
+    reference_emails_empty: No bottles with this shipmate yet.
+    no_subject: '(no subject)'
+    import: Haul in
+    import_step1: 'Step 1 — pick a file'
+    import_hint: 'A .vcf/.vcard crew list or a .csv file. Doubles be checked after the haul.'
+    in_address_book: 'In yer crew'
+    add_to_address_book: 'Sign on to crew'
+    import_choose: Pick file
+    import_formats: '.vcf, .vcard or .csv'
+    import_upload: 'Hoist & look'
+    import_uploading: 'Hoistin''…'
+    import_no_file: 'No file came aboard.'
+    import_bad_format: 'Only .vcf/.vcard and .csv files be hauled in.'
+    import_expired: 'The haul went stale. Hoist the file again.'
+    import_step2: 'Step 2 — a look'
+    import_preview_count: '%count% shipmates found in the %format% file. The first few:'
+    import_confirm: 'Haul in %count% shipmates'
+    import_dedupe_note: 'After the haul ye land on the doubles page to merge any sailor hauled twice.'
+    imported: 'Hauled in %count% shipmates.'
+    export_vcf: Send off as vCard
+    export_csv: Send off as CSV
+    duplicates: Doubles
+    duplicates_count: '%count% likely pairs'
+    duplicates_none: 'No doubles aboard. New hauls be checked by themselves.'
+    confidence: '%pct%% alike'
+    check_carefully: Mind this one
+    keep_this: Keep this one
+    merge: Lash together
+    merge_pick_keep: 'Pick which shipmate stays aboard first.'
+    merged: Shipmates lashed together. Ye can undo it below.
+    recent_merges: Recent lashings
+    merged_into: 'Lashed %count% into %name%'
+    deleted_contact: '(shipmate gone)'
+    merge_undo: Undo
+    merge_undone: Lashing undone.
+    merge_undo_expired: The 90-day window to undo this lashing has passed.
+    validation:
+        name_required: 'Give the shipmate a name.'
+notes:
+    media:
+        add_image: 'Add picture'
+        draw: 'Draw'
+        record: 'Record a voice note'
+        delete: 'Remove'
+        failed: 'That did not save. Try again.'
+        mic_denied: 'The microphone is blocked. Allow it for this site in your browser, then try again.'
+        eraser: 'Eraser'
+        pen_size: 'Pen size'
+        clear: 'Clear'
+        cancel: 'Cancel'
+        save_drawing: 'Save drawing'
+    share:
+        done_items: '{1}Done (1)|]1,Inf[Done (%count%)'
+        heading: 'Share yer scrawl'
+        page_title: 'Shared note'
+        locked: 'This scrawl be locked'
+        password: 'Password'
+        open: 'Open note'
+        wrong_password: 'That password is not right.'
+        too_many: 'Too many tries. Wait a few minutes and try again.'
+        editable_hint: 'Anyone with this link can edit this note. Changes save as you type.'
+        download_txt: 'Download .txt'
+        download_png: 'Download .png'
+        copy: 'Copy link'
+        copied: 'Copied'
+        copy_failed: 'Could not copy'
+        delete: 'Delete link'
+        can_edit: 'Can edit'
+        view_only: 'View only'
+        has_password: 'Password'
+        expires: 'Expires %date%'
+        expired: 'Expired %date%'
+        never_expires: 'Never expires'
+        views: '{0}Not opened yet|{1}Opened once|]1,Inf[Opened %count% times'
+        password_optional: 'Password (optional)'
+        expiry: 'Expiry'
+        allow_edit: 'Let people with the link edit (collaborators)'
+        create: 'Hoist the link'
+        expires_in:
+            '1': '1 day'
+            '7': '7 days'
+            '30': '30 days'
+            '365': '1 year'
+    reminder:
+        title: 'Ring the ship''s bell'
+        later: 'Later this watch'
+        tomorrow: 'On the morrow'
+        week: 'Next week'
+        pick: 'Date an'' hour'
+        save: 'Set'
+        remove: 'Strike the bell'
+        failed: 'The bell would not ring. Try again, matey.'
+    saving: 'Stowin…'
+    saved: 'Stowed'
+    save_failed: 'Not stowed — check yer riggin'
+    list_item: 'Task'
+    remove_item: 'Toss the task'
+    labels_placeholder: 'Markings, split by commas'
+    unlink: 'Cut the line'
+    add_link: 'Lash on'
+    show_checkboxes: 'Show the boxes'
+    hide_checkboxes: 'Hide the boxes'
+    undo: 'Belay that'
+    redo: 'Do it again'
+    close: 'Close'
+    add_note: 'Add a scrawl'
+    none_linked: 'No scrawls yet.'
+    new_note: 'New scrawl'
+    new_list: 'New task list'
+    format:
+        bold: 'Bold'
+        italic: 'Slanted'
+        underline: 'Underlined'
+        heading: 'Heading'
+        bullets: 'Bullet list'
+    nav: Scrawls
+    title: Scrawls
+    back: Back
+    search: Search the scrawls
+    title_placeholder: Title
+    take_a_note: Scrawl somethin'…
+    checklist_placeholder: 'One task per line'
+    checklist_hint: 'One task per line. Mark [x] afore a task that be done.'
+    as_checklist: Task list
+    add: Add
+    save: Stow it
+    pinned: Nailed to the mast
+    others: The rest
+    untitled: Untitled scrawl
+    empty_note: Empty scrawl
+    more_items: '+ %count% more'
+    edited: 'Mended %when%'
+    pin: Nail to the mast
+    unpin: Pry off the mast
+    archive: Stow in the hold
+    unarchive: Haul from the hold
+    delete: Toss in the brig
+    restore: Bring back aboard
+    delete_forever: Send to Davy Jones
+    delete_forever_confirm: 'Send this scrawl to Davy Jones for good? There be no fishin'' it back.'
+    empty_search: No scrawl answers to that.
+    color: Colour
+    color_none: No colour
+    views:
+        notes: Scrawls
+        archive: The hold
+        trash: The brig
+    empty:
+        notes: 'Scrawls ye make here or on yer spyglass-phone show up here.'
+        archive: 'Scrawls stowed in the hold show up here.'
+        trash: 'The brig be empty.'
+    colors:
+        red: Red
+        orange: Orange
+        yellow: Yellow
+        green: Green
+        teal: Teal
+        blue: Blue
+        purple: Purple
+        pink: Pink
+        brown: Brown
+        gray: Grey
+    link_types:
+        event: Rendezvous
+        file: Scroll
+        contact: Shipmate
+        mail: Bottle

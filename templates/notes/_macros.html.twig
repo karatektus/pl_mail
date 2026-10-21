@@ -1,0 +1,220 @@
+{#
+notes/_macros.html.twig — pieces both notes pages draw.
+
+Card colours are Google Keep's light palette, used as they are in either
+theme with dark ink on top, so a colour reads the same on the phone and here.
+No inline handlers anywhere: the app's CSP refuses them (confirmations go
+through notes--confirm).
+#}
+{% macro fill(color) -%}
+    {%- set palette = {
+        red: '#faafa8', orange: '#f39f76', yellow: '#fff8b8', green: '#e2f6d3', teal: '#b4ddd3',
+        blue: '#d4e4ed', purple: '#d3bfdb', pink: '#f6e2dd', brown: '#e9e3d4', gray: '#efeff1',
+    } -%}
+    {{- palette[color] ?? '' -}}
+{%- endmacro %}
+
+{% macro colorPicker(colors, selected, action = null) %}
+    {% import _self as nm %}
+    <fieldset class="flex flex-wrap items-center gap-1.5">
+        <legend class="sr-only">{{ 'notes.color'|trans }}</legend>
+        <label class="relative cursor-pointer" title="{{ 'notes.color_none'|trans }}">
+            <input type="radio" name="color" value="" class="peer sr-only" {{ selected is empty ? 'checked' }} {% if action %}data-action="{{ action }}"{% endif %}>
+            <span class="flex w-6 h-6 rounded-full border border-line bg-surface peer-checked:ring-2 peer-checked:ring-accent items-center justify-center">
+                <i class="fa-solid fa-droplet-slash text-[10px] text-ink-faint" aria-hidden="true"></i>
+            </span>
+        </label>
+        {% for c in colors %}
+            <label class="relative cursor-pointer" title="{{ ('notes.colors.' ~ c)|trans }}">
+                <input type="radio" name="color" value="{{ c }}" class="peer sr-only" {{ selected == c ? 'checked' }} {% if action %}data-action="{{ action }}"{% endif %}>
+                <span class="block w-6 h-6 rounded-full border border-black/10 peer-checked:ring-2 peer-checked:ring-accent"
+                      style="background: {{ nm.fill(c) }}"></span>
+            </label>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% macro linkIcon(type) -%}
+    {{- {event: 'fa-calendar', file: 'fa-file', contact: 'fa-address-book', mail: 'fa-envelope'}[type] ?? 'fa-link' -}}
+{%- endmacro %}
+
+{# Where a link opens on the web, or nothing when there is no page for it. #}
+{% macro linkHref(link) -%}
+    {%- if link.type == 'contact' and link.id matches '/^\\d+$/' -%}
+        {{- path('app_contacts_show', { id: link.id }) -}}
+    {%- elseif link.type == 'mail' and link.id matches '/^\\d+$/' -%}
+        {{- path('app_mail_message', { id: link.id }) -}}
+    {%- elseif link.type == 'event' -%}
+        {{- path('app_calendar_index') -}}
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro card(note, view) %}
+    {% import _self as nm %}
+    {% set bg = '' ~ nm.fill(note.color) %}
+    {% set token = csrf_token('notes_' ~ note.id) %}
+    <article class="group break-inside-avoid mb-4 rounded-xl border {{ bg ? 'border-black/10 text-[#202124]' : 'border-line bg-surface text-ink' }} flex flex-col"
+             {% if bg %}style="background: {{ bg }}"{% endif %}>
+        {% set picture = note.media|filter(m => m.kind != 'audio')|first %}
+        {% if picture %}
+            <a href="{{ path('app_notes_edit', { id: note.id }) }}" class="block">
+                <img src="{{ path('app_notes_media_show', { id: note.id, mediaId: picture.id }) }}" alt="" loading="lazy"
+                     class="w-full max-h-56 object-cover rounded-t-xl bg-white">
+            </a>
+        {% endif %}
+        <a href="{{ path('app_notes_edit', { id: note.id }) }}" class="block px-4 pt-3 pb-2 rounded-t-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            {% if note.title %}<h2 class="font-semibold text-[15px] leading-snug mb-1 break-words">{{ note.title }}</h2>{% endif %}
+            {% if note.body %}
+                <div class="text-sm break-words line-clamp-[12] {{ bg ? 'opacity-90' : 'text-ink-muted' }}">{{ note.body|note_format }}</div>
+            {% endif %}
+            {% if not note.title and not note.body and note.items is empty %}
+                <p class="text-sm italic opacity-60">{{ 'notes.empty_note'|trans }}</p>
+            {% endif %}
+        </a>
+
+        {% if note.items is not empty %}
+            <ul class="px-3 pb-2 space-y-0.5">
+                {% for item in note.items|slice(0, 10) %}
+                    <li>
+                        <form method="post" action="{{ path('app_notes_action', { id: note.id, action: 'toggle' }) }}">
+                            <input type="hidden" name="_token" value="{{ token }}">
+                            <input type="hidden" name="item" value="{{ loop.index0 }}">
+                            <button type="submit" {{ view == 'trash' ? 'disabled' }}
+                                    class="w-full flex items-start gap-2 px-1 py-0.5 rounded text-left text-sm hover:bg-black/5">
+                                <i class="fa-regular {{ item.done ? 'fa-square-check' : 'fa-square' }} mt-0.5 opacity-70" aria-hidden="true"></i>
+                                <span class="break-words {{ item.done ? 'line-through opacity-60' }}">{{ item.text }}</span>
+                            </button>
+                        </form>
+                    </li>
+                {% endfor %}
+                {% if note.items|length > 10 %}
+                    <li class="px-1 text-xs opacity-60">{{ 'notes.more_items'|trans({'%count%': note.items|length - 10}) }}</li>
+                {% endif %}
+            </ul>
+        {% endif %}
+
+        {% if note.labels is not empty or note.links is not empty or note.reminderAt or note.media|filter(m => m.kind == 'audio') is not empty %}
+            <div class="px-4 pb-2 flex flex-wrap gap-1.5">
+                {% set voices = note.media|filter(m => m.kind == 'audio')|length %}
+                {% if voices > 0 %}
+                    <span class="inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs bg-black/5">
+                        <i class="fa-solid fa-microphone text-[10px] opacity-70" aria-hidden="true"></i>{{ voices }}
+                    </span>
+                {% endif %}
+                {% if note.reminderAt %}
+                    <span class="inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs bg-black/5 {{ note.reminderSentAt ? 'line-through opacity-70' }}"
+                          title="{{ 'notes.reminder.title'|trans }}">
+                        <i class="fa-regular fa-bell text-[10px] opacity-70" aria-hidden="true"></i>
+                        {{ note.reminderAt|intl_date('EEEdMMM', clock.timezone) }}, {{ note.reminderAt|date(clock.time, clock.timezone) }}
+                    </span>
+                {% endif %}
+                {% for name in note.labels %}
+                    <a href="{{ path('app_notes_list', { label: name }) }}" class="inline-flex items-center h-6 px-2 rounded-full text-xs bg-black/5 hover:bg-black/10 max-w-full truncate">{{ name }}</a>
+                {% endfor %}
+                {% for link in note.links %}
+                    {% set href = nm.linkHref(link) ~ '' %}
+                    <a {% if href %}href="{{ href }}"{% endif %} class="inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs bg-black/5 max-w-full {{ href ? 'hover:bg-black/10' }}">
+                        <i class="fa-solid {{ nm.linkIcon(link.type) }} text-[10px] opacity-70" aria-hidden="true"></i>
+                        <span class="truncate">{{ link.title ?: ('notes.link_types.' ~ link.type)|trans }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="mt-auto flex items-center gap-0.5 px-2 pb-2 opacity-70 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            {% if view == 'trash' %}
+                {{ nm.actionButton(note, 'restore', 'fa-trash-arrow-up', 'notes.restore', token) }}
+                {{ nm.actionButton(note, 'destroy', 'fa-trash-can', 'notes.delete_forever', token, 'notes.delete_forever_confirm'|trans) }}
+            {% else %}
+                {% if view == 'notes' %}
+                    {{ nm.actionButton(note, 'pin', 'fa-thumbtack', note.pinned ? 'notes.unpin' : 'notes.pin', token, null, '', note.pinned) }}
+                {% endif %}
+                {{ nm.actionButton(note, 'archive', note.archived ? 'fa-box-open' : 'fa-box-archive', note.archived ? 'notes.unarchive' : 'notes.archive', token) }}
+                {{ nm.actionButton(note, 'trash', 'fa-trash', 'notes.delete', token) }}
+            {% endif %}
+        </div>
+    </article>
+{% endmacro %}
+
+{% macro actionButton(note, action, icon, label, token, confirm = null, return = '', active = false) %}
+    <form method="post" action="{{ path('app_notes_action', { id: note.id, action: action }) }}"
+          {% if confirm %}data-controller="notes--confirm" data-notes--confirm-message-value="{{ confirm }}" data-action="submit->notes--confirm#ask"{% endif %}>
+        <input type="hidden" name="_token" value="{{ token }}">
+        {% if return %}<input type="hidden" name="return" value="{{ return }}">{% endif %}
+        <button type="submit" title="{{ label|trans }}" aria-label="{{ label|trans }}" {% if active %}aria-pressed="true"{% endif %}
+                class="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-black/10 cursor-pointer {{ active ? 'text-accent' }}">
+            <i class="fa-solid {{ icon }} text-sm" aria-hidden="true"></i>
+        </button>
+    </form>
+{% endmacro %}
+
+{# The notes linked to one thing (a contact, an event), with "Add note". #}
+{% macro linkedNotes(notes, type, id, title, returnTo) %}
+    {% import _self as nm %}
+    <section class="space-y-2">
+        <div class="flex items-center gap-2">
+            <h2 class="text-xs font-semibold text-ink-faint uppercase tracking-wider flex-1">{{ 'notes.title'|trans }}</h2>
+            {# A button, not a form: the contact and event views it sits in are
+               read-only and hold no form (notes--create posts it). #}
+            <button type="button" data-controller="notes--create" data-action="notes--create#create"
+                    data-notes--create-url-value="{{ path('app_notes_new') }}"
+                    data-notes--create-token-value="{{ csrf_token('notes_new') }}"
+                    data-notes--create-type-value="{{ type }}"
+                    data-notes--create-id-value="{{ id }}"
+                    data-notes--create-title-value="{{ title }}"
+                    data-notes--create-return-value="{{ returnTo }}"
+                    class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium text-ink-muted hover:bg-hover border border-line cursor-pointer">
+                <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>{{ 'notes.add_note'|trans }}
+            </button>
+        </div>
+        {% for note in notes %}
+            {% set bg = '' ~ nm.fill(note.color) %}
+            <a href="{{ path('app_notes_edit', { id: note.id, return: returnTo }) }}" data-turbo-frame="_top"
+               class="block rounded-lg border px-3 py-2 text-sm hover:shadow-sm {{ bg ? 'border-black/10 text-[#202124]' : 'border-line bg-surface text-ink' }}"
+               {% if bg %}style="background: {{ bg }}"{% endif %}>
+                <div class="font-medium truncate">{{ note.title ?: 'notes.untitled'|trans }}</div>
+                {% if note.body %}<div class="text-xs opacity-70 line-clamp-2">{{ note.body|note_format }}</div>{% endif %}
+                {% if note.items is not empty %}
+                    <div class="text-xs opacity-70 truncate">{% for i in note.items %}{{ i.done ? '☑ ' : '☐ ' }}{{ i.text }}{{ not loop.last ? ' · ' }}{% endfor %}</div>
+                {% endif %}
+            </a>
+        {% else %}
+            <p class="text-xs text-ink-faint">{{ 'notes.none_linked'|trans }}</p>
+        {% endfor %}
+    </section>
+{% endmacro %}
+
+{# One picture or drawing in the editor: opens full size; ✕ deletes it. #}
+{% macro mediaTile(note, m, token, trashed = false) %}
+    {% set src = path('app_notes_media_show', { id: note.id, mediaId: m.id }) %}
+    <div class="relative group" data-media-id="{{ m.id }}">
+        <a href="{{ src }}" target="_blank" rel="noopener" data-turbo="false">
+            <img src="{{ src }}" alt="{{ m.name }}" loading="lazy" class="w-full h-32 sm:h-40 object-cover rounded-lg bg-white">
+        </a>
+        {% if m.kind == 'drawing' %}
+            <span class="absolute left-1.5 bottom-1.5 px-1.5 rounded text-[10px] bg-black/50 text-white"><i class="fa-solid fa-paintbrush" aria-hidden="true"></i></span>
+        {% endif %}
+        {% if not trashed %}
+            <button type="button" data-action="notes--media#remove" data-notes--media-id-param="{{ m.id }}"
+                    class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/55 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                    title="{{ 'notes.media.delete'|trans }}" aria-label="{{ 'notes.media.delete'|trans }}">
+                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+            </button>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# One voice recording in the editor. #}
+{% macro mediaAudio(note, m, token, trashed = false) %}
+    <div class="flex items-center gap-2" data-media-id="{{ m.id }}">
+        <i class="fa-solid fa-microphone text-xs opacity-60" aria-hidden="true"></i>
+        <audio controls preload="metadata" src="{{ path('app_notes_media_show', { id: note.id, mediaId: m.id }) }}" class="flex-1 min-w-0 h-9"></audio>
+        {% if not trashed %}
+            <button type="button" data-action="notes--media#remove" data-notes--media-id-param="{{ m.id }}"
+                    class="w-7 h-7 rounded-full hover:bg-black/10 cursor-pointer" title="{{ 'notes.media.delete'|trans }}" aria-label="{{ 'notes.media.delete'|trans }}">
+                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+            </button>
+        {% endif %}
+    </div>
+{% endmacro %}
+
