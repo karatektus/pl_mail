@@ -236,6 +236,30 @@ final class VCardMapperTest extends TestCase
         self::assertEquals($this->mapper->read($this->appleCard()), $again);
     }
 
+    /**
+     * A provider spells an address as typed; the row keeps it lower-cased.
+     * Matched as spelled, the row was removed and the same address inserted
+     * again in one flush, which the unique key refused (prod, 2026-10-21).
+     */
+    public function testAnAddressInAnotherCaseIsTheSameRow(): void
+    {
+        $contact = Contact::create(new User(), 'Dominik');
+        $kept    = ContactEmail::create($contact, 'dominik@example.com', 'work');
+
+        $parsed         = new ParsedContact();
+        $parsed->emails = [
+            ['email' => 'Dominik@Example.com', 'label' => 'home', 'primary' => true],
+            ['email' => ' DOMINIK@example.COM', 'label' => 'other'],
+        ];
+
+        $this->mapper->apply($parsed, $contact);
+
+        self::assertCount(1, $contact->emails, 'two spellings of one address are one row');
+        self::assertSame($kept, $contact->emails->first(), 'the row is kept, not removed and inserted again');
+        self::assertSame('home', $kept->label, 'with the first spelling\'s label');
+        self::assertTrue($kept->isPrimary);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private function contactFrom(string $vcard): Contact

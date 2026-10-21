@@ -809,12 +809,24 @@ final readonly class VCardMapper
 
     // ── Applying to the rows ──────────────────────────────────────────────────
 
+    /**
+     * Matched on the address as ContactEmail stores it — lower-cased and
+     * trimmed (AddressHelper::email()) — not as the source spelled it. Google
+     * keeps "Dominik.Kreuzer@…" as typed; matched raw, it never equalled the
+     * stored row, so the row was removed and the same address inserted again,
+     * and Doctrine's inserts-before-deletes broke the unique key and the whole
+     * sync with it. Two spellings of one address on a card are one row.
+     */
     private function applyEmails(ParsedContact $parsed, Contact $contact): void
     {
         $wanted = [];
 
         foreach ($parsed->emails as $row) {
-            $wanted[$row['email']] = $row;
+            $email = AddressHelper::email($row['email']);
+
+            if (true === AddressHelper::isValidEmail($email)) {
+                $wanted[$email] ??= $row;
+            }
         }
 
         foreach ($contact->emails->toArray() as $existing) {
