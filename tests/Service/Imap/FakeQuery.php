@@ -8,7 +8,7 @@ use Webklex\PHPIMAP\Connection\Protocols\Response;
 use Webklex\PHPIMAP\Exceptions\GetMessagesFailedException;
 use Webklex\PHPIMAP\Exceptions\ResponseException;
 use Webklex\PHPIMAP\Message;
-use Webklex\PHPIMAP\Query\WhereQuery;
+use App\Service\Imap\ImapQuery;
 use Webklex\PHPIMAP\Support\MessageCollection;
 use Illuminate\Support\Collection;
 
@@ -31,7 +31,7 @@ use Illuminate\Support\Collection;
  * Made with newInstanceWithoutConstructor(), because the real constructor asks
  * a connected client for its configuration.
  */
-final class FakeQuery extends WhereQuery
+final class FakeQuery extends ImapQuery
 {
     /** @var array<int, Message|\Throwable|string> UID => the message, what building it throws, or NEVER_RETURNED */
     private array $script = [];

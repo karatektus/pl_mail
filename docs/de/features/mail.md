@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d39cfffa143114c313d19f8ecc9a5a3f1d5266f8 -->
+<!-- translated-from: features/mail.md sha1:3ce077e532ee6d78f8b007edb8ab2e563af0413d -->
 
 # Mail
 
@@ -337,7 +337,14 @@ Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt ein
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
-landet auf demselben Tag wie beim ersten Mal.
+landet auf demselben Tag wie beim ersten Mal. "Heute" ist der Tag, der in deinem Kalender stand, als
+die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein** (oder der Vorgabe der Installation, wenn du
+nie eine gewählt hast). Eine Mail, die früh morgens in Sydney oder abends in Los Angeles ankommt,
+landet so nicht einen Tag daneben. Gelesen werden die Amazon-Shops amazon.de, amazon.com, amazon.fr,
+amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer Karte öffnet
+den Shop, der die Mail geschickt hat. Ein Datum mit Schrägstrichen wie "23/10/2026" wird bei den
+Shops aus Ländern, die den Tag zuerst schreiben, als Tag/Monat gelesen, und nur mit Jahr; bei
+amazon.com und amazon.ca gar nicht, weil dort der Monat vorne stehen kann.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr
@@ -350,7 +357,11 @@ Zusteller aus dem Absendernamen, wenn der mit Chronopost oder Colissimo beginnt,
 die Überschrift **Pickup**, ohne Zusteller und ohne Sendungslink. Noch nicht gelesen werden die
 Stufen "an den Absender zurück" und "Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die
 ein Zusteller nach der Zustellung schickt, wird ignoriert, damit sie eine Karte **Zugestellt**
-nicht in etwas anderes zurückverwandelt.
+nicht in etwas anderes zurückverwandelt. **Zugestellt** ist ein Paket erst, wenn die Mail sagt, dass
+es passiert ist: "will be delivered", "scheduled to be delivered" oder "when it's delivered" meinen
+eine Zustellung, die noch kommt. Und eine Nummer, die als etwas anderes beschriftet ist, etwa
+"Order number", "Reference" oder "Bestellnummer", gilt nicht als Sendungsnummer, auch wenn sie so
+aussieht.
 
 ### Die Leiste über der Mailliste
 
@@ -1224,6 +1235,35 @@ bereits an sich genommen hat —, wird dir das klar gesagt: *Zu spät — diese 
 gesendet.* Du bekommst keine bearbeitbare Kopie von Post, die schon draußen ist. Weil das angebotene
 Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten und nicht die Regel.
 
+## Wenn das Senden scheitert
+
+Scheitert ein Senden aus einem vorübergehenden Grund, versucht plMail es von selbst noch einmal, bis
+zu **zwei Minuten** lang: bei einem Limit (Gmail und Outlook sagen, wie lange zu warten ist, und daran
+wird sich gehalten), bei einem Fehler auf der Seite des Anbieters, bei einem Mailserver, der gerade
+ausgelastet ist oder per Greylisting vertröstet, oder bei einer Verbindung, die gar nicht erst
+zustande kam. Solange es noch versucht wird, wird nichts gemeldet. Geht es durch, bestätigt der Toast
+**Nachricht gesendet** das wie immer.
+
+Ein Senden, das so nicht klappen kann, wird nicht wiederholt: ein Empfänger, den der Server nicht
+kennt, eine zu große Nachricht, ein Passwort, das der Server nicht mehr annimmt. Das wird sofort
+gemeldet.
+
+**Wenn die Antwort auf ein Senden verloren geht** — die Verbindung brach ab oder lief in eine
+Zeitüberschreitung, nachdem der Anbieter die Mail schon hatte —, ist die Mail vielleicht schon
+unterwegs. Sie wird dann nie ungeprüft noch einmal gesendet. Bei Gmail- und Outlook-Konten schaut
+plMail ein paar Sekunden später unter Gesendet nach: Ist sie da, gilt sie als gesendet; ist sie nicht
+da, wird sie noch einmal gesendet. Bei anderen Konten (SMTP) gibt es nichts, wo man nachschauen
+könnte, deshalb wird sofort gemeldet, dass sie vielleicht gesendet wurde: Schau unter **Gesendet**
+nach, bevor du sie noch einmal sendest.
+
+Scheitert ein Senden endgültig, sagt ein Toast, warum, und der Entwurf wird markiert: mit einem
+**roten Warndreieck** an seiner Zeile unter **Entwürfe**, das den Grund zeigt, wenn du darauf zeigst,
+und mit demselben Dreieck an **Entwürfe** in der Seitenleiste, solange ein Entwurf eins trägt. Das ist
+es, was zu finden bleibt, wenn niemand den Toast gesehen hat — ein geplanter Versand scheitert, ohne
+dass jemand zuschaut. Die Markierung verschwindet, wenn der Entwurf gesendet oder noch einmal
+gesendet oder gelöscht wird. Bearbeiten allein nimmt sie nicht weg, denn die Mail ist ja immer noch
+nicht raus.
+
 ## Wo du weiterliest
 
 - [Mail-Ingest](../internals/mail-ingest.md) — der Weg vom Anbieter in die Datenbank, Zuordnung
@@ -1274,6 +1314,11 @@ ohne „Neu“ zurück — das ist die Markierung, die funktioniert, und keine, 
 **Der Nur-Text-Modus lässt sich nur zurücknehmen, solange der Entwurf nicht gespeichert ist.** Die
 Warnung sagt das vor dem Umschalten. Ist der Entwurf einmal als Nur-Text abgelegt, gibt es
 nirgends mehr eine Formatierung, zu der man zurückkehren könnte.
+
+**Ein Warndreieck an einem Entwurf heißt, dass sein Senden gescheitert ist, nicht dass der Entwurf
+kaputt ist.** Öffne ihn und sende ihn noch einmal; die Markierung verschwindet, sobald der neue
+Versuch beginnt. Vorsicht nur bei *Vielleicht gesendet*: Schau erst unter Gesendet nach, sonst
+bekommt der Empfänger die Mail womöglich doppelt.
 
 **Ein geplanter Versand kann nicht näher als eine Minute liegen.** Die nächste volle Minute
 einzutippen ist genau die Zeit, die man zum Ausprobieren wählt, und sie wird abgelehnt — mit

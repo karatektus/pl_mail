@@ -1339,6 +1339,7 @@ calendar:
         on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
+    empty_day: Nichts an diesem Tag
     details:
         description: Beschreibung
         edit: Bearbeiten
@@ -1711,6 +1712,8 @@ calendar:
     toolbar:
         range: '%start%–%end%'
         range_day: '%day%.'
+        range_short: '%start%–%end%'
+        range_short_month: '%start%.–%end%. %month%'
     upcoming:
         imminent: Beginnt innerhalb einer Stunde
         later: Heute noch
@@ -3884,6 +3887,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Nicht bestätigt'
             verified: 'Bestätigt'
+        error_server: 'Der Server hat dieses Gerät abgelehnt (%error%). Versuch es erneut; passiert es wieder, sag deiner Administration Bescheid.'
+        error_subscribe: 'Der Push-Dienst des Browsers hat diesem Gerät keine Adresse gegeben (%error%). In Brave schalte vorher „Google-Dienste für Push-Nachrichten verwenden“ ein.'
+        error_worker: 'Der Hintergrunddienst von plMail ist nicht gestartet (%error%). Versuch es erneut; passiert es wieder, sag deiner Administration Bescheid.'
         heading: Benachrichtigungen
         ios_hint: >-
             Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn
@@ -4245,6 +4251,7 @@ sidebar:
     badge:
         total: '%count% insgesamt'
         unread: '%count% ungelesen'
+        unsent: Ein Entwurf konnte nicht gesendet werden
     compose: Schreiben
     labels:
         add: Label erstellen
@@ -4340,6 +4347,12 @@ thread_row:
     new_badge: Neu
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
+    send_failed:
+        failed: Nicht gesendet
+        may_have_sent: 'Vielleicht gesendet: schau unter Gesendet nach, bevor du sie noch einmal sendest'
+        rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
+        refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
+        unavailable: 'Nicht gesendet: dein Mailanbieter war nicht erreichbar'
     scheduled: 'Geplant %when%'
     select: Auswählen
     star: Diese Nachricht markieren
@@ -4356,6 +4369,10 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
+    send_failed_may_have_sent: '%subject% wurde vielleicht gesendet, aber die Antwort ging verloren. Schau unter Gesendet nach, bevor du sie noch einmal sendest.'
+    send_failed_rate_limited: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter begrenzt gerade das Senden; versuch es in ein paar Minuten noch einmal.'
+    send_failed_refused: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Der Mailserver hat sie abgelehnt.'
+    send_failed_unavailable: 'Diese Nachricht konnte nicht gesendet werden: %subject%. Dein Mailanbieter war nicht erreichbar.'
     sent: Nachricht gesendet.
     spam_filtered: 'In den Spam verschoben. Künftige Mail von %sender% landet auch dort.'
     undo: Rückgängig

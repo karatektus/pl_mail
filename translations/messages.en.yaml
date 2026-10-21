@@ -1325,6 +1325,7 @@ calendar:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
+    empty_day: Nothing on this day
     details:
         description: Description
         edit: Edit
@@ -1683,6 +1684,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%month% %start%–%end%'
     upcoming:
         imminent: Starting within the hour
         later: Coming up today
@@ -3870,6 +3873,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Not verified'
             verified: 'Verified'
+        error_server: 'The server turned this device down (%error%). Try again, and if it keeps happening, tell your administrator.'
+        error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to
@@ -4226,6 +4232,7 @@ sidebar:
     badge:
         total: '%count% in total'
         unread: '%count% unread'
+        unsent: A draft could not be sent
     compose: Compose
     labels:
         add: Create label
@@ -4324,6 +4331,12 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    send_failed:
+        failed: Not sent
+        may_have_sent: 'May have been sent: check Sent before sending it again'
+        rate_limited: 'Not sent: your mail provider was limiting sends'
+        refused: 'Not sent: the mail server refused it'
+        unavailable: 'Not sent: your mail provider could not be reached'
     scheduled: 'Scheduled %when%'
     select: Select
     star: Star this message
@@ -4356,6 +4369,10 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
+    send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
+    send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
+    send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'
+    send_failed_unavailable: 'That message could not be sent: %subject%. Your mail provider could not be reached.'
     sent: Message sent.
     spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
     undo: Undo

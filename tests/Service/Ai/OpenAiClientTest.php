@@ -103,6 +103,24 @@ final class OpenAiClientTest extends TestCase
 
         self::assertFalse($result->succeeded);
         self::assertSame(OllamaClient::ERROR_HTTP_404, $result->errorKind);
+        self::assertSame(404, $result->httpStatus);
+    }
+
+    /**
+     * The status itself travels with the refusal, because the kind folds every
+     * one but 404 together, and a caller deciding whether to ask again needs
+     * to tell a 503 that will pass from a content filter's 400 that will not
+     * (ClassifyMailHandler, #222).
+     */
+    public function testARefusalCarriesItsStatus(): void
+    {
+        foreach ([400, 503] as $status) {
+            $result = $this->answering('{"error":{"message":"no"}}', $status)
+                ->chat($this->connection(), 'a-model', [['role' => 'user', 'content' => 'hi']]);
+
+            self::assertSame(OllamaClient::ERROR_HTTP_STATUS, $result->errorKind);
+            self::assertSame($status, $result->httpStatus);
+        }
     }
 
     /** A 200 that is a proxy's HTML is a failure with a name, not an exception. */
@@ -240,6 +258,7 @@ final class OpenAiClientTest extends TestCase
         self::assertSame(['Half a sen'], $tokens, 'what arrived was shown');
         self::assertFalse($result->succeeded);
         self::assertSame(OllamaClient::ERROR_HTTP_STATUS, $result->errorKind);
+        self::assertNull($result->httpStatus, 'the response was a 200; what failed was inside it');
     }
 
     public function testARefusedStreamYieldsNothingAndSaysWhy(): void

@@ -29,7 +29,9 @@ new section of the app — gets a short design in its issue before any code.
 **Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
 an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue
 it closes. A release is a milestone with nothing left open, closed when it is tagged (see
-[Releasing](#releasing)).
+[Releasing](#releasing)). An issue closes when the pull request that names it is merged, whether
+into `main` or into a milestone branch (`milestone/v0.4.0`); GitHub only does the first itself, so
+`.github/workflows/close-milestone-issues.yml` does the second.
 
 **Labels**: one type — `bug`, `enhancement`, `documentation`, `chore` — a status from triage, and
 one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
@@ -218,11 +220,13 @@ Changing the shard count means changing two numbers in the same `matrix` block, 
 `shardTotal`. They are kept together for that reason: a fifth index without a matching total asks
 Playwright for shard 5 of 4, which it refuses.
 
-The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
-regression pushed there is found when a version is tagged, which may be several commits later, and
-the tag is then what fails. So run the suites locally before pushing anything you are unsure of —
-`npm run test:unit:docker && npm run test:e2e:docker` — which is faster than waiting for a runner
-anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
+Every commit on `main` is still verified, because nothing reaches `main` except through a pull
+request, and branch protection requires the jobs above to be green on it before it merges. What
+is not required is that the pull request is up to date with `main`, so its checks ran against the
+`main` it was opened on, or last updated against. Two pull requests that pass apart can still break
+together. `workflow_dispatch` on the Actions tab runs the whole workflow on any branch, and the
+suites run locally with `npm run test:unit:docker && npm run test:e2e:docker`, which is faster than
+waiting for a runner when you are unsure of a change before pushing it.
 
 A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
 the image being published. Tag from a tree you have already run the suites against — see
@@ -298,27 +302,49 @@ as `X.Y.Z`, `X.Y` and `latest`, and from there it travels without anybody here d
 4. The merge publishes the catalogue, and TrueNAS offers the update to everyone who installed plMail
    from **Apps → Discover**.
 
+The tag also publishes a GitHub Release, once the image is up: the `release` job in `docker.yml`
+cuts the version's section out of `CHANGELOG.md` with `bin/release-notes.sh` and makes it the
+release's notes. Nothing is attached; it is the page `releases.atom` and **Watch → Releases**
+follow. The job reads the CHANGELOG of the tagged commit, so the `## vX.Y.Z — date` heading has to
+be in that commit and spelled as the tag is, or the job fails with the image already out.
+Re-running it reads the same commit and fails again; fix the heading on `main` and publish the
+release from there by hand:
+
+```bash
+bin/release-notes.sh vX.Y.Z > notes.md && gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file notes.md
+```
+
 So a tag reaches other people's NAS boxes within about a day, with migrations that run on boot, and
 **it cannot be taken back**: there is no cool-down in that Renovate configuration and no way to
 unpublish a catalogue version. A bad release is repaired by tagging the next one.
 
 That makes the tag the only gate there is, and two things have to be true before it is pushed:
 
-- **The suites are green on the exact commit being tagged.** Either locally —
-  `npm run test:unit:docker && npm run test:e2e:docker` — or by starting the E2E workflow on `main`
-  with `workflow_dispatch` and waiting for it. The run the tag itself starts does not count: the
-  image is published beside it, not after it.
+- **The suites are green on the exact commit being tagged.** The `Release vX.Y.Z` pull request
+  described below is that run: it cannot merge until the E2E workflow is green on it, and the
+  commit it makes on `main` is the one that is tagged. There is no need to start the workflow by
+  hand before it. If anything else merged into `main` after its checks ran, press **Update branch**
+  and let them run again, because the protection does not ask for that by itself. The run the tag
+  starts does not count: the image is published beside it, not after it.
 - **That commit has been installed and used on a real installation.** A push to `main` publishes
   `main` and `sha-<commit>` without touching `latest` or the catalogue, which is what those tags are
   for: pull one onto the production install, let the migrations run against real data, and read
   mail with it. The suites start from an empty database every time; an upgrade never does.
 
-Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date` in a pull
-request titled `Release vX.Y.Z` — `main` is protected, so the release commit goes through one like
-everything else — merge it, tag the commit it made on `main` and push the tag. The release commit
-changes the changelog and nothing else, so what was tested is what is tagged — except for the
-highlight pictures that release pushes past their ten releases, which it deletes (see
-[Release notes](#release-notes)). Then close the
+Then, and in this order: write the release's section in a pull request titled `Release vX.Y.Z`
+— `main` is protected, so the release commit goes through one like everything else — merge it, tag
+the commit it made on `main` and push the tag. The section is written by
+
+```bash
+bin/changelog-release.sh vX.Y.Z
+```
+
+which puts the entries waiting in `changelog.d/` (highlights first) and whatever is still under
+`## Unreleased` under a new `## vX.Y.Z — date` heading, dated today unless a second argument says
+otherwise, and deletes the fragments. It refuses a version that already has a section, and a
+release with nothing in it. The release commit changes the changelog and `changelog.d/` and nothing
+else, so what was tested is what is tagged — except for the highlight pictures that release pushes
+past their ten releases, which it deletes (see [Release notes](#release-notes)). Then close the
 milestone of that name, moving anything still open in it to the next one (see
 [How work gets in](#how-work-gets-in)).
 
@@ -362,7 +388,19 @@ Never point it at a stack holding real mail.
 `CHANGELOG.md` is not only for people reading GitHub: every installation reads it from its own image
 and shows it in **What's new** after an update (see
 [What everyone sees after an update](docs/install/upgrading.md#what-everyone-sees-after-an-update)).
-So an entry is written for the person using plMail, and three conventions decide how it is shown:
+So an entry is written for the person using plMail.
+
+**A pull request adds its entry as a file of its own in `changelog.d/`**, named after the issue
+(`266-jmap-read-state.md`), not as a paragraph in `CHANGELOG.md`. Every pull request used to add
+its paragraph under `## Unreleased`, at the same place in the same file, so the second of any two
+conflicted with the first as soon as that one merged — and fixing the conflict is a push that
+re-runs the whole suite, once per pull request in a batch. The release pull request collects the
+files (see [Releasing](#releasing)). [`changelog.d/README.md`](changelog.d/README.md) has the
+details; the one rule that differs from writing in `CHANGELOG.md` is that a fragment has no
+headings, since the files are put one after the other. `### Before you upgrade` is still written
+under `## Unreleased` in `CHANGELOG.md`, and so are entries from pull requests that predate this.
+
+Three conventions decide how an entry is shown:
 
 - **An entry is a paragraph that opens with a bold sentence.** The bold part is its headline in the
   dialog; the rest, until the next bold paragraph, is what opens under it.

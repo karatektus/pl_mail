@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Service\Insight\Extractor;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\User\User;
 use App\Service\Insight\Extractor\ParcelExtractor;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,7 +34,10 @@ final class ParcelExtractorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->extractor = new ParcelExtractor();
+        // UTC as the install's default, so the receivedAt of every row below
+        // is also the reader's wall clock. The rows that are about another
+        // zone set one on the account's owner.
+        $this->extractor = new ParcelExtractor(new UserTimezoneResolver('UTC'));
     }
 
     public function testItsRegistryIdentity(): void
@@ -42,7 +48,7 @@ final class ParcelExtractorTest extends TestCase
     }
 
     /**
-     * @param array{from?: ?string, fromName?: ?string, subject?: ?string, body?: ?string, receivedAt?: string}    $mail
+     * @param array{from?: ?string, fromName?: ?string, subject?: ?string, body?: ?string, receivedAt?: string, timezone?: ?string} $mail
      * @param list<array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}> $drafts
      */
     #[DataProvider('mails')]
@@ -297,6 +303,168 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // #207: amazon.co.uk was not a shop the gate knew, so the subject
+            // let the mail in and extract() found no carrier number and no
+            // merchant to fall back on — nothing on the radar. The mail is
+            // invented, in the shape of the one reported.
+            'amazon.co.uk out for delivery: read like amazon.de, and the button stays on amazon.co.uk' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.co.uk',
+                    'fromName'   => 'Amazon.co.uk',
+                    'subject'    => 'Out for delivery: ‘Wireless Headphones...’',
+                    'body'       => "Your Orders\r\n\r\n"
+                        . "    Your package is out for delivery!\r\n"
+                        . "Ordered\r\n\r\nDispatched\r\n\r\nOut for delivery\r\n\r\nDelivered\r\n\r\n"
+                        . "Arriving today 5:15 pm - 8:15 pm\r\n\r\n"
+                        . "Alex – Leeds\r\n\r\n"
+                        . "Order #\r\n202-1234567-7654321\r\n\r\n"
+                        . "Track package\r\n"
+                        . 'https://www.amazon.co.uk/progress-tracker/package?_encoding=UTF8&orderId=202-1234567-7654321&packageIndex=0&shipmentId=QwErTy123&vt=NOTIFICATIONS',
+                    'receivedAt' => '2026-10-17 10:25:39',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 202-1234567-7654321',
+                    'dedupeKey' => '202-1234567-7654321#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '202-1234567-7654321',
+                        'shipmentId'     => 'QwErTy123',
+                        'trackingUrl'    => 'https://www.amazon.co.uk/progress-tracker/package?orderId=202-1234567-7654321&packageIndex=0&shipmentId=QwErTy123',
+                        'merchant'       => 'Amazon.co.uk',
+                        'status'         => 'out_for_delivery',
+                    ],
+                    'happensAt' => '2026-10-17 12:00',
+                ]],
+            ],
+
+            // amazon.com.au does not end in ".amazon.com", so it is its own
+            // storefront and not taken for the American one.
+            'amazon.com.au dispatched with no shipment id: the button opens the order on amazon.com.au' => [
+                [
+                    'from'     => 'shipment-tracking@amazon.com.au',
+                    'fromName' => 'Amazon.com.au',
+                    'subject'  => 'Dispatched: ‘Garden Hose 30m...’',
+                    'body'     => "Your package has been dispatched.\nOrder # 250-7654321-1234567\n",
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 250-7654321-1234567',
+                    'dedupeKey' => '250-7654321-1234567#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '250-7654321-1234567',
+                        'shipmentId'     => null,
+                        'trackingUrl'    => 'https://www.amazon.com.au/gp/your-account/order-details?orderID=250-7654321-1234567',
+                        'merchant'       => 'Amazon.com.au',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            // amazon.co.uk writes the day first, so the slash date is the
+            // 23rd of October. Before, a slash date was only read after a
+            // French word and this card had no date at all.
+            'amazon.co.uk slash date: day first, because the shop is British' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.co.uk',
+                    'fromName'   => 'Amazon.co.uk',
+                    'subject'    => 'Dispatched: ‘Desk Lamp...’',
+                    'body'       => "Your package has been dispatched.\nEstimated delivery: 23/10/2026\nOrder # 202-1234567-7654321\n",
+                    'receivedAt' => '2026-10-21 09:00:00',
+                ],
+                true,
+                [self::amazonDraft('amazon.co.uk', 'Amazon.co.uk', '202-1234567-7654321', 'in_transit', '2026-10-23 12:00')],
+            ],
+
+            // Without a year a slash pair is not read for an English shop:
+            // "24/7" would be the 24th of July.
+            'amazon.co.uk "24/7" after an ETA word is not a delivery day' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.co.uk',
+                    'fromName'   => 'Amazon.co.uk',
+                    'subject'    => 'Dispatched: ‘Desk Lamp...’',
+                    'body'       => "Estimated delivery soon. Our 24/7 support is here to help.\nOrder # 202-1234567-7654321\n",
+                    'receivedAt' => '2026-10-21 09:00:00',
+                ],
+                true,
+                [self::amazonDraft('amazon.co.uk', 'Amazon.co.uk', '202-1234567-7654321', 'in_transit', null)],
+            ],
+
+            // amazon.com writes the month first. Read day first, this would be
+            // the 11th of March; it is the 3rd of November, and since the
+            // extractor does not read month-first dates, it is no date.
+            'amazon.com slash date: not read day first' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.com',
+                    'fromName'   => 'Amazon.com',
+                    'subject'    => 'Shipped: ‘Desk Lamp...’',
+                    'body'       => "Your package has shipped.\nEstimated delivery: 11/03/2026\nOrder # 112-1234567-7654321\n",
+                    'receivedAt' => '2026-10-21 09:00:00',
+                ],
+                true,
+                [self::amazonDraft('amazon.com', 'Amazon.com', '112-1234567-7654321', 'in_transit', null)],
+            ],
+
+            // Eight in the morning in Sydney is still the day before in UTC.
+            // "Today" is the reader's today: Wednesday the 21st, not Tuesday.
+            'amazon.com.au "arriving today" is today in Sydney, not in UTC' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.com.au',
+                    'fromName'   => 'Amazon.com.au',
+                    'subject'    => 'Out for delivery: ‘Garden Hose 30m...’',
+                    'body'       => "Arriving today\nOrder # 250-7654321-1234567\n",
+                    'receivedAt' => '2026-10-20 21:00:00',
+                    'timezone'   => 'Australia/Sydney',
+                ],
+                true,
+                [self::amazonDraft('amazon.com.au', 'Amazon.com.au', '250-7654321-1234567', 'out_for_delivery', '2026-10-21 12:00')],
+            ],
+
+            // Half past seven in the evening in Los Angeles is already the
+            // next day in UTC. "Tomorrow" is Thursday the 22nd, not Friday.
+            'amazon.com "arriving tomorrow" in the evening in Los Angeles' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.com',
+                    'fromName'   => 'Amazon.com',
+                    'subject'    => 'Shipped: ‘Desk Lamp...’',
+                    'body'       => "Arriving tomorrow\nOrder # 112-1234567-7654321\n",
+                    'receivedAt' => '2026-10-22 02:30:00',
+                    'timezone'   => 'America/Los_Angeles',
+                ],
+                true,
+                [self::amazonDraft('amazon.com', 'Amazon.com', '112-1234567-7654321', 'in_transit', '2026-10-22 12:00')],
+            ],
+
+            // A user who never chose a zone reads on the install's default,
+            // which is UTC in this suite: the UTC day stands.
+            'amazon.com.au "arriving today" for a user without a zone' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.com.au',
+                    'fromName'   => 'Amazon.com.au',
+                    'subject'    => 'Out for delivery: ‘Garden Hose 30m...’',
+                    'body'       => "Arriving today\nOrder # 250-7654321-1234567\n",
+                    'receivedAt' => '2026-10-20 21:00:00',
+                    'timezone'   => null,
+                ],
+                true,
+                [self::amazonDraft('amazon.com.au', 'Amazon.com.au', '250-7654321-1234567', 'out_for_delivery', '2026-10-20 12:00')],
+            ],
+
+            'amazon.co.uk marketing without a shipping subject is refused like amazon.de' => [
+                [
+                    'from'     => 'store-news@amazon.co.uk',
+                    'fromName' => 'Amazon.co.uk',
+                    'subject'  => 'Deals picked for you',
+                    'body'     => 'Picks inspired by your recent orders.',
+                ],
+                false,
+                [],
+            ],
+
             'amazon dispatched: the subject beats a progress bar that lists every stage' => [
                 [
                     'from'       => 'versandbestaetigung@amazon.de',
@@ -420,6 +588,96 @@ final class ParcelExtractorTest extends TestCase
                     ],
                     'happensAt' => null,
                 ]],
+            ],
+
+            // #120: a FedEx and a UPS card said Delivered beside tomorrow's
+            // date. A carrier writes "delivered" long before it happens —
+            // "will be delivered", "scheduled to be delivered", "when it's
+            // delivered" — and the subject named no stage, so the body's
+            // first "delivered" was taken for the last one. The mails are
+            // invented; the reporter's were not available.
+            'fedex "will be delivered tomorrow" is not delivered' => [
+                [
+                    'from'       => 'TrackingUpdates@fedex.com',
+                    'fromName'   => 'FedEx',
+                    'subject'    => 'Your package is scheduled for delivery tomorrow',
+                    'body'       => "Hi. Your package will be delivered tomorrow.\nEstimated delivery: tomorrow\nTracking number: 771234567890\n",
+                    'receivedAt' => '2026-10-21 14:00:00',
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', '2026-10-22 12:00')],
+            ],
+
+            'ups "scheduled to be delivered" is not delivered' => [
+                [
+                    'from'     => 'pkginfo@ups.com',
+                    'fromName' => 'UPS',
+                    'subject'  => 'UPS Update: Package Scheduled for Delivery Tomorrow',
+                    'body'     => "Your package is scheduled to be delivered tomorrow.\nTracking Number: 1Z999AA10123456784\n",
+                ],
+                true,
+                [self::carrierDraft('ups', '1Z999AA10123456784', 'announced', null)],
+            ],
+
+            'fedex footer: "when it\'s delivered", "once … is delivered" and "being delivered" are not delivered' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Delivery scheduled',
+                    'body'     => "Tracking number: 771234567890\n"
+                        . "Want a text when it's delivered? Sign up for alerts.\n"
+                        . "Once your package is delivered, we will let you know.\n"
+                        . "Your shipment is being delivered by a local partner.\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', null)],
+            ],
+
+            'fedex "has been delivered" is still delivered' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'FedEx shipment 771234567890',
+                    'body'     => "Your package has been delivered.\nTracking number: 771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'delivered', null)],
+            ],
+
+            // #120 again: twelve digits are the shape of a FedEx tracking
+            // number and of an eBay order number, and the FedEx mail for an
+            // eBay purchase states both. The label in front decides.
+            'fedex for an ebay order: the order number is not a tracking number' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Your eBay order is on its way',
+                    'body'     => "eBay order number: 123456789012\nTracking number: 771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'in_transit', null)],
+            ],
+
+            'fedex: a reference and an order number on the line above are skipped too' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Shipment notification',
+                    'body'     => "Reference: 123456789012\nOrder #\n210987654321\nTracking ID\n771234567890\n",
+                ],
+                true,
+                [self::carrierDraft('fedex', '771234567890', 'announced', null)],
+            ],
+
+            'fedex mail that states only an order number gives no card' => [
+                [
+                    'from'     => 'TrackingUpdates@fedex.com',
+                    'fromName' => 'FedEx',
+                    'subject'  => 'Shipment notification',
+                    'body'     => "Your order is being prepared.\nOrder number: 123456789012\n",
+                ],
+                true,
+                [],
             ],
 
             'delivered, said in german' => [
@@ -1869,7 +2127,56 @@ final class ParcelExtractorTest extends TestCase
     }
 
     /**
-     * @param array{from?: ?string, fromName?: ?string, subject?: ?string, body?: ?string, receivedAt?: string} $mail
+     * The card an Amazon mail with no shipment id gives: everything follows
+     * from the storefront, the order and what the mail says.
+     *
+     * @return array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}
+     */
+    private static function amazonDraft(string $root, string $merchant, string $order, string $status, ?string $happensAt): array
+    {
+        return [
+            'title'     => 'Amazon · ' . $order,
+            'dedupeKey' => $order . '#0',
+            'payload'   => [
+                'carrier'        => 'amazon',
+                'trackingNumber' => null,
+                'orderNumber'    => $order,
+                'shipmentId'     => null,
+                'trackingUrl'    => sprintf('https://www.%s/gp/your-account/order-details?orderID=%s', $root, $order),
+                'merchant'       => $merchant,
+                'status'         => $status,
+            ],
+            'happensAt' => $happensAt,
+        ];
+    }
+
+    /**
+     * The card a carrier's own mail gives: the sender names the carrier, so
+     * there is no merchant, and the link is the carrier's tracking page.
+     *
+     * @return array{title: string, dedupeKey: string, payload: array<string, mixed>, happensAt: ?string}
+     */
+    private static function carrierDraft(string $carrier, string $number, string $status, ?string $happensAt): array
+    {
+        return [
+            'title'     => ['fedex' => 'FedEx', 'ups' => 'UPS'][$carrier] . ' · ' . $number,
+            'dedupeKey' => $number,
+            'payload'   => [
+                'carrier'        => $carrier,
+                'trackingNumber' => $number,
+                'trackingUrl'    => [
+                    'fedex' => 'https://www.fedex.com/fedextrack/?trknbr=',
+                    'ups'   => 'https://www.ups.com/track?tracknum=',
+                ][$carrier] . $number,
+                'merchant'       => null,
+                'status'         => $status,
+            ],
+            'happensAt' => $happensAt,
+        ];
+    }
+
+    /**
+     * @param array{from?: ?string, fromName?: ?string, subject?: ?string, body?: ?string, receivedAt?: string, timezone?: ?string} $mail
      */
     private static function message(array $mail): Message
     {
@@ -1884,6 +2191,13 @@ final class ParcelExtractorTest extends TestCase
             $mail['receivedAt'] ?? '2026-11-10 08:00:00',
             new DateTimeZone('UTC'),
         );
+
+        if (true === \array_key_exists('timezone', $mail)) {
+            $owner = new User();
+            $owner->timezone = $mail['timezone'];
+            $message->account = new Account();
+            $message->account->usr = $owner;
+        }
 
         return $message;
     }

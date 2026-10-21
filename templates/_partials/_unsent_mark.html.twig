@@ -1,0 +1,42 @@
+{#
+The warning on a draft whose send finally failed (#125) — on its row in the
+Drafts list, and on the Drafts entry in the sidebar while any draft has one.
+
+One icon in both places, defined once, so the sidebar's mark is plainly the
+same thing as the row's and the reader knows what to look for when they open
+Drafts. Red, because it is the one state here that means "this did not happen
+and you need to know": the toast that said so is gone by the time a scheduled
+send's failure is noticed.
+
+The sidebar's is rendered at every count and hidden at zero, the idiom every
+patched marker follows (see _new_dot.html.twig): ui--sidebar finds it by
+`data-count-key` after a counts refresh, and an element never rendered cannot
+be found.
+
+`hidden` goes on a wrapper, never on the <i>: Font Awesome's .fa-solid sets
+`display` and lands after Tailwind's utilities, so a `hidden` on the icon is
+overridden and the mark shows at zero — which is how it first shipped, on every
+install, with no draft marked at all. _thread_row.html.twig wraps its icons for
+the same reason.
+#}
+{% macro row(failure) %}
+    {% set reason = ('thread_row.send_failed.' ~ failure.value)|trans %}
+    <i class="fa-solid fa-triangle-exclamation shrink-0 text-red-600 dark:text-red-400"
+       role="img"
+       data-unsent-draft
+       title="{{ reason }}"
+       aria-label="{{ reason }}"></i>
+{% endmacro %}
+
+{% macro sidebar(count) %}
+    {# No display utility beside `hidden`: one of those would be a second
+       `display` competing with it, and it lost to `inline-flex` here once. #}
+    <span class="text-xs{{ count > 0 ? '' : ' hidden' }}"
+          role="img"
+          data-unsent-mark
+          data-count-key="unsent:role:drafts"
+          title="{{ 'sidebar.badge.unsent'|trans }}"
+          aria-label="{{ 'sidebar.badge.unsent'|trans }}">
+        <i class="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400" aria-hidden="true"></i>
+    </span>
+{% endmacro %}

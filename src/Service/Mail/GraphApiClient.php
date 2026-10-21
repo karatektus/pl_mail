@@ -676,6 +676,30 @@ final class GraphApiClient
         $this->assertSuccess($response);
     }
 
+    /**
+     * Whether Sent Items holds a message with this Message-ID — how a send
+     * whose answer was lost is settled before it is tried again (#125).
+     *
+     * A GET, so the scoped client retries a 5xx on it (see
+     * GraphRetryStrategy), which is right here: asking twice is harmless.
+     */
+    public function hasSentMessage(Account $account, string $messageId): bool
+    {
+        // Graph keeps the angle brackets; plMail stores the id without them.
+        // An apostrophe is doubled, OData's escape inside a quoted literal.
+        $literal = str_replace("'", "''", '<' . $messageId . '>');
+
+        $response = $this->request($account, 'GET', self::ME . '/mailFolders/sentitems/messages', [
+            'query' => [
+                '$filter' => sprintf("internetMessageId eq '%s'", $literal),
+                '$select' => 'id',
+                '$top'    => 1,
+            ],
+        ]);
+
+        return [] !== ($response->toArray(false)['value'] ?? []);
+    }
+
     // ── Batched writes ───────────────────────────────────────────────────────
 
     /**

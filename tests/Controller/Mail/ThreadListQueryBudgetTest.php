@@ -83,7 +83,12 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     // (SidebarCounts::changeSequence()): one MAX over an index, per page that
     // has a sidebar and not per row. A list-frame navigation draws no sidebar
     // and FRAME_BUDGET below is unchanged.
-    private const int BUDGET = 28;
+    //
+    // 29 since the sidebar marks Drafts while a draft's send has finally
+    // failed (#125, SidebarCounts::unsentDrafts()): one COUNT over a partial
+    // index that holds only the marked rows, per page with a sidebar. Not per
+    // row, and not in a frame, so FRAME_BUDGET is unchanged again.
+    private const int BUDGET = 29;
 
     /**
      * The ceiling for the INBOX alone: one above BUDGET, and the one read that
@@ -100,7 +105,7 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * the ceiling they had: a shared ceiling raised for one view would let each
      * of the others regress by a query and still pass.
      */
-    private const int INBOX_BUDGET = 29;
+    private const int INBOX_BUDGET = 30;
 
     /**
      * The ceiling for the same list NAVIGATED rather than visited.

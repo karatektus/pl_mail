@@ -303,7 +303,13 @@ A shop that never names a carrier still yields a parcel. Amazon states an order 
 into its own tracker and no tracking number anywhere, so that is what the card carries — and a
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
-it always did.
+it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
+from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
+shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
+and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
+such as "23/10/2026", is read day first from the shops of countries that write it that way, and only
+with the year; from amazon.com and amazon.ca it is not read at all, because the month may come first.
 
 The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
 GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
@@ -315,7 +321,10 @@ carriers, so its address names none of them: a card takes its carrier from the s
 that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
 link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
 satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
-card back into something else.
+card back into something else. A parcel is only **Delivered** when the mail says it happened: "will
+be delivered", "scheduled to be delivered" or "when it's delivered" are about a delivery still to
+come. And a number labelled as something else, such as "Order number", "Reference" or
+"Bestellnummer", is not taken for a tracking number even when it has the same shape.
 
 ### The strip above the mail list
 
@@ -1109,6 +1118,28 @@ told so plainly: *Too late — that message had already been sent.* You are not 
 of mail that has gone out. Because the window offered is eight seconds against a ten-second hold,
 losing is rare rather than routine.
 
+## When a send fails
+
+A send that fails for a passing reason is tried again on its own, for up to **two minutes**: a rate
+limit (Gmail and Outlook say how long to wait, and that wait is kept), the provider failing on its
+side, a mail server that is busy or greylisting, or a connection that never opened. Nothing is said
+while it is being retried. If it goes through, the **Message sent** toast says so as usual.
+
+A send that cannot work is not retried: a recipient the server does not know, a message that is too
+large, a password the server no longer accepts. That is said at once.
+
+**When the answer to a send is lost** — the connection dropped or timed out after the provider had
+been handed the mail — the mail may have gone out. It is never sent again without checking. For Gmail
+and Outlook accounts plMail looks for the message in Sent a few seconds later: found, it is recorded
+as sent; not found, it is sent again. For other accounts (SMTP) there is nothing to look in, so it is
+reported straight away as possibly sent: check **Sent** before sending it again.
+
+When a send finally fails, a toast says why, and the draft is marked: a **red warning triangle** on
+its row in **Drafts**, with the reason when you point at it, and the same triangle on **Drafts** in
+the sidebar for as long as any draft has one. That is what is left to find when nobody saw the toast
+— a scheduled send fails with nobody watching. The mark goes when the draft is sent, or sent again,
+or deleted. Editing it does not lift the mark, because the mail has still not gone.
+
 ## Where to read further
 
 - [Mail ingest](../internals/mail-ingest.md) — the pipeline from provider to database, threading and
@@ -1163,6 +1194,10 @@ marker working, not a marker that failed to appear.
 **Plain-text mode is only reversible until the draft is saved.** The warning says so before the
 switch. Once the draft has been stored as plain text there is no formatting left anywhere to come
 back to.
+
+**A warning triangle on a draft means its send failed, not that the draft is broken.** Open it and
+send it again; the mark goes as soon as the new attempt starts. *May have been sent* is the one to
+take care with: look in Sent first, or the recipient may get it twice.
 
 **A scheduled send cannot be closer than a minute away.** Typing the next whole minute is exactly
 the time a person picks to try the feature, and it is refused — with a reason, in the window,

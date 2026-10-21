@@ -11,6 +11,25 @@
    inside it, the way it styles its own hover. */
 @custom-variant lit (&:where(.is-lit, .is-lit > *));
 
+/* A month day opened: under the pointer, or tapped on a screen that has no
+   pointer to hover with (#253). `group-hover/cell:` was the whole of it, and
+   Tailwind gates `hover:` on `(hover: hover)`, so on a phone a day never opened
+   and its narrowest days were bars nobody could read. calendar/month_tap_controller.js
+   puts `data-open` on the day a finger tapped; everything a hover opened, this
+   opens, from the same classes. The cell itself as well as what is inside it,
+   for the `z-40` that lifts it over its neighbours. */
+@custom-variant day-open {
+    @media (hover: hover) {
+        &:where(.group\/cell:hover, .group\/cell:hover *) {
+            @slot;
+        }
+    }
+
+    &:where(.group\/cell[data-open], .group\/cell[data-open] *) {
+        @slot;
+    }
+}
+
 /* ═══ Palette channels + runtime knobs ══════════════════════════════════════
    Unlayered on purpose: these are variable definitions, not utilities, and
    unlayered declarations outrank Tailwind's cascade layers.
@@ -3766,6 +3785,21 @@ html {
 @container (max-width: 5.5rem) {
     [data-tentative-bar] {
         background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 2px, transparent 2px 4px);
+    }
+}
+
+/* An invitation not answered yet, in a month cell (see _event_chip): its bar is
+   dashed. A mask rather than a dashed border, because the bar is a background
+   (a gradient, for a meeting on several calendars) and a mask cuts whichever
+   it is. Across the bar below 5.5rem, where the bar is the whole chip and
+   lies on its side. */
+[data-awaiting-bar] {
+    mask-image: repeating-linear-gradient(to bottom, black 0 3px, transparent 3px 5px);
+}
+
+@container (max-width: 5.5rem) {
+    [data-awaiting-bar] {
+        mask-image: repeating-linear-gradient(to right, black 0 6px, transparent 6px 9px);
     }
 }
 

@@ -86,26 +86,10 @@ final readonly class QuoteCollapser
      */
     public function collapse(string $html): string
     {
-        if ('' === trim($html)) {
-            return $html;
-        }
+        $document = $this->parse($html);
+        $body     = $document?->body;
 
-        try {
-            // Same parser the sanitizer and the blocker use — never regex on
-            // markup. LIBXML_NOERROR + explicit UTF-8, exactly as the blocker,
-            // because this markup has no <meta charset>.
-            $document = \Dom\HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
-        } catch (\Throwable) {
-            // Collapsing is display sugar; a body we cannot parse is simply
-            // rendered whole. (The blocker, which runs first, fails closed for
-            // its own privacy reasons — by the time we get here the body parsed
-            // once already, so this is belt-and-braces.)
-            return $html;
-        }
-
-        $body = $document->body;
-
-        if (null === $body) {
+        if (null === $document || null === $body) {
             return $html;
         }
 
@@ -114,22 +98,92 @@ final readonly class QuoteCollapser
             return $html;
         }
 
-        $boundary = $this->findBoundary($body);
+        $boundary = $this->seam($body);
 
         if (null === $boundary) {
-            return $html;
-        }
-
-        // The false-positive guard: only a TRAILING region is ever collapsed,
-        // so there must be real new text before the seam. Without it we would
-        // be hiding the whole visible body — refuse, and render nothing new.
-        if ('' === trim($this->textBefore($body, $boundary))) {
             return $html;
         }
 
         $this->wrap($document, $boundary);
 
         return $body->innerHTML;
+    }
+
+    /**
+     * The same body with its reply history cut off, for the preview line in
+     * the list (see MessageSnippet).
+     *
+     * Same seam as collapse(), on purpose: the list and the "···" must agree
+     * on where the quote starts, or a row would preview text that opening the
+     * mail shows folded away. And the same refusal — a body with no new text
+     * before the seam comes back whole, so a forward without a comment still
+     * previews the mail it forwards rather than nothing.
+     *
+     * @param string $html sanitised body HTML (a fragment)
+     */
+    public function withoutQuote(string $html): string
+    {
+        $document = $this->parse($html);
+        $body     = $document?->body;
+
+        if (null === $body) {
+            return $html;
+        }
+
+        $boundary = $this->seam($body);
+
+        if (null === $boundary) {
+            return $html;
+        }
+
+        $parent = $boundary->parentNode;
+        $node   = $boundary;
+
+        while (null !== $parent && null !== $node) {
+            $next = $node->nextSibling;
+            $parent->removeChild($node);
+            $node = $next;
+        }
+
+        return $body->innerHTML;
+    }
+
+    private function parse(string $html): ?\Dom\HTMLDocument
+    {
+        if ('' === trim($html)) {
+            return null;
+        }
+
+        try {
+            // Same parser the sanitizer and the blocker use — never regex on
+            // markup. LIBXML_NOERROR + explicit UTF-8, exactly as the blocker,
+            // because this markup has no <meta charset>.
+            return \Dom\HTMLDocument::createFromString($html, LIBXML_NOERROR, 'UTF-8');
+        } catch (\Throwable) {
+            // Collapsing is display sugar; a body we cannot parse is simply
+            // rendered whole. (The blocker, which runs first, fails closed for
+            // its own privacy reasons — by the time we get here the body parsed
+            // once already, so this is belt-and-braces.)
+            return null;
+        }
+    }
+
+    /**
+     * Where the reply history starts, when there is new text above it.
+     *
+     * The false-positive guard: only a TRAILING region is ever collapsed (or
+     * cut), so there must be real new text before the seam. Without it the
+     * whole visible body would go — refuse instead.
+     */
+    private function seam(\Dom\Element $body): ?\Dom\Element
+    {
+        $boundary = $this->findBoundary($body);
+
+        if (null === $boundary || '' === trim($this->textBefore($body, $boundary))) {
+            return null;
+        }
+
+        return $boundary;
     }
 
     /**
@@ -403,6 +457,55 @@ final readonly class QuoteCollapser
             $next = $node->nextSibling;
             $wrapper->appendChild($node);
             $node = $next;
+        }
+
+        $this->revealFolded($wrapper);
+    }
+
+    /**
+     * Undo a quote the SENDER's composer left folded.
+     *
+     * plMail's own composer folds the quote under a reply with an inline
+     * `display: none`, and until #257 it sent the mail that way: the button
+     * was stripped, the `display: none` was not. Every such reply arrives
+     * with its history invisible in every client, and the "···" above it
+     * opened a box whose contents still hid themselves. Mail like that is
+     * already in people's inboxes, so it is undone here as well as no longer
+     * sent.
+     *
+     * Only inside the region just wrapped, and only an element that holds a
+     * blockquote (a folded reply) or starts a quote itself (a folded forward,
+     * which has no blockquote). That is the shape of a folded quote; nothing
+     * else a sender hides on purpose — a newsletter's preheader, a tracking
+     * pixel — looks like it. The `data-quote-*` markers would be the cleaner
+     * handle, but inbound sanitising strips every `data-` attribute, so they
+     * never arrive.
+     */
+    private function revealFolded(\Dom\Element $region): void
+    {
+        foreach ($region->querySelectorAll('[style]') as $element) {
+            if (false === $element instanceof \Dom\Element) {
+                continue;
+            }
+
+            if (null === $element->querySelector('blockquote') && false === $this->isQuoteStart($element)) {
+                continue;
+            }
+
+            $style    = (string) $element->getAttribute('style');
+            $revealed = (string) preg_replace('/(^|;)\s*display\s*:\s*none\s*(!important\s*)?(?=;|$)/i', '$1', $style);
+
+            if ($revealed === $style) {
+                continue;
+            }
+
+            if ('' === trim($revealed, " ;\t\n")) {
+                $element->removeAttribute('style');
+
+                continue;
+            }
+
+            $element->setAttribute('style', $revealed);
         }
     }
 

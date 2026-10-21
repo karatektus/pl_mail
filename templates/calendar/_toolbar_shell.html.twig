@@ -27,6 +27,16 @@ today, and a "today" button that did nothing would be a control that lies about
 what it does. Omitted rather than disabled, because unlike a paging step it is
 not part of a row whose shape must stay put.
 
+**Below 37rem of its own width the row tightens instead of scrolling (#253).**
+On a phone the four view names, the date and the paging controls came to more
+than the row had, and the row ran off its card. There the switcher shows the
+pane's icons, and the label takes a short form: the month without its year
+while it is this year, a week without its year, a day as day and month. The
+short and the long label are both in the markup and a container query picks
+one, so nothing has to measure anything; `@container/toolbar` is on the row
+itself, because the same phone width is a page on a phone and the pane on a
+desktop.
+
 compact is set by the docked pane. It gets the same four views, as icons rather
 than words: the pane is ~380px and "Day Week Month Agenda" spelled out leaves no
 room for the date, but dropping the switcher entirely meant the pane could only
@@ -75,16 +85,17 @@ Blocks:
     agenda: 'fa-list-ul',
 } %}
 
-<div class="flex items-center gap-2 px-3 py-1 border-b border-line shrink-0 min-h-[var(--pane-header-h)]">
+<div class="@container/toolbar border-b border-line shrink-0">
+<div class="flex items-center gap-2 px-3 py-1 min-h-[var(--pane-header-h)] @max-[37rem]/toolbar:gap-1 @max-[37rem]/toolbar:px-2 @max-[22rem]/toolbar:px-1">
     <div class="flex items-center gap-0.5 shrink-0">
         {% if prevUrl is not null %}
             <a href="{{ prevUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
                aria-label="{{ 'calendar.nav.previous'|trans }}"
             ><i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i></a>
         {% else %}
-            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
                   aria-hidden="true"
             ><i class="fa-solid fa-chevron-left text-xs"></i></span>
         {% endif %}
@@ -92,18 +103,24 @@ Blocks:
         {% if todayUrl is not null %}
             <a href="{{ todayUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-            >{{ 'calendar.today'|trans }}</a>
+               class="px-2 h-7 flex items-center rounded-lg text-xs text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:px-1.5 @max-[37rem]/toolbar:h-6"
+            >
+                {#- Under 22rem the word is today's date in a box, the way phone
+                    calendars draw it, and stays readable to a screen reader. -#}
+                <span class="@max-[22rem]/toolbar:sr-only">{{ 'calendar.today'|trans }}</span>
+                <span class="hidden @max-[22rem]/toolbar:flex w-5 h-5 items-center justify-center rounded border border-current text-[10px] font-medium tabular-nums"
+                      aria-hidden="true">{{ 'now'|date('j') }}</span>
+            </a>
         {% endif %}
 
         {% if nextUrl is not null %}
             <a href="{{ nextUrl }}"
                {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
-               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors"
+               class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-muted hover:bg-hover hover:text-ink transition-colors @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
                aria-label="{{ 'calendar.nav.next'|trans }}"
             ><i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i></a>
         {% else %}
-            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40"
+            <span class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint opacity-40 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6"
                   aria-hidden="true"
             ><i class="fa-solid fa-chevron-right text-xs"></i></span>
         {% endif %}
@@ -124,7 +141,9 @@ Blocks:
        never showed it, because TwigTimezoneSubscriber makes the default the
        user's own zone and the conversion is then a no-op; a page with no user
        has no such luck, which is how it was found. #}
-    <h2 class="text-sm font-medium text-ink truncate min-w-0" data-calendar-position>
+    {% set thisYear = anchor|date('Y', false) == 'now'|date('Y') %}
+    <h2 class="text-sm font-medium text-ink truncate min-w-0 @max-[22rem]/toolbar:text-xs" data-calendar-position>
+        <span class="@max-[37rem]/toolbar:hidden">
         {%- if spanLabel -%}
             {% set spanStart = rangeFrom %}
             {% set spanEnd = rangeTo|date_modify('-1 day') %}
@@ -167,9 +186,44 @@ Blocks:
                keeps it for any other. Week and month widen the pane to fit
                them (CalendarView::minimumPaneWidth()), so only these two views
                need it. #}
-            {%- set thisYear = anchor|date('Y', false) == 'now'|date('Y') -%}
             {{ anchor|intl_date(compact and thisYear ? 'dMMM' : 'dMMMy', false) }}
         {%- endif -%}
+        </span>
+        {#- The short form, for a narrow row. The same rules as above with the
+            year dropped wherever it is this year's, which is the part of a
+            label that says least on the screen it is read on. -#}
+        <span class="hidden @max-[37rem]/toolbar:inline">
+        {%- if spanLabel -%}
+            {% set spanStart = rangeFrom %}
+            {% set spanEnd = rangeTo|date_modify('-1 day') %}
+            {% set sameYear = spanStart|date('Y', false) == spanEnd|date('Y', false) %}
+            {% set sameMonth = sameYear and spanStart|date('n', false) == spanEnd|date('n', false) %}
+            {% set endThisYear = spanEnd|date('Y', false) == 'now'|date('Y') %}
+            {#- A week inside one month of this year names the month once, and
+                where the language puts it: "Oct 20–26", "20.–26. Okt.". Joining
+                a bare day to a formatted end gave English "20–Oct 26", because
+                its short date puts the month first; the order is the
+                language's, so it is a sentence in the catalogue. -#}
+            {%- if sameMonth and endThisYear -%}
+                {{- 'calendar.toolbar.range_short_month'|trans({
+                    '%start%': spanStart|date('j', false),
+                    '%end%':   spanEnd|date('j', false),
+                    '%month%': spanEnd|intl_date('MMM', false),
+                }) -}}
+            {%- else -%}
+                {{- 'calendar.toolbar.range_short'|trans({
+                    '%start%': sameMonth
+                        ? 'calendar.toolbar.range_day'|trans({ '%day%': spanStart|date('j', false) })
+                        : spanStart|intl_date(sameYear ? 'dMMM' : 'dMMMy', false),
+                    '%end%':   spanEnd|intl_date(sameYear and endThisYear ? 'dMMM' : 'dMMMy', false),
+                }) -}}
+            {%- endif -%}
+        {%- elseif view.value == 'month' -%}
+            {{ anchor|intl_date(thisYear ? 'MMMM' : 'yMMM', false) }}
+        {%- else -%}
+            {{ anchor|intl_date(thisYear ? 'dMMM' : 'dMMMy', false) }}
+        {%- endif -%}
+        </span>
     </h2>
 
     <div class="ml-auto flex items-center gap-1 shrink-0">
@@ -195,7 +249,7 @@ Blocks:
                     <a href="{{ viewUrls[candidate.value] }}"
                        {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
                        aria-current="{{ candidate == view ? 'page' : 'false' }}"
-                       {% if compact %}aria-label="{{ label }}" title="{{ label }}"{% endif %}
+                       {% if compact %}aria-label="{{ label }}"{% endif %} title="{{ label }}"
                        {# Inset for the reason mail/_attachment_chip.html.twig
                           spells out: these are square-cornered segments inside
                           one clipped rounded box, and a ring outside a segment
@@ -206,7 +260,7 @@ Blocks:
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
                               {{ shown|first == candidate.value ? 'rounded-l-lg' : '' }}
                               {{ shown|last == candidate.value ? 'rounded-r-lg' : '' }}
-                              {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
+                              {{ compact ? 'w-7 h-7' : 'px-2.5 py-1 @max-[37rem]/toolbar:px-0 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6' }}
                               {{ candidate == view
                                   ? 'bg-accent text-accent-ink focus-visible:ring-accent-ink'
                                   : 'text-ink-muted hover:bg-hover hover:text-ink focus-visible:ring-accent' }}"
@@ -214,7 +268,10 @@ Blocks:
                         {%- if compact -%}
                             <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>
                         {%- else -%}
-                            {{ label }}
+                            {#- Words, or on a narrow row the pane's icon with
+                                the word kept for screen readers. -#}
+                            <i class="fa-solid {{ viewIcons[candidate.value] }} hidden @max-[37rem]/toolbar:inline" aria-hidden="true"></i>
+                            <span class="@max-[37rem]/toolbar:sr-only">{{ label }}</span>
                         {%- endif -%}
                     </a>
                 {% endif %}
@@ -223,4 +280,5 @@ Blocks:
 
         {% block toolbar_actions %}{% endblock %}
     </div>
+</div>
 </div>

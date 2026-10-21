@@ -195,6 +195,71 @@ final class QuoteCollapserTest extends TestCase
         self::assertSame('   ', $this->collapser->collapse('   '));
     }
 
+    /**
+     * A reply sent from plMail before #257 carries its quote folded: the
+     * composer hid it with an inline `display: none` and sent it that way.
+     * The "···" then opened a box whose contents still hid themselves.
+     */
+    public function testAQuoteTheSendersComposerLeftFoldedIsRevealed(): void
+    {
+        $out = $this->collapser->collapse(
+            '<p>true story.</p>'
+            . '<div style="margin-top: 0.5em"><div style="display: none">'
+            . '<div>On Mon, Oct 19, 2026 at 3:25 pm, sven@example.test wrote:</div>'
+            . '<blockquote><p>The original.</p></blockquote></div></div>',
+        );
+
+        $region = self::hiddenRegion($out);
+
+        self::assertStringContainsString('The original.', $region);
+        self::assertStringNotContainsString('display: none', $region);
+    }
+
+    /** The same for a folded forward, which has no blockquote. */
+    public function testAFoldedForwardIsRevealed(): void
+    {
+        $out = $this->collapser->collapse(
+            '<p>FYI.</p>'
+            . '<div style="margin-top: 0.5em"><div style="display:none;border-top:1px solid #e0e0e0">'
+            . '<p>---------- Forwarded message ----------</p><p>From: Jane</p><div>The original.</div></div></div>',
+        );
+
+        self::assertStringNotContainsString('display:none', self::hiddenRegion($out));
+        self::assertStringContainsString('border-top:1px solid #e0e0e0', self::hiddenRegion($out));
+    }
+
+    /** Something the sender hid that is not a quote stays hidden. */
+    public function testHiddenContentThatIsNotAQuoteStaysHidden(): void
+    {
+        $out = $this->collapser->collapse(
+            '<div>Reply.</div>'
+            . '<div>On 11 Aug 2026, at 09:14, Jane wrote:</div>'
+            . '<blockquote><div style="display:none">preheader</div><div>Quoted.</div></blockquote>',
+        );
+
+        self::assertStringContainsString('style="display:none"', self::hiddenRegion($out));
+    }
+
+    /**
+     * The preview's cut is the reading view's seam (#257), so the list never
+     * previews text that opening the mail shows folded away.
+     */
+    #[DataProvider('replyFamilies')]
+    public function testWithoutQuoteKeepsOnlyTheNewText(string $html, string $newText, string $quotedText): void
+    {
+        $out = $this->collapser->withoutQuote($html);
+
+        self::assertStringContainsString($newText, $out);
+        self::assertStringNotContainsString($quotedText, $out);
+    }
+
+    /** And it refuses wherever collapse() does. */
+    #[DataProvider('leftAlone')]
+    public function testWithoutQuoteLeavesAmbiguousBodiesWhole(string $html): void
+    {
+        self::assertSame($html, $this->collapser->withoutQuote($html));
+    }
+
     /** The serialized contents of the hidden [data-plmail-quote] wrapper. */
     private static function hiddenRegion(string $html): string
     {

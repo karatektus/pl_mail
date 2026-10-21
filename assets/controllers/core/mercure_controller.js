@@ -435,6 +435,12 @@ export default class extends Controller {
             if ("string" === typeof data.stream && "" !== data.stream) {
                 Turbo.renderStreamMessage(data.stream);
             }
+
+            // A failure also marks the draft, and a success clears any mark
+            // it had (#125): the sidebar's warning on Drafts is a count, read
+            // again on the same nudge every other change sends. No sequence,
+            // so it is taken at its word rather than compared.
+            this.dispatch("mail-changed", {detail: {}});
         } else if (data.type === "labels.changed") {
             // The second branch that renders rather than dispatches, and the
             // second one where the payload is a turbo-stream the SERVER built.
