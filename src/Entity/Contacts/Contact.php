@@ -117,15 +117,25 @@ class Contact
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $trashedAt = null;
 
+    /*
+     * The three below are read in the order they were added. Without an
+     * ORDER BY, Postgres hands rows back in whatever order its heap has them,
+     * and an UPDATE moves a row: edit a contact's first address and it came
+     * back last. The page, the vCard and JMAP all show these as lists.
+     */
+
     /** @var Collection<int, ContactEmail> */
+    #[ORM\OrderBy(['id' => 'ASC'])]
     #[ORM\OneToMany(targetEntity: ContactEmail::class, mappedBy: 'contact', cascade: ['persist', 'remove'], orphanRemoval: true)]
     public private(set) Collection $emails;
 
     /** @var Collection<int, ContactPhone> */
+    #[ORM\OrderBy(['id' => 'ASC'])]
     #[ORM\OneToMany(targetEntity: ContactPhone::class, mappedBy: 'contact', cascade: ['persist', 'remove'], orphanRemoval: true)]
     public private(set) Collection $phones;
 
     /** @var Collection<int, ContactAddress> */
+    #[ORM\OrderBy(['id' => 'ASC'])]
     #[ORM\OneToMany(targetEntity: ContactAddress::class, mappedBy: 'contact', cascade: ['persist', 'remove'], orphanRemoval: true)]
     public private(set) Collection $addresses;
 
