@@ -74,22 +74,36 @@ final class CalendarEventRemoteIdMigrationTest extends KernelTestCase
      */
     public function testA258CharacterHrefRoundTrips(): void
     {
+        // The real href Baïkal produced for a Google-exported event: copied
+        // verbatim rather than synthesised, because the point is that a real
+        // server's naming is long and the fixture should not be shorter than
+        // the thing that broke it.
         $href = 'https://cal.thearvans.com/dav.php/calendars/mike@thearvans.com/main/'
-            . str_repeat('gcal-_60q30c1g60o30e1i60o4ac1g', 6)
-            . '.ics';
+            . 'gcal-_60q30c1g60o30e1i60o4ac1g60rj8gpl88rj2c1h84s34h9g60s30c1g60o30c1g'
+            . '6so32dq66kpk6ghi74r48e1g64o30c1g60o30c1g60o30c1g60o32c1g60o30c1g6sqj0c1g'
+            . '70pk4hhl6gs34hhk6ssj6g9o8cr30chk74s4achn8cp0.ics';
 
         self::assertGreaterThan(255, strlen($href), 'precondition: the fixture is longer than the old limit');
 
-        $calendarId = (int) $this->connection->fetchOne('SELECT id FROM calendar LIMIT 1');
-        $userId     = (int) $this->connection->fetchOne('SELECT id FROM "user" LIMIT 1');
+        // Built here rather than borrowed from whatever rows happen to exist:
+        // a fixture that skips when the database is empty asserts nothing, and
+        // the test stack's database is empty. Both parents are created inside
+        // the transaction and rolled back in tearDown.
+        $userId = (int) $this->connection->fetchOne(
+            'INSERT INTO "user" (email, name_first, name_last, password, roles, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, now(), now()) RETURNING id',
+            ['remote-id-' . bin2hex(random_bytes(4)) . '@plmail.test', 'Probe', 'Fixture', 'x', '[]'],
+        );
 
-        if (0 === $calendarId || 0 === $userId) {
-            self::markTestSkipped('no calendar/user row to attach a probe event to');
-        }
+        $calendarId = (int) $this->connection->fetchOne(
+            'INSERT INTO calendar (name, usr_id, created_at, updated_at)
+             VALUES (?, ?, now(), now()) RETURNING id',
+            ['Probe calendar', $userId],
+        );
 
         $this->connection->executeStatement(
-            'INSERT INTO calendar_event (uid, remote_id, calendar_id, usr_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, now(), now())',
+            'INSERT INTO calendar_event (uid, remote_id, starts_at, ends_at, calendar_id, usr_id, created_at, updated_at)
+             VALUES (?, ?, now(), now(), ?, ?, now(), now())',
             ['probe-' . bin2hex(random_bytes(4)), $href, $calendarId, $userId],
         );
 
