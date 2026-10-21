@@ -9,6 +9,15 @@ release before it reaches `main`, and `sha-…` pins one commit.
 
 ## Unreleased
 
+**A conversation with one message in the bin stays in your other lists, and so does new mail in it.**
+Deleting one message of a conversation took the whole conversation out of the Inbox, its tab, its
+labels, All Mail, Unread and search, because the conversation then carried the Trash label. A reply
+that arrived in it afterwards, by its references or by its subject, was unread mail the phone app
+showed and the web did not. A conversation now leaves those lists only once every message of it is
+in the bin. One that you deleted whole still leaves its labels, as before. A partly deleted
+conversation is listed in Trash too, and opening it still shows the deleted messages with the rest.
+No schema change. [#268](https://github.com/karatektus/pl_mail/issues/268).
+
 **The month view says what is on a day.** An entry in a month cell was its time on one line and its
 title cut to a single line under it, which at a normal width left "Lea…" and "Ihre…", and for an
 invitation a lone "…". It is now the title first, on up to two lines, and under it the time it runs

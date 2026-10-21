@@ -132,8 +132,7 @@ final class UnreadInUserLabelsTest extends KernelTestCase
 
         self::assertSame(1, $this->countUnreadInUserLabels());
 
-        $thread->addLabel($trash);
-        $this->em->flush();
+        $this->binThread($thread, $trash);
 
         self::assertSame(0, $this->countUnreadInUserLabels());
     }

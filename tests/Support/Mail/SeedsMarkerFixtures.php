@@ -87,6 +87,26 @@ trait SeedsMarkerFixtures
         return $thread;
     }
 
+    /**
+     * Put a conversation in the bin the way trashing does: Trash on every
+     * message as well as on the thread, Inbox left where it is.
+     *
+     * Not Trash on the thread alone. A thread's labels are its messages'
+     * (ThreadLabelSynchronizer), and the bin rule asks whether every message
+     * is in it (#268), so a thread wearing Trash over messages that do not is
+     * a state the app never produces and the lists treat as live.
+     */
+    private function binThread(MessageThread $thread, Label $trash): void
+    {
+        $thread->addLabel($trash);
+
+        foreach ($thread->messages as $message) {
+            $message->addLabel($trash);
+        }
+
+        $this->em->flush();
+    }
+
     private function seedLabel(string $name, ?LabelRole $role = null): Label
     {
         $label            = new Label();

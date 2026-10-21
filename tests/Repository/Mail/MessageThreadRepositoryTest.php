@@ -164,8 +164,9 @@ final class MessageThreadRepositoryTest extends KernelTestCase
     /**
      * All Mail is every conversation outside Spam and the bin (#57): archived
      * mail that wears no label at all, sent mail, drafts and snoozed mail
-     * included, each once however many labels it wears, and a Spam or Trash
-     * label anywhere on a conversation takes the whole of it out.
+     * included, each once however many labels it wears. A Spam label anywhere
+     * on a conversation takes the whole of it out, and so does the bin once
+     * every message of it is there.
      */
     public function testAllMailIncludesUnlabelledSentDraftAndSnoozedWithoutDuplicates(): void
     {
@@ -184,8 +185,12 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $bad = $this->inboxThread('spam union', '2026-04-01 09:00', $inbox);
         $bad->labels->add($spam);
 
+        // Trash on the message, through the synchroniser: the bin takes a
+        // conversation out once all of its messages are in it (#268), which
+        // a Trash label added to the thread alone does not say.
         $bad = $this->inboxThread('trash union', '2026-04-02 09:00', $sent);
-        $bad->labels->add($trash);
+        $bad->messages->first()->addLabel($trash);
+        $this->syncThreadLabels($bad);
 
         $this->em->flush();
 
@@ -550,6 +555,72 @@ final class MessageThreadRepositoryTest extends KernelTestCase
             $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
         );
         self::assertSame(1, $this->repository->countForAccountInbox($this->account));
+    }
+
+    /**
+     * #268, the reported case: an old message deleted, a reply arriving in the
+     * same conversation. The thread carries Trash because one of its messages
+     * does, and the bin rule used to take it out of the Inbox on that alone —
+     * new, unread mail the phone app showed and the web inbox did not.
+     *
+     * The thread is in the Inbox list, its count, its tab count and the
+     * unread badge, and in Trash too: one message of it is there.
+     */
+    public function testAReplyInAPartlyDeletedConversationIsInTheInbox(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread           = $this->thread('half deleted', '2026-03-01 09:00');
+        $thread->category = MessageCategory::Primary;
+
+        $deleted = $this->message($thread, '2026-02-01 09:00');
+        $deleted->addLabel($trash);
+        $deleted->seenAt = new DateTimeImmutable('2026-02-01 10:00');
+
+        $reply = $this->message($thread, '2026-03-01 09:00');
+        $reply->addLabel($inbox);
+        $thread->unreadCount = 1;
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(['half deleted'], $this->subjectsOf($this->repository->findForUnifiedInbox($this->user, null)));
+        self::assertSame(1, $this->repository->countForUnifiedInbox($this->user, null));
+        self::assertSame(['half deleted'], $this->subjectsOf($this->repository->findForAccountInbox($this->account)));
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account));
+        self::assertSame(['primary' => 1], $this->repository->countByCategoryForAccountInbox($this->account));
+        self::assertSame(1, $this->repository->countUnreadPerRole($this->user)[LabelRole::Inbox->value] ?? 0, 'the Inbox badge does not count the list it opens');
+
+        self::assertSame(['half deleted'], $this->subjectsOf($this->repository->findForRole($this->user, LabelRole::Trash)));
+    }
+
+    /**
+     * Deleting one message of a labelled conversation leaves the conversation
+     * under its label; deleting the last one takes it out — the rule
+     * testATrashedThreadDropsOutOfItsOtherLabelViews() pins, reached one
+     * message at a time.
+     */
+    public function testAConversationLeavesItsLabelOnlyWhenAllOfItIsInTheBin(): void
+    {
+        $receipts = $this->seedLabel('Receipts');
+        $trash    = $this->seedSystemLabel(LabelRole::Trash);
+
+        $thread = $this->thread('two receipts', '2026-02-02 09:00');
+        $first  = $this->message($thread, '2026-02-01 09:00');
+        $second = $this->message($thread, '2026-02-02 09:00');
+        $first->addLabel($receipts);
+        $second->addLabel($receipts);
+
+        $first->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(['two receipts'], $this->subjectsOf($this->repository->findForLabel($receipts)));
+        self::assertSame(1, $this->repository->countForLabel($receipts));
+
+        $second->addLabel($trash);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame([], $this->subjectsOf($this->repository->findForLabel($receipts)));
+        self::assertSame(0, $this->repository->countForLabel($receipts));
     }
 
     // ── the account's inbox, by category ─────────────────────────────────────
