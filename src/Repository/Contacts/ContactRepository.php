@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repository\Contacts;
 
+use App\Domain\Enum\Calendar\SyncState;
+use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
+use App\Entity\Contacts\ContactEmail;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\Tools\Pagination\Paginator;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -15,61 +18,113 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class ContactRepository extends ServiceEntityRepository
 {
+    /** A contact whose names or company contain :like. */
+    private const string MATCHES = '(LOWER(c.displayName) LIKE :like OR LOWER(c.givenName) LIKE :like OR LOWER(c.familyName) LIKE :like OR LOWER(c.nickname) LIKE :like OR LOWER(c.company) LIKE :like)';
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Contact::class);
     }
 
     /**
-     * Address-book hits for compose autocomplete: each contact once, paired
-     * with the email the composer should insert. A contact with no emails
-     * is skipped. Emails are joined so the chooser does not re-query per
-     * contact.
+     * Address-book hits for recipient autocomplete: one row per address, with
+     * its contact, for ContactSuggester to merge with the harvest.
      *
-     * The picked email is the contact's primary when it has one, otherwise
-     * the email that matched the query, otherwise its first email.
+     * Rooted at the email rather than the contact, so a contact's emails come
+     * back as rows of their own: typing "ada" offers Ada's work and home
+     * addresses both, and the contact's collection is never hydrated with
+     * only the addresses that happened to match (a fetch-joined collection
+     * filtered by the WHERE is a partial collection Doctrine then treats as
+     * the whole one). A contact matches by any of its names, its company or
+     * the address itself.
      *
-     * @return list<array{contact: Contact, email: string}>
+     * @return list<ContactEmail>
      */
-    public function findAddressBookForAutocomplete(UserInterface $user, string $query, int $limit): array
+    public function findForAutocomplete(UserInterface $user, string $query, int $limit): array
     {
-        $q = mb_strtolower(trim($query));
-
-        /** @var list<Contact> $rows */
-        $rows = $this->createQueryBuilder('c')
-            ->innerJoin('c.emails', 'e')
-            ->addSelect('e')
+        /** @var list<ContactEmail> */
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('e', 'c')
+            ->from(ContactEmail::class, 'e')
+            ->innerJoin('e.contact', 'c')
             ->where('c.usr = :user')
             ->andWhere('c.trashedAt IS NULL')
-            ->andWhere('(LOWER(c.displayName) LIKE :like OR LOWER(c.givenName) LIKE :like OR LOWER(c.familyName) LIKE :like OR LOWER(c.nickname) LIKE :like OR LOWER(c.company) LIKE :like OR LOWER(e.email) LIKE :like)')
+            ->andWhere(self::MATCHES . ' OR LOWER(e.email) LIKE :like')
             ->setParameter('user', $user)
-            ->setParameter('like', '%' . $q . '%')
-            ->orderBy('c.displayName', 'ASC')
-            // No DISTINCT: the row carries the JSON tags column, which Postgres
-            // cannot compare, so DISTINCT failed every autocomplete. A contact
-            // with several matching emails is deduplicated below instead.
+            ->setParameter('like', $this->like($query))
+            ->orderBy('LOWER(c.displayName)', 'ASC')
+            ->addOrderBy('e.isPrimary', 'DESC')
+            ->addOrderBy('e.id', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
 
-        // Defensive dedupe: one contact row can repeat per matching email.
-        $seen = [];
-        $out = [];
-        foreach ($rows as $contact) {
-            if (isset($seen[$contact->id])) {
-                continue;
+    /**
+     * The contacts of one synced book with an edit waiting to go to its server.
+     *
+     * @return list<Contact>
+     */
+    public function findPending(AddressBook $book): array
+    {
+        return $this->findBy(
+            ['addressBook' => $book, 'syncState' => SyncState::pendingCases()],
+            ['id' => 'ASC'],
+        );
+    }
+
+    /**
+     * Every contact of a synced book by its card's href and by its UID, for
+     * AddressBookSync to match what the server sends against.
+     *
+     * @return array{byHref: array<string, Contact>, byUid: array<string, Contact>}
+     */
+    public function indexForBook(AddressBook $book): array
+    {
+        $byHref = [];
+        $byUid  = [];
+
+        foreach ($this->findBy(['addressBook' => $book]) as $contact) {
+            if (null !== $contact->href) {
+                $byHref[$contact->href] = $contact;
             }
-            $seen[$contact->id] = true;
 
-            $email = $this->pickAutocompleteEmail($contact, $q);
-            if (null === $email) {
-                continue; // zero emails — skip
-            }
-
-            $out[] = ['contact' => $contact, 'email' => $email];
+            $byUid[$contact->uid] = $contact;
         }
 
-        return $out;
+        return ['byHref' => $byHref, 'byUid' => $byUid];
+    }
+
+    /**
+     * How many contacts each of these books holds, for the settings list.
+     *
+     * @param list<AddressBook> $books
+     *
+     * @return array<int, int> book id => count
+     */
+    public function countByBook(array $books): array
+    {
+        if ([] === $books) {
+            return [];
+        }
+
+        /** @var list<array{book: int, total: int}> $rows */
+        $rows = $this->createQueryBuilder('c')
+            ->select('IDENTITY(c.addressBook) AS book', 'COUNT(c.id) AS total')
+            ->where('c.addressBook IN (:books)')
+            ->andWhere('c.trashedAt IS NULL')
+            ->setParameter('books', $books)
+            ->groupBy('c.addressBook')
+            ->getQuery()
+            ->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(int) $row['book']] = (int) $row['total'];
+        }
+
+        return $counts;
     }
 
     /**
@@ -79,35 +134,24 @@ class ContactRepository extends ServiceEntityRepository
      * to one database. v1 tradeoff — with a tag selected, fewer than $limit
      * rows may come back for a page.
      *
+     * $book narrows the list to one address book: its id, or 'local' for
+     * plMail's own contacts.
+     *
      * @return list<Contact>
      */
-    public function findForUser(UserInterface $user, ?string $search, ?string $tag, string $sort, int $limit, int $offset): array
+    public function findForUser(UserInterface $user, ?string $search, ?string $tag, string $sort, int $limit, int $offset, int|string|null $book = null): array
     {
-        $qb = $this->createQueryBuilder('c')
-            ->leftJoin('c.emails', 'e')
-            ->addSelect('e')
-            ->where('c.usr = :user')
-            ->andWhere('c.trashedAt IS NULL')
-            ->setParameter('user', $user);
-
-        if (null !== $search && '' !== trim($search)) {
-            $qb->andWhere('(LOWER(c.displayName) LIKE :search OR LOWER(c.givenName) LIKE :search OR LOWER(c.familyName) LIKE :search OR LOWER(c.nickname) LIKE :search OR LOWER(c.company) LIKE :search OR LOWER(e.email) LIKE :search)')
-                ->setParameter('search', '%' . mb_strtolower(trim($search)) . '%');
-        }
+        $qb = $this->listed($user, $search, $book);
 
         match ($sort) {
             'recent' => $qb->orderBy('c.updatedAt', 'DESC'),
-            default => $qb->orderBy('c.displayName', 'ASC'),
+            default  => $qb->orderBy('LOWER(c.displayName)', 'ASC'),
         };
 
-        $qb->setMaxResults($limit)->setFirstResult($offset);
+        $qb->addOrderBy('c.id', 'ASC')->setMaxResults($limit)->setFirstResult($offset);
 
-        // The emails join is a collection join: limit/offset on plain results
-        // would count joined rows (a contact with three emails is three rows),
-        // so a page could cut a contact short and the next one repeat it. The
-        // Paginator pages by contact instead.
         /** @var list<Contact> $contacts */
-        $contacts = array_values(iterator_to_array(new Paginator($qb->getQuery(), true), false));
+        $contacts = $qb->getQuery()->getResult();
 
         if (null !== $tag && '' !== $tag) {
             $contacts = array_values(array_filter(
@@ -121,24 +165,57 @@ class ContactRepository extends ServiceEntityRepository
 
     /**
      * How many contacts findForUser() would return across all pages for
-     * this search — distinct contacts, not joined email rows. Tag filtering
-     * happens in PHP after the page is read, so it cannot be counted here.
+     * this search. Tag filtering happens in PHP after the page is read, so it
+     * cannot be counted here.
      */
-    public function countForUser(UserInterface $user, ?string $search): int
+    public function countForUser(UserInterface $user, ?string $search, int|string|null $book = null): int
+    {
+        return (int) $this->listed($user, $search, $book)
+            ->select('COUNT(c.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * The search matches an address through EXISTS rather than a join: a
+     * join would make a contact with three addresses three rows (so a page
+     * could cut one short and repeat it on the next), and a fetch-joined,
+     * filtered collection would show a contact with only the address that
+     * matched.
+     */
+    private function listed(UserInterface $user, ?string $search, int|string|null $book): QueryBuilder
     {
         $qb = $this->createQueryBuilder('c')
-            ->select('COUNT(DISTINCT c.id)')
-            ->leftJoin('c.emails', 'e')
             ->where('c.usr = :user')
             ->andWhere('c.trashedAt IS NULL')
             ->setParameter('user', $user);
 
-        if (null !== $search && '' !== trim($search)) {
-            $qb->andWhere('(LOWER(c.displayName) LIKE :search OR LOWER(c.givenName) LIKE :search OR LOWER(c.familyName) LIKE :search OR LOWER(c.nickname) LIKE :search OR LOWER(c.company) LIKE :search OR LOWER(e.email) LIKE :search)')
-                ->setParameter('search', '%' . mb_strtolower(trim($search)) . '%');
+        if ('local' === $book) {
+            $qb->andWhere('c.addressBook IS NULL');
+        } elseif (null !== $book) {
+            $qb->andWhere('c.addressBook = :book')->setParameter('book', (int) $book);
         }
 
-        return (int) $qb->getQuery()->getSingleScalarResult();
+        if (null !== $search && '' !== trim($search)) {
+            $emails = $this->getEntityManager()->createQueryBuilder()
+                ->select('1')
+                ->from(ContactEmail::class, 'e')
+                ->where('e.contact = c')
+                ->andWhere('LOWER(e.email) LIKE :like');
+
+            $qb->andWhere(sprintf('%s OR EXISTS(%s)', self::MATCHES, $emails->getDQL()))
+                ->setParameter('like', $this->like($search));
+        }
+
+        return $qb;
+    }
+
+    /**
+     * Case-insensitive "contains", with the user's % and _ taken literally.
+     */
+    private function like(string $query): string
+    {
+        return '%' . addcslashes(mb_strtolower(trim($query)), '%_\\') . '%';
     }
 
     /**
@@ -175,22 +252,4 @@ class ContactRepository extends ServiceEntityRepository
         return array_values($out);
     }
 
-    private function pickAutocompleteEmail(Contact $contact, string $q): ?string
-    {
-        $first = null;
-        $match = null;
-        $primary = null;
-
-        foreach ($contact->emails as $email) {
-            $first ??= $email->email;
-            if ($email->isPrimary) {
-                $primary = $email->email;
-            }
-            if (null === $match && str_contains($email->email, $q)) {
-                $match = $email->email;
-            }
-        }
-
-        return $primary ?? $match ?? $first;
-    }
 }

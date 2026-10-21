@@ -1725,48 +1725,6 @@ calendar:
         month: Monat
         week: '7 Tage'
 
-contacts:
-    delete:
-        confirm: >-
-            "%name%" löschen? Der Kontakt verschwindet auch aus dem Adressbuch
-            auf dem Server und von jedem Gerät, das es synchronisiert.
-        label: '%name% löschen'
-    edit:
-        label: '%name% bearbeiten'
-        submit: Kontakt speichern
-        title: Kontakt bearbeiten
-    empty: Noch keine Kontakte in deinen Adressbüchern.
-    field:
-        address_book: Adressbuch
-        emails: E-Mail-Adressen
-        name: Name
-        note: Notiz
-        one_per_line: Eine pro Zeile.
-        organization: Organisation
-        phones: Telefonnummern
-    form:
-        kept_note: >-
-            Alles andere an diesem Kontakt — ein Foto, ein Geburtstag, eine
-            Postanschrift — bleibt auf dem Server, wie es ist.
-    new:
-        button: Neuer Kontakt
-        submit: Kontakt anlegen
-        title: Neuer Kontakt
-    no_books: >-
-        Noch wird kein Adressbuch gespiegelt. Verbinde einen CardDAV-Server —
-        Nextcloud, Radicale, Fastmail, iCloud — und wähle, welche Adressbücher
-        hereinkommen sollen.
-    no_books_link: Kontakte einrichten
-    no_match: Kein Kontakt passt zu „%query%“.
-    pending: Hier gespeichert, noch nicht an den Server geschickt
-    read_only: Schreibgeschütztes Adressbuch
-    search: Kontakte durchsuchen
-    title: Kontakte
-    toast:
-        created: Kontakt angelegt
-        deleted: Kontakt gelöscht
-        saved: Kontakt gespeichert
-    truncated: Die ersten %count% werden angezeigt — such, um die Liste einzugrenzen.
 clipboard:
     copied: Kopiert
     copy_failed: Kopieren fehlgeschlagen
@@ -2156,7 +2114,6 @@ header:
     user_menu:
         account_attention: '%count% Dinge an deinen Konten brauchen Aufmerksamkeit'
         admin: Administration
-        contacts: Kontakte
         label: Benutzermenü für %email%
         profile: Profil
         rerun_setup: Einrichtung erneut starten
@@ -4643,106 +4600,115 @@ whats_new:
     screenshot_open: 'Screenshot in voller Größe öffnen'
     title: 'Was ist neu'
 contacts:
-    nav: Kontakte
-    title: Kontakte
+    add_address: 'Adresse hinzufügen'
+    add_email: 'E-Mail hinzufügen'
+    add_phone: 'Telefon hinzufügen'
+    add_to_address_book: 'Zu Kontakten hinzufügen'
     back: Zurück
+    book_all: 'Alle Bücher'
+    book_local: 'Nicht synchronisiert'
     cancel: Abbrechen
-    save: Speichern
-    new: Neuer Kontakt
-    edit: Kontakt bearbeiten
+    check_carefully: 'Genau prüfen'
+    city: Ort
+    company: Firma
+    confidence: '%pct%% Übereinstimmung'
+    count: '{0}Keine Kontakte|{1}1 Kontakt|]1,Inf[ %count% Kontakte'
+    country: Land
+    created: 'Kontakt angelegt.'
     delete: Löschen
     delete_confirm: '%name% löschen? Der Kontakt kommt in den Papierkorb und wird nach 90 Tagen endgültig entfernt.'
-    created: Kontakt angelegt.
-    updated: Kontakt gespeichert.
-    trashed: Kontakt in den Papierkorb verschoben.
-    count: '%count% Kontakte'
-    search: Kontakte durchsuchen
-    search_placeholder: 'Name, Firma oder E-Mail suchen…'
-    empty: 'Noch keine Kontakte. Leg den ersten an oder importiere eine vCard- oder CSV-Datei.'
-    empty_search: Kein Kontakt passt zu dieser Suche.
-    tag_all: Alle
-    prev: Zurück
-    next: Weiter
-    page: 'Seite %page%'
-    section_name: Name
-    display_name: Vollständiger Name
-    given_name: Vorname
-    family_name: Nachname
-    nickname: Spitzname
-    company: Firma
-    job_title: Position
-    section_emails: E-Mail-Adressen
-    add_email: E-Mail hinzufügen
+    deleted_contact: '(gelöschter Kontakt)'
+    display_name: 'Vollständiger Name'
+    duplicates: Doppelte
+    duplicates_count: '{1}1 mögliches Paar|]1,Inf[ %count% mögliche Paare'
+    duplicates_none: 'Keine Doppelten gefunden. Neue Importe werden automatisch geprüft.'
+    edit: 'Kontakt bearbeiten'
     email_placeholder: name@example.com
-    section_phones: Telefonnummern
-    add_phone: Telefon hinzufügen
-    phone_placeholder: '+49 30 1234567'
-    section_addresses: Adressen
-    add_address: Adresse hinzufügen
+    empty: 'Noch keine Kontakte. Leg den ersten an oder importiere eine vCard- oder CSV-Datei.'
+    empty_search: 'Kein Kontakt passt zu dieser Suche.'
+    export_vcf: 'Als vCard exportieren'
+    family_name: Nachname
+    given_name: Vorname
+    import: Importieren
+    import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
+    import_choose: 'Datei wählen'
+    import_confirm: '%count% Kontakte importieren'
+    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
+    import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
+    import_formats: '.vcf, .vcard oder .csv'
+    import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
+    import_no_file: 'Es wurde keine Datei hochgeladen.'
+    import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
+    import_step1: 'Schritt 1 — Datei wählen'
+    import_step2: 'Schritt 2 — Vorschau'
+    import_upload: 'Hochladen & Vorschau'
+    import_uploading: 'Wird hochgeladen…'
+    imported: '%count% Kontakte importiert.'
+    in_address_book: 'In deinen Kontakten'
+    job_title: Position
+    keep_this: 'Diesen behalten'
     label: Bezeichnung
     label_home: Privat
-    label_work: Arbeit
+    label_mobile: Mobil
     label_other: Sonstige
+    label_work: Arbeit
+    merge: Zusammenführen
+    merge_pick_keep: 'Wähle zuerst, welcher Kontakt bleiben soll.'
+    merge_read_only: 'Ein Kontakt aus einem schreibgeschützten Adressbuch kann nicht zusammengeführt werden.'
+    merge_undo: Rückgängig
+    merge_undo_expired: 'Die 90-tägige Frist zum Rückgängigmachen ist abgelaufen.'
+    merge_undone: 'Zusammenführung rückgängig gemacht.'
+    merged: 'Kontakte zusammengeführt. Du kannst es in der Liste unten rückgängig machen.'
+    merged_into: '%count% in %name% zusammengeführt'
+    nav: Kontakte
+    new: 'Neuer Kontakt'
+    next: Weiter
+    nickname: Spitzname
+    no_details: 'Noch keine Kontaktdaten.'
+    no_subject: '(kein Betreff)'
+    notes: Notizen
+    page: 'Seite %page%'
+    pending: 'Wartet darauf, an den Server zu gehen'
+    phone_placeholder: '+49 30 1234567'
+    photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'
+    photo_hint_synced: 'JPG, PNG oder WebP, bis 5 MB. Nur hier zu sehen: Das Foto geht nicht an den Server.'
+    photo_invalid: 'Dieses Foto ließ sich nicht verwenden. JPG, PNG oder WebP bis 5 MB.'
+    photo_upload: 'Foto hochladen'
+    photo_uploaded: 'Foto aktualisiert.'
+    postcode: PLZ
+    prev: Zurück
     primary: Hauptadresse
     primary_short: Haupt
-    remove: Entfernen
-    street: Straße
-    city: Ort
+    recent_merges: 'Letzte Zusammenführungen'
+    reference_emails: Bezugs-E-Mails
+    reference_emails_empty: 'Noch keine E-Mails mit diesem Kontakt.'
+    reference_emails_hint: 'Jede nicht gelöschte E-Mail von oder an diesen Kontakt — Posteingang, Gesendet, Entwürfe, Papierkorb und Labels.'
     region: Bundesland/Region
-    postcode: PLZ
-    country: Land
-    section_notes: Notizen
-    notes: Notizen
-    tags: Schlagwörter
-    tags_placeholder: 'Durch Kommas getrennt, z. B. Familie, Lieferanten'
-    section_details: Details
-    no_details: Noch keine Kontaktdaten.
-    related: Verknüpfte Kontakte
-    rel_related: Verwandt
     rel_assistant: Assistenz
     rel_manager: Vorgesetzte(r)
     rel_partner: Partner(in)
-    photo_upload: Foto hochladen
-    photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'
-    photo_invalid: 'Dieses Foto ließ sich nicht verwenden. JPG, PNG oder WebP bis 5 MB.'
-    photo_uploaded: Foto aktualisiert.
-    reference_emails: Bezugs-E-Mails
-    reference_emails_hint: 'Jede nicht gelöschte E-Mail von oder an diesen Kontakt — Posteingang, Gesendet, Entwürfe, Papierkorb und Labels.'
-    reference_emails_empty: Noch keine E-Mails mit diesem Kontakt.
-    no_subject: '(kein Betreff)'
-    import: Importieren
-    import_step1: 'Schritt 1 — Datei wählen'
-    import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
-    in_address_book: 'In deinen Kontakten'
-    add_to_address_book: 'Zu Kontakten hinzufügen'
-    import_choose: Datei wählen
-    import_formats: '.vcf, .vcard oder .csv'
-    import_upload: 'Hochladen & Vorschau'
-    import_uploading: 'Wird hochgeladen…'
-    import_no_file: 'Es wurde keine Datei hochgeladen.'
-    import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
-    import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
-    import_step2: 'Schritt 2 — Vorschau'
-    import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
-    import_confirm: '%count% Kontakte importieren'
-    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
-    imported: '%count% Kontakte importiert.'
-    export_vcf: Als vCard exportieren
-    export_csv: Als CSV exportieren
-    duplicates: Doppelte
-    duplicates_count: '%count% mögliche Paare'
-    duplicates_none: 'Keine Doppelten gefunden. Neue Importe werden automatisch geprüft.'
-    confidence: '%pct%% Übereinstimmung'
-    check_carefully: Genau prüfen
-    keep_this: Diesen behalten
-    merge: Zusammenführen
-    merge_pick_keep: 'Wähle zuerst, welcher Kontakt bleiben soll.'
-    merged: Kontakte zusammengeführt. Du kannst es in der Liste unten rückgängig machen.
-    recent_merges: Letzte Zusammenführungen
-    merged_into: '%count% in %name% zusammengeführt'
-    deleted_contact: '(gelöschter Kontakt)'
-    merge_undo: Rückgängig
-    merge_undone: Zusammenführung rückgängig gemacht.
-    merge_undo_expired: Die 90-tägige Frist zum Rückgängigmachen ist abgelaufen.
+    rel_related: Verwandt
+    related: 'Verknüpfte Kontakte'
+    remove: Entfernen
+    save: Speichern
+    save_to: 'Speichern in'
+    save_to_hint: 'Ein Kontakt in einem synchronisierten Adressbuch geht an dessen Server und von dort auf jedes Gerät, das es synchronisiert.'
+    search: 'Kontakte durchsuchen'
+    search_placeholder: 'Name, Firma oder E-Mail suchen…'
+    section_addresses: Adressen
+    section_details: Details
+    section_emails: E-Mail-Adressen
+    section_name: Name
+    section_notes: Notizen
+    section_phones: Telefonnummern
+    street: Straße
+    synced_read_only: 'Schreibgeschützt, aus %book% auf %server%'
+    synced_with: 'Synchronisiert mit %book% auf %server%'
+    tag_all: Alle
+    tags: Schlagwörter
+    tags_placeholder: 'Durch Kommas getrennt, z. B. Familie, Lieferanten'
+    title: Kontakte
+    trashed: 'Kontakt in den Papierkorb verschoben.'
+    updated: 'Kontakt gespeichert.'
     validation:
         name_required: 'Gib dem Kontakt einen Namen.'

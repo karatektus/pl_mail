@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:da26fea3d41e67c7a4d5846d18b2a08cced17f8b -->
+<!-- translated-from: providers/carddav.md sha1:d40e3a90d485237da06d209fe54f0e04b07ceaf0 -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -6,10 +6,10 @@ Server, der RFC 6352 umsetzt: Nextcloud, Radicale, Baïkal, Fastmail, iCloud. Me
 Server wie bei [CalDAV](caldav.md), mit demselben App-Passwort. Du verbindest ihn in deinen eigenen
 Einstellungen; ein Schritt für den Administrator ist nicht nötig.
 
-Kontakte aus einem gespiegelten Adressbuch werden dir vorgeschlagen, wenn du eine Nachricht
-adressierst, neben den Adressen, die plMail aus deinen E-Mails geerntet hat. Auf der Seite
-**Kontakte** kannst du sie auflisten, durchsuchen und bearbeiten, und eine Änderung dort wird an den
-Server zurückgeschrieben.
+Die Kontakte eines gespiegelten Adressbuchs kommen zu deinen [Kontakten](../features/contacts.md),
+neben denen, die nur in plMail liegen. Dort listest, durchsuchst, bearbeitest, führst zusammen und
+löschst du sie wie jeden anderen, und jede Änderung dort wird an den Server zurückgeschrieben.
+Außerdem werden sie dir vorgeschlagen, wenn du eine Nachricht adressierst.
 
 ## Einen Server verbinden
 
@@ -64,11 +64,11 @@ unter **Einstellungen → Kontakte** gibt es pro Buch einen Knopf zum sofortigen
 anbietet, sonst `getctag` plus eine vollständige Liste, wenn sich das ctag bewegt. Nur eine
 vollständige Liste löscht lokale Karten, die sie nicht erwähnt; ein Delta tut das nie.
 
-**Was du hier änderst, wird sofort gespeichert und danach gesendet.** Die Karte wird als ausstehend
-markiert — die Kontakte-Seite zeigt eine kleine Uhr daneben — und der Worker schickt sie bei der
-nächsten Synchronisierung, die eine Änderung sofort einreiht. Jede Synchronisierung sendet
-ausstehende Änderungen, *bevor* sie den Server liest, damit die ältere Kopie des Servers eine
-Änderung nicht auf dem Weg hinaus überschreibt.
+**Was du hier änderst, wird sofort gespeichert und danach gesendet.** Der Kontakt wird als
+ausstehend markiert (die Kontaktliste zeigt eine kleine Uhr an ihm), und der Worker schickt ihn bei
+der nächsten Synchronisierung. Eine Änderung reiht diese Synchronisierung sofort ein. Jede
+Synchronisierung sendet ausstehende Änderungen, *bevor* sie den Server liest, damit die ältere Kopie
+des Servers eine Änderung nicht auf dem Weg hinaus überschreibt.
 
 **Jeder Schreibzugriff ist bedingt.** Ein neuer Kontakt wird mit `If-None-Match: *` unter einem aus
 seiner UID abgeleiteten Namen per `PUT` angelegt; eine Änderung oder Löschung trägt `If-Match` mit
@@ -79,35 +79,44 @@ zusammenzuführen ist eine eigene Funktion, und wer sie falsch macht, beschädig
 
 Eine Karte, die der Server rundweg ablehnt (`403`, meist aus einem Adressbuch, das nicht gesagt hat,
 dass es schreibgeschützt ist), wird genauso behandelt: Die Kopie des Servers bleibt, die abgelehnte
-Änderung landet im Log, und eine einzelne Karte kann den Rest des Adressbuchs nicht am Synchronisieren
-hindern. Jeder andere Fehler — der Server nicht erreichbar, sein Speicher voll oder das Passwort
-abgelehnt — lässt die Änderung ausstehend, und sie wird bei einer späteren Synchronisierung erneut
-gesendet.
+Änderung landet im Log, und eine einzelne Karte kann den Rest des Adressbuchs nicht am
+Synchronisieren hindern. Jeder andere Fehler — der Server nicht erreichbar, sein Speicher voll oder
+das Passwort abgelehnt — lässt die Änderung ausstehend, und sie wird bei einer späteren
+Synchronisierung erneut gesendet.
 
-**Was plMail nicht anzeigt, rührt es nicht an.** Die Kontakte-Seite bearbeitet Name,
-E-Mail-Adressen, Telefonnummern, Organisation und Notiz. Eine Karte trägt viel mehr — ein Foto,
-einen Geburtstag, Postanschriften, Eigenschaften, mit denen ein Handy sie an eine App bindet — und
-all das bleibt erhalten: Die Änderung wird auf die vCard angewendet, die der Server geschickt hat,
-nicht auf eine aus diesen fünf Feldern neu gebaute Karte. Eine Adresse, die auf der Karte bleibt,
-behält ihren Typ (Arbeit, privat) und ihre Gruppierung.
+**Was plMail nicht anzeigt, rührt es nicht an.** Ein Kontakt hat hier Namen, einen Spitznamen, Firma
+und Position, E-Mail-Adressen, Telefonnummern und Postanschriften mit ihren Bezeichnungen, Notizen
+und Schlagwörter (die Kategorien der Karte). Eine Karte trägt viel mehr, etwa einen Geburtstag oder
+Eigenschaften, mit denen ein Handy sie an eine App bindet, und all das bleibt erhalten. plMail
+behält die vCard, die der Server geschickt hat, und wendet eine Änderung auf sie an, wobei nur die
+geänderten Eigenschaften angefasst werden. Es baut die Karte nicht aus seinen eigenen Feldern neu.
+Eine Adresse oder Nummer, die auf der Karte bleibt, behält ihren Typ (Arbeit, privat), ihre
+Gruppierung und die Schreibweise des Servers. Ein Foto auf der Karte wird hier angezeigt; ein hier
+hochgeladenes Foto geht nicht an den Server.
 
-Schreibgeschützte Bücher — ein geteiltes Buch, das globale Adressbuch eines Servers — werden
-gespiegelt und vorgeschlagen, lassen sich hier aber nicht bearbeiten. Ob ein Buch Schreibzugriffe
-annimmt, wird beim Server erfragt (`current-user-privilege-set`), nicht angenommen.
+**Einen Kontakt zu löschen löscht seine Karte.** Ein Kontakt, den du hier in den Papierkorb legst,
+wird bei der nächsten Synchronisierung auf dem Server gelöscht und bleibt im Papierkorb als einer,
+der nur in plMail liegt. Führst du Duplikate zusammen, wird die Karte des behaltenen Kontakts
+aktualisiert, und die Karten der zusammengeführten werden gelöscht.
+
+Schreibgeschützte Bücher, etwa ein geteiltes Buch oder das globale Adressbuch eines Servers, werden
+gespiegelt und vorgeschlagen, lassen sich hier aber nicht bearbeiten, löschen oder zusammenführen.
+Ob ein Buch Schreibzugriffe annimmt, wird beim Server erfragt (`current-user-privilege-set`), nicht
+angenommen.
 
 ## Vorschläge beim Schreiben
 
 Der Editor und JMAP `Contact/autocomplete` lesen eine gereihte Liste, in dieser Reihenfolge:
 
 1. wie oft die Adresse in deinen E-Mails vorkam;
-2. dann, ob sie in einem Adressbuch steht;
+2. dann, ob sie in deinen Kontakten steht (nur in plMail oder in einem synchronisierten Buch);
 3. dann, wie kürzlich sie gesehen wurde, dann der Name.
 
-Eine Adresse, der du oft schreibst, kommt also weiterhin zuerst, und ein Kontakt aus dem
-Adressbuch, dem du nie geschrieben hast, kommt vor einer Adresse, die du einmal in einen Entwurf
-getippt hast. Eine Adresse, die an beiden Stellen steht, wird einmal vorgeschlagen, unter dem Namen
-aus deinem Adressbuch. Tippst du einen Teil eines Namens, bekommst du jede Adresse dieser Karte
-angeboten; tippst du einen Teil einer Adresse, nur diese Adresse.
+Eine Adresse, der du oft schreibst, kommt also weiterhin zuerst, und ein Kontakt, dem du nie
+geschrieben hast, kommt vor einer Adresse, die du einmal in einen Entwurf getippt hast. Eine
+Adresse, die an beiden Stellen steht, wird einmal vorgeschlagen, unter dem Namen aus deinen
+Kontakten. Tippst du einen Teil eines Namens, bekommst du jede Adresse dieses Kontakts angeboten;
+tippst du einen Teil einer Adresse, nur diese Adresse.
 
 ## Fallstricke
 
@@ -120,14 +129,11 @@ und die Änderung hier wird verworfen (und geloggt). Das Fenster ist die Zeit zw
 und dem nächsten Lauf des Workers, meist Sekunden.
 
 **Ein Adressbuch abzuwählen oder den Server zu trennen verwirft noch nicht gesendete Änderungen.**
-Die Kopien hier verschwinden; der Server behält seine eigenen. Zeigt ein Kontakt die Uhr, warte,
-bis sie verschwindet.
+Die Kopien hier verschwinden, mit jedem Foto, das du hier zu ihnen hochgeladen hast; der Server
+behält seine eigenen. Zeigt ein Kontakt die Uhr, warte, bis sie verschwindet.
 
 **Ein Server im LAN wird standardmäßig abgelehnt**, wie bei CalDAV. Trag den Host in
 `INTEGRATIONS_ALLOWED_HOSTS` ein.
-
-**Die Seite zeigt die ersten 300 Kontakte.** Die Suche grenzt ein; vor der Suche und den
-Vorschlägen ist nichts verborgen.
 
 **Einen Kontakt zwischen Adressbüchern zu verschieben wird nicht angeboten.** Auf dem Server ist
 das eine Löschung in einer Sammlung und eine Neuanlage in einer anderen; mach es in der Oberfläche

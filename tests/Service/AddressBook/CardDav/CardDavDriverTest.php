@@ -8,7 +8,8 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\IntegrationException;
-use App\Entity\AddressBook\ContactCard;
+use App\Entity\AddressBook\AddressBook;
+use App\Entity\Contacts\Contact;
 use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -274,7 +275,7 @@ final class CardDavDriverTest extends TestCase
         $fixture = new CardDavFixture(CalDavFixture::status(201, ['etag' => '"new"']));
 
         $book       = CardDavFixture::book(self::BOOK);
-        $card       = new ContactCard($book, 'uid with/slash');
+        $card       = $this->contact($book, 'uid with/slash');
         $card->vcard = CardDavFixture::vcard('uid with/slash', 'New', 'new@example.com');
 
         $written = $fixture->driver->put($book, $card);
@@ -291,7 +292,7 @@ final class CardDavDriverTest extends TestCase
         $fixture = new CardDavFixture(CalDavFixture::status(412));
 
         $book        = CardDavFixture::book(self::BOOK);
-        $card        = new ContactCard($book, 'ada');
+        $card        = $this->contact($book, 'ada');
         $card->href  = self::BOOK . 'ada.vcf';
         $card->etag  = '"1"';
         $card->vcard = CardDavFixture::vcard('ada', 'Ada', 'ada@example.com');
@@ -310,11 +311,7 @@ final class CardDavDriverTest extends TestCase
     {
         $fixture = new CardDavFixture(CalDavFixture::status(404));
 
-        $book       = CardDavFixture::book(self::BOOK);
-        $card       = new ContactCard($book, 'ada');
-        $card->href = self::BOOK . 'ada.vcf';
-
-        $fixture->driver->delete($book, $card);
+        $fixture->driver->delete(CardDavFixture::book(self::BOOK), self::BOOK . 'ada.vcf', null);
 
         self::assertSame('DELETE', $fixture->method(0));
     }
@@ -323,7 +320,7 @@ final class CardDavDriverTest extends TestCase
     {
         $fixture = new CardDavFixture();
 
-        $fixture->driver->delete(CardDavFixture::book(self::BOOK), new ContactCard(CardDavFixture::book(self::BOOK), 'local'));
+        $fixture->driver->delete(CardDavFixture::book(self::BOOK), null, null);
 
         self::assertSame(0, $fixture->requestCount(), 'a DELETE on the collection URL would delete the book');
     }
@@ -368,5 +365,14 @@ final class CardDavDriverTest extends TestCase
             htmlspecialchars(CardDavFixture::vcard($uid, ucfirst($uid), $uid . '@example.com'), ENT_XML1),
             null === $token ? '' : sprintf('<d:sync-token>%s</d:sync-token>', $token),
         ));
+    }
+
+    private function contact(AddressBook $book, string $uid): Contact
+    {
+        $contact              = Contact::create($book->usr, $uid);
+        $contact->uid         = $uid;
+        $contact->addressBook = $book;
+
+        return $contact;
     }
 }

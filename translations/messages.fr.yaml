@@ -1705,48 +1705,6 @@ calendar:
         month: Mois
         week: '7 jours'
 
-contacts:
-    delete:
-        confirm: >-
-            Supprimer « %name% » ? Il est aussi supprimé du carnet d’adresses sur le
-            serveur, et de chaque appareil qui le synchronise.
-        label: Supprimer %name%
-    edit:
-        label: Modifier %name%
-        submit: Enregistrer le contact
-        title: Modifier le contact
-    empty: Aucun contact dans vos carnets d’adresses pour l’instant.
-    field:
-        address_book: Carnet d’adresses
-        emails: Adresses e-mail
-        name: Nom
-        note: Note
-        one_per_line: Une par ligne.
-        organization: Organisation
-        phones: Numéros de téléphone
-    form:
-        kept_note: >-
-            Tout ce que ce contact porte d’autre — une photo, un anniversaire, une
-            adresse postale — est conservé tel quel sur le serveur.
-    new:
-        button: Nouveau contact
-        submit: Créer le contact
-        title: Nouveau contact
-    no_books: >-
-        Aucun carnet d’adresses n’est encore reflété. Connectez un serveur CardDAV —
-        Nextcloud, Radicale, Fastmail, iCloud — et choisissez les carnets à importer.
-    no_books_link: Configurer les contacts
-    no_match: Aucun contact ne correspond à « %query% ».
-    pending: Enregistré ici, pas encore envoyé au serveur
-    read_only: Carnet d’adresses en lecture seule
-    search: Rechercher des contacts
-    title: Contacts
-    toast:
-        created: Contact créé
-        deleted: Contact supprimé
-        saved: Contact enregistré
-    truncated: Affichage des %count% premiers — lancez une recherche pour réduire la liste.
-
 clipboard:
     copied: Copié
     copy_failed: Échec de la copie
@@ -2166,7 +2124,6 @@ header:
     user_menu:
         account_attention: '%count% points de vos comptes demandent votre attention'
         admin: Administration
-        contacts: Contacts
         label: Menu utilisateur de %email%
         profile: Profil
         rerun_setup: Relancer la configuration
@@ -4672,106 +4629,115 @@ whats_new:
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'
 contacts:
-    nav: Contacts
-    title: Contacts
+    add_address: 'Ajouter une adresse'
+    add_email: 'Ajouter un e-mail'
+    add_phone: 'Ajouter un téléphone'
+    add_to_address_book: 'Ajouter aux contacts'
     back: Retour
+    book_all: 'Tous les carnets'
+    book_local: 'Non synchronisés'
     cancel: Annuler
-    save: Enregistrer
-    new: Nouveau contact
-    edit: Modifier le contact
+    check_carefully: 'Vérifier attentivement'
+    city: Ville
+    company: Société
+    confidence: '%pct%% de correspondance'
+    count: '{0}Aucun contact|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Pays
+    created: 'Contact créé.'
     delete: Supprimer
     delete_confirm: 'Supprimer %name% ? Le contact ira dans la corbeille et sera définitivement effacé après 90 jours.'
-    created: Contact créé.
-    updated: Contact enregistré.
-    trashed: Contact déplacé dans la corbeille.
-    count: '%count% contacts'
-    search: Rechercher des contacts
-    search_placeholder: 'Rechercher nom, société ou e-mail…'
-    empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
-    empty_search: Aucun contact ne correspond à cette recherche.
-    tag_all: Tous
-    prev: Précédent
-    next: Suivant
-    page: 'Page %page%'
-    section_name: Nom
-    display_name: Nom complet
-    given_name: Prénom
-    family_name: Nom de famille
-    nickname: Surnom
-    company: Société
-    job_title: Fonction
-    section_emails: E-mails
-    add_email: Ajouter un e-mail
+    deleted_contact: '(contact supprimé)'
+    display_name: 'Nom complet'
+    duplicates: Doublons
+    duplicates_count: '{1}1 paire suspecte|]1,Inf[ %count% paires suspectes'
+    duplicates_none: 'Aucun doublon trouvé. Les nouveaux imports sont vérifiés automatiquement.'
+    edit: 'Modifier le contact'
     email_placeholder: nom@exemple.com
-    section_phones: Téléphones
-    add_phone: Ajouter un téléphone
-    phone_placeholder: '+33 6 12 34 56 78'
-    section_addresses: Adresses
-    add_address: Ajouter une adresse
+    empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
+    empty_search: 'Aucun contact ne correspond à cette recherche.'
+    export_vcf: 'Exporter en vCard'
+    family_name: 'Nom de famille'
+    given_name: Prénom
+    import: Importer
+    import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
+    import_choose: 'Choisir un fichier'
+    import_confirm: 'Importer %count% contacts'
+    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
+    import_formats: '.vcf, .vcard ou .csv'
+    import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
+    import_no_file: 'Aucun fichier téléversé.'
+    import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_step1: 'Étape 1 — choisir un fichier'
+    import_step2: 'Étape 2 — aperçu'
+    import_upload: 'Importer & aperçu'
+    import_uploading: 'Envoi en cours…'
+    imported: '%count% contacts importés.'
+    in_address_book: 'Dans vos contacts'
+    job_title: Fonction
+    keep_this: 'Garder celui-ci'
     label: Étiquette
     label_home: Domicile
-    label_work: Travail
+    label_mobile: Mobile
     label_other: Autre
+    label_work: Travail
+    merge: Fusionner
+    merge_pick_keep: 'Choisissez d’abord le contact à garder.'
+    merge_read_only: 'Un contact d’un carnet en lecture seule ne peut pas être fusionné.'
+    merge_undo: Annuler
+    merge_undo_expired: 'Le délai d’annulation de 90 jours pour cette fusion est dépassé.'
+    merge_undone: 'Fusion annulée.'
+    merged: 'Contacts fusionnés. Annulation possible dans la liste ci-dessous.'
+    merged_into: '%count% fusionné(s) dans %name%'
+    nav: Contacts
+    new: 'Nouveau contact'
+    next: Suivant
+    nickname: Surnom
+    no_details: 'Aucune coordonnée pour le moment.'
+    no_subject: '(sans objet)'
+    notes: Notes
+    page: 'Page %page%'
+    pending: 'En attente d’envoi au serveur'
+    phone_placeholder: '+33 6 12 34 56 78'
+    photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
+    photo_hint_synced: 'JPG, PNG ou WebP, 5 Mo maximum. Visible ici seulement : la photo n’est pas envoyée au serveur.'
+    photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
+    photo_upload: 'Changer la photo'
+    photo_uploaded: 'Photo mise à jour.'
+    postcode: 'Code postal'
+    prev: Précédent
     primary: Principal
     primary_short: Principal
-    remove: Retirer
-    street: Rue
-    city: Ville
+    recent_merges: 'Fusions récentes'
+    reference_emails: 'E-mails de référence'
+    reference_emails_empty: 'Aucun e-mail avec ce contact pour le moment.'
+    reference_emails_hint: 'Tous les e-mails échangés avec ce contact et non supprimés — boîte de réception, envoyés, brouillons, corbeille et étiquettes.'
     region: Région
-    postcode: Code postal
-    country: Pays
-    section_notes: Notes
-    notes: Notes
-    tags: Étiquettes
-    tags_placeholder: 'Séparées par des virgules, p. ex. famille, fournisseurs'
-    section_details: Coordonnées
-    no_details: Aucune coordonnée pour le moment.
-    related: Contacts liés
-    rel_related: Lié
     rel_assistant: Assistant
     rel_manager: Manager
     rel_partner: Partenaire
-    photo_upload: Changer la photo
-    photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
-    photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
-    photo_uploaded: Photo mise à jour.
-    reference_emails: E-mails de référence
-    reference_emails_hint: 'Tous les e-mails échangés avec ce contact et non supprimés — boîte de réception, envoyés, brouillons, corbeille et étiquettes.'
-    reference_emails_empty: 'Aucun e-mail avec ce contact pour le moment.'
-    no_subject: '(sans objet)'
-    import: Importer
-    import_step1: 'Étape 1 — choisir un fichier'
-    import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
-    in_address_book: 'Dans vos contacts'
-    add_to_address_book: 'Ajouter aux contacts'
-    import_choose: Choisir un fichier
-    import_formats: '.vcf, .vcard ou .csv'
-    import_upload: 'Importer & aperçu'
-    import_uploading: 'Envoi en cours…'
-    import_no_file: 'Aucun fichier téléversé.'
-    import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
-    import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
-    import_step2: 'Étape 2 — aperçu'
-    import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
-    import_confirm: 'Importer %count% contacts'
-    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
-    imported: '%count% contacts importés.'
-    export_vcf: Exporter en vCard
-    export_csv: Exporter en CSV
-    duplicates: Doublons
-    duplicates_count: '%count% paires suspectes'
-    duplicates_none: 'Aucun doublon trouvé. Les nouveaux imports sont vérifiés automatiquement.'
-    confidence: '%pct%% de correspondance'
-    check_carefully: Vérifier attentivement
-    keep_this: Garder celui-ci
-    merge: Fusionner
-    merge_pick_keep: 'Choisissez d’abord le contact à garder.'
-    merged: Contacts fusionnés. Annulation possible dans la liste ci-dessous.
-    recent_merges: Fusions récentes
-    merged_into: '%count% fusionné(s) dans %name%'
-    deleted_contact: '(contact supprimé)'
-    merge_undo: Annuler
-    merge_undone: Fusion annulée.
-    merge_undo_expired: Le délai d’annulation de 90 jours pour cette fusion est dépassé.
+    rel_related: Lié
+    related: 'Contacts liés'
+    remove: Retirer
+    save: Enregistrer
+    save_to: 'Enregistrer dans'
+    save_to_hint: 'Un contact dans un carnet synchronisé est envoyé à son serveur, puis sur chaque appareil qui le synchronise.'
+    search: 'Rechercher des contacts'
+    search_placeholder: 'Rechercher nom, société ou e-mail…'
+    section_addresses: Adresses
+    section_details: Coordonnées
+    section_emails: E-mails
+    section_name: Nom
+    section_notes: Notes
+    section_phones: Téléphones
+    street: Rue
+    synced_read_only: 'En lecture seule, depuis %book% sur %server%'
+    synced_with: 'Synchronisé avec %book% sur %server%'
+    tag_all: Tous
+    tags: Étiquettes
+    tags_placeholder: 'Séparées par des virgules, p. ex. famille, fournisseurs'
+    title: Contacts
+    trashed: 'Contact déplacé dans la corbeille.'
+    updated: 'Contact enregistré.'
     validation:
         name_required: 'Donnez un nom au contact.'

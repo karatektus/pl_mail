@@ -12,6 +12,7 @@ use App\Jmap\Protocol\JmapContext;
 use App\Service\AddressBook\ContactSuggester;
 use DateTimeImmutable;
 use DateTimeZone;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * "Contact/autocomplete": the addresses to offer while somebody types a
@@ -90,6 +91,7 @@ final class ContactAutocompleteMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver $accountResolver,
         private readonly ContactSuggester $suggester,
+        private readonly RouterInterface $router,
     ) {
     }
 
@@ -151,10 +153,15 @@ final class ContactAutocompleteMethod implements JmapMethod
             // enough for a client to mark a real correspondent in the list.
             'isCorrespondent' => $suggestion->isCorrespondent,
             // The third sort key, and the one fact the harvest cannot know:
-            // the person put this address in a CardDAV address book. An
+            // the person keeps this address in their address book. An
             // address-book contact never mailed has frequency 0 and a null
             // lastSeenAt, and this is what says why it was offered at all.
             'inAddressBook' => $suggestion->inAddressBook,
+            // The contact's photo, served like Contact/get's; null for a
+            // harvested address or a contact without one.
+            'photoUrl' => true === $suggestion->hasPhoto && null !== $suggestion->contactId
+                ? $this->router->generate('jmap_contacts_photo_serve', ['contactId' => (string) $suggestion->contactId], RouterInterface::ABSOLUTE_URL)
+                : null,
         ];
     }
 

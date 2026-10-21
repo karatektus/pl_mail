@@ -1697,47 +1697,6 @@ calendar:
         month: Month
         week: '7 days'
 
-contacts:
-    delete:
-        confirm: >-
-            Delete "%name%"? It is removed from the address book on the server
-            too, and from every device that syncs it.
-        label: Delete %name%
-    edit:
-        label: Edit %name%
-        submit: Save contact
-        title: Edit contact
-    empty: No contacts in your address books yet.
-    field:
-        address_book: Address book
-        emails: Email addresses
-        name: Name
-        note: Note
-        one_per_line: One per line.
-        organization: Organisation
-        phones: Phone numbers
-    form:
-        kept_note: >-
-            Anything else this contact carries — a photo, a birthday, a postal
-            address — is kept as it is on the server.
-    new:
-        button: New contact
-        submit: Create contact
-        title: New contact
-    no_books: >-
-        No address book is mirrored yet. Connect a CardDAV server — Nextcloud,
-        Radicale, Fastmail, iCloud — and choose which address books to bring in.
-    no_books_link: Set up contacts
-    no_match: No contact matches "%query%".
-    pending: Saved here, not yet sent to the server
-    read_only: Read-only address book
-    search: Search contacts
-    title: Contacts
-    toast:
-        created: Contact created
-        deleted: Contact deleted
-        saved: Contact saved
-    truncated: Showing the first %count% — search to narrow the list.
 clipboard:
     copied: Copied
     copy_failed: Copy failed
@@ -2154,7 +2113,6 @@ header:
     user_menu:
         account_attention: '%count% things about your accounts need attention'
         admin: Admin
-        contacts: Contacts
         label: User menu for %email%
         profile: Profile
         rerun_setup: Run setup again
@@ -4644,106 +4602,115 @@ whats_new:
     screenshot_open: 'Open the screenshot full size'
     title: 'What''s new'
 contacts:
-    nav: Contacts
-    title: Contacts
+    add_address: 'Add address'
+    add_email: 'Add email'
+    add_phone: 'Add phone'
+    add_to_address_book: 'Add to contacts'
     back: Back
+    book_all: 'All books'
+    book_local: 'Not synced'
     cancel: Cancel
-    save: Save
-    new: New contact
-    edit: Edit contact
+    check_carefully: 'Check carefully'
+    city: City
+    company: Company
+    confidence: '%pct%% match'
+    count: '{0}No contacts|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Country
+    created: 'Contact created.'
     delete: Delete
     delete_confirm: 'Delete %name%? The contact goes to the trash and is permanently removed after 90 days.'
-    created: Contact created.
-    updated: Contact saved.
-    trashed: Contact moved to trash.
-    count: '%count% contacts'
-    search: Search contacts
-    search_placeholder: Search name, company or email…
-    empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
-    empty_search: No contacts match this search.
-    tag_all: All
-    prev: Previous
-    next: Next
-    page: 'Page %page%'
-    section_name: Name
-    display_name: Full name
-    given_name: First name
-    family_name: Last name
-    nickname: Nickname
-    company: Company
-    job_title: Job title
-    section_emails: Emails
-    add_email: Add email
+    deleted_contact: '(deleted contact)'
+    display_name: 'Full name'
+    duplicates: Duplicates
+    duplicates_count: '{1}1 candidate pair|]1,Inf[ %count% candidate pairs'
+    duplicates_none: 'No duplicates found. New imports are checked automatically.'
+    edit: 'Edit contact'
     email_placeholder: name@example.com
-    section_phones: Phones
-    add_phone: Add phone
-    phone_placeholder: '+1 555 010 2030'
-    section_addresses: Addresses
-    add_address: Add address
+    empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
+    empty_search: 'No contacts match this search.'
+    export_vcf: 'Export as vCard'
+    family_name: 'Last name'
+    given_name: 'First name'
+    import: Import
+    import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
+    import_choose: 'Choose file'
+    import_confirm: 'Import %count% contacts'
+    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    import_expired: 'The staged import expired. Please upload the file again.'
+    import_formats: '.vcf, .vcard or .csv'
+    import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
+    import_no_file: 'No file was uploaded.'
+    import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_step1: 'Step 1 — choose a file'
+    import_step2: 'Step 2 — preview'
+    import_upload: 'Upload & preview'
+    import_uploading: Uploading…
+    imported: 'Imported %count% contacts.'
+    in_address_book: 'In your contacts'
+    job_title: 'Job title'
+    keep_this: 'Keep this one'
     label: Label
     label_home: Home
-    label_work: Work
+    label_mobile: Mobile
     label_other: Other
+    label_work: Work
+    merge: Merge
+    merge_pick_keep: 'Pick which contact to keep first.'
+    merge_read_only: 'A contact from a read-only address book cannot be merged.'
+    merge_undo: Undo
+    merge_undo_expired: 'The 90-day undo window for this merge has expired.'
+    merge_undone: 'Merge undone.'
+    merged: 'Contacts merged. You can undo it from the list below.'
+    merged_into: 'Merged %count% into %name%'
+    nav: Contacts
+    new: 'New contact'
+    next: Next
+    nickname: Nickname
+    no_details: 'No contact details yet.'
+    no_subject: '(no subject)'
+    notes: Notes
+    page: 'Page %page%'
+    pending: 'Waiting to be sent to the server'
+    phone_placeholder: '+1 555 010 2030'
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_hint_synced: 'JPG, PNG or WebP, up to 5 MB. Shown here only: the photo is not sent to the server.'
+    photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
+    photo_upload: 'Upload photo'
+    photo_uploaded: 'Photo updated.'
+    postcode: Postcode
+    prev: Previous
     primary: Primary
     primary_short: Primary
-    remove: Remove
-    street: Street
-    city: City
+    recent_merges: 'Recent merges'
+    reference_emails: 'Reference emails'
+    reference_emails_empty: 'No emails with this contact yet.'
+    reference_emails_hint: 'Every email to or from this contact that has not been deleted — inbox, sent, drafts, trash and labels.'
     region: Region
-    postcode: Postcode
-    country: Country
-    section_notes: Notes
-    notes: Notes
-    tags: Tags
-    tags_placeholder: 'Comma-separated, e.g. family, vendors'
-    section_details: Details
-    no_details: No contact details yet.
-    related: Related contacts
-    rel_related: Related
     rel_assistant: Assistant
     rel_manager: Manager
     rel_partner: Partner
-    photo_upload: Upload photo
-    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
-    photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
-    photo_uploaded: Photo updated.
-    reference_emails: Reference emails
-    reference_emails_hint: Every email to or from this contact that has not been deleted — inbox, sent, drafts, trash and labels.
-    reference_emails_empty: No emails with this contact yet.
-    no_subject: '(no subject)'
-    import: Import
-    import_step1: 'Step 1 — choose a file'
-    import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
-    in_address_book: 'In your contacts'
-    add_to_address_book: 'Add to contacts'
-    import_choose: Choose file
-    import_formats: '.vcf, .vcard or .csv'
-    import_upload: 'Upload & preview'
-    import_uploading: 'Uploading…'
-    import_no_file: 'No file was uploaded.'
-    import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
-    import_expired: 'The staged import expired. Please upload the file again.'
-    import_step2: 'Step 2 — preview'
-    import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
-    import_confirm: 'Import %count% contacts'
-    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
-    imported: 'Imported %count% contacts.'
-    export_vcf: Export as vCard
-    export_csv: Export as CSV
-    duplicates: Duplicates
-    duplicates_count: '%count% candidate pairs'
-    duplicates_none: 'No duplicates found. New imports are checked automatically.'
-    confidence: '%pct%% match'
-    check_carefully: Check carefully
-    keep_this: Keep this one
-    merge: Merge
-    merge_pick_keep: 'Pick which contact to keep first.'
-    merged: Contacts merged. You can undo it from the list below.
-    recent_merges: Recent merges
-    merged_into: 'Merged %count% into %name%'
-    deleted_contact: '(deleted contact)'
-    merge_undo: Undo
-    merge_undone: Merge undone.
-    merge_undo_expired: The 90-day undo window for this merge has expired.
+    rel_related: Related
+    related: 'Related contacts'
+    remove: Remove
+    save: Save
+    save_to: 'Save to'
+    save_to_hint: 'A contact in a synced address book goes to its server, and from there to every device that syncs it.'
+    search: 'Search contacts'
+    search_placeholder: 'Search name, company or email…'
+    section_addresses: Addresses
+    section_details: Details
+    section_emails: Emails
+    section_name: Name
+    section_notes: Notes
+    section_phones: Phones
+    street: Street
+    synced_read_only: 'Read-only, from %book% on %server%'
+    synced_with: 'Synced with %book% on %server%'
+    tag_all: All
+    tags: Tags
+    tags_placeholder: 'Comma-separated, e.g. family, vendors'
+    title: Contacts
+    trashed: 'Contact moved to trash.'
+    updated: 'Contact saved.'
     validation:
         name_required: 'Give the contact a name.'

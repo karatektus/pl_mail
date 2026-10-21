@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Contacts;
 
+use App\Domain\Exception\ContactReadOnlyException;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactAddress;
@@ -26,6 +27,13 @@ use Doctrine\ORM\EntityManagerInterface;
  * (pre-checked for unique-key duplicates, which are dropped instead).
  * Merged contacts' photos are left on disk (orphaned) — only the kept
  * contact's photo is retained.
+ *
+ * Contacts in synced address books merge like any other, and their servers
+ * follow (ContactSyncTracker): the kept contact's card is updated, and the
+ * merged ones' cards are deleted. So an undo brings the merged contacts back
+ * as plMail's own — their cards are gone from the server — and the kept one's
+ * card is put back as it was. A contact in a read-only book cannot take part:
+ * neither its card nor its deletion would be accepted.
  */
 final class ContactMerger
 {
@@ -55,6 +63,12 @@ final class ContactMerger
             }
             $this->assertOwner($contact, $user);
             $merged[] = $contact;
+        }
+
+        foreach ([$keep, ...$merged] as $contact) {
+            if (false === $contact->isEditable()) {
+                throw new ContactReadOnlyException(sprintf('Contact %d is in a read-only address book.', $contact->id));
+            }
         }
 
         $snapshot = [

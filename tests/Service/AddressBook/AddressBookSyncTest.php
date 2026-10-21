@@ -4,27 +4,30 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\AddressBook;
 
-use App\Domain\DTO\AddressBook\VCardFields;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
-use App\Entity\AddressBook\ContactCard;
-use App\Repository\AddressBook\ContactCardRepository;
+use App\Entity\Contacts\Contact;
+use App\Infrastructure\Event\Listener\ContactSyncTracker;
+use App\Repository\Contacts\ContactRepository;
 use App\Service\AddressBook\AddressBookSync;
-use App\Service\AddressBook\CardDav\VCardConverter;
+use App\Service\Contacts\ContactPhotoStore;
+use App\Service\Contacts\VCardMapper;
 use App\Tests\Service\AddressBook\CardDav\CardDavFixture;
 use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * One address book brought back into agreement with its server.
  *
- * The real driver over a scripted server, and the cards held in memory instead
- * of Postgres — the rules under test are about which row wins, not about SQL.
+ * The real driver over a scripted server, and the contacts held in memory
+ * instead of Postgres — the rules under test are about which row wins, not
+ * about SQL.
  *
  * The claims, most important first:
  *
@@ -39,7 +42,7 @@ final class AddressBookSyncTest extends TestCase
 {
     private const string BOOK = 'https://dav.example.com/dav/addressbooks/alice/contacts/';
 
-    /** @var list<ContactCard> */
+    /** @var list<Contact> */
     private array $cards = [];
 
     private AddressBook $book;
@@ -62,8 +65,10 @@ final class AddressBookSyncTest extends TestCase
         $touched = $this->sync($fixture);
 
         self::assertSame(2, $touched);
-        self::assertSame(['Ada Lovelace', 'Grace Hopper'], array_map(static fn (ContactCard $c): string => $c->fullName, $this->cards));
-        self::assertSame(['ada@example.com'], $this->cards[0]->emails);
+        self::assertSame(['Ada Lovelace', 'Grace Hopper'], array_map(static fn (Contact $c): string => $c->displayName, $this->cards));
+        self::assertSame(['ada@example.com'], $this->emailsOf($this->cards[0]));
+        self::assertSame($this->book, $this->cards[0]->addressBook);
+        self::assertStringContainsString('UID:ada', (string) $this->cards[0]->vcard, 'the card is kept as the server sent it');
         self::assertSame(self::BOOK . 'ada.vcf', $this->cards[0]->href);
         self::assertSame('"1"', $this->cards[0]->etag);
         self::assertSame('token-1', $this->book->syncToken);
@@ -93,7 +98,7 @@ final class AddressBookSyncTest extends TestCase
         self::assertStringContainsString('FN:Ada King', $fixture->body(0));
         self::assertSame(SyncState::Clean, $card->syncState);
         self::assertSame('"2"', $card->etag);
-        self::assertSame('Ada King', $card->fullName, 'the pull saw its own write and left it alone');
+        self::assertSame('Ada King', $card->displayName, 'the pull saw its own write and left it alone');
         self::assertSame(3, $fixture->requestCount(), 'PUT, PROPFIND, REPORT');
     }
 
@@ -112,14 +117,19 @@ final class AddressBookSyncTest extends TestCase
 
         $this->sync($fixture);
 
-        self::assertSame('Countess Lovelace', $card->fullName, 'the phone\'s edit won');
+        self::assertSame('Countess Lovelace', $card->displayName, 'the phone\'s edit won');
         self::assertSame(SyncState::Clean, $card->syncState);
         self::assertStringContainsString('<d:sync-token></d:sync-token>', $fixture->body(2), 'a full listing, not a delta');
     }
 
-    public function testADeletionHereIsSentAndTheRowGoes(): void
+    /**
+     * Binning a synced contact deletes its card; the contact itself stays in
+     * the bin, let go of the book, so it can still be restored here.
+     */
+    public function testABinnedContactsCardIsDeletedAndTheContactLetGo(): void
     {
         $card            = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->trashedAt = new \DateTimeImmutable();
         $card->syncState = SyncState::PendingDelete;
 
         $fixture = $this->server(
@@ -131,7 +141,12 @@ final class AddressBookSyncTest extends TestCase
         $this->sync($fixture);
 
         self::assertSame('DELETE', $fixture->method(0));
-        self::assertSame([], $this->cards);
+        self::assertSame('"1"', $fixture->header(0, 'If-Match'));
+        self::assertSame([$card], $this->cards, 'the row stays');
+        self::assertNull($card->addressBook);
+        self::assertNull($card->href);
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertTrue($card->isTrashed());
     }
 
     public function testADeletionOnTheServerRemovesTheLocalCard(): void
@@ -144,7 +159,7 @@ final class AddressBookSyncTest extends TestCase
             syncToken: 'token-1',
         ));
 
-        self::assertSame(['grace'], array_map(static fn (ContactCard $c): string => $c->uid, $this->cards));
+        self::assertSame(['grace'], array_map(static fn (Contact $c): string => $c->uid, $this->cards));
     }
 
     /** Asked with a token, silence means "unchanged", not "deleted". */
@@ -160,10 +175,11 @@ final class AddressBookSyncTest extends TestCase
     public function testAFullListingDeletesWhatItDidNotMentionButNotPendingEdits(): void
     {
         $this->card('gone', 'Gone Person', etag: '"1"');
-        $local            = new ContactCard($this->book, 'local-only');
-        $local->syncState = SyncState::PendingCreate;
-        $local->fill(new VCardFields('local-only', 'Not Yet Sent'));
-        $this->cards[] = $local;
+        $local              = Contact::create($this->book->usr, 'Not Yet Sent');
+        $local->uid         = 'local-only';
+        $local->addressBook = $this->book;
+        $local->syncState   = SyncState::PendingCreate;
+        $this->cards[]      = $local;
 
         // The PUT for the pending card fails transiently (500): the card stays
         // pending, the sync fails, and nothing is deleted.
@@ -196,7 +212,7 @@ final class AddressBookSyncTest extends TestCase
             pushFirst: [CalDavFixture::status(201, ['etag' => '"n"'])],
         ));
 
-        self::assertSame(['local-only'], array_map(static fn (ContactCard $c): string => $c->uid, $this->cards));
+        self::assertSame(['local-only'], array_map(static fn (Contact $c): string => $c->uid, $this->cards));
         self::assertSame(self::BOOK . 'local-only.vcf', $local->href);
     }
 
@@ -225,7 +241,7 @@ final class AddressBookSyncTest extends TestCase
         self::assertStringContainsString('<d:sync-token></d:sync-token>', $fixture->body(3), 'the second report starts from scratch');
         self::assertSame('token-fresh', $this->book->syncToken);
         self::assertTrue($this->book->isHealthy());
-        self::assertSame(['grace'], array_map(static fn (ContactCard $c): string => $c->uid, $this->cards), 'and, being a full listing, it can delete');
+        self::assertSame(['grace'], array_map(static fn (Contact $c): string => $c->uid, $this->cards), 'and, being a full listing, it can delete');
     }
 
     /**
@@ -268,7 +284,7 @@ final class AddressBookSyncTest extends TestCase
         }
 
         self::assertSame(SyncState::PendingUpdate, $card->syncState, 'the edit is still waiting to go out');
-        self::assertSame('Ada King', $card->fullName);
+        self::assertSame('Ada King', $card->displayName);
     }
 
     /**
@@ -292,7 +308,7 @@ final class AddressBookSyncTest extends TestCase
         $this->sync($fixture);
 
         self::assertSame(SyncState::Clean, $card->syncState);
-        self::assertSame('Ada Lovelace', $card->fullName, 'the server\'s copy is back');
+        self::assertSame('Ada Lovelace', $card->displayName, 'the server\'s copy is back');
         self::assertTrue($this->book->isHealthy());
     }
 
@@ -327,6 +343,27 @@ final class AddressBookSyncTest extends TestCase
         self::assertSame('PROPFIND', $fixture->method(0), 'no DELETE went out');
         self::assertSame([$card], $this->cards, 'the card is back');
         self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertFalse($card->isTrashed(), 'out of the bin again, as the server still has it');
+    }
+
+    /**
+     * An edit here is patched into the card the server sent, not a card
+     * rebuilt from the rows: what plMail has no field for goes back as it
+     * came.
+     */
+    public function testAPushKeepsWhatPlMailHasNoFieldFor(): void
+    {
+        $card        = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:ada\r\nFN:Ada Lovelace\r\nEMAIL:ada@example.com\r\nBDAY:1815-12-10\r\nX-PHONE-ONLY:keep me\r\nEND:VCARD\r\n";
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(CardDavFixture::report([], 'token-2'), pushFirst: [CalDavFixture::status(204, ['etag' => '"2"'])], syncToken: 'token-1');
+
+        $this->sync($fixture);
+
+        self::assertStringContainsString('FN:Ada King', $fixture->body(0));
+        self::assertStringContainsString('BDAY:1815-12-10', $fixture->body(0));
+        self::assertStringContainsString('X-PHONE-ONLY:keep me', $fixture->body(0));
     }
 
     public function testAPermanentFailureIsRecordedOnTheBookForTheSettingsList(): void
@@ -367,45 +404,62 @@ final class AddressBookSyncTest extends TestCase
 
     private function syncWith(CardDavFixture $fixture): int
     {
-        $sync = new AddressBookSync($fixture->driver, new VCardConverter(), $this->repository(), $this->entityManager(), new NullLogger());
+        $sync = new AddressBookSync(
+            $fixture->driver,
+            new VCardMapper(),
+            $this->repository(),
+            new ContactPhotoStore(sys_get_temp_dir()),
+            new ContactSyncTracker($this->createStub(MessageBusInterface::class)),
+            $this->entityManager(),
+            new NullLogger(),
+        );
 
         return $sync->sync($this->book);
     }
 
-    private function card(string $uid, string $name, string $etag): ContactCard
+    private function card(string $uid, string $name, string $etag): Contact
     {
-        $card        = new ContactCard($this->book, $uid);
-        $card->href  = self::BOOK . $uid . '.vcf';
-        $card->etag  = $etag;
-        $card->vcard = CardDavFixture::vcard($uid, $name, $uid . '@example.com');
-        $card->fill(new VCardFields($uid, $name, [$uid . '@example.com']));
+        $card              = Contact::create($this->book->usr, $name);
+        $card->uid         = $uid;
+        $card->addressBook = $this->book;
+        $card->href        = self::BOOK . $uid . '.vcf';
+        $card->etag        = $etag;
+        $card->vcard       = CardDavFixture::vcard($uid, $name, $uid . '@example.com');
+        new VCardMapper()->apply(new VCardMapper()->read($card->vcard) ?? self::fail('fixture card'), $card);
 
         $this->cards[] = $card;
 
         return $card;
     }
 
-    private function edit(ContactCard $card, string $name): void
+    /** What ContactSyncTracker does for an edit made on the page. */
+    private function edit(Contact $card, string $name): void
     {
-        $fields          = new VCardFields($card->uid, $name, $card->emails);
-        $card->vcard     = new VCardConverter()->write($card->vcard, $fields);
-        $card->syncState = SyncState::PendingUpdate;
-        $card->fill($fields);
+        $card->displayName = $name;
+        $card->syncState   = SyncState::PendingUpdate;
     }
 
-    private function repository(): ContactCardRepository
+    /**
+     * @return list<string>
+     */
+    private function emailsOf(Contact $card): array
+    {
+        return array_values(array_map(static fn ($email): string => $email->email, $card->emails->toArray()));
+    }
+
+    private function repository(): ContactRepository
     {
         $cards = &$this->cards;
 
-        return new class($cards) extends ContactCardRepository {
-            /** @param list<ContactCard> $cards */
+        return new class($cards) extends ContactRepository {
+            /** @param list<Contact> $cards */
             public function __construct(private array &$cards)
             {
             }
 
             public function findPending(AddressBook $book): array
             {
-                return array_values(array_filter($this->cards, static fn (ContactCard $c): bool => $c->syncState->isPending()));
+                return array_values(array_filter($this->cards, static fn (Contact $c): bool => $c->addressBook === $book && $c->syncState->isPending()));
             }
 
             public function indexForBook(AddressBook $book): array
@@ -414,6 +468,10 @@ final class AddressBookSyncTest extends TestCase
                 $byUid  = [];
 
                 foreach ($this->cards as $card) {
+                    if ($card->addressBook !== $book) {
+                        continue;
+                    }
+
                     if (null !== $card->href) {
                         $byHref[$card->href] = $card;
                     }
@@ -431,13 +489,13 @@ final class AddressBookSyncTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
 
         $em->method('persist')->willReturnCallback(function (object $entity): void {
-            if ($entity instanceof ContactCard) {
+            if ($entity instanceof Contact) {
                 $this->cards[] = $entity;
             }
         });
 
         $em->method('remove')->willReturnCallback(function (object $entity): void {
-            $this->cards = array_values(array_filter($this->cards, static fn (ContactCard $c): bool => $c !== $entity));
+            $this->cards = array_values(array_filter($this->cards, static fn (Contact $c): bool => $c !== $entity));
         });
 
         return $em;

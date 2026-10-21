@@ -35,6 +35,12 @@ use Doctrine\ORM\EntityManagerInterface;
  * means untouched — there is no per-child id addressing. A destroy is a soft
  * delete (90-day trash), never a hard delete.
  *
+ * A contact in a read-only address book (a shared book or a global address
+ * list on a CardDAV server; Contact/get says isReadOnly) answers forbidden to
+ * an update or a destroy. One in a writable synced book takes both, and the
+ * change goes on to its server (ContactSyncTracker). A create always makes one
+ * of plMail's own contacts.
+ *
  * "photoBlobId" names a blob staged by POST /jmap/contacts/photo. It is
  * consumed once: the bytes move into the photo store and the blob row and its
  * staged file are deleted, so a replayed blobId answers notFound instead of
@@ -69,6 +75,13 @@ final class ContactSetMethod implements JmapMethod
      * @var list<string>
      */
     private const array LABELS = ['home', 'work', 'other'];
+
+    /**
+     * Phones also say mobile, the label a phone's own address book uses most.
+     *
+     * @var list<string>
+     */
+    private const array PHONE_LABELS = ['mobile', 'home', 'work', 'other'];
 
     /**
      * @var list<string>
@@ -224,6 +237,12 @@ final class ContactSetMethod implements JmapMethod
                 continue;
             }
 
+            if (false === $contact->isEditable()) {
+                $notUpdated[$id] = ['type' => 'forbidden', 'description' => 'This contact is in a read-only address book.'];
+
+                continue;
+            }
+
             try {
                 $this->rejectUnknownKeys($patch);
                 $this->prevalidateChildren($patch);
@@ -282,6 +301,12 @@ final class ContactSetMethod implements JmapMethod
 
             if (null === $contact) {
                 $notDestroyed[$id] = ['type' => 'notFound', 'description' => 'No such contact.'];
+
+                continue;
+            }
+
+            if (false === $contact->isEditable()) {
+                $notDestroyed[$id] = ['type' => 'forbidden', 'description' => 'This contact is in a read-only address book.'];
 
                 continue;
             }
@@ -614,12 +639,14 @@ final class ContactSetMethod implements JmapMethod
             return 'other';
         }
 
-        if (false === is_string($label) || false === in_array($label, self::LABELS, true)) {
+        $labels = 'phones' === $list ? self::PHONE_LABELS : self::LABELS;
+
+        if (false === is_string($label) || false === in_array($label, $labels, true)) {
             throw new MethodException('invalidProperties', sprintf(
                 '"%s" entry %d "label" must be one of: %s.',
                 $list,
                 $index,
-                implode(', ', self::LABELS),
+                implode(', ', $labels),
             ));
         }
 

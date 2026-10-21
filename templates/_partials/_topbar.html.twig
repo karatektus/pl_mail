@@ -730,15 +730,6 @@
                     <i class="fa-solid fa-user w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.profile'|trans }}
                 </a>
-                {# The contacts page. Here rather than in the sidebar, whose rows
-                   are mail views: an address book is somewhere you go on
-                   purpose, like settings, not a folder you read. #}
-                <a href="{{ path('app_contacts_index') }}"
-                   id="user-menu-contacts"
-                   class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
-                    <i class="fa-solid fa-address-book w-4 text-gray-400" aria-hidden="true"></i>
-                    {{ 'header.user_menu.contacts'|trans }}
-                </a>
                 {#
                     The dot on the avatar says something is wrong; this is where
                     it goes. Pointed straight at the health section rather than

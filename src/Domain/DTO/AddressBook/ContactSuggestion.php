@@ -25,6 +25,9 @@ final readonly class ContactSuggestion
         public ?DateTimeImmutable $lastSeenAt,
         public bool               $isCorrespondent,
         public bool               $inAddressBook,
+        /** The address-book contact it came from, for its photo; null for a harvested address. */
+        public ?int               $contactId = null,
+        public bool               $hasPhoto = false,
     ) {
     }
 

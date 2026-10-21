@@ -1,8 +1,11 @@
 {#
 contacts/list.html.twig — the address book.
 
-Search (q), tag chips, a card grid, prev/next pagination. New / import /
-export actions in the header.
+Search (q), address-book and tag chips, a card grid, prev/next pagination.
+New / import / export actions in the header.
+
+Variables: contacts, total, q, tag, page, hasNext, tags, books (the person's
+synced address books), book ('' for all, 'local', or a book id).
 #}
 {% extends 'contacts/_layout.html.twig' %}
 {% import 'contacts/_macros.html.twig' as cm %}
@@ -14,11 +17,12 @@ export actions in the header.
         <nav class="flex items-center gap-1 min-w-0 flex-1 text-sm" aria-label="{{ 'contacts.title'|trans }}">
             <i class="fa-solid fa-address-book text-ink-faint mr-1.5" aria-hidden="true"></i>
             <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
-            <span class="text-xs text-ink-faint ml-1">{{ 'contacts.count'|trans({'%count%': contacts|length}) }}</span>
+            <span class="hidden sm:inline text-xs text-ink-faint ml-1 whitespace-nowrap">{{ 'contacts.count'|trans({'%count%': total}) }}</span>
         </nav>
 
         <form method="get" action="{{ path('app_contacts_list') }}" class="relative hidden sm:block" role="search">
             {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+            {% if book %}<input type="hidden" name="book" value="{{ book }}">{% endif %}
             <span class="sr-only">{{ 'contacts.search'|trans }}</span>
             <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
             <input type="search" name="q" value="{{ q }}"
@@ -37,18 +41,37 @@ export actions in the header.
         </a>
     </div>
 
-    {% if tags is not empty %}
+    {% set chipOn = 'bg-accent-soft text-accent border-accent' %}
+    {% set chipOff = 'text-ink-muted border-line hover:bg-hover' %}
+    {% set chipCls = 'shrink-0 h-7 px-2.5 inline-flex items-center gap-1.5 rounded-full text-xs font-medium border transition-colors' %}
+    {% if books is not empty or tags is not empty %}
         <div class="flex items-center gap-1.5 px-4 md:px-6 py-2 border-b border-line shrink-0 overflow-x-auto">
-            <a href="{{ path('app_contacts_list', { q: q }) }}"
-               class="shrink-0 h-7 px-2.5 inline-flex items-center rounded-full text-xs font-medium border transition-colors {{ tag == '' ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
-                {{ 'contacts.tag_all'|trans }}
-            </a>
-            {% for t in tags %}
-                <a href="{{ path('app_contacts_list', { q: q, tag: t }) }}"
-                   class="shrink-0 h-7 px-2.5 inline-flex items-center rounded-full text-xs font-medium border transition-colors {{ tag == t ? 'bg-accent-soft text-accent border-accent' : 'text-ink-muted border-line hover:bg-hover' }}">
-                    {{ t }}
+            {# Where the contacts live: everywhere, plMail's own, or one synced
+               book. Only shown once there is a synced book to tell apart. #}
+            {% if books is not empty %}
+                <a href="{{ path('app_contacts_list', { q: q, tag: tag }) }}" class="{{ chipCls }} {{ book == '' ? chipOn : chipOff }}" data-book-chip="">
+                    {{ 'contacts.book_all'|trans }}
                 </a>
-            {% endfor %}
+                <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: 'local' }) }}" class="{{ chipCls }} {{ book == 'local' ? chipOn : chipOff }}" data-book-chip="local">
+                    <i class="fa-solid fa-address-book text-[10px]" aria-hidden="true"></i>{{ 'contacts.book_local'|trans }}
+                </a>
+                {% for b in books %}
+                    <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: b.id }) }}" class="{{ chipCls }} {{ book == (b.id ~ '') ? chipOn : chipOff }}" data-book-chip="{{ b.id }}">
+                        <i class="fa-solid {{ b.isReadOnly ? 'fa-lock' : 'fa-cloud' }} text-[10px]" aria-hidden="true"></i>{{ b.name }}
+                    </a>
+                {% endfor %}
+                {% if tags is not empty %}<span class="shrink-0 w-px h-5 bg-line mx-1" aria-hidden="true"></span>{% endif %}
+            {% endif %}
+            {% if tags is not empty %}
+                <a href="{{ path('app_contacts_list', { q: q, book: book }) }}" class="{{ chipCls }} {{ tag == '' ? chipOn : chipOff }}">
+                    {{ 'contacts.tag_all'|trans }}
+                </a>
+                {% for t in tags %}
+                    <a href="{{ path('app_contacts_list', { q: q, tag: t, book: book }) }}" class="{{ chipCls }} {{ tag == t ? chipOn : chipOff }}">
+                        {{ t }}
+                    </a>
+                {% endfor %}
+            {% endif %}
         </div>
     {% endif %}
 
@@ -57,9 +80,9 @@ export actions in the header.
             <div class="h-full flex flex-col items-center justify-center gap-3 text-center py-16">
                 <i class="fa-solid fa-address-book text-4xl text-ink-faint" aria-hidden="true"></i>
                 <p class="text-sm text-ink-muted max-w-sm">
-                    {{ q or tag ? 'contacts.empty_search'|trans : 'contacts.empty'|trans }}
+                    {{ q or tag or book ? 'contacts.empty_search'|trans : 'contacts.empty'|trans }}
                 </p>
-                {% if not (q or tag) %}
+                {% if not (q or tag or book) %}
                     <div class="flex items-center gap-2">
                         <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}">
                             <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.new'|trans }}
@@ -73,7 +96,7 @@ export actions in the header.
         {% else %}
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {% for contact in contacts %}
-                    <a href="{{ path('app_contacts_show', { id: contact.id }) }}"
+                    <a href="{{ path('app_contacts_show', { id: contact.id }) }}" data-contact-card="{{ contact.id }}"
                        class="flex items-center gap-3 rounded-pane border border-line bg-surface p-3.5 hover:bg-hover transition-colors min-w-0">
                         {{ cm.avatar(contact, 'w-11 h-11 text-lg') }}
                         <span class="flex-1 min-w-0">
@@ -91,6 +114,15 @@ export actions in the header.
                                 <span class="block truncate text-xs text-ink-faint">{{ _primary.email }}</span>
                             {% endif %}
                         </span>
+                        {# Synced: a cloud, a lock for a read-only book, and a
+                           clock while an edit made here waits for the worker
+                           to send it (see docs/providers/carddav.md). #}
+                        {% if contact.addressBook %}
+                            {% set _pending = contact.syncState.isPending %}
+                            <i class="fa-solid {{ _pending ? 'fa-clock' : (contact.addressBook.isReadOnly ? 'fa-lock' : 'fa-cloud') }} text-[10px] text-ink-faint shrink-0"
+                               title="{{ _pending ? 'contacts.pending'|trans : contact.addressBook.name }}"
+                               aria-label="{{ _pending ? 'contacts.pending'|trans : contact.addressBook.name }}"></i>
+                        {% endif %}
                         <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint shrink-0" aria-hidden="true"></i>
                     </a>
                 {% endfor %}
@@ -99,13 +131,13 @@ export actions in the header.
             {% if page > 1 or hasNext %}
                 <div class="flex items-center justify-center gap-2 mt-6">
                     {% if page > 1 %}
-                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, page: page - 1 }) }}" class="{{ btnGhost }}">
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: book, page: page - 1 }) }}" class="{{ btnGhost }}">
                             <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>{{ 'contacts.prev'|trans }}
                         </a>
                     {% endif %}
                     <span class="text-xs text-ink-faint">{{ 'contacts.page'|trans({'%page%': page}) }}</span>
                     {% if hasNext %}
-                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, page: page + 1 }) }}" class="{{ btnGhost }}">
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: book, page: page + 1 }) }}" class="{{ btnGhost }}">
                             {{ 'contacts.next'|trans }}<i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
                         </a>
                     {% endif %}

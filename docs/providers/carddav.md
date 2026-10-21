@@ -5,9 +5,10 @@ that implements RFC 6352: Nextcloud, Radicale, Baïkal, Fastmail, iCloud. It is 
 server as [CalDAV](caldav.md), on the same app password. A user connects one from their own
 settings; there is no administrator step.
 
-Contacts from a mirrored address book are suggested when you address a message, alongside the
-addresses plMail has harvested from your mail. They are listed, searched and edited on the
-**Contacts** page, and an edit made there is written back to the server.
+A mirrored address book's contacts join your [contacts](../features/contacts.md), alongside
+plMail's own. They are listed, searched, edited, merged and deleted there like any other, and every
+change made there is written back to the server. They are also suggested when you address a
+message.
 
 ## Connecting a server
 
@@ -56,9 +57,9 @@ Changes are read the way calendars are: `sync-collection` (RFC 6578) where the s
 otherwise `getctag` plus a full listing when the ctag moves. Only a full listing deletes local cards
 it did not mention; a delta never does.
 
-**Edits made here are saved at once and sent afterwards.** The card is marked pending — the
-Contacts page shows a small clock beside it — and the worker sends it on the next sync, which an
-edit queues straight away. Each sync sends pending edits *before* reading the server, so the
+**Edits made here are saved at once and sent afterwards.** The contact is marked pending (the
+Contacts list shows a small clock on it) and the worker sends it on the next sync. An edit queues
+that sync straight away. Each sync sends pending edits *before* reading the server, so the
 server's older copy never overwrites an edit on its way out.
 
 **Every write is conditional.** A new contact is `PUT` with `If-None-Match: *` under a name derived
@@ -72,28 +73,35 @@ handled the same way: the server's copy is kept and the refused edit is logged, 
 stop the rest of the book from syncing. Any other failure — the server unreachable, out of space, or
 rejecting the password — keeps the edit pending, and it is sent again on a later sync.
 
-**What plMail does not show, it does not touch.** The Contacts page edits the name, email
-addresses, phone numbers, organisation and note. A card carries much more — a photo, a birthday,
-postal addresses, properties a phone uses to link it to an app — and all of it is kept: the edit is
-applied to the vCard the server sent, not to a card rebuilt from those five fields. An address that
-is still on the card keeps its type (work, home) and its grouping.
+**What plMail does not show, it does not touch.** A contact here has names, a nickname, a company
+and job title, email addresses, phone numbers and postal addresses with their labels, notes and tags
+(the card's categories). A card carries much more, such as a birthday or the properties a phone uses
+to link it to an app, and all of it is kept. plMail keeps the vCard the server sent and applies an
+edit to it, changing only the properties that were edited. It does not rebuild the card from its own
+fields. An address or a number that is still on the card keeps its type (work, home), its grouping
+and the server's own formatting. A photo on the card is shown here; a photo uploaded here is not
+sent to the server.
 
-Read-only books — a shared book, a server's global address list — are mirrored and suggested, and
-cannot be edited here. Whether a book accepts writes is asked of the server
-(`current-user-privilege-set`), not assumed.
+**Deleting a contact deletes its card.** A contact moved to the bin here is deleted on the server at
+the next sync, and stays in the bin as one of plMail's own. Merging
+duplicates updates the kept contact's card and deletes the merged ones' cards.
+
+Read-only books, such as a shared book or a server's global address list, are mirrored and
+suggested, and cannot be edited, deleted or merged here. Whether a book accepts writes is asked of
+the server (`current-user-privilege-set`), not assumed.
 
 ## Suggestions while writing
 
 The composer and JMAP `Contact/autocomplete` read one ranked list, in this order:
 
 1. how often the address has been seen in your mail;
-2. then whether it is in an address book;
+2. then whether it is in your contacts (plMail's own or a synced book);
 3. then how recently it was seen, then the name.
 
-So an address you write to often still comes first, and an address-book contact you have never
-mailed comes before an address you once typed into a draft. An address in both places is suggested
-once, under the name from your address book. Typing part of a name offers every address on that
-card; typing part of an address offers only that address.
+So an address you write to often still comes first, and a contact you have never mailed comes before
+an address you once typed into a draft. An address in both places is suggested once, under the name
+from your contacts. Typing part of a name offers every address of that contact; typing part of an
+address offers only that address.
 
 ## Things that bite
 
@@ -105,12 +113,10 @@ phone between two syncs, the phone's version wins and the change made here is dr
 The window is the time between saving and the worker's next run, usually seconds.
 
 **Unticking an address book, or disconnecting the server, discards edits not yet sent.** The copies
-here go; the server keeps its own. If a contact shows the pending clock, wait for it to clear first.
+here go, along with any photo uploaded to them here; the server keeps its own. If a contact shows
+the pending clock, wait for it to clear first.
 
 **A LAN server is refused by default**, as for CalDAV. Add the host to `INTEGRATIONS_ALLOWED_HOSTS`.
-
-**The page shows the first 300 contacts.** Search narrows it; nothing is hidden from search or from
-suggestions.
 
 **Moving a contact between address books is not offered.** On the server it is a delete in one
 collection and a create in another; do it in the server's own interface.

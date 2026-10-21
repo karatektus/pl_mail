@@ -80,6 +80,14 @@ final class ContactObjectMapper
             'phones' => $phones,
             'addresses' => $addresses,
             'updatedAt' => $this->utcOrNull($contact->updatedAt),
+            // Where it lives: null for plMail's own contacts, else the synced
+            // address book (Nextcloud, a CardDAV server) it mirrors, by id and
+            // by the name Settings → Contacts shows.
+            'addressBookId' => null === $contact->addressBook?->id ? null : (string) $contact->addressBook->id,
+            'addressBookName' => $contact->addressBook?->name,
+            // A read-only book's contacts are shown, never changed:
+            // Contact/set answers forbidden to an update or a destroy.
+            'isReadOnly' => false === $contact->isEditable(),
         ];
     }
 

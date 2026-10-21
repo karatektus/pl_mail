@@ -14,7 +14,7 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\VerifiableDriverInterface;
 use App\Entity\AddressBook\AddressBook;
-use App\Entity\AddressBook\ContactCard;
+use App\Entity\Contacts\Contact;
 use App\Entity\Integration\Integration;
 use App\Service\Calendar\Sync\CalDav\CalDavClient;
 use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;
@@ -160,7 +160,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
      *
      * @throws CalendarSyncException
      */
-    public function put(AddressBook $book, ContactCard $card): array
+    public function put(AddressBook $book, Contact $card): array
     {
         $isCreate = null === $card->href;
         $href     = $card->href ?? $this->mintHref($book, $card);
@@ -174,7 +174,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
 
         $response = $this->client->request($book->integration, 'PUT', $href, [
             'headers' => $headers,
-            'body'    => $card->vcard,
+            'body'    => (string) $card->vcard,
         ], [412], DavService::AddressBook);
 
         if (412 === $response['status']) {
@@ -192,16 +192,16 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
      *
      * @throws CalendarSyncException
      */
-    public function delete(AddressBook $book, ContactCard $card): void
+    public function delete(AddressBook $book, ?string $href, ?string $etag): void
     {
-        if (null === $card->href) {
+        if (null === $href) {
             // Never reached the server, so there is nothing to tell it — and a
             // DELETE on the collection URL would delete the address book.
             return;
         }
 
-        $headers  = null === $card->etag ? [] : ['If-Match' => $card->etag];
-        $response = $this->client->request($book->integration, 'DELETE', $card->href, [
+        $headers  = null === $etag ? [] : ['If-Match' => $etag];
+        $response = $this->client->request($book->integration, 'DELETE', $href, [
             'headers' => $headers,
         ], [404, 410, 412], DavService::AddressBook);
 
@@ -473,7 +473,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
      * Where a card created here is PUT: named after its UID, the convention
      * every CardDAV client follows (RFC 6352 §6.3.2.3).
      */
-    private function mintHref(AddressBook $book, ContactCard $card): string
+    private function mintHref(AddressBook $book, Contact $card): string
     {
         return sprintf('%s/%s.vcf', rtrim($book->remoteId, '/'), rawurlencode($card->uid));
     }

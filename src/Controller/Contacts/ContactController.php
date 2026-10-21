@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Controller\Contacts;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Exception\ContactReadOnlyException;
+use App\Domain\Helper\AddressHelper;
+use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactMergeRecord;
 use App\Entity\Contacts\ContactRelation;
 use App\Entity\User\User;
+use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Contacts\ContactRepository;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactMerger;
@@ -17,9 +21,11 @@ use App\Service\Contacts\CsvExporter;
 use App\Service\Contacts\CsvImporter;
 use App\Service\Contacts\DuplicateFinder;
 use App\Service\Contacts\ImportRunner;
+use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\ReferenceEmailFinder;
 use App\Service\Contacts\VCardExporter;
 use App\Service\Contacts\VCardImporter;
+use App\Service\Contacts\VCardMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -38,6 +44,17 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Everything is looked up through the signed-in user (ownContact), never by
  * bare id, so another user's contact is a 404 rather than a 403 that confirms
  * it exists. Same rule as DriveController.
+ *
+ * A contact can live in plMail alone or in a synced address book (Nextcloud,
+ * any CardDAV server). The pages treat both the same; ContactSyncTracker sends
+ * an edit to a synced one on to its server. A contact in a read-only book is
+ * shown and never changed here (editableContact()).
+ *
+ * A save is one flush. The form's rows are turned into a ParsedContact and
+ * applied by VCardMapper, the code a sync uses, so rows that are still there
+ * keep their ids and a synced contact is never pushed half-saved — which a
+ * delete-everything-then-re-add over several flushes would do, if a sync ran
+ * between them.
  *
  * CSRF: every mutating form posts `_token` (what ChecksCsrf reads).
  */
@@ -62,6 +79,8 @@ final class ContactController extends AbstractController
         private readonly DuplicateFinder $duplicateFinder,
         private readonly ContactMerger $merger,
         private readonly ReferenceEmailFinder $referenceEmails,
+        private readonly AddressBookRepository $addressBooks,
+        private readonly VCardMapper $mapper,
         private readonly TranslatorInterface $translator,
         private readonly EntityManagerInterface $em,
         #[Autowire('%kernel.project_dir%')]
@@ -77,6 +96,8 @@ final class ContactController extends AbstractController
         $q = trim((string) $request->query->get('q', ''));
         $tag = trim((string) $request->query->get('tag', ''));
         $page = max(1, $request->query->getInt('page', 1));
+        $books = $this->addressBooks->findForUser($user);
+        $book = $this->bookFilter((string) $request->query->get('book', ''), $books);
 
         // One extra row tells us whether a next page exists, without a
         // separate count query.
@@ -87,6 +108,7 @@ final class ContactController extends AbstractController
             'name',
             self::PAGE_SIZE + 1,
             ($page - 1) * self::PAGE_SIZE,
+            $book,
         );
         $hasNext = \count($rows) > self::PAGE_SIZE;
 
@@ -97,6 +119,9 @@ final class ContactController extends AbstractController
             'page'     => $page,
             'hasNext'  => $hasNext,
             'tags'     => $this->contacts->findAllTagsForUser($user),
+            'books'    => $books,
+            'book'     => null === $book ? '' : (string) $book,
+            'total'    => $this->contacts->countForUser($user, '' === $q ? null : $q, $book),
         ]);
     }
 
@@ -126,6 +151,7 @@ final class ContactController extends AbstractController
             'isNew'    => true,
             'postUrl'  => $this->generateUrl('app_contacts_create'),
             'tokenId'  => 'contacts_create',
+            'books'    => $this->addressBooks->findWritableForUser($this->user()),
         ]);
     }
 
@@ -147,22 +173,17 @@ final class ContactController extends AbstractController
                 'postUrl' => $this->generateUrl('app_contacts_create'),
                 'tokenId' => 'contacts_create',
                 'draft'   => $all,
+                'books'   => $this->addressBooks->findWritableForUser($user),
             ], new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
-        $contact = $this->manager->create($user, [
-            'displayName' => $displayName,
-            'givenName'   => $all['givenName'] ?? null,
-            'familyName'  => $all['familyName'] ?? null,
-            'nickname'    => $all['nickname'] ?? null,
-            'company'     => $all['company'] ?? null,
-            'jobTitle'    => $all['jobTitle'] ?? null,
-            'notes'       => $all['notes'] ?? null,
-            'tags'        => $this->parseTags((string) ($all['tags'] ?? '')),
-            'source'      => 'manual',
-        ]);
+        $contact = Contact::create($user, $displayName);
+        $contact->addressBook = $this->chosenBook((string) ($all['addressBook'] ?? ''));
+        $this->mapper->apply($this->parsedFromForm($all), $contact);
 
-        $this->applyChildRows($contact, $all);
+        $this->em->persist($contact);
+        $this->em->flush();
+
         $this->addFlash('success', $this->trans('contacts.created'));
 
         return $this->redirectToRoute('app_contacts_show', ['id' => $contact->id], Response::HTTP_SEE_OTHER);
@@ -171,7 +192,7 @@ final class ContactController extends AbstractController
     #[Route('/{id<\d+>}/edit', name: 'edit', methods: ['GET'])]
     public function edit(int $id): Response
     {
-        $contact = $this->ownContact($id);
+        $contact = $this->editableContact($id);
 
         return $this->render('contacts/form.html.twig', [
             'contact' => $contact,
@@ -184,7 +205,7 @@ final class ContactController extends AbstractController
     #[Route('/{id<\d+>}', name: 'update', methods: ['POST'])]
     public function update(int $id, Request $request): Response
     {
-        $contact = $this->ownContact($id);
+        $contact = $this->editableContact($id);
         $this->assertCsrf($request, 'contacts_update_' . $id);
 
         $all = $request->request->all();
@@ -196,26 +217,10 @@ final class ContactController extends AbstractController
             return $this->redirectToRoute('app_contacts_edit', ['id' => $id], Response::HTTP_SEE_OTHER);
         }
 
-        $this->manager->update($contact, [
-            'displayName' => $displayName,
-            'givenName'   => $all['givenName'] ?? null,
-            'familyName'  => $all['familyName'] ?? null,
-            'nickname'    => $all['nickname'] ?? null,
-            'company'     => $all['company'] ?? null,
-            'jobTitle'    => $all['jobTitle'] ?? null,
-            'notes'       => $all['notes'] ?? null,
-            'tags'        => $this->parseTags((string) ($all['tags'] ?? '')),
-        ]);
-
-        // Replace-all for the child rows: the form always submits the full
-        // set, so whatever is not in it was deleted in the UI.
-        foreach (['emails', 'phones', 'addresses'] as $collection) {
-            foreach ($contact->{$collection} as $row) {
-                $this->em->remove($row);
-            }
-        }
+        // The form always submits the full set of rows, so whatever is not in
+        // it was deleted in the UI; apply() reconciles to exactly that.
+        $this->mapper->apply($this->parsedFromForm($all), $contact);
         $this->em->flush();
-        $this->applyChildRows($contact, $all);
 
         $this->addFlash('success', $this->trans('contacts.updated'));
 
@@ -225,7 +230,7 @@ final class ContactController extends AbstractController
     #[Route('/{id<\d+>}/delete', name: 'delete', methods: ['POST'])]
     public function delete(int $id, Request $request): Response
     {
-        $contact = $this->ownContact($id);
+        $contact = $this->editableContact($id);
         $this->assertCsrf($request, 'contacts_delete_' . $id);
 
         $this->manager->softDelete($contact);
@@ -274,7 +279,7 @@ final class ContactController extends AbstractController
     public function photo(int $id, Request $request): Response
     {
         $user = $this->user();
-        $contact = $this->ownContact($id);
+        $contact = $this->editableContact($id);
         $this->assertCsrf($request, 'contacts_photo_' . $id);
 
         $file = $request->files->get('photo');
@@ -451,6 +456,10 @@ final class ContactController extends AbstractController
 
         try {
             $this->merger->merge($keepId, $mergeIds, $user);
+        } catch (ContactReadOnlyException) {
+            $this->addFlash('error', $this->trans('contacts.merge_read_only'));
+
+            return $this->redirectToRoute('app_contacts_duplicates', [], Response::HTTP_SEE_OTHER);
         } catch (\InvalidArgumentException $e) {
             throw $this->createNotFoundException();
         }
@@ -497,6 +506,63 @@ final class ContactController extends AbstractController
             ?? throw $this->createNotFoundException();
     }
 
+    /**
+     * A contact the person may change: their own, and not in a read-only
+     * book. The pages offer no edit for the others; a hand-made request gets
+     * a 403.
+     */
+    private function editableContact(int $id): Contact
+    {
+        $contact = $this->ownContact($id);
+
+        if (false === $contact->isEditable()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $contact;
+    }
+
+    /**
+     * The list's book filter: 'local', or the id of one of the person's books.
+     * Anything else shows everything.
+     *
+     * @param list<AddressBook> $books
+     */
+    private function bookFilter(string $raw, array $books): int|string|null
+    {
+        if ('local' === $raw) {
+            return 'local';
+        }
+
+        foreach ($books as $book) {
+            if ((string) $book->id === $raw) {
+                return $book->id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Where a new contact goes: plMail's own contacts (''), or one of the
+     * person's writable books. A book that is not theirs, or is read-only,
+     * is refused rather than quietly ignored.
+     */
+    private function chosenBook(string $raw): ?AddressBook
+    {
+        if ('' === $raw) {
+            return null;
+        }
+
+        foreach ($this->addressBooks->findWritableForUser($this->user()) as $book) {
+            if ((string) $book->id === $raw) {
+                return $book;
+            }
+        }
+
+        throw $this->createAccessDeniedException();
+    }
+
     private function trans(string $key, array $params = []): string
     {
         return $this->translator->trans($key, $params);
@@ -519,10 +585,57 @@ final class ContactController extends AbstractController
     }
 
     /**
+     * The form, as the ParsedContact VCardMapper::apply() takes. Rows that
+     * are not usable — an address that is not one, a phone with no digits, an
+     * empty postal address — are dropped one by one (the importers' rule), so
+     * one typo cannot sink the save. Only the first row ticked primary of
+     * each kind is.
+     *
      * @param array<string, mixed> $all
+     */
+    private function parsedFromForm(array $all): ParsedContact
+    {
+        $parsed = new ParsedContact();
+
+        $parsed->displayName = trim((string) ($all['displayName'] ?? ''));
+
+        foreach (['givenName', 'familyName', 'nickname', 'company', 'jobTitle', 'notes'] as $key) {
+            $value = trim((string) ($all[$key] ?? ''));
+            $parsed->{$key} = '' === $value ? null : $value;
+        }
+
+        $parsed->tags = $this->parseTags((string) ($all['tags'] ?? ''));
+
+        $primary = false;
+        foreach ($this->labeledRows($all, 'emails', ['home', 'work', 'other']) as $row) {
+            $email = AddressHelper::email($row['value']);
+            if (false === AddressHelper::isValidEmail($email)) {
+                continue;
+            }
+            $parsed->emails[] = ['email' => $email, 'label' => $row['label'], 'primary' => $row['primary'] && !$primary];
+            $primary = $primary || $row['primary'];
+        }
+
+        $primary = false;
+        foreach ($this->labeledRows($all, 'phones', ['mobile', 'home', 'work', 'other']) as $row) {
+            if ('' === (preg_replace('/\D+/', '', $row['value']) ?? '')) {
+                continue;
+            }
+            $parsed->phones[] = ['phone' => $row['value'], 'label' => $row['label'], 'primary' => $row['primary'] && !$primary];
+            $primary = $primary || $row['primary'];
+        }
+
+        $parsed->addresses = $this->addressRows($all);
+
+        return $parsed;
+    }
+
+    /**
+     * @param array<string, mixed> $all
+     * @param list<string>         $labels the labels this kind of row may carry
      * @return list<array{value: string, label: string, primary: bool}>
      */
-    private function labeledRows(array $all, string $key): array
+    private function labeledRows(array $all, string $key, array $labels): array
     {
         $rows = $all[$key] ?? [];
         if (!\is_array($rows)) {
@@ -541,7 +654,7 @@ final class ContactController extends AbstractController
             $label = (string) ($row['label'] ?? 'other');
             $out[] = [
                 'value'   => $value,
-                'label'   => \in_array($label, ['home', 'work', 'other'], true) ? $label : 'other',
+                'label'   => \in_array($label, $labels, true) ? $label : 'other',
                 'primary' => isset($row['primary']) && '1' === (string) $row['primary'],
             ];
         }
@@ -578,33 +691,6 @@ final class ContactController extends AbstractController
         }
 
         return $out;
-    }
-
-    /**
-     * Adds the form's email/phone/address rows. Invalid rows are skipped one
-     * by one (same rule as the importers) so one typo cannot sink the save.
-     *
-     * @param array<string, mixed> $all
-     */
-    private function applyChildRows(Contact $contact, array $all): void
-    {
-        foreach ($this->labeledRows($all, 'emails') as $row) {
-            try {
-                $this->manager->addEmail($contact, $row['value'], $row['label'], $row['primary']);
-            } catch (\InvalidArgumentException) {
-                continue;
-            }
-        }
-        foreach ($this->labeledRows($all, 'phones') as $row) {
-            try {
-                $this->manager->addPhone($contact, $row['value'], $row['label'], $row['primary']);
-            } catch (\InvalidArgumentException) {
-                continue;
-            }
-        }
-        foreach ($this->addressRows($all) as $row) {
-            $this->manager->addAddress($contact, $row);
-        }
     }
 
     private function detectImportFormat(string $filename): ?string

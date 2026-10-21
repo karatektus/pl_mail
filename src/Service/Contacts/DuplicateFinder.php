@@ -75,7 +75,14 @@ final class DuplicateFinder
      */
     public function findCandidates(User $user, ?array $batchIds = null): array
     {
-        $all = $this->contacts->findBy(['usr' => $user, 'trashedAt' => null]);
+        // A read-only book's contacts cannot be merged (ContactMerger refuses
+        // them), so a pair holding one would be a suggestion with no way to act
+        // on it. Leaving them out also keeps a company directory of thousands
+        // out of the pairwise comparison below.
+        $all = array_values(array_filter(
+            $this->contacts->findBy(['usr' => $user, 'trashedAt' => null]),
+            static fn (Contact $contact): bool => $contact->isEditable(),
+        ));
         $batch = null === $batchIds ? null : array_flip($batchIds);
 
         $pairs = [];

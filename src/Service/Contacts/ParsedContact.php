@@ -6,10 +6,14 @@ namespace App\Service\Contacts;
 
 /**
  * Importer-agnostic parsed contact DTO. Importers (vCard, CSV) produce these;
- * ImportRunner turns them into Contact entities.
+ * ImportRunner turns them into Contact entities, and a CardDAV pull hands them
+ * to VCardMapper::apply().
  */
 final class ParsedContact
 {
+    /** The card's UID; null from CSV, or a vCard that has none. */
+    public ?string $uid = null;
+
     public ?string $displayName = null;
     public ?string $givenName = null;
     public ?string $familyName = null;
@@ -21,10 +25,10 @@ final class ParsedContact
     /** @var list<string> */
     public array $tags = [];
 
-    /** @var list<array{email: string, label: string}> */
+    /** @var list<array{email: string, label: string, primary?: bool}> */
     public array $emails = [];
 
-    /** @var list<array{phone: string, label: string}> */
+    /** @var list<array{phone: string, label: string, primary?: bool}> */
     public array $phones = [];
 
     /** @var list<array{label: string, street: ?string, city: ?string, region: ?string, postcode: ?string, country: ?string}> */

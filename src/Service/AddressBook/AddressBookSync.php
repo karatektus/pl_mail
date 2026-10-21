@@ -10,11 +10,15 @@ use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
-use App\Entity\AddressBook\ContactCard;
-use App\Repository\AddressBook\ContactCardRepository;
+use App\Entity\Contacts\Contact;
+use App\Infrastructure\Event\Listener\ContactSyncTracker;
+use App\Repository\Contacts\ContactRepository;
 use App\Service\AddressBook\CardDav\CardDavDriver;
-use App\Service\AddressBook\CardDav\VCardConverter;
+use App\Service\Contacts\ContactPhotoStore;
+use App\Service\Contacts\ParsedContact;
+use App\Service\Contacts\VCardMapper;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -38,6 +42,13 @@ use Psr\Log\LoggerInterface;
  * driver says the answer is complete; see AddressBookChangeSet. Pending cards
  * are never deleted that way — they are this side's news, not the server's.
  *
+ * **What a card is here.** Each card is a Contact in this book: its rows are
+ * what the contacts page, JMAP and autocomplete read, and the card itself is
+ * kept beside them so a push patches it rather than rebuilding it (see
+ * Contact and VCardMapper). The whole run is untracked: what it writes is what
+ * the server already has, and ContactSyncTracker must not take it for an edit
+ * to send back.
+ *
  * Failures are recorded on the book (for the settings list) and rethrown, so
  * the handler can leave the retry decision to the exception's class, as the
  * calendar sync does.
@@ -46,8 +57,10 @@ final readonly class AddressBookSync
 {
     public function __construct(
         private CardDavDriver          $driver,
-        private VCardConverter         $converter,
-        private ContactCardRepository  $cards,
+        private VCardMapper            $mapper,
+        private ContactRepository      $cards,
+        private ContactPhotoStore      $photos,
+        private ContactSyncTracker     $tracker,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -59,6 +72,14 @@ final readonly class AddressBookSync
      * @throws CalendarSyncException
      */
     public function sync(AddressBook $book): int
+    {
+        return $this->tracker->untracked(fn (): int => $this->syncUntracked($book));
+    }
+
+    /**
+     * @throws CalendarSyncException
+     */
+    private function syncUntracked(AddressBook $book): int
     {
         try {
             $touched = $this->push($book);
@@ -103,9 +124,10 @@ final readonly class AddressBookSync
 
             try {
                 if (SyncState::PendingDelete === $card->syncState) {
-                    $this->driver->delete($book, $card);
-                    $this->em->remove($card);
+                    $this->driver->delete($book, $card->href, $card->etag);
+                    $this->letGo($card);
                 } else {
+                    $card->vcard     = $this->mapper->write($card->vcard, $card);
                     $written         = $this->driver->put($book, $card);
                     $card->href      = $written['href'];
                     $card->etag      = $written['etag'];
@@ -125,7 +147,7 @@ final readonly class AddressBookSync
                 $this->logger->warning('CardDav: the server changed a contact we had edited; keeping its version', [
                     'addressBook' => $book->id,
                     'card'        => $card->uid,
-                    'name'        => $card->fullName,
+                    'name'        => $card->displayName,
                 ]);
                 $this->letTheServerWin($card);
             } catch (CalendarSyncPermanentException $e) {
@@ -169,13 +191,33 @@ final readonly class AddressBookSync
      * no href; the pull then finds the server's card by UID and adopts it.
      * Forcing a full listing is what guarantees the pull mentions it at all —
      * a delta since our token might not, if the collision is with an old card.
+     *
+     * A refused delete is the same rule: the card is still on the server, so
+     * the contact comes back out of the bin with whatever the server holds.
      */
-    private function letTheServerWin(ContactCard $card): void
+    private function letTheServerWin(Contact $card): void
     {
         $card->syncState = SyncState::Clean;
         $card->etag      = null;
+        $card->trashedAt = null;
 
-        $card->addressBook->syncToken = null;
+        if (null !== $card->addressBook) {
+            $card->addressBook->syncToken = null;
+        }
+    }
+
+    /**
+     * The card is gone from the server; the contact stays in the bin, as one
+     * of plMail's own, so it can still be restored there. Keeping it in the
+     * book would have the next full listing find no card for it and delete
+     * the row, bin and all.
+     */
+    private function letGo(Contact $card): void
+    {
+        $card->addressBook = null;
+        $card->href        = null;
+        $card->etag        = null;
+        $card->syncState   = SyncState::Clean;
     }
 
     // ── Pull ──────────────────────────────────────────────────────────────────
@@ -270,15 +312,18 @@ final readonly class AddressBookSync
                 continue;
             }
 
-            $fields = $this->converter->read((string) $remote->vcard, $remote->href);
+            $parsed = $this->mapper->read((string) $remote->vcard);
 
-            if (null === $fields) {
+            if (null === $parsed) {
                 $this->logger->info('CardDav: skipped a resource that is not a usable vCard', ['href' => $remote->href]);
 
                 continue;
             }
 
-            $local ??= $byUid[$fields->uid] ?? null;
+            // A card without a UID keeps one identity by its href.
+            $parsed->uid ??= $remote->href;
+
+            $local ??= $byUid[$parsed->uid] ?? null;
 
             // A local edit still waiting to go out is this side's news; the
             // server's copy does not overwrite it.
@@ -287,10 +332,14 @@ final readonly class AddressBookSync
             }
 
             if (null === $local) {
-                $local = new ContactCard($book, $fields->uid);
+                $local              = Contact::create($book->usr, $this->mapper->displayNameOf($parsed));
+                $local->addressBook = $book;
+                $local->source      = 'carddav';
                 $this->em->persist($local);
-                $byUid[$local->uid] = $local;
             }
+
+            $this->mapper->apply($parsed, $local);
+            $byUid[$local->uid] = $local;
 
             unset($doomed[spl_object_id($local)]);
 
@@ -303,7 +352,7 @@ final readonly class AddressBookSync
             $local->href  = $remote->href;
             $local->etag  = $remote->etag;
             $local->vcard = (string) $remote->vcard;
-            $local->fill($fields);
+            $this->takePhoto($parsed, $local);
             ++$touched;
         }
 
@@ -322,10 +371,39 @@ final readonly class AddressBookSync
         }
 
         foreach ($doomed as $local) {
+            if (null !== $local->photoPath) {
+                $this->photos->delete($local->photoPath);
+            }
+
             $this->em->remove($local);
             ++$touched;
         }
 
         return $touched;
+    }
+
+    /**
+     * A photo on the card replaces the one shown here. A card without one
+     * leaves a photo uploaded here alone: plMail does not send photos to the
+     * server, so the server not having one says nothing about this one.
+     */
+    private function takePhoto(ParsedContact $parsed, Contact $local): void
+    {
+        if (null === $parsed->photoBytes || null === $parsed->photoMime || null === $local->usr->id) {
+            return;
+        }
+
+        try {
+            $path = $this->photos->storeBytes($parsed->photoBytes, $parsed->photoMime, $local->usr->id);
+        } catch (InvalidArgumentException) {
+            // Too large, or not an image GD can read: keep the contact without it.
+            return;
+        }
+
+        if (null !== $local->photoPath) {
+            $this->photos->delete($local->photoPath);
+        }
+
+        $local->photoPath = $path;
     }
 }

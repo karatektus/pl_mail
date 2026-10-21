@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace App\Service\AddressBook;
 
 use App\Domain\DTO\AddressBook\ContactSuggestion;
-use App\Entity\AddressBook\ContactCard;
-use App\Entity\Mail\Contact;
-use App\Repository\AddressBook\ContactCardRepository;
+use App\Entity\Mail\Contact as HarvestedAddress;
+use App\Repository\Contacts\ContactRepository as AddressBookContacts;
 use App\Repository\Mail\ContactRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * The recipients to suggest: the addresses harvested from mail, and the ones
- * in the person's address books, as one ranked list.
+ * in the person's address book (plMail's own contacts and every synced book),
+ * as one ranked list.
+ *
+ * The two are read side by side and merged here, not copied into one table:
+ * the harvest is a statistic per address — how often, how recently — and the
+ * address book is people. Mirroring one into the other would have to be kept
+ * in step on every edit and every delete, and a contact deleted from the book
+ * would linger in the suggestions for as long as the mirror missed it.
  *
  * Both surfaces that suggest recipients read this — the web composer's route
  * and JMAP Contact/autocomplete — for the reason ContactRepository's ranking
@@ -35,26 +41,25 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * is one suggestion, carrying the address book's name — the one the person
  * wrote down, rather than whatever a sender's mail client put in a header.
  *
- * A card matches when its name, organisation or one of its addresses contains
- * what was typed. When the *name* matched, every address on the card is
- * offered — typing "ada" should offer Ada's work and home addresses both;
- * when only an address matched, only that address is.
+ * A contact matches when one of its names, its company or one of its addresses
+ * contains what was typed, and each matching address is a suggestion of its
+ * own — typing "ada" offers Ada's work and home addresses both
+ * (ContactRepository::findForAutocomplete()).
  *
  * Each side is asked for its own top $limit and the two are merged, which is
  * one bounded query each per keystroke rather than a join of the harvest
- * against every card. It is exact for what matters most — the harvest side is
- * already in the merged order, so no frequently-mailed address is lost — and
- * close for the rest: the cards come back in name order, so a card past the
- * first $limit matches can be missed even when the harvest knows its address,
- * if the harvest's own match on that query did not find it. Only cards that
- * carry an address are asked for (ContactCardRepository::findForAutocomplete),
- * or number-only cards would use up the limit and offer nothing.
+ * against every contact. It is exact for what matters most — the harvest side
+ * is already in the merged order, so no frequently-mailed address is lost —
+ * and close for the rest: the address book comes back in name order, so a
+ * contact past the first $limit matches can be missed even when the harvest
+ * knows its address, if the harvest's own match on that query did not find
+ * it.
  */
 final readonly class ContactSuggester
 {
     public function __construct(
-        private ContactRepository     $harvested,
-        private ContactCardRepository $cards,
+        private ContactRepository   $harvested,
+        private AddressBookContacts $addressBook,
     ) {
     }
 
@@ -76,21 +81,27 @@ final readonly class ContactSuggester
             $byEmail[mb_strtolower((string) $contact->email)] = $this->fromHarvest($contact);
         }
 
-        $needle = mb_strtolower($query);
+        foreach ($this->addressBook->findForAutocomplete($user, $query, $limit) as $row) {
+            $email   = $row->email;
+            $contact = $row->contact;
+            $known   = $byEmail[$email] ?? null;
 
-        foreach ($this->cards->findForAutocomplete($user, $query, $limit) as $card) {
-            foreach ($this->matchingEmails($card, $needle) as $email) {
-                $known = $byEmail[$email] ?? null;
-
-                $byEmail[$email] = new ContactSuggestion(
-                    email:           $email,
-                    name:            '' !== $card->fullName ? $card->fullName : $known?->name,
-                    frequency:       $known->frequency ?? 0,
-                    lastSeenAt:      $known?->lastSeenAt,
-                    isCorrespondent: $known->isCorrespondent ?? false,
-                    inAddressBook:   true,
-                );
+            // An address in two contacts (a synced book and plMail's own) is
+            // still one suggestion; the first, in name order, names it.
+            if (true === $known?->inAddressBook) {
+                continue;
             }
+
+            $byEmail[$email] = new ContactSuggestion(
+                email:           $email,
+                name:            '' !== trim($contact->displayName) ? $contact->displayName : $known?->name,
+                frequency:       $known->frequency ?? 0,
+                lastSeenAt:      $known?->lastSeenAt,
+                isCorrespondent: $known->isCorrespondent ?? false,
+                inAddressBook:   true,
+                contactId:       $contact->id,
+                hasPhoto:        null !== $contact->photoPath && '' !== $contact->photoPath,
+            );
         }
 
         $suggestions = array_values($byEmail);
@@ -114,7 +125,7 @@ final readonly class ContactSuggester
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private function fromHarvest(Contact $contact): ContactSuggestion
+    private function fromHarvest(HarvestedAddress $contact): ContactSuggestion
     {
         $name = $contact->displayName;
 
@@ -126,23 +137,5 @@ final readonly class ContactSuggester
             isCorrespondent: $contact->isCorrespondent,
             inAddressBook:   false,
         );
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function matchingEmails(ContactCard $card, string $needle): array
-    {
-        $byName = str_contains(mb_strtolower($card->fullName), $needle)
-            || str_contains(mb_strtolower((string) $card->organization), $needle);
-
-        if (true === $byName) {
-            return $card->emails;
-        }
-
-        return array_values(array_filter(
-            $card->emails,
-            static fn (string $email): bool => str_contains($email, $needle),
-        ));
     }
 }

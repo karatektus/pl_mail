@@ -39,6 +39,11 @@ final class ContactController extends AbstractController
                 'initials'      => $suggestion->initials(),
                 'frequency'     => $suggestion->frequency,
                 'inAddressBook' => $suggestion->inAddressBook,
+                // The topbar search's from:/to: completions show an
+                // address-book contact's photo; everyone else keeps the icon.
+                'photoUrl'      => true === $suggestion->hasPhoto && null !== $suggestion->contactId
+                    ? $this->generateUrl('app_contacts_photo_show', ['id' => $suggestion->contactId])
+                    : null,
             ];
         }
 

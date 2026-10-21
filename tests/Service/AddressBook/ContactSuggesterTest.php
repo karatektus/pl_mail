@@ -5,41 +5,34 @@ declare(strict_types=1);
 namespace App\Tests\Service\AddressBook;
 
 use App\Domain\DTO\AddressBook\ContactSuggestion;
-use App\Domain\DTO\AddressBook\VCardFields;
-use App\Entity\AddressBook\AddressBook;
-use App\Entity\AddressBook\ContactCard;
+use App\Entity\Contacts\Contact as AddressBookContact;
+use App\Entity\Contacts\ContactEmail;
 use App\Entity\Mail\Contact;
-use App\Repository\AddressBook\ContactCardRepository;
+use App\Entity\User\User;
+use App\Repository\Contacts\ContactRepository as AddressBookContacts;
 use App\Repository\Mail\ContactRepository;
 use App\Service\AddressBook\ContactSuggester;
-use App\Tests\Service\AddressBook\CardDav\CardDavFixture;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * One ranked list out of the harvest and the address books.
+ * One ranked list out of the harvest and the address book.
  *
  * The claims: with no address book the order is exactly the harvest's; an
  * address in both places is one suggestion carrying the address book's name;
- * being in an address book breaks ties and never lifts somebody above an
- * address written to more often; and a name match offers every address on the
- * card, an address match only that address.
+ * being in the address book breaks ties and never lifts somebody above an
+ * address written to more often; and an address kept in two contacts is still
+ * one suggestion. Which rows match what was typed is the repository's SQL,
+ * tested against Postgres in ContactRepositoryTest.
  */
 final class ContactSuggesterTest extends TestCase
 {
     /** @var list<Contact> */
     private array $harvest = [];
 
-    /** @var list<ContactCard> */
-    private array $cards = [];
-
-    private AddressBook $book;
-
-    protected function setUp(): void
-    {
-        $this->book = CardDavFixture::book();
-    }
+    /** @var list<ContactEmail> */
+    private array $kept = [];
 
     public function testWithNoAddressBookTheHarvestOrderStands(): void
     {
@@ -74,18 +67,26 @@ final class ContactSuggesterTest extends TestCase
         );
     }
 
-    public function testANameMatchOffersEveryAddressOnTheCard(): void
+    public function testAnAddressKeptInTwoContactsIsOneSuggestion(): void
     {
-        $this->card('Grace Hopper', ['grace@navy.example', 'gh@home.example']);
+        $this->card('Ada Lovelace', ['ada@example.com']);
+        $this->card('Ada (synced)', ['ada@example.com']);
 
-        self::assertSame(['gh@home.example', 'grace@navy.example'], $this->emails('grace'));
+        $suggestions = $this->suggest('ada');
+
+        self::assertCount(1, $suggestions);
+        self::assertSame('Ada Lovelace', $suggestions[0]->name, 'the first in name order names it');
     }
 
-    public function testAnAddressMatchOffersOnlyThatAddress(): void
+    public function testAnAddressBookSuggestionKnowsItsContactForThePhoto(): void
     {
-        $this->card('Grace Hopper', ['grace@navy.example', 'gh@home.example']);
+        $contact            = $this->card('Ada Lovelace', ['ada@example.com']);
+        $contact->photoPath = 'contacts/1/ada.jpg';
 
-        self::assertSame(['gh@home.example'], $this->emails('home.example'));
+        $suggestion = $this->suggest('ada')[0];
+
+        self::assertTrue($suggestion->hasPhoto);
+        self::assertSame($contact->id, $suggestion->contactId);
     }
 
     public function testTheLimitIsAppliedToTheMergedList(): void
@@ -115,7 +116,7 @@ final class ContactSuggesterTest extends TestCase
     /** @return list<ContactSuggestion> */
     private function suggest(string $query, int $limit = 8): array
     {
-        return new ContactSuggester($this->harvestRepository(), $this->cardRepository())
+        return new ContactSuggester($this->harvestRepository(), $this->addressBookRepository())
             ->suggest($this->createStub(UserInterface::class), $query, $limit);
     }
 
@@ -137,12 +138,15 @@ final class ContactSuggesterTest extends TestCase
     }
 
     /** @param list<string> $emails */
-    private function card(string $name, array $emails): void
+    private function card(string $name, array $emails): AddressBookContact
     {
-        $card = new ContactCard($this->book, bin2hex(random_bytes(4)));
-        $card->fill(new VCardFields($card->uid, $name, $emails));
+        $contact = AddressBookContact::create(new User(), $name);
 
-        $this->cards[] = $card;
+        foreach ($emails as $email) {
+            $this->kept[] = ContactEmail::create($contact, $email);
+        }
+
+        return $contact;
     }
 
     /**
@@ -175,24 +179,23 @@ final class ContactSuggesterTest extends TestCase
         };
     }
 
-    private function cardRepository(): ContactCardRepository
+    /**
+     * Every kept address matches, in the order given: matching is the SQL's
+     * job, ranking is the suggester's, and this tests the second.
+     */
+    private function addressBookRepository(): AddressBookContacts
     {
-        $cards = $this->cards;
+        $kept = $this->kept;
 
-        return new class($cards) extends ContactCardRepository {
-            /** @param list<ContactCard> $cards */
-            public function __construct(private readonly array $cards)
+        return new class($kept) extends AddressBookContacts {
+            /** @param list<ContactEmail> $kept */
+            public function __construct(private readonly array $kept)
             {
             }
 
             public function findForAutocomplete(UserInterface $user, string $query, int $limit): array
             {
-                $q = mb_strtolower(trim($query));
-
-                return array_slice(array_values(array_filter(
-                    $this->cards,
-                    static fn (ContactCard $c): bool => str_contains($c->searchText, $q) && str_contains($c->searchText, '@'),
-                )), 0, $limit);
+                return array_slice($this->kept, 0, $limit);
             }
         };
     }
