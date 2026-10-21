@@ -64,6 +64,25 @@ skips its "View in browser" lines; a person's mail starts at its first line, gre
 The Android and iOS apps get the same preview. No schema change.
 [#257](https://github.com/karatektus/pl_mail/issues/257).
 
+**A message marked read or unread in the phone app is shown that way on the web too.** Marking a
+message read or unread over JMAP changed the message but not its conversation's unread count, which
+is what the web list draws in bold from, so a message marked unread on the phone stayed read in the
+browser and one marked read there stayed bold. It now goes the same way as the web's own read
+button, and so does an automatic read receipt where the mailbox sends one. Marking a single message
+of a longer conversation read or unread on the web also set the conversation's count from that one
+message alone; it is now counted from all of them. A conversation whose count is already wrong is
+put right the next time one of its messages is marked. No schema change.
+[#266](https://github.com/karatektus/pl_mail/issues/266), by @phdelodder.
+
+**Trashing a conversation with one message already in the bin no longer fails.** On an IMAP account,
+the message that was already in the Trash was sent to the server as a move from Trash into Trash,
+which the server refused with "NO Not permitted in EXAMINE state". The rest of the conversation
+moved, but the refusal was logged as an error and recorded on the account as a change the server
+would not take, and the binned message lost its address until the next sync found it again. A
+message that is already where a trash, archive or restore sends it now stays put and keeps its
+address; its labels change as before. No schema change.
+[#269](https://github.com/karatektus/pl_mail/issues/269), by @phdelodder.
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->

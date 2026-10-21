@@ -13,6 +13,7 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\ThreadStatusUpdater;
 
 /**
  * Applies a JMAP patch to an Email's keywords and mailboxIds.
@@ -25,6 +26,11 @@ use App\Service\Label\ThreadLabelSynchronizer;
  * one made in the browser. Its ordering contract is observed: mutate the
  * entities, call the propagator, and let the caller flush last — detachLabel
  * in particular reads message->mailbox before it is re-pointed.
+ *
+ * Read state is the exception: $seen goes through ThreadStatusUpdater, which
+ * flushes on its own, so that a phone marking a message read or unread keeps
+ * the thread's unread counter, the read receipt and the propagation exactly
+ * as the web UI does.
  */
 final class EmailPatchApplier
 {
@@ -34,6 +40,7 @@ final class EmailPatchApplier
         private readonly LabelChangePropagator $propagator,
         private readonly ThreadLabelSynchronizer $threadLabelSynchronizer,
         private readonly JmapDraftWriter $draftWriter,
+        private readonly ThreadStatusUpdater $status,
     ) {
     }
 
@@ -152,8 +159,13 @@ final class EmailPatchApplier
         $isFlagged = null !== $message->starredAt;
 
         if ($wantSeen !== $isSeen) {
-            $message->seenAt = true === $wantSeen ? new \DateTimeImmutable() : null;
-            $this->propagator->markRead([$message], $wantSeen);
+            // Through the same service as the web UI's read button, not by
+            // writing seenAt here. Writing it here left the thread's
+            // unreadCount alone, and the web list draws bold from that counter:
+            // a message marked unread on the phone stayed read in the browser,
+            // and one marked read there stayed bold. The service also tells
+            // the provider, so the propagator is not called a second time.
+            $this->status->markRead([$message], $wantSeen);
         }
 
         if ($wantFlagged !== $isFlagged) {
