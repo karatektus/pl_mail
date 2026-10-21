@@ -7,6 +7,15 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier
+image, v0.3.7 included, ran PHP 8.4.26, which is open to both. One of them can be reached by any
+multipart request, with no sign-in and no upload form needed, and the advisory considers FrankenPHP
+susceptible. Exploit code is public, so update. plMail itself is unchanged: the FrankenPHP base
+image the build starts from now carries the fixed PHP, and this release is that rebuild. No schema
+change. [#280](https://github.com/karatektus/pl_mail/issues/280).
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->
