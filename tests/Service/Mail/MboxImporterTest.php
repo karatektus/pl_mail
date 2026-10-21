@@ -215,6 +215,36 @@ final class MboxImporterTest extends KernelTestCase
         self::assertSame(1, $result->skippedDuplicate);
     }
 
+
+    public function testADkimSignatureTagListIsNotAMessageId(): void
+    {
+        // A DKIM-Signature h= tag list contains the literal text
+        // "message-id:" — a regex not anchored to the line start matches it
+        // and stores a fragment of the signature as the identity. Real
+        // Constant Contact mail has exactly this shape, and one newsletter in
+        // the archive this was written against imported under such a key.
+        $dkim = 'DKIM-Signature: v=1; a=rsa-sha256; '
+            . 'h=date:mime-version:subject:X-Feedback-ID:message-id:from:reply-to:to; '
+            . 'b=cRjZnZlL7Hvq3Waaq+';
+        $realId = 'real-id-' . bin2hex(random_bytes(4)) . '@example.test';
+
+        $file = $this->writeMbox('Inbox', [
+            "DKIM-Signature: $dkim\n"
+            . "From: list@example.test\n"
+            . "Subject: Newsletter\n"
+            . "Date: 2026-07-31 16:05:06 +0000\n"
+            . "Message-ID: <$realId>\n"
+            . "\nBody.\n",
+        ]);
+
+        $result = $this->importer->importFile($file, $this->account, LabelRole::Inbox);
+
+        self::assertSame(1, $result->imported);
+
+        $stored = $this->em->getRepository(Message::class)->findOneBy(['account' => $this->account]);
+        self::assertSame($realId, $stored->messageId, 'the identity is the real header, not a tag inside a signature');
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function writeMbox(string $folder, array $messages): string

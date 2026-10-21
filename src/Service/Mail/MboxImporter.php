@@ -251,11 +251,21 @@ final readonly class MboxImporter
     {
         $head = substr($rawMessage, 0, 65536);
 
-        if (1 === preg_match('/^Message-I[dD]:\s*<([^>]+)>/mi', $head, $m)) {
+        // A real Message-ID header STARTS A LINE. The first pattern here had
+        // no /m and could never match anything but byte 0, which no message
+        // satisfies; the loose one that replaced it used /m but matched
+        // "message-id:" anywhere in a line, and a DKIM-Signature's h= tag list
+        // contains that text verbatim (`h=date:mime-version:…:message-id:…`).
+        // A Constant Contact newsletter stored its identity as a fragment of
+        // the signature and deduped consistently against garbage that could
+        // never thread. The /m stays and the line start is followed by the
+        // header name and a colon; a tag inside a signature is never at the
+        // start of its line.
+        if (1 === preg_match('/^Message-I[dD]:\s*<([^>]+)>/m', $head, $m)) {
             return MessageIdHelper::normalise($m[1]);
         }
 
-        if (1 === preg_match('/^Message-I[dD]:\s*(\S+)/mi', $head, $m)) {
+        if (1 === preg_match('/^Message-I[dD]:\s*(\S+)/m', $head, $m)) {
             return MessageIdHelper::normalise($m[1]);
         }
 
