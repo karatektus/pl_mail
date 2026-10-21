@@ -10,6 +10,8 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\User\User;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
@@ -157,6 +159,40 @@ final class Pop3MailboxLabelTest extends KernelTestCase
 
         self::assertCount(1, $filed->labels, 'a filed message keeps only the label it was given');
         self::assertSame(LabelRole::Archive, $filed->labels->first()->role);
+    }
+
+    /**
+     * The repair reaches the THREAD too, which is what the inbox actually lists.
+     *
+     * The second half of the same deployment finding: a message labelled while
+     * its conversation carries no label is still invisible, because the inbox
+     * query joins the thread's labels rather than the message's.
+     */
+    public function testTheRepairAlsoLabelsTheThread(): void
+    {
+        $account = $this->pop3Account();
+        $syncer  = static::getContainer()->get(Pop3AccountSyncer::class);
+
+        $mailbox = $this->invokeMailboxFor($syncer, $account);
+
+        $orphan = $this->message($account, $mailbox, 'thread-orphan');
+        $thread = new MessageThread();
+        $thread->account          = $account;
+        $thread->threadingMethod  = ThreadingMethod::SubjectFallback;
+        $thread->normalizedSubject = 'fixture';
+        $thread->lastMessageAt    = new \DateTimeImmutable();
+        $this->em->persist($thread);
+        $orphan->thread = $thread;
+        $this->em->flush();
+
+        self::assertCount(0, $thread->labels, 'precondition: the conversation carries no label');
+
+        $this->invokeMailboxFor($syncer, $account);
+
+        $this->em->refresh($thread);
+
+        self::assertCount(1, $thread->labels, 'the inbox lists threads; a thread with no label is invisible');
+        self::assertSame(LabelRole::Inbox, $thread->labels->first()->role);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -109,6 +110,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         private readonly AccountRepository     $accountRepository,
         private readonly MailboxRepository     $mailboxRepository,
         private readonly LabelResolver         $labelResolver,
+        private readonly ThreadLabelSynchronizer $threadLabels,
         private readonly PostIngestPipeline    $postIngest,
         private readonly EntityManagerInterface $em,
         private readonly ManagerRegistry        $registry,
@@ -324,6 +326,25 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
         if ([] !== $ingested) {
             $this->postIngest->run($account, $ingested);
+
+            // The pipeline threads the messages, and MessageThreader copies a
+            // message's labels onto its thread only when the message is FIRST
+            // attached. That is enough for IMAP, whose mailbox label always
+            // exists by then. Here the label is attached by
+            // buildMessageFromParsed() before the pipeline runs, so it is
+            // already there — but a message that joins a conversation which
+            // already had messages contributes its label to a thread the
+            // threader does not revisit, so the union is re-stated.
+            //
+            // Cheap and idempotent: sync() sets the union both ways, and the
+            // threads are already loaded by the pipeline's threading pass.
+            foreach ($ingested as $item) {
+                if (null !== $item->message->thread) {
+                    $this->threadLabels->sync($item->message->thread);
+                }
+            }
+
+            $this->em->flush();
         }
 
         $this->rememberStored($account, array_column($batch, 'uidl'));
@@ -511,6 +532,16 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
         foreach ($orphans as $orphan) {
             $orphan->addLabel($label);
+
+            // And the conversation it belongs to. The inbox lists THREADS and
+            // its query joins the thread's labels, not the message's — so a
+            // message labelled here whose thread carries none is still
+            // invisible. ThreadLabelSynchronizer is the application's own
+            // "thread labels are the union of their messages" rule, and using
+            // it keeps this in step with every other path that mutates them.
+            if (null !== $orphan->thread) {
+                $this->threadLabels->sync($orphan->thread);
+            }
         }
 
         $this->logger->info('POP3 sync: gave the Inbox label to messages that had none', [
