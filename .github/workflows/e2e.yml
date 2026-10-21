@@ -12,11 +12,14 @@ name: E2E
 # v0.2.16 — counted with `npx playwright test --list`, which is worth doing
 # before reasoning about shard counts from a number in a comment.)
 #
-# The trade, stated so it is a decision rather than a surprise: `main` is no
-# longer verified commit by commit. A regression pushed to main is found when a
-# release is tagged, which may be several commits later, and the tag is then the
-# thing that fails. Run it by hand with `workflow_dispatch` before pushing
-# anything you are unsure of — or locally, which is faster than either:
+# Pushes to main are not run, and that costs nothing since main became
+# protected (2026-10-15): every commit there comes from a pull request whose
+# jobs below are required checks. That includes a release, whose `Release vX.Y.Z`
+# pull request is the suite run behind its tag (see CONTRIBUTING.md, Releasing).
+# The protection does not require a pull request to be up to date with main, so
+# two that pass apart can still fail together. Run it by hand with
+# `workflow_dispatch` on any branch you are unsure of — or locally, which is
+# faster than either:
 #
 #   npm run test:unit:docker && npm run test:e2e:docker
 #
@@ -56,8 +59,18 @@ on:
     # Kept, and cheap: a pull request is somebody proposing a change, which is
     # exactly when a second opinion from the suite is worth having, and there
     # are few of them.
+    #
+    # `wip/**` as well: a feature too big for one pull request is built on a
+    # `wip/` branch and reviewed in phases, each phase a pull request into that
+    # branch (issue #28 is the first). Those merges are where the phases meet,
+    # so they get the same second opinion a pull request into main does. A
+    # push to a wip branch still does not — the pull request is the check.
+    #
+    # `milestone/**` too: a release's work is collected on a milestone branch
+    # (`milestone/v0.4.0`) before it reaches main, and a pull request into one
+    # is the same proposal a pull request into main is.
     pull_request:
-        branches: [main]
+        branches: [main, 'wip/**', 'milestone/**']
     workflow_dispatch:
 
 # Six runners per push adds up, so a superseded pull request stops paying for

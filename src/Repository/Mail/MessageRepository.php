@@ -3,6 +3,7 @@
 namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
@@ -2841,12 +2842,13 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * The two body columns MessageSnippet reads, for specific messages only —
-     * one per list row, the row's latest.
+     * The columns MessageSnippet reads, for specific messages only — one per
+     * list row, the row's latest. The category decides whether the preview
+     * may skip a bulk mail's chrome.
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2854,9 +2856,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2865,7 +2867,13 @@ class MessageRepository extends ServiceEntityRepository
         $bodies = [];
 
         foreach ($rows as $row) {
-            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+            $category = $row['category'];
+
+            $bodies[(int) $row['id']] = [
+                'bodyHtmlSafe' => $row['bodyHtmlSafe'],
+                'bodyText'     => $row['bodyText'],
+                'category'     => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+            ];
         }
 
         return $bodies;
