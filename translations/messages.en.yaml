@@ -3869,6 +3869,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Not verified'
             verified: 'Verified'
+        error_server: 'The server turned this device down (%error%). Try again, and if it keeps happening, tell your administrator.'
+        error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to

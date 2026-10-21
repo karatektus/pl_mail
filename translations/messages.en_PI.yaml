@@ -3670,6 +3670,9 @@ settings:
                 webpush: "Web Push"
             unverified: "Not vouched for"
             verified: "Vouched for"
+        error_server: 'Th'' server turned this device away (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
+        error_subscribe: 'Th'' browser''s push service gave this device no berth (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s below-decks hand never woke (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
         heading: Word from the crow's nest
         ios_hint: >-
             On iPhone and iPad, the lookout only calls once plMail be added to

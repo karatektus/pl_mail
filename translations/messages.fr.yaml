@@ -3919,6 +3919,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Non vérifié'
             verified: 'Vérifié'
+        error_server: 'Le serveur a refusé cet appareil (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
+        error_subscribe: 'Le service push du navigateur n’a attribué aucune adresse à cet appareil (%error%). Dans Brave, activez d’abord « Utiliser les services Google pour les messages push ».'
+        error_worker: 'Le service d’arrière-plan de plMail n’a pas démarré (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
         heading: Notifications
         ios_hint: >-
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
