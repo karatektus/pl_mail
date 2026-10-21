@@ -237,6 +237,16 @@ export default class extends Controller {
         };
         document.addEventListener("turbo:before-frame-render", this._onListRendering);
 
+        // A message link from outside this pane — the contacts pane's
+        // "Reference emails" — asks for it here, because a Stimulus action
+        // only reaches controllers around the element clicked. Cancelling the
+        // event tells the link this pane took it (see mail--open-in-pane).
+        this._onOpenRequest = (event) => {
+            event.preventDefault();
+            this._openUrl(event.detail.url);
+        };
+        document.addEventListener("mail-pane:open", this._onOpenRequest);
+
         // A refresh that came due while the tab was in the background is held
         // rather than dropped, and taken the moment it is looked at again.
         this._refreshPending = false;
@@ -292,6 +302,7 @@ export default class extends Controller {
         this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
         document.removeEventListener("turbo:before-frame-render", this._onListRendering);
+        document.removeEventListener("mail-pane:open", this._onOpenRequest);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
         // A trailing refresh outlives this controller otherwise: Turbo replaces
@@ -356,9 +367,10 @@ export default class extends Controller {
     async open(event) {
         event.preventDefault();
 
-        const link = event.currentTarget;
-        const url = link.href;
+        await this._openUrl(event.currentTarget.href);
+    }
 
+    async _openUrl(url) {
         // Remember where to go back to, if we don't already know.
         if (!this._listUrl) {
             this._listUrl = window.location.href;

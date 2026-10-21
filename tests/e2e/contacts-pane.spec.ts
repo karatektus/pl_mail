@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { INBOX_SUBJECTS } from "./support/config";
 import { test } from "./support/test";
 
 /**
@@ -78,6 +79,27 @@ test.describe("contacts pane on a notebook", () => {
         await frame(page).getByRole("button", { name: "Close contacts" }).click();
 
         await expect(dock(page)).toBeHidden();
+    });
+
+    test("a contact's reference email opens in the mail pane, beside the contact", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        // A contact for the sender every worker's seeded inbox is from, so its
+        // page lists those threads under "Reference emails".
+        await frame(page).getByRole("link", { name: "New contact" }).first().click();
+        await frame(page).locator("[name='displayName']").fill("E2E Sender");
+        await frame(page).getByRole("button", { name: "Add email" }).click();
+        await frame(page).locator("[name='emails[0][value]']").fill("sender@e2e.test");
+        await frame(page).getByRole("button", { name: "Save" }).click();
+
+        const reference = frame(page).locator("a[data-reference-email]", { hasText: INBOX_SUBJECTS.read });
+        await reference.click();
+
+        // In the pane, not a visit: the contact is still docked beside it.
+        await expect(page).toHaveURL(/\/mail\/message\/\d+/);
+        await expect(page.locator("[data-mail--mail-pane-target='reading']")).toContainText(INBOX_SUBJECTS.read);
+        await expect(reference).toBeVisible();
     });
 
     test("it is remembered across a reload", async ({ page }) => {
