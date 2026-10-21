@@ -12,6 +12,15 @@ account:
             host: Host
         password: Password
         port: Port
+        protocol:
+            label: Incoming protocol
+            imap: IMAP
+            pop3: POP3
+        pop3:
+            delete_label: After fetching
+            delete_on_fetch: Delete the message on the server
+            keep_on_server: Leave it on the server (recommended)
+            delete_help: POP3 has no folders and no push. A message left on the server is recognised next sync by its UIDL and is not fetched twice. Deleting frees the server's quota but removes the only second copy.
         preset:
             label: Provider
             placeholder: Choose a provider…
@@ -45,6 +54,7 @@ account:
             failed: 'The connection did not work. Check the host, port and encryption.'
             host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
             imap_ok: 'Connected — %count% folders visible.'
+            pop3_ok: 'Connected — %count% messages in the mailbox.'
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'

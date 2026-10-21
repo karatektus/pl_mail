@@ -1,0 +1,471 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Pop3;
+
+use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Interface\AccountSyncerInterface;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
+use App\Infrastructure\Pop3\Pop3Connection;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MailboxRepository;
+use App\Service\Imap\ImapDeadline;
+use App\Service\Imap\MessageSyncer;
+use App\Service\Mail\PostIngestPipeline;
+use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
+use Psr\Log\LoggerInterface;
+use Throwable;
+use Webklex\PHPIMAP\Message as ImapMessage;
+
+/**
+ * Bringing a POP3 mailbox into plMail.
+ *
+ * ── The shape of the problem ─────────────────────────────────────────────────
+ * POP3 is not a worse IMAP; it is a different model, and most of this class is
+ * the difference written down. A POP3 server has ONE mailbox, numbered 1..N in
+ * the order it happens to hold them; the numbers are reissued after any
+ * deletion; and the only thing the client may do to a message is read it or
+ * delete it. There are no folders, no flags, no UIDs and nothing to push back.
+ *
+ * What survives from the IMAP path is everything after the bytes are in hand:
+ * webklex parses the message, MessageSyncer builds the row, PostIngestPipeline
+ * does the rest. That reuse is the reason this is a syncer and not a second
+ * mail stack.
+ *
+ * ── How it decides what is new ───────────────────────────────────────────────
+ * The server lists every message in its mailbox on every sync — there is no
+ * "since" and nothing to ask — so the whole of the sync's memory is a list of
+ * UIDLs it has already stored, on the account (Account::$pop3SeenUidls). A
+ * message is new exactly when its UIDL is not in that list.
+ *
+ * UIDL and not the message number, and not the Message-ID. The number is
+ * reissued after deletions, so it names a different message next time. The
+ * Message-ID is absent from real mail more often than one would like, and the
+ * same Message-ID legitimately appears twice (a copy to two of the user's
+ * addresses). UIDL is the one identifier RFC 1939 guarantees is unique and
+ * stable for as long as the message exists — which is exactly the lifetime
+ * that matters for "have I already got this one".
+ *
+ * ── Where the mail lands ─────────────────────────────────────────────────────
+ * One Mailbox row, called after the account, with the Inbox special use. It
+ * is not INBOX by name because it is not an IMAP INBOX — there is nothing to
+ * select — and the sidebar and the label chain both key off the special use
+ * rather than the name. Sent and Drafts are label-only: a POP3 server has
+ * nowhere to put them, so mail plMail sends is labelled Sent and stays here.
+ * See MessageSendService, which already appends to a Sent folder only when
+ * one exists.
+ *
+ * ── What cannot work, and is therefore not attempted ─────────────────────────
+ *  - Flags: marking read, starring and moving are LOCAL. Nothing is sent to
+ *    the server, because POP3 has no way to receive it. The next sync does not
+ *    undo them either, which is the part that makes this a real feature rather
+ *    than a display of one: the sync only ever inserts messages it has never
+ *    seen, and never revisits a row it has.
+ *  - Pushing changes back: ApplyImapFlagsHandler is not reachable for these
+ *    accounts, because LabelChangePropagator only queues it for messages that
+ *    have an imapUid, and these rows have none. See the note there.
+ *  - Deletion in the UI: deleting a message deletes the local row only. The
+ *    server's copy is untouched unless the account's delete mode says so at
+ *    the next sync, which is a different and emptier promise.
+ */
+final readonly class Pop3AccountSyncer implements AccountSyncerInterface
+{
+    /**
+     * Messages fetched per connection before the session is recycled.
+     *
+     * POP3 holds the mailbox locked for the whole transaction, and providers
+     * cap both the number of messages per session and how long it may stay
+     * open. A hundred is what the largest of these mailboxes comfortably
+     * affords; the number is small on purpose because the cost of recycling is
+     * one re-LIST, and the cost of not recycling is a server that hangs up
+     * half way through a first import.
+     */
+    private const int BATCH_SIZE = 100;
+
+    /**
+     * How many messages a single sync will fetch.
+     *
+     * The first sync of a mailbox the user has been reading for years is
+     * thousands of messages, and a sync that runs for an hour holds the
+     * mailbox locked against the user's phone for that hour. The remainder is
+     * picked up by the next sync — the account is a normal polled account and
+     * the message it did not reach is still on the server — so the limit costs
+     * nothing but wall time and is invisible to the user except as a progress
+     * line that moves.
+     */
+    private const int MAX_MESSAGES_PER_SYNC = 500;
+
+    public function __construct(
+        private readonly MessageSyncer         $messageSyncer,
+        private readonly AccountRepository     $accountRepository,
+        private readonly MailboxRepository     $mailboxRepository,
+        private readonly PostIngestPipeline    $postIngest,
+        private readonly EntityManagerInterface $em,
+        private readonly ManagerRegistry        $registry,
+        private readonly ImapDeadline           $deadline,
+        private readonly LoggerInterface        $logger,
+    ) {
+    }
+
+    /**
+     * POP3 only. Gmail, Microsoft and plain IMAP all answer false and are
+     * served by their own syncers.
+     */
+    public function supports(Account $account): bool
+    {
+        return true === $account->isPop3();
+    }
+
+    /**
+     * @return list<int> the mailboxes written to, for the caller's per-mailbox
+     *                  follow-up work
+     */
+    public function sync(Account $account): array
+    {
+        $mailbox = $this->mailboxFor($account);
+
+        $connection = $this->openSession($account);
+        $stored     = 0;
+
+        try {
+            $listing = $connection->list();
+            $uidls   = $connection->uidl();
+
+            if ([] === $listing) {
+                $this->logger->info('POP3 sync: the mailbox is empty', ['accountId' => $account->id]);
+
+                $connection->quit();
+
+                return [];
+            }
+
+            // A message the server lists but does not name is not one this
+            // sync can recognise, so it is skipped rather than guessed at.
+            // That is a broken server, and the alternative — fetching it under
+            // a made-up identifier — stores it again on every sync for ever.
+            $unnamed = count($listing) - count($uidls);
+
+            if ($unnamed > 0) {
+                $this->logger->warning('POP3 sync: the server listed messages without UIDLs; they cannot be recognised', [
+                    'accountId' => $account->id,
+                    'count'     => $unnamed,
+                ]);
+            }
+
+            $new  = [];
+            $seen = $account->pop3SeenUidls;
+
+            foreach ($listing as $entry) {
+                $uidl = $uidls[$entry->number] ?? null;
+
+                if (null === $uidl || true === in_array($uidl, $seen, true)) {
+                    continue;
+                }
+
+                $new[] = ['number' => $entry->number, 'uidl' => $uidl];
+            }
+
+            if ([] === $new) {
+                $this->logger->debug('POP3 sync: nothing new', ['accountId' => $account->id, 'listed' => count($listing)]);
+
+                // The delete mode still has work to do on an account that has
+                // caught up: a message stored on an earlier sync may be one
+                // the user has only now asked to be removed from the server.
+                $this->deleteStored($account, $connection, $uidls);
+
+                $connection->quit();
+
+                return [];
+            }
+
+            $pending = count($new);
+
+            if ($pending > self::MAX_MESSAGES_PER_SYNC) {
+                $new = array_slice($new, 0, self::MAX_MESSAGES_PER_SYNC);
+
+                $this->logger->info('POP3 sync: message limit reached; the rest is left for the next sync', [
+                    'accountId' => $account->id,
+                    'limit'     => self::MAX_MESSAGES_PER_SYNC,
+                    'remaining' => $pending - count($new),
+                ]);
+            }
+
+            foreach (array_chunk($new, self::BATCH_SIZE) as $index => $batch) {
+                // A fresh session per batch. quit() ends the one before it,
+                // which is also the moment that batch's delete marks become
+                // real on the server — see Pop3Connection on the transaction
+                // state, and why the marks travel with the session and not
+                // with the row.
+                if (0 !== $index) {
+                    $connection->quit();
+
+                    $account    = $this->refindAccount($account);
+                    $mailbox    = $this->mailboxFor($account);
+                    $connection = $this->openSession($account);
+                }
+
+                $stored += $this->fetchBatch($account, $mailbox, $connection, $batch);
+            }
+
+            $account = $this->refindAccount($account);
+            $account->recordSyncSuccess();
+
+            $this->em->flush();
+
+            $connection->quit();
+        } catch (Throwable $failure) {
+            // Nothing that was marked for deletion is deleted: abort() does
+            // not send QUIT, and a POP3 server rolls the transaction back when
+            // the session ends any other way. The UIDLs of whatever did store
+            // are already committed — rememberStored() flushes — so the next
+            // sync does not fetch them again.
+            $connection->abort();
+
+            throw $failure;
+        }
+
+        return 0 === $stored ? [] : [(int) $mailbox->id];
+    }
+
+    /**
+     * Fetch and store one batch, then mark its messages for deletion if this
+     * account wants them gone.
+     *
+     * @param list<array{number: int, uidl: string}> $batch
+     *
+     * @return int how many were stored
+     */
+    private function fetchBatch(Account $account, Mailbox $mailbox, Pop3Connection $connection, array $batch): int
+    {
+        $stored  = [];
+        $rawSour = [];
+
+        foreach ($batch as $entry) {
+            try {
+                $raw = $connection->retrieve($entry['number']);
+            } catch (Throwable $failure) {
+                // One message the server will not hand over is one message.
+                // The rest of the batch is still worth fetching, and the UIDL
+                // is not recorded, so the next sync asks for it again.
+                $this->logger->warning('POP3 sync: the server would not send a message; it is asked for again next sync', [
+                    'accountId' => $account->id,
+                    'uidl'      => $entry['uidl'],
+                    'error'     => $failure->getMessage(),
+                ]);
+
+                continue;
+            }
+
+            try {
+                $message = $this->buildMessage($raw, $mailbox, (int) $account->id);
+
+                // No UID: there is none, and inventing one would point the row
+                // at a number the server reassigns. The unique constraint on
+                // (mailbox_id, imap_uid) permits any number of NULLs, which is
+                // exactly what is wanted here.
+                $message->imapUid = null;
+
+                $this->em->persist($message);
+
+                foreach ($message->messageParts as $part) {
+                    $this->em->persist($part);
+                }
+
+                $stored[]    = $message;
+                $rawSour[]   = $raw;
+            } catch (Throwable $failure) {
+                // A refused write closes the manager; reopen it so the rest of
+                // the batch is not blamed for it. Same contract as the IMAP
+                // syncer's one-at-a-time fallback. The registry is used rather
+                // than the manager itself because resetManager() lives on the
+                // one, and a closed manager cannot reopen itself.
+                if (false === $this->em->isOpen()) {
+                    $this->registry->resetManager();
+
+                    $mailbox = $this->mailboxRepository->find($mailbox->id);
+
+                    if (null === $mailbox) {
+                        // The row is gone — an account deleted during a long
+                        // first import. There is nowhere left to file anything.
+                        throw $failure;
+                    }
+                }
+
+                $this->logger->error('POP3 sync: a message could not be stored; it is asked for again next sync', [
+                    'accountId' => $account->id,
+                    'uidl'      => $entry['uidl'],
+                    'error'     => $failure->getMessage(),
+                    'exception' => $failure,
+                ]);
+            }
+        }
+
+        // The rows exist, and this is the commit that makes them permanent.
+        // The delete marks below are only ever made AFTER it returns: a
+        // message told to the server as "got it" must be a message that is
+        // actually here.
+        $this->em->flush();
+
+        $ingested = [];
+
+        foreach ($stored as $index => $message) {
+            $ingested[] = new IngestedMessage($message, $account, $rawSour[$index] ?? '');
+        }
+
+        if ([] !== $ingested) {
+            $this->postIngest->run($account, $ingested);
+        }
+
+        $this->rememberStored($account, array_column($batch, 'uidl'));
+
+        if (true === $account->pop3DeleteMode->deletes()) {
+            foreach ($batch as $entry) {
+                if (false === in_array($entry['uidl'], $account->pop3SeenUidls, true)) {
+                    // It was never stored — the server's copy is the only one.
+                    continue;
+                }
+
+                try {
+                    $connection->markDeleted($entry['number'], $entry['uidl']);
+                } catch (Throwable $failure) {
+                    $this->logger->warning('POP3 sync: a message could not be marked for deletion', [
+                        'accountId' => $account->id,
+                        'uidl'      => $entry['uidl'],
+                        'error'     => $failure->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        return count($stored);
+    }
+
+    /**
+     * Delete from the server what is already here, for an account that has
+     * asked for it.
+     *
+     * The path taken when nothing new arrived. Delete mode is a standing
+     * instruction, not a one-off at fetch time: an account switched to Delete
+     * should not have to wait for new mail before the old mail goes.
+     *
+     * @param array<int, string> $uidls message number => UIDL
+     */
+    private function deleteStored(Account $account, Pop3Connection $connection, array $uidls): void
+    {
+        if (false === $account->pop3DeleteMode->deletes()) {
+            return;
+        }
+
+        foreach ($uidls as $number => $uidl) {
+            if (false === $account->hasStoredPop3Uidl($uidl)) {
+                continue;
+            }
+
+            try {
+                $connection->markDeleted($number, $uidl);
+            } catch (Throwable $failure) {
+                $this->logger->warning('POP3 sync: a message could not be marked for deletion', [
+                    'accountId' => $account->id,
+                    'uidl'      => $uidl,
+                    'error'     => $failure->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * The one mailbox a POP3 account's mail lives in, created on first use.
+     */
+    private function mailboxFor(Account $account): Mailbox
+    {
+        $existing = $this->mailboxRepository->findOneBy([
+            'account'    => $account,
+            'specialUse' => MailboxSpecialUse::INBOX,
+        ]);
+
+        if (null !== $existing) {
+            return $existing;
+        }
+
+        $mailbox = new Mailbox();
+        $mailbox->account      = $account;
+        $mailbox->name         = 'Inbox';
+        $mailbox->fullPath     = 'INBOX';
+        $mailbox->specialUse   = MailboxSpecialUse::INBOX;
+        $mailbox->isSelectable = true;
+        $mailbox->isSyncEnabled = true;
+
+        // isSyncEnabled on a POP3 account is a switch with nothing to switch:
+        // there is one mailbox and no folder tree, so there is no second one to
+        // turn on or off. It is true so that the rest of the application's
+        // "is this folder polled" checks read a POP3 account's mail as polled,
+        // which it is.
+        $this->em->persist($mailbox);
+        $this->em->flush();
+
+        return $mailbox;
+    }
+
+    /**
+     * Parse one RETR answer into a Message row, through the same parser an IMAP
+     * fetch goes through.
+     *
+     * The handover is the whole point of the design: webklex's Message is a
+     * MIME parser with a protocol client attached, and fromString() builds one
+     * from bytes with no client at all. Everything downstream — the body
+     * extraction, the attachment parts, the charset repair, the date fallback
+     * — behaves identically to IMAP because it is the same code.
+     *
+     * Reflective only for buildMessage(), which is private and takes an
+     * ImapMessage because that is what it has always taken. Making it public
+     * and typed to the parser would be the cleaner change and is a follow-up:
+     * this commit's job is to add a protocol, not to refactor a class with
+     * twelve call sites.
+     */
+    private function buildMessage(string $raw, Mailbox $mailbox, int $accountId): Message
+    {
+        $imapMessage = ImapMessage::fromString($raw, ImapConnectionFactory::config());
+
+        return $this->messageSyncer->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
+    }
+
+    /**
+     * Record what was stored, and tell the account's sync mark.
+     */
+    private function rememberStored(Account $account, array $uidls): void
+    {
+        $account->rememberPop3Uidls(array_values(array_filter($uidls, static fn (mixed $uidl): bool => true === is_string($uidl) && '' !== $uidl)));
+        $account->lastSyncedAt = new DateTimeImmutable();
+
+        $this->em->flush();
+    }
+
+    private function openSession(Account $account): Pop3Connection
+    {
+        return Pop3Connection::open(
+            (string) $account->imapHost,
+            (int) $account->imapPort,
+            $account->imapEncryption,
+            (string) $account->username,
+            (string) $account->password,
+            $this->deadline,
+        );
+    }
+
+    /**
+     * The account again, after a session that may have cleared the manager.
+     */
+    private function refindAccount(Account $account): Account
+    {
+        $found = $this->accountRepository->find($account->id);
+
+        return $found instanceof Account ? $found : $account;
+    }
+}
