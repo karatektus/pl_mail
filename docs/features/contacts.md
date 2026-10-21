@@ -6,7 +6,16 @@ exist only here. Others come from an address book on a server, such as your
 [Nextcloud](../providers/carddav.md#connecting-a-server) or any other CardDAV server, and changes go
 both ways.
 
-Open it from **Contacts** in the sidebar, or the address-book icon beside the calendar button.
+Open it from **Contacts** in the sidebar for the full page, or with the address-book icon beside
+the calendar button, which docks it beside the mail, as the calendar does. The docked address book
+is the whole of it: search, open, edit, add and merge contacts there while your mail stays where it
+was. Drag its edge to make it wider or narrower (or use the arrow keys on the edge; a double-click
+puts it back), and plMail remembers the width and whether it was open. The arrows in its header open
+the same page full size, and the × closes it.
+
+On a wide monitor (1920 pixels across or more) the address book and the calendar can be docked side
+by side. On a smaller screen, such as a laptop's, there is room for one of them beside the mail, so
+opening one puts the other away. Below 1024 pixels the icon opens the full page.
 
 ## The list
 

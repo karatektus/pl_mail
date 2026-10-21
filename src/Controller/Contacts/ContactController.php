@@ -30,6 +30,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
@@ -86,6 +87,41 @@ final class ContactController extends AbstractController
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
     ) {}
+
+    // ── The docked pane ───────────────────────────────────────────────────
+
+    /**
+     * Remembers whether the address book is docked beside the mail, and how
+     * wide. The calendar's pane-state for the contacts pane — see
+     * CalendarController::paneState(), whose reasons all apply: written on
+     * release, never re-rendering, either field optional, clamped here.
+     */
+    #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
+    public function paneState(Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, 'contacts_pane_state');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (true === $request->request->has('open')) {
+            $user->contactsPaneOpen = $request->request->getBoolean('open');
+        }
+
+        if (true === $request->request->has('width')) {
+            $user->setSetting(User::SETTING_CONTACTS_PANE_WIDTH, max(
+                User::CONTACTS_PANE_MIN_WIDTH,
+                min(User::CONTACTS_PANE_MAX_WIDTH, $request->request->getInt('width')),
+            ));
+        }
+
+        $this->em->flush();
+
+        return $this->json([
+            'open'  => $user->contactsPaneOpen,
+            'width' => $user->contactsPaneWidth,
+        ]);
+    }
 
     // ── List / show ───────────────────────────────────────────────────────
 

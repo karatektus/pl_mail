@@ -4697,6 +4697,12 @@ contacts:
     no_subject: '(sans objet)'
     notes: Notes
     page: 'Page %page%'
+    pane:
+        close: 'Fermer les contacts'
+        open_page: 'Ouvrir les contacts en pleine page'
+        resize: 'Redimensionner les contacts'
+        toggle_close: 'Masquer les contacts'
+        toggle_open: 'Afficher les contacts à côté du courrier'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
     photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'

@@ -509,14 +509,26 @@
 
     {# ── Contacts ──────────────────────────────────────────────────────
        The address book, beside the calendar switch: both are the
-       non-mail half of the "all in one" system. A plain link — contacts
-       is a destination, not a pane toggle. Hidden on a phone, where the
-       bar has no room (it is in the drawer there). #}
+       non-mail half of the "all in one" system. Hidden on a phone, where
+       the bar has no room (it is in the drawer there).
+
+       On the mailbox it opens and closes the address book docked beside
+       the mail (contacts--pane, on the shell); everywhere else, below lg,
+       and on a middle click it is the link to /contacts it looks like.
+       Accented for its first paint from lg up only, as the calendar
+       switch is, because below lg there is no dock to be open; the
+       controller takes those classes off once it has drawn its own. #}
+    {% set contactsDocked = calendarRestored is defined and app.user and app.user.contactsPaneOpen %}
     <a
         href="{{ path('app_contacts_list') }}"
+        data-contacts--pane-target="toggle"
+        data-action="click->contacts--pane#toggle"
+        data-label-open="{{ 'contacts.pane.toggle_open'|trans }}"
+        data-label-close="{{ 'contacts.pane.toggle_close'|trans }}"
         class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
                transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover"
+               text-ink-muted hover:bg-hover
+               {{ contactsDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
         aria-label="{{ 'contacts.nav'|trans }}"
         title="{{ 'contacts.nav'|trans }}"
     >

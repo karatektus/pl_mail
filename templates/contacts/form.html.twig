@@ -27,7 +27,7 @@ address books a contact can be saved to, besides plMail's own).
 <form method="post" action="{{ postUrl }}" data-controller="contacts--form" class="flex flex-col h-full min-h-0">
     <input type="hidden" name="_token" value="{{ csrf_token(tokenId) }}">
 
-    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
         <a href="{{ contact ? path('app_contacts_show', { id: contact.id }) : path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.cancel'|trans }}">
             <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
         </a>
@@ -37,9 +37,10 @@ address books a contact can be saved to, besides plMail's own).
         <button type="submit" class="{{ btnPrimary }}">
             <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>{{ 'contacts.save'|trans }}
         </button>
+        {% include 'contacts/_pane_actions.html.twig' %}
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+    <div class="flex-1 overflow-y-auto p-4 @2xl:p-6">
         <div class="max-w-2xl mx-auto flex flex-col gap-5">
 
             {% if isNew and books|default([]) is not empty %}
@@ -62,8 +63,8 @@ address books a contact can be saved to, besides plMail's own).
 
             <section class="{{ cardCls }}">
                 <h2 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_name'|trans }}</h2>
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="sm:col-span-2">
+                <div class="grid gap-3 @lg:grid-cols-2">
+                    <div class="@lg:col-span-2">
                         <label class="{{ labelCls }}" for="f-displayName">{{ 'contacts.display_name'|trans }}</label>
                         <input id="f-displayName" name="displayName" required maxlength="255" value="{{ cm.field('displayName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
                     </div>
@@ -83,7 +84,7 @@ address books a contact can be saved to, besides plMail's own).
                         <label class="{{ labelCls }}" for="f-company">{{ 'contacts.company'|trans }}</label>
                         <input id="f-company" name="company" maxlength="255" value="{{ cm.field('company', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
                     </div>
-                    <div class="sm:col-span-2">
+                    <div class="@lg:col-span-2">
                         <label class="{{ labelCls }}" for="f-jobTitle">{{ 'contacts.job_title'|trans }}</label>
                         <input id="f-jobTitle" name="jobTitle" maxlength="255" value="{{ cm.field('jobTitle', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
                     </div>
@@ -260,7 +261,7 @@ address books a contact can be saved to, besides plMail's own).
 </form>
 
 {% if not isNew %}
-    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-t border-line shrink-0">
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-t border-line shrink-0">
         <form method="post" action="{{ path('app_contacts_photo', { id: contact.id }) }}" enctype="multipart/form-data"
               data-controller="contacts--form" class="flex items-center gap-2 min-w-0">
             <input type="hidden" name="_token" value="{{ csrf_token('contacts_photo_' ~ contact.id) }}">
@@ -270,7 +271,7 @@ address books a contact can be saved to, besides plMail's own).
                 <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="sr-only"
                        data-action="change->contacts--form#submitForm">
             </label>
-            <span class="text-xs text-ink-faint hidden sm:inline">{{ (contact.addressBook ? 'contacts.photo_hint_synced' : 'contacts.photo_hint')|trans }}</span>
+            <span class="text-xs text-ink-faint hidden @lg:inline">{{ (contact.addressBook ? 'contacts.photo_hint_synced' : 'contacts.photo_hint')|trans }}</span>
         </form>
         <form method="post" action="{{ path('app_contacts_delete', { id: contact.id }) }}"
               data-turbo-confirm="{{ 'contacts.delete_confirm'|trans({'%name%': contact.displayName}) }}" class="ml-auto">

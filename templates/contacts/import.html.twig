@@ -13,14 +13,15 @@ Variables: preview (ParsedContact[]|null), previewTotal, format, tokenId.
 {% block title %}{{ 'contacts.import'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block contacts_content %}
-    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
         <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.back'|trans }}">
             <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
         </a>
         <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ 'contacts.import'|trans }}</h1>
+        {% include 'contacts/_pane_actions.html.twig' %}
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+    <div class="flex-1 overflow-y-auto p-4 @2xl:p-6">
         <div class="max-w-3xl mx-auto flex flex-col gap-5">
 
             <section class="{{ cardCls }}">

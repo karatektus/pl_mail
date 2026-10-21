@@ -4441,6 +4441,12 @@ contacts:
     no_subject: '(no subject)'
     notes: Scribblings
     page: 'Page %page%'
+    pane:
+        close: 'Stow the shipmates'
+        open_page: 'Unfurl the shipmates across the whole deck'
+        resize: 'Haul the shipmates wider or narrower'
+        toggle_close: 'Stow the shipmates'
+        toggle_open: 'Muster the shipmates beside the post'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     photo_hint: 'JPG, PNG or WebP, up to 5 MB.'

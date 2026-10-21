@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:caa8ac7ace51a70b5ad996030179e97b3cde9cfd -->
+<!-- translated-from: features/contacts.md sha1:81d5272d5ba0bf843f76364484e754bc534e0eea -->
 
 # Kontakte
 
@@ -8,8 +8,18 @@ gehören nur plMail und gibt es nur hier. Andere kommen aus einem Adressbuch auf
 deiner [Nextcloud](../providers/carddav.md#einen-server-verbinden) oder einem anderen
 CardDAV-Server, und Änderungen gehen in beide Richtungen.
 
-Du öffnest es über **Kontakte** in der Seitenleiste oder über das Adressbuch-Symbol neben dem
-Kalender-Knopf.
+Du öffnest es über **Kontakte** in der Seitenleiste als ganze Seite, oder über das Adressbuch-Symbol
+neben dem Kalender-Knopf, das es neben der Mail andockt, so wie den Kalender. Das angedockte
+Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und führst Kontakte
+dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es breiter oder
+schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es zurück), und plMail
+merkt sich die Breite und ob es offen war. Die Pfeile in seiner Kopfzeile öffnen dieselbe Seite in
+voller Größe, und das × schließt es.
+
+Auf einem breiten Monitor (ab 1920 Pixeln Breite) können Adressbuch und Kalender nebeneinander
+angedockt sein. Auf einem kleineren Bildschirm, etwa dem eines Laptops, ist neben der Mail Platz für
+eines von beiden, also räumt das eine das andere weg. Unter 1024 Pixeln öffnet das Symbol die ganze
+Seite.
 
 ## Die Liste
 

@@ -4670,6 +4670,12 @@ contacts:
     no_subject: '(no subject)'
     notes: Notes
     page: 'Page %page%'
+    pane:
+        close: 'Close contacts'
+        open_page: 'Open contacts full page'
+        resize: 'Resize contacts'
+        toggle_close: 'Hide contacts'
+        toggle_open: 'Show contacts beside the mail'
     pending: 'Waiting to be sent to the server'
     phone_placeholder: '+1 555 010 2030'
     photo_hint: 'JPG, PNG or WebP, up to 5 MB.'

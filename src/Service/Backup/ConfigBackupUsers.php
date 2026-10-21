@@ -118,6 +118,10 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
         User::SETTING_CALENDAR_PANE_MODE,
+        // The address book docked beside the mail, for the calendar pane's
+        // reason: a layout somebody chose, a bool and a number.
+        User::SETTING_CONTACTS_PANE_OPEN,
+        User::SETTING_CONTACTS_PANE_WIDTH,
         // Which view each shape opens on. In the backup for the same reason the
         // pane's width and mode are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week

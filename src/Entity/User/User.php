@@ -674,6 +674,26 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * Whether the address book is docked beside the mail, and how wide.
+     *
+     * The settings bag for the calendar pane's reasons: rendered into the first
+     * paint, the same at every desk, no migration. Its own keys rather than a
+     * position of the calendar switch, because from a wide enough screen the
+     * two are docked side by side (see contacts--pane) — one setting cannot
+     * say "both".
+     *
+     * Two positions, not the calendar's three. Contacts full width is the
+     * /contacts page itself, which is already one click away in the pane.
+     */
+    public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
+    public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
+
+    /** Matches the clamp in ui--split; the server is what enforces it. */
+    public const int CONTACTS_PANE_MIN_WIDTH = 320;
+    public const int CONTACTS_PANE_MAX_WIDTH = 900;
+    public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
+
+    /**
      * How wide the live preview beside the appearance settings is.
      *
      * The settings bag for the same reason the calendar's width is: rendered
@@ -836,6 +856,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    public int $contactsPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_CONTACTS_PANE_WIDTH, self::CONTACTS_PANE_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::CONTACTS_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::CONTACTS_PANE_MIN_WIDTH, min(self::CONTACTS_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    public bool $contactsPaneOpen {
+        get => true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false);
+        set (bool $open) {
+            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, $open);
         }
     }
 

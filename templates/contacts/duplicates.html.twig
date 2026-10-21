@@ -38,7 +38,7 @@ Variables: pairs (DuplicatePair[]), merges (ContactMergeRecord[]), now.
 {% endmacro %}
 
 {% block contacts_content %}
-    <div class="flex items-center gap-2 px-4 md:px-6 h-14 border-b border-line shrink-0">
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
         <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.back'|trans }}">
             <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
         </a>
@@ -46,9 +46,10 @@ Variables: pairs (DuplicatePair[]), merges (ContactMergeRecord[]), now.
         {% if pairs is not empty %}
             <span class="text-xs text-ink-faint">{{ 'contacts.duplicates_count'|trans({'%count%': pairs|length}) }}</span>
         {% endif %}
+        {% include 'contacts/_pane_actions.html.twig' %}
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-6">
+    <div class="flex-1 overflow-y-auto p-4 @2xl:p-6">
         <div class="max-w-3xl mx-auto flex flex-col gap-5">
 
             {% if pairs is empty %}
@@ -78,7 +79,7 @@ Variables: pairs (DuplicatePair[]), merges (ContactMergeRecord[]), now.
                             {% endif %}
                         </div>
 
-                        <div class="flex gap-3 flex-col sm:flex-row">
+                        <div class="flex gap-3 flex-col @xl:flex-row">
                             {{ _self.pairCard(pair.a, 'a') }}
                             {{ _self.pairCard(pair.b, 'b') }}
                         </div>

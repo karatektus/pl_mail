@@ -4668,6 +4668,12 @@ contacts:
     no_subject: '(kein Betreff)'
     notes: Notizen
     page: 'Seite %page%'
+    pane:
+        close: 'Kontakte schließen'
+        open_page: 'Kontakte als ganze Seite öffnen'
+        resize: 'Kontakte in der Breite ändern'
+        toggle_close: 'Kontakte ausblenden'
+        toggle_open: 'Kontakte neben der Mail zeigen'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
     photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'

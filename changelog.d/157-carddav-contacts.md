@@ -1,8 +1,9 @@
 <!-- highlight -->
 **Contacts: an address book, and your Nextcloud or CardDAV contacts in it.** A new **Contacts** page
-(in the sidebar, and beside the calendar button) lists, searches and tags your contacts, shows each
-one's details and the mail you exchanged, and creates, edits and deletes them, with a photo, postal
-addresses and notes. Duplicates are found and merged, with 90 days to undo, and contacts import from
+(in the sidebar) lists, searches and tags your contacts, shows each one's details and the mail you
+exchanged, and creates, edits and deletes them, with a photo, postal addresses and notes. The button
+beside the calendar's docks the whole address book beside the mail, resizable like the calendar,
+and on a wide monitor the two sit side by side. Duplicates are found and merged, with 90 days to undo, and contacts import from
 and export to vCard and CSV. A message's sender shows whether they are in your contacts, with one
 click to add them. Address books on a server come in too: a Nextcloud connected under Settings →
 Integrations is listed under **Settings → Contacts** with no second connection to make, and

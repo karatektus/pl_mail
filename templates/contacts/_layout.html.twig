@@ -5,8 +5,18 @@ Drawn the way Drive is: topbar, the mail sidebar, and one main pane. Button
 and field classes are shared here so every contacts page matches.
 
 Pages extend this and fill `contacts_content`; they may override `title`.
+
+The same pages run in the pane docked beside the mail (_contacts_pane.html.twig).
+Asked for by that frame — the header Turbo sends on every navigation inside
+it, or the attribute the mailbox sets when it renders an open pane with the
+page — a page renders into the frame alone, with no topbar or sidebar to build
+and throw away: _pane_layout.html.twig. Everything else about the page is the
+same template, which is why the content sits in a @container in both: its
+breakpoints are the pane's width or the page's, never the window's.
 #}
-{% extends '_layout/app.html.twig' %}
+{% set inPane = 'contacts-pane-frame' == app.request.headers.get('Turbo-Frame')
+    or true == app.request.attributes.get('_contacts_pane') %}
+{% extends inPane ? 'contacts/_pane_layout.html.twig' : '_layout/app.html.twig' %}
 
 {% set btnGhost = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover hover:text-ink border border-line transition-colors cursor-pointer' %}
 {% set btnPrimary = 'inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer' %}
@@ -36,7 +46,7 @@ Pages extend this and fill `contacts_content`; they may override `title`.
                 </div>
 
                 <div class="flex flex-1 overflow-hidden main-pane">
-                    <div class="relative flex flex-col flex-1 min-w-0 overflow-hidden">
+                    <div class="@container relative flex flex-col flex-1 min-w-0 overflow-hidden">
                         {% block contacts_content %}{% endblock %}
                     </div>
                 </div>

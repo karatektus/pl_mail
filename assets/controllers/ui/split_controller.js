@@ -49,6 +49,18 @@ import { Controller } from "@hotwired/stimulus";
  * `variable-value` says which custom property the boundary moves, so the two
  * cannot write over each other. That is the only thing in here that ever knew
  * a pane by name.
+ *
+ * ── A second docked pane ──────────────────────────────────────────────────
+ *
+ * The address book docks beside the mail too, with a modeless boundary of its
+ * own on its wrapper: this class again, registered as ui--side-split (see
+ * side_split_controller.js and _contacts_pane.html.twig). The mail pane is
+ * outside that wrapper, so `main-selector-value` finds it instead of a target.
+ *
+ * Whether the two can be docked at once is contacts--pane's to decide. This
+ * side only reports: every position the user moves the calendar to is
+ * dispatched as `ui--split:mode`, and `yield` puts the calendar back on the
+ * mail when the address book needs the room.
  */
 export default class extends Controller {
     static targets = ["wrapper", "pane", "handle", "main"];
@@ -72,6 +84,9 @@ export default class extends Controller {
         // The pane's own minimum still stops it going further.
         mainMin: { type: Number, default: 340 },
         mode: { type: String, default: "mail" },
+        // The mail pane, for a boundary that cannot have it as a target. See
+        // "A second docked pane" above.
+        mainSelector: { type: String, default: "" },
         step: { type: Number, default: 24 },
         default: { type: Number, default: 380 },
     };
@@ -100,6 +115,9 @@ export default class extends Controller {
 
         this._onResize = () => this._reclamp();
         window.addEventListener("resize", this._onResize);
+        // A docked pane opening or closing changes what the mail side has, as
+        // a window resize does, and is answered the same way.
+        window.addEventListener("side-pane:changed", this._onResize);
 
         // A plain boundary is done here: there is no position to restore, and
         // nothing on the page for a mail click to demote.
@@ -247,6 +265,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("resize", this._onResize);
+        window.removeEventListener("side-pane:changed", this._onResize);
 
         if (this._onMailClick) {
             document.removeEventListener("click", this._onMailClick, true);
@@ -446,6 +465,17 @@ export default class extends Controller {
         this._setMode(this._nextMode());
     }
 
+    /**
+     * Another docked pane needs the room: back to the mail, if the calendar
+     * is showing at all. Dispatched by contacts--pane, which has already
+     * decided the row cannot hold both.
+     */
+    yield() {
+        if (true === this.modesValue && "mail" !== this.modeValue) {
+            this._setMode("mail");
+        }
+    }
+
     _nextMode() {
         // With a position skipped, one press from the mail is the one that is
         // left, and one press from anywhere else is the mail. The skipped
@@ -476,6 +506,10 @@ export default class extends Controller {
      */
     _setMode(mode) {
         this._render(mode);
+
+        // Chosen, not restored — connect() calls _render directly — so the
+        // other docked pane hears only what the user did. See contacts--pane.
+        this.dispatch("mode", { detail: { mode } });
 
         // Entering split honours the stored width, and the stored width can
         // be one a BIGGER window chose — up to the maximum. On a window just
@@ -787,7 +821,10 @@ export default class extends Controller {
 
     _combinedWidth() {
         const pane = this.hasPaneTarget ? this.paneTarget.getBoundingClientRect().width : 0;
-        const main = this.hasMainTarget ? this.mainTarget.getBoundingClientRect().width : 0;
+        const mainElement = this.hasMainTarget
+            ? this.mainTarget
+            : ("" !== this.mainSelectorValue ? document.querySelector(this.mainSelectorValue) : null);
+        const main = null !== mainElement ? mainElement.getBoundingClientRect().width : 0;
 
         // No main pane to measure (the calendar page itself) — fall back to the
         // row, which is the same thing minus a sidebar.
