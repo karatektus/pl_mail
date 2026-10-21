@@ -8,12 +8,13 @@ use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Infrastructure\Messaging\Message\DeleteRemoteContactMessage;
 use App\Repository\AddressBook\AddressBookRepository;
-use App\Service\AddressBook\CardDav\CardDavDriver;
+use App\Service\AddressBook\AddressBookDriverRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Deletes a card whose contact was removed here outright — merged into
+ * Deletes a contact on its server — CardDAV, Google or Outlook, whichever the
+ * book's driver speaks — after it was removed here outright: merged into
  * another, or purged from the bin. See ContactSyncTracker.
  *
  * Gone already (404, 410) is done. A 412 means the card was changed elsewhere
@@ -28,7 +29,7 @@ final readonly class DeleteRemoteContactHandler
 {
     public function __construct(
         private AddressBookRepository $books,
-        private CardDavDriver $driver,
+        private AddressBookDriverRegistry $drivers,
         private LoggerInterface $logger,
     ) {
     }
@@ -43,7 +44,7 @@ final readonly class DeleteRemoteContactHandler
         }
 
         try {
-            $this->driver->delete($book, $message->href, $message->etag);
+            $this->drivers->forBook($book)->delete($book, $message->href, $message->etag);
         } catch (CalendarResyncRequiredException $e) {
             if (412 !== $e->getStatus()) {
                 throw $e;

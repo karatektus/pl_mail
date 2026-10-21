@@ -7,9 +7,16 @@ shown beside it, and each book's last sync failure beside the book, because
 "my contacts stopped updating" is answered by one of those two lines and by
 nothing else on the page.
 
+Google and Microsoft accounts are listed after the connections: their
+address books ride the mail grant, so there is nothing to connect, only — for
+an account connected before plMail asked for contacts — one reconnect.
+
 Variables:
-  contactConnections  Integration[]                 CardDAV and Nextcloud — Provider::offersAddressBooks()
-  addressBooks        array<int, AddressBook[]>     keyed by integration id
+  contactConnections      Integration[]                 CardDAV and Nextcloud — Provider::offersAddressBooks()
+  addressBooks            array<int, AddressBook[]>     keyed by integration id
+  contactAccounts         Account[]                     Google and Microsoft mail accounts
+  accountBooks            array<int, AddressBook[]>     keyed by account id
+  contactAccountsGranted  array<int, bool|null>         whether each account's grant reaches contacts
 #}
 <div class="px-4 py-3 border-b border-line bg-sunken flex items-center justify-between gap-3 flex-wrap">
     <p class="text-xs text-ink-muted leading-relaxed max-w-prose">{{ 'settings.contacts.intro'|trans }}</p>
@@ -38,7 +45,7 @@ Variables:
     </div>
 </div>
 
-{% if contactConnections is empty %}
+{% if contactConnections is empty and contactAccounts is empty %}
     <p class="px-4 py-8 text-center text-sm text-ink-faint italic">{{ 'settings.contacts.empty'|trans }}</p>
 {% else %}
     <ul class="divide-y divide-line">
@@ -89,48 +96,46 @@ Variables:
                     {% endif %}
                 </div>
 
-                {% set books = addressBooks[connection.id] ?? [] %}
+                {% include 'settings/contacts/_books.html.twig' with { books: addressBooks[connection.id] ?? [] } only %}
+            </li>
+        {% endfor %}
 
-                {% if books is empty %}
-                    <p class="pl-6 text-xs text-ink-faint italic">{{ 'settings.contacts.no_books'|trans }}</p>
+        {% for account in contactAccounts %}
+            {% set granted = contactAccountsGranted[account.id] ?? null %}
+            <li class="px-4 py-3 space-y-2" data-contact-account="{{ account.id }}">
+                <div class="flex items-center gap-2.5">
+                    <i class="{{ account.isGmail ? 'fa-brands fa-google' : 'fa-brands fa-microsoft' }} w-4 text-center text-xs text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1 min-w-0 truncate text-sm text-ink">{{ account.email }}</span>
+
+                    {% if granted is same as(false) %}
+                        {# Connected before plMail asked for contacts: one
+                           reconnect, through the same repair the health page
+                           offers, grants it. #}
+                        <a href="{{ path('app_health_reconnect', { id: account.id }) }}"
+                           data-turbo="false"
+                           class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-medium
+                                  text-accent hover:bg-hover transition-colors">
+                            {{ 'settings.contacts.allow_contacts'|trans }}
+                        </a>
+                    {% else %}
+                        <button
+                            type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'settings.contacts.subscribe.title'|trans }}"
+                            data-ui--modal-src-value="{{ path('app_settings_contacts_subscribe_account', { id: account.id }) }}"
+                            class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-medium
+                                   text-accent hover:bg-hover transition-colors cursor-pointer"
+                        >
+                            {{ 'settings.contacts.find'|trans }}
+                        </button>
+                    {% endif %}
+                </div>
+
+                {% if granted is same as(false) %}
+                    <p class="pl-6 text-xs text-ink-faint">{{ 'settings.contacts.allow_contacts_hint'|trans }}</p>
                 {% else %}
-                    <ul class="pl-6 space-y-1">
-                        {% for book in books %}
-                            <li class="flex items-center gap-2.5" data-address-book="{{ book.id }}">
-                                <span class="flex-1 min-w-0 truncate text-xs text-ink">
-                                    {{ book.name }}
-                                    {% if book.isReadOnly %}
-                                        <i class="fa-solid fa-lock ml-1 text-[9px] text-ink-faint"
-                                           title="{{ 'settings.contacts.read_only'|trans }}"
-                                           aria-label="{{ 'settings.contacts.read_only'|trans }}"></i>
-                                    {% endif %}
-                                </span>
-
-                                {% if not book.isHealthy %}
-                                    <span class="shrink-0 text-[11px] text-danger truncate max-w-[16rem]"
-                                          title="{{ book.lastSyncError }}">{{ book.lastSyncError }}</span>
-                                {% elseif book.lastSyncedAt %}
-                                    <span class="shrink-0 text-[11px] text-ink-faint">
-                                        {{ 'settings.contacts.synced'|trans({ '%date%': book.lastSyncedAt|date('Y-m-d H:i') }) }}
-                                    </span>
-                                {% else %}
-                                    <span class="shrink-0 text-[11px] text-ink-faint">{{ 'settings.contacts.never_synced'|trans }}</span>
-                                {% endif %}
-
-                                <form method="post" action="{{ path('app_settings_contacts_sync', { id: book.id }) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('contacts-sync' ~ book.id) }}">
-                                    <button
-                                        type="submit"
-                                        class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
-                                        aria-label="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
-                                        title="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
-                                    >
-                                        <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
-                                    </button>
-                                </form>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    {% include 'settings/contacts/_books.html.twig' with { books: accountBooks[account.id] ?? [] } only %}
                 {% endif %}
             </li>
         {% endfor %}

@@ -1,12 +1,21 @@
-<!-- translated-from: features/contacts.md sha1:81d5272d5ba0bf843f76364484e754bc534e0eea -->
+<!-- translated-from: features/contacts.md sha1:5e6b33f10c290f0ba0ec377b5e6c11247be24cc7 -->
 
 # Kontakte
 
 plMail führt ein Adressbuch: die Menschen, denen du schreibst, mit ihren Adressen, Telefonnummern,
 Postanschriften, einem Foto und Notizen. Es ist eine Liste, egal wo ein Kontakt liegt. Manche
-gehören nur plMail und gibt es nur hier. Andere kommen aus einem Adressbuch auf einem Server, etwa
-deiner [Nextcloud](../providers/carddav.md#einen-server-verbinden) oder einem anderen
-CardDAV-Server, und Änderungen gehen in beide Richtungen.
+gehören nur plMail und gibt es nur hier. Andere kommen aus einem Adressbuch auf einem Server, und
+Änderungen gehen in beide Richtungen:
+
+- ein **Google**- oder **Microsoft**-Mailkonto bringt seine Kontakte mit, auf derselben Anmeldung
+  wie seine Mail und Kalender — nichts zu verbinden (siehe [Google](../providers/google.md) und
+  [Microsoft](../providers/microsoft.md));
+- deine [Nextcloud](../providers/carddav.md#einen-server-verbinden) oder ein anderer CardDAV-Server
+  wird unter **Einstellungen → Kontakte** verbunden.
+
+Ein Konto, das verbunden wurde, bevor plMail Kontakte synchronisiert hat, braucht eine weitere
+Anmeldung, um sie zu erlauben: **Einstellungen → Kontakte** und **Einstellungen → Zustand der Konten** bieten sie
+beide an.
 
 Du öffnest es über **Kontakte** in der Seitenleiste als ganze Seite, oder über das Adressbuch-Symbol
 neben dem Kalender-Knopf, das es neben der Mail andockt, so wie den Kalender. Das angedockte

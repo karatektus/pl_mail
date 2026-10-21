@@ -426,6 +426,10 @@ framework:
             # and a book's first sync are reads of the server, minutes long on a
             # big book, and nobody waits on them.
             App\Infrastructure\Messaging\Message\SyncAddressBookMessage: ingest
+            # Beside it: finding a Google or Microsoft account's address books
+            # once its grant carries contacts, which then queues their first
+            # sync. Routed so it never runs inside the OAuth callback.
+            App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage: ingest
             # export, unlike the calendar: an edit on the contacts page leaving
             # plMail is what that queue is for, and a push is a handful of PUTs,
             # not a read of the whole book — which is why it is a message of its

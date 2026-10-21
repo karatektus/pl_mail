@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service\AddressBook;
 
+use App\Domain\Enum\Account\MailProvider;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Mail\AccountRepository;
 
 /**
- * What Settings → Contacts draws: the contacts connections, and the books
- * mirrored through each.
+ * What Settings → Contacts draws: the contacts connections, the Google and
+ * Microsoft accounts, and the books mirrored through each.
  *
  * One place, used by the first render (SettingsController) and by every stream
  * after a change (ContactSettingsController) — CalendarSourceLister's reason
@@ -24,11 +27,24 @@ final readonly class AddressBookLister
     public function __construct(
         private IntegrationRepository $integrations,
         private AddressBookRepository $books,
+        private AccountRepository     $accounts,
     ) {
     }
 
     /**
-     * @return array{contactConnections: list<Integration>, addressBooks: array<int, list<AddressBook>>}
+     * The connections that carry address books, the Google and Microsoft
+     * accounts (whose books ride the mail grant), and the books of each.
+     * `contactAccountsGranted` says, per account id, whether its grant
+     * reaches contacts — false is an account connected before plMail asked,
+     * which one reconnect fixes; null is a grant that never said.
+     *
+     * @return array{
+     *     contactConnections: list<Integration>,
+     *     addressBooks: array<int, list<AddressBook>>,
+     *     contactAccounts: list<Account>,
+     *     accountBooks: array<int, list<AddressBook>>,
+     *     contactAccountsGranted: array<int, bool|null>,
+     * }
      */
     public function sectionFor(User $user): array
     {
@@ -39,12 +55,34 @@ final readonly class AddressBookLister
             static fn (Integration $integration): bool => $integration->provider->offersAddressBooks(),
         ));
 
+        $accounts = array_values(array_filter(
+            $this->accounts->findForUserOrdered($user),
+            static fn (Account $account): bool => true === $account->isGmail() || true === $account->isMicrosoft(),
+        ));
+
         $byConnection = [];
+        $byAccount    = [];
 
         foreach ($this->books->findForUser($user) as $book) {
-            $byConnection[(int) $book->integration->id][] = $book;
+            if (null !== $book->account) {
+                $byAccount[(int) $book->account->id][] = $book;
+            } elseif (null !== $book->integration) {
+                $byConnection[(int) $book->integration->id][] = $book;
+            }
         }
 
-        return ['contactConnections' => $connections, 'addressBooks' => $byConnection];
+        $granted = [];
+
+        foreach ($accounts as $account) {
+            $granted[(int) $account->id] = MailProvider::tryFrom((string) $account->oauthProvider)?->grantsContactsAccess($account->oauthGrantedScopes);
+        }
+
+        return [
+            'contactConnections'     => $connections,
+            'addressBooks'           => $byConnection,
+            'contactAccounts'        => $accounts,
+            'accountBooks'           => $byAccount,
+            'contactAccountsGranted' => $granted,
+        ];
     }
 }

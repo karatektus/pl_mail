@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace App\Service\AddressBook;
 
+use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\DTO\AddressBook\RemoteAddressBook;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Repository\AddressBook\AddressBookRepository;
-use App\Service\AddressBook\CardDav\CardDavDriver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Which of a connection's address books are mirrored — CalendarSubscriber's
- * counterpart, and the same rules.
+ * Which of a connection's or a mail account's address books are mirrored —
+ * CalendarSubscriber's counterpart, and the same rules, for every kind of
+ * server: the driver for the holder lists what is there.
  *
  * The ticked remote ids are the whole instruction: ticked and not mirrored
  * gets a row, mirrored and not ticked loses it, the rest is left alone.
@@ -31,7 +33,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class AddressBookSubscriber
 {
     public function __construct(
-        private CardDavDriver          $driver,
+        private AddressBookDriverRegistry $drivers,
         private AddressBookRepository  $books,
         private EntityManagerInterface $em,
         private MessageBusInterface    $bus,
@@ -39,23 +41,25 @@ final readonly class AddressBookSubscriber
     }
 
     /**
-     * What the connection offers, each paired with the row mirroring it.
+     * What the connection or account offers, each paired with the row mirroring it.
      *
      * @return list<array{remote: RemoteAddressBook, local: AddressBook|null}>
      *
      * @throws CalendarSyncException
      */
-    public function discover(Integration $integration): array
+    public function discover(Integration|Account $holder): array
     {
         $mirrored = [];
 
-        foreach ($this->books->findForIntegration($integration) as $book) {
+        foreach ($this->books->findForHolder($holder) as $book) {
             $mirrored[$book->remoteId] = $book;
         }
 
         $offers = [];
 
-        foreach ($this->driver->discover($integration) as $remote) {
+        $source = $holder instanceof Integration ? AddressBookSource::ofIntegration($holder) : AddressBookSource::ofAccount($holder);
+
+        foreach ($this->drivers->for($source)->discover($source) as $remote) {
             $offers[] = ['remote' => $remote, 'local' => $mirrored[$remote->remoteId] ?? null];
         }
 
@@ -74,19 +78,19 @@ final readonly class AddressBookSubscriber
      *                               listing would read as "these books are
      *                               gone" and unsubscribe from them
      */
-    public function apply(Integration $integration, array $wantedRemoteIds): array
+    public function apply(Integration|Account $holder, array $wantedRemoteIds): array
     {
         $wanted       = array_flip($wantedRemoteIds);
         $fresh        = [];
         $unsubscribed = 0;
 
-        foreach ($this->discover($integration) as $offer) {
+        foreach ($this->discover($holder) as $offer) {
             $remote   = $offer['remote'];
             $local    = $offer['local'];
             $isWanted = true === array_key_exists($remote->remoteId, $wanted);
 
             if (true === $isWanted && null === $local) {
-                $book             = new AddressBook($integration->usr, $integration, $remote->remoteId, $remote->name);
+                $book             = new AddressBook($holder->usr ?? throw new \LogicException('An account with no user cannot hold an address book.'), $holder, $remote->remoteId, $remote->name);
                 $book->isReadOnly = $remote->isReadOnly;
                 $this->em->persist($book);
                 $fresh[] = $book;

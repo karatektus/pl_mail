@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\AddressBook;
 
+use App\Domain\Enum\Account\AuthType;
+use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Calendar\SyncState;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
@@ -158,6 +161,86 @@ final class ContactsFlowTest extends WebTestCase
         self::assertSame($remoteId, $books[0]->remoteId);
         self::assertSame('Contacts', $books[0]->name, 'named by the server, not the browser');
         self::assertContains((int) $books[0]->id, $this->queuedSyncs());
+    }
+
+    // ── Google and Microsoft accounts ─────────────────────────────────────────
+
+    /**
+     * An account connected before contacts were asked for is listed with the
+     * one thing to do, a reconnect, and no address books.
+     */
+    public function testAnAccountThatPredatesContactsIsOfferedTheReconnect(): void
+    {
+        $account                     = $this->googleAccount('before@joder.dev');
+        $account->oauthGrantedScopes = 'https://mail.google.com/ https://www.googleapis.com/auth/calendar';
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $row     = $crawler->filter('[data-contact-account="' . $account->id . '"]');
+
+        self::assertCount(1, $row);
+        self::assertCount(1, $row->filter('a[href="/settings/health/reconnect/' . $account->id . '"]'));
+        self::assertCount(0, $row->filter('[data-address-book]'));
+    }
+
+    /** One whose grant reaches contacts shows its books and the chooser. */
+    public function testAnAccountWithContactsShowsItsBooks(): void
+    {
+        $account = $this->googleAccount('with@joder.dev');
+        $book    = new AddressBook($this->user, $account, 'people/me', 'Google Contacts');
+        $this->em->persist($book);
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/settings?section=contacts');
+        $row     = $crawler->filter('[data-contact-account="' . $account->id . '"]');
+
+        self::assertCount(1, $row->filter('[data-address-book="' . $book->id . '"]'));
+        self::assertSame(
+            '/settings/contacts/subscribe/account/' . $account->id,
+            $row->filter('[data-ui--modal-src-value]')->attr('data-ui--modal-src-value'),
+        );
+    }
+
+    /** A contact in an account's book says where it is synced, by the account's address. */
+    public function testAContactInAnAccountsBookShowsWhereItIsSynced(): void
+    {
+        $account = $this->googleAccount('synced@joder.dev');
+        $book    = new AddressBook($this->user, $account, 'people/me', 'Google Contacts');
+        $this->em->persist($book);
+
+        $contact              = Contact::create($this->user, 'Ada Lovelace');
+        $contact->addressBook = $book;
+        $contact->href        = 'people/c1';
+        $this->em->persist($contact);
+        $this->em->flush();
+
+        $this->client->request('GET', '/contacts/' . $contact->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('synced@joder.dev', (string) $this->client->getResponse()->getContent());
+
+        $this->client->request('GET', '/contacts/' . $contact->id . '/edit');
+
+        self::assertResponseIsSuccessful();
+    }
+
+    /** The chooser for an account is refused for somebody else's. */
+    public function testNobodyChoosesTheBooksOfAnotherUsersAccount(): void
+    {
+        $other           = $this->googleAccount('theirs@joder.dev');
+        $stranger            = new User();
+        $stranger->email     = 'stranger-' . uniqid() . '@example.test';
+        $stranger->roles     = ['ROLE_USER'];
+        $stranger->password  = 'x';
+        $stranger->nameFirst = 'S';
+        $stranger->nameLast  = 'T';
+        $this->em->persist($stranger);
+        $other->usr = $stranger;
+        $this->em->flush();
+
+        $this->client->request('GET', '/settings/contacts/subscribe/account/' . $other->id);
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     // ── The contacts page ─────────────────────────────────────────────────────
@@ -509,6 +592,26 @@ final class ContactsFlowTest extends WebTestCase
         $this->em->flush();
 
         return $contact;
+    }
+
+    private function googleAccount(string $email): Account
+    {
+        $account = new Account();
+
+        $account->usr               = $this->user;
+        $account->name              = $email;
+        $account->username          = $email;
+        $account->email             = $email;
+        $account->authType          = AuthType::OAuth2->value;
+        $account->oauthProvider     = MailProvider::Google->value;
+        $account->oauthAccessToken  = 'access-token';
+        $account->oauthRefreshToken = 'refresh-token';
+        $account->isActive          = true;
+
+        $this->em->persist($account);
+        $this->em->flush();
+
+        return $account;
     }
 
     /** @return list<int> address-book ids with a sync queued */

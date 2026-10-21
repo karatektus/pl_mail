@@ -44,7 +44,7 @@ final readonly class PushAddressBookHandler
     {
         $book = $this->books->find($message->addressBookId);
 
-        if (null === $book || false === $book->integration->isActive) {
+        if (null === $book || false === $book->isActive()) {
             return;
         }
 

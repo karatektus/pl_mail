@@ -79,6 +79,7 @@ final class ContactSyncTracker
         'href',
         'etag',
         'vcard',
+        'remoteResource',
         'syncState',
         'photoPath',
         'source',

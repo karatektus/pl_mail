@@ -613,6 +613,21 @@ admin:
                 Calendars.ReadWrite in dieser App-Registrierung — die Kalender
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
+            contacts_google: >-
+                Aktiviere die Google People API für dieses Projekt und füge den
+                Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
+                bekommen Nutzer ihre Kontakte mit derselben Anmeldung. Konten,
+                die schon vorher verbunden waren, werden in ihren Einstellungen
+                einmal gebeten, sich neu anzumelden. Ohne das funktionieren Mail
+                und Kalender weiter, und Kontakte erscheinen einfach nicht.
+            contacts_heading: 'Die Kontakt-Synchronisation nutzt dieselbe App'
+            contacts_microsoft: >-
+                Füge dieser App-Registrierung die delegierte Berechtigung
+                Contacts.ReadWrite hinzu — dann bekommen Nutzer ihre
+                Outlook-Kontakte mit derselben Anmeldung. Konten, die schon
+                vorher verbunden waren, werden in ihren Einstellungen einmal
+                gebeten, sich neu anzumelden. Ohne das funktionieren Mail und
+                Kalender weiter, und Kontakte erscheinen einfach nicht.
             env_note: 'Bleiben diese Felder leer, greifen GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* aus der Umgebung — eine so konfigurierte Installation läuft unverändert weiter.'
             from_env: 'Aus der Umgebung'
             google: 'Gmail-Anmeldung'
@@ -3389,6 +3404,14 @@ settings:
                     oder die Zwei-Faktor-Anmeldung eingeschaltet wurde, oder
                     wenn die Anmeldung beim Anbieter widerrufen wurde.
                 title: '%account% muss sich neu anmelden'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail kann jetzt die Kontakte dieses Kontos
+                    synchronisieren, aber %account% wurde verbunden, bevor
+                    plMail danach gefragt hat. Mail und Kalender sind nicht
+                    betroffen. Melde dich einmal neu an und erlaube den Zugriff
+                    auf Kontakte, dann erscheint sein Adressbuch unter Kontakte.
+                title: '%account% erneut verbinden, um seine Kontakte zu synchronisieren'
             account_scope_missing:
                 body: >-
                     Einige Rechte, die plMail beim Verbinden dieses Kontos
@@ -3535,6 +3558,13 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_contacts:
+                label: 'Kontakte erlauben'
+                promise: >-
+                    Bringt dich zurück zum Anbieter, um dich als %account%
+                    anzumelden und den Zugriff auf Kontakte zu erlauben. An
+                    deiner Mail ändert sich nichts, und keine Mail wird neu
+                    heruntergeladen.
             grant_calendar:
                 label: 'Alle Rechte erteilen'
                 promise: >-
@@ -3687,6 +3717,8 @@ settings:
         option_split: Nur volle Breite
         subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
     contacts:
+        allow_contacts: 'Kontakte erlauben'
+        allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
         carddav:
             connect: CardDAV-Server verbinden
             disconnect: '"%name%" trennen'

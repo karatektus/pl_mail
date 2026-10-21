@@ -8,6 +8,8 @@ calendar/_lists.stream.html.twig for why a replace that drops it works once.
 Variables:
   contactConnections  Integration[]
   addressBooks        array<int, AddressBook[]>
+  contactAccounts, accountBooks, contactAccountsGranted
+                      see AddressBookLister::sectionFor()
   toastMessage        translation key
 #}
 {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
@@ -18,6 +20,9 @@ Variables:
             {% include 'settings/_contacts.html.twig' with {
                 contactConnections: contactConnections,
                 addressBooks: addressBooks,
+                contactAccounts: contactAccounts,
+                accountBooks: accountBooks,
+                contactAccountsGranted: contactAccountsGranted,
             } only %}
         </div>
     </template>

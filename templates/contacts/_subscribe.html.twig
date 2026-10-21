@@ -7,7 +7,9 @@ place of the list when discovery failed.
 
 Variables:
   offers       list<{remote: RemoteAddressBook, local: AddressBook|null}>
-  integration  Integration
+  action       the form's own URL — a connection's or an account's
+  token_id     its CSRF token id
+  name         what the connection or account is called
   error        string|null
 #}
 {% extends '_layout/app.html.twig' %}
@@ -17,14 +19,14 @@ Variables:
     <template data-ui--modal-frame-title>{{ 'settings.contacts.subscribe.title'|trans }}</template>
 
     <form method="post"
-          action="{{ path('app_settings_contacts_subscribe', { id: integration.id }) }}"
+          action="{{ action }}"
           data-turbo-frame="modal"
           class="flex-1 min-h-0 flex flex-col">
-        <input type="hidden" name="_token" value="{{ csrf_token('contacts-subscribe' ~ integration.id) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token(token_id) }}">
 
         <div class="flex-1 min-h-0 px-6 pb-6 space-y-5 overflow-y-auto">
             <p class="text-xs text-ink-muted leading-relaxed">
-                {{ 'settings.contacts.subscribe.intro'|trans({ '%name%': integration.name }) }}
+                {{ 'settings.contacts.subscribe.intro'|trans({ '%name%': name }) }}
             </p>
 
             {% if error is not null %}
@@ -35,7 +37,7 @@ Variables:
 
             {% elseif offers is empty %}
                 <p class="py-6 text-center text-sm text-ink-faint italic">
-                    {{ 'settings.contacts.subscribe.empty'|trans({ '%name%': integration.name }) }}
+                    {{ 'settings.contacts.subscribe.empty'|trans({ '%name%': name }) }}
                 </p>
 
             {% else %}

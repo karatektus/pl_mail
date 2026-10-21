@@ -603,6 +603,20 @@ admin:
                 calendars with the same sign-in they already use for mail.
                 Without it, mail keeps working and calendars simply do not
                 appear.
+            contacts_google: >-
+                Enable the Google People API for this project and add the
+                .../auth/contacts scope to the consent screen — users then get
+                their contacts with the same sign-in. Accounts connected before
+                are asked once, in their settings, to sign in again. Without it,
+                mail and calendars keep working and contacts simply do not
+                appear.
+            contacts_heading: 'Contact sync uses this same app'
+            contacts_microsoft: >-
+                Add the Contacts.ReadWrite delegated permission to this app
+                registration — users then get their Outlook contacts with the
+                same sign-in. Accounts connected before are asked once, in
+                their settings, to sign in again. Without it, mail and calendars
+                keep working and contacts simply do not appear.
             env_note: 'Leaving these empty falls back to GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* in the environment, so an installation already configured that way keeps working.'
             from_env: 'From environment'
             google: 'Gmail sign-in'
@@ -3395,6 +3409,13 @@ settings:
                     not the same as verification; an unverified app still works,
                     it just shows a warning screen the first time.
                 title: '%account% needs you to sign in again — and will again in a week'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail can now sync this account's contacts, but %account%
+                    was connected before it asked for them. Mail and calendars
+                    are not affected. Sign in once more and allow contacts, and
+                    its address book appears under Contacts.
+                title: 'Connect %account% again to sync its contacts'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -3529,6 +3550,12 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_contacts:
+                label: 'Allow contacts'
+                promise: >-
+                    Takes you back to the provider to sign in as %account% and
+                    allow contacts. Nothing about your mail changes, and no
+                    mail is re-downloaded.
             grant_calendar:
                 label: 'Grant full access'
                 promise: >-
@@ -3676,6 +3703,8 @@ settings:
         option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
     contacts:
+        allow_contacts: 'Allow contacts'
+        allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
         carddav:
             connect: Connect a CardDAV server
             disconnect: Disconnect "%name%"

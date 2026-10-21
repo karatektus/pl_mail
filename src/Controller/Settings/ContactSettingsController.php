@@ -9,11 +9,13 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Integration\ServiceKind;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\Integration\Integration;
+use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Form\CalDavConnectType;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Service\AddressBook\AddressBookLister;
 use App\Service\AddressBook\AddressBookSubscriber;
 use App\Service\Calendar\Subscription\CalDavConnector;
@@ -47,6 +49,7 @@ final class ContactSettingsController extends AbstractController
 
     public function __construct(
         private readonly IntegrationRepository  $integrations,
+        private readonly AccountRepository      $accounts,
         private readonly AddressBookRepository  $books,
         private readonly AddressBookSubscriber  $subscriber,
         private readonly AddressBookLister      $lister,
@@ -103,18 +106,31 @@ final class ContactSettingsController extends AbstractController
     #[Route('/subscribe/{id}', name: 'subscribe', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function subscribe(Request $request, int $id): Response
     {
-        $integration = $this->connectionFor($id);
+        return $this->subscribeHolder($request, $this->connectionFor($id));
+    }
 
+    /**
+     * The same, for a Google or Microsoft account's books — which ride its
+     * mail grant, so there is no connection to choose them through.
+     */
+    #[Route('/subscribe/account/{id}', name: 'subscribe_account', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
+    public function subscribeAccount(Request $request, int $id): Response
+    {
+        return $this->subscribeHolder($request, $this->accountFor($id));
+    }
+
+    private function subscribeHolder(Request $request, Integration|Account $holder): Response
+    {
         if (false === $request->isMethod('POST')) {
-            return $this->renderSubscribeList($integration);
+            return $this->renderSubscribeList($holder);
         }
 
-        $this->assertCsrf($request, 'contacts-subscribe' . $id);
+        $this->assertCsrf($request, $this->subscribeTokenId($holder));
 
         try {
-            $change = $this->subscriber->apply($integration, $this->tickedRemoteIds($request));
+            $change = $this->subscriber->apply($holder, $this->tickedRemoteIds($request));
         } catch (CalendarSyncException $e) {
-            return $this->renderSubscribeList($integration, $e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->renderSubscribeList($holder, $e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return $this->listStream(
@@ -185,6 +201,26 @@ final class ContactSettingsController extends AbstractController
         return $integration;
     }
 
+    /** A Google or Microsoft mail account of this user's, or a refusal. */
+    private function accountFor(int $id): Account
+    {
+        $account = $this->accounts->find($id);
+
+        if (null === $account || $account->usr !== $this->currentUser()
+            || (false === $account->isGmail() && false === $account->isMicrosoft())) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $account;
+    }
+
+    private function subscribeTokenId(Integration|Account $holder): string
+    {
+        return $holder instanceof Integration
+            ? 'contacts-subscribe' . $holder->id
+            : 'contacts-subscribe-account' . $holder->id;
+    }
+
     /**
      * @return list<string>
      */
@@ -200,7 +236,7 @@ final class ContactSettingsController extends AbstractController
     }
 
     private function renderSubscribeList(
-        Integration $integration,
+        Integration|Account $holder,
         ?string $error = null,
         int $status = Response::HTTP_OK,
     ): Response {
@@ -208,7 +244,7 @@ final class ContactSettingsController extends AbstractController
 
         if (null === $error) {
             try {
-                $offers = $this->subscriber->discover($integration);
+                $offers = $this->subscriber->discover($holder);
             } catch (CalendarSyncException $e) {
                 $error  = $e->getMessage();
                 $status = Response::HTTP_UNPROCESSABLE_ENTITY;
@@ -216,9 +252,13 @@ final class ContactSettingsController extends AbstractController
         }
 
         return $this->render('contacts/_subscribe.html.twig', [
-            'offers'      => $offers,
-            'integration' => $integration,
-            'error'       => $error,
+            'offers'   => $offers,
+            'action'   => $holder instanceof Integration
+                ? $this->generateUrl('app_settings_contacts_subscribe', ['id' => $holder->id])
+                : $this->generateUrl('app_settings_contacts_subscribe_account', ['id' => $holder->id]),
+            'token_id' => $this->subscribeTokenId($holder),
+            'name'     => $holder instanceof Integration ? $holder->name : $holder->email,
+            'error'    => $error,
         ], new Response(status: $status));
     }
 

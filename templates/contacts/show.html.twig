@@ -45,7 +45,7 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
                         {% if contact.addressBook %}
                             <p class="text-xs text-ink-faint mt-1 flex items-center gap-1.5" data-contact-book>
                                 <i class="fa-solid {{ contact.addressBook.isReadOnly ? 'fa-lock' : 'fa-cloud' }}" aria-hidden="true"></i>
-                                {{ (contact.addressBook.isReadOnly ? 'contacts.synced_read_only' : 'contacts.synced_with')|trans({'%book%': contact.addressBook.name, '%server%': contact.addressBook.integration.name}) }}
+                                {{ (contact.addressBook.isReadOnly ? 'contacts.synced_read_only' : 'contacts.synced_with')|trans({'%book%': contact.addressBook.name, '%server%': contact.addressBook.holderName}) }}
                             </p>
                         {% endif %}
                         {% if contact.tags is not empty %}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\AddressBook\CardDav;
 
+use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
@@ -60,7 +61,7 @@ final class CardDavDriverTest extends TestCase
                 XML),
         );
 
-        $books = $fixture->driver->discover(CardDavFixture::integration('https://dav.example.com/dav'));
+        $books = $fixture->driver->discover(AddressBookSource::ofIntegration(CardDavFixture::integration('https://dav.example.com/dav')));
 
         self::assertCount(2, $books, 'the home itself is not an address book');
         self::assertSame(self::BOOK, $books[0]->remoteId);
@@ -101,7 +102,7 @@ final class CardDavDriverTest extends TestCase
         $nextcloud = CardDavFixture::integration('https://cloud.example.com/nextcloud', Provider::Nextcloud);
 
         try {
-            $fixture->driver->discover($nextcloud);
+            $fixture->driver->discover(AddressBookSource::ofIntegration($nextcloud));
             self::fail('a 401 on the listing must not pass');
         } catch (CalendarSyncPermanentException $e) {
             self::assertStringContainsString('contacts server rejected the app password', $e->getMessage());
@@ -118,7 +119,7 @@ final class CardDavDriverTest extends TestCase
         $this->expectException(CalendarSyncPermanentException::class);
 
         try {
-            $fixture->driver->discover(CardDavFixture::integration('https://10.0.0.5/dav'));
+            $fixture->driver->discover(AddressBookSource::ofIntegration(CardDavFixture::integration('https://10.0.0.5/dav')));
         } finally {
             self::assertSame(0, $fixture->requestCount());
         }
@@ -280,11 +281,12 @@ final class CardDavDriverTest extends TestCase
 
         $written = $fixture->driver->put($book, $card);
 
-        self::assertSame(self::BOOK . 'uid%20with%2Fslash.vcf', $written['href']);
-        self::assertSame('"new"', $written['etag']);
+        self::assertSame(self::BOOK . 'uid%20with%2Fslash.vcf', $written->href);
+        self::assertSame('"new"', $written->etag);
         self::assertSame('PUT', $fixture->method(0));
         self::assertSame('*', $fixture->header(0, 'If-None-Match'));
         self::assertStringStartsWith('text/vcard', (string) $fixture->header(0, 'Content-Type'));
+        self::assertSame($fixture->body(0), $written->vcard, 'the card sent is the one kept, to patch next time');
     }
 
     public function testAnEditIsConditionalOnTheEtagWeLastSaw(): void

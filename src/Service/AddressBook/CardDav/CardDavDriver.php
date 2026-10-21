@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Service\AddressBook\CardDav;
 
 use App\Domain\DTO\AddressBook\AddressBookChangeSet;
+use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\DTO\AddressBook\RemoteAddressBook;
 use App\Domain\DTO\AddressBook\RemoteCard;
+use App\Domain\DTO\AddressBook\RemoteContactWrite;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\IntegrationException;
+use App\Domain\Interface\AddressBookDriverInterface;
 use App\Domain\Interface\VerifiableDriverInterface;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
@@ -21,6 +24,7 @@ use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;
 use App\Service\Calendar\Sync\CalDav\DavResource;
 use App\Service\Calendar\Sync\CalDav\DavService;
 use App\Service\Calendar\Sync\CalDav\MultiStatusParser;
+use App\Service\Contacts\VCardMapper;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -51,7 +55,7 @@ use Psr\Log\LoggerInterface;
  * with If-Match. A 412 means somebody else changed the card first; it is
  * raised as a resync, and the sync service lets the server's version win.
  */
-final readonly class CardDavDriver implements VerifiableDriverInterface
+final readonly class CardDavDriver implements VerifiableDriverInterface, AddressBookDriverInterface
 {
     /** Everything worth knowing about an address-book collection, in one PROPFIND. */
     private const string COLLECTION_PROPS = <<<'XML'
@@ -75,6 +79,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
         private CalDavClient      $client,
         private CalDavDiscovery   $discovery,
         private MultiStatusParser $parser,
+        private VCardMapper       $mapper,
         private LoggerInterface   $logger,
     ) {
     }
@@ -82,6 +87,15 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
     public function supports(Provider $provider): bool
     {
         return Provider::CardDav === $provider;
+    }
+
+    /**
+     * Every connection that offers address books: a CardDAV one, and a
+     * Nextcloud one, whose books are CardDAV under the same credential.
+     */
+    public function handles(AddressBookSource $source): bool
+    {
+        return true === $source->integrationProvider()?->offersAddressBooks();
     }
 
     /**
@@ -105,8 +119,9 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
      *
      * @throws CalendarSyncException
      */
-    public function discover(Integration $integration): array
+    public function discover(AddressBookSource $source): array
     {
+        $integration = $source->integration ?? throw new CalendarSyncPermanentException('This address-book source has no CardDAV connection behind it.');
         $endpoint = $this->discovery->endpointFor($integration, DavService::AddressBook);
         $url      = $endpoint->collection ?? (string) $endpoint->home;
 
@@ -142,7 +157,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
      */
     public function pull(AddressBook $book, ?string $syncToken): AddressBookChangeSet
     {
-        $integration = $book->integration;
+        $integration = $this->integrationOf($book);
         $collection  = $book->remoteId;
         $probe       = $this->probeCollection($integration, $collection);
 
@@ -154,15 +169,17 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
     }
 
     /**
-     * Send a card, answering with its href and the etag the server gave it.
-     *
-     * @return array{href: string, etag: string|null}
+     * Send a card: the stored one with this side's edits patched in
+     * (VCardMapper::write()), so what plMail has no field for goes back as it
+     * came. Answers the href, the etag the server gave it, and the card sent.
      *
      * @throws CalendarSyncException
      */
-    public function put(AddressBook $book, Contact $card): array
+    public function put(AddressBook $book, Contact $card): RemoteContactWrite
     {
-        $isCreate = null === $card->href;
+        $integration = $this->integrationOf($book);
+        $vcard       = $this->mapper->write($card->vcard, $card);
+        $isCreate    = null === $card->href;
         $href     = $card->href ?? $this->mintHref($book, $card);
         $headers  = ['Content-Type' => 'text/vcard; charset=utf-8'];
 
@@ -172,9 +189,9 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
             $headers['If-Match'] = $card->etag;
         }
 
-        $response = $this->client->request($book->integration, 'PUT', $href, [
+        $response = $this->client->request($integration, 'PUT', $href, [
             'headers' => $headers,
-            'body'    => (string) $card->vcard,
+            'body'    => $vcard,
         ], [412], DavService::AddressBook);
 
         if (412 === $response['status']) {
@@ -184,7 +201,11 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
             );
         }
 
-        return ['href' => $href, 'etag' => $this->client->etagAfterWrite($book->integration, $href, $response['headers'], DavService::AddressBook)];
+        return new RemoteContactWrite(
+            href:  $href,
+            etag:  $this->client->etagAfterWrite($integration, $href, $response['headers'], DavService::AddressBook),
+            vcard: $vcard,
+        );
     }
 
     /**
@@ -201,7 +222,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
         }
 
         $headers  = null === $etag ? [] : ['If-Match' => $etag];
-        $response = $this->client->request($book->integration, 'DELETE', $href, [
+        $response = $this->client->request($this->integrationOf($book), 'DELETE', $href, [
             'headers' => $headers,
         ], [404, 410, 412], DavService::AddressBook);
 
@@ -476,5 +497,15 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
     private function mintHref(AddressBook $book, Contact $card): string
     {
         return sprintf('%s/%s.vcf', rtrim($book->remoteId, '/'), rawurlencode($card->uid));
+    }
+
+    /**
+     * The registry only hands this driver books of a connection, so one
+     * without is a wiring bug — reported in the sync's own vocabulary, so it
+     * lands on the book instead of escaping as a TypeError.
+     */
+    private function integrationOf(AddressBook $book): Integration
+    {
+        return $book->integration ?? throw new CalendarSyncPermanentException(sprintf('Address book #%d has no CardDAV connection behind it.', (int) $book->id));
     }
 }

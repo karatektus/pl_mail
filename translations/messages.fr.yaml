@@ -608,6 +608,22 @@ admin:
                 utilisateurs obtiennent alors leurs agendas avec la connexion qu’ils
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
+            contacts_google: >-
+                Activez l’API Google People pour ce projet et ajoutez le scope
+                .../auth/contacts à l’écran de consentement : les utilisateurs
+                obtiennent alors leurs contacts avec la même connexion. Les
+                comptes connectés avant sont invités une fois, dans leurs
+                réglages, à se reconnecter. Sans cela, le courrier et les
+                agendas continuent de fonctionner et les contacts n’apparaissent
+                simplement pas.
+            contacts_heading: 'La synchronisation des contacts utilise cette même application'
+            contacts_microsoft: >-
+                Ajoutez l’autorisation déléguée Contacts.ReadWrite à cet
+                enregistrement d’application : les utilisateurs obtiennent alors
+                leurs contacts Outlook avec la même connexion. Les comptes
+                connectés avant sont invités une fois, dans leurs réglages, à se
+                reconnecter. Sans cela, le courrier et les agendas continuent de
+                fonctionner et les contacts n’apparaissent simplement pas.
             env_note: 'Si ces champs restent vides, GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* de l’environnement sont utilisés : une installation déjà configurée ainsi continue de fonctionner.'
             from_env: 'Depuis l’environnement'
             google: 'Connexion Gmail'
@@ -3442,6 +3458,14 @@ settings:
                     une application non vérifiée fonctionne toujours, elle affiche
                     simplement un écran d’avertissement la première fois.
                 title: '%account% demande que vous vous reconnectiez — et le redemandera dans une semaine'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail peut désormais synchroniser les contacts de ce
+                    compte, mais %account% a été connecté avant qu’il ne les
+                    demande. Le courrier et les agendas ne sont pas concernés.
+                    Reconnectez-vous une fois et autorisez les contacts : son
+                    carnet d’adresses apparaîtra dans Contacts.
+                title: 'Reconnectez %account% pour synchroniser ses contacts'
             account_scope_missing:
                 body: >-
                     Certaines des autorisations demandées par plMail à la connexion de ce
@@ -3573,6 +3597,12 @@ settings:
                 promise: >-
                     Réessaie une fois les tâches abandonnées. Sans risque — celles qui
                     échouent encore reviennent simplement ici.
+            grant_contacts:
+                label: 'Autoriser les contacts'
+                promise: >-
+                    Vous ramène chez le fournisseur pour vous connecter en tant
+                    que %account% et autoriser les contacts. Rien ne change pour
+                    votre courrier, et aucun message n’est retéléchargé.
             grant_calendar:
                 label: 'Accorder un accès complet'
                 promise: >-
@@ -3721,6 +3751,8 @@ settings:
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
     contacts:
+        allow_contacts: 'Autoriser les contacts'
+        allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
         carddav:
             connect: Connecter un serveur CardDAV
             disconnect: Déconnecter « %name% »

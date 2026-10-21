@@ -49,7 +49,7 @@ address books a contact can be saved to, besides plMail's own).
                     <select id="f-addressBook" name="addressBook" class="{{ fieldCls }}">
                         <option value="">{{ 'contacts.book_local'|trans }}</option>
                         {% for book in books %}
-                            <option value="{{ book.id }}" {{ (d.addressBook|default('')) == (book.id ~ '') ? 'selected' }}>{{ book.name }} — {{ book.integration.name }}</option>
+                            <option value="{{ book.id }}" {{ (d.addressBook|default('')) == (book.id ~ '') ? 'selected' }}>{{ book.name }} — {{ book.holderName }}</option>
                         {% endfor %}
                     </select>
                     <p class="mt-1.5 text-xs text-ink-faint">{{ 'contacts.save_to_hint'|trans }}</p>
@@ -57,7 +57,7 @@ address books a contact can be saved to, besides plMail's own).
             {% elseif contact and contact.addressBook %}
                 <p class="text-xs text-ink-muted flex items-center gap-1.5">
                     <i class="fa-solid fa-cloud text-ink-faint" aria-hidden="true"></i>
-                    {{ 'contacts.synced_with'|trans({'%book%': contact.addressBook.name, '%server%': contact.addressBook.integration.name}) }}
+                    {{ 'contacts.synced_with'|trans({'%book%': contact.addressBook.name, '%server%': contact.addressBook.holderName}) }}
                 </p>
             {% endif %}
 

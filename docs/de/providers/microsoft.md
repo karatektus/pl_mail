@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:593c30a706038d59877536d7f264562631d8d6fc -->
+<!-- translated-from: providers/microsoft.md sha1:e614dcbcca86f9e3ab0c234c7b67d1c8bd990f06 -->
 
 # Microsoft
 
@@ -66,6 +66,7 @@ stimmt dem Satz als Ganzem zu; anders als bei Google gibt es keine Teilerteilung
 | `Mail.Send` | Senden. In Graphs Modell vom Obigen getrennt, muss also getrennt hinzugefügt werden. |
 | `MailboxSettings.ReadWrite` | Master-Kategorien, unter `/me/outlook/masterCategories`. Diese sind **nicht** von `Mail.ReadWrite` abgedeckt: Sie liegen unter der Outlook-Ressource für Benutzereinstellungen und liefern ohne diese Berechtigung `ErrorAccessDenied`. ReadWrite statt Read, weil plMail Kategoriedefinitionen anlegt, wenn ein Label gespiegelt wird. |
 | `Calendars.ReadWrite` | Kalender auf demselben Konto, lesend und schreibend. |
+| `Contacts.ReadWrite` | Outlook-Kontakte auf demselben Konto, lesend und schreibend: Jeder Kontaktordner ist ein Adressbuch. |
 
 Zwei davon lohnen ein genaueres Verständnis, bevor du dich entscheidest, eine wegzulassen.
 
@@ -92,6 +93,23 @@ Löschen auf Microsofts Seite.
 Erscheinen für eine Person keine Kalender, sagt plMail unter **Einstellungen → Kalender**, welche der
 möglichen Ursachen es ist: Die Berechtigung kann in der App-Registrierung fehlen, oder das Konto hat
 schlicht keine Kalender.
+
+### Kontakte hängen ebenfalls an derselben Anmeldung
+
+`Contacts.ReadWrite` reist auf derselben Freigabe. Ein mit plMail verbundenes Microsoft-Konto bringt
+seine Outlook-Kontakte mit: Jeder Kontaktordner erscheint als Adressbuch unter **Kontakte**,
+Outlooks Kategorien werden zu Schlagwörtern, und eine Änderung in plMail wird zurückgeschrieben.
+Siehe [Kontakte](../features/contacts.md).
+
+Outlooks Kontakt hat feste Plätze, wo plMail Listen hat: drei E-Mail-Adressen, zwei geschäftliche und
+zwei private Nummern und eine Mobilnummer, und je eine private, geschäftliche und sonstige Anschrift.
+plMail füllt diese Plätze, die primären zuerst. Ein Eintrag darüber hinaus — etwa eine vierte
+E-Mail-Adresse — wird nicht gesendet und bleibt nur in plMail, bis sich der Kontakt das nächste Mal in
+Outlook ändert; dann kommt Outlooks Fassung zurück.
+
+Ein Konto, das verbunden wurde, bevor plMail nach Kontakten gefragt hat, hält ein Token ohne die
+Berechtigung. Mail und Kalender laufen weiter, und **Einstellungen → Zustand der Konten** zeigt einen Hinweis,
+dessen Knopf dich noch einmal anmeldet und sie ergänzt.
 
 ## Der Tenant-Wert
 
@@ -193,10 +211,11 @@ der Value ist brauchbar; er wird einmal angezeigt und lässt sich danach nicht m
 ersetzen.
 
 **Eine Berechtigung hinzuzufügen wertet bestehende Tokens nicht auf.** Wer sich verbunden hat, bevor
-du `Calendars.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält ein Token, das sie nicht
-trägt, und daran ändert kein Abwarten etwas. Das Konto muss getrennt und neu verbunden werden, damit
-eine frische Zustimmung ein neues Token ausstellt — `app:graph:diagnose` sagt das ausdrücklich, wenn
-es die Lücke findet.
+du `Calendars.ReadWrite`, `Contacts.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält
+ein Token, das sie nicht trägt, und daran ändert kein Abwarten etwas. Das Konto muss sich neu
+anmelden, damit eine frische Zustimmung ein neues Token ausstellt — der Knopf zum erneuten Verbinden
+unter **Einstellungen → Zustand der Konten** tut das, ohne das Konto zu entfernen, und `app:graph:diagnose` sagt
+es ausdrücklich, wenn es die Lücke findet.
 
 **Eine funktionierende Identität bei durchweg scheiternden Mail-Endpunkten ist kein Problem der
 Zugangsdaten.** Meistens heißt es, dass für das Microsoft-Konto überhaupt kein Outlook-Postfach

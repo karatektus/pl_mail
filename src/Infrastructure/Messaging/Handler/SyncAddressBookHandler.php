@@ -42,7 +42,7 @@ final readonly class SyncAddressBookHandler
             return;
         }
 
-        if (false === $book->integration->isActive) {
+        if (false === $book->isActive()) {
             return;
         }
 

@@ -20,9 +20,10 @@ use Symfony\Component\Uid\Uuid;
  * An address-book entry owned by one user.
  *
  * **Where it lives.** A contact with no address book is plMail's own: it
- * exists here and nowhere else. One with an address book is a mirror of a card
- * on a CardDAV server (a Nextcloud connection or a standalone CardDAV one), and
- * every edit to it is sent back there by AddressBookSync.
+ * exists here and nowhere else. One with an address book is a mirror of a
+ * contact on a server — a CardDAV card (Nextcloud, or any CardDAV server), a
+ * Google contact, an Outlook contact — and every edit to it is sent back there
+ * by AddressBookSync.
  *
  * **Rows and the raw card, both.** The page, JMAP and autocomplete read the
  * rows — names, emails, phones, addresses — so a synced contact and a local one
@@ -33,6 +34,12 @@ use Symfony\Component\Uid\Uuid;
  * the person's phone the first time they fixed a typo here. So an edit patches
  * only what the rows model into the stored card (VCardMapper::write()), and the
  * rest goes back to the server as it came.
+ *
+ * Google and Outlook keep the same promise a different way: their APIs update
+ * only the fields named in the request, so the server keeps what plMail does
+ * not show, and there is no card to patch. What their drivers need to write
+ * back (Google's source etags, say) is in $remoteResource, opaque, and $vcard
+ * stays null — it only ever holds a vCard.
  *
  * $uid is the card's UID, and every contact has one, local or not: it is what
  * an export carries, and what keeps the contact the same card if it is ever
@@ -75,6 +82,14 @@ class Contact
     /** The card as the server last sent it, with this side's edits patched in. Null for a local contact. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $vcard = null;
+
+    /**
+     * For a book whose server is not CardDAV, whatever its driver kept from the
+     * last read to make the next write — opaque here, like $href and $etag.
+     * Null for CardDAV, whose card is $vcard, and for a local contact.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $remoteResource = null;
 
     /** Always Clean for a local contact: there is nowhere to push it. */
     #[ORM\Column(length: 20, enumType: SyncState::class, options: ['default' => 'clean'])]

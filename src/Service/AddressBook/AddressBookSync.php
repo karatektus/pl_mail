@@ -13,7 +13,6 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
 use App\Repository\Contacts\ContactRepository;
-use App\Service\AddressBook\CardDav\CardDavDriver;
 use App\Service\Contacts\ContactPhotoStore;
 use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\VCardMapper;
@@ -22,7 +21,13 @@ use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 /**
- * Bringing one address book and its server back into agreement.
+ * Bringing one address book and its server back into agreement — any server:
+ * the driver for the book's source (AddressBookDriverRegistry) speaks CardDAV,
+ * the People API or Graph, and everything here is the same for all three.
+ *
+ * **One run at a time per book** (AddressBookLock): the push on `export` and
+ * the sweep on `ingest` can otherwise overlap, and two runs pushing the same
+ * new contact would create it twice on a server with no If-None-Match.
  *
  * **Push first, then pull.** A local edit is written to the database the moment
  * it is made and marked pending; this sends what is pending and only then asks
@@ -60,7 +65,8 @@ use Psr\Log\LoggerInterface;
 final readonly class AddressBookSync
 {
     public function __construct(
-        private CardDavDriver          $driver,
+        private AddressBookDriverRegistry $drivers,
+        private AddressBookLock        $lock,
         private VCardMapper            $mapper,
         private ContactRepository      $cards,
         private ContactPhotoStore      $photos,
@@ -77,7 +83,7 @@ final readonly class AddressBookSync
      */
     public function sync(AddressBook $book): int
     {
-        return $this->tracker->untracked(fn (): int => $this->syncUntracked($book));
+        return $this->lock->exclusively($book, fn (): int => $this->tracker->untracked(fn (): int => $this->syncUntracked($this->fresh($book))));
     }
 
     /**
@@ -96,7 +102,9 @@ final readonly class AddressBookSync
      */
     public function pushPending(AddressBook $book): int
     {
-        return $this->tracker->untracked(function () use ($book): int {
+        return $this->lock->exclusively($book, fn (): int => $this->tracker->untracked(function () use ($book): int {
+            $book = $this->fresh($book);
+
             try {
                 return $this->push($book);
             } catch (CalendarSyncException $e) {
@@ -105,7 +113,20 @@ final readonly class AddressBookSync
 
                 throw $e;
             }
-        });
+        }));
+    }
+
+    /**
+     * The book as the database has it now. A run that waited for the lock
+     * may hold a copy from before the other run moved the sync position.
+     */
+    private function fresh(AddressBook $book): AddressBook
+    {
+        if (null !== $book->id && true === $this->em->contains($book)) {
+            $this->em->refresh($book);
+        }
+
+        return $book;
     }
 
     /**
@@ -137,6 +158,7 @@ final readonly class AddressBookSync
     private function push(AddressBook $book): int
     {
         $pushed = 0;
+        $driver = null;
 
         foreach ($this->cards->findPending($book) as $card) {
             // Nothing in the UI lets this happen, so it is a book the server
@@ -144,7 +166,7 @@ final readonly class AddressBookSync
             // pull puts the server's copy back. Checked before deletes as well
             // as writes: a DELETE there is refused like any other write.
             if (true === $book->isReadOnly) {
-                $this->logger->warning('CardDav: dropped a local edit to a read-only address book', [
+                $this->logger->warning('AddressBookSync: dropped a local edit to a read-only address book', [
                     'addressBook' => $book->id,
                     'card'        => $card->uid,
                 ]);
@@ -154,16 +176,21 @@ final readonly class AddressBookSync
                 continue;
             }
 
+            $driver ??= $this->drivers->forBook($book);
+
             try {
                 if (SyncState::PendingDelete === $card->syncState) {
-                    $this->driver->delete($book, $card->href, $card->etag);
+                    $driver->delete($book, $card->href, $card->etag);
                     $this->letGo($card);
                 } else {
-                    $card->vcard     = $this->mapper->write($card->vcard, $card);
-                    $written         = $this->driver->put($book, $card);
-                    $card->href      = $written['href'];
-                    $card->etag      = $written['etag'];
-                    $card->syncState = SyncState::Clean;
+                    // What was sent, as the driver reports it: the patched
+                    // vCard for CardDAV, an opaque resource for the others.
+                    $written              = $driver->put($book, $card);
+                    $card->href           = $written->href;
+                    $card->etag           = $written->etag;
+                    $card->vcard          = $written->vcard ?? $card->vcard;
+                    $card->remoteResource = $written->resource ?? $card->remoteResource;
+                    $card->syncState      = SyncState::Clean;
                 }
             } catch (CalendarResyncRequiredException $e) {
                 // Only a 412 is about this card. The same class also carries a
@@ -176,7 +203,7 @@ final readonly class AddressBookSync
                     throw $e;
                 }
 
-                $this->logger->warning('CardDav: the server changed a contact we had edited; keeping its version', [
+                $this->logger->warning('AddressBookSync: the server changed a contact we had edited; keeping its version', [
                     'addressBook' => $book->id,
                     'card'        => $card->uid,
                     'name'        => $card->displayName,
@@ -196,12 +223,12 @@ final readonly class AddressBookSync
                     throw $e;
                 }
 
-                $this->logger->error('CardDav: the server refused a contact edit, giving up on it', [
+                $this->logger->error('AddressBookSync: the server refused a contact edit, giving up on it', [
                     'addressBook' => $book->id,
                     'card'        => $card->uid,
                     'syncState'   => $card->syncState->value,
                     'reason'      => $e->getMessage(),
-                    'discarded'   => $card->vcard,
+                    'discarded'   => $card->vcard ?? $card->remoteResource,
                 ]);
                 $this->letTheServerWin($card);
             }
@@ -263,7 +290,7 @@ final readonly class AddressBookSync
 
         if (true === $changes->resyncRequired) {
             $book->syncToken = null;
-            $changes         = $this->driver->pull($book, null);
+            $changes         = $this->drivers->forBook($book)->pull($book, null);
         }
 
         $touched = $this->apply($book, $changes);
@@ -289,13 +316,13 @@ final readonly class AddressBookSync
     private function pullOnce(AddressBook $book, ?string $syncToken): AddressBookChangeSet
     {
         try {
-            return $this->driver->pull($book, $syncToken);
+            return $this->drivers->forBook($book)->pull($book, $syncToken);
         } catch (CalendarResyncRequiredException $e) {
             if (null === $syncToken) {
                 throw $e;
             }
 
-            $this->logger->info('CardDav: sync position expired, reading the address book from scratch', [
+            $this->logger->info('AddressBookSync: sync position expired, reading the address book from scratch', [
                 'addressBook' => $book->id,
             ]);
 
@@ -344,10 +371,10 @@ final readonly class AddressBookSync
                 continue;
             }
 
-            $parsed = $this->mapper->read((string) $remote->vcard);
+            $parsed = $remote->parsed ?? $this->mapper->read((string) $remote->vcard);
 
             if (null === $parsed) {
-                $this->logger->info('CardDav: skipped a resource that is not a usable vCard', ['href' => $remote->href]);
+                $this->logger->info('AddressBookSync: skipped a contact that could not be read', ['href' => $remote->href]);
 
                 continue;
             }
@@ -366,7 +393,7 @@ final readonly class AddressBookSync
             if (null === $local) {
                 $local              = Contact::create($book->usr, $this->mapper->displayNameOf($parsed));
                 $local->addressBook = $book;
-                $local->source      = 'carddav';
+                $local->source      = $this->sourceNameOf($book);
                 $this->em->persist($local);
             }
 
@@ -383,7 +410,8 @@ final readonly class AddressBookSync
 
             $local->href  = $remote->href;
             $local->etag  = $remote->etag;
-            $local->vcard = (string) $remote->vcard;
+            $local->vcard          = $remote->vcard;
+            $local->remoteResource = $remote->resource;
             $this->takePhoto($parsed, $local);
             ++$touched;
         }
@@ -412,6 +440,12 @@ final readonly class AddressBookSync
         }
 
         return $touched;
+    }
+
+    /** What Contact::$source says a pulled contact came from. */
+    private function sourceNameOf(AddressBook $book): string
+    {
+        return $book->source()->mailProvider()->value ?? 'carddav';
     }
 
     /**

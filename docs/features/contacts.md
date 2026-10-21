@@ -2,9 +2,16 @@
 
 plMail keeps an address book: the people you write to, with their addresses, phone numbers, postal
 addresses, a photo and notes. It is one list, wherever a contact lives. Some are plMail's own and
-exist only here. Others come from an address book on a server, such as your
-[Nextcloud](../providers/carddav.md#connecting-a-server) or any other CardDAV server, and changes go
-both ways.
+exist only here. Others come from an address book on a server, and changes go both ways:
+
+- a **Google** or **Microsoft** mail account brings its contacts with it, on the same sign-in as its
+  mail and calendars — nothing to connect (see [Google](../providers/google.md) and
+  [Microsoft](../providers/microsoft.md));
+- your [Nextcloud](../providers/carddav.md#connecting-a-server), or any other CardDAV server, is
+  connected under **Settings → Contacts**.
+
+An account connected before plMail synced contacts needs one more sign-in to allow them: **Settings
+→ Contacts** and **Settings → Account health** both offer it.
 
 Open it from **Contacts** in the sidebar for the full page, or with the address-book icon beside
 the calendar button, which docks it beside the mail, as the calendar does. The docked address book

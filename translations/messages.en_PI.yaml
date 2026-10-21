@@ -546,6 +546,20 @@ admin:
                 permission to this app registration — the crew's almanacs then
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
+            contacts_google: >-
+                Hoist the Google People API for this project and add the
+                .../auth/contacts scope to the consent screen — the crew then
+                bring their shipmates aboard with the same sign-in. Hands who
+                came aboard earlier are asked once, in their settings, to sign
+                in again. Without it, post and almanacs sail on and the
+                shipmates simply stay ashore.
+            contacts_heading: 'The crew rolls sail under this same charter'
+            contacts_microsoft: >-
+                Add the Contacts.ReadWrite delegated permission to this app
+                registration — the crew then bring their Outlook shipmates
+                aboard with the same sign-in. Hands who came aboard earlier are
+                asked once, in their settings, to sign in again. Without it,
+                post and almanacs sail on and the shipmates simply stay ashore.
             env_note: 'Leave these empty and GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* from th'' environment take over, so a ship already rigged that way sails on.'
             from_env: 'From th'' environment'
             google: 'Gmail boardin'''
@@ -3220,6 +3234,13 @@ settings:
                     lock be thrown, or when th'' harbourmaster tears up yer
                     papers.
                 title: '%account% must sign on again'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail can now keep this vessel's shipmates in its log, but
+                    %account% came aboard before it asked. Post and charts sail
+                    on unharmed. Sign aboard once more and allow the shipmates,
+                    and the crew roll appears under Shipmates.
+                title: 'Bring %account% aboard again to muster its shipmates'
             account_scope_missing:
                 body: >-
                     Some leave plMail asked for when ye signed this account on
@@ -3348,6 +3369,12 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_contacts:
+                label: 'Allow the shipmates'
+                promise: >-
+                    Sends ye back to the harbourmaster to sign aboard as
+                    %account% and allow the shipmates. Yer post stays as it is,
+                    and nothing is hauled aboard twice.
             grant_calendar:
                 label: 'Grant full leave'
                 promise: >-
@@ -3492,6 +3519,8 @@ settings:
         option_split: Full breadth only
         subheading: 'How the calendar button up top moves between views.'
     contacts:
+        allow_contacts: 'Allow the shipmates'
+        allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
         carddav:
             connect: Make fast to a CardDAV port
             disconnect: Cut the line to "%name%"

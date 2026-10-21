@@ -15,11 +15,14 @@ use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Contacts\ContactRepository;
+use App\Service\AddressBook\AddressBookDriverRegistry;
+use App\Service\AddressBook\AddressBookLock;
 use App\Service\AddressBook\AddressBookSync;
 use App\Service\Contacts\ContactPhotoStore;
 use App\Service\Contacts\VCardMapper;
 use App\Tests\Service\AddressBook\CardDav\CardDavFixture;
 use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -515,7 +518,8 @@ final class AddressBookSyncTest extends TestCase
     private function service(CardDavFixture $fixture): AddressBookSync
     {
         return new AddressBookSync(
-            $fixture->driver,
+            new AddressBookDriverRegistry([$fixture->driver]),
+            new AddressBookLock($this->createStub(Connection::class)),
             new VCardMapper(),
             $this->repository(),
             new ContactPhotoStore(sys_get_temp_dir()),

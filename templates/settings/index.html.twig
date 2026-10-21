@@ -752,6 +752,9 @@
                                                     {% include 'settings/_contacts.html.twig' with {
                                                         contactConnections: contactConnections|default([]),
                                                         addressBooks: addressBooks|default({}),
+                                                        contactAccounts: contactAccounts|default([]),
+                                                        accountBooks: accountBooks|default({}),
+                                                        contactAccountsGranted: contactAccountsGranted|default({}),
                                                     } only %}
                                                 </div>
                                             {% endblock %}

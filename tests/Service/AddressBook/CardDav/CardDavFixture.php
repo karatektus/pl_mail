@@ -16,6 +16,7 @@ use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;
 use App\Service\Calendar\Sync\CalDav\MultiStatusParser;
 use App\Service\Integration\IntegrationUrlValidator;
 use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
+use App\Service\Contacts\VCardMapper;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -50,6 +51,7 @@ final class CardDavFixture
             $client,
             new CalDavDiscovery($client, $parser, new NullLogger()),
             $parser,
+            new VCardMapper(),
             new NullLogger(),
         );
     }
