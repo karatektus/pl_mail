@@ -397,8 +397,10 @@ provider recorded an `Authentication-Results` header. Both it and **Print** open
 
 HTML bodies are rendered inline rather than in an iframe. Before that happens the body is put
 through a sanitiser once, at ingest: `cid:` references are rewritten to plMail's own attachment
-route, `<style>` blocks are flattened onto the elements they applied to, and scripts, forms,
-iframes and classes are dropped. Links are forced to open away from the app.
+route, `<style>` blocks are flattened onto the elements they applied to, and scripts, iframes and
+classes are dropped. A form is taken apart rather than dropped: what is in it stays, its text
+fields and menus go, and the mail looks the way its sender meant it to in a mail program without
+forms. Links are forced to open away from the app.
 
 ### Summarising a long conversation
 
@@ -798,6 +800,10 @@ says how many it held back, with two ways to show them — **Show images** for t
 **Always show images from** the sender, which remembers that sender for your account. A trusted
 sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
 yourself shows its pictures without asking.
+
+Shown pictures always come through plMail, and only over an encrypted connection: a picture the
+mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
+an empty box.
 
 **Settings → Mail → Images**, **Always show remote images**, turns the question off for every
 sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not

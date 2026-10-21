@@ -286,6 +286,8 @@ final readonly class ImageProxyFetcher
         $parts = parse_url($url);
 
         if (false === is_array($parts)) {
+            $this->refused($url, 'not a URL');
+
             return null;
         }
 
@@ -294,21 +296,33 @@ final readonly class ImageProxyFetcher
         $port   = (int) ($parts['port'] ?? 443);
 
         if ('https' !== $scheme || '' === $host || 443 !== $port) {
+            $this->refused($url, 'not https on port 443');
+
             return null;
         }
 
         // A literal address skips DNS but not the range check.
         if (false !== filter_var($host, FILTER_VALIDATE_IP)) {
-            return true === self::isPublicAddress($host) ? ['host' => $host, 'ip' => $host] : null;
+            if (false === self::isPublicAddress($host)) {
+                $this->refused($url, 'not a public address');
+
+                return null;
+            }
+
+            return ['host' => $host, 'ip' => $host];
         }
 
         if (false === self::isResolvableName($host)) {
+            $this->refused($url, 'not a public host name');
+
             return null;
         }
 
         $addresses = self::resolve($host);
 
         if (0 === count($addresses)) {
+            $this->refused($url, 'host does not resolve');
+
             return null;
         }
 
@@ -328,6 +342,20 @@ final readonly class ImageProxyFetcher
         }
 
         return ['host' => $host, 'ip' => $addresses[0]];
+    }
+
+    /**
+     * Every refusal in validate() says which rule it was. Without these the
+     * rules were the one silent path left: the controller logged "no image to
+     * serve" and nothing said why, which is how every http image in every mail
+     * turned into a placeholder unnoticed (#271).
+     */
+    private function refused(string $url, string $reason): void
+    {
+        $this->logger->info('ImageProxyFetcher: refused the target', [
+            'url'    => $url,
+            'reason' => $reason,
+        ]);
     }
 
     /**

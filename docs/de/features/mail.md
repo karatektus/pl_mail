@@ -443,8 +443,10 @@ die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
 HTML-Texte werden direkt eingebettet dargestellt und nicht in einem iframe. Vorher läuft der
 Text genau einmal, beim Import, durch einen Sanitizer: `cid:`-Verweise werden auf plMails
 eigene Anhang-Route umgeschrieben, `<style>`-Blöcke werden auf die Elemente heruntergezogen,
-für die sie galten, und Skripte, Formulare, iframes und Klassen fallen weg. Links werden
-gezwungen, außerhalb der App zu öffnen.
+für die sie galten, und Skripte, iframes und Klassen fallen weg. Ein Formular wird aufgelöst statt
+entfernt: Sein Inhalt bleibt, seine Textfelder und Auswahllisten fallen weg, und die Mail sieht so
+aus, wie ihr Absender sie für ein Mailprogramm ohne Formulare gedacht hat. Links werden gezwungen,
+außerhalb der App zu öffnen.
 
 ### Ein langes Gespräch zusammenfassen
 
@@ -881,6 +883,10 @@ hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an 
 nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
 Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
 zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte Verbindung: Ein Bild,
+das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht
+antwortet, hinterlässt ein leeres Feld.
 
 **Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
 alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail

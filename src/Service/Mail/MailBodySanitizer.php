@@ -394,7 +394,15 @@ final readonly class MailBodySanitizer
             ->dropElement('iframe')
             ->dropElement('object')
             ->dropElement('embed')
-            ->dropElement('form')
+            // A form is unwrapped, not dropped. Review requests put the whole
+            // product card inside one — photo, name, star links — and dropping
+            // the element took all of it with it (#271). The two controls whose
+            // content is a field value rather than prose go with their content,
+            // or a prefilled textarea would read as part of the letter. `input`
+            // is not on the safe list and has no content to keep.
+            ->blockElement('form')
+            ->dropElement('textarea')
+            ->dropElement('select')
             // Images: our resolved attachment route + remote/data sources.
             ->allowElement('img', ['src', 'alt', 'title', 'width', 'height', 'style'])
             // Links, forced to open away from the app.
