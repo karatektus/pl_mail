@@ -7,6 +7,18 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**A message marked read or unread in the phone app is shown that way on the web too.** Marking a
+message read or unread over JMAP changed the message but not its conversation's unread count, which
+is what the web list draws in bold from, so a message marked unread on the phone stayed read in the
+browser and one marked read there stayed bold. It now goes the same way as the web's own read
+button, and so does an automatic read receipt where the mailbox sends one. Marking a single message
+of a longer conversation read or unread on the web also set the conversation's count from that one
+message alone; it is now counted from all of them. A conversation whose count is already wrong is
+put right the next time one of its messages is marked. No schema change.
+[#266](https://github.com/karatektus/pl_mail/issues/266), by @phdelodder.
+
 ## v0.3.7 — 2026-10-20
 
 <!-- highlight screenshot=sso-only -->

@@ -542,19 +542,19 @@ final readonly class ThreadStatusUpdater
         // left the others untouched — so four conversations were marked read in
         // the database and three rows went on rendering as unread, because
         // `data-unread` reads the thread's counter rather than its messages.
-        $counts = [];
+        //
+        // Counted over ALL of the thread's messages, not only the ones passed
+        // in. Counting the set was the same mistake one level down: a single
+        // message marked unread from the thread view, or over JMAP by a phone,
+        // set its conversation's counter to 1 or 0 whatever the other messages
+        // in it said.
+        $threads = [];
 
         foreach ($messages as $message) {
             $thread = $message->thread;
 
-            if (null === $thread) {
-                continue;
-            }
-
-            $counts[spl_object_id($thread)] ??= ['thread' => $thread, 'unread' => 0];
-
-            if (null === $message->seenAt) {
-                ++$counts[spl_object_id($thread)]['unread'];
+            if (null !== $thread) {
+                $threads[spl_object_id($thread)] = $thread;
             }
         }
 
@@ -563,7 +563,15 @@ final readonly class ThreadStatusUpdater
         // badges are drawn from the counter.
         $counterMoved = false;
 
-        foreach ($counts as ['thread' => $thread, 'unread' => $threadUnread]) {
+        foreach ($threads as $thread) {
+            $threadUnread = 0;
+
+            foreach ($thread->messages as $message) {
+                if (null === $message->seenAt) {
+                    ++$threadUnread;
+                }
+            }
+
             if ($thread->unreadCount !== $threadUnread) {
                 $thread->unreadCount = $threadUnread;
                 $counterMoved        = true;
@@ -594,10 +602,11 @@ final readonly class ThreadStatusUpdater
      * THIS METHOD IS THE ONE THAT MUST NOT BE MOVED. It hangs off markRead(),
      * which is the user-initiated path and nothing else: the thread view's
      * auto-mark on open, the row's mark-read button, the toolbar's bulk
-     * action. Its inbound twin — applyRemoteFlags(), thirty lines down — takes
-     * the provider's word for a flag and deliberately does not call this, so a
-     * sync that discovers a message was already \Seen on another device sends
-     * nothing. That distinction is the entire correctness question in read
+     * action, and a JMAP client setting $seen, which is the app on a phone
+     * doing the same three things. Its inbound twin — applyRemoteFlags(),
+     * thirty lines down — takes the provider's word for a flag and
+     * deliberately does not call this, so a sync that discovers a message was
+     * already \Seen on another device sends nothing. That distinction is the entire correctness question in read
      * receipts: a receipt claims a person displayed the message, and a sync
      * pass learning about a read that happened elsewhere, possibly weeks ago,
      * cannot make that claim. Two other writers of seenAt exist and are
@@ -689,8 +698,9 @@ final readonly class ThreadStatusUpdater
      *
      * Counters are recounted from the thread's own messages rather than
      * adjusted, because a flag pass can change several messages of one thread
-     * at once and in both directions; markRead()'s cheaper arithmetic works
-     * because the user's action covers the whole selection.
+     * at once and in both directions. markRead() counts the same way, for the
+     * same reason: a single message of a longer conversation is a selection
+     * too.
      *
      * @param list<RemoteFlagState> $states
      * @param DateTimeImmutable|null $readAt  when the provider was asked. The
