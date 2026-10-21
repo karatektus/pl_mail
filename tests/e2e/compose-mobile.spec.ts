@@ -511,9 +511,11 @@ test.describe("mobile compose window", () => {
         test("keeps the recipient it is answering", async ({ page }) => {
             await openReply(page);
 
+            // The chip shows the name when there is one; the address it
+            // stands for is in its title ("Name <address>").
             await expect(
                 page.locator(composeWindow).locator(".ts-control .item").first(),
-            ).toContainText("@");
+            ).toHaveAttribute("title", /@/);
         });
 
         test("carries the send pill, schedule chevron and all, in its header", async ({ page }) => {
