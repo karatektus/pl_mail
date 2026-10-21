@@ -12,6 +12,7 @@ use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Pop3\Pop3Connection;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
@@ -526,30 +527,77 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
             ->getQuery()
             ->getResult();
 
-        if ([] === $orphans) {
-            return;
+        if ([] !== $orphans) {
+            foreach ($orphans as $orphan) {
+                $orphan->addLabel($label);
+            }
+
+            $this->logger->info('POP3 sync: gave the Inbox label to messages that had none', [
+                'accountId' => $accountId,
+                'count'     => count($orphans),
+            ]);
+
+            $this->em->flush();
         }
 
-        foreach ($orphans as $orphan) {
-            $orphan->addLabel($label);
+        // The conversations, ALWAYS — and separately from the messages, because
+        // they are two different repairs and an account can need only the
+        // second. The inbox lists threads, and its query joins the THREAD's
+        // labels; a message labelled while its conversation carries none is
+        // still invisible.
+        //
+        // Learned the hard way: the message repair above ran first and did its
+        // job, so on the next run there were no orphan messages left and this
+        // half never ran at all — the mail stayed invisible while every row
+        // looked correct.
+        $this->labelUnlabelledThreads($accountId, $mailboxId);
+    }
 
-            // And the conversation it belongs to. The inbox lists THREADS and
-            // its query joins the thread's labels, not the message's — so a
-            // message labelled here whose thread carries none is still
-            // invisible. ThreadLabelSynchronizer is the application's own
-            // "thread labels are the union of their messages" rule, and using
-            // it keeps this in step with every other path that mutates them.
-            if (null !== $orphan->thread) {
-                $this->threadLabels->sync($orphan->thread);
+    /**
+     * Threads in this mailbox that carry a label their messages have and they
+     * do not.
+     *
+     * Stated as "the union is out of step" rather than "the thread has none",
+     * because the threader attaches labels when a message first joins a
+     * conversation and never revisits one — so a reply landing on an existing
+     * conversation can leave its label on the message and not on the thread.
+     * ThreadLabelSynchronizer is the application's own rule for this and is
+     * used rather than a hand-written copy.
+     */
+    private function labelUnlabelledThreads(int $accountId, int $mailboxId): void
+    {
+        /** @var list<MessageThread> $threads */
+        $threads = $this->em->createQueryBuilder()
+            ->select('DISTINCT t')
+            ->from(MessageThread::class, 't')
+            ->join('t.messages', 'm')
+            ->where('t.account = :accountId')
+            ->andWhere('m.mailbox = :mailboxId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('mailboxId', $mailboxId)
+            ->getQuery()
+            ->getResult();
+
+        $repaired = 0;
+
+        foreach ($threads as $thread) {
+            $before = count($thread->labels);
+
+            $this->threadLabels->sync($thread);
+
+            if (count($thread->labels) !== $before) {
+                ++$repaired;
             }
         }
 
-        $this->logger->info('POP3 sync: gave the Inbox label to messages that had none', [
-            'accountId' => $accountId,
-            'count'     => count($orphans),
-        ]);
+        if ($repaired > 0) {
+            $this->logger->info('POP3 sync: brought conversation labels back in step with their messages', [
+                'accountId' => $accountId,
+                'count'     => $repaired,
+            ]);
 
-        $this->em->flush();
+            $this->em->flush();
+        }
     }
 
     /**
