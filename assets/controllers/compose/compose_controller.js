@@ -1406,10 +1406,29 @@ export default class extends Controller {
                 flex-direction: column;
             `;
 
+            // The body fills the window, and grows past it with a long
+            // message so the scroller around it scrolls. The wrapper becomes
+            // the flex column that `flex-grow` needs.
+            //
+            // This used to be `closest('div').style.flex = '1'` plus
+            // `height: 0` on the editor. closest() starts at the element
+            // itself, and the editor is a <div>, so the wrapper never became a
+            // flex container; `height: 0` lost to `min-h-[170px]`, and the
+            // editor's [contain:paint] clipped everything past 170px instead
+            // of letting it scroll (#262). `1 0 auto`, not `1`: the editor may
+            // grow to fill but never shrink below its content.
+            //
+            // The plain-text field gets the same fill. A textarea scrolls
+            // itself, so it is sized by the window and not by its text.
             if (this.hasBodyTarget) {
-                this.bodyTarget.closest('div').style.flex = '1';
-                this.bodyTarget.style.flex = '1';
-                this.bodyTarget.style.height = '0';
+                const wrap = this.bodyTarget.parentElement;
+                wrap.style.display       = 'flex';
+                wrap.style.flexDirection = 'column';
+                this.bodyTarget.style.flex = '1 0 auto';
+            }
+
+            if (this.hasPlainBodyTarget) {
+                this.plainBodyTarget.style.flex = '1 1 auto';
             }
 
             document.body.style.overflow = 'hidden';
@@ -1430,9 +1449,14 @@ export default class extends Controller {
             return;
         }
 
-        this.bodyTarget.closest('div').style.flex = '';
-        this.bodyTarget.style.flex   = '';
-        this.bodyTarget.style.height = '';
+        const wrap = this.bodyTarget.parentElement;
+        wrap.style.display       = '';
+        wrap.style.flexDirection = '';
+        this.bodyTarget.style.flex = '';
+
+        if (this.hasPlainBodyTarget) {
+            this.plainBodyTarget.style.flex = '';
+        }
     }
 
     _syncExpandIcon(expanded) {

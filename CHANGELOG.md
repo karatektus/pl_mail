@@ -9,6 +9,12 @@ release before it reaches `main`, and `sha-…` pins one commit.
 
 ## Unreleased
 
+**A long message scrolls in the expanded compose window.** Expanded, the editor stayed 170px tall
+and cut a longer message off mid-line, with nothing to scroll. It now fills the window and grows
+with the text, and the window scrolls. A short message still fills the window, so clicking under
+the text still puts the cursor there. The plain-text field fills the expanded window as well.
+[#262](https://github.com/karatektus/pl_mail/issues/262).
+
 **The month view says what is on a day.** An entry in a month cell was its time on one line and its
 title cut to a single line under it, which at a normal width left "Lea…" and "Ihre…", and for an
 invitation a lone "…". It is now the title first, on up to two lines, and under it the time it runs
