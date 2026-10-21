@@ -230,8 +230,16 @@ class CalendarEvent
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     public array $jscalendar = [];
 
-    /** Opaque id at the remote, for events mirrored from a connected calendar. */
-    #[ORM\Column(length: 255, nullable: true)]
+    /**
+     * Opaque id at the remote, for events mirrored from a connected calendar.
+     *
+     * TEXT and not a bounded varchar, because the server decides how long its
+     * own resource hrefs are and Google's encoding is long: an event exported
+     * from Google and imported into Baïkal produced a 258-character href, and at
+     * varchar(255) that one resource failed the whole pull for the calendar.
+     * Nothing indexes this column, so there is no reason to pick a number.
+     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
 
     #[ORM\Column(length: 255, nullable: true)]
