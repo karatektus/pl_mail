@@ -472,7 +472,9 @@ final readonly class AddressBookSync
             return;
         }
 
-        if (null !== $parsed->photoVersion && $parsed->photoVersion === $local->photoVersion && null !== $local->photoPath) {
+        // The same photo, still on disk: nothing to do. A file that has gone
+        // missing is fetched again even when the version says it is current.
+        if (null !== $parsed->photoVersion && $parsed->photoVersion === $local->photoVersion && true === $this->photos->exists($local->photoPath)) {
             return;
         }
 

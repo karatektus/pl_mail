@@ -8,10 +8,18 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
- * Stores contact photos under %kernel.project_dir%/var/contacts/{userId}/.
+ * Stores contact photos under {APP_STORAGE_DIR}/uploads/contacts/{userId}/.
  * JPEG/PNG/WebP only, 5 MB max, downscaled so the longest side is <= 512 px
  * (GD). Filenames are random hex; the stored relative path (e.g.
- * 'contacts/42/abcdef.jpg') goes into Contact::$photoPath.
+ * 'contacts/42/abcdef.jpg') goes into Contact::$photoPath, and absolutePath()
+ * is the one place it becomes a file.
+ *
+ * **Under uploads, because two containers use it.** The worker writes the
+ * photos a sync brings in and the web container serves them, and var/uploads
+ * is a volume both mount (as AvatarStorage relies on). The first version kept
+ * them in var/contacts, which is in neither volume: every synced photo was
+ * written where the web container could not see it and answered 404, and an
+ * uploaded one went with the container on its next recreate.
  */
 final class ContactPhotoStore
 {
@@ -27,7 +35,30 @@ final class ContactPhotoStore
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
         private string $projectDir,
+        #[Autowire('%env(APP_STORAGE_DIR)%')]
+        private string $storageDir = 'var',
     ) {
+    }
+
+    /**
+     * Where a Contact::$photoPath is on disk. Null for a path that tries to
+     * leave the photo directory.
+     */
+    public function absolutePath(string $relativePath): ?string
+    {
+        if ('' === $relativePath || str_contains($relativePath, '..')) {
+            return null;
+        }
+
+        return $this->projectDir . '/' . trim($this->storageDir, '/') . '/uploads/' . ltrim($relativePath, '/');
+    }
+
+    /** Whether the photo at a Contact::$photoPath is on disk. */
+    public function exists(?string $relativePath): bool
+    {
+        $full = null === $relativePath ? null : $this->absolutePath($relativePath);
+
+        return null !== $full && is_file($full);
     }
 
     public function validateUpload(UploadedFile $file): void
@@ -94,7 +125,7 @@ final class ContactPhotoStore
             imagedestroy($dst);
         }
 
-        $dir = $this->projectDir . '/var/contacts/' . $userId;
+        $dir = (string) $this->absolutePath('contacts/' . $userId);
         if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
             throw new \RuntimeException('Cannot create photo directory: ' . $dir);
         }
@@ -112,12 +143,13 @@ final class ContactPhotoStore
      */
     public function read(?string $relativePath): ?ContactPhoto
     {
-        if (null === $relativePath || '' === $relativePath || str_contains($relativePath, '..')) {
+        $full = null === $relativePath ? null : $this->absolutePath($relativePath);
+
+        if (null === $full) {
             return null;
         }
 
         $mime = array_search(strtolower((string) pathinfo($relativePath, \PATHINFO_EXTENSION)), self::ALLOWED_MIME, true);
-        $full = $this->projectDir . '/var/' . ltrim($relativePath, '/');
 
         if (false === $mime || false === is_file($full)) {
             return null;
@@ -129,16 +161,13 @@ final class ContactPhotoStore
     }
 
     /**
-     * Deletes var/<relativePath> when it exists. Path traversal ('..') is
-     * refused silently so purge paths cannot abort on a bad value.
+     * Deletes the photo when it exists. Path traversal ('..') is refused
+     * silently so purge paths cannot abort on a bad value.
      */
     public function delete(string $relativePath): void
     {
-        if (str_contains($relativePath, '..')) {
-            return;
-        }
-        $full = $this->projectDir . '/var/' . ltrim($relativePath, '/');
-        if (is_file($full)) {
+        $full = $this->absolutePath($relativePath);
+        if (null !== $full && is_file($full)) {
             @unlink($full);
         }
     }

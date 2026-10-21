@@ -209,7 +209,7 @@ final class GraphContactsDriverTest extends TestCase
             $this->json(['id' => 'C1', '@odata.etag' => 'W/"after-photo"']),
         ]);
 
-        $dir = sys_get_temp_dir() . '/var/contacts/graph-test';
+        $dir = sys_get_temp_dir() . '/var/uploads/contacts/graph-test';
 
         if (false === is_dir($dir)) {
             mkdir($dir, 0o777, true);

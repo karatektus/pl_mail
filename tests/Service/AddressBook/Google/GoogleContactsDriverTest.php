@@ -429,7 +429,7 @@ final class GoogleContactsDriverTest extends TestCase
     /** A photo where ContactPhotoStore(sys_get_temp_dir()) reads it; the path Contact::$photoPath holds. */
     private function storedPhoto(string $bytes): string
     {
-        $dir = sys_get_temp_dir() . '/var/contacts/google-test';
+        $dir = sys_get_temp_dir() . '/var/uploads/contacts/google-test';
 
         if (false === is_dir($dir)) {
             mkdir($dir, 0o777, true);

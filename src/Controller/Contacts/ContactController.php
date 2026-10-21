@@ -292,9 +292,9 @@ final class ContactController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $absolute = $this->projectDir . '/var/' . ltrim($contact->photoPath, '/');
+        $absolute = $this->photos->absolutePath($contact->photoPath);
 
-        if (false === is_file($absolute)) {
+        if (null === $absolute || false === is_file($absolute)) {
             throw $this->createNotFoundException();
         }
 

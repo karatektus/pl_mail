@@ -15,7 +15,6 @@ use App\Jmap\Protocol\Exception\MethodException;
 use App\Service\Contacts\ContactPhotoStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -54,8 +53,6 @@ final class JmapContactPhotoController extends AbstractController
         private readonly ContactPhotoStore $photos,
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $entityManager,
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
     ) {
     }
 
@@ -117,9 +114,9 @@ final class JmapContactPhotoController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $absolute = $this->projectDir . '/var/' . ltrim($contact->photoPath, '/');
+        $absolute = $this->photos->absolutePath($contact->photoPath);
 
-        if (false === is_file($absolute)) {
+        if (null === $absolute || false === is_file($absolute)) {
             throw $this->createNotFoundException();
         }
 

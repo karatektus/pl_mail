@@ -81,7 +81,7 @@ final class AddressBookSyncPhotoTest extends TestCase
 
         self::assertSame(2, $this->driver->photoFetches);
         self::assertNotSame($first, $this->cards[0]->photoPath, 'a new photo replaces the stored one');
-        self::assertFileDoesNotExist($this->root . '/var/' . $first, 'and the old file goes');
+        self::assertFileDoesNotExist($this->root . '/var/uploads/' . $first, 'and the old file goes');
     }
 
     public function testAServerThatSaysThereIsNoneRemovesTheOneHere(): void
