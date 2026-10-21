@@ -1,7 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
 
 /**
- * contacts--form: the dynamic email/phone/address rows on the contact form.
+ * contacts--form: the dynamic rows on the contact form — emails, phones and
+ * addresses, which have targets of their own, and the labelled lists (dates,
+ * relations, websites, chat, custom fields), which share addRow(): the button
+ * names its list in data-contacts--form-list-param, and the rows container
+ * and <template> carry data-list-rows / data-list-template with that name.
  *
  * Rows are server-rendered with explicit numeric indexes; "add" clones a
  * <template> with the container's next index (a counter that only goes up,
@@ -21,6 +25,14 @@ export default class extends Controller {
     addEmail()   { this.#add(this.emailRowsTarget, this.emailTemplateTarget) }
     addPhone()   { this.#add(this.phoneRowsTarget, this.phoneTemplateTarget) }
     addAddress() { this.#add(this.addressRowsTarget, this.addressTemplateTarget) }
+
+    addRow({ params: { list } }) {
+        const rows = this.element.querySelector(`[data-list-rows="${list}"]`)
+        const template = this.element.querySelector(`template[data-list-template="${list}"]`)
+        if (rows && template) {
+            this.#add(rows, template)
+        }
+    }
 
     removeRow(event) {
         event.currentTarget.closest("[data-row]")?.remove()

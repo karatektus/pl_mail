@@ -362,7 +362,7 @@ final class AddressBookSyncTest extends TestCase
     public function testAPushKeepsWhatPlMailHasNoFieldFor(): void
     {
         $card        = $this->card('ada', 'Ada Lovelace', etag: '"1"');
-        $card->vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:ada\r\nFN:Ada Lovelace\r\nEMAIL:ada@example.com\r\nBDAY:1815-12-10\r\nX-PHONE-ONLY:keep me\r\nEND:VCARD\r\n";
+        $card->vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:ada\r\nFN:Ada Lovelace\r\nEMAIL:ada@example.com\r\nGENDER:F\r\nX-PHONE-ONLY:keep me\r\nEND:VCARD\r\n";
         $this->edit($card, 'Ada King');
 
         $fixture = $this->server(CardDavFixture::report([], 'token-2'), pushFirst: [CalDavFixture::status(204, ['etag' => '"2"'])], syncToken: 'token-1');
@@ -370,7 +370,7 @@ final class AddressBookSyncTest extends TestCase
         $this->sync($fixture);
 
         self::assertStringContainsString('FN:Ada King', $fixture->body(0));
-        self::assertStringContainsString('BDAY:1815-12-10', $fixture->body(0));
+        self::assertStringContainsString('GENDER:F', $fixture->body(0));
         self::assertStringContainsString('X-PHONE-ONLY:keep me', $fixture->body(0));
     }
 

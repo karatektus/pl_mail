@@ -24,6 +24,8 @@ use App\Service\Calendar\Sync\CalDav\CalDavDiscovery;
 use App\Service\Calendar\Sync\CalDav\DavResource;
 use App\Service\Calendar\Sync\CalDav\DavService;
 use App\Service\Calendar\Sync\CalDav\MultiStatusParser;
+use App\Service\Contacts\ContactPhoto;
+use App\Service\Contacts\ContactPhotoStore;
 use App\Service\Contacts\VCardMapper;
 use Psr\Log\LoggerInterface;
 
@@ -80,6 +82,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
         private CalDavDiscovery   $discovery,
         private MultiStatusParser $parser,
         private VCardMapper       $mapper,
+        private ContactPhotoStore $photos,
         private LoggerInterface   $logger,
     ) {
     }
@@ -178,7 +181,7 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
     public function put(AddressBook $book, Contact $card): RemoteContactWrite
     {
         $integration = $this->integrationOf($book);
-        $vcard       = $this->mapper->write($card->vcard, $card);
+        $vcard       = $this->mapper->write($card->vcard, $card, $this->photos->read($card->photoPath));
         $isCreate    = null === $card->href;
         $href     = $card->href ?? $this->mintHref($book, $card);
         $headers  = ['Content-Type' => 'text/vcard; charset=utf-8'];
@@ -206,6 +209,12 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
             etag:  $this->client->etagAfterWrite($integration, $href, $response['headers'], DavService::AddressBook),
             vcard: $vcard,
         );
+    }
+
+    /** A vCard carries its photo inline; VCardMapper reads it with the card. */
+    public function photo(AddressBook $book, RemoteCard $card): ?ContactPhoto
+    {
+        return null;
     }
 
     /**

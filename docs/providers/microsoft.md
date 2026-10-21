@@ -92,9 +92,16 @@ Outlook's categories as tags, and an edit made in plMail is written back. See
 [Contacts](../features/contacts.md).
 
 Outlook's contact has fixed places where plMail has lists: three email addresses, two business and
-two home numbers and one mobile, and one home, one business and one other address. plMail fills
-those places, primary first. An entry beyond them — a fourth email address, say — is not sent, and
-stays only in plMail until the contact next changes in Outlook, when Outlook's version comes back.
+two home numbers and one mobile, one home, one business and one other address, one spouse (or
+partner), one manager, one assistant and the children's names, one website (the work one if there
+is one), three chat addresses and a birthday. plMail fills those places, primary first. An entry
+beyond them — a fourth email address, a second partner — is not sent, and stays only in plMail until
+the contact next changes in Outlook, when Outlook's version comes back. Outlook has no place at all
+for other dates (an anniversary), a phonetic middle name or custom fields; those stay in plMail. Its
+chat addresses carry no service: a SIP address comes back as SIP, any other as "other".
+
+Photos go both ways, with one exception: Microsoft Graph can replace an Outlook contact's photo but
+not remove it, so a photo removed in plMail stays in Outlook.
 
 An account connected before plMail asked for contacts holds a token without the permission. Mail
 and calendars carry on, and **Settings → Account health** shows a notice whose button signs in once more

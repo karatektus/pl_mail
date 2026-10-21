@@ -25,7 +25,10 @@ final class ContactManager
     }
 
     /**
-     * @param array{displayName?: string, givenName?: ?string, familyName?: ?string, nickname?: ?string, company?: ?string, jobTitle?: ?string, notes?: ?string, tags?: string[], source?: string} $data
+     * $data takes displayName, the keys of ContactFields::SCALARS, birthday,
+     * the lists of ContactFields::LISTS, tags and source.
+     *
+     * @param array<string, mixed> $data
      */
     public function create(User $owner, array $data): Contact
     {
@@ -48,7 +51,9 @@ final class ContactManager
     }
 
     /**
-     * @param array{displayName?: string, givenName?: ?string, familyName?: ?string, nickname?: ?string, company?: ?string, jobTitle?: ?string, notes?: ?string, tags?: string[]} $data
+     * The keys create() takes, but source.
+     *
+     * @param array<string, mixed> $data
      */
     public function update(Contact $contact, array $data): Contact
     {
@@ -70,16 +75,36 @@ final class ContactManager
     }
 
     /**
+     * The scalar fields (ContactFields::SCALARS), the birthday and the
+     * labelled lists, each only when $data has it. A birthday that is not a
+     * date is refused; list rows are cleaned the way the form's are.
+     *
      * @param array<string, mixed> $data
      */
     private function applyScalars(Contact $contact, array $data): void
     {
-        foreach (['givenName', 'familyName', 'nickname', 'company', 'jobTitle', 'notes'] as $key) {
+        foreach (ContactFields::SCALARS as $key) {
             if (array_key_exists($key, $data)) {
                 $value = $data[$key];
                 $contact->{$key} = (null === $value || '' === trim((string) $value))
                     ? null
                     : trim((string) $value);
+            }
+        }
+
+        if (array_key_exists('birthday', $data)) {
+            $birthday = null === $data['birthday'] || '' === trim((string) $data['birthday']) ? null : ContactFields::date((string) $data['birthday']);
+
+            if (null !== $data['birthday'] && '' !== trim((string) $data['birthday']) && null === $birthday) {
+                throw new \InvalidArgumentException('birthday must be YYYY-MM-DD, or --MM-DD without a year');
+            }
+
+            $contact->birthday = $birthday;
+        }
+
+        foreach (ContactFields::LISTS as $list) {
+            if (array_key_exists($list, $data)) {
+                $contact->{$list} = ContactFields::clean($list, $data[$list]);
             }
         }
     }

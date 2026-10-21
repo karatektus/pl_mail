@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:5de5926d6d48b9e1bbac5996c0bf081d336a3a37 -->
+<!-- translated-from: providers/google.md sha1:e53dc099a9f44da03ac748ee608d66a70ad31331 -->
 
 # Google
 
@@ -131,9 +131,11 @@ Kalenderhäkchen gesetzt."*
 Der Kontakte-Scope reist auf derselben Freigabe, aus denselben Gründen. Ein mit plMail verbundenes
 Google-Konto bringt seine Kontakte mit: Sein Adressbuch erscheint unter **Kontakte** neben plMails
 eigenem, Googles Kontaktgruppen werden zu Schlagwörtern, und eine Änderung in plMail wird
-zurückgeschrieben. Gesendet werden nur die Felder, die plMail zeigt, also bleiben ein Geburtstag oder
-ein eigenes Feld bei Google, wie sie sind. Fotos werden nicht gesendet. Siehe
-[Kontakte](../features/contacts.md).
+zurückgeschrieben — Namen, phonetische Namen, Organisation, Geburtstag und weitere Daten,
+Beziehungen, Websites, Chat- und SIP-Adressen, eigene Felder und das Foto, dazu Anschriften und
+Nummern — und von Google auf die Handys, die damit synchronisieren. Gesendet werden nur die Felder,
+die plMail zeigt, also bleibt, was Google darüber hinaus hat (Berufe, Interessen, das Kürzel einer
+Organisation), wie es ist. Siehe [Kontakte](../features/contacts.md).
 
 Ein Konto, das verbunden wurde, **bevor** plMail nach Kontakten gefragt hat, hält eine Freigabe ohne
 den Scope. Daran ist nichts kaputt: Mail und Kalender laufen weiter, und **Einstellungen →

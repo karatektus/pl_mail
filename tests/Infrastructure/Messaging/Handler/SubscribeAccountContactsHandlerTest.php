@@ -7,6 +7,7 @@ namespace App\Tests\Infrastructure\Messaging\Handler;
 use App\Domain\DTO\AddressBook\AddressBookChangeSet;
 use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\DTO\AddressBook\RemoteAddressBook;
+use App\Domain\DTO\AddressBook\RemoteCard;
 use App\Domain\DTO\AddressBook\RemoteContactWrite;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
@@ -22,6 +23,7 @@ use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Service\AddressBook\AddressBookDriverRegistry;
 use App\Service\AddressBook\AddressBookSubscriber;
+use App\Service\Contacts\ContactPhoto;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -114,6 +116,11 @@ final class SubscribeAccountContactsHandlerTest extends TestCase
             public function put(AddressBook $book, Contact $contact): RemoteContactWrite
             {
                 return new RemoteContactWrite('x', null);
+            }
+
+            public function photo(AddressBook $book, RemoteCard $card): ?ContactPhoto
+            {
+                return null;
             }
 
             public function delete(AddressBook $book, ?string $href, ?string $etag): void

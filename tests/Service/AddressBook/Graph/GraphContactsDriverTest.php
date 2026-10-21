@@ -23,6 +23,9 @@ use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use App\Service\Contacts\ContactPhotoStore;
+use App\Domain\DTO\AddressBook\RemoteCard;
+use App\Service\Contacts\ParsedContact;
 
 /**
  * Outlook contacts through Microsoft Graph, against scripted answers in the
@@ -153,6 +156,88 @@ final class GraphContactsDriverTest extends TestCase
         self::assertSame('Ada Lovelace', $body['displayName'], 'always sent: Graph would regenerate it');
     }
 
+    public function testTheOtherFieldsGoInOutlooksPlacesAndReadBack(): void
+    {
+        $driver  = $this->driver([$this->json(['id' => 'C7'], 201)]);
+        $contact = $this->contact();
+
+        $contact->namePrefix         = 'Dr.';
+        $contact->middleName         = 'K.';
+        $contact->nameSuffix         = 'PhD';
+        $contact->phoneticGivenName  = 'ハル';
+        $contact->phoneticMiddleName = 'ケイ';
+        $contact->department         = 'Research';
+        $contact->officeLocation     = 'Room 14';
+        $contact->birthday           = '--12-10';
+        $contact->dates              = [['label' => 'anniversary', 'date' => '1835-07-08']];
+        $contact->relations          = [['label' => 'spouse', 'name' => 'William'], ['label' => 'partner', 'name' => 'Sam'], ['label' => 'child', 'name' => 'Byron'], ['label' => 'child', 'name' => 'Annabella'], ['label' => 'friend', 'name' => 'Mary']];
+        $contact->urls               = [['label' => 'blog', 'url' => 'https://blog.example'], ['label' => 'work', 'url' => 'https://work.example']];
+        $contact->ims                = [['service' => 'sip', 'handle' => 'ada@sip.example', 'label' => 'other'], ['service' => 'skype', 'handle' => 'ada.l', 'label' => 'other']];
+        $contact->customFields       = [['label' => 'Employee ID', 'value' => '4711']];
+
+        $driver->put($this->book(), $contact);
+
+        $body = json_decode($this->requests[0]['body'], true);
+
+        self::assertSame('Dr.', $body['title']);
+        self::assertSame('K.', $body['middleName']);
+        self::assertSame('PhD', $body['generation']);
+        self::assertSame('ハル', $body['yomiGivenName']);
+        self::assertSame('Research', $body['department']);
+        self::assertSame('Room 14', $body['officeLocation']);
+        self::assertSame('1604-12-10T11:59:00Z', $body['birthday'], "Outlook's year for none, at noon so no time zone moves the day");
+        self::assertSame('William', $body['spouseName'], 'one spouse; the partner after it has no place');
+        self::assertSame(['Byron', 'Annabella'], $body['children']);
+        self::assertNull($body['manager'], 'sent empty, so one removed here is removed there');
+        self::assertSame('https://work.example', $body['businessHomePage'], 'the work website, where there is one');
+        self::assertSame(['sip:ada@sip.example', 'ada.l'], $body['imAddresses']);
+        self::assertArrayNotHasKey('yomiMiddleName', $body, 'Outlook has no such place');
+
+        $back = new GraphContactMapper()->toParsed(['id' => 'C7'] + $body);
+
+        self::assertSame('--12-10', $back->birthday);
+        self::assertSame([['label' => 'spouse', 'name' => 'William'], ['label' => 'child', 'name' => 'Byron'], ['label' => 'child', 'name' => 'Annabella']], $back->relations);
+        self::assertSame([['service' => 'sip', 'handle' => 'ada@sip.example', 'label' => 'other'], ['service' => 'other', 'handle' => 'ada.l', 'label' => 'other']], $back->ims);
+        self::assertTrue($back->photoDeferred, 'the photo is read on its own endpoint');
+    }
+
+    public function testAPhotoChangedHereIsPutOnItsEndpointAndTheEtagReadAfterIt(): void
+    {
+        $driver = $this->driver([
+            $this->json(['id' => 'C1', '@odata.etag' => 'W/"after-patch"']),
+            new MockResponse('', ['http_code' => 200]),
+            $this->json(['id' => 'C1', '@odata.etag' => 'W/"after-photo"']),
+        ]);
+
+        $dir = sys_get_temp_dir() . '/var/contacts/graph-test';
+
+        if (false === is_dir($dir)) {
+            mkdir($dir, 0o777, true);
+        }
+
+        file_put_contents($dir . '/photo.png', 'png bytes');
+
+        $contact             = $this->contact();
+        $contact->href       = 'C1';
+        $contact->etag       = 'W/"old"';
+        $contact->photoDirty = true;
+        $contact->photoPath  = 'contacts/graph-test/photo.png';
+
+        $written = $driver->put($this->book(), $contact);
+
+        self::assertSame('PUT', $this->requests[1]['method']);
+        self::assertStringEndsWith('/me/contacts/C1/photo/$value', $this->requests[1]['url']);
+        self::assertSame('png bytes', $this->requests[1]['body']);
+        self::assertSame('W/"after-photo"', $written->etag, 'the photo changed the version; the next PATCH must carry the new one');
+    }
+
+    public function testAContactWithoutAPhotoHasNone(): void
+    {
+        $driver = $this->driver([$this->json(['error' => ['code' => 'ErrorItemNotFound', 'message' => 'The photo wasn\'t found.']], 404)]);
+
+        self::assertNull($driver->photo($this->book(), RemoteCard::parsed('C1', null, new ParsedContact())));
+    }
+
     public function testAnUpdateIsConditionalAndAConflictIsA412(): void
     {
         $driver = $this->driver([$this->json(['error' => ['code' => 'ErrorIrresolvableConflict', 'message' => 'The change key passed in the request does not match the current change key for the item.']], 412)]);
@@ -216,7 +301,7 @@ final class GraphContactsDriverTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('test-token');
 
-        return new GraphContactsDriver(new GraphContactsClient($http, $tokens), new GraphContactMapper());
+        return new GraphContactsDriver(new GraphContactsClient($http, $tokens), new GraphContactMapper(), new ContactPhotoStore(sys_get_temp_dir()));
     }
 
     /**

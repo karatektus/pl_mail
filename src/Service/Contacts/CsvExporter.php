@@ -10,7 +10,12 @@ use App\Repository\Contacts\ContactRepository;
 
 /**
  * Exports the address book as CSV: one row per contact, primary email/phone
- * (falling back to the first) and tags joined with '; '.
+ * (falling back to the first), the first website, and tags joined with '; '.
+ *
+ * A summary for a spreadsheet, not a backup: the further emails and phones,
+ * the addresses and the labelled lists do not fit one row. The vCard export
+ * carries everything. The header names are CsvImporter's, so the file reads
+ * back in.
  */
 final class CsvExporter
 {
@@ -31,24 +36,22 @@ final class CsvExporter
             throw new \RuntimeException('Cannot open memory stream for CSV export');
         }
 
-        fputcsv($handle, [
-            'displayName', 'givenName', 'familyName', 'nickname', 'company',
-            'jobTitle', 'email', 'phone', 'notes', 'tags',
-        ]);
+        $scalars = array_values(array_diff(ContactFields::SCALARS, ['notes']));
+
+        // escape: '' is RFC 4180's quoting alone; CsvImporter reads it the same way.
+        fputcsv($handle, ['displayName', ...$scalars, 'birthday', 'email', 'phone', 'website', 'notes', 'tags'], escape: '');
 
         foreach ($contacts as $contact) {
             fputcsv($handle, [
                 $contact->displayName,
-                $contact->givenName ?? '',
-                $contact->familyName ?? '',
-                $contact->nickname ?? '',
-                $contact->company ?? '',
-                $contact->jobTitle ?? '',
+                ...array_map(static fn (string $field): string => (string) $contact->{$field}, $scalars),
+                $contact->birthday ?? '',
                 $this->pickEmail($contact),
                 $this->pickPhone($contact),
+                $contact->urls[0]['url'] ?? '',
                 $contact->notes ?? '',
                 implode('; ', $contact->tags),
-            ]);
+            ], escape: '');
         }
 
         rewind($handle);

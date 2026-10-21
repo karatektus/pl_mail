@@ -119,12 +119,45 @@ final class ContactSyncTrackerTest extends KernelTestCase
     {
         $contact = $this->fixture->contact($this->user, 'Ada Lovelace', book: $this->book);
 
-        $contact->etag      = '"2"';
-        $contact->photoPath = 'contacts/1/ada.jpg';
+        $contact->etag         = '"2"';
+        $contact->photoVersion = 'https://lh3.googleusercontent.com/a';
         $this->em->flush();
 
         self::assertSame(SyncState::Clean, $this->reloaded($contact)->syncState);
         self::assertSame([], $this->pushedBooks());
+    }
+
+    public function testANewPhotoIsAnEditAndMarksThePhotoForSending(): void
+    {
+        $contact = $this->fixture->contact($this->user, 'Ada Lovelace', book: $this->book);
+
+        $contact->photoPath = 'contacts/1/ada.jpg';
+        $this->em->flush();
+
+        self::assertSame(SyncState::PendingUpdate, $this->reloaded($contact)->syncState);
+        self::assertTrue($contact->photoDirty);
+        self::assertTrue((bool) $this->connection->fetchOne('SELECT photo_dirty FROM contacts_contact WHERE id = ?', [$contact->id]), 'written, not just set');
+        self::assertSame([$this->book->id], $this->pushedBooks());
+    }
+
+    public function testALocalContactsPhotoIsNotMarked(): void
+    {
+        $contact = $this->fixture->contact($this->user, 'Local Person');
+
+        $contact->photoPath = 'contacts/1/local.jpg';
+        $this->em->flush();
+
+        self::assertFalse($contact->photoDirty, 'there is nowhere to send it');
+    }
+
+    public function testALabelledListChangedIsAnEdit(): void
+    {
+        $contact = $this->fixture->contact($this->user, 'Ada Lovelace', book: $this->book);
+
+        $contact->relations = [['label' => 'spouse', 'name' => 'William']];
+        $this->em->flush();
+
+        self::assertSame(SyncState::PendingUpdate, $this->reloaded($contact)->syncState);
     }
 
     public function testBinningASyncedContactQueuesTheDeleteOfItsCard(): void

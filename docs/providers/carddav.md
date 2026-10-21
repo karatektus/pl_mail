@@ -75,14 +75,18 @@ handled the same way: the server's copy is kept and the refused edit is logged, 
 stop the rest of the book from syncing. Any other failure — the server unreachable, out of space, or
 rejecting the password — keeps the edit pending, and it is sent again on a later sync.
 
-**What plMail does not show, it does not touch.** A contact here has names, a nickname, a company
-and job title, email addresses, phone numbers and postal addresses with their labels, notes and tags
-(the card's categories). A card carries much more, such as a birthday or the properties a phone uses
-to link it to an app, and all of it is kept. plMail keeps the vCard the server sent and applies an
-edit to it, changing only the properties that were edited. It does not rebuild the card from its own
-fields. An address or a number that is still on the card keeps its type (work, home), its grouping
-and the server's own formatting. A photo on the card is shown here; a photo uploaded here is not
-sent to the server.
+**What plMail does not show, it does not touch.** A contact here has every field listed under
+[Contacts](../features/contacts.md#a-contact), and a card can carry more, such as the properties a
+phone uses to link a contact to an app. All of it is kept. plMail keeps the vCard the server sent
+and applies an edit to it, changing only the properties that were edited. It does not rebuild the
+card from its own fields. An address or a number that is still on the card keeps its type (work,
+home), its grouping and the server's own formatting.
+
+The fields are read in every spelling the common clients write — Apple's grouped `X-ABDATE`,
+`X-ABRELATEDNAMES` and `X-ABLabel`, vCard 4's `ANNIVERSARY` and `RELATED`, `IMPP` and the older
+`X-JABBER` family, Apple's 1604 for a birthday without a year — and a list changed here is written
+the way most of them read it. The photo goes both ways: one uploaded or removed here replaces the
+card's, and one that was not changed here stays on the card exactly as it was.
 
 **Deleting a contact deletes its card.** A contact moved to the bin here is deleted on the server at
 the next sync, and stays in the bin as one of plMail's own. Merging

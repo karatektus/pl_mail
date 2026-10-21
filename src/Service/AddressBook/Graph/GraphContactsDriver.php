@@ -16,6 +16,8 @@ use App\Domain\Interface\AddressBookDriverInterface;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Entity\Mail\Account;
+use App\Service\Contacts\ContactPhoto;
+use App\Service\Contacts\ContactPhotoStore;
 
 /**
  * A Microsoft account's Outlook contacts, through Graph, behind the
@@ -40,14 +42,21 @@ use App\Entity\Mail\Account;
  * contact's etag (a 412 is a conflict, Outlook's version wins), and a DELETE.
  * What Outlook's fixed places cannot hold is GraphContactMapper's subject.
  *
- * Not synced: photos, and the organisation's directory (a different API and
- * a different permission).
+ * **Photos** are read from the contact's /photo/$value whenever the contact
+ * changed, and a photo changed here is sent there after the contact itself.
+ * Graph cannot remove an Outlook contact's photo — its delete is for user
+ * and group photos only — so a photo removed here stays in Outlook, and the
+ * next change there brings it back.
+ *
+ * Not synced: the organisation's directory (a different API and a different
+ * permission).
  */
 final readonly class GraphContactsDriver implements AddressBookDriverInterface
 {
     public function __construct(
         private GraphContactsClient $client,
         private GraphContactMapper  $mapper,
+        private ContactPhotoStore   $photos,
     ) {
     }
 
@@ -121,7 +130,25 @@ final readonly class GraphContactsDriver implements AddressBookDriverInterface
             throw new CalendarSyncException('Microsoft Graph saved the contact without saying where it is.');
         }
 
-        return new RemoteContactWrite(href: $id, etag: $this->mapper->etagOf($written));
+        $etag  = $this->mapper->etagOf($written);
+        $photo = true === $contact->photoDirty || (null === $contact->href && null !== $contact->photoPath)
+            ? $this->photos->read($contact->photoPath)
+            : null;
+
+        // A new photo changes the contact's version; the etag kept is the
+        // one after it, or the next PATCH would be refused as a conflict.
+        if (null !== $photo) {
+            $this->client->putPhoto($account, $id, $photo);
+            $after = $this->client->call($account, 'GET', GraphContactsClient::ME . '/contacts/' . rawurlencode($id), ['query' => ['$select' => 'id']], 'reading a contact');
+            $etag  = $this->mapper->etagOf($after) ?? $etag;
+        }
+
+        return new RemoteContactWrite(href: $id, etag: $etag);
+    }
+
+    public function photo(AddressBook $book, RemoteCard $card): ?ContactPhoto
+    {
+        return $this->client->photo($this->accountOf($book), $card->href);
     }
 
     public function delete(AddressBook $book, ?string $href, ?string $etag): void

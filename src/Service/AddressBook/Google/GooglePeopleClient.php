@@ -10,6 +10,8 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Entity\Mail\Account;
+use App\Service\Contacts\ContactPhoto;
+use App\Service\Contacts\ContactPhotoStore;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -84,6 +86,62 @@ final readonly class GooglePeopleClient
     public function write(Account $account, string $method, string $path, array $query, array $body, string $what): array
     {
         return $this->send($account, $method, $path, ['query' => $query, 'json' => $body], $what);
+    }
+
+    /**
+     * A request with no body — deleteContactPhoto, which answers the Person.
+     *
+     * @param array<string, mixed> $query
+     *
+     * @return array<string, mixed>
+     *
+     * @throws CalendarSyncException
+     */
+    public function call(Account $account, string $method, string $path, array $query, string $what): array
+    {
+        return $this->send($account, $method, $path, ['query' => $query], $what);
+    }
+
+    /**
+     * A contact photo, from the URL a Person's photos[] gives. Only from
+     * Google's own image host, and without the account's token: the URL is
+     * one the API handed us, but nothing else of ours goes to it. Asked at
+     * MAX_DIMENSION, the size the photo store keeps. Null when Google says
+     * it is gone.
+     *
+     * @throws CalendarSyncException
+     */
+    public function photo(string $url): ?ContactPhoto
+    {
+        $host = strtolower((string) parse_url($url, \PHP_URL_HOST));
+
+        if ('https' !== strtolower((string) parse_url($url, \PHP_URL_SCHEME)) || false === str_ends_with($host, '.googleusercontent.com')) {
+            throw new CalendarSyncPermanentException('Google gave a contact photo address that is not on its image host.');
+        }
+
+        $url = (preg_replace('/=s\d+(-[a-z0-9-]+)?$/i', '', $url) ?? $url) . '=s' . ContactPhotoStore::MAX_DIMENSION;
+
+        try {
+            $response = $this->httpClient->request('GET', $url, ['max_redirects' => 0]);
+            $status   = $response->getStatusCode();
+
+            if (404 === $status || 410 === $status) {
+                return null;
+            }
+
+            if (200 !== $status) {
+                throw new CalendarSyncException(sprintf('Google failed while reading a contact photo (%d).', $status), $status);
+            }
+
+            $bytes = $response->getContent(false);
+            $mime  = strtolower(trim(explode(';', $response->getHeaders(false)['content-type'][0] ?? '')[0]));
+        } catch (CalendarSyncException $e) {
+            throw $e;
+        } catch (HttpException $e) {
+            throw new CalendarSyncException('Google could not be reached while reading a contact photo.', 0, $e);
+        }
+
+        return '' === $bytes || strlen($bytes) > ContactPhotoStore::MAX_BYTES ? null : new ContactPhoto($bytes, $mime);
     }
 
     /**

@@ -65,6 +65,59 @@ final class ContactSetMethodTest extends JmapTestCase
         self::assertFalse($contact->isTrashed());
     }
 
+    public function testEveryFieldIsWrittenAndReadBack(): void
+    {
+        $result = $this->call(['create' => ['c1' => [
+            'displayName'       => 'Haru Tanaka',
+            'namePrefix'        => 'Dr.',
+            'middleName'        => 'K.',
+            'phoneticGivenName' => 'ハル',
+            'department'        => 'Research',
+            'officeLocation'    => 'Room 14',
+            'birthday'          => '--05-12',
+            'dates'             => [['label' => 'anniversary', 'date' => '2010-06-01']],
+            'relations'         => [['label' => 'Godmother', 'name' => 'Mary'], ['label' => 'spouse', 'name' => '  ']],
+            'urls'              => [['label' => 'blog', 'url' => 'https://blog.example']],
+            'ims'               => [['service' => 'sip', 'handle' => 'haru@sip.example', 'label' => 'work']],
+            'customFields'      => [['label' => 'Employee ID', 'value' => '4711']],
+        ]]]);
+
+        $id      = $result['created']['c1']['id'] ?? self::fail('not created: ' . json_encode($result['notCreated'] ?? null));
+        $contact = $this->get->handle(['accountId' => $this->accountId(), 'ids' => [$id]], $this->context())['list'][0];
+
+        self::assertSame('Dr.', $contact['namePrefix']);
+        self::assertSame('K.', $contact['middleName']);
+        self::assertSame('ハル', $contact['phoneticGivenName']);
+        self::assertSame('Research', $contact['department']);
+        self::assertSame('Room 14', $contact['officeLocation']);
+        self::assertSame('--05-12', $contact['birthday']);
+        self::assertSame([['label' => 'anniversary', 'date' => '2010-06-01']], $contact['dates']);
+        self::assertSame([['label' => 'Godmother', 'name' => 'Mary']], $contact['relations'], 'a row with no name is dropped, a custom label kept');
+        self::assertSame([['label' => 'blog', 'url' => 'https://blog.example']], $contact['urls']);
+        self::assertSame([['service' => 'sip', 'handle' => 'haru@sip.example', 'label' => 'work']], $contact['ims']);
+        self::assertSame([['label' => 'Employee ID', 'value' => '4711']], $contact['customFields']);
+
+        $this->call(['update' => [$id => ['relations' => [], 'birthday' => null]]]);
+        $contact = $this->get->handle(['accountId' => $this->accountId(), 'ids' => [$id]], $this->context())['list'][0];
+
+        self::assertSame([], $contact['relations'], 'a present list replaces the whole list');
+        self::assertNull($contact['birthday']);
+        self::assertSame([['label' => 'blog', 'url' => 'https://blog.example']], $contact['urls'], 'an absent one is left alone');
+    }
+
+    public function testADateThatIsNotOneIsRefused(): void
+    {
+        $result = $this->call(['create' => [
+            'a' => ['displayName' => 'A', 'birthday' => '1980-02-30'],
+            'b' => ['displayName' => 'B', 'dates' => [['label' => 'other', 'date' => 'soon']]],
+            'c' => ['displayName' => 'C', 'urls' => 'https://example.com'],
+        ]]);
+
+        self::assertSame('invalidProperties', $result['notCreated']['a']['type']);
+        self::assertSame('invalidProperties', $result['notCreated']['b']['type']);
+        self::assertSame('invalidProperties', $result['notCreated']['c']['type']);
+    }
+
     public function testAnUpdateToASyncedContactIsQueuedForItsServer(): void
     {
         $book    = $this->fixture->book($this->user);

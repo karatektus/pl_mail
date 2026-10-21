@@ -34,17 +34,20 @@ final class ImportRunner
 
         $imported = [];
         foreach ($dtos as $dto) {
-            $contact = $this->manager->create($user, [
+            $data = [
                 'displayName' => $this->resolveDisplayName($dto),
-                'givenName' => $dto->givenName,
-                'familyName' => $dto->familyName,
-                'nickname' => $dto->nickname,
-                'company' => $dto->company,
-                'jobTitle' => $dto->jobTitle,
-                'notes' => $dto->notes,
                 'tags' => $dto->tags,
                 'source' => $source,
-            ]);
+                // A birthday the source wrote some other way is dropped, not
+                // a reason to refuse the contact.
+                'birthday' => ContactFields::date($dto->birthday),
+            ];
+
+            foreach ([...ContactFields::SCALARS, ...ContactFields::LISTS] as $field) {
+                $data[$field] = $dto->{$field};
+            }
+
+            $contact = $this->manager->create($user, $data);
 
             foreach ($dto->emails as $email) {
                 try {

@@ -34,10 +34,21 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
                     {{ cm.avatar(contact, 'w-16 h-16 text-2xl') }}
                     <div class="min-w-0">
                         <h2 class="text-xl font-semibold text-ink truncate">{{ contact.displayName }}</h2>
-                        {% if contact.jobTitle or contact.company %}
+                        {% set fullName = [contact.namePrefix, contact.givenName, contact.middleName, contact.familyName, contact.nameSuffix]|filter(v => v)|join(' ') %}
+                        {% if fullName and fullName != contact.displayName %}
+                            <p class="text-sm text-ink-muted truncate">{{ fullName }}</p>
+                        {% endif %}
+                        {% set phonetic = [contact.phoneticGivenName, contact.phoneticMiddleName, contact.phoneticFamilyName]|filter(v => v)|join(' ') %}
+                        {% if phonetic %}
+                            <p class="text-xs text-ink-faint truncate">{{ phonetic }}</p>
+                        {% endif %}
+                        {% if contact.jobTitle or contact.company or contact.department %}
                             <p class="text-sm text-ink-muted truncate">
-                                {{- [contact.jobTitle, contact.company]|filter(v => v)|join(' · ') -}}
+                                {{- [contact.jobTitle, contact.department, contact.company]|filter(v => v)|join(' · ') -}}
                             </p>
+                        {% endif %}
+                        {% if contact.officeLocation %}
+                            <p class="text-xs text-ink-faint truncate">{{ 'contacts.field.officeLocation'|trans }}: {{ contact.officeLocation }}</p>
                         {% endif %}
                         {% if contact.nickname %}
                             <p class="text-xs text-ink-faint">"{{ contact.nickname }}"</p>
@@ -94,7 +105,70 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
                                 </div>
                             </div>
                         {% endfor %}
-                        {% if contact.emails is empty and contact.phones is empty and contact.addresses is empty %}
+                        {% if contact.birthday %}
+                            <div class="flex items-start gap-2.5 min-w-0" data-contact-birthday>
+                                <i class="fa-solid fa-cake-candles w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ _self.date(contact.birthday) }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ 'contacts.field.birthday'|trans }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% for row in contact.dates %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-calendar-day w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ _self.date(row.date) }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.relations %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-user-group w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ row.name }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.urls %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-globe w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0">
+                                    {% if row.url matches '{^https?://}i' %}
+                                        <a href="{{ row.url }}" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline break-all">{{ row.url }}</a>
+                                    {% else %}
+                                        <span class="text-ink break-all">{{ row.url }}</span>
+                                    {% endif %}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.ims %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid {{ row.service == 'sip' ? 'fa-headset' : 'fa-comment' }} w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    <span class="break-all">{{ row.handle }}</span>
+                                    <span class="text-xs text-ink-faint ml-1.5">
+                                        {%- set svc = 'contacts.im_service.' ~ row.service -%}
+                                        {{ svc|trans != svc ? svc|trans : row.service }}{{ row.label != 'other' ? ' · ' ~ cm.labelText(row.label) }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.customFields %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-tag w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    <span class="break-words">{{ row.value }}</span>
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ row.label }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% if contact.emails is empty and contact.phones is empty and contact.addresses is empty
+                            and not contact.birthday and contact.dates is empty and contact.relations is empty
+                            and contact.urls is empty and contact.ims is empty and contact.customFields is empty %}
                             <p class="text-xs text-ink-faint">{{ 'contacts.no_details'|trans }}</p>
                         {% endif %}
                     </dl>
@@ -184,3 +258,13 @@ inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
         </div>
     </div>
 {% endblock %}
+
+{# A contact date for reading, in the language's order; the year when there is one. #}
+{% macro date(value) -%}
+    {%- set parts = value|split('-') -%}
+    {%- if value starts with '--' -%}
+        {{- 'contacts.date_no_year'|trans({'%day%': parts[3] * 1, '%month%': ('contacts.months.' ~ (parts[2] * 1))|trans}) -}}
+    {%- else -%}
+        {{- 'contacts.date_full'|trans({'%day%': parts[2] * 1, '%month%': ('contacts.months.' ~ (parts[1] * 1))|trans, '%year%': parts[0]}) -}}
+    {%- endif -%}
+{%- endmacro %}

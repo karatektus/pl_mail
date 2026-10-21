@@ -10,6 +10,8 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Entity\Mail\Account;
+use App\Service\Contacts\ContactPhoto;
+use App\Service\Contacts\ContactPhotoStore;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
@@ -142,6 +144,56 @@ final readonly class GraphContactsClient
         }
 
         return $decoded;
+    }
+
+    /**
+     * A contact's photo bytes, from `/contacts/{id}/photo/$value`; null when
+     * it has none (Graph answers 404 for that).
+     *
+     * @throws CalendarSyncException
+     */
+    public function photo(Account $account, string $contactId): ?ContactPhoto
+    {
+        $url = self::ME . '/contacts/' . rawurlencode($contactId) . '/photo/$value';
+
+        try {
+            $response = $this->httpClient->request('GET', $url, [
+                'auth_bearer' => $this->token($account),
+                'headers'     => ['Prefer' => 'IdType="ImmutableId"'],
+            ]);
+            $status = $response->getStatusCode();
+
+            if (404 === $status) {
+                return null;
+            }
+
+            if (200 !== $status) {
+                throw $this->translate($response, $status, 'reading a contact photo');
+            }
+
+            $bytes = $response->getContent(false);
+            $mime  = strtolower(trim(explode(';', $response->getHeaders(false)['content-type'][0] ?? '')[0]));
+        } catch (CalendarSyncException $e) {
+            throw $e;
+        } catch (HttpException $e) {
+            throw new CalendarSyncException('Microsoft Graph could not be reached while reading a contact photo.', 0, $e);
+        }
+
+        return '' === $bytes || strlen($bytes) > ContactPhotoStore::MAX_BYTES ? null : new ContactPhoto($bytes, $mime);
+    }
+
+    /**
+     * Replace a contact's photo. Graph has no way to remove one: the
+     * profilePhoto delete is for users and groups only, not Outlook contacts.
+     *
+     * @throws CalendarSyncException
+     */
+    public function putPhoto(Account $account, string $contactId, ContactPhoto $photo): void
+    {
+        $this->call($account, 'PUT', self::ME . '/contacts/' . rawurlencode($contactId) . '/photo/$value', [
+            'headers' => ['Content-Type' => $photo->mime],
+            'body'    => $photo->bytes,
+        ], 'saving a contact photo');
     }
 
     private function token(Account $account): string

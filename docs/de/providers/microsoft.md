@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:e614dcbcca86f9e3ab0c234c7b67d1c8bd990f06 -->
+<!-- translated-from: providers/microsoft.md sha1:78001ed7a250fe5ade2924e0a5e9f33e4f4f30df -->
 
 # Microsoft
 
@@ -102,10 +102,19 @@ Outlooks Kategorien werden zu Schlagwörtern, und eine Änderung in plMail wird 
 Siehe [Kontakte](../features/contacts.md).
 
 Outlooks Kontakt hat feste Plätze, wo plMail Listen hat: drei E-Mail-Adressen, zwei geschäftliche und
-zwei private Nummern und eine Mobilnummer, und je eine private, geschäftliche und sonstige Anschrift.
-plMail füllt diese Plätze, die primären zuerst. Ein Eintrag darüber hinaus — etwa eine vierte
-E-Mail-Adresse — wird nicht gesendet und bleibt nur in plMail, bis sich der Kontakt das nächste Mal in
-Outlook ändert; dann kommt Outlooks Fassung zurück.
+zwei private Nummern und eine Mobilnummer, je eine private, geschäftliche und sonstige Anschrift,
+einen Ehepartner (oder Partner), einen Vorgesetzten, eine Assistenz und die Namen der Kinder, eine
+Website (die geschäftliche, wenn es eine gibt), drei Chat-Adressen und einen Geburtstag. plMail
+füllt diese Plätze, die primären zuerst. Ein Eintrag darüber hinaus — eine vierte E-Mail-Adresse,
+ein zweiter Partner — wird nicht gesendet und bleibt nur in plMail, bis sich der Kontakt das nächste
+Mal in Outlook ändert; dann kommt Outlooks Fassung zurück. Für weitere Daten (einen Jahrestag), einen
+phonetischen zweiten Vornamen und eigene Felder hat Outlook gar keinen Platz; sie bleiben in plMail.
+Seine Chat-Adressen tragen keinen Dienst: Eine SIP-Adresse kommt als SIP zurück, jede andere als
+„Andere“.
+
+Fotos gehen in beide Richtungen, mit einer Ausnahme: Microsoft Graph kann das Foto eines
+Outlook-Kontakts ersetzen, aber nicht entfernen, also bleibt ein in plMail entferntes Foto in
+Outlook.
 
 Ein Konto, das verbunden wurde, bevor plMail nach Kontakten gefragt hat, hält ein Token ohne die
 Berechtigung. Mail und Kalender laufen weiter, und **Einstellungen → Zustand der Konten** zeigt einen Hinweis,

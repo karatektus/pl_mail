@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:89ee15df6a2bff2656d0d497f5c811db9badb29c -->
+<!-- translated-from: providers/carddav.md sha1:d9aba3d3312b94ce31019b8353e4a96a13b79a56 -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -87,15 +87,20 @@ Synchronisieren hindern. Jeder andere Fehler — der Server nicht erreichbar, se
 das Passwort abgelehnt — lässt die Änderung ausstehend, und sie wird bei einer späteren
 Synchronisierung erneut gesendet.
 
-**Was plMail nicht anzeigt, rührt es nicht an.** Ein Kontakt hat hier Namen, einen Spitznamen, Firma
-und Position, E-Mail-Adressen, Telefonnummern und Postanschriften mit ihren Bezeichnungen, Notizen
-und Schlagwörter (die Kategorien der Karte). Eine Karte trägt viel mehr, etwa einen Geburtstag oder
-Eigenschaften, mit denen ein Handy sie an eine App bindet, und all das bleibt erhalten. plMail
+**Was plMail nicht anzeigt, rührt es nicht an.** Ein Kontakt hat hier jedes Feld, das unter
+[Kontakte](../features/contacts.md#ein-kontakt) steht, und eine Karte kann mehr tragen, etwa
+Eigenschaften, mit denen ein Handy sie an eine App bindet. All das bleibt erhalten. plMail
 behält die vCard, die der Server geschickt hat, und wendet eine Änderung auf sie an, wobei nur die
 geänderten Eigenschaften angefasst werden. Es baut die Karte nicht aus seinen eigenen Feldern neu.
 Eine Adresse oder Nummer, die auf der Karte bleibt, behält ihren Typ (Arbeit, privat), ihre
-Gruppierung und die Schreibweise des Servers. Ein Foto auf der Karte wird hier angezeigt; ein hier
-hochgeladenes Foto geht nicht an den Server.
+Gruppierung und die Schreibweise des Servers.
+
+Die Felder werden in jeder Schreibweise gelesen, die gängige Programme schreiben — Apples gruppierte
+`X-ABDATE`, `X-ABRELATEDNAMES` und `X-ABLabel`, vCard 4s `ANNIVERSARY` und `RELATED`, `IMPP` und die
+ältere `X-JABBER`-Familie, Apples 1604 für einen Geburtstag ohne Jahr —, und eine hier geänderte
+Liste wird so geschrieben, wie die meisten sie lesen. Das Foto geht in beide Richtungen: Ein hier
+hochgeladenes oder entferntes ersetzt das der Karte, und eines, das hier nicht geändert wurde, bleibt
+genau so auf der Karte.
 
 **Einen Kontakt zu löschen löscht seine Karte.** Ein Kontakt, den du hier in den Papierkorb legst,
 wird bei der nächsten Synchronisierung auf dem Server gelöscht und bleibt im Papierkorb als einer,

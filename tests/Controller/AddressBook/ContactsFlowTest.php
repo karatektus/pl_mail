@@ -285,6 +285,7 @@ final class ContactsFlowTest extends WebTestCase
                 ['value' => 'ada@king.example', 'label' => 'work', 'primary' => '1'],
             ],
             'phones'      => [['value' => '+44 20 7946 0000', 'label' => 'mobile']],
+            'birthday'    => ['day' => '10', 'month' => '12', 'year' => '1815'],
         ]);
 
         self::assertResponseRedirects('/contacts/' . $card->id);
@@ -299,6 +300,77 @@ final class ContactsFlowTest extends WebTestCase
         self::assertStringContainsString('BDAY:1815-12-10', (string) $saved->vcard, 'the card is patched when it is pushed, not rebuilt now');
         self::assertContains((int) $book->id, $this->queuedPushes());
         self::assertSame([], $this->requests, 'nothing is sent inline');
+    }
+
+    public function testTheEditorShowsAndSavesEveryField(): void
+    {
+        $book = $this->book();
+        $card = $this->card($book, 'ada', 'Ada Lovelace', 'ada@example.com', extra: "BDAY:1815-12-10\r\nitem1.X-ABRELATEDNAMES:Mary\r\nitem1.X-ABLabel:Godmother\r\n");
+
+        $crawler = $this->client->request('GET', '/contacts/' . $card->id . '/edit');
+
+        self::assertSame('10', $crawler->filter('input[name="birthday[day]"]')->attr('value'));
+        self::assertSame('1815', $crawler->filter('input[name="birthday[year]"]')->attr('value'));
+        self::assertSame('Mary', $crawler->filter('input[name="relations[0][name]"]')->attr('value'));
+        self::assertSame('Godmother', $crawler->filter('select[name="relations[0][label]"] option[selected]')->attr('value'), 'a custom label is offered, so it survives the save');
+
+        $this->client->request('POST', '/contacts/' . $card->id, [
+            '_token'         => $crawler->filter('input[name="_token"]')->first()->attr('value'),
+            'displayName'    => 'Ada Lovelace',
+            'middleName'     => 'King',
+            'department'     => 'Mathematics',
+            'birthday'       => ['day' => '10', 'month' => '12', 'year' => ''],
+            'dates'          => [['label' => 'anniversary', 'day' => '8', 'month' => '7', 'year' => '1835'], ['label' => 'other', 'day' => '', 'month' => '', 'year' => '']],
+            'relations'      => [['label' => 'Godmother', 'name' => 'Mary'], ['label' => 'spouse', 'name' => 'William']],
+            'urls'           => [['label' => 'blog', 'url' => 'https://ada.example']],
+            'ims'            => [['service' => 'xmpp', 'handle' => 'ada@jabber.example', 'label' => 'home']],
+            'customFields'   => [['label' => 'Engine', 'value' => 'Analytical']],
+        ]);
+
+        self::assertResponseRedirects('/contacts/' . $card->id);
+
+        $this->em->clear();
+        $saved = $this->em->find(Contact::class, $card->id);
+
+        self::assertSame('King', $saved->middleName);
+        self::assertSame('Mathematics', $saved->department);
+        self::assertSame('--12-10', $saved->birthday, 'no year given, none kept');
+        self::assertSame([['label' => 'anniversary', 'date' => '1835-07-08']], $saved->dates, 'an empty date row is dropped');
+        self::assertSame([['label' => 'Godmother', 'name' => 'Mary'], ['label' => 'spouse', 'name' => 'William']], $saved->relations);
+        self::assertSame([['service' => 'xmpp', 'handle' => 'ada@jabber.example', 'label' => 'home']], $saved->ims);
+        self::assertSame(SyncState::PendingUpdate, $saved->syncState);
+
+        $page = $this->client->request('GET', '/contacts/' . $card->id);
+
+        self::assertStringContainsString('William', $page->text());
+        self::assertStringContainsString('ada@jabber.example', $page->text());
+        self::assertStringContainsString('Analytical', $page->text());
+    }
+
+    public function testAPhotoCanBeRemovedAndTheRemovalGoesToTheServer(): void
+    {
+        $book            = $this->book();
+        $card            = $this->card($book, 'ada', 'Ada Lovelace', 'ada@example.com');
+        $card->photoPath = 'contacts/0/pulled.jpg';
+        static::getContainer()->get(ContactSyncTracker::class)->untracked(fn () => $this->em->flush());
+
+        $crawler = $this->client->request('GET', '/contacts/' . $card->id . '/edit');
+        $form    = $crawler->filter('form[action$="/photo/remove"]');
+
+        self::assertCount(1, $form);
+
+        $this->client->request('POST', '/contacts/' . $card->id . '/photo/remove', [
+            '_token' => $form->filter('input[name="_token"]')->attr('value'),
+        ]);
+
+        self::assertResponseRedirects('/contacts/' . $card->id . '/edit');
+
+        $this->em->clear();
+        $saved = $this->em->find(Contact::class, $card->id);
+
+        self::assertNull($saved->photoPath);
+        self::assertTrue($saved->photoDirty, 'the push removes it at the server too');
+        self::assertSame(SyncState::PendingUpdate, $saved->syncState);
     }
 
     public function testACreatedContactLandsInTheChosenBookAsAPendingCreate(): void

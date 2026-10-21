@@ -28,10 +28,11 @@ use Symfony\Component\Uid\Uuid;
  * **Rows and the raw card, both.** The page, JMAP and autocomplete read the
  * rows — names, emails, phones, addresses — so a synced contact and a local one
  * look and search the same. A synced contact also keeps the card exactly as
- * the server sent it in $vcard. A vCard carries far more than plMail has
- * fields for (birthdays, photos, IM handles, a phone's own X- properties), and
- * rebuilding the card from the rows on every edit would strip all of it from
- * the person's phone the first time they fixed a typo here. So an edit patches
+ * the server sent it in $vcard. A vCard can carry more than plMail has
+ * fields for (a phone's own X- properties, a sound, a key), and
+ * rebuilding the card from the rows on every edit would strip what plMail
+ * does not model from the person's phone the first time they fixed a typo
+ * here. So an edit patches
  * only what the rows model into the stored card (VCardMapper::write()), and the
  * rest goes back to the server as it came.
  *
@@ -105,13 +106,71 @@ class Contact
     public ?string $familyName = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    public ?string $namePrefix = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $middleName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $nameSuffix = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $phoneticGivenName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $phoneticMiddleName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $phoneticFamilyName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
     public ?string $nickname = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $company = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    public ?string $phoneticCompany = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $department = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
     public ?string $jobTitle = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $officeLocation = null;
+
+    /** `YYYY-MM-DD`, or `--MM-DD` for a birthday without a year; see ContactDate. */
+    #[ORM\Column(length: 10, nullable: true)]
+    public ?string $birthday = null;
+
+    /*
+     * The lists below are JSON, not rows: nothing searches them, and each is
+     * read and written whole. Labels are free text — the known ones
+     * (ContactFields) are translated, any other (a provider's custom label)
+     * is shown as typed and goes back as it came.
+     */
+
+    /** @var list<array{label: string, date: string}> anniversaries and other dates; the birthday is $birthday */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $dates = [];
+
+    /** @var list<array{label: string, name: string}> people by name (spouse, child, manager, …) */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $relations = [];
+
+    /** @var list<array{label: string, url: string}> */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $urls = [];
+
+    /** @var list<array{service: string, handle: string, label: string}> chat and SIP handles */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $ims = [];
+
+    /** @var list<array{label: string, value: string}> */
+    #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+    public array $customFields = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $notes = null;
@@ -123,6 +182,23 @@ class Contact
     /** Relative path under var/contacts, or null when no photo. */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $photoPath = null;
+
+    /**
+     * The photo was changed here (uploaded or removed) and the server does
+     * not have it yet. Set by ContactSyncTracker, cleared by the push that
+     * sends it; only ever true for a synced contact.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $photoDirty = false;
+
+    /**
+     * What the server's photo was when it was last read — a hash of a
+     * vCard's bytes, Google's photo URL — so a pull that brings the same
+     * photo does not store it again. Null when the server says nothing that
+     * identifies it (Outlook) or there is none.
+     */
+    #[ORM\Column(length: 2048, nullable: true)]
+    public ?string $photoVersion = null;
 
     /** manual | import:vcf | import:csv */
     #[ORM\Column(length: 32)]

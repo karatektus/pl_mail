@@ -121,9 +121,11 @@ calendar box ticked."*
 
 The contacts scope rides the same grant, for the same reasons. A Google account connected to plMail
 brings its contacts with it: its address book appears under **Contacts** beside plMail's own, with
-Google's contact groups as tags, and an edit made in plMail is written back. Only the fields plMail
-shows are sent, so a birthday or a custom field on Google's side is left as it is. Photos are not
-sent. See [Contacts](../features/contacts.md).
+Google's contact groups as tags, and an edit made in plMail is written back — names, phonetic names,
+organisation, birthday and other dates, relations, websites, chat and SIP addresses, custom fields
+and the photo, as well as addresses and numbers — and from Google to the phones that sync with it.
+Only the fields plMail shows are sent, so what Google holds beyond them (occupations, interests, an
+organisation's symbol) is left as it is. See [Contacts](../features/contacts.md).
 
 An account connected **before** plMail asked for contacts holds a grant without the scope. Nothing
 is wrong with it: mail and calendars carry on, and **Settings → Account health** shows a notice, *Connect

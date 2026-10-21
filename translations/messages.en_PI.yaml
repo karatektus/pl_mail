@@ -4403,9 +4403,14 @@ whats_new:
     title: 'What''s new aboard'
 contacts:
     add_address: 'Add port'
+    add_custom: 'Add a field, matey'
+    add_date: 'Add a date'
     add_email: 'Add bottle address'
+    add_im: 'Add a parrot address'
     add_phone: "Add speakin' tube"
+    add_relation: 'Add a shipmate'
     add_to_address_book: 'Sign on to crew'
+    add_url: 'Add a port o'' call'
     back: Back
     book_all: 'Every hold'
     book_local: 'Kept aboard'
@@ -4417,6 +4422,11 @@ contacts:
     count: '{0}No shipmates|{1}1 shipmate|]1,Inf[ %count% shipmates'
     country: Land
     created: 'Shipmate signed aboard.'
+    custom_label_placeholder: 'Field name'
+    custom_value_placeholder: 'Booty'
+    date_full: '%month% %day%, %year%'
+    date_no_year: '%month% %day%'
+    day: 'Day'
     delete: "Make 'em walk the plank"
     delete_confirm: 'Send %name% to Davy Jones? They sit in the brig 90 days afore they be gone for good.'
     deleted_contact: '(shipmate gone)'
@@ -4429,8 +4439,37 @@ contacts:
     empty: 'No shipmates yet. Sign on yer first, or haul some in from a vCard or CSV file.'
     empty_search: 'No shipmate answers to that.'
     export_vcf: 'Send off as vCard'
-    family_name: 'Family name'
-    given_name: 'First name'
+    field:
+        birthday: 'Day o'' birth'
+        company: 'Ship'
+        department: 'Deck'
+        familyName: 'Last name'
+        givenName: 'First name'
+        jobTitle: 'Rank'
+        middleName: 'Middle name'
+        namePrefix: 'Title'
+        nameSuffix: 'Suffix'
+        nickname: 'Pirate name'
+        officeLocation: 'Cabin'
+        phoneticCompany: 'Ship (as it be spoken)'
+        phoneticFamilyName: 'Last name (as it be spoken)'
+        phoneticGivenName: 'First name (as it be spoken)'
+        phoneticMiddleName: 'Middle name (as it be spoken)'
+    im_placeholder: 'Handle or address'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Other'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
     import: 'Haul in'
     import_bad_format: 'Only .vcf/.vcard and .csv files be hauled in.'
     import_choose: 'Pick file'
@@ -4447,13 +4486,33 @@ contacts:
     import_uploading: "Hoistin'…"
     imported: 'Hauled in %count% shipmates.'
     in_address_book: 'In yer crew'
-    job_title: Rank
     keep_this: 'Keep this one'
     label: Label
     label_home: 'Home port'
     label_mobile: 'Spyglass line'
     label_other: Other
     label_work: Ship
+    labels:
+        anniversary: 'Anniversary'
+        assistant: 'Cabin boy'
+        blog: 'Ship''s log'
+        brother: 'Brother'
+        child: 'Wee one'
+        father: 'Father'
+        friend: 'Matey'
+        home: 'Home port'
+        manager: 'Captain'
+        mobile: 'Mobile'
+        mother: 'Mother'
+        other: 'Other'
+        parent: 'Parent'
+        partner: 'First mate'
+        profile: 'Profile'
+        relative: 'Kin'
+        sibling: 'Sibling'
+        sister: 'Sister'
+        spouse: 'Spouse'
+        work: 'Ship'
     merge: 'Lash together'
     merge_pick_keep: 'Pick which shipmate stays aboard first.'
     merge_read_only: 'A shipmate from a read-only book cannot be lashed together.'
@@ -4462,10 +4521,23 @@ contacts:
     merge_undone: 'Lashing undone.'
     merged: 'Shipmates lashed together. Ye can undo it below.'
     merged_into: 'Lashed %count% into %name%'
+    month: 'Month'
+    months:
+        1: 'January'
+        2: 'February'
+        3: 'March'
+        4: 'April'
+        5: 'May'
+        6: 'June'
+        7: 'July'
+        8: 'August'
+        9: 'September'
+        10: 'October'
+        11: 'November'
+        12: 'December'
     nav: Shipmates
     new: 'New shipmate'
     next: Ahead
-    nickname: 'Pirate name'
     no_details: 'No particulars yet.'
     no_subject: '(no subject)'
     notes: Scribblings
@@ -4478,9 +4550,11 @@ contacts:
         toggle_open: 'Muster the shipmates beside the post'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
+    phonetic: 'As it be spoken'
     photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
-    photo_hint_synced: 'JPG, PNG or WebP, up to 5 MB. Hung here only: the portrait stays off the server.'
     photo_invalid: "That portrait won't hang. JPG, PNG or WebP up to 5 MB."
+    photo_remove: 'Scuttle the portrait'
+    photo_removed: 'Portrait scuttled.'
     photo_upload: 'Hang a portrait'
     photo_uploaded: 'Portrait hung.'
     postcode: Postcode
@@ -4497,6 +4571,7 @@ contacts:
     rel_partner: Partner
     rel_related: Kin
     related: 'Kin and crew'
+    relation_placeholder: 'Name'
     remove: 'Toss overboard'
     save: 'Stow it'
     save_to: 'Stow in'
@@ -4504,11 +4579,17 @@ contacts:
     search: 'Search the crew'
     search_placeholder: 'Search name, company or bottle address…'
     section_addresses: Ports
+    section_custom: 'Yer own fields'
+    section_dates: 'Dates'
     section_details: Particulars
     section_emails: 'Bottle addresses'
+    section_ims: 'Parrots'
     section_name: Name
     section_notes: Scribblings
     section_phones: "Speakin' tubes"
+    section_relations: 'Crew'
+    section_urls: 'Ports o'' call'
+    section_work: 'Ship'
     street: Street
     synced_read_only: 'Look but never touch: from %book% aboard %server%'
     synced_with: 'Synced with %book% aboard %server%'
@@ -4518,5 +4599,7 @@ contacts:
     title: Shipmates
     trashed: 'Shipmate sent to the brig.'
     updated: 'Shipmate stowed.'
+    url_placeholder: 'https://'
     validation:
         name_required: 'Give the shipmate a name.'
+    year_optional: 'Year (if ye know it)'

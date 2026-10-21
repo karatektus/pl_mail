@@ -23,6 +23,9 @@ use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use App\Service\Contacts\ContactPhotoStore;
+use App\Service\Contacts\ParsedContact;
+use App\Domain\DTO\AddressBook\RemoteCard;
 
 /**
  * A Google account's contacts through the People API, against scripted
@@ -37,7 +40,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 final class GoogleContactsDriverTest extends TestCase
 {
-    /** @var list<array{method: string, url: string, body: string}> */
+    /** @var list<array{method: string, url: string, body: string, headers: list<string>}> */
     private array $requests = [];
 
     public function testItHandlesGoogleAccountsAndOffersOneBook(): void
@@ -170,7 +173,96 @@ final class GoogleContactsDriverTest extends TestCase
         self::assertSame('contactGroups/starred', $body['memberships'][0]['contactGroupMembership']['contactGroupResourceName'], 'Starred is kept, not taken for a tag');
         self::assertSame([['value' => '+44 20 7946 0000', 'type' => 'mobile']], $body['phoneNumbers']);
         self::assertSame([], $body['biographies'], 'an empty field is sent empty, so a value removed here is removed there');
-        self::assertArrayNotHasKey('birthdays', $body, 'what plMail does not model is Google\'s to keep');
+        self::assertSame([], $body['birthdays'], 'a modelled field goes out even when empty');
+        self::assertStringNotContainsString('occupations', GoogleContactMapper::UPDATE_FIELDS, 'what plMail does not model is Google\'s to keep');
+        self::assertArrayNotHasKey('occupations', $body);
+    }
+
+    public function testAPhotoChangedHereIsSentAfterTheContactAndItsEtagIsKept(): void
+    {
+        $driver = $this->driver([
+            $this->groupList(),
+            $this->json($this->person('c1', 'Ada King', 'ada@example.com')),
+            $this->json(['person' => ['resourceName' => 'people/c1', 'metadata' => ['sources' => [['type' => 'CONTACT', 'id' => 'c1', 'etag' => '"src-after-photo"']]]]]),
+        ]);
+
+        $contact             = $this->contact('Ada King', 'ada@example.com');
+        $contact->href           = 'people/c1';
+        $contact->etag           = '"src-c1"';
+        $contact->photoDirty     = true;
+        $contact->remoteResource = $this->sources();
+        $contact->photoPath      = $this->storedPhoto('jpeg bytes');
+
+        $written = $driver->put($this->book(), $contact);
+
+        self::assertSame('PATCH', $this->requests[2]['method']);
+        self::assertStringContainsString('/people/c1:updateContactPhoto', $this->requests[2]['url']);
+        self::assertSame(base64_encode('jpeg bytes'), json_decode($this->requests[2]['body'], true)['photoBytes']);
+        self::assertSame('"src-after-photo"', $written->etag, 'the photo changed the etag; the next update must carry the new one');
+    }
+
+    public function testAPhotoRemovedHereIsRemovedAtGoogle(): void
+    {
+        $driver = $this->driver([
+            $this->groupList(),
+            $this->json($this->person('c1', 'Ada King', 'ada@example.com')),
+            $this->json(['person' => ['resourceName' => 'people/c1']]),
+        ]);
+
+        $contact             = $this->contact('Ada King', 'ada@example.com');
+        $contact->href           = 'people/c1';
+        $contact->photoDirty     = true;
+        $contact->remoteResource = $this->sources();
+
+        $driver->put($this->book(), $contact);
+
+        self::assertSame('DELETE', $this->requests[2]['method']);
+        self::assertStringContainsString('/people/c1:deleteContactPhoto', $this->requests[2]['url']);
+    }
+
+    public function testAnUnchangedPhotoIsNotSent(): void
+    {
+        $driver = $this->driver([$this->groupList(), $this->json($this->person('c1', 'Ada King', 'ada@example.com'))]);
+
+        $contact            = $this->contact('Ada King', 'ada@example.com');
+        $contact->href           = 'people/c1';
+        $contact->photoPath      = $this->storedPhoto('jpeg bytes');
+        $contact->remoteResource = $this->sources();
+
+        $driver->put($this->book(), $contact);
+
+        self::assertCount(2, $this->requests);
+    }
+
+    public function testAPhotoIsReadFromGooglesImageHostAtTheSizeKeptAndWithoutTheToken(): void
+    {
+        $driver = $this->driver([new MockResponse('png bytes', ['response_headers' => ['content-type' => 'image/png']])]);
+        $parsed = new ParsedContact();
+
+        $parsed->photoVersion = 'https://lh3.googleusercontent.com/abc=s100';
+
+        $photo = $driver->photo($this->book(), RemoteCard::parsed('people/c1', null, $parsed));
+
+        self::assertSame('png bytes', $photo?->bytes);
+        self::assertSame('image/png', $photo->mime);
+        self::assertSame('https://lh3.googleusercontent.com/abc=s512', $this->requests[0]['url']);
+        self::assertSame([], array_filter($this->requests[0]['headers'] ?? [], static fn (string $h): bool => str_starts_with(strtolower($h), 'authorization')));
+    }
+
+    public function testAPhotoAddressAnywhereElseIsRefusedUnasked(): void
+    {
+        $driver = $this->driver([]);
+        $parsed = new ParsedContact();
+
+        $parsed->photoVersion = 'https://attacker.example/x.jpg';
+
+        try {
+            $driver->photo($this->book(), RemoteCard::parsed('people/c1', null, $parsed));
+            self::fail('expected a refusal');
+        } catch (CalendarSyncPermanentException) {
+        }
+
+        self::assertSame([], $this->requests);
     }
 
     public function testAStaleEtagIsAConflict(): void
@@ -235,7 +327,7 @@ final class GoogleContactsDriverTest extends TestCase
     {
         $this->requests = [];
         $http           = new MockHttpClient(function (string $method, string $url, array $options) use (&$responses): MockResponse {
-            $this->requests[] = ['method' => $method, 'url' => $url, 'body' => (string) ($options['body'] ?? '')];
+            $this->requests[] = ['method' => $method, 'url' => $url, 'body' => (string) ($options['body'] ?? ''), 'headers' => array_values(array_map(strval(...), $options['headers'] ?? []))];
 
             return array_shift($responses) ?? self::fail('an unscripted request: ' . $method . ' ' . $url);
         });
@@ -243,7 +335,7 @@ final class GoogleContactsDriverTest extends TestCase
         $tokens = $this->createStub(OAuthTokenManager::class);
         $tokens->method('getValidAccessToken')->willReturn('test-token');
 
-        return new GoogleContactsDriver(new GooglePeopleClient($http, $tokens), new GoogleContactMapper());
+        return new GoogleContactsDriver(new GooglePeopleClient($http, $tokens), new GoogleContactMapper(), new ContactPhotoStore(sys_get_temp_dir()));
     }
 
     private function groupList(): MockResponse
@@ -301,6 +393,26 @@ final class GoogleContactsDriverTest extends TestCase
         $account = $this->account();
 
         return new AddressBook($account->usr ?? new User(), $account, GoogleContactsDriver::BOOK, GoogleContactsDriver::BOOK_NAME);
+    }
+
+    /** What the last read kept, so a write needs no request for the sources. */
+    private function sources(): string
+    {
+        return (string) json_encode(['sources' => [['type' => 'CONTACT', 'id' => 'c1', 'etag' => '"src-c1"']]]);
+    }
+
+    /** A photo where ContactPhotoStore(sys_get_temp_dir()) reads it; the path Contact::$photoPath holds. */
+    private function storedPhoto(string $bytes): string
+    {
+        $dir = sys_get_temp_dir() . '/var/contacts/google-test';
+
+        if (false === is_dir($dir)) {
+            mkdir($dir, 0o777, true);
+        }
+
+        file_put_contents($dir . '/photo.jpg', $bytes);
+
+        return 'contacts/google-test/photo.jpg';
     }
 
     private function contact(string $name, string $email): Contact

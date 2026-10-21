@@ -1,9 +1,9 @@
-<!-- translated-from: features/contacts.md sha1:5e6b33f10c290f0ba0ec377b5e6c11247be24cc7 -->
+<!-- translated-from: features/contacts.md sha1:206a1884cef85ac08451ee963e58a8b427ea620d -->
 
 # Kontakte
 
 plMail führt ein Adressbuch: die Menschen, denen du schreibst, mit ihren Adressen, Telefonnummern,
-Postanschriften, einem Foto und Notizen. Es ist eine Liste, egal wo ein Kontakt liegt. Manche
+Postanschriften, Geburtstagen, einem Foto und Notizen. Es ist eine Liste, egal wo ein Kontakt liegt. Manche
 gehören nur plMail und gibt es nur hier. Andere kommen aus einem Adressbuch auf einem Server, und
 Änderungen gehen in beide Richtungen:
 
@@ -48,14 +48,33 @@ zu gehen.
 Die Seite eines Kontakts zeigt seine Angaben, seine Notizen, verwandte Kontakte und
 **Referenz-E-Mails**: jede nicht gelöschte Nachricht an ihn oder von ihm, in jedem Ordner.
 
-**Neuer Kontakt** fragt nach einem Namen; alles andere ist freiwillig. Hast du ein
+**Neuer Kontakt** fragt nach einem Namen; alles andere ist freiwillig. Ein Kontakt hat:
+
+- seinen Namen in Teilen (Anrede/Titel, Vor-, zweiter Vor- und Nachname, Namenszusatz), einen
+  Spitznamen und wie die Namen gesprochen werden (**Phonetische Schreibweise**, für Namen, die ein
+  Handy anders sortieren oder vorlesen soll);
+- Firma, Abteilung, Position und Büro;
+- E-Mail-Adressen, Telefonnummern und Postanschriften, jede mit Bezeichnung und je eine als primär
+  markiert;
+- einen Geburtstag und weitere Daten (etwa einen Jahrestag) — das Jahr darf fehlen;
+- **Personen**: die Namen von Ehepartner, Kindern, Vorgesetzten, Assistenz und so weiter;
+- Websites, Chat-Adressen (SIP, XMPP, Skype, Teams, Matrix und andere) und **eigene Felder** mit
+  selbst gewählten Namen;
+- Notizen, Schlagwörter und ein Foto.
+
+Eine Bezeichnung, die vom Server kommt und keine von plMails eigenen ist (eine auf dem Handy
+getippte „Patentante“), wird so gezeigt, wie sie ist, und bleibt beim Speichern erhalten.
+
+Hast du ein
 synchronisiertes Adressbuch, wählst du unter **Speichern in**, wohin der Kontakt kommt. **Nicht
 synchronisiert** behält ihn nur in plMail. Sonst geht er an den Server dieses Adressbuchs und von
 dort auf jedes Gerät, das es synchronisiert.
 
 Bearbeiten geht bei beiden Arten gleich. Bei einem synchronisierten Kontakt wird die Änderung hier
-sofort gespeichert und gleich danach an den Server geschickt. Was plMail nicht als Feld hat, etwa
-ein Geburtstag oder die eigenen Felder eines Handys, bleibt auf der Kopie des Servers unberührt. Wie
+sofort gespeichert und gleich danach an den Server geschickt, und von dort auf dein Handy. Was
+plMail nicht als Feld hat, etwa die Eigenschaften, mit denen ein Handy einen Kontakt an eine App
+bindet, bleibt auf der Kopie des Servers unberührt. Google und Outlook haben für manche Felder
+keinen Platz; siehe **Fallstricke**. Wie
 Änderungen und Konflikte behandelt werden, steht unter
 [CardDAV](../providers/carddav.md#synchronisation).
 
@@ -63,8 +82,10 @@ Einen Kontakt aus einem **schreibgeschützten** Adressbuch (einem geteilten Buch
 Firmenverzeichnis) kannst du lesen und anschreiben, aber hier nicht ändern oder löschen. Seine Seite
 sagt, woher er kommt.
 
-**Fotos** sind JPG, PNG oder WebP bis 5 MB. Ein Foto auf der Karte eines synchronisierten Kontakts
-wird hier angezeigt. Ein Foto, das du hier hochlädst, bleibt hier und geht nicht an den Server.
+**Fotos** sind JPG, PNG oder WebP bis 5 MB und werden mit höchstens 512 Pixeln an der längeren
+Seite gespeichert. Sie gehen in beide Richtungen: Ein Foto auf dem Server wird hier angezeigt, und
+ein Foto, das du hier hochlädst oder entfernst, geht an den Server. Das Papierkorb-Symbol neben
+**Foto hochladen** entfernt es.
 
 ## Löschen
 
@@ -91,9 +112,11 @@ schreibgeschützten Adressbuch lassen sich nicht zusammenführen.
 eine `.csv`-Datei. Du siehst zuerst eine Vorschau. Importierte Kontakte liegen nur in plMail, und
 danach landest du auf der Duplikate-Seite, um zusammenzuführen, was du schon hattest.
 
-**Export** lädt alle Kontakte als eine `.vcf`-Datei herunter. Ein synchronisierter Kontakt wird als
-Karte seines Servers exportiert, mit deinen Änderungen darin, sodass die Datei behält, wofür plMail
-kein Feld hat.
+**Export** lädt alle Kontakte als eine `.vcf`-Datei herunter, mit Fotos. Ein synchronisierter
+Kontakt wird als Karte seines Servers exportiert, mit deinen Änderungen darin, sodass die Datei
+behält, wofür plMail kein Feld hat. Der CSV-Export ist eine Übersicht für eine Tabelle — eine
+E-Mail-Adresse, eine Nummer und eine Website pro Kontakt — und lässt sich wieder importieren; um
+Kontakte vollständig umzuziehen, nimm vCard.
 
 ## Beim Lesen und Schreiben von E-Mails
 
@@ -122,4 +145,18 @@ Kontakte), und die Kontakte kommen mit der nächsten Synchronisierung hierher.
 **Ein Kontakt kann nicht zwischen Adressbüchern wandern**, auch nicht aus plMail in ein
 synchronisiertes. Lege ihn am anderen Ort an und lösche den alten.
 
-**Ein hier hochgeladenes Foto geht nicht an den Server**, dein Handy zeigt es also nicht.
+**Google und Outlook fassen nicht alles.** Google behält jedes Feld oben. Outlook hat feste Plätze:
+drei E-Mail-Adressen, zwei geschäftliche und zwei private Nummern und eine Mobilnummer, je eine
+Anschrift jeder Art, je einen Ehepartner, Vorgesetzten und eine Assistenz und beliebig viele Kinder,
+eine Website, drei Chat-Adressen und einen Geburtstag. Weitere Daten, einen phonetischen zweiten
+Vornamen und eigene Felder kennt es nicht. Was nicht passt, wird nicht gesendet und bleibt nur in
+plMail, bis sich der Kontakt das nächste Mal in Outlook ändert (siehe
+[Microsoft](../providers/microsoft.md#kontakte-hängen-ebenfalls-an-derselben-anmeldung)).
+
+**Outlook behält ein hier entferntes Foto.** Microsofts Schnittstelle kann das Foto eines
+Outlook-Kontakts ersetzen, aber nicht entfernen; ein in plMail entferntes Foto kommt also zurück,
+sobald sich der Kontakt in Outlook ändert. Entferne es in Outlook.
+
+**Eigene Felder und das Büro gehören auf einem CardDAV-Server plMail.** vCard hat für beides keine
+Eigenschaft, also stehen sie unter plMails eigenen Namen auf der Karte (`X-PLMAIL-FIELD`,
+`X-PLMAIL-OFFICE`). Sie überstehen den Hin- und Rückweg, aber ein Handy zeigt sie nicht.

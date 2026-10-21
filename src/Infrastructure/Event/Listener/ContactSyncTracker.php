@@ -48,8 +48,12 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  *   pushed from the row, which is gone after this flush. The card's address is
  *   kept, and DeleteRemoteContactMessage deletes it once the flush is done.
  *
+ * **A new photo** (uploaded or removed here) is an edit like any other, and
+ * also sets Contact::$photoDirty, which tells the push to send the photo —
+ * it is a request of its own at Google and Outlook, made only when asked.
+ *
  * Bookkeeping is not an edit: the sync state, the server's href, etag and
- * card, the photo (not synced) and the timestamps are ignored, so the sync's
+ * card, the photo's flags and the timestamps are ignored, so the sync's
  * own writes do not make a contact pending again. The sync also runs inside
  * untracked(), because applying a pull does change real fields.
  *
@@ -81,7 +85,8 @@ final class ContactSyncTracker
         'vcard',
         'remoteResource',
         'syncState',
-        'photoPath',
+        'photoDirty',
+        'photoVersion',
         'source',
         'trashedAt',
     ];
@@ -177,6 +182,11 @@ final class ContactSyncTracker
 
                 if ([] !== array_diff(array_keys($changes), self::IGNORED)) {
                     $edited[spl_object_id($entity)] = $entity;
+                }
+
+                if (true === array_key_exists('photoPath', $changes) && true === $entity->isSynced() && false === $entity->photoDirty) {
+                    $entity->photoDirty = true;
+                    $this->recompute($uow, $em->getClassMetadata(Contact::class), $entity);
                 }
             } elseif (null !== ($contact = $this->ownerOf($entity))) {
                 $edited[spl_object_id($contact)] = $contact;

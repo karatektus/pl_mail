@@ -106,6 +106,29 @@ final class ContactPhotoStore
     }
 
     /**
+     * The stored photo at a Contact::$photoPath, for sending to a server or
+     * an export. Null for no path, a missing file, or a path that is not one
+     * of ours.
+     */
+    public function read(?string $relativePath): ?ContactPhoto
+    {
+        if (null === $relativePath || '' === $relativePath || str_contains($relativePath, '..')) {
+            return null;
+        }
+
+        $mime = array_search(strtolower((string) pathinfo($relativePath, \PATHINFO_EXTENSION)), self::ALLOWED_MIME, true);
+        $full = $this->projectDir . '/var/' . ltrim($relativePath, '/');
+
+        if (false === $mime || false === is_file($full)) {
+            return null;
+        }
+
+        $bytes = file_get_contents($full);
+
+        return false === $bytes || '' === $bytes ? null : new ContactPhoto($bytes, $mime);
+    }
+
+    /**
      * Deletes var/<relativePath> when it exists. Path traversal ('..') is
      * refused silently so purge paths cannot abort on a bad value.
      */

@@ -15,6 +15,7 @@ use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Repository\Contacts\ContactRepository;
+use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ContactManager;
 use App\Service\Contacts\ContactPhotoStore;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,9 +60,12 @@ final class ContactSetMethod implements JmapMethod
      * @var list<string>
      */
     private const array WRITABLE_KEYS = [
-        'displayName', 'givenName', 'familyName', 'nickname', 'company',
-        'jobTitle', 'notes', 'tags', 'source',
-        'emails', 'phones', 'addresses', 'photoBlobId',
+        'displayName', 'namePrefix', 'givenName', 'middleName', 'familyName', 'nameSuffix',
+        'phoneticGivenName', 'phoneticMiddleName', 'phoneticFamilyName', 'nickname',
+        'company', 'phoneticCompany', 'department', 'jobTitle', 'officeLocation',
+        'notes', 'birthday', 'tags', 'source',
+        'emails', 'phones', 'addresses', 'dates', 'relations', 'urls', 'ims', 'customFields',
+        'photoBlobId',
     ];
 
     /**
@@ -69,7 +73,21 @@ final class ContactSetMethod implements JmapMethod
      *
      * @var list<string>
      */
-    private const array SCALAR_KEYS = ['givenName', 'familyName', 'nickname', 'company', 'jobTitle', 'notes'];
+    private const array SCALAR_KEYS = ContactFields::SCALARS;
+
+    /**
+     * The labelled lists, each with the key a row must have. Replace-all,
+     * like emails: a present list is the whole list.
+     *
+     * @var array<string, list<string>>
+     */
+    private const array LIST_KEYS = [
+        'dates'        => ['label', 'date'],
+        'relations'    => ['label', 'name'],
+        'urls'         => ['label', 'url'],
+        'ims'          => ['service', 'handle', 'label'],
+        'customFields' => ['label', 'value'],
+    ];
 
     /**
      * @var list<string>
@@ -359,6 +377,8 @@ final class ContactSetMethod implements JmapMethod
             $data['tags'] = $this->requireStringList($properties['tags'], 'tags');
         }
 
+        $data += $this->fieldData($properties);
+
         $data['source'] = $this->requireSource($properties['source'] ?? 'manual');
 
         return $data;
@@ -391,6 +411,61 @@ final class ContactSetMethod implements JmapMethod
 
         if (array_key_exists('tags', $patch)) {
             $data['tags'] = $this->requireStringList($patch['tags'], 'tags');
+        }
+
+        return $data + $this->fieldData($patch);
+    }
+
+    /**
+     * The birthday and the labelled lists, checked the JMAP way — the wrong
+     * shape is refused, not dropped — and then cleaned by ContactManager.
+     *
+     * @param array<string,mixed> $properties
+     *
+     * @return array<string,mixed>
+     */
+    private function fieldData(array $properties): array
+    {
+        $data = [];
+
+        if (array_key_exists('birthday', $properties)) {
+            $birthday = $this->optionalString($properties['birthday'], 'birthday');
+
+            if (null !== $birthday && null === ContactFields::date($birthday)) {
+                throw new MethodException('invalidProperties', '"birthday" must be YYYY-MM-DD, or --MM-DD without a year.');
+            }
+
+            $data['birthday'] = $birthday;
+        }
+
+        foreach (self::LIST_KEYS as $list => $keys) {
+            if (false === array_key_exists($list, $properties)) {
+                continue;
+            }
+
+            $rows = $properties[$list];
+
+            if (false === is_array($rows) || false === array_is_list($rows)) {
+                throw new MethodException('invalidProperties', sprintf('"%s" must be an array.', $list));
+            }
+
+            foreach ($rows as $index => $row) {
+                if (false === is_array($row)) {
+                    throw new MethodException('invalidProperties', sprintf('"%s" entry %d must be an object.', $list, $index));
+                }
+
+                foreach ($keys as $key) {
+                    if (array_key_exists($key, $row) && false === is_string($row[$key])) {
+                        throw new MethodException('invalidProperties', sprintf('"%s" entry %d "%s" must be a string.', $list, $index, $key));
+                    }
+                }
+
+                if ('dates' === $list && null === ContactFields::date((string) ($row['date'] ?? ''))) {
+                    throw new MethodException('invalidProperties', sprintf('"dates" entry %d needs a "date" as YYYY-MM-DD or --MM-DD.', $index));
+                }
+            }
+
+            $data[$list] = $rows;
         }
 
         return $data;

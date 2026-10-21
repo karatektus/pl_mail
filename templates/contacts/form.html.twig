@@ -22,6 +22,23 @@ address books a contact can be saved to, besides plMail's own).
 {% set draftPhones = d ? (d.phones|default([])) : (contact ? contact.phones : []) %}
 {% set draftAddresses = d ? (d.addresses|default([])) : (contact ? contact.addresses : []) %}
 {% set tagsValue = d ? (d.tags|default('')) : (contact ? contact.tags|join(', ') : '') %}
+{# The labelled lists. A failed create's draft is not re-shown for these: it
+   only fails for a missing name, and the rows are quick to add again. #}
+{% set lists = {
+    dates:        contact ? contact.dates : [],
+    relations:    contact ? contact.relations : [],
+    urls:         contact ? contact.urls : [],
+    ims:          contact ? contact.ims : [],
+    customFields: contact ? contact.customFields : [],
+} %}
+{% set labels = {
+    dates:     ['anniversary', 'other'],
+    relations: ['spouse', 'partner', 'child', 'parent', 'mother', 'father', 'sibling', 'brother', 'sister', 'friend', 'relative', 'manager', 'assistant', 'other'],
+    urls:      ['home', 'work', 'blog', 'profile', 'other'],
+    ims:       ['home', 'work', 'other'],
+} %}
+{% set imServices = ['sip', 'xmpp', 'skype', 'teams', 'matrix', 'aim', 'msn', 'yahoo', 'icq', 'qq', 'googleTalk', 'other'] %}
+{% set selectCls = 'h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0' %}
 
 {% block contacts_content %}
 <form method="post" action="{{ postUrl }}" data-controller="contacts--form" class="flex flex-col h-full min-h-0">
@@ -68,26 +85,36 @@ address books a contact can be saved to, besides plMail's own).
                         <label class="{{ labelCls }}" for="f-displayName">{{ 'contacts.display_name'|trans }}</label>
                         <input id="f-displayName" name="displayName" required maxlength="255" value="{{ cm.field('displayName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
                     </div>
-                    <div>
-                        <label class="{{ labelCls }}" for="f-givenName">{{ 'contacts.given_name'|trans }}</label>
-                        <input id="f-givenName" name="givenName" maxlength="255" value="{{ cm.field('givenName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                    {% for key in ['namePrefix', 'givenName', 'middleName', 'familyName', 'nameSuffix', 'nickname'] %}
+                        <div>
+                            <label class="{{ labelCls }}" for="f-{{ key }}">{{ ('contacts.field.' ~ key)|trans }}</label>
+                            <input id="f-{{ key }}" name="{{ key }}" maxlength="255" value="{{ cm.field(key, d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                        </div>
+                    {% endfor %}
+                </div>
+                {% set hasPhonetic = contact and (contact.phoneticGivenName or contact.phoneticMiddleName or contact.phoneticFamilyName) %}
+                <details class="mt-3 group" {{ hasPhonetic ? 'open' }}>
+                    <summary class="text-xs font-medium text-ink-muted cursor-pointer select-none">{{ 'contacts.phonetic'|trans }}</summary>
+                    <div class="grid gap-3 @lg:grid-cols-3 mt-3">
+                        {% for key in ['phoneticGivenName', 'phoneticMiddleName', 'phoneticFamilyName'] %}
+                            <div>
+                                <label class="{{ labelCls }}" for="f-{{ key }}">{{ ('contacts.field.' ~ key)|trans }}</label>
+                                <input id="f-{{ key }}" name="{{ key }}" maxlength="255" value="{{ cm.field(key, d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                            </div>
+                        {% endfor %}
                     </div>
-                    <div>
-                        <label class="{{ labelCls }}" for="f-familyName">{{ 'contacts.family_name'|trans }}</label>
-                        <input id="f-familyName" name="familyName" maxlength="255" value="{{ cm.field('familyName', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
-                    </div>
-                    <div>
-                        <label class="{{ labelCls }}" for="f-nickname">{{ 'contacts.nickname'|trans }}</label>
-                        <input id="f-nickname" name="nickname" maxlength="255" value="{{ cm.field('nickname', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
-                    </div>
-                    <div>
-                        <label class="{{ labelCls }}" for="f-company">{{ 'contacts.company'|trans }}</label>
-                        <input id="f-company" name="company" maxlength="255" value="{{ cm.field('company', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
-                    </div>
-                    <div class="@lg:col-span-2">
-                        <label class="{{ labelCls }}" for="f-jobTitle">{{ 'contacts.job_title'|trans }}</label>
-                        <input id="f-jobTitle" name="jobTitle" maxlength="255" value="{{ cm.field('jobTitle', d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
-                    </div>
+                </details>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <h2 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_work'|trans }}</h2>
+                <div class="grid gap-3 @lg:grid-cols-2">
+                    {% for key in ['company', 'phoneticCompany', 'department', 'jobTitle', 'officeLocation'] %}
+                        <div class="{{ 'officeLocation' == key ? '@lg:col-span-2' }}">
+                            <label class="{{ labelCls }}" for="f-{{ key }}">{{ ('contacts.field.' ~ key)|trans }}</label>
+                            <input id="f-{{ key }}" name="{{ key }}" maxlength="255" value="{{ cm.field(key, d, contact) }}" class="{{ fieldCls }}" autocomplete="off">
+                        </div>
+                    {% endfor %}
                 </div>
             </section>
 
@@ -243,6 +270,74 @@ address books a contact can be saved to, besides plMail's own).
             </section>
 
             <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_dates'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addRow" data-contacts--form-list-param="dates">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_date'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex flex-wrap items-center gap-2" data-birthday>
+                        <span class="w-28 text-sm text-ink-muted shrink-0">{{ 'contacts.field.birthday'|trans }}</span>
+                        {{ cm.dateInputs('birthday', contact ? contact.birthday : null, fieldCls) }}
+                    </div>
+                    <div class="flex flex-col gap-2" data-list-rows="dates" data-next-index="{{ lists.dates|length }}">
+                        {% for row in lists.dates %}
+                            <div class="flex flex-wrap items-center gap-2" data-row>
+                                {{ cm.labelSelect('dates[' ~ loop.index0 ~ '][label]', labels.dates, row.label, selectCls ~ ' w-28') }}
+                                {{ cm.dateInputs('dates[' ~ loop.index0 ~ ']', row.date, fieldCls) }}
+                                {{ _self.removeButton(iconBtn) }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <template data-list-template="dates">
+                    <div class="flex flex-wrap items-center gap-2" data-row>
+                        {{ cm.labelSelect('dates[__INDEX__][label]', labels.dates, 'anniversary', selectCls ~ ' w-28') }}
+                        {{ cm.dateInputs('dates[__INDEX__]', null, fieldCls) }}
+                        {{ _self.removeButton(iconBtn) }}
+                    </div>
+                </template>
+            </section>
+
+            {{ _self.pairList('relations', 'name', 'contacts.section_relations', 'contacts.add_relation', 'contacts.relation_placeholder', 'text', lists.relations, labels.relations, cardCls, btnGhost, fieldCls, selectCls, iconBtn) }}
+            {{ _self.pairList('urls', 'url', 'contacts.section_urls', 'contacts.add_url', 'contacts.url_placeholder', 'url', lists.urls, labels.urls, cardCls, btnGhost, fieldCls, selectCls, iconBtn) }}
+
+            <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_ims'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addRow" data-contacts--form-list-param="ims">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_im'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2" data-list-rows="ims" data-next-index="{{ lists.ims|length }}">
+                    {% for row in lists.ims %}
+                        {{ _self.imRow(loop.index0, row, imServices, labels.ims, fieldCls, selectCls, iconBtn) }}
+                    {% endfor %}
+                </div>
+                <template data-list-template="ims">
+                    {{ _self.imRow('__INDEX__', {service: 'sip', handle: '', label: 'other'}, imServices, labels.ims, fieldCls, selectCls, iconBtn) }}
+                </template>
+            </section>
+
+            <section class="{{ cardCls }}">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'contacts.section_custom'|trans }}</h2>
+                    <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addRow" data-contacts--form-list-param="customFields">
+                        <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.add_custom'|trans }}
+                    </button>
+                </div>
+                <div class="flex flex-col gap-2" data-list-rows="customFields" data-next-index="{{ lists.customFields|length }}">
+                    {% for row in lists.customFields %}
+                        {{ _self.customRow(loop.index0, row, fieldCls, iconBtn) }}
+                    {% endfor %}
+                </div>
+                <template data-list-template="customFields">
+                    {{ _self.customRow('__INDEX__', {label: '', value: ''}, fieldCls, iconBtn) }}
+                </template>
+            </section>
+
+            <section class="{{ cardCls }}">
                 <h2 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_notes'|trans }}</h2>
                 <div class="flex flex-col gap-3">
                     <div>
@@ -271,8 +366,16 @@ address books a contact can be saved to, besides plMail's own).
                 <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="sr-only"
                        data-action="change->contacts--form#submitForm">
             </label>
-            <span class="text-xs text-ink-faint hidden @lg:inline">{{ (contact.addressBook ? 'contacts.photo_hint_synced' : 'contacts.photo_hint')|trans }}</span>
+            <span class="text-xs text-ink-faint hidden @lg:inline">{{ 'contacts.photo_hint'|trans }}</span>
         </form>
+        {% if contact.photoPath %}
+            <form method="post" action="{{ path('app_contacts_photo_remove', { id: contact.id }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('contacts_photo_' ~ contact.id) }}">
+                <button type="submit" class="{{ iconBtn }}" title="{{ 'contacts.photo_remove'|trans }}" aria-label="{{ 'contacts.photo_remove'|trans }}">
+                    <i class="fa-solid fa-trash-can text-xs" aria-hidden="true"></i>
+                </button>
+            </form>
+        {% endif %}
         <form method="post" action="{{ path('app_contacts_delete', { id: contact.id }) }}"
               data-turbo-confirm="{{ 'contacts.delete_confirm'|trans({'%name%': contact.displayName}) }}" class="ml-auto">
             <input type="hidden" name="_token" value="{{ csrf_token('contacts_delete_' ~ contact.id) }}">
@@ -283,3 +386,68 @@ address books a contact can be saved to, besides plMail's own).
     </div>
 {% endif %}
 {% endblock %}
+
+{% macro removeButton(iconBtn) %}
+    <button type="button" class="{{ iconBtn }}" data-action="click->contacts--form#removeRow" title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.remove'|trans }}">
+        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+    </button>
+{% endmacro %}
+
+{# A card of label + value rows: relations (name) and websites (url). #}
+{% macro pairList(list, key, title, addLabel, placeholder, type, rows, labels, cardCls, btnGhost, fieldCls, selectCls, iconBtn) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <section class="{{ cardCls }}">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-ink">{{ title|trans }}</h2>
+            <button type="button" class="{{ btnGhost }}" data-action="click->contacts--form#addRow" data-contacts--form-list-param="{{ list }}">
+                <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ addLabel|trans }}
+            </button>
+        </div>
+        <div class="flex flex-col gap-2" data-list-rows="{{ list }}" data-next-index="{{ rows|length }}">
+            {% for row in rows %}
+                <div class="flex items-center gap-2" data-row>
+                    {{ cm.labelSelect(list ~ '[' ~ loop.index0 ~ '][label]', labels, row.label, selectCls ~ ' w-32') }}
+                    <input name="{{ list }}[{{ loop.index0 }}][{{ key }}]" value="{{ attribute(row, key) }}" type="{{ type }}" maxlength="1024"
+                           placeholder="{{ placeholder|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                    {{ _self.removeButton(iconBtn) }}
+                </div>
+            {% endfor %}
+        </div>
+        <template data-list-template="{{ list }}">
+            <div class="flex items-center gap-2" data-row>
+                {{ cm.labelSelect(list ~ '[__INDEX__][label]', labels, labels|first, selectCls ~ ' w-32') }}
+                <input name="{{ list }}[__INDEX__][{{ key }}]" type="{{ type }}" maxlength="1024"
+                       placeholder="{{ placeholder|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+                {{ _self.removeButton(iconBtn) }}
+            </div>
+        </template>
+    </section>
+{% endmacro %}
+
+{% macro imRow(index, row, services, labels, fieldCls, selectCls, iconBtn) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex flex-wrap items-center gap-2" data-row>
+        <select name="ims[{{ index }}][service]" class="{{ selectCls }} w-32" aria-label="{{ 'contacts.im_service_label'|trans }}">
+            {% if row.service not in services %}
+                <option value="{{ row.service }}" selected>{{ row.service }}</option>
+            {% endif %}
+            {% for service in services %}
+                <option value="{{ service }}" {{ row.service == service ? 'selected' }}>{{ ('contacts.im_service.' ~ service)|trans }}</option>
+            {% endfor %}
+        </select>
+        <input name="ims[{{ index }}][handle]" value="{{ row.handle }}" maxlength="1024"
+               placeholder="{{ 'contacts.im_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-40" autocomplete="off">
+        {{ cm.labelSelect('ims[' ~ index ~ '][label]', labels, row.label, selectCls ~ ' w-28') }}
+        {{ _self.removeButton(iconBtn) }}
+    </div>
+{% endmacro %}
+
+{% macro customRow(index, row, fieldCls, iconBtn) %}
+    <div class="flex items-center gap-2" data-row>
+        <input name="customFields[{{ index }}][label]" value="{{ row.label }}" maxlength="1024"
+               placeholder="{{ 'contacts.custom_label_placeholder'|trans }}" aria-label="{{ 'contacts.label'|trans }}" class="{{ fieldCls }} w-40 shrink-0" autocomplete="off">
+        <input name="customFields[{{ index }}][value]" value="{{ row.value }}" maxlength="1024"
+               placeholder="{{ 'contacts.custom_value_placeholder'|trans }}" class="{{ fieldCls }} flex-1 min-w-0" autocomplete="off">
+        {{ _self.removeButton(iconBtn) }}
+    </div>
+{% endmacro %}

@@ -7,10 +7,12 @@ namespace App\Domain\Interface;
 use App\Domain\DTO\AddressBook\AddressBookChangeSet;
 use App\Domain\DTO\AddressBook\AddressBookSource;
 use App\Domain\DTO\AddressBook\RemoteAddressBook;
+use App\Domain\DTO\AddressBook\RemoteCard;
 use App\Domain\DTO\AddressBook\RemoteContactWrite;
 use App\Domain\Exception\CalendarSyncException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
+use App\Service\Contacts\ContactPhoto;
 
 /**
  * Talks to one kind of remote address book — CalendarSyncDriverInterface's
@@ -70,6 +72,20 @@ interface AddressBookDriverInterface
      * @throws CalendarSyncException
      */
     public function put(AddressBook $book, Contact $contact): RemoteContactWrite;
+
+    /**
+     * The photo of a pulled contact whose ParsedContact said $photoDeferred:
+     * a provider that serves photos apart from the contact (Google's photo
+     * URL, Graph's /photo/$value). Null when the contact has none. A driver
+     * that never defers answers null.
+     *
+     * Asked only when the photo's version changed (or the driver gives none),
+     * and only after the contact's own put() for a write: put() sends the
+     * photo itself when Contact::$photoDirty says so.
+     *
+     * @throws CalendarSyncException
+     */
+    public function photo(AddressBook $book, RemoteCard $card): ?ContactPhoto;
 
     /**
      * Delete one contact. Idempotent: one already gone is deleted.

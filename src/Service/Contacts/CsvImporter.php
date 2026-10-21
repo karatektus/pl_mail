@@ -7,10 +7,41 @@ namespace App\Service\Contacts;
 /**
  * Parses CSV contact exports into ParsedContact DTOs using a small header
  * alias map. First row is the header row (case-insensitive).
+ *
+ * The map also knows CsvExporter's own headers (`displayName`, `givenName`,
+ * … lower-cased), so plMail's export reads back in whole.
  */
 final class CsvImporter
 {
     private const array ALIASES = [
+        'displayname' => 'displayName',
+        'nameprefix' => 'namePrefix',
+        'prefix' => 'namePrefix',
+        'name prefix' => 'namePrefix',
+        'givenname' => 'givenName',
+        'middlename' => 'middleName',
+        'middle name' => 'middleName',
+        'additional name' => 'middleName',
+        'familyname' => 'familyName',
+        'namesuffix' => 'nameSuffix',
+        'suffix' => 'nameSuffix',
+        'name suffix' => 'nameSuffix',
+        'phoneticgivenname' => 'phoneticGivenName',
+        'phonetic first name' => 'phoneticGivenName',
+        'phoneticmiddlename' => 'phoneticMiddleName',
+        'phonetic middle name' => 'phoneticMiddleName',
+        'phoneticfamilyname' => 'phoneticFamilyName',
+        'phonetic last name' => 'phoneticFamilyName',
+        'phoneticcompany' => 'phoneticCompany',
+        'department' => 'department',
+        'jobtitle' => 'jobTitle',
+        'officelocation' => 'officeLocation',
+        'office' => 'officeLocation',
+        'office location' => 'officeLocation',
+        'birthday' => 'birthday',
+        'website' => 'website',
+        'web page' => 'website',
+        'url' => 'website',
         'name' => 'displayName',
         'full name' => 'displayName',
         'display name' => 'displayName',
@@ -67,7 +98,7 @@ final class CsvImporter
             if ('' === trim($line)) {
                 continue;
             }
-            $rows[] = str_getcsv($line);
+            $rows[] = str_getcsv($line, escape: '');
         }
         if ([] === $rows) {
             return [];
@@ -112,13 +143,11 @@ final class CsvImporter
             }
             switch ($target) {
                 case 'displayName':
-                case 'givenName':
-                case 'familyName':
-                case 'nickname':
-                case 'company':
-                case 'jobTitle':
-                case 'notes':
+                case 'birthday':
                     $dto->{$target} = $value;
+                    break;
+                case 'website':
+                    $dto->urls[] = ['label' => 'other', 'url' => $value];
                     break;
                 case 'email':
                     $dto->emails[] = ['email' => $value, 'label' => 'other'];
@@ -142,6 +171,9 @@ final class CsvImporter
                     $address[$target] = $value;
                     break;
                 default:
+                    if (in_array($target, ContactFields::SCALARS, true)) {
+                        $dto->{$target} = $value;
+                    }
                     break;
             }
         }

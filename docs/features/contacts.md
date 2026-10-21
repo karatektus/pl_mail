@@ -1,7 +1,7 @@
 # Contacts
 
 plMail keeps an address book: the people you write to, with their addresses, phone numbers, postal
-addresses, a photo and notes. It is one list, wherever a contact lives. Some are plMail's own and
+addresses, birthdays, a photo and notes. It is one list, wherever a contact lives. Some are plMail's own and
 exist only here. Others come from an address book on a server, and changes go both ways:
 
 - a **Google** or **Microsoft** mail account brings its contacts with it, on the same sign-in as its
@@ -40,20 +40,36 @@ sent to the server.
 The contact's page shows its details, its notes, related contacts, and **Reference emails**: every
 message to or from the contact that has not been deleted, in any folder.
 
-**New contact** asks for a name; everything else is optional. If you have a synced address book
+**New contact** asks for a name; everything else is optional. A contact holds:
+
+- its name in parts (prefix, first, middle and last name, suffix), a nickname, and how the names are
+  spoken (**Phonetic spelling**, for names a phone should sort or read out differently);
+- company, department, job title and office;
+- email addresses, phone numbers and postal addresses, each labelled and one of each marked primary;
+- a birthday and other dates (an anniversary, say) — the year can be left out;
+- **People**: the names of a spouse, children, a manager, an assistant and so on;
+- websites, chat addresses (SIP, XMPP, Skype, Teams, Matrix and others), and **custom fields** of
+  your own naming;
+- notes, tags and a photo.
+
+A label that came from the server and is not one of plMail's own (a "Godmother" typed on a phone)
+is shown as it is and kept when you save.
+ If you have a synced address book
 you can choose where the contact goes under **Save to**. **Not synced** keeps it in plMail only.
 Otherwise it goes to that address book's server and from there to every device that syncs it.
 
 Editing works the same for both kinds. For a synced contact, the edit is saved here at once and sent
-to the server straight after. Anything plMail has no field for, such as a birthday or a phone's own
-fields, stays on the server's copy untouched. See [CardDAV](../providers/carddav.md#sync) for how
+to the server straight after, and from there to your phone. Anything plMail has no field for, such
+as the properties a phone uses to link a contact to an app, stays on the server's copy untouched.
+Google and Outlook have no place for some fields; see **Things that bite**. See [CardDAV](../providers/carddav.md#sync) for how
 edits and conflicts are handled.
 
 A contact from a **read-only** address book (a shared book, a company directory) can be read and
 written to, but not changed or deleted here. Its page says where it comes from.
 
-**Photos** are JPG, PNG or WebP up to 5 MB. A photo on a synced contact's card is shown here. A
-photo you upload here stays here and is not sent to the server.
+**Photos** are JPG, PNG or WebP up to 5 MB, and kept at up to 512 pixels on the longer side. They go
+both ways: a photo on the server is shown here, and a photo uploaded or removed here is sent to the
+server. The bin icon beside **Upload photo** removes it.
 
 ## Deleting
 
@@ -77,8 +93,10 @@ from a read-only address book cannot be merged.
 a preview first. Imported contacts are plMail's own, and you land on the duplicates page afterwards
 to merge anything you already had.
 
-**Export** downloads every contact as one `.vcf` file. A synced contact is exported as its server's
-card with your edits in it, so the file keeps what plMail has no field for.
+**Export** downloads every contact as one `.vcf` file, photos included. A synced contact is exported
+as its server's card with your edits in it, so the file keeps what plMail has no field for. The CSV
+export is a summary for a spreadsheet — one email, one phone and one website per contact — and reads
+back in; use vCard to move contacts whole.
 
 ## While reading and writing mail
 
@@ -105,4 +123,17 @@ it on the server (in Nextcloud, under Contacts), and the contacts arrive here wi
 **A contact cannot move between address books**, or from plMail's own into a synced one. Create it
 in the other place and delete the old one.
 
-**A photo uploaded here is not sent to the server**, so your phone does not show it.
+**Google and Outlook cannot hold everything.** Google keeps every field above. Outlook has fixed
+places: three email addresses, two business and two home numbers and a mobile, one address of each
+kind, one spouse, manager and assistant and any number of children, one website, three chat
+addresses and a birthday. It has no other dates, no phonetic middle name and no custom fields. What
+does not fit is not sent and stays only in plMail until the contact next changes in Outlook (see
+[Microsoft](../providers/microsoft.md#contacts-are-on-the-same-sign-in-too)).
+
+**Outlook keeps a photo removed here.** Microsoft's interface can replace an Outlook contact's photo
+but not remove it, so a photo removed in plMail comes back the next time the contact changes in
+Outlook. Remove it in Outlook.
+
+**Custom fields and the office are plMail's own on a CardDAV server.** vCard has no property for
+either, so they are stored on the card under plMail's own names (`X-PLMAIL-FIELD`,
+`X-PLMAIL-OFFICE`). They survive the round trip, but a phone does not show them.

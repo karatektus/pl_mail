@@ -4632,9 +4632,14 @@ whats_new:
     title: 'What''s new'
 contacts:
     add_address: 'Add address'
+    add_custom: 'Add field'
+    add_date: 'Add date'
     add_email: 'Add email'
+    add_im: 'Add chat address'
     add_phone: 'Add phone'
+    add_relation: 'Add person'
     add_to_address_book: 'Add to contacts'
+    add_url: 'Add website'
     back: Back
     book_all: 'All books'
     book_local: 'Not synced'
@@ -4646,6 +4651,11 @@ contacts:
     count: '{0}No contacts|{1}1 contact|]1,Inf[ %count% contacts'
     country: Country
     created: 'Contact created.'
+    custom_label_placeholder: 'Field name'
+    custom_value_placeholder: 'Value'
+    date_full: '%month% %day%, %year%'
+    date_no_year: '%month% %day%'
+    day: 'Day'
     delete: Delete
     delete_confirm: 'Delete %name%? The contact goes to the trash and is permanently removed after 90 days.'
     deleted_contact: '(deleted contact)'
@@ -4658,8 +4668,37 @@ contacts:
     empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
     empty_search: 'No contacts match this search.'
     export_vcf: 'Export as vCard'
-    family_name: 'Last name'
-    given_name: 'First name'
+    field:
+        birthday: 'Birthday'
+        company: 'Company'
+        department: 'Department'
+        familyName: 'Last name'
+        givenName: 'First name'
+        jobTitle: 'Job title'
+        middleName: 'Middle name'
+        namePrefix: 'Prefix'
+        nameSuffix: 'Suffix'
+        nickname: 'Nickname'
+        officeLocation: 'Office'
+        phoneticCompany: 'Company (phonetic)'
+        phoneticFamilyName: 'Last name (phonetic)'
+        phoneticGivenName: 'First name (phonetic)'
+        phoneticMiddleName: 'Middle name (phonetic)'
+    im_placeholder: 'Handle or address'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Other'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
     import: Import
     import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
     import_choose: 'Choose file'
@@ -4676,13 +4715,33 @@ contacts:
     import_uploading: Uploading…
     imported: 'Imported %count% contacts.'
     in_address_book: 'In your contacts'
-    job_title: 'Job title'
     keep_this: 'Keep this one'
     label: Label
     label_home: Home
     label_mobile: Mobile
     label_other: Other
     label_work: Work
+    labels:
+        anniversary: 'Anniversary'
+        assistant: 'Assistant'
+        blog: 'Blog'
+        brother: 'Brother'
+        child: 'Child'
+        father: 'Father'
+        friend: 'Friend'
+        home: 'Home'
+        manager: 'Manager'
+        mobile: 'Mobile'
+        mother: 'Mother'
+        other: 'Other'
+        parent: 'Parent'
+        partner: 'Partner'
+        profile: 'Profile'
+        relative: 'Relative'
+        sibling: 'Sibling'
+        sister: 'Sister'
+        spouse: 'Spouse'
+        work: 'Work'
     merge: Merge
     merge_pick_keep: 'Pick which contact to keep first.'
     merge_read_only: 'A contact from a read-only address book cannot be merged.'
@@ -4691,10 +4750,23 @@ contacts:
     merge_undone: 'Merge undone.'
     merged: 'Contacts merged. You can undo it from the list below.'
     merged_into: 'Merged %count% into %name%'
+    month: 'Month'
+    months:
+        1: 'January'
+        2: 'February'
+        3: 'March'
+        4: 'April'
+        5: 'May'
+        6: 'June'
+        7: 'July'
+        8: 'August'
+        9: 'September'
+        10: 'October'
+        11: 'November'
+        12: 'December'
     nav: Contacts
     new: 'New contact'
     next: Next
-    nickname: Nickname
     no_details: 'No contact details yet.'
     no_subject: '(no subject)'
     notes: Notes
@@ -4707,9 +4779,11 @@ contacts:
         toggle_open: 'Show contacts beside the mail'
     pending: 'Waiting to be sent to the server'
     phone_placeholder: '+1 555 010 2030'
+    phonetic: 'Phonetic spelling'
     photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
-    photo_hint_synced: 'JPG, PNG or WebP, up to 5 MB. Shown here only: the photo is not sent to the server.'
     photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
+    photo_remove: 'Remove photo'
+    photo_removed: 'Photo removed.'
     photo_upload: 'Upload photo'
     photo_uploaded: 'Photo updated.'
     postcode: Postcode
@@ -4726,6 +4800,7 @@ contacts:
     rel_partner: Partner
     rel_related: Related
     related: 'Related contacts'
+    relation_placeholder: 'Name'
     remove: Remove
     save: Save
     save_to: 'Save to'
@@ -4733,11 +4808,17 @@ contacts:
     search: 'Search contacts'
     search_placeholder: 'Search name, company or email…'
     section_addresses: Addresses
+    section_custom: 'Custom fields'
+    section_dates: 'Dates'
     section_details: Details
     section_emails: Emails
+    section_ims: 'Chat'
     section_name: Name
     section_notes: Notes
     section_phones: Phones
+    section_relations: 'People'
+    section_urls: 'Websites'
+    section_work: 'Work'
     street: Street
     synced_read_only: 'Read-only, from %book% on %server%'
     synced_with: 'Synced with %book% on %server%'
@@ -4747,5 +4828,7 @@ contacts:
     title: Contacts
     trashed: 'Contact moved to trash.'
     updated: 'Contact saved.'
+    url_placeholder: 'https://'
     validation:
         name_required: 'Give the contact a name.'
+    year_optional: 'Year (optional)'

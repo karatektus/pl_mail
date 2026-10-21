@@ -4662,9 +4662,14 @@ whats_new:
     title: 'Nouveautés'
 contacts:
     add_address: 'Ajouter une adresse'
+    add_custom: 'Ajouter un champ'
+    add_date: 'Ajouter une date'
     add_email: 'Ajouter un e-mail'
+    add_im: 'Ajouter une adresse de messagerie'
     add_phone: 'Ajouter un téléphone'
+    add_relation: 'Ajouter une personne'
     add_to_address_book: 'Ajouter aux contacts'
+    add_url: 'Ajouter un site web'
     back: Retour
     book_all: 'Tous les carnets'
     book_local: 'Non synchronisés'
@@ -4676,6 +4681,11 @@ contacts:
     count: '{0}Aucun contact|{1}1 contact|]1,Inf[ %count% contacts'
     country: Pays
     created: 'Contact créé.'
+    custom_label_placeholder: 'Nom du champ'
+    custom_value_placeholder: 'Valeur'
+    date_full: '%day% %month% %year%'
+    date_no_year: '%day% %month%'
+    day: 'Jour'
     delete: Supprimer
     delete_confirm: 'Supprimer %name% ? Le contact ira dans la corbeille et sera définitivement effacé après 90 jours.'
     deleted_contact: '(contact supprimé)'
@@ -4688,8 +4698,37 @@ contacts:
     empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
     empty_search: 'Aucun contact ne correspond à cette recherche.'
     export_vcf: 'Exporter en vCard'
-    family_name: 'Nom de famille'
-    given_name: Prénom
+    field:
+        birthday: 'Anniversaire'
+        company: 'Entreprise'
+        department: 'Service'
+        familyName: 'Nom'
+        givenName: 'Prénom'
+        jobTitle: 'Poste'
+        middleName: 'Deuxième prénom'
+        namePrefix: 'Civilité'
+        nameSuffix: 'Suffixe'
+        nickname: 'Surnom'
+        officeLocation: 'Bureau'
+        phoneticCompany: 'Entreprise (phonétique)'
+        phoneticFamilyName: 'Nom (phonétique)'
+        phoneticGivenName: 'Prénom (phonétique)'
+        phoneticMiddleName: 'Deuxième prénom (phonétique)'
+    im_placeholder: 'Identifiant ou adresse'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Autre'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
     import: Importer
     import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
     import_choose: 'Choisir un fichier'
@@ -4706,13 +4745,33 @@ contacts:
     import_uploading: 'Envoi en cours…'
     imported: '%count% contacts importés.'
     in_address_book: 'Dans vos contacts'
-    job_title: Fonction
     keep_this: 'Garder celui-ci'
     label: Étiquette
     label_home: Domicile
     label_mobile: Mobile
     label_other: Autre
     label_work: Travail
+    labels:
+        anniversary: 'Anniversaire de mariage'
+        assistant: 'Assistant(e)'
+        blog: 'Blog'
+        brother: 'Frère'
+        child: 'Enfant'
+        father: 'Père'
+        friend: 'Ami(e)'
+        home: 'Domicile'
+        manager: 'Responsable'
+        mobile: 'Mobile'
+        mother: 'Mère'
+        other: 'Autre'
+        parent: 'Parent'
+        partner: 'Partenaire'
+        profile: 'Profil'
+        relative: 'Proche'
+        sibling: 'Frère ou sœur'
+        sister: 'Sœur'
+        spouse: 'Conjoint(e)'
+        work: 'Travail'
     merge: Fusionner
     merge_pick_keep: 'Choisissez d’abord le contact à garder.'
     merge_read_only: 'Un contact d’un carnet en lecture seule ne peut pas être fusionné.'
@@ -4721,10 +4780,23 @@ contacts:
     merge_undone: 'Fusion annulée.'
     merged: 'Contacts fusionnés. Annulation possible dans la liste ci-dessous.'
     merged_into: '%count% fusionné(s) dans %name%'
+    month: 'Mois'
+    months:
+        1: 'janvier'
+        2: 'février'
+        3: 'mars'
+        4: 'avril'
+        5: 'mai'
+        6: 'juin'
+        7: 'juillet'
+        8: 'août'
+        9: 'septembre'
+        10: 'octobre'
+        11: 'novembre'
+        12: 'décembre'
     nav: Contacts
     new: 'Nouveau contact'
     next: Suivant
-    nickname: Surnom
     no_details: 'Aucune coordonnée pour le moment.'
     no_subject: '(sans objet)'
     notes: Notes
@@ -4737,9 +4809,11 @@ contacts:
         toggle_open: 'Afficher les contacts à côté du courrier'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
+    phonetic: 'Orthographe phonétique'
     photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
-    photo_hint_synced: 'JPG, PNG ou WebP, 5 Mo maximum. Visible ici seulement : la photo n’est pas envoyée au serveur.'
     photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
+    photo_remove: 'Supprimer la photo'
+    photo_removed: 'Photo supprimée.'
     photo_upload: 'Changer la photo'
     photo_uploaded: 'Photo mise à jour.'
     postcode: 'Code postal'
@@ -4756,6 +4830,7 @@ contacts:
     rel_partner: Partenaire
     rel_related: Lié
     related: 'Contacts liés'
+    relation_placeholder: 'Nom'
     remove: Retirer
     save: Enregistrer
     save_to: 'Enregistrer dans'
@@ -4763,11 +4838,17 @@ contacts:
     search: 'Rechercher des contacts'
     search_placeholder: 'Rechercher nom, société ou e-mail…'
     section_addresses: Adresses
+    section_custom: 'Champs personnalisés'
+    section_dates: 'Dates'
     section_details: Coordonnées
     section_emails: E-mails
+    section_ims: 'Messagerie'
     section_name: Nom
     section_notes: Notes
     section_phones: Téléphones
+    section_relations: 'Personnes'
+    section_urls: 'Sites web'
+    section_work: 'Travail'
     street: Rue
     synced_read_only: 'En lecture seule, depuis %book% sur %server%'
     synced_with: 'Synchronisé avec %book% sur %server%'
@@ -4777,5 +4858,7 @@ contacts:
     title: Contacts
     trashed: 'Contact déplacé dans la corbeille.'
     updated: 'Contact enregistré.'
+    url_placeholder: 'https://'
     validation:
         name_required: 'Donnez un nom au contact.'
+    year_optional: 'Année (facultatif)'

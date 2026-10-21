@@ -21,6 +21,7 @@ use App\Service\Contacts\CsvExporter;
 use App\Service\Contacts\CsvImporter;
 use App\Service\Contacts\DuplicateFinder;
 use App\Service\Contacts\ImportRunner;
+use App\Service\Contacts\ContactFields;
 use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\ReferenceEmailFinder;
 use App\Service\Contacts\VCardExporter;
@@ -347,6 +348,33 @@ final class ContactController extends AbstractController
         return $this->redirectToRoute('app_contacts_edit', ['id' => $id], Response::HTTP_SEE_OTHER);
     }
 
+    /**
+     * Remove the photo. For a synced contact the removal goes to the server
+     * like any edit (ContactSyncTracker); Outlook cannot remove one, see
+     * GraphContactsDriver.
+     */
+    #[Route('/{id<\d+>}/photo/remove', name: 'photo_remove', methods: ['POST'])]
+    public function photoRemove(int $id, Request $request): Response
+    {
+        $contact = $this->editableContact($id);
+        $this->assertCsrf($request, 'contacts_photo_' . $id);
+
+        $oldPath = $contact->photoPath;
+
+        if (null !== $oldPath) {
+            $contact->photoPath = null;
+            $this->em->flush();
+
+            if ('' !== $oldPath) {
+                $this->photos->delete($oldPath);
+            }
+
+            $this->addFlash('success', $this->trans('contacts.photo_removed'));
+        }
+
+        return $this->redirectToRoute('app_contacts_edit', ['id' => $id], Response::HTTP_SEE_OTHER);
+    }
+
     // ── Import / export ───────────────────────────────────────────────────
 
     #[Route('/import', name: 'import', methods: ['GET'])]
@@ -635,9 +663,21 @@ final class ContactController extends AbstractController
 
         $parsed->displayName = trim((string) ($all['displayName'] ?? ''));
 
-        foreach (['givenName', 'familyName', 'nickname', 'company', 'jobTitle', 'notes'] as $key) {
+        foreach (ContactFields::SCALARS as $key) {
             $value = trim((string) ($all[$key] ?? ''));
             $parsed->{$key} = '' === $value ? null : $value;
+        }
+
+        $parsed->birthday = ContactFields::fromForm($all['birthday'] ?? null);
+
+        // A date row comes as day, month and year; the cleaner wants the date.
+        $all['dates'] = array_map(
+            static fn (mixed $row): mixed => is_array($row) ? ['label' => $row['label'] ?? '', 'date' => (string) ContactFields::fromForm($row)] : $row,
+            is_array($all['dates'] ?? null) ? $all['dates'] : [],
+        );
+
+        foreach (ContactFields::LISTS as $list) {
+            $parsed->{$list} = ContactFields::clean($list, $all[$list] ?? []);
         }
 
         $parsed->tags = $this->parseTags((string) ($all['tags'] ?? ''));

@@ -41,9 +41,13 @@ final class VCardMapperTest extends TestCase
         self::assertNotNull($parsed);
         self::assertSame('apple-uid-1', $parsed->uid);
         self::assertSame('Ada Lovelace', $parsed->displayName);
-        self::assertSame('Augusta Ada King', $parsed->givenName, 'middle names count as given names');
+        self::assertSame('Augusta Ada', $parsed->givenName);
+        self::assertSame('King', $parsed->middleName);
         self::assertSame('Lovelace', $parsed->familyName);
+        self::assertSame('Countess', $parsed->namePrefix);
         self::assertSame('Analytical Engines', $parsed->company, 'the name, without the unit');
+        self::assertSame('Mathematics', $parsed->department, 'the first unit');
+        self::assertSame('1815-12-10', $parsed->birthday);
         self::assertSame('Met at the Royal Society', $parsed->notes);
         self::assertSame(['friends', 'science'], $parsed->tags);
         self::assertSame([
@@ -148,8 +152,10 @@ final class VCardMapperTest extends TestCase
             $contact->phones->removeElement($phone);
         }
 
-        $contact->company = null;
-        $contact->notes   = null;
+        $contact->company    = null;
+        $contact->department = null;
+        $contact->notes      = null;
+        $contact->birthday   = null;
 
         $card = $this->parse($this->mapper->write($this->appleCard(), $contact));
 
@@ -157,16 +163,18 @@ final class VCardMapperTest extends TestCase
         self::assertCount(0, $card->select('TEL'));
         self::assertSame([], $card->select('ORG'));
         self::assertSame([], $card->select('NOTE'));
-        self::assertNotSame([], $card->select('PHOTO'));
+        self::assertSame([], $card->select('BDAY'));
+        self::assertNotSame([], $card->select('PHOTO'), 'a photo not changed here stays');
+        self::assertNotSame([], $card->select('X-SOCIALPROFILE'));
     }
 
-    public function testARenameRewritesTheStructuredNameAndKeepsItsPrefix(): void
+    public function testARenameRewritesTheStructuredNameAndKeepsItsOtherParts(): void
     {
         $contact             = $this->contactFrom($this->appleCard());
         $contact->givenName  = 'Ada';
-        $contact->familyName = 'King';
+        $contact->familyName = 'Byron';
 
-        self::assertSame('King;Ada;;Countess;', $this->value($this->parse($this->mapper->write($this->appleCard(), $contact)), 'N'));
+        self::assertSame('Byron;Ada;King;Countess;', $this->value($this->parse($this->mapper->write($this->appleCard(), $contact)), 'N'));
     }
 
     public function testARelabelledAddressChangesItsTypeOnly(): void

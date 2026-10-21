@@ -4633,9 +4633,14 @@ whats_new:
     title: 'Was ist neu'
 contacts:
     add_address: 'Adresse hinzufügen'
+    add_custom: 'Feld hinzufügen'
+    add_date: 'Datum hinzufügen'
     add_email: 'E-Mail hinzufügen'
+    add_im: 'Chat-Adresse hinzufügen'
     add_phone: 'Telefon hinzufügen'
+    add_relation: 'Person hinzufügen'
     add_to_address_book: 'Zu Kontakten hinzufügen'
+    add_url: 'Website hinzufügen'
     back: Zurück
     book_all: 'Alle Bücher'
     book_local: 'Nicht synchronisiert'
@@ -4647,6 +4652,11 @@ contacts:
     count: '{0}Keine Kontakte|{1}1 Kontakt|]1,Inf[ %count% Kontakte'
     country: Land
     created: 'Kontakt angelegt.'
+    custom_label_placeholder: 'Feldname'
+    custom_value_placeholder: 'Wert'
+    date_full: '%day%. %month% %year%'
+    date_no_year: '%day%. %month%'
+    day: 'Tag'
     delete: Löschen
     delete_confirm: '%name% löschen? Der Kontakt kommt in den Papierkorb und wird nach 90 Tagen endgültig entfernt.'
     deleted_contact: '(gelöschter Kontakt)'
@@ -4659,8 +4669,37 @@ contacts:
     empty: 'Noch keine Kontakte. Leg den ersten an oder importiere eine vCard- oder CSV-Datei.'
     empty_search: 'Kein Kontakt passt zu dieser Suche.'
     export_vcf: 'Als vCard exportieren'
-    family_name: Nachname
-    given_name: Vorname
+    field:
+        birthday: 'Geburtstag'
+        company: 'Firma'
+        department: 'Abteilung'
+        familyName: 'Nachname'
+        givenName: 'Vorname'
+        jobTitle: 'Position'
+        middleName: 'Zweiter Vorname'
+        namePrefix: 'Anrede/Titel'
+        nameSuffix: 'Namenszusatz'
+        nickname: 'Spitzname'
+        officeLocation: 'Büro'
+        phoneticCompany: 'Firma (phonetisch)'
+        phoneticFamilyName: 'Nachname (phonetisch)'
+        phoneticGivenName: 'Vorname (phonetisch)'
+        phoneticMiddleName: 'Zweiter Vorname (phonetisch)'
+    im_placeholder: 'Name oder Adresse'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Andere'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Dienst'
     import: Importieren
     import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
     import_choose: 'Datei wählen'
@@ -4677,13 +4716,33 @@ contacts:
     import_uploading: 'Wird hochgeladen…'
     imported: '%count% Kontakte importiert.'
     in_address_book: 'In deinen Kontakten'
-    job_title: Position
     keep_this: 'Diesen behalten'
     label: Bezeichnung
     label_home: Privat
     label_mobile: Mobil
     label_other: Sonstige
     label_work: Arbeit
+    labels:
+        anniversary: 'Jahrestag'
+        assistant: 'Assistenz'
+        blog: 'Blog'
+        brother: 'Bruder'
+        child: 'Kind'
+        father: 'Vater'
+        friend: 'Freund/in'
+        home: 'Privat'
+        manager: 'Vorgesetzte/r'
+        mobile: 'Mobil'
+        mother: 'Mutter'
+        other: 'Sonstige'
+        parent: 'Elternteil'
+        partner: 'Partner/in'
+        profile: 'Profil'
+        relative: 'Verwandte/r'
+        sibling: 'Geschwister'
+        sister: 'Schwester'
+        spouse: 'Ehepartner/in'
+        work: 'Arbeit'
     merge: Zusammenführen
     merge_pick_keep: 'Wähle zuerst, welcher Kontakt bleiben soll.'
     merge_read_only: 'Ein Kontakt aus einem schreibgeschützten Adressbuch kann nicht zusammengeführt werden.'
@@ -4692,10 +4751,23 @@ contacts:
     merge_undone: 'Zusammenführung rückgängig gemacht.'
     merged: 'Kontakte zusammengeführt. Du kannst es in der Liste unten rückgängig machen.'
     merged_into: '%count% in %name% zusammengeführt'
+    month: 'Monat'
+    months:
+        1: 'Januar'
+        2: 'Februar'
+        3: 'März'
+        4: 'April'
+        5: 'Mai'
+        6: 'Juni'
+        7: 'Juli'
+        8: 'August'
+        9: 'September'
+        10: 'Oktober'
+        11: 'November'
+        12: 'Dezember'
     nav: Kontakte
     new: 'Neuer Kontakt'
     next: Weiter
-    nickname: Spitzname
     no_details: 'Noch keine Kontaktdaten.'
     no_subject: '(kein Betreff)'
     notes: Notizen
@@ -4708,9 +4780,11 @@ contacts:
         toggle_open: 'Kontakte neben der Mail zeigen'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
+    phonetic: 'Phonetische Schreibweise'
     photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'
-    photo_hint_synced: 'JPG, PNG oder WebP, bis 5 MB. Nur hier zu sehen: Das Foto geht nicht an den Server.'
     photo_invalid: 'Dieses Foto ließ sich nicht verwenden. JPG, PNG oder WebP bis 5 MB.'
+    photo_remove: 'Foto entfernen'
+    photo_removed: 'Foto entfernt.'
     photo_upload: 'Foto hochladen'
     photo_uploaded: 'Foto aktualisiert.'
     postcode: PLZ
@@ -4727,6 +4801,7 @@ contacts:
     rel_partner: Partner(in)
     rel_related: Verwandt
     related: 'Verknüpfte Kontakte'
+    relation_placeholder: 'Name'
     remove: Entfernen
     save: Speichern
     save_to: 'Speichern in'
@@ -4734,11 +4809,17 @@ contacts:
     search: 'Kontakte durchsuchen'
     search_placeholder: 'Name, Firma oder E-Mail suchen…'
     section_addresses: Adressen
+    section_custom: 'Eigene Felder'
+    section_dates: 'Daten'
     section_details: Details
     section_emails: E-Mail-Adressen
+    section_ims: 'Chat'
     section_name: Name
     section_notes: Notizen
     section_phones: Telefonnummern
+    section_relations: 'Personen'
+    section_urls: 'Websites'
+    section_work: 'Arbeit'
     street: Straße
     synced_read_only: 'Schreibgeschützt, aus %book% auf %server%'
     synced_with: 'Synchronisiert mit %book% auf %server%'
@@ -4748,5 +4829,7 @@ contacts:
     title: Kontakte
     trashed: 'Kontakt in den Papierkorb verschoben.'
     updated: 'Kontakt gespeichert.'
+    url_placeholder: 'https://'
     validation:
         name_required: 'Gib dem Kontakt einen Namen.'
+    year_optional: 'Jahr (optional)'

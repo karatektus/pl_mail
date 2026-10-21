@@ -13,6 +13,8 @@ use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
 use App\Repository\Contacts\ContactRepository;
+use App\Domain\DTO\AddressBook\RemoteCard;
+use App\Service\Contacts\ContactPhoto;
 use App\Service\Contacts\ContactPhotoStore;
 use App\Service\Contacts\ParsedContact;
 use App\Service\Contacts\VCardMapper;
@@ -191,6 +193,7 @@ final readonly class AddressBookSync
                     $card->vcard          = $written->vcard ?? $card->vcard;
                     $card->remoteResource = $written->resource ?? $card->remoteResource;
                     $card->syncState      = SyncState::Clean;
+                    $card->photoDirty     = false;
                 }
             } catch (CalendarResyncRequiredException $e) {
                 // Only a 412 is about this card. The same class also carries a
@@ -256,9 +259,12 @@ final readonly class AddressBookSync
      */
     private function letTheServerWin(Contact $card): void
     {
-        $card->syncState = SyncState::Clean;
-        $card->etag      = null;
-        $card->trashedAt = null;
+        $card->syncState  = SyncState::Clean;
+        $card->etag       = null;
+        $card->trashedAt  = null;
+        $card->photoDirty = false;
+        // So the pull takes the server's photo even if it is the one we had.
+        $card->photoVersion = null;
 
         if (null !== $card->addressBook) {
             $card->addressBook->syncToken = null;
@@ -412,7 +418,7 @@ final readonly class AddressBookSync
             $local->etag  = $remote->etag;
             $local->vcard          = $remote->vcard;
             $local->remoteResource = $remote->resource;
-            $this->takePhoto($parsed, $local);
+            $this->takePhoto($book, $remote, $parsed, $local);
             ++$touched;
         }
 
@@ -449,20 +455,58 @@ final readonly class AddressBookSync
     }
 
     /**
-     * A photo on the card replaces the one shown here. A card without one
-     * leaves a photo uploaded here alone: plMail does not send photos to the
-     * server, so the server not having one says nothing about this one.
+     * Make the photo shown here the server's: stored when it brought one,
+     * removed when it says there is none, left alone when it cannot say (a
+     * vCard PHOTO that is a link). A photo with the version stored already is
+     * not stored again; one the driver serves separately is fetched only then.
+     *
+     * A photo that cannot be fetched or stored — the request failed, the
+     * image is too large or not one GD reads — leaves the contact as it was:
+     * the next change to the contact on the server tries again.
      */
-    private function takePhoto(ParsedContact $parsed, Contact $local): void
+    private function takePhoto(AddressBook $book, RemoteCard $remote, ParsedContact $parsed, Contact $local): void
     {
-        if (null === $parsed->photoBytes || null === $parsed->photoMime || null === $local->usr->id) {
+        if (true === $parsed->photoAbsent) {
+            $this->dropPhoto($local);
+
+            return;
+        }
+
+        if (null !== $parsed->photoVersion && $parsed->photoVersion === $local->photoVersion && null !== $local->photoPath) {
+            return;
+        }
+
+        if (null !== $parsed->photoBytes && null !== $parsed->photoMime) {
+            $photo = new ContactPhoto($parsed->photoBytes, $parsed->photoMime);
+        } elseif (true === $parsed->photoDeferred) {
+            try {
+                $photo = $this->drivers->forBook($book)->photo($book, $remote);
+            } catch (CalendarSyncException $e) {
+                $this->logger->info('AddressBookSync: could not read a contact photo; keeping the one shown', [
+                    'addressBook' => $book->id,
+                    'card'        => $local->uid,
+                    'reason'      => $e->getMessage(),
+                ]);
+
+                return;
+            }
+
+            if (null === $photo) {
+                $this->dropPhoto($local);
+
+                return;
+            }
+        } else {
+            return;
+        }
+
+        if (null === $local->usr->id) {
             return;
         }
 
         try {
-            $path = $this->photos->storeBytes($parsed->photoBytes, $parsed->photoMime, $local->usr->id);
+            $path = $this->photos->storeBytes($photo->bytes, $photo->mime, $local->usr->id);
         } catch (InvalidArgumentException) {
-            // Too large, or not an image GD can read: keep the contact without it.
             return;
         }
 
@@ -470,6 +514,17 @@ final readonly class AddressBookSync
             $this->photos->delete($local->photoPath);
         }
 
-        $local->photoPath = $path;
+        $local->photoPath    = $path;
+        $local->photoVersion = $parsed->photoVersion;
+    }
+
+    private function dropPhoto(Contact $local): void
+    {
+        if (null !== $local->photoPath) {
+            $this->photos->delete($local->photoPath);
+        }
+
+        $local->photoPath    = null;
+        $local->photoVersion = null;
     }
 }

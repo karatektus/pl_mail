@@ -24,3 +24,51 @@ cannot call an arrow function stored in a variable, so this is a macro.)
 {% macro field(key, draft, contact) -%}
     {{- draft ? (draft[key]|default('')) : (contact ? attribute(contact, key) : '') -}}
 {%- endmacro %}
+
+{#
+labelText(label): one of plMail's own labels (ContactFields), translated; any
+other — a provider's custom label — as it came.
+#}
+{% macro labelText(label) -%}
+    {%- set key = 'contacts.labels.' ~ label -%}
+    {{- key|trans != key ? key|trans : label -}}
+{%- endmacro %}
+
+{#
+labelSelect(name, labels, current, cls): a select of the known labels, plus
+the current one when it is a custom label, so it survives an edit.
+#}
+{% macro labelSelect(name, labels, current, cls) %}
+    {% import _self as self %}
+    <select name="{{ name }}" class="{{ cls }}" aria-label="{{ 'contacts.label'|trans }}">
+        {% if current and current not in labels %}
+            <option value="{{ current }}" selected>{{ current }}</option>
+        {% endif %}
+        {% for l in labels %}
+            <option value="{{ l }}" {{ current == l ? 'selected' }}>{{ self.labelText(l) }}</option>
+        {% endfor %}
+    </select>
+{% endmacro %}
+
+{#
+dateInputs(name, value, cls): day, month and an optional year for a date in
+ContactFields' spelling (`YYYY-MM-DD` or `--MM-DD`). Three fields because a
+date input cannot leave out the year, and birthdays often do.
+#}
+{% macro dateInputs(name, value, cls) %}
+    {# The shared field class is full width; these three sit in a row. #}
+    {% set cls = cls|replace({'w-full': ''}) %}
+    {% set y = value and value|slice(0, 2) != '--' ? value|slice(0, 4) : '' %}
+    {% set m = value ? value|slice(-5, 2) * 1 : 0 %}
+    {% set d = value ? value|slice(-2, 2) * 1 : '' %}
+    <input name="{{ name }}[day]" value="{{ d }}" type="number" min="1" max="31" inputmode="numeric"
+           placeholder="{{ 'contacts.day'|trans }}" aria-label="{{ 'contacts.day'|trans }}" class="{{ cls }} w-20 shrink-0">
+    <select name="{{ name }}[month]" class="{{ cls }} w-36 shrink-0" aria-label="{{ 'contacts.month'|trans }}">
+        <option value="">{{ 'contacts.month'|trans }}</option>
+        {% for i in 1..12 %}
+            <option value="{{ i }}" {{ m == i ? 'selected' }}>{{ ('contacts.months.' ~ i)|trans }}</option>
+        {% endfor %}
+    </select>
+    <input name="{{ name }}[year]" value="{{ y }}" type="number" min="1" max="9999" inputmode="numeric"
+           placeholder="{{ 'contacts.year_optional'|trans }}" aria-label="{{ 'contacts.year_optional'|trans }}" class="{{ cls }} w-36 shrink-0">
+{% endmacro %}

@@ -16,6 +16,8 @@ use App\Domain\Interface\AddressBookDriverInterface;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Entity\Mail\Account;
+use App\Service\Contacts\ContactPhoto;
+use App\Service\Contacts\ContactPhotoStore;
 
 /**
  * A Google account's contacts, through the People API, behind the
@@ -47,9 +49,14 @@ use App\Entity\Mail\Account;
  * here: a pull that does not yet see a write sees nothing new about the
  * contact, and when it does see it, the etag is the one the write returned.
  *
- * Not synced: photos (shown when a contact has one in plMail, not sent), and
- * Google's "Other contacts" — the people you mailed, which plMail already
- * learns from the mail itself.
+ * **Photos** go both ways. Read, the contact's own photo is fetched from the
+ * URL the Person names, and only when that URL changed (it does with the
+ * photo). Written, a photo changed here is sent with updateContactPhoto after
+ * the Person itself, or removed with deleteContactPhoto; either changes the
+ * etag, so the one kept is the photo call's.
+ *
+ * Not synced: Google's "Other contacts" — the people you mailed, which plMail
+ * already learns from the mail itself.
  */
 final readonly class GoogleContactsDriver implements AddressBookDriverInterface
 {
@@ -68,6 +75,7 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
     public function __construct(
         private GooglePeopleClient  $client,
         private GoogleContactMapper $mapper,
+        private ContactPhotoStore   $photos,
     ) {
     }
 
@@ -143,7 +151,10 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
         $groups      = $this->userGroups($account);
         $stored      = $this->decode($contact->remoteResource);
         $memberships = [...$this->systemMemberships($stored), ...$this->tagMemberships($account, $contact->tags, $groups)];
-        $person      = $this->mapper->toPerson($contact, $memberships);
+        $person      = $this->mapper->toPerson($contact, $memberships, array_values(array_filter(
+            is_array($stored['organizations'] ?? null) ? $stored['organizations'] : [],
+            is_array(...),
+        )));
 
         if (null === $contact->href) {
             $written = $this->client->write($account, 'POST', '/people:createContact', [
@@ -172,11 +183,42 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
             throw new CalendarSyncException('Google saved the contact without saying where it is.');
         }
 
+        if (true === $contact->photoDirty || (null === $contact->href && null !== $contact->photoPath)) {
+            $written = $this->putPhoto($account, $href, $this->photos->read($contact->photoPath)) ?? $written;
+        }
+
         return new RemoteContactWrite(
             href:     $href,
             etag:     $this->mapper->etagOf($written),
             resource: $this->mapper->resourceOf($written, $groups),
         );
+    }
+
+    public function photo(AddressBook $book, RemoteCard $card): ?ContactPhoto
+    {
+        $url = $card->parsed?->photoVersion;
+
+        return null === $url ? null : $this->client->photo($url);
+    }
+
+    /**
+     * Send the photo, or remove Google's when there is none here. Answers the
+     * Person as it is after, for its new etag; null if Google did not send it.
+     *
+     * @return array<string, mixed>|null
+     *
+     * @throws CalendarSyncException
+     */
+    private function putPhoto(Account $account, string $href, ?ContactPhoto $photo): ?array
+    {
+        $body = null === $photo
+            ? $this->client->call($account, 'DELETE', '/' . $href . ':deleteContactPhoto', ['personFields' => GoogleContactMapper::READ_FIELDS], 'removing a contact photo')
+            : $this->client->write($account, 'PATCH', '/' . $href . ':updateContactPhoto', [], [
+                'photoBytes'   => base64_encode($photo->bytes),
+                'personFields' => GoogleContactMapper::READ_FIELDS,
+            ], 'saving a contact photo');
+
+        return is_array($body['person'] ?? null) ? $body['person'] : null;
     }
 
     public function delete(AddressBook $book, ?string $href, ?string $etag): void
