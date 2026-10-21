@@ -569,6 +569,9 @@ admin:
     integrations:
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
+        calendar:
+            heading: 'Calendriers'
+            intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
         configure: 'Configurer'
         connected_users: '%count% connecté(s)'
@@ -577,6 +580,7 @@ admin:
         inherit_toggle_help: 'Un même projet Google couvre aussi Drive et Photos ; une même application Microsoft couvre aussi OneDrive. Laissez ceci activé et il n’y a rien de plus à configurer pour eux.'
         field:
             base_url: 'Adresse du serveur'
+            base_url_help_ics: 'Laissez vide. Chaque flux a sa propre adresse, donc rien ici ne change les flux auxquels on s’abonne. Une adresse enregistrée ici exempte seulement les flux de son hôte du contrôle des réseaux privés.'
             base_url_help_saas: 'Laissez vide. Ce service a une adresse fixe.'
             base_url_help_selfhosted: 'Facultatif. Renseignez-la pour imposer un même serveur à tous ; laissez vide pour que chacun saisisse le sien.'
             client_id: 'ID client'
@@ -640,6 +644,7 @@ admin:
         secret_stored: 'Enregistré'
         secret_unchanged: 'Laissez vide pour conserver le secret enregistré'
         status:
+            always_offered: 'Proposé à tous'
             disabled: 'Désactivé'
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
@@ -651,7 +656,6 @@ admin:
                 security: 'Les utilisateurs devraient créer un mot de passe d’application plutôt qu’utiliser leur mot de passe de connexion : les mots de passe d’application sont révocables un par un et fonctionnent avec l’authentification à deux facteurs. iCloud et Fastmail n’acceptent rien d’autre.'
                 step_app_password: 'Chaque utilisateur crée un mot de passe d’application sur son propre serveur — Nextcloud sous Paramètres → Sécurité, iCloud sur appleid.apple.com, Fastmail sous Settings → Password & Security — et le colle dans ses propres réglages d’agenda.'
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://cloud.example.com, si tout le monde ici utilise le même serveur.'
-                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_url: 'L’adresse à saisir est l’adresse CalDAV, pas celle de l’interface web : Nextcloud l’affiche sous Agenda → Paramètres → « Copier l’adresse CalDAV principale », et elle se termine généralement par /remote.php/dav. Un simple domaine fonctionne aussi — plMail lui demande où se trouvent ses agendas.'
             dropbox:
                 intro: 'Dropbox nécessite une application enregistrée dans la console développeur Dropbox.'
@@ -675,6 +679,9 @@ admin:
                 intro: 'Google Photos utilise OAuth et sa propre API, distincte de Drive.'
                 scope_warning: 'Google a restreint les portées de lecture de Photos en mars 2025. Une application nouvellement enregistrée n’obtient généralement que appcreateddata, qui ne voit que les médias envoyés par plMail lui-même — parcourir une bibliothèque existante nécessite la portée photoslibrary.readonly, que Google accorde au cas par cas. Enregistrer des pièces jointes dans Photos fonctionne dans tous les cas ; la navigation peut afficher une bibliothèque vide tant que cette portée n’est pas approuvée.'
                 step_api: 'Activez l’API Photos Library pour le projet.'
+            ics:
+                intro: 'Un flux de calendrier ne demande aucune configuration ici. Chaque utilisateur colle l’adresse où un calendrier est publié, qui se termine généralement par .ics, dans Réglages → Calendriers → « S’abonner à une adresse ».'
+                security: 'Pour un calendrier publié, l’adresse vaut mot de passe : quiconque la connaît peut lire le calendrier.'
             immich:
                 intro: 'Immich s’authentifie avec une clé d’API propre à chaque utilisateur : il n’y a rien à enregistrer ici.'
                 no_share_links: 'Immich ne peut pas créer de lien public pour une seule photo — le partage se fait par album. Les photos au-dessus de la taille limite des pièces jointes ne peuvent donc pas du tout être jointes.'

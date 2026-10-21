@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:745cb9593e98a39e4729dffb19f7be3e1808df78 -->
+<!-- translated-from: features/admin.md sha1:ad8fa881a3e826896b22e259d91d1b46baf2bb3d -->
 
 # Administration
 
@@ -333,8 +333,8 @@ den erledigten Stapel ab; der Knopf erscheint nur, wenn etwas darin liegt, und n
 
 ## Integrationen
 
-Zwei Dinge wohnen hier: welche Dateidienste diese Installation anbietet, und die
-OAuth-Anwendungen, über die Menschen sich bei ihrer Mail anmelden.
+Drei Dinge wohnen hier: welche Dateidienste diese Installation anbietet, die Serveradresse für
+ihre Kalenderdienste, und die OAuth-Anwendungen, über die Menschen sich bei ihrer Mail anmelden.
 
 **Mail-Anmeldung** hält Client-ID und Client-Secret von Google und Microsoft, den
 Microsoft-Tenant und für Gmail das Pub/Sub-Topic und das Push-Verifizierungstoken. Lässt du
@@ -356,6 +356,24 @@ hat:
   Einfügen in die Konsole des Anbieters.
 - **Serveradresse**, bei den selbst gehosteten. Lass sie leer, und jede Person trägt ihre eigene
   ein; setze sie, und alle sind an diesen Server gebunden.
+
+**Kalender** listet CalDAV und Kalender-Feeds unter den Dateidiensten auf, mit derselben Zeile und
+demselben Formular hinter **Konfigurieren**. Beide stehen allen zur Verfügung, gleich was hier
+eingestellt ist, darum steht in der Zeile **Für alle verfügbar**, und das Formular hat keinen
+Schalter. Nextcloud steht dort nicht ein zweites Mal: Es wird einmal bei den Dateidiensten
+eingerichtet, und seine Kalender nutzen diese Adresse.
+
+- **CalDAV** hat die eine Einstellung, die der Einrichtungsassistent womöglich schon geschrieben
+  hat: **Serveradresse**. Setze sie, und jede CalDAV-Verbindung findet ihre Kalender auf diesem
+  Server; leere sie, und es gilt wieder die eigene Adresse jeder Person. Eine Änderung greift, wenn
+  auf einer Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender
+  behalten die Adresse, unter der sie gefunden wurden, und wer eine Adresse in einem privaten Netz
+  leert, beendet auch ihre Ausnahme von der Regel für private Netze — diese Kalender
+  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Siehe
+  [CalDAV](../providers/caldav.md).
+- **Calendar feed**, der Kalender-Feed, hat keinen Server zum Festlegen, denn jeder Feed ist seine
+  eigene Adresse. Eine hier gespeicherte Adresse lässt nur Feeds auf ihrem Host an der Regel für
+  private Netze vorbei; leere sie, wenn das niemand so wollte.
 
 **Zugangsdaten von … übernehmen** kopiert für Google wie für Microsoft eine Client-ID und ein
 Secret serverseitig hinüber, ohne das Secret je anzuzeigen. Ein Google-Cloud-Projekt deckt auch

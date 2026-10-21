@@ -1,11 +1,11 @@
-<!-- translated-from: providers/caldav.md sha1:09e8b50721113f2e7d06ec33fc969e9be7ef2df7 -->
+<!-- translated-from: providers/caldav.md sha1:a835199379cc0465712e3e763bf86d73bdc7a274 -->
 
 # CalDAV
 
 CalDAV ist das Standardprotokoll für Kalender auf einem Server, und plMail spricht es mit jedem
 Server, der RFC 4791 umsetzt: Nextcloud, Radicale, Baïkal, Fastmail, iCloud, eine Synology-Kiste im
-Schrank. Es gibt nirgends etwas zu registrieren und keinen Administrationsschritt — eine Person
-verbindet einen Server aus den eigenen Einstellungen heraus, mit einer Adresse, einem Benutzernamen
+Schrank. Es gibt nirgends etwas zu registrieren, und eine Administratorin muss nichts einschalten — eine
+Person verbindet einen Server aus den eigenen Einstellungen heraus, mit einer Adresse, einem Benutzernamen
 und einem Passwort.
 
 **Gmail- und Outlook-Kalender kommen nicht auf diesem Weg herein.** Sie kommen mit dem Mail-Konto,
@@ -38,6 +38,21 @@ Kalender werden von dort aus gefunden. Nichts auf dieser Seite ist dafür nötig
   gespiegelt*, derselbe Kalender wird also nie doppelt gespiegelt.
 
 Die allgemeine CalDAV-Verbindung unten bleibt für jeden anderen Server.
+
+## Ein Server für alle
+
+Unter **Admin → Integrationen**, im Abschnitt **Kalender**, lässt sich ein CalDAV-Server für alle
+festlegen, und der Einrichtungsassistent stellt dieselbe Frage. Ist eine Adresse festgelegt, findet
+jede CalDAV-Verbindung ihre Kalender auf diesem Server statt unter der Adresse, die ihre Person
+eingetragen hat, und dieser Host ist von der Regel für private Netze
+[unten](#adressen-die-plmail-ablehnt) ausgenommen.
+
+Geändert oder geleert wird die Adresse an derselben Stelle, und die Änderung greift, wenn auf einer
+Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender behalten die
+Adresse, unter der sie gefunden wurden; nach einem Serverumzug also die Kalender neu suchen. Wer eine
+festgelegte Adresse in einem privaten Netz leert, nimmt ihr auch die Ausnahme: Kalender von diesem
+Host synchronisieren dann nicht mehr und melden *„Server address must not point at a private
+network“*, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht.
 
 ## Einen Server verbinden
 

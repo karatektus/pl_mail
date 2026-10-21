@@ -575,6 +575,9 @@ admin:
     integrations:
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
+        calendar:
+            heading: 'Kalender'
+            intro: 'Server und Feeds, aus denen unter Einstellungen → Kalender Kalender gespiegelt werden. Beide stehen allen zur Verfügung; hier lässt sich eine Serveradresse für alle festlegen. Nextcloud wird oben bei den Dateidiensten eingerichtet, seine Kalender kommen mit.'
         clear_secret: 'Gespeichertes Client-Secret entfernen'
         configure: 'Konfigurieren'
         connected_users: '%count% verbunden'
@@ -583,6 +586,7 @@ admin:
         inherit_toggle_help: 'Ein Google-Projekt deckt auch Drive und Fotos ab, eine Microsoft-App auch OneDrive. Angeschaltet lassen und für diese ist nichts weiter einzurichten.'
         field:
             base_url: 'Serveradresse'
+            base_url_help_ics: 'Leer lassen. Jeder Feed hat seine eigene Adresse, ein Eintrag hier ändert also nichts daran, welche Feeds abonniert werden. Eine hier gespeicherte Adresse nimmt nur Feeds auf ihrem Host von der Prüfung auf private Netze aus.'
             base_url_help_saas: 'Leer lassen. Dieser Dienst hat eine feste Adresse.'
             base_url_help_selfhosted: 'Optional. Festlegen, um alle auf einen Server zu binden; leer lassen, damit jede Person ihre eigene Adresse einträgt.'
             client_id: 'Client-ID'
@@ -644,6 +648,7 @@ admin:
         secret_stored: 'Gespeichert'
         secret_unchanged: 'Leer lassen, um das gespeicherte Secret zu behalten'
         status:
+            always_offered: 'Für alle verfügbar'
             disabled: 'Deaktiviert'
             enabled: 'Aktiviert'
             incomplete: 'Zugangsdaten fehlen'
@@ -655,7 +660,6 @@ admin:
                 security: 'Nutzerinnen und Nutzer sollten ein App-Passwort anlegen statt ihr Anmeldepasswort zu verwenden: App-Passwörter lassen sich einzeln widerrufen und funktionieren mit Zwei-Faktor-Anmeldung. iCloud und Fastmail akzeptieren nichts anderes.'
                 step_app_password: 'Jede Person legt auf ihrem Server ein App-Passwort an — Nextcloud unter Einstellungen → Sicherheit, iCloud auf appleid.apple.com, Fastmail unter Settings → Password & Security — und trägt es in den eigenen Kalendereinstellungen ein.'
                 step_base_url: 'Optional die Serveradresse festlegen, etwa https://cloud.example.com, wenn hier alle denselben Server nutzen.'
-                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
                 step_url: 'Einzutragen ist die CalDAV-Adresse, nicht die der Weboberfläche: Nextcloud zeigt sie unter Kalender → Einstellungen → „Primäre CalDAV-Adresse kopieren“, sie endet meist auf /remote.php/dav. Eine bloße Domain reicht auch — plMail fragt dort nach, wo die Kalender liegen.'
             dropbox:
                 intro: 'Dropbox benötigt eine App in der Dropbox-Entwicklerkonsole.'
@@ -679,6 +683,9 @@ admin:
                 intro: 'Google Photos nutzt OAuth und eine eigene API, getrennt von Drive.'
                 scope_warning: 'Google hat die Photos-Lesescopes im März 2025 eingeschränkt. Eine neu registrierte App erhält meist nur appcreateddata und sieht damit ausschließlich von plMail hochgeladene Medien — zum Durchsuchen einer bestehenden Bibliothek braucht es photoslibrary.readonly, das Google im Einzelfall gewährt. Das Speichern von Anhängen funktioniert unabhängig davon.'
                 step_api: 'Die Photos-Library-API für das Projekt aktivieren.'
+            ics:
+                intro: 'Ein Kalender-Feed braucht hier keine Einrichtung. Jede Person fügt die Adresse, unter der ein Kalender veröffentlicht ist (meist auf .ics endend), unter Einstellungen → Kalender → „Adresse abonnieren“ ein.'
+                security: 'Bei einem veröffentlichten Kalender wirkt die Adresse wie ein Passwort: Wer sie kennt, kann den Kalender lesen.'
             immich:
                 intro: 'Immich authentifiziert sich über einen API-Schlüssel pro Person, hier ist also nichts zu registrieren.'
                 no_share_links: 'Immich kann keinen öffentlichen Link für ein einzelnes Foto erzeugen — geteilt werden nur Alben. Fotos über der Anhangsgrenze lassen sich daher gar nicht anhängen.'

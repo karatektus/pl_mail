@@ -302,8 +302,8 @@ appears only when there is something in it, and names how many.
 
 ## Integrations
 
-Two things live here: which file services this installation offers, and the OAuth applications users
-sign into their mail with.
+Three things live here: which file services this installation offers, the server address for its
+calendar services, and the OAuth applications users sign into their mail with.
 
 **Mail sign-in** holds the Google and Microsoft client id and secret, the Microsoft tenant, and for
 Gmail the Pub/Sub topic and push verification token. Leaving any of them empty falls back to the
@@ -323,6 +323,20 @@ appear.
   provider's console.
 - **Server address**, for the self-hosted ones. Leave it empty and each user enters their own; set
   it and every user is pinned to that server.
+
+**Calendars** lists CalDAV and calendar feeds below the file services, with the same row and the same
+**Configure** form. Both are offered to every user whatever is set here, so the row says **Offered
+to everyone** and the form has no switch. Nextcloud is not repeated there: it is configured once
+among the file services, and its calendars use that address.
+
+- **CalDAV** has the one setting the setup wizard may already have written: **Server address**. Set
+  it and every CalDAV connection finds its calendars on that server; clear it and each user's own
+  address counts again. A change applies the next time calendars are found on a connection.
+  Calendars already mirrored keep the address they were found at, and clearing an address in a
+  private range also ends its exemption from the private-network rule, so those calendars stop
+  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. See [CalDAV](../providers/caldav.md).
+- **Calendar feed** has no server to pin, because every feed is its own address. An address stored
+  here only lets feeds on its host past the private-network rule; clear it if nobody meant that.
 
 **Reuse Gmail credentials** and its Microsoft equivalent copy a client id and secret across
 server-side, without ever showing the secret. One Google Cloud project also covers Drive and Photos;

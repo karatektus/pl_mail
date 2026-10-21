@@ -508,6 +508,9 @@ admin:
     integrations:
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
+        calendar:
+            heading: 'Calendars'
+            intro: 'Ports an'' feeds th'' crew copy their calendars from, under Settings → Calendars. Both be open to every hand; what can be set here be one port for all. Nextcloud be rigged with th'' cargo holds above, an'' its calendars sail with it.'
         clear_secret: 'Throw the stored secret overboard'
         configure: 'Set the rigging'
         connected_users: '%count% hands moored'
@@ -516,6 +519,7 @@ admin:
         inherit_toggle_help: 'One Google charter covers Drive an'' Photos; one Microsoft charter covers OneDrive. Leave it set an'' there be nothin'' more to rig for them.'
         field:
             base_url: 'Port address'
+            base_url_help_ics: 'Leave it empty. Every feed has its own bearin'', so nothin'' here changes which feeds th'' crew follow. A bearin'' stowed here only lets feeds from its port past th'' private-waters check.'
             base_url_help_saas: 'Leave it empty. This port never moves.'
             base_url_help_selfhosted: 'Optional. Set it to moor every hand at one port; leave it empty and each names their own.'
             client_id: 'Client ID'
@@ -576,6 +580,7 @@ admin:
         secret_stored: 'Stored'
         secret_unchanged: 'Leave blank to keep th'' stored secret'
         status:
+            always_offered: 'Open to every hand'
             disabled: 'Struck down'
             enabled: 'Open'
             incomplete: 'Wants papers'
@@ -587,7 +592,6 @@ admin:
                 security: 'Hands should cut a ship''s key rather than hand over their boardin'' word: a ship''s key can be struck on its own an'' works with the two-lock. iCloud an'' Fastmail take naught else.'
                 step_app_password: 'Each hand cuts a ship''s key aboard their own port — Nextcloud under Settin''s → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — an'' pastes it into their own almanac settin''s.'
                 step_base_url: 'Ye may pin the port''s address, say https://cloud.example.com, if every hand here uses the same one.'
-                step_enable: 'Hoist "Offer this service to users" above.'
                 step_url: 'The address wanted be the CalDAV one, not the front door: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", an'' it mostly ends in /remote.php/dav. A bare domain serves too — plMail hails it an'' asks where the almanacs be moored.'
             dropbox:
                 intro: 'Dropbox wants an app registered in th'' Dropbox developer console.'
@@ -611,6 +615,9 @@ admin:
                 intro: 'Google Photos sails under OAuth with its own API, separate from Drive.'
                 scope_warning: 'Google battened down th'' Photos readin'' scopes in March 2025. A freshly registered app gets only appcreateddata and sees naught but what plMail hauled up itself — browsin'' an existin'' hold wants photoslibrary.readonly, granted case by case. Stowin'' cargo to Photos works regardless.'
                 step_api: 'Hoist th'' Photos Library API for th'' project.'
+            ics:
+                intro: 'A calendar feed wants no riggin'' here. Each hand pastes th'' bearin'' a calendar be published at, mostly endin'' in .ics, under Settings → Calendars → Follow a bearin''.'
+                security: 'For a published calendar th'' bearin'' be as good as a password: whoever holds it can read th'' calendar.'
             immich:
                 intro: 'Immich checks papers with a key per hand, so there be nothin'' to register here.'
                 no_share_links: 'Immich cannot cut a public line for a single picture — only whole albums. Pictures over th'' cargo limit therefore cannot be hauled aboard at all.'

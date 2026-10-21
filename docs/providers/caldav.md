@@ -2,8 +2,8 @@
 
 CalDAV is the standard protocol for calendars on a server, and plMail speaks it to any server that
 implements RFC 4791: Nextcloud, Radicale, Baïkal, Fastmail, iCloud, a Synology box in a cupboard.
-There is nothing to register with anybody and no administrator step — a user connects a server from
-their own settings with an address, a username and a password.
+There is nothing to register with anybody and nothing an administrator has to switch on — a user
+connects a server from their own settings with an address, a username and a password.
 
 **Gmail and Outlook calendars do not come in this way.** They arrive with the mail account, on the
 grant it already holds, and need only the calendar permission ticked on the app registration — see
@@ -33,6 +33,19 @@ on this page needs doing for it.
   calendar is never mirrored twice.
 
 The generic CalDAV connection below stays for every other server.
+
+## One server for everybody
+
+An administrator can pin one CalDAV server in **Admin → Integrations**, under **Calendars**, and the
+setup wizard asks the same question. With an address pinned, every CalDAV connection finds its
+calendars on that server rather than at the address its user typed, and that host is exempt from the
+private-network rule [below](#addresses-plmail-will-refuse).
+
+The address is changed or cleared in the same place, and the change applies the next time calendars
+are found on a connection. Calendars already mirrored keep the address they were found at, so after
+a server moves, find its calendars again. Clearing a pinned address in a private range takes its
+exemption with it: calendars mirrored from that host then stop syncing with *"Server address must not
+point at a private network"* until the host is listed in `INTEGRATIONS_ALLOWED_HOSTS`.
 
 ## Connecting a server
 

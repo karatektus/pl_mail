@@ -564,6 +564,9 @@ admin:
     integrations:
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
+        calendar:
+            heading: 'Calendars'
+            intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'
         configure: 'Configure'
         connected_users: '%count% connected'
@@ -572,6 +575,7 @@ admin:
         inherit_toggle_help: 'One Google project also covers Drive and Photos; one Microsoft app also covers OneDrive. Leave this on and there is nothing more to set up for them.'
         field:
             base_url: 'Server address'
+            base_url_help_ics: 'Leave empty. Every feed has its own address, so nothing here changes which feeds people subscribe to. An address stored here only lets feeds on its host past the private-network check.'
             base_url_help_saas: 'Leave empty. This service has one fixed address.'
             base_url_help_selfhosted: 'Optional. Set this to pin every user to one server; leave it empty to let each user enter their own.'
             client_id: 'Client ID'
@@ -633,6 +637,7 @@ admin:
         secret_stored: 'Stored'
         secret_unchanged: 'Leave blank to keep the stored secret'
         status:
+            always_offered: 'Offered to everyone'
             disabled: 'Disabled'
             enabled: 'Enabled'
             incomplete: 'Needs credentials'
@@ -644,7 +649,6 @@ admin:
                 security: 'Users should create an app-specific password rather than use their login password: app passwords are individually revocable and work with two-factor authentication. iCloud and Fastmail accept nothing else.'
                 step_app_password: 'Each user creates an app password on their own server — Nextcloud under Settings → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — and pastes it into their own calendar settings.'
                 step_base_url: 'Optionally pin the server address, for example https://cloud.example.com, if everyone here uses the same server.'
-                step_enable: 'Turn on "Offer this service to users" above.'
                 step_url: 'The address to enter is the CalDAV one, not the web interface: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", and it usually ends in /remote.php/dav. A bare domain works too — plMail asks it where its calendars live.'
             dropbox:
                 intro: 'Dropbox needs an app registered in the Dropbox developer console.'
@@ -668,6 +672,9 @@ admin:
                 intro: 'Google Photos uses OAuth and its own API, separate from Drive.'
                 scope_warning: 'Google restricted the Photos read scopes in March 2025. A newly registered app is generally granted only appcreateddata, which sees nothing but media plMail itself uploaded — browsing an existing library needs the photoslibrary.readonly scope, which Google grants case by case. Saving attachments to Photos works either way; browsing may show an empty library until that scope is approved.'
                 step_api: 'Enable the Photos Library API for the project.'
+            ics:
+                intro: 'A calendar feed needs nothing set up here. Each user pastes the address a calendar is published at, usually ending in .ics, under Settings → Calendars → Subscribe to an address.'
+                security: 'For a published calendar the address works like a password: anyone who has it can read the calendar.'
             immich:
                 intro: 'Immich authenticates with a per-user API key, so there is nothing to register here.'
                 no_share_links: 'Immich cannot create a public link for a single photo — sharing is album-level. Photos above the attachment size limit therefore cannot be attached at all.'
