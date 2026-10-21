@@ -199,6 +199,11 @@ export default class extends Controller {
         // event.
         this._boundNameAddressFields = this._nameAddressFields.bind(this);
         this.element.addEventListener('autocomplete:connect', this._boundNameAddressFields);
+        // Before the widget is built, so its first chips are drawn this way
+        // too. This controller is an ancestor of the fields, so Stimulus has
+        // connected it before the bundle's controller dispatches this.
+        this._boundRenderAddressFields = this._renderAddressFields.bind(this);
+        this.element.addEventListener('autocomplete:pre-connect', this._boundRenderAddressFields);
         requestAnimationFrame(this._boundNameAddressFields);
 
         // A draft that arrives with text and no HTML is already a plain-text
@@ -306,6 +311,60 @@ export default class extends Controller {
         }
 
         this._markInvalid(this.hasErrorsTarget && false === this.errorsTarget.classList.contains('hidden'));
+    }
+
+    /**
+     * How a recipient is drawn: a suggestion as avatar, name and address, a
+     * chip as the name alone, with the address on hover.
+     *
+     * These were tom_select_options in ContactAutocompleteField, as strings of
+     * JavaScript. The bundle hands options to Tom Select as they are, so the
+     * strings were never run, and the bundle's own renderers drew every chip
+     * as "Name <address>". Once address-book contacts were suggested, nearly
+     * every chip had a name, and at the chip's maximum width its × was clipped.
+     */
+    _renderAddressFields(event) {
+        const options = event.detail?.options;
+
+        if (undefined === options || false === this._addressRows().some((row) => row.contains(event.target))) {
+            return;
+        }
+
+        const parts = (data) => {
+            // Plain text, escaped when drawn — never tag-stripped, which would
+            // take the <address> with it.
+            const raw   = String(data.text ?? data.value ?? '');
+            const match = raw.match(/^(.*?)\s*<([^<>]+)>$/);
+
+            return null !== match && '' !== match[1].trim()
+                ? { name: match[1].trim(), email: match[2], full: raw }
+                : { name: '', email: raw, full: raw };
+        };
+
+        options.render = {
+            ...options.render,
+            option: (data, escape) => {
+                const { name, email } = parts(data);
+                const initials = '' !== name
+                    ? name.split(/\s+/).map((word) => word[0] ?? '').slice(0, 2).join('')
+                    : (email[0] ?? '?');
+
+                // A child of the option, not the option: Tom Select puts its
+                // `.option` class on whatever root it is given, and that
+                // rule's display: block would undo the row's flex.
+                return '<div><div class="ts-option-row">'
+                    + `<span class="ts-option-avatar">${escape(initials.toUpperCase())}</span>`
+                    + '<span class="ts-option-text">'
+                    + ('' !== name ? `<span class="ts-option-name">${escape(name)}</span>` : '')
+                    + `<span class="ts-option-email">${escape(email)}</span>`
+                    + '</span></div></div>';
+            },
+            item: (data, escape) => {
+                const { name, email, full } = parts(data);
+
+                return `<div title="${escape(full)}"><span class="ts-item-label">${escape('' !== name ? name : email)}</span></div>`;
+            },
+        };
     }
 
     /** The id of the shared refusal line, minted once so it can be pointed at. */
@@ -581,6 +640,7 @@ export default class extends Controller {
         this.element.removeEventListener('keydown', this._boundHandleTab);
         this.element.removeEventListener('keydown', this._boundHandleEnter);
         this.element.removeEventListener('autocomplete:connect', this._boundNameAddressFields);
+        this.element.removeEventListener('autocomplete:pre-connect', this._boundRenderAddressFields);
 
         if (this.hasBodyTarget && undefined !== this._boundBodyPaste) {
             this.bodyTarget.removeEventListener('paste',    this._boundBodyPaste);
