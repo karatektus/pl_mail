@@ -230,6 +230,50 @@ final class CalendarEventSetMethodTest extends CalendarMethodTestCase
     }
 
     /**
+     * Alerts are settable: several offsets at once, kept across an
+     * update that does not name them, and cleared by an empty map.
+     */
+    public function testAlertsAreSetKeptAndCleared(): void
+    {
+        $event = $this->createdEvent([
+            'title' => 'Dentist',
+            'start' => $this->local(9),
+            'alerts' => [
+                'a' => ['@type' => 'Alert', 'trigger' => ['@type' => 'OffsetTrigger', 'offset' => '-PT30M'], 'action' => 'display'],
+                'b' => ['@type' => 'Alert', 'trigger' => ['@type' => 'OffsetTrigger', 'offset' => '-P1D'], 'action' => 'display'],
+            ],
+        ]);
+
+        $offsets = array_map(static fn (array $a): string => $a['trigger']['offset'], array_values($event->jscalendar['alerts'] ?? []));
+        sort($offsets);
+        self::assertSame(['-P1D', '-PT30M'], $offsets);
+
+        $this->method->handle([
+            'accountId' => $this->accountId(),
+            'update' => [(string) $event->id => ['title' => 'Dentist (moved)']],
+        ], $this->context());
+        self::assertCount(2, $event->jscalendar['alerts'] ?? []);
+
+        $this->method->handle([
+            'accountId' => $this->accountId(),
+            'update' => [(string) $event->id => ['alerts' => []]],
+        ], $this->context());
+        self::assertArrayNotHasKey('alerts', $event->jscalendar);
+    }
+
+    public function testAnAlertWithoutAnOffsetIsRefused(): void
+    {
+        $result = $this->create(['new' => [
+            'calendarId' => (string) $this->calendar->id,
+            'title' => 'Kickoff',
+            'start' => $this->local(9),
+            'alerts' => ['a' => ['@type' => 'Alert', 'trigger' => ['@type' => 'AbsoluteTrigger', 'when' => '2026-01-01T00:00:00Z']]],
+        ]]);
+
+        self::assertSame('invalidProperties', $result['notCreated']['new']['type']);
+    }
+
+    /**
      * A start carrying a zone is refused rather than reinterpreted. JSCalendar's
      * LocalDateTime has no offset; a trailing Z says UTC while `timeZone` says
      * something else, and guessing between them moves a meeting by hours in

@@ -10,6 +10,7 @@ use App\Domain\Exception\InvalidFirebaseCredentialsException;
 use App\Entity\Push\FcmConfig;
 use App\Repository\Push\FcmConfigRepository;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * "Is FCM usable right now, with which credentials, and what does a client need
@@ -32,7 +33,7 @@ use Psr\Log\LoggerInterface;
  * container is rebuilt per request under FrankenPHP's runtime, so an admin
  * saving new credentials is in force on the next one.
  */
-final class FcmSettings
+final class FcmSettings implements ResetInterface
 {
     private bool $resolved = false;
 
@@ -114,5 +115,22 @@ final class FcmSettings
                 'exception' => $exception,
             ]);
         }
+    }
+
+    /**
+     * Forget the resolved configuration between requests and
+     * between queue messages.
+     *
+     * The PHP workers (FrankenPHP worker mode) and the queue worker live for
+     * hours, and without this the first answer stuck for their whole life: a
+     * worker that had looked before Firebase was set up kept saying "not
+     * configured" after it was — so the session told the phone Firebase was
+     * off, and new mail synced by the queue worker was never pushed.
+     */
+    public function reset(): void
+    {
+        $this->resolved = false;
+        $this->config   = null;
+        $this->account  = null;
     }
 }
