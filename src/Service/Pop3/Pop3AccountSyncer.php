@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Pop3;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\AccountSyncerInterface;
@@ -16,6 +17,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Imap\MessageSyncer;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -106,6 +108,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         private readonly MessageSyncer         $messageSyncer,
         private readonly AccountRepository     $accountRepository,
         private readonly MailboxRepository     $mailboxRepository,
+        private readonly LabelResolver         $labelResolver,
         private readonly PostIngestPipeline    $postIngest,
         private readonly EntityManagerInterface $em,
         private readonly ManagerRegistry        $registry,
@@ -381,7 +384,21 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
     }
 
     /**
-     * The one mailbox a POP3 account's mail lives in, created on first use.
+     * The one mailbox a POP3 account's mail lives in, created on first use and
+     * bound to the account's Inbox label.
+     *
+     * ── The binding is not optional ──────────────────────────────────────────
+     * Every view in the application is label-driven, not mailbox-driven: the
+     * Inbox list, the sidebar counts and the JMAP Mailbox object all read the
+     * label binding that MailboxSyncer would normally create. A Mailbox row
+     * with no binding is a row nothing displays, and MessageSyncer's
+     * buildMessageFromParsed() attaches `$mailbox->label` — null here — so the
+     * messages landed with no label at all and were invisible in the UI while
+     * being present in the database.
+     *
+     * Found by deploying it: five messages synced, none of them appeared. IMAP
+     * never hits this because MailboxSyncer::linkLabel() binds every folder it
+     * creates, and its `$mailbox->label` is therefore never null.
      */
     private function mailboxFor(Account $account): Mailbox
     {
@@ -391,6 +408,18 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         ]);
 
         if (null !== $existing) {
+            // A row created before the binding existed — including one this
+            // syncer made on an earlier run — is healed here rather than left
+            // as mail the user cannot see.
+            if (null === $existing->label) {
+                $this->labelResolver->bindMailbox(
+                    $this->labelResolver->systemLabel(LabelRole::Inbox, $account),
+                    $existing,
+                );
+
+                $this->em->flush();
+            }
+
             return $existing;
         }
 
@@ -407,7 +436,17 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         // turn on or off. It is true so that the rest of the application's
         // "is this folder polled" checks read a POP3 account's mail as polled,
         // which it is.
+        //
+        // Persisted before the binding, for the same reason MailboxSyncer does:
+        // bindMailbox() flushes to mint the binding id, and the FK needs the
+        // mailbox to be managed by then.
         $this->em->persist($mailbox);
+
+        $this->labelResolver->bindMailbox(
+            $this->labelResolver->systemLabel(LabelRole::Inbox, $account),
+            $mailbox,
+        );
+
         $this->em->flush();
 
         return $mailbox;
