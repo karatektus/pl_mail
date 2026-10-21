@@ -78,6 +78,30 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
     }
 
     /**
+     * The contact page's email links open the window as /compose/new?to=…;
+     * the address has to arrive in To, not only in the URL.
+     */
+    public function testALinkWithAnAddressOpensANewDraftAddressedToIt(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+        $this->account($user, 'sender@joder.dev');
+
+        $crawler = $client->request('GET', '/compose/new?to=Ada@Example.com&name=Ada%20Lovelace', server: self::DOCK_FRAME);
+
+        self::assertResponseIsSuccessful();
+
+        $selected = $crawler->filter('select[name$="[toAddresses][]"] option[selected]');
+
+        self::assertCount(1, $selected);
+        self::assertStringContainsString('ada@example.com', $selected->text(), 'lower-cased, as every address is kept');
+
+        $junk = $client->request('GET', '/compose/new?to=not-an-address', server: self::DOCK_FRAME);
+
+        self::assertCount(0, $junk->filter('select[name$="[toAddresses][]"] option[selected]'), 'a URL anybody can type addresses nobody');
+    }
+
+    /**
      * The From switch is a DOM swap, not a fetch, so the signatures have to
      * arrive with the window — keyed the way the account <select> carries them.
      */
