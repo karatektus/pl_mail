@@ -603,6 +603,8 @@ admin:
                 calendars with the same sign-in they already use for mail.
                 Without it, mail keeps working and calendars simply do not
                 appear.
+            consent_heading: 'If your organisation approves apps for its users'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
             contacts_google: >-
                 Enable the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — users then get
@@ -2492,10 +2494,7 @@ oauth:
     error:
         generic: We couldn't connect that account. Please try again.
         microsoft:
-            admin_consent_required: >-
-                Your organisation requires an administrator to approve plMail
-                before you can connect this account. Please ask your Microsoft
-                 administrator to grant access.
+            admin_consent_required: 'Your organisation requires an administrator to approve plMail before you can connect this account. If it worked before, plMail now also asks for access to your contacts, and that needs their approval too. Please ask your Microsoft administrator to grant access.'
             app_not_found: >-
                 plMail isn't registered in your Microsoft organisation.
             bad_credentials: >-
@@ -3705,6 +3704,7 @@ settings:
     contacts:
         allow_contacts: 'Allow contacts'
         allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
+        allow_contacts_microsoft: 'If your organisation approves apps for its users, ask your administrator to approve plMail''s contacts permission first. Until they do, Microsoft refuses this sign-in.'
         carddav:
             connect: Connect a CardDAV server
             disconnect: Disconnect "%name%"

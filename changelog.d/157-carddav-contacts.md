@@ -23,5 +23,9 @@ to your phone. Anything plMail has no field for stays on the card. Changes made 
 contacts on Google accounts, enable the **People API** in the Cloud project and add the
 `.../auth/contacts` scope to the consent screen; for Microsoft accounts, add the
 `Contacts.ReadWrite` delegated permission to the app registration — see
-[Google](docs/providers/google.md) and [Microsoft](docs/providers/microsoft.md). Without them, mail
-and calendars work as before.
+[Google](docs/providers/google.md) and [Microsoft](docs/providers/microsoft.md). Without the People
+API, mail and calendars work as before, and a Google address book says the API needs enabling.
+**A Microsoft 365 organisation where only administrators approve apps refuses every sign-in to
+plMail after this upgrade, mail included, until an administrator approves the new permission:**
+Microsoft Entra admin centre → Enterprise applications → plMail → Permissions → Grant admin
+consent. Do it before upgrading. Personal Microsoft accounts are not affected.

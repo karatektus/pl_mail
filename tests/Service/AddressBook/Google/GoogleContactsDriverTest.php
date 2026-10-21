@@ -299,6 +299,31 @@ final class GoogleContactsDriverTest extends TestCase
         }
     }
 
+    /**
+     * The People API not enabled in the installation's Cloud project, in both
+     * of Google's spellings. Not the reconnect hint: reconnecting cannot fix
+     * it, and the line has to say who can.
+     */
+    public function testAPeopleApiThatIsNotEnabledSaysTheAdministratorHasToEnableIt(): void
+    {
+        $disabled = 'People API has not been used in project 1234 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/people.googleapis.com/overview?project=1234 then retry.';
+
+        foreach ([
+            ['error' => ['code' => 403, 'status' => 'PERMISSION_DENIED', 'message' => $disabled, 'details' => [['@type' => 'type.googleapis.com/google.rpc.ErrorInfo', 'reason' => 'SERVICE_DISABLED', 'domain' => 'googleapis.com']]]],
+            ['error' => ['code' => 403, 'message' => $disabled, 'errors' => [['reason' => 'accessNotConfigured', 'domain' => 'usageLimits', 'message' => $disabled]]]],
+        ] as $answer) {
+            $driver = $this->driver([$this->json($answer, 403)]);
+
+            try {
+                $driver->pull($this->book(), null);
+                self::fail('a disabled API is permanent');
+            } catch (CalendarSyncPermanentException $e) {
+                self::assertSame(GooglePeopleClient::API_DISABLED_HINT, $e->getMessage());
+                self::assertStringNotContainsString('1234', $e->getMessage(), 'no project number or console link on a user\'s screen');
+            }
+        }
+    }
+
     public function testAQuotaIsThrottling(): void
     {
         $driver = $this->driver([$this->json(['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded']], 429, ['retry-after' => '30'])]);

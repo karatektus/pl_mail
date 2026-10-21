@@ -29,6 +29,13 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  *   contactScopes()), and a grant can lose it — a user who unticked it, an
  *   admin who withdrew it. Retrying cannot help; the book's error line says
  *   what to do.
+ *   **403 SERVICE_DISABLED (accessNotConfigured) → permanent, addressed to
+ *   the administrator.** The People API is not enabled in the Cloud project
+ *   behind Mail sign-in. Sign-in, mail and calendars work, and only the
+ *   contacts calls are refused. Google's own text names the project and a
+ *   console link for whoever owns it. Shown on a user's address book, it reads as
+ *   something they did wrong, and reconnecting cannot fix it. So the line
+ *   says who can fix it.
  *   **429, and 403 RESOURCE_EXHAUSTED → throttled.** The People API has a
  *   per-user quota, and a full sync's first page an extra fixed one.
  *   **400 with EXPIRED_SYNC_TOKEN → resync required.** A sync token lives seven
@@ -51,6 +58,11 @@ final readonly class GooglePeopleClient
 
     /** The 403 statuses and reasons that are a quota rather than a refusal. */
     private const array THROTTLED = ['RESOURCE_EXHAUSTED', 'rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded', 'RATE_LIMIT_EXCEEDED'];
+
+    /** What Google answers when the People API is not enabled in the project. */
+    private const array API_DISABLED = ['SERVICE_DISABLED', 'accessNotConfigured'];
+
+    public const string API_DISABLED_HINT = 'Google refuses contacts because the People API is not enabled for this plMail installation. Mail and calendars are not affected. Your plMail administrator needs to enable the Google People API in the Google Cloud project used for mail sign-in; contacts then sync on their own.';
 
     /** What Google answers when the token does not carry the contacts scope. */
     private const array SCOPE = ['ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'insufficientPermissions'];
@@ -222,6 +234,10 @@ final readonly class GooglePeopleClient
 
         if (401 === $status || (403 === $status && [] !== array_intersect($all, self::SCOPE))) {
             return new CalendarSyncPermanentException(self::RECONNECT_HINT, $status);
+        }
+
+        if (403 === $status && [] !== array_intersect($all, self::API_DISABLED)) {
+            return new CalendarSyncPermanentException(self::API_DISABLED_HINT, $status);
         }
 
         if (429 === $status || (403 === $status && [] !== array_intersect($all, self::THROTTLED))) {

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:78001ed7a250fe5ade2924e0a5e9f33e4f4f30df -->
+<!-- translated-from: providers/microsoft.md sha1:3e529992d3beed2d19d98f73d09643bf23bb54af -->
 
 # Microsoft
 
@@ -225,6 +225,19 @@ ein Token, das sie nicht trägt, und daran ändert kein Abwarten etwas. Das Kont
 anmelden, damit eine frische Zustimmung ein neues Token ausstellt — der Knopf zum erneuten Verbinden
 unter **Einstellungen → Zustand der Konten** tut das, ohne das Konto zu entfernen, und `app:graph:diagnose` sagt
 es ausdrücklich, wenn es die Lücke findet.
+
+**Eine Organisation, die Apps für ihre Benutzer freigibt, lehnt nach einem Update mit einer neuen
+Berechtigung jede Anmeldung ab.** In einem Tenant, in dem Benutzer Apps nicht selbst zustimmen
+dürfen, hat ein Administrator plMail einmal freigegeben, für die Berechtigungen, die es damals
+verlangt hat. Eine plMail-Version, die eine weitere verlangt (`Contacts.ReadWrite`, seit es die
+Kontaktsynchronisierung gibt), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
+oder `AADSTS90094`, bis der Administrator erneut zustimmt: **Microsoft Entra Admin Center →
+Unternehmensanwendungen → plMail → Berechtigungen → Administratorzustimmung erteilen**. Tu das vor
+dem Update oder bevor sich jemand neu verbindet. Die Fehlermeldung bei der Anmeldung sagt dem
+Benutzer, dass er seinen Administrator fragen soll, **Admin → Integrationen → Microsoft-Mail-Anmeldung**
+trägt dieselbe Warnung, und ebenso das Angebot zum erneuten Verbinden unter
+**Einstellungen → Kontakte**. Private Microsoft-Konten und Tenants, in denen Benutzer Apps selbst
+freigeben, sind nicht betroffen.
 
 **Eine funktionierende Identität bei durchweg scheiternden Mail-Endpunkten ist kein Problem der
 Zugangsdaten.** Meistens heißt es, dass für das Microsoft-Konto überhaupt kein Outlook-Postfach

@@ -32,7 +32,9 @@ Everything under **Settings** that this enables is described in
    the admin screen means when it says there is nothing to set up on the plMail side — calendar
    access is bought entirely in this console.
 4. Enable the **Google People API** too if you want contacts. It is the same kind of step for the
-   address book: without it, mail and calendars work and contacts never appear.
+   address book: without it, mail and calendars work, and each user's Google address book in
+   **Settings → Contacts** says that the administrator needs to enable the People API. Once it is
+   enabled, contacts sync on their own; nobody has to sign in again.
 
 Note your **project ID** while you are here. It is lower-case and may differ from the display name
 you typed; the Pub/Sub topic below is named with the ID, not the name.

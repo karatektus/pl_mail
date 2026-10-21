@@ -613,6 +613,8 @@ admin:
                 Calendars.ReadWrite in dieser App-Registrierung — die Kalender
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
+            consent_heading: 'Wenn deine Organisation Apps für ihre Benutzer freigibt'
+            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
             contacts_google: >-
                 Aktiviere die Google People API für dieses Projekt und füge den
                 Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
@@ -2476,10 +2478,7 @@ oauth:
     error:
         generic: Dieses Konto konnte nicht verbunden werden. Bitte versuche es erneut.
         microsoft:
-            admin_consent_required: >-
-                Deine Organisation verlangt, dass ein Administrator plMail
-                freigibt, bevor du dieses Konto verbinden kannst. Bitte deinen
-                Microsoft-Administrator um die Freigabe.
+            admin_consent_required: 'Deine Organisation verlangt, dass ein Administrator plMail freigibt, bevor du dieses Konto verbinden kannst. Hat es vorher funktioniert, fragt plMail jetzt zusätzlich nach Zugriff auf deine Kontakte, und auch das muss freigegeben werden. Bitte deinen Microsoft-Administrator, den Zugriff zu erteilen.'
             app_not_found: >-
                 plMail ist in deiner Microsoft-Organisation nicht registriert.
             bad_credentials: >-
@@ -3719,6 +3718,7 @@ settings:
     contacts:
         allow_contacts: 'Kontakte erlauben'
         allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
+        allow_contacts_microsoft: 'Gibt deine Organisation Apps für ihre Benutzer frei, bitte zuerst deinen Administrator, plMails Berechtigung für Kontakte freizugeben. Bis dahin lehnt Microsoft diese Anmeldung ab.'
         carddav:
             connect: CardDAV-Server verbinden
             disconnect: '"%name%" trennen'

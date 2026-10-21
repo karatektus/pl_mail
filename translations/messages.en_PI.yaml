@@ -546,6 +546,8 @@ admin:
                 permission to this app registration — the crew's almanacs then
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
+            consent_heading: 'If yer fleet approves apps for its crew'
+            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
             contacts_google: >-
                 Hoist the Google People API for this project and add the
                 .../auth/contacts scope to the consent screen — the crew then
@@ -2354,9 +2356,7 @@ oauth:
     error:
         generic: We couldn't tie up that crew member. Try again, matey.
         microsoft:
-            admin_consent_required: >-
-                Yer fleet requires an admiral to approve plMail afore ye can tie
-                up this crew member. Ask yer Microsoft admiral for leave.
+            admin_consent_required: 'Yer fleet needs an admiral to approve plMail afore ye can connect this account. If it worked afore, plMail now also asks for yer contacts, and that needs their blessing too. Ask yer Microsoft admiral to grant access.'
             app_not_found: >-
                 plMail ain't on the roster of yer Microsoft fleet.
             bad_credentials: >-
@@ -3521,6 +3521,7 @@ settings:
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
+        allow_contacts_microsoft: 'If yer fleet approves apps for its crew, ask yer admiral to approve plMail''s contacts permission first. Till they do, Microsoft turns this sign-in away.'
         carddav:
             connect: Make fast to a CardDAV port
             disconnect: Cut the line to "%name%"

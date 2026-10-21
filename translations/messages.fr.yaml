@@ -608,6 +608,8 @@ admin:
                 utilisateurs obtiennent alors leurs agendas avec la connexion qu’ils
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
+            consent_heading: 'Si votre organisation approuve les applications pour ses utilisateurs'
+            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
             contacts_google: >-
                 Activez l’API Google People pour ce projet et ajoutez le scope
                 .../auth/contacts à l’écran de consentement : les utilisateurs
@@ -2505,10 +2507,7 @@ oauth:
     error:
         generic: Impossible de connecter ce compte. Veuillez réessayer.
         microsoft:
-            admin_consent_required: >-
-                Votre organisation exige qu’un administrateur approuve plMail avant
-                que vous puissiez connecter ce compte. Demandez à votre administrateur
-                Microsoft d’accorder l’accès.
+            admin_consent_required: 'Votre organisation exige qu''un administrateur approuve plMail avant que vous puissiez connecter ce compte. Si cela fonctionnait auparavant, plMail demande désormais aussi l''accès à vos contacts, ce qui nécessite également son approbation. Demandez à votre administrateur Microsoft d''accorder l''accès.'
             app_not_found: >-
                 plMail n’est pas enregistré dans votre organisation Microsoft.
             bad_credentials: >-
@@ -3753,6 +3752,7 @@ settings:
     contacts:
         allow_contacts: 'Autoriser les contacts'
         allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
+        allow_contacts_microsoft: 'Si votre organisation approuve les applications pour ses utilisateurs, demandez d''abord à votre administrateur d''approuver l''autorisation de plMail sur les contacts. D''ici là, Microsoft refuse cette connexion.'
         carddav:
             connect: Connecter un serveur CardDAV
             disconnect: Déconnecter « %name% »

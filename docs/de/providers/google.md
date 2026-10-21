@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:e53dc099a9f44da03ac748ee608d66a70ad31331 -->
+<!-- translated-from: providers/google.md sha1:b48c1f67e02a6658bb083369e5cd0a089c282cb2 -->
 
 # Google
 
@@ -34,7 +34,10 @@ Alles unter **Einstellungen**, was dadurch möglich wird, beschreiben
    Schritt, den der Admin-Bildschirm meint, wenn er sagt, auf der plMail-Seite sei nichts
    einzurichten — der Kalenderzugriff wird vollständig in dieser Konsole erworben.
 4. Aktiviere außerdem die **Google People API**, wenn du Kontakte willst. Es ist derselbe Schritt für
-   das Adressbuch: ohne ihn funktionieren Mail und Kalender, und Kontakte erscheinen nie.
+   das Adressbuch: Ohne ihn funktionieren Mail und Kalender, und das Google-Adressbuch jedes
+   Benutzers unter **Einstellungen → Kontakte** sagt, dass die Administration die People API
+   aktivieren muss. Sobald sie aktiviert ist, synchronisieren die Kontakte von selbst; niemand muss
+   sich neu anmelden.
 
 Notier dir gleich deine **project ID** (Projekt-ID). Sie ist kleingeschrieben und kann von dem
 Anzeigenamen abweichen, den du eingetippt hast; das Pub/Sub-Topic weiter unten wird mit der ID

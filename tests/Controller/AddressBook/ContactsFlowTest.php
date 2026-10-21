@@ -171,7 +171,7 @@ final class ContactsFlowTest extends WebTestCase
      */
     public function testAnAccountThatPredatesContactsIsOfferedTheReconnect(): void
     {
-        $account                     = $this->googleAccount('before@joder.dev');
+        $account                     = $this->oauthAccount('before@joder.dev');
         $account->oauthGrantedScopes = 'https://mail.google.com/ https://www.googleapis.com/auth/calendar';
         $this->em->flush();
 
@@ -183,10 +183,29 @@ final class ContactsFlowTest extends WebTestCase
         self::assertCount(0, $row->filter('[data-address-book]'));
     }
 
+    /**
+     * A Microsoft account's reconnect warns first that an organisation which
+     * approves apps for its users refuses it until the administrator approves
+     * contacts. A Google account's does not: Google has no such case.
+     */
+    public function testAMicrosoftAccountsReconnectWarnsAboutAdminApproval(): void
+    {
+        $microsoft                     = $this->oauthAccount('outlook@joder.dev', MailProvider::Microsoft);
+        $microsoft->oauthGrantedScopes = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access';
+        $google                        = $this->oauthAccount('gmail@joder.dev');
+        $google->oauthGrantedScopes    = 'https://mail.google.com/';
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/settings?section=contacts');
+
+        self::assertCount(1, $crawler->filter('[data-contact-account="' . $microsoft->id . '"] [data-admin-consent-hint]'));
+        self::assertCount(0, $crawler->filter('[data-contact-account="' . $google->id . '"] [data-admin-consent-hint]'));
+    }
+
     /** One whose grant reaches contacts shows its books and the chooser. */
     public function testAnAccountWithContactsShowsItsBooks(): void
     {
-        $account = $this->googleAccount('with@joder.dev');
+        $account = $this->oauthAccount('with@joder.dev');
         $book    = new AddressBook($this->user, $account, 'people/me', 'Google Contacts');
         $this->em->persist($book);
         $this->em->flush();
@@ -204,7 +223,7 @@ final class ContactsFlowTest extends WebTestCase
     /** A contact in an account's book says where it is synced, by the account's address. */
     public function testAContactInAnAccountsBookShowsWhereItIsSynced(): void
     {
-        $account = $this->googleAccount('synced@joder.dev');
+        $account = $this->oauthAccount('synced@joder.dev');
         $book    = new AddressBook($this->user, $account, 'people/me', 'Google Contacts');
         $this->em->persist($book);
 
@@ -227,7 +246,7 @@ final class ContactsFlowTest extends WebTestCase
     /** The chooser for an account is refused for somebody else's. */
     public function testNobodyChoosesTheBooksOfAnotherUsersAccount(): void
     {
-        $other           = $this->googleAccount('theirs@joder.dev');
+        $other           = $this->oauthAccount('theirs@joder.dev');
         $stranger            = new User();
         $stranger->email     = 'stranger-' . uniqid() . '@example.test';
         $stranger->roles     = ['ROLE_USER'];
@@ -666,7 +685,7 @@ final class ContactsFlowTest extends WebTestCase
         return $contact;
     }
 
-    private function googleAccount(string $email): Account
+    private function oauthAccount(string $email, MailProvider $provider = MailProvider::Google): Account
     {
         $account = new Account();
 
@@ -675,7 +694,7 @@ final class ContactsFlowTest extends WebTestCase
         $account->username          = $email;
         $account->email             = $email;
         $account->authType          = AuthType::OAuth2->value;
-        $account->oauthProvider     = MailProvider::Google->value;
+        $account->oauthProvider     = $provider->value;
         $account->oauthAccessToken  = 'access-token';
         $account->oauthRefreshToken = 'refresh-token';
         $account->isActive          = true;

@@ -134,6 +134,16 @@ Variables:
 
                 {% if granted is same as(false) %}
                     <p class="pl-6 text-xs text-ink-faint">{{ 'settings.contacts.allow_contacts_hint'|trans }}</p>
+                    {% if account.isMicrosoft %}
+                        {# In an organisation that approves apps for its users,
+                           this reconnect is refused until the administrator
+                           approves the contacts permission. Said before the
+                           click, not after a failed sign-in. #}
+                        <p class="pl-6 text-xs text-warning flex items-start gap-1.5" role="note" data-admin-consent-hint>
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden="true"></i>
+                            <span>{{ 'settings.contacts.allow_contacts_microsoft'|trans }}</span>
+                        </p>
+                    {% endif %}
                 {% else %}
                     {% include 'settings/contacts/_books.html.twig' with { books: accountBooks[account.id] ?? [] } only %}
                 {% endif %}
