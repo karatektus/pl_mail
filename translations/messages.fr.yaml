@@ -2989,6 +2989,17 @@ settings:
         generate: Générer
         heading: Mots de passe d’application
         last_used: 'Dernière utilisation le %date%'
+        scopes: Ce qu’il peut faire
+        scope:
+            read: Lire les e-mails
+            send: Envoyer des e-mails
+            delete: Supprimer et déplacer des e-mails
+        scopes_hint: >-
+            Les trois sont accordés par défaut, ce qu’un mot de passe
+            d’application avait avant ce réglage. Décochez ce que cette
+            application ne doit pas faire — un jeton sans case cochée ne peut
+            rien faire.
+        scopes_none: Aucun accès
         name_placeholder: 'À quoi sert-il ? p. ex. iPhone — Sterna'
         never_used: Jamais utilisé
         revoke: Révoquer

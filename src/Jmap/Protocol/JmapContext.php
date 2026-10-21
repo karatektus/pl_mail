@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Protocol;
 
+use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 
 /**
@@ -12,7 +13,10 @@ use App\Entity\User\User;
  *  - the accumulated method responses, so a later call can resolve a
  *    back-reference (e.g. "#ids") against an earlier call's result;
  *  - the createdIds map (client-supplied creation ids plus any minted
- *    server-side during this request), so "#creationId" references resolve.
+ *    server-side during this request), so "#creationId" references resolve;
+ *  - the app password the request authenticated with, when it used one. Null
+ *    means the browser session, which is the user themselves and is never
+ *    limited by ApiTokenScope.
  */
 final class JmapContext
 {
@@ -31,6 +35,16 @@ final class JmapContext
     public function __construct(
         public readonly User $user,
         array $createdIds = [],
+        /**
+         * The app password this request authenticated with, or null for the
+         * browser session.
+         *
+         * Read only by JmapProcessor's scope check. Everything else keeps
+         * working from $user, which is why this is an addition rather than a
+         * replacement: a JMAP method should not have to know how its caller
+         * proved who they were.
+         */
+        public readonly ?ApiToken $token = null,
     ) {
         $this->createdIds = $createdIds;
     }

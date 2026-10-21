@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
@@ -54,12 +55,37 @@ final class ApiTokenController extends AbstractController
 
         $name = (string) $form->get('name')->getData();
 
-        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $name);
+        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $name, $this->chosenScopes($form));
 
         $this->em->persist($token);
         $this->em->flush();
 
         return $this->streamResponse($request, 'app_password.created', $secret);
+    }
+
+    /**
+     * The scopes the form left ticked.
+     *
+     * A box that was not submitted is unticked, which is how an HTML form says
+     * no. An empty answer is allowed — a credential that can do nothing is a
+     * strange thing to create but not a dangerous one, and refusing it would
+     * make the page's first useful move (untick everything, then decide) an
+     * error. The list shows such a token as "no access" so it is not mistaken
+     * for a working one.
+     *
+     * @return list<ApiTokenScope>
+     */
+    private function chosenScopes(\Symfony\Component\Form\FormInterface $form): array
+    {
+        $scopes = [];
+
+        foreach (ApiTokenScope::all() as $scope) {
+            if (true === $form->get('scope_' . $scope->value)->getData()) {
+                $scopes[] = $scope;
+            }
+        }
+
+        return $scopes;
     }
 
     #[Route('/{id}/revoke', name: 'revoke', methods: ['POST'])]

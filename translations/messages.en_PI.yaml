@@ -2792,6 +2792,16 @@ settings:
         generate: Cut a key
         heading: Spare keys
         last_used: 'Last turned %date%'
+        scopes: What it be allowed
+        scope:
+            read: Read the mail
+            send: Send the mail
+            delete: Scuttle and move the mail
+        scopes_hint: >-
+            All three be granted by default, as was so before this settin'
+            existed. Untick what this app shouldn't have — a token with none
+            can do nothin' at all.
+        scopes_none: No access
         name_placeholder: 'What be it for? e.g. iPhone — Sterna'
         never_used: Never turned
         revoke: Scuttle it

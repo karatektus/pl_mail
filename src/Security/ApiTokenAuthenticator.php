@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
@@ -90,8 +91,52 @@ final class ApiTokenAuthenticator extends AbstractAuthenticator implements Authe
 
         // SelfValidatingPassport: possession of the secret IS the proof, and
         // the user was just loaded by it — no second credential to check.
-        return new SelfValidatingPassport(new UserBadge($identifier, static fn (): object => $token->usr));
+        //
+        // The badge carries the credential itself on to the controller, which
+        // hands it to JmapProcessor. Without it the processor would see a User
+        // and no way to tell a browser session from a read-only app password.
+        return new SelfValidatingPassport(
+            new UserBadge($identifier, static fn (): object => $token->usr),
+            [new ApiTokenBadge($token)],
+        );
     }
+
+    /**
+     * Build the Security token, carrying the app password on it.
+     *
+     * The badge alone is not enough: it lives on the Passport, and the Passport
+     * is discarded once authentication finishes. The Security token is what
+     * survives into the request, so the credential is copied onto it here as an
+     * attribute — which is how JmapApiController finds it again.
+     *
+     * PostAuthenticationToken is what AbstractAuthenticator would have built;
+     * this is that call plus the attribute.
+     */
+    public function createToken(Passport $passport, string $firewallName): TokenInterface
+    {
+        $token = new PostAuthenticationToken(
+            $passport->getUser(),
+            $firewallName,
+            $passport->getUser()->getRoles(),
+        );
+
+        $badge = $passport->getBadge(ApiTokenBadge::class);
+
+        if (true === $badge instanceof ApiTokenBadge) {
+            $token->setAttribute(self::TOKEN_ATTRIBUTE, $badge->token);
+        }
+
+        return $token;
+    }
+
+    /**
+     * Where the app password rides on the Security token.
+     *
+     * A constant rather than a literal at both ends, so the reader in
+     * JmapApiController and this writer cannot drift apart — which would fail
+     * in the direction of silently unscoping every app password.
+     */
+    public const string TOKEN_ATTRIBUTE = 'plmail.app_password';
 
     /**
      * @return array{0:?string,1:?string} the secret, and the username when the

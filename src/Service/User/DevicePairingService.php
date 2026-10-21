@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\User;
 
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -102,7 +103,7 @@ final readonly class DevicePairingService
             return null;
         }
 
-        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $deviceName);
+        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $deviceName, ApiTokenScope::all());
 
         $this->entityManager->persist($token);
         $this->entityManager->flush();

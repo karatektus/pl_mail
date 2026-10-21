@@ -145,6 +145,25 @@ tell an app password from a JWT by inspection and a leaked one is greppable; and
 first few characters are kept in clear as `$hint`, so the settings list can show which
 credential is which without being able to reconstruct it.
 
+### What an app password may do
+
+`ApiToken::$scopes` narrows a credential to `read`, `send` and `delete` — none of them granted
+unless asked for, and every existing token backfilled with all three by the migration that added
+the column. `App\Jmap\Protocol\JmapProcessor::permitted()` is the single enforcement point,
+which is why the rule is one method rather than a check scattered across thirty-six JMAP methods.
+
+Two properties are load-bearing:
+
+- **It fails closed.** `ApiTokenScope::fromStored()` drops anything it does not recognise, so a
+  restored backup or a hand-edited jsonb value yields fewer capabilities, never more.
+- **The browser session is never limited.** It authenticates as the user and does not arrive on
+  an app password, so `JmapContext::$token` is null and every method is permitted. Only a request
+  that presented a `plmail_` credential is scoped.
+
+`Email/set` is the exception to method-level mapping: one call carries create, update and destroy,
+so `ApiTokenScope::emailSetOperations()` splits it — send creates, read updates, delete destroys,
+and a call asking for more than it holds is refused whole rather than half-applied.
+
 `User::$backupCodes` is reindexed on every write —
 `set (array $codes) => array_values($codes)` — because `array_filter()` leaves holes and a
 sparse PHP array encodes as `{"1":"…"}` rather than a list, which comes back the wrong shape.

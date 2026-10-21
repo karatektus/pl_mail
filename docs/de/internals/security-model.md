@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:093ff3fe874724f349aa3990c4b8ab6211f71701 -->
+<!-- translated-from: internals/security-model.md sha1:ec35fd6e543f9175a20ceefe7556c64909c35bdf -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -160,6 +160,28 @@ Authenticator ein App-Passwort schon durch Hinsehen von einem JWT unterscheiden 
 geleaktes greppbar ist; und die ersten paar Zeichen des Tokens werden als `$hint` im Klartext
 behalten, damit die Einstellungsliste zeigen kann, welches Anmeldegeheimnis welches ist, ohne es
 rekonstruieren zu können.
+
+### Was ein App-Passwort darf
+
+`ApiToken::$scopes` beschränkt ein Passwort auf `read`, `send` und `delete` — keines davon wird
+ohne ausdrückliche Vergabe gewährt, und jedes vorhandene Token bekommt von der Migration, die die
+Spalte einführt, alle drei. `App\Jmap\Protocol\JmapProcessor::permitted()` ist der einzige
+Durchsetzungspunkt; deshalb ist die Regel eine Methode und nicht eine Prüfung, die über
+sechsunddreißig JMAP-Methoden verstreut ist.
+
+Zwei Eigenschaften sind tragend:
+
+- **Es scheitert geschlossen.** `ApiTokenScope::fromStored()` verwirft alles, was es nicht kennt;
+  ein wiederhergestelltes Backup oder ein von Hand bearbeiteter jsonb-Wert ergibt also weniger
+  Rechte, nie mehr.
+- **Die Browser-Sitzung ist nie beschränkt.** Sie meldet sich als die Person selbst an und kommt
+  nicht über ein App-Passwort, also ist `JmapContext::$token` null und jede Methode ist erlaubt.
+  Nur eine Anfrage mit einem `plmail_`-Passwort wird beschränkt.
+
+`Email/set` ist die Ausnahme von der Zuordnung pro Methode: ein Aufruf trägt Anlegen, Ändern und
+Löschen, deshalb teilt `ApiTokenScope::emailSetOperations()` ihn auf — send legt an, read ändert,
+delete löscht, und ein Aufruf, der mehr verlangt als das Token hat, wird ganz abgelehnt statt
+halb ausgeführt.
 
 `User::$backupCodes` wird bei jedem Schreibvorgang neu indiziert —
 `set (array $codes) => array_values($codes)` —, denn `array_filter()` hinterlässt Lücken, und ein

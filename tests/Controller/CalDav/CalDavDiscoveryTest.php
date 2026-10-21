@@ -195,7 +195,7 @@ final class CalDavDiscoveryTest extends WebTestCase
         $user->password  = 'x';
         $this->em->persist($user);
 
-        $minted       = ApiToken::create($user, 'CalDAV test');
+        $minted       = ApiToken::create($user, 'CalDAV test', \App\Domain\Enum\User\ApiTokenScope::all());
         $this->secret = $minted['secret'];
         $this->em->persist($minted['token']);
 
