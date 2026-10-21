@@ -13,6 +13,7 @@ use Symfony\Component\Form\Event\PreSubmitEvent;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\UX\Autocomplete\Form\AsEntityAutocompleteField;
 use Symfony\UX\Autocomplete\Form\BaseEntityAutocompleteType;
 
@@ -22,6 +23,7 @@ class ContactAutocompleteField extends AbstractType
     public function __construct(
         private readonly ContactRepository $contactRepository,
         private readonly Security          $security,
+        private readonly UrlGeneratorInterface $urls,
     ) {
     }
 
@@ -143,6 +145,14 @@ class ContactAutocompleteField extends AbstractType
                     ->andWhere('entity.usr = :usr')
                     ->setParameter('usr', $user);
             },
+
+            // Suggestions from ContactSuggester — the harvest and the address
+            // book together — rather than the bundle's endpoint for this
+            // entity, which searched the harvest alone and so never offered a
+            // contact nobody had mailed yet. The query_builder above still
+            // scopes what a submission may name. See
+            // ContactController::recipients().
+            'autocomplete_url'     => $this->urls->generate('app_contacts_autocomplete_recipients'),
 
             'placeholder'          => '',
             'multiple'             => true,

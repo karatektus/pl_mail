@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Repository\Mail\ContactRepository;
 use App\Service\AddressBook\ContactSuggester;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -48,5 +49,47 @@ final class ContactController extends AbstractController
         }
 
         return $this->json($results);
+    }
+
+    /**
+     * The same list for the composer's To, Cc and Bcc, in the shape the
+     * autocomplete bundle's field reads. See ContactAutocompleteField.
+     *
+     * The field is an entity field over the harvested addresses, and the
+     * bundle's own endpoint for it could only ever search those — a contact in
+     * an address book that had never been mailed was "No results found".
+     *
+     * An address the harvest knows is offered under its id, as the bundle's
+     * endpoint did, so a recipient already on a draft is still recognised as
+     * chosen. One only in an address book is offered as the address itself,
+     * which the field turns into a harvested row when the form is submitted
+     * (ContactAutocompleteField::resolveCreatedOptions()).
+     */
+    #[Route('/autocomplete/recipients', name: 'autocomplete_recipients', methods: ['GET'])]
+    public function recipients(Request $request, ContactRepository $harvest): JsonResponse
+    {
+        $user  = $this->getUser();
+        $query = trim($request->query->getString('query'));
+
+        if (null === $user || '' === $query) {
+            return $this->json(['results' => []]);
+        }
+
+        $suggestions = $this->suggester->suggest($user, $query);
+        $known       = $harvest->findByEmailsForUser($user, array_map(static fn ($s): string => $s->email, $suggestions));
+        $results     = [];
+
+        foreach ($suggestions as $suggestion) {
+            $id = $known[mb_strtolower($suggestion->email)]->id ?? null;
+
+            $results[] = [
+                'value' => null !== $id ? (string) $id : $suggestion->email,
+                'text'  => null !== $suggestion->name && '' !== $suggestion->name
+                    ? sprintf('%s <%s>', $suggestion->name, $suggestion->email)
+                    : $suggestion->email,
+            ];
+        }
+
+        return $this->json(['results' => $results]);
     }
 }
