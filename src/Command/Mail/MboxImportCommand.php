@@ -85,7 +85,7 @@ final class MboxImportCommand extends Command
             return Command::FAILURE;
         }
 
-        $roleByFile = $this->rolesFor($files, $withTrash);
+        $roleByFile = $this->rolesFor($files);
 
         if ([] === $roleByFile) {
             $io->error('No importable folders found (expected files named Inbox, Sent or Drafts; Trash is not imported)');
@@ -191,7 +191,7 @@ final class MboxImportCommand extends Command
      *
      * @return array<string, LabelRole>
      */
-    private function rolesFor(array $files, bool $withTrash): array
+    private function rolesFor(array $files): array
     {
         $roles   = [];
         $skipped = [];

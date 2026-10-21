@@ -155,6 +155,15 @@ final readonly class MboxImporter
 
             $this->em->persist($message);
 
+            // The parts are a collection with no cascade-persist, and a message
+            // with attachments carries several — the same gap the POP3 syncer
+            // persists around explicitly. Missed here and the whole batch's
+            // flush dies with "a new entity was found through the relationship",
+            // which is why the first full run stored 2 messages out of 820.
+            foreach ($message->messageParts as $part) {
+                $this->em->persist($part);
+            }
+
             if (null !== $identity) {
                 $existing[$identity] = true;
             }
