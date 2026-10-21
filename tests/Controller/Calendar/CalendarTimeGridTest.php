@@ -75,7 +75,7 @@ final class CalendarTimeGridTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(
             1,
-            $crawler->filter('[data-controller="calendar--time-grid"]'),
+            $crawler->filter('[data-controller~="calendar--time-grid"]'),
             'the page draws the grid',
         );
         self::assertCount(
@@ -85,7 +85,7 @@ final class CalendarTimeGridTest extends WebTestCase
         );
         self::assertStringContainsString(
             'All day',
-            $crawler->filter('[data-controller="calendar--time-grid"]')->text(),
+            $crawler->filter('[data-controller~="calendar--time-grid"]')->text(),
             'all-day events get a row of their own rather than a block at midnight',
         );
     }
@@ -113,7 +113,7 @@ final class CalendarTimeGridTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(
             1,
-            $crawler->filter('[data-controller="calendar--time-grid"]'),
+            $crawler->filter('[data-controller~="calendar--time-grid"]'),
             'the pane is a narrower window onto the same calendar, not a lesser one',
         );
         self::assertCount(
@@ -132,7 +132,7 @@ final class CalendarTimeGridTest extends WebTestCase
         $crawler = $client->request('GET', '/calendar/month');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(0, $crawler->filter('[data-controller="calendar--time-grid"]'));
+        self::assertCount(0, $crawler->filter('[data-controller~="calendar--time-grid"]'));
     }
 
     /**

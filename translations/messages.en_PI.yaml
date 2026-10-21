@@ -1241,6 +1241,7 @@ calendar:
         on_calendars: 'Upon %calendars%'
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
     empty: Naught on the horizon
+    empty_day: Naught be planned this day
     details:
         description: The tellin' of it
         edit: Change it
@@ -1599,6 +1600,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%month% %start%–%end%'
     upcoming:
         imminent: Within the hour
         later: Later this day

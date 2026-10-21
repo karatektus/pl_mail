@@ -166,12 +166,12 @@ test.describe("calendar time-grid", () => {
         await page.setViewportSize({ width: 1440, height: 900 });
 
         await page.goto("/calendar/week");
-        await expect(page.locator('[data-controller="calendar--time-grid"]')).toBeVisible();
+        await expect(page.locator('[data-controller~="calendar--time-grid"]')).toBeVisible();
         await expect(page.locator('[data-calendar--time-grid-target="column"]')).toHaveCount(7);
 
         await page.goto("/calendar/week?pane=1");
         await expect(page.locator("turbo-frame#calendar-pane-frame")).toBeVisible();
-        await expect(page.locator('[data-controller="calendar--time-grid"]')).toHaveCount(1);
+        await expect(page.locator('[data-controller~="calendar--time-grid"]')).toHaveCount(1);
         await expect(page.locator('[data-calendar--time-grid-target="column"]')).toHaveCount(7);
     });
 

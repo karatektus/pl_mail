@@ -1339,6 +1339,7 @@ calendar:
         on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
+    empty_day: Nichts an diesem Tag
     details:
         description: Beschreibung
         edit: Bearbeiten
@@ -1711,6 +1712,8 @@ calendar:
     toolbar:
         range: '%start%–%end%'
         range_day: '%day%.'
+        range_short: '%start%–%end%'
+        range_short_month: '%start%.–%end%. %month%'
     upcoming:
         imminent: Beginnt innerhalb einer Stunde
         later: Heute noch

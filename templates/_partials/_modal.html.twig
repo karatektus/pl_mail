@@ -51,7 +51,7 @@ still while only the results move.
         fixed inset-0 z-[70]
         flex items-center justify-center
         bg-black/50 backdrop-blur-sm
-        p-3 sm:p-6
+        p-3 sm:p-6 max-md:p-0
     "
 >
     {# ── Dialog panel ────────────────────────────────────────────────────────── #}
@@ -66,6 +66,15 @@ still while only the results move.
        `narrow` is for a dialog that is a list of short rows with a control at
        the end of each — the account's folders. At `form` width the control sat
        a long way from the name it belongs to. #}
+    {# **Below md the dialog is the whole screen (#253)**, as the compose window
+       is and for its reason: a card inside a phone's width, with the backdrop's
+       margin and the panel's 24px either side, left a form about 300px to lay
+       out in, and the event editor's times wrapped and its day buttons were cut
+       to a letter. Square, borderless, 100dvh, with the safe areas as padding,
+       the same classes compose uses. The size presets are `max-w-*` and lose to
+       `max-md:max-w-none`, which comes later in the build. The panel's own
+       padding closes to 16px with it; a loaded form keeps its own, and the event
+       editor's follows suit. #}
     <div
         data-ui--modal-panel
         data-ui--modal-sizes='{"narrow":"max-w-sm","form":"max-w-lg","wide":"max-w-3xl","split":"max-w-5xl","full":"max-w-6xl"}'
@@ -87,13 +96,16 @@ still while only the results move.
             flex flex-col
             max-h-[92vh]
             overflow-hidden
+            max-md:max-w-none max-md:h-[100dvh] max-md:max-h-none
+            max-md:rounded-none max-md:shadow-none max-md:border-0
+            max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]
         "
     >
 
         {# ── Header ──
            No fill and no rule: the title sits on the same surface as the body
            and the spacing does the separating. #}
-        <div class="flex items-center gap-3 px-6 pt-5 pb-4 shrink-0">
+        <div class="flex items-center gap-3 px-6 pt-5 pb-4 shrink-0 max-md:px-4 max-md:pt-3 max-md:pb-2">
             <h2
                 id="modal-title"
                 data-ui--modal-title

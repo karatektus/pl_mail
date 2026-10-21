@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Jmap\Blob\BlobId;
+use App\Service\Mail\MessageSnippet;
 
 /**
  * Maps a plMail Message onto a JMAP Email object (RFC 8621 §4).
@@ -36,14 +37,15 @@ use App\Jmap\Blob\BlobId;
  */
 final class EmailMapper
 {
-    /**
-     * How much of the text body the "preview" property carries. RFC 8621 caps
-     * it at 256 characters.
-     */
+    /** RFC 8621 caps the "preview" property at 256 characters. */
     private const int PREVIEW_LENGTH = 256;
 
     private const string TEXT_PART_ID = 'text';
     private const string HTML_PART_ID = 'html';
+
+    public function __construct(private readonly MessageSnippet $snippet)
+    {
+    }
 
     /**
      * @param list<string>|null $properties
@@ -310,21 +312,18 @@ final class EmailMapper
         return $list;
     }
 
+    /**
+     * The same preview line the web list shows (#257).
+     *
+     * It was the text part with its whitespace collapsed, quotes and all — so
+     * the apps previewed a one-line reply as the mail it answered, the bug the
+     * web list had too. MessageSnippet is the one definition of a preview, and
+     * both now read it. Its length is under the RFC's cap; the cut below only
+     * holds the cap should that ever change.
+     */
     private function preview(Message $message): string
     {
-        $text = $message->bodyText;
-
-        if (null === $text || '' === $text) {
-            return '';
-        }
-
-        $collapsed = trim((string) preg_replace('/\s+/u', ' ', $text));
-
-        if (mb_strlen($collapsed) <= self::PREVIEW_LENGTH) {
-            return $collapsed;
-        }
-
-        return mb_substr($collapsed, 0, self::PREVIEW_LENGTH);
+        return mb_substr($this->snippet->of($message), 0, self::PREVIEW_LENGTH);
     }
 
     /**
