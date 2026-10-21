@@ -11,6 +11,7 @@ use App\Entity\Contacts\Contact;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Integration\IntegrationRepository;
@@ -33,9 +34,9 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  *
  * The outbound HTTP client is the only thing replaced — a scripted Nextcloud
  * on a `.test` host (RFC 2606), so the SSRF guard still runs on every URL and
- * nothing real is contacted. The ingest transport is in-memory in this
+ * nothing real is contacted. The transports are in-memory in this
  * environment, which is how the tests see that an edit was queued for the
- * server rather than sent inline.
+ * server rather than sent inline: a push on export, a first sync on ingest.
  *
  * The claims worth naming:
  *   - a CardDAV connection discovers address books, and only address books —
@@ -213,7 +214,7 @@ final class ContactsFlowTest extends WebTestCase
         self::assertSame('mobile', $saved->phones->first()->label, 'the label the old form dropped');
         self::assertSame(SyncState::PendingUpdate, $saved->syncState);
         self::assertStringContainsString('BDAY:1815-12-10', (string) $saved->vcard, 'the card is patched when it is pushed, not rebuilt now');
-        self::assertContains((int) $book->id, $this->queuedSyncs());
+        self::assertContains((int) $book->id, $this->queuedPushes());
         self::assertSame([], $this->requests, 'nothing is sent inline');
     }
 
@@ -240,7 +241,7 @@ final class ContactsFlowTest extends WebTestCase
         self::assertNotNull($card);
         self::assertSame(SyncState::PendingCreate, $card->syncState);
         self::assertNull($card->href, 'not on the server until the worker sends it');
-        self::assertContains((int) $book->id, $this->queuedSyncs());
+        self::assertContains((int) $book->id, $this->queuedPushes());
     }
 
     public function testWithoutABookChosenTheContactIsPlMailsOwn(): void
@@ -260,7 +261,7 @@ final class ContactsFlowTest extends WebTestCase
         self::assertNotNull($contact);
         self::assertNull($contact->addressBook);
         self::assertSame(SyncState::Clean, $contact->syncState);
-        self::assertSame([], $this->queuedSyncs());
+        self::assertSame([], $this->queuedPushes());
     }
 
     public function testAContactNeedsAName(): void
@@ -513,7 +514,23 @@ final class ContactsFlowTest extends WebTestCase
     /** @return list<int> address-book ids with a sync queued */
     private function queuedSyncs(): array
     {
-        $transport = static::getContainer()->get('messenger.transport.ingest');
+        return $this->queued('ingest', SyncAddressBookMessage::class);
+    }
+
+    /** @return list<int> address-book ids with a push queued */
+    private function queuedPushes(): array
+    {
+        return $this->queued('export', PushAddressBookMessage::class);
+    }
+
+    /**
+     * @param class-string<SyncAddressBookMessage|PushAddressBookMessage> $class
+     *
+     * @return list<int>
+     */
+    private function queued(string $transportName, string $class): array
+    {
+        $transport = static::getContainer()->get('messenger.transport.' . $transportName);
 
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
@@ -522,7 +539,7 @@ final class ContactsFlowTest extends WebTestCase
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
 
-            if ($message instanceof SyncAddressBookMessage) {
+            if ($message instanceof $class) {
                 $ids[] = $message->addressBookId;
             }
         }

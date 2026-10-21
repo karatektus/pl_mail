@@ -11,7 +11,7 @@ use App\Entity\Contacts\ContactAddress;
 use App\Entity\Contacts\ContactEmail;
 use App\Entity\Contacts\ContactPhone;
 use App\Infrastructure\Messaging\Message\DeleteRemoteContactMessage;
-use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
@@ -58,11 +58,13 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  * forgot, and failing the flush is better than an edit the server refuses.
  *
  * onFlush decides, postFlush dispatches: a message sent from onFlush would go
- * out even if the flush then failed. The sync is dispatched a couple of
- * seconds late, because one save can be several flushes (JMAP Contact/set
- * writes each address as it goes): a worker that picked it up at once could
- * push the card between two of them, half saved. The flushes after the first
- * dispatch syncs of their own, which find nothing left to push.
+ * out even if the flush then failed. What it dispatches is a push alone
+ * (PushAddressBookMessage), on the export queue with everything else leaving
+ * plMail; reading the server stays with the sweep. The push is dispatched a
+ * couple of seconds late, because one save can be several flushes (JMAP
+ * Contact/set writes each address as it goes): a worker that picked it up at
+ * once could push the card between two of them, half saved. The flushes after
+ * the first dispatch pushes of their own, which find nothing left to send.
  */
 #[AsDoctrineListener(event: Events::onFlush)]
 #[AsDoctrineListener(event: Events::postFlush)]
@@ -83,12 +85,12 @@ final class ContactSyncTracker
         'trashedAt',
     ];
 
-    /** How long a sync waits for the rest of the save; see the class comment. */
+    /** How long a push waits for the rest of the save; see the class comment. */
     private const int SETTLE_MS = 2000;
 
     private int $suspended = 0;
 
-    /** @var array<int, true> address book ids to sync once the flush is done */
+    /** @var array<int, true> address book ids to push once the flush is done */
     private array $books = [];
 
     /** @var list<DeleteRemoteContactMessage> */
@@ -271,7 +273,7 @@ final class ContactSyncTracker
         }
 
         foreach ($books as $bookId) {
-            $this->bus->dispatch(new SyncAddressBookMessage($bookId), [new DelayStamp(self::SETTLE_MS)]);
+            $this->bus->dispatch(new PushAddressBookMessage($bookId), [new DelayStamp(self::SETTLE_MS)]);
         }
     }
 

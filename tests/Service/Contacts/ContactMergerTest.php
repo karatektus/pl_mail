@@ -91,7 +91,7 @@ final class ContactMergerTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.ingest');
+        $transport = self::getContainer()->get('messenger.transport.export');
 
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 

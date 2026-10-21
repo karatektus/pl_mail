@@ -10,6 +10,10 @@ use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\Contacts\Contact;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
+use App\Infrastructure\Messaging\Handler\PushAddressBookHandler;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
+use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
+use App\Repository\AddressBook\AddressBookRepository;
 use App\Repository\Contacts\ContactRepository;
 use App\Service\AddressBook\AddressBookSync;
 use App\Service\Contacts\ContactPhotoStore;
@@ -20,6 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
@@ -378,6 +383,86 @@ final class AddressBookSyncTest extends TestCase
         }
     }
 
+    // ── The push alone (an edit here, on the export queue) ────────────────────
+
+    /**
+     * What an edit dispatches: the pending card goes out and nothing is read.
+     * lastSyncedAt stays where it was, or the sweep would skip the pull.
+     */
+    public function testAPushSendsThePendingEditAndReadsNothing(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+
+        $fixture = new CardDavFixture(CalDavFixture::status(204, ['etag' => '"2"']));
+
+        self::assertSame(1, $this->service($fixture)->pushPending($this->book));
+        self::assertSame(1, $fixture->requestCount(), 'the PUT, and no PROPFIND or REPORT after it');
+        self::assertSame('PUT', $fixture->method(0));
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertSame('"2"', $card->etag);
+        self::assertSame('token-1', $this->book->syncToken);
+        self::assertNull($this->book->lastSyncedAt);
+    }
+
+    public function testAFailedPushKeepsTheEditAndSaysWhyOnTheBook(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->service(new CardDavFixture(CalDavFixture::status(401)))->pushPending($this->book);
+            self::fail('a 401 fails the push');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertSame($e->getMessage(), $this->book->lastSyncError);
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState, 'the sweep sends it later');
+    }
+
+    /**
+     * A push that lets the server win leaves the dropped edit on screen until
+     * the server's copy is read, so the handler asks for that read rather
+     * than leaving it to the sweep.
+     */
+    public function testAConflictOnThePushQueuesARead(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+        $dispatched            = [];
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(412)), $dispatched))(new PushAddressBookMessage(1));
+
+        self::assertCount(1, $dispatched);
+        self::assertInstanceOf(SyncAddressBookMessage::class, $dispatched[0]);
+    }
+
+    public function testAPushThatWentThroughQueuesNothing(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+        $dispatched            = [];
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(204, ['etag' => '"2"'])), $dispatched))(new PushAddressBookMessage(1));
+
+        self::assertSame([], $dispatched);
+    }
+
+    /** A transient failure escapes, so export's retries are what try again. */
+    public function testATransientFailureIsLeftToTheTransportsRetries(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $dispatched = [];
+
+        $this->expectException(CalendarSyncException::class);
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(503)), $dispatched))(new PushAddressBookMessage(1));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
@@ -404,7 +489,32 @@ final class AddressBookSyncTest extends TestCase
 
     private function syncWith(CardDavFixture $fixture): int
     {
-        $sync = new AddressBookSync(
+        return $this->service($fixture)->sync($this->book);
+    }
+
+    /**
+     * The handler around a real push, with the book found and the bus kept.
+     *
+     * @param list<object> $dispatched
+     */
+    private function pushHandler(CardDavFixture $fixture, array &$dispatched): PushAddressBookHandler
+    {
+        $books = $this->createStub(AddressBookRepository::class);
+        $books->method('find')->willReturn($this->book);
+
+        $bus = $this->createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$dispatched): Envelope {
+            $dispatched[] = $message;
+
+            return new Envelope($message);
+        });
+
+        return new PushAddressBookHandler($books, $this->service($fixture), $bus, new NullLogger());
+    }
+
+    private function service(CardDavFixture $fixture): AddressBookSync
+    {
+        return new AddressBookSync(
             $fixture->driver,
             new VCardMapper(),
             $this->repository(),
@@ -413,8 +523,6 @@ final class AddressBookSyncTest extends TestCase
             $this->entityManager(),
             new NullLogger(),
         );
-
-        return $sync->sync($this->book);
     }
 
     private function card(string $uid, string $name, string $etag): Contact

@@ -7,10 +7,11 @@ namespace App\Infrastructure\Messaging\Message;
 /**
  * Bring one mirrored address book and its CardDAV server back into agreement.
  *
- * Dispatched by the sweep (`app:contacts:sync --stale`), by subscribing, and by
- * every edit made on the contacts page — the edit is saved locally and marked
- * pending, and this is what carries it to the server without holding the HTTP
- * request open while it goes.
+ * Dispatched by the sweep (`app:contacts:sync --stale`), by subscribing, by the
+ * sync-now button, and after a push that let the server win a conflict. An
+ * edit on the contacts page does not dispatch this: it is carried out by
+ * PushAddressBookMessage, on another queue, and this run sends whatever is
+ * still pending before it reads anything.
  *
  * One book per message for the reason SyncCalendarMessage gives: books fail
  * independently, and a shared one whose permission was revoked must not stop

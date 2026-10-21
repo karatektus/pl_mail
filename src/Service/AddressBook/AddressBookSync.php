@@ -49,6 +49,10 @@ use Psr\Log\LoggerInterface;
  * the server already has, and ContactSyncTracker must not take it for an edit
  * to send back.
  *
+ * **The push also runs alone.** An edit here is carried out by pushPending(),
+ * on the export queue with everything else leaving plMail; the sweep and a
+ * book's first sync run sync(), on ingest. See PushAddressBookMessage.
+ *
  * Failures are recorded on the book (for the settings list) and rethrown, so
  * the handler can leave the retry decision to the exception's class, as the
  * calendar sync does.
@@ -74,6 +78,34 @@ final readonly class AddressBookSync
     public function sync(AddressBook $book): int
     {
         return $this->tracker->untracked(fn (): int => $this->syncUntracked($book));
+    }
+
+    /**
+     * Send what is pending and read nothing back: the push after an edit
+     * here, on the export queue (see PushAddressBookMessage). The pull is the
+     * sweep's.
+     *
+     * A success does not touch lastSyncedAt. That is what the sweep reads,
+     * and a book pushed to has not been brought up to date — moved on, the
+     * sweep would skip the pull every edit is followed by. A failure is
+     * recorded as sync() records it, so the settings list says what is wrong.
+     *
+     * @return int how many cards were pushed
+     *
+     * @throws CalendarSyncException
+     */
+    public function pushPending(AddressBook $book): int
+    {
+        return $this->tracker->untracked(function () use ($book): int {
+            try {
+                return $this->push($book);
+            } catch (CalendarSyncException $e) {
+                $book->recordSyncFailure($e->getMessage());
+                $this->em->flush();
+
+                throw $e;
+            }
+        });
     }
 
     /**

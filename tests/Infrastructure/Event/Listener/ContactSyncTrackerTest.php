@@ -13,7 +13,7 @@ use App\Entity\Contacts\ContactPhone;
 use App\Entity\User\User;
 use App\Infrastructure\Event\Listener\ContactSyncTracker;
 use App\Infrastructure\Messaging\Message\DeleteRemoteContactMessage;
-use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Tests\Support\Contacts\ContactsKernelFixture;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -62,7 +62,7 @@ final class ContactSyncTrackerTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testAnEditedFieldMakesTheContactPendingAndStartsASync(): void
+    public function testAnEditedFieldMakesTheContactPendingAndStartsAPush(): void
     {
         $contact = $this->fixture->contact($this->user, 'Ada Lovelace', ['ada@example.com'], $this->book);
 
@@ -70,7 +70,11 @@ final class ContactSyncTrackerTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame(SyncState::PendingUpdate, $this->reloaded($contact)->syncState, 'written to the database, not just the object');
-        self::assertSame([$this->book->id], $this->syncedBooks());
+        self::assertSame([$this->book->id], $this->pushedBooks());
+
+        $ingest = self::getContainer()->get('messenger.transport.ingest');
+        self::assertInstanceOf(InMemoryTransport::class, $ingest);
+        self::assertSame([], $ingest->getSent(), 'an edit does not queue behind the mail syncs');
     }
 
     public function testAChildRowAloneCountsAsAnEdit(): void
@@ -96,7 +100,7 @@ final class ContactSyncTrackerTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame(SyncState::PendingCreate, $this->reloaded($contact)->syncState);
-        self::assertSame([$this->book->id], $this->syncedBooks());
+        self::assertSame([$this->book->id], $this->pushedBooks());
     }
 
     public function testAnEditBeforeTheFirstPushStaysACreate(): void
@@ -120,7 +124,7 @@ final class ContactSyncTrackerTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame(SyncState::Clean, $this->reloaded($contact)->syncState);
-        self::assertSame([], $this->syncedBooks());
+        self::assertSame([], $this->pushedBooks());
     }
 
     public function testBinningASyncedContactQueuesTheDeleteOfItsCard(): void
@@ -131,9 +135,9 @@ final class ContactSyncTrackerTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame(SyncState::PendingDelete, $this->reloaded($contact)->syncState);
-        self::assertSame([$this->book->id], $this->syncedBooks());
+        self::assertSame([$this->book->id], $this->pushedBooks());
 
-        // Restored before the sync ran: there is nothing to delete after all.
+        // Restored before the push ran: there is nothing to delete after all.
         $contact->trashedAt = null;
         $this->em->flush();
 
@@ -227,11 +231,11 @@ final class ContactSyncTrackerTest extends KernelTestCase
     }
 
     /** @return list<int> */
-    private function syncedBooks(): array
+    private function pushedBooks(): array
     {
         return array_values(array_unique(array_map(
-            static fn (SyncAddressBookMessage $m): int => $m->addressBookId,
-            array_values(array_filter($this->sent(), static fn (object $m): bool => $m instanceof SyncAddressBookMessage)),
+            static fn (PushAddressBookMessage $m): int => $m->addressBookId,
+            array_values(array_filter($this->sent(), static fn (object $m): bool => $m instanceof PushAddressBookMessage)),
         )));
     }
 
@@ -241,9 +245,13 @@ final class ContactSyncTrackerTest extends KernelTestCase
         return array_map(static fn ($envelope): object => $envelope->getMessage(), $this->transport()->getSent());
     }
 
+    /**
+     * export: a push and a remote delete are plMail writing outward, and go
+     * with everything else that does. See messenger.yaml.
+     */
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.ingest');
+        $transport = self::getContainer()->get('messenger.transport.export');
 
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 

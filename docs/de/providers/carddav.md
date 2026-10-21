@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:d40e3a90d485237da06d209fe54f0e04b07ceaf0 -->
+<!-- translated-from: providers/carddav.md sha1:89ee15df6a2bff2656d0d497f5c811db9badb29c -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -65,10 +65,13 @@ anbietet, sonst `getctag` plus eine vollständige Liste, wenn sich das ctag bewe
 vollständige Liste löscht lokale Karten, die sie nicht erwähnt; ein Delta tut das nie.
 
 **Was du hier änderst, wird sofort gespeichert und danach gesendet.** Der Kontakt wird als
-ausstehend markiert (die Kontaktliste zeigt eine kleine Uhr an ihm), und der Worker schickt ihn bei
-der nächsten Synchronisierung. Eine Änderung reiht diese Synchronisierung sofort ein. Jede
-Synchronisierung sendet ausstehende Änderungen, *bevor* sie den Server liest, damit die ältere Kopie
-des Servers eine Änderung nicht auf dem Weg hinaus überschreibt.
+ausstehend markiert (die Kontaktliste zeigt eine kleine Uhr an ihm), und ein paar Sekunden später
+schickt ihn der Worker über die Warteschlange `export`, zusammen mit der Mail, die plMail verlässt.
+Beim Senden wird der Server nicht gelesen: Änderungen von anderswo kommen mit der nächsten
+Synchronisierung. Ist der Server nicht erreichbar, bleibt die Änderung ausstehend, und diese
+Synchronisierung sendet sie zuerst. Jede Synchronisierung sendet ausstehende Änderungen, *bevor* sie
+den Server liest, damit die ältere Kopie des Servers eine Änderung nicht auf dem Weg hinaus
+überschreibt.
 
 **Jeder Schreibzugriff ist bedingt.** Ein neuer Kontakt wird mit `If-None-Match: *` unter einem aus
 seiner UID abgeleiteten Namen per `PUT` angelegt; eine Änderung oder Löschung trägt `If-Match` mit

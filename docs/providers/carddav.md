@@ -58,8 +58,10 @@ otherwise `getctag` plus a full listing when the ctag moves. Only a full listing
 it did not mention; a delta never does.
 
 **Edits made here are saved at once and sent afterwards.** The contact is marked pending (the
-Contacts list shows a small clock on it) and the worker sends it on the next sync. An edit queues
-that sync straight away. Each sync sends pending edits *before* reading the server, so the
+Contacts list shows a small clock on it), and a couple of seconds later the worker sends it on the
+`export` queue, with the mail leaving plMail. Sending does not read the server: changes made
+elsewhere arrive with the next sync. If the server can't be reached, the edit stays pending and
+that sync sends it first. Each sync sends pending edits *before* reading the server, so the
 server's older copy never overwrites an edit on its way out.
 
 **Every write is conditional.** A new contact is `PUT` with `If-None-Match: *` under a name derived
