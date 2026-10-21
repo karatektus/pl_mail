@@ -1128,6 +1128,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Haul %name% aboard
     sign:
         action: Make yer mark
         draw: Scrawl yer mark, then slap it on the page.
@@ -1144,6 +1145,7 @@ attachment:
         download: Haul aboard
         failed: This scroll would not unroll. Ye can still haul it aboard.
         loading: Unrollin'…
+        media_failed: This cargo won't show itself here. Ye can still haul it aboard.
         untitled: Cargo
         zoom_in: Closer
         zoom_out: Further off

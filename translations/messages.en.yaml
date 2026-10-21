@@ -1207,6 +1207,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Download %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1227,6 +1228,7 @@ attachment:
         download: Download
         failed: This PDF could not be opened. You can still download it.
         loading: Opening…
+        media_failed: This file could not be shown here. You can still download it.
         untitled: Attachment
         zoom_in: Zoom in
         zoom_out: Zoom out

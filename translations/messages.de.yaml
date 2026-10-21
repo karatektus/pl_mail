@@ -1222,6 +1222,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: '%name% herunterladen'
     sign:
         action: Unterschreiben
         draw: Zeichne deine Unterschrift und setze sie dann auf die Seite.
@@ -1238,6 +1239,7 @@ attachment:
         download: Herunterladen
         failed: Dieses PDF konnte nicht geöffnet werden. Du kannst es trotzdem herunterladen.
         loading: Wird geöffnet…
+        media_failed: Diese Datei kann hier nicht angezeigt werden. Du kannst sie trotzdem herunterladen.
         untitled: Anhang
         zoom_in: Vergrößern
         zoom_out: Verkleinern

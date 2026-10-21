@@ -1216,6 +1216,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Télécharger %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1236,6 +1237,7 @@ attachment:
         download: Télécharger
         failed: Ce PDF n’a pas pu être ouvert. Vous pouvez toujours le télécharger.
         loading: Ouverture…
+        media_failed: Ce fichier ne peut pas être affiché ici. Vous pouvez toujours le télécharger.
         untitled: Pièce jointe
         zoom_in: Zoom avant
         zoom_out: Zoom arrière
