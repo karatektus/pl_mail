@@ -15,6 +15,7 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\Integration\Integration;
 use App\Entity\Label\Label;
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\InboxCategory;
@@ -566,8 +567,31 @@ final readonly class ConfigBackupUserRestorer
                 $this->moment($row, 'lastUsedAt'),
                 $this->moment($row, 'revokedAt'),
                 $this->moment($row, 'createdAt'),
+                $this->scopes($row),
             ));
         }
+    }
+
+    /**
+     * The scopes an app password was exported with, or null when the file
+     * predates them.
+     *
+     * Null is not "none" here — ApiToken::restore() reads it as all of them,
+     * because a version-1 or version-2 document describes tokens created when
+     * scopes did not exist and every one of them had full access. Passing an
+     * empty list instead would silently downgrade every restored client.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return list<ApiTokenScope>|null
+     */
+    private function scopes(array $row): ?array
+    {
+        if (false === array_key_exists('scopes', $row)) {
+            return null;
+        }
+
+        return ApiTokenScope::fromStored($row['scopes']);
     }
 
     /**

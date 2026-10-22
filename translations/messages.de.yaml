@@ -2937,6 +2937,16 @@ settings:
         generate: Erzeugen
         heading: App-Passwörter
         last_used: 'Zuletzt verwendet %date%'
+        scopes: Was es darf
+        scope:
+            read: E-Mails lesen
+            send: E-Mails senden
+            delete: E-Mails löschen und verschieben
+        scopes_hint: >-
+            Alle drei sind standardmäßig erlaubt, was einem App-Passwort vor
+            dieser Einstellung entspricht. Entferne die Häkchen für das, was
+            diese App nicht darf — ein Passwort ohne Häkchen kann nichts.
+        scopes_none: Kein Zugriff
         name_placeholder: 'Wofür ist es? z. B. iPhone — Sterna'
         never_used: Nie verwendet
         revoke: Widerrufen

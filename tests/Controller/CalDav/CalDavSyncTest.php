@@ -229,7 +229,7 @@ final class CalDavSyncTest extends WebTestCase
         $user->password  = 'x';
         $this->em->persist($user);
 
-        $minted       = ApiToken::create($user, 'CalDAV sync test');
+        $minted       = ApiToken::create($user, 'CalDAV sync test', \App\Domain\Enum\User\ApiTokenScope::all());
         $this->secret = $minted['secret'];
         $this->em->persist($minted['token']);
 

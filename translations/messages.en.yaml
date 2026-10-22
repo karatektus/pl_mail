@@ -2947,6 +2947,16 @@ settings:
         generate: Generate
         heading: App passwords
         last_used: 'Last used %date%'
+        scopes: What it may do
+        scope:
+            read: Read mail
+            send: Send mail
+            delete: Delete and move mail
+        scopes_hint: >-
+            All three are granted by default, which is what an app password
+            had before this setting existed. Untick the ones this app should
+            not have — a token with none can do nothing at all.
+        scopes_none: No access
         name_placeholder: 'What is it for? e.g. iPhone — Sterna'
         never_used: Never used
         revoke: Revoke

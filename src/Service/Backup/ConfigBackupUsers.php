@@ -12,6 +12,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Rule\MailRule;
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Repository\Calendar\BookingPageRepository;
@@ -431,6 +432,12 @@ final readonly class ConfigBackupUsers
                 'lastUsedAt' => $token->lastUsedAt?->format(DateTimeInterface::ATOM),
                 'revokedAt'  => $token->revokedAt?->format(DateTimeInterface::ATOM),
                 'createdAt'  => $token->createdAt->format(DateTimeInterface::ATOM),
+                // What the credential may do. Carried because a restore that
+                // dropped it would grant everything back — a read-only token
+                // somebody deliberately limited would come back able to delete.
+                // A file written before scopes existed has no such key, which
+                // the restorer reads as "all of them", matching the migration.
+                'scopes'     => ApiTokenScope::toStored($token->grantedScopes),
             ];
         }
 

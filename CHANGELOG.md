@@ -7,6 +7,19 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**An app password can be limited to what it is for.** Settings → App passwords now carries three
+switches — **read**, **send**, and **delete and move** — and a credential gets only what was
+ticked. All three are granted by default, which is what an app password had before this existed,
+so every existing client keeps working; untick one and that credential is refused at the JMAP
+level, inline (`forbidden` on the method call, not a dead session). The settings list shows what
+each credential may do. Unrecognised values read as no access rather than as full access, and a
+restored config backup brings the switches back as they were. Schema change: one jsonb column on
+`api_token`. **Every app password that exists when this runs is granted all three scopes** — the
+migration backfills deliberately, because a token created before scopes had everything and
+leaving it empty would sign out every connected client.
+
 ## v0.3.8 — 2026-10-21
 
 **The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier

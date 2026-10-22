@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\User\ApiToken;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\UserRepository;
@@ -104,7 +105,7 @@ final class SeedApiTokenCommand extends Command
             }
         }
 
-        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $name);
+        ['token' => $token, 'secret' => $secret] = ApiToken::create($user, $name, ApiTokenScope::all());
 
         $this->entityManager->persist($token);
         $this->entityManager->flush();
