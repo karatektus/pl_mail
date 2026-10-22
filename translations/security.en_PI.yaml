@@ -9,3 +9,5 @@ oidc.email_unverified: Yer fleet never vouched fer yer bottle address, so plMail
 oidc.ambiguous: More than one berth here holds yer bottle address. Ask th' cap'n t' sort it.
 oidc.no_account: There be no berth fer ye yet. Ask th' cap'n t' make one with yer bottle address.
 oidc.linked_elsewhere: Th' berth with yer bottle address be tied t' another sailor in yer fleet. Ask th' cap'n.
+oidc.unavailable_sso_only: 'Th'' fleet''s seal be broken fer now. Try again in a bit, or ask th'' cap''n t'' read th'' log.'
+login.password_disabled: 'Boardin'' by password be shut on this ship. Use th'' fleet''s seal.'

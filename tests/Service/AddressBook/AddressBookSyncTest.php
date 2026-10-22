@@ -1,0 +1,615 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Service\AddressBook;
+
+use App\Domain\Enum\Calendar\SyncState;
+use App\Domain\Exception\CalendarSyncException;
+use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Entity\AddressBook\AddressBook;
+use App\Entity\Contacts\Contact;
+use App\Infrastructure\Event\Listener\ContactSyncTracker;
+use App\Infrastructure\Messaging\Handler\PushAddressBookHandler;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
+use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
+use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\Contacts\ContactRepository;
+use App\Service\AddressBook\AddressBookDriverRegistry;
+use App\Service\AddressBook\AddressBookLock;
+use App\Service\AddressBook\AddressBookSync;
+use App\Service\Contacts\ContactPhotoStore;
+use App\Service\Contacts\VCardMapper;
+use App\Tests\Service\AddressBook\CardDav\CardDavFixture;
+use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+
+/**
+ * One address book brought back into agreement with its server.
+ *
+ * The real driver over a scripted server, and the contacts held in memory
+ * instead of Postgres — the rules under test are about which row wins, not
+ * about SQL.
+ *
+ * The claims, most important first:
+ *
+ *   - **Push before pull.** An edit made here reaches the server before the
+ *     server's older copy is read, or it would be overwritten on the way out.
+ *   - **A pending edit is never overwritten by a pull**, and never deleted by a
+ *     full listing that does not mention it.
+ *   - **On a conflict the server wins**, and the card is read again.
+ *   - **Only a full listing deletes** what it did not mention.
+ */
+final class AddressBookSyncTest extends TestCase
+{
+    private const string BOOK = 'https://dav.example.com/dav/addressbooks/alice/contacts/';
+
+    /** @var list<Contact> */
+    private array $cards = [];
+
+    private AddressBook $book;
+
+    protected function setUp(): void
+    {
+        $this->cards = [];
+        $this->book  = CardDavFixture::book(self::BOOK);
+    }
+
+    public function testAFirstSyncCreatesACardPerVCard(): void
+    {
+        $fixture = $this->server(
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/ada.vcf'   => ['etag' => '"1"', 'vcard' => CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com')],
+                '/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('grace', 'Grace Hopper', 'grace@example.com')],
+            ], 'token-1'),
+        );
+
+        $touched = $this->sync($fixture);
+
+        self::assertSame(2, $touched);
+        self::assertSame(['Ada Lovelace', 'Grace Hopper'], array_map(static fn (Contact $c): string => $c->displayName, $this->cards));
+        self::assertSame(['ada@example.com'], $this->emailsOf($this->cards[0]));
+        self::assertSame($this->book, $this->cards[0]->addressBook);
+        self::assertStringContainsString('UID:ada', (string) $this->cards[0]->vcard, 'the card is kept as the server sent it');
+        self::assertSame(self::BOOK . 'ada.vcf', $this->cards[0]->href);
+        self::assertSame('"1"', $this->cards[0]->etag);
+        self::assertSame('token-1', $this->book->syncToken);
+        self::assertTrue($this->book->isHealthy());
+        self::assertNotNull($this->book->lastSyncedAt);
+    }
+
+    public function testAnEditMadeHereIsPushedBeforeTheServerIsRead(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(
+            // The delta reports our own write back, under the etag the PUT
+            // was answered with.
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('ada', 'Ada King', 'ada@example.com')],
+            ], 'token-2'),
+            pushFirst: [CalDavFixture::status(204, ['etag' => '"2"'])],
+            syncToken: 'token-1',
+        );
+
+        $this->sync($fixture);
+
+        self::assertSame('PUT', $fixture->method(0), 'the push goes first');
+        self::assertSame('"1"', $fixture->header(0, 'If-Match'));
+        self::assertStringContainsString('FN:Ada King', $fixture->body(0));
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertSame('"2"', $card->etag);
+        self::assertSame('Ada King', $card->displayName, 'the pull saw its own write and left it alone');
+        self::assertSame(3, $fixture->requestCount(), 'PUT, PROPFIND, REPORT');
+    }
+
+    public function testAConflictLetsTheServerWinAndReadsEverythingAgain(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"9"', 'vcard' => CardDavFixture::vcard('ada', 'Countess Lovelace', 'ada@example.com')],
+            ], 'token-9'),
+            pushFirst: [CalDavFixture::status(412)],
+            syncToken: 'token-1',
+        );
+
+        $this->sync($fixture);
+
+        self::assertSame('Countess Lovelace', $card->displayName, 'the phone\'s edit won');
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertStringContainsString('<d:sync-token></d:sync-token>', $fixture->body(2), 'a full listing, not a delta');
+    }
+
+    /**
+     * Binning a synced contact deletes its card; the contact itself stays in
+     * the bin, let go of the book, so it can still be restored here.
+     */
+    public function testABinnedContactsCardIsDeletedAndTheContactLetGo(): void
+    {
+        $card            = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->trashedAt = new \DateTimeImmutable();
+        $card->syncState = SyncState::PendingDelete;
+
+        $fixture = $this->server(
+            CardDavFixture::report([], 'token-2'),
+            pushFirst: [CalDavFixture::status(204)],
+            syncToken: 'token-1',
+        );
+
+        $this->sync($fixture);
+
+        self::assertSame('DELETE', $fixture->method(0));
+        self::assertSame('"1"', $fixture->header(0, 'If-Match'));
+        self::assertSame([$card], $this->cards, 'the row stays');
+        self::assertNull($card->addressBook);
+        self::assertNull($card->href);
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertTrue($card->isTrashed());
+    }
+
+    public function testADeletionOnTheServerRemovesTheLocalCard(): void
+    {
+        $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->card('grace', 'Grace Hopper', etag: '"2"');
+
+        $this->sync($this->server(
+            CardDavFixture::report(['/dav/addressbooks/alice/contacts/ada.vcf' => null], 'token-2'),
+            syncToken: 'token-1',
+        ));
+
+        self::assertSame(['grace'], array_map(static fn (Contact $c): string => $c->uid, $this->cards));
+    }
+
+    /** Asked with a token, silence means "unchanged", not "deleted". */
+    public function testADeltaDoesNotDeleteWhatItDidNotMention(): void
+    {
+        $this->card('ada', 'Ada Lovelace', etag: '"1"');
+
+        $this->sync($this->server(CardDavFixture::report([], 'token-2'), syncToken: 'token-1'));
+
+        self::assertCount(1, $this->cards);
+    }
+
+    public function testAFullListingDeletesWhatItDidNotMentionButNotPendingEdits(): void
+    {
+        $this->card('gone', 'Gone Person', etag: '"1"');
+        $local              = Contact::create($this->book->usr, 'Not Yet Sent');
+        $local->uid         = 'local-only';
+        $local->addressBook = $this->book;
+        $local->syncState   = SyncState::PendingCreate;
+        $this->cards[]      = $local;
+
+        // The PUT for the pending card fails transiently (500): the card stays
+        // pending, the sync fails, and nothing is deleted.
+        $fixture = $this->server(
+            CardDavFixture::report([], 'token-1'),
+            pushFirst: [CalDavFixture::status(500)],
+        );
+
+        try {
+            $this->sync($fixture);
+            self::fail('a 500 on the push fails the sync');
+        } catch (CalendarSyncException) {
+        }
+
+        self::assertCount(2, $this->cards, 'nothing was pulled, so nothing was deleted');
+        self::assertFalse($this->book->isHealthy());
+
+        // Without the failure: the listing omits both, and only the clean one goes.
+        $this->cards = [];
+        $this->card('gone', 'Gone Person', etag: '"1"');
+        $this->cards[] = $local;
+        $this->book->isReadOnly = false;
+
+        // The listing names the card just pushed — it exists there now — and
+        // not the one deleted elsewhere.
+        $this->sync($this->server(
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/local-only.vcf' => ['etag' => '"n"', 'vcard' => CardDavFixture::vcard('local-only', 'Not Yet Sent', 'x@example.com')],
+            ], 'token-1'),
+            pushFirst: [CalDavFixture::status(201, ['etag' => '"n"'])],
+        ));
+
+        self::assertSame(['local-only'], array_map(static fn (Contact $c): string => $c->uid, $this->cards));
+        self::assertSame(self::BOOK . 'local-only.vcf', $local->href);
+    }
+
+    /**
+     * The `valid-sync-token` precondition arrives as an exception rather than
+     * as the driver's resync outcome. Let through, it failed the sync with the
+     * dead token still stored, and every retry presented the same token to
+     * the same refusal.
+     */
+    public function testADeadSyncTokenIsDroppedAndTheBookReadFromScratch(): void
+    {
+        $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->book->syncToken = 'expired';
+
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CalDavFixture::deadSyncToken(403),
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('grace', 'Grace Hopper', 'grace@example.com')],
+            ], 'token-fresh'),
+        );
+
+        $this->syncWith($fixture);
+
+        self::assertStringContainsString('<d:sync-token></d:sync-token>', $fixture->body(3), 'the second report starts from scratch');
+        self::assertSame('token-fresh', $this->book->syncToken);
+        self::assertTrue($this->book->isHealthy());
+        self::assertSame(['grace'], array_map(static fn (Contact $c): string => $c->uid, $this->cards), 'and, being a full listing, it can delete');
+    }
+
+    /**
+     * A server that moves a card deletes the old href and creates a new one
+     * with the same UID, and a delta may list the two in either order. The
+     * row must end up at the new href in both — not removed because the
+     * deletion of its old address was read after it had moved.
+     */
+    public function testAMovedCardKeepsItsRowWhicheverOrderTheDeltaListsIt(): void
+    {
+        $moved = CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com');
+
+        foreach ([
+            'deletion first'  => ['/dav/addressbooks/alice/contacts/ada.vcf' => null, '/dav/addressbooks/alice/contacts/moved/ada.vcf' => ['etag' => '"2"', 'vcard' => $moved]],
+            'deletion second' => ['/dav/addressbooks/alice/contacts/moved/ada.vcf' => ['etag' => '"2"', 'vcard' => $moved], '/dav/addressbooks/alice/contacts/ada.vcf' => null],
+        ] as $order => $members) {
+            $this->cards = [];
+            $card        = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+
+            $this->sync($this->server(CardDavFixture::report($members, 'token-2'), syncToken: 'token-1'));
+
+            self::assertSame([$card], $this->cards, $order);
+            self::assertSame(self::BOOK . 'moved/ada.vcf', $card->href, $order);
+        }
+    }
+
+    /**
+     * A 507 on a PUT is the server's quota, not somebody else's edit. Only a
+     * 412 lets the server win; anything else keeps the edit for the retry.
+     */
+    public function testOnlyA412CountsAsAConflict(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->sync($this->server(CardDavFixture::report([], 'token-2'), pushFirst: [CalDavFixture::status(507)], syncToken: 'token-1'));
+            self::fail('a 507 on the push fails the sync');
+        } catch (CalendarSyncException) {
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState, 'the edit is still waiting to go out');
+        self::assertSame('Ada King', $card->displayName);
+    }
+
+    /**
+     * A card the server refuses to accept is given up on, so the pull behind
+     * it still runs — left pending, the same 403 would stop the whole book
+     * from syncing again.
+     */
+    public function testACardTheServerRefusesIsGivenUpOnAndTheBookStillSyncs(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"1"', 'vcard' => CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com')],
+            ], 'token-2'),
+            pushFirst: [CalDavFixture::status(403)],
+            syncToken: 'token-1',
+        );
+
+        $this->sync($fixture);
+
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertSame('Ada Lovelace', $card->displayName, 'the server\'s copy is back');
+        self::assertTrue($this->book->isHealthy());
+    }
+
+    /** A rejected password is the connection's problem; the edit waits for the fix. */
+    public function testARejectedPasswordKeepsTheEdit(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->syncWith(new CardDavFixture(CalDavFixture::status(401)));
+            self::fail('a 401 fails the sync');
+        } catch (CalendarSyncPermanentException) {
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState);
+    }
+
+    /** A book the server has since made read-only is not written to, deletes included. */
+    public function testNothingIsSentToABookThatBecameReadOnly(): void
+    {
+        $this->book->isReadOnly = true;
+        $card                   = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->syncState        = SyncState::PendingDelete;
+
+        $fixture = $this->server(CardDavFixture::report([
+            '/dav/addressbooks/alice/contacts/ada.vcf' => ['etag' => '"1"', 'vcard' => CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com')],
+        ], 'token-2'), syncToken: 'token-1');
+
+        $this->sync($fixture);
+
+        self::assertSame('PROPFIND', $fixture->method(0), 'no DELETE went out');
+        self::assertSame([$card], $this->cards, 'the card is back');
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertFalse($card->isTrashed(), 'out of the bin again, as the server still has it');
+    }
+
+    /**
+     * An edit here is patched into the card the server sent, not a card
+     * rebuilt from the rows: what plMail has no field for goes back as it
+     * came.
+     */
+    public function testAPushKeepsWhatPlMailHasNoFieldFor(): void
+    {
+        $card        = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $card->vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:ada\r\nFN:Ada Lovelace\r\nEMAIL:ada@example.com\r\nGENDER:F\r\nX-PHONE-ONLY:keep me\r\nEND:VCARD\r\n";
+        $this->edit($card, 'Ada King');
+
+        $fixture = $this->server(CardDavFixture::report([], 'token-2'), pushFirst: [CalDavFixture::status(204, ['etag' => '"2"'])], syncToken: 'token-1');
+
+        $this->sync($fixture);
+
+        self::assertStringContainsString('FN:Ada King', $fixture->body(0));
+        self::assertStringContainsString('GENDER:F', $fixture->body(0));
+        self::assertStringContainsString('X-PHONE-ONLY:keep me', $fixture->body(0));
+    }
+
+    public function testAPermanentFailureIsRecordedOnTheBookForTheSettingsList(): void
+    {
+        $fixture = new CardDavFixture(CalDavFixture::status(401));
+
+        try {
+            $this->syncWith($fixture);
+            self::fail('a 401 must fail the sync');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertSame($e->getMessage(), $this->book->lastSyncError);
+        }
+    }
+
+    // ── The push alone (an edit here, on the export queue) ────────────────────
+
+    /**
+     * What an edit dispatches: the pending card goes out and nothing is read.
+     * lastSyncedAt stays where it was, or the sweep would skip the pull.
+     */
+    public function testAPushSendsThePendingEditAndReadsNothing(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+
+        $fixture = new CardDavFixture(CalDavFixture::status(204, ['etag' => '"2"']));
+
+        self::assertSame(1, $this->service($fixture)->pushPending($this->book));
+        self::assertSame(1, $fixture->requestCount(), 'the PUT, and no PROPFIND or REPORT after it');
+        self::assertSame('PUT', $fixture->method(0));
+        self::assertSame(SyncState::Clean, $card->syncState);
+        self::assertSame('"2"', $card->etag);
+        self::assertSame('token-1', $this->book->syncToken);
+        self::assertNull($this->book->lastSyncedAt);
+    }
+
+    public function testAFailedPushKeepsTheEditAndSaysWhyOnTheBook(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+
+        try {
+            $this->service(new CardDavFixture(CalDavFixture::status(401)))->pushPending($this->book);
+            self::fail('a 401 fails the push');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertSame($e->getMessage(), $this->book->lastSyncError);
+        }
+
+        self::assertSame(SyncState::PendingUpdate, $card->syncState, 'the sweep sends it later');
+    }
+
+    /**
+     * A push that lets the server win leaves the dropped edit on screen until
+     * the server's copy is read, so the handler asks for that read rather
+     * than leaving it to the sweep.
+     */
+    public function testAConflictOnThePushQueuesARead(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+        $dispatched            = [];
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(412)), $dispatched))(new PushAddressBookMessage(1));
+
+        self::assertCount(1, $dispatched);
+        self::assertInstanceOf(SyncAddressBookMessage::class, $dispatched[0]);
+    }
+
+    public function testAPushThatWentThroughQueuesNothing(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $this->book->syncToken = 'token-1';
+        $dispatched            = [];
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(204, ['etag' => '"2"'])), $dispatched))(new PushAddressBookMessage(1));
+
+        self::assertSame([], $dispatched);
+    }
+
+    /** A transient failure escapes, so export's retries are what try again. */
+    public function testATransientFailureIsLeftToTheTransportsRetries(): void
+    {
+        $card = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->edit($card, 'Ada King');
+        $dispatched = [];
+
+        $this->expectException(CalendarSyncException::class);
+
+        ($this->pushHandler(new CardDavFixture(CalDavFixture::status(503)), $dispatched))(new PushAddressBookMessage(1));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * A sync-collection server: optional push responses, then the collection
+     * probe and the report. A dead token is not scripted here; the conflict
+     * test reads the token it was sent from the request body instead.
+     *
+     * @param list<MockResponse> $pushFirst
+     */
+    private function server(MockResponse $report, array $pushFirst = [], ?string $syncToken = null): CardDavFixture
+    {
+        $this->book->syncToken = $syncToken;
+
+        return new CardDavFixture(
+            ...$pushFirst,
+            ...[CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true), $report],
+        );
+    }
+
+    private function sync(CardDavFixture $fixture): int
+    {
+        return $this->syncWith($fixture);
+    }
+
+    private function syncWith(CardDavFixture $fixture): int
+    {
+        return $this->service($fixture)->sync($this->book);
+    }
+
+    /**
+     * The handler around a real push, with the book found and the bus kept.
+     *
+     * @param list<object> $dispatched
+     */
+    private function pushHandler(CardDavFixture $fixture, array &$dispatched): PushAddressBookHandler
+    {
+        $books = $this->createStub(AddressBookRepository::class);
+        $books->method('find')->willReturn($this->book);
+
+        $bus = $this->createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$dispatched): Envelope {
+            $dispatched[] = $message;
+
+            return new Envelope($message);
+        });
+
+        return new PushAddressBookHandler($books, $this->service($fixture), $bus, new NullLogger());
+    }
+
+    private function service(CardDavFixture $fixture): AddressBookSync
+    {
+        return new AddressBookSync(
+            new AddressBookDriverRegistry([$fixture->driver]),
+            new AddressBookLock($this->createStub(Connection::class)),
+            new VCardMapper(),
+            $this->repository(),
+            new ContactPhotoStore(sys_get_temp_dir()),
+            new ContactSyncTracker($this->createStub(MessageBusInterface::class)),
+            $this->entityManager(),
+            new NullLogger(),
+        );
+    }
+
+    private function card(string $uid, string $name, string $etag): Contact
+    {
+        $card              = Contact::create($this->book->usr, $name);
+        $card->uid         = $uid;
+        $card->addressBook = $this->book;
+        $card->href        = self::BOOK . $uid . '.vcf';
+        $card->etag        = $etag;
+        $card->vcard       = CardDavFixture::vcard($uid, $name, $uid . '@example.com');
+        new VCardMapper()->apply(new VCardMapper()->read($card->vcard) ?? self::fail('fixture card'), $card);
+
+        $this->cards[] = $card;
+
+        return $card;
+    }
+
+    /** What ContactSyncTracker does for an edit made on the page. */
+    private function edit(Contact $card, string $name): void
+    {
+        $card->displayName = $name;
+        $card->syncState   = SyncState::PendingUpdate;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function emailsOf(Contact $card): array
+    {
+        return array_values(array_map(static fn ($email): string => $email->email, $card->emails->toArray()));
+    }
+
+    private function repository(): ContactRepository
+    {
+        $cards = &$this->cards;
+
+        return new class($cards) extends ContactRepository {
+            /** @param list<Contact> $cards */
+            public function __construct(private array &$cards)
+            {
+            }
+
+            public function findPending(AddressBook $book): array
+            {
+                return array_values(array_filter($this->cards, static fn (Contact $c): bool => $c->addressBook === $book && $c->syncState->isPending()));
+            }
+
+            public function indexForBook(AddressBook $book): array
+            {
+                $byHref = [];
+                $byUid  = [];
+
+                foreach ($this->cards as $card) {
+                    if ($card->addressBook !== $book) {
+                        continue;
+                    }
+
+                    if (null !== $card->href) {
+                        $byHref[$card->href] = $card;
+                    }
+
+                    $byUid[$card->uid] = $card;
+                }
+
+                return ['byHref' => $byHref, 'byUid' => $byUid];
+            }
+        };
+    }
+
+    private function entityManager(): EntityManagerInterface
+    {
+        $em = $this->createStub(EntityManagerInterface::class);
+
+        $em->method('persist')->willReturnCallback(function (object $entity): void {
+            if ($entity instanceof Contact) {
+                $this->cards[] = $entity;
+            }
+        });
+
+        $em->method('remove')->willReturnCallback(function (object $entity): void {
+            $this->cards = array_values(array_filter($this->cards, static fn (Contact $c): bool => $c !== $entity));
+        });
+
+        return $em;
+    }
+}

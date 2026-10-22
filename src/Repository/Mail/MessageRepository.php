@@ -3,6 +3,8 @@
 namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
@@ -277,8 +279,13 @@ class MessageRepository extends ServiceEntityRepository
         $affected = $this->getEntityManager()->getConnection()->executeStatement(
             // The database's own clock, not PHP's: the claim is decided here,
             // so the timestamp that records it should be too.
+            // A warning left by an earlier send is lifted by this one: the
+            // draft is being sent again, and if this attempt fails too it is
+            // marked afresh (#125).
             'UPDATE message
-                SET send_claimed_at = LOCALTIMESTAMP
+                SET send_claimed_at = LOCALTIMESTAMP,
+                    send_failed_at = NULL,
+                    send_failure = NULL
               WHERE id = :id
                 AND cancelled = false
                 AND sent_at IS NULL
@@ -369,6 +376,93 @@ class MessageRepository extends ServiceEntityRepository
             'UPDATE message SET send_claimed_at = NULL WHERE id = :id AND sent_at IS NULL',
             ['id' => $messageId],
         );
+    }
+
+    /**
+     * Start the clock on a send that is being retried, if it is not running
+     * already, and say how long it has been running in seconds (#125).
+     *
+     * One statement for both, so two attempts racing each other cannot each
+     * start their own clock. The database's clock, as for the claim.
+     *
+     * Raw DBAL because that one statement is the point and DQL cannot write
+     * it: it has no `UPDATE … RETURNING`, and no `EXTRACT(EPOCH FROM …)` to
+     * turn the interval into seconds. Split into an UPDATE and a SELECT it
+     * would be two statements again, and the race back.
+     */
+    public function secondsRetryingSend(int $messageId): int
+    {
+        $elapsed = $this->getEntityManager()->getConnection()->fetchOne(
+            'UPDATE message
+                SET send_retrying_since = COALESCE(send_retrying_since, LOCALTIMESTAMP)
+              WHERE id = :id
+          RETURNING EXTRACT(EPOCH FROM LOCALTIMESTAMP - send_retrying_since)',
+            ['id' => $messageId],
+        );
+
+        return false === $elapsed ? 0 : (int) $elapsed;
+    }
+
+    /**
+     * Note that an attempt lost its answer, so the next one looks in Sent
+     * before sending. See SendOutcomeUnknownException.
+     */
+    public function markSendUnconfirmed(int $messageId): void
+    {
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendUnconfirmedAt', 'CURRENT_TIMESTAMP()')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Mark a draft whose send finally failed, and stop its retry clock (#125).
+     *
+     * A bulk UPDATE rather than a change to the entity: it is written on the
+     * way out of a failed send, after the entity manager has been cleared of
+     * whatever the attempt left half-done, and a bulk update goes to the
+     * database without reading anything back into it. Not on a message that
+     * went out after all — sent_at is the one fact that wins.
+     */
+    public function markSendFailed(int $messageId, SendFailure $failure): void
+    {
+        $this->createQueryBuilder('m')
+            ->update()
+            ->set('m.sendFailedAt', 'CURRENT_TIMESTAMP()')
+            ->set('m.sendFailure', ':failure')
+            ->set('m.sendRetryingSince', 'NULL')
+            ->set('m.sendUnconfirmedAt', 'NULL')
+            ->where('m.id = :id')
+            ->andWhere('m.sentAt IS NULL')
+            ->setParameter('id', $messageId)
+            ->setParameter('failure', $failure->value)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * How many of a user's drafts carry a failed-send warning — the sidebar's
+     * mark on Drafts. Drafts only, by label as the Drafts list selects them, so
+     * a marked draft that was thrown away stops counting with it.
+     */
+    public function countUnsentDraftsForUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(DISTINCT m.id)')
+            ->innerJoin('m.account', 'a')
+            ->innerJoin('m.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('m.sendFailedAt IS NOT NULL')
+            ->andWhere('m.sentAt IS NULL')
+            ->andWhere('l.role = :drafts')
+            ->setParameter('user', $user)
+            ->setParameter('drafts', LabelRole::Drafts)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**
@@ -1197,6 +1291,49 @@ class MessageRepository extends ServiceEntityRepository
             // way there is, so the comparison is folded rather than the tag
             // guessed at.
             ->andWhere("LOWER(m.bodyHtml) LIKE '%charset%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose HTML body holds a form, or a stylesheet that says
+     * `!important` — the set the hidden-card repair has to walk (#271).
+     *
+     * The sanitizer dropped a form with everything in it, and the inliner let
+     * an inline `display:none` beat a stylesheet `!important`. Neither leaves a
+     * mark in bodyHtmlSafe that SQL could find, because what is missing is
+     * simply not there, so the walk is narrowed on the cause in the sender's
+     * own copy. Loosely, as the table-link walk is: `!important` anywhere after
+     * a `<style>` is far more mail than was hidden, and re-sanitising the rest
+     * writes back what the sanitizer makes of it today.
+     *
+     * @return list<Message>
+     */
+    public function findWithFormOrImportantRule(int $afterId, int $limit): array
+    {
+        return $this->formOrImportantRuleQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithFormOrImportantRule(): int
+    {
+        return (int) $this->formOrImportantRuleQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function formOrImportantRuleQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded: tags and the keyword are written in every case there is.
+            ->andWhere("(LOWER(m.bodyHtml) LIKE '%<form%' OR LOWER(m.bodyHtml) LIKE '%<style%!important%')")
             ->setParameter('afterId', $afterId);
     }
 
@@ -2547,6 +2684,75 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Ids of one account's messages carrying one label, by keyset — every one
+     * of them, not only those Exchange knows.
+     *
+     * For emptying a folder-backed label before it is deleted: the walk is
+     * findIdsWithLabelForAccount()'s, without its graphId filter, because the
+     * mail that has to leave an IMAP folder never had a graphId at all.
+     *
+     * @return list<int>
+     */
+    public function findAllIdsWithLabelForAccount(
+        int $accountId,
+        int $labelId,
+        int $afterId = 0,
+        int $limit = 200,
+    ): array {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * How many of one account's messages carry one label.
+     *
+     * What the delete dialog asks before it offers a destination: a folder
+     * with nothing in it on this account needs no move.
+     */
+    public function countWithLabelForAccount(int $accountId, int $labelId): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * How many messages are recorded as sitting in this folder.
+     *
+     * Asked before a Mailbox row is removed, and the answer has to be zero:
+     * message.mailbox_id cascades on delete, so removing the row of a folder
+     * that still has mail recorded in it deletes that mail here.
+     */
+    public function countInMailbox(Mailbox $mailbox): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.mailbox = :mailbox')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * A thread's messages in the order the conversation actually happened.
      *
      * Received mail is placed by when it arrived, sent mail by when it was
@@ -2658,6 +2864,8 @@ class MessageRepository extends ServiceEntityRepository
                 'm.sentAt',
                 'm.createdAt',
                 'm.submissionSendAt',
+                // The warning a draft whose send failed wears in the list (#125).
+                'm.sendFailure',
                 // Whether the message is filed under Sent or Drafts, for
                 // ThreadRowMessage::$filedAsSent. A count in the same statement
                 // rather than a join: a join would repeat the row per label,
@@ -2677,12 +2885,13 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * The two body columns MessageSnippet reads, for specific messages only —
-     * one per list row, the row's latest.
+     * The columns MessageSnippet reads, for specific messages only — one per
+     * list row, the row's latest. The category decides whether the preview
+     * may skip a bulk mail's chrome.
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2690,9 +2899,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2701,7 +2910,13 @@ class MessageRepository extends ServiceEntityRepository
         $bodies = [];
 
         foreach ($rows as $row) {
-            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+            $category = $row['category'];
+
+            $bodies[(int) $row['id']] = [
+                'bodyHtmlSafe' => $row['bodyHtmlSafe'],
+                'bodyText'     => $row['bodyText'],
+                'category'     => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+            ];
         }
 
         return $bodies;
@@ -2720,6 +2935,8 @@ class MessageRepository extends ServiceEntityRepository
      * `ai_categorised_at IS NULL` is "never asked", not "no answer" — the
      * stamp is written even when the model said nothing usable — so a message
      * the model cannot answer is offered once and not on every run for ever.
+     * A host that could not be reached leaves it unstamped, so it is offered
+     * again here once the host is back.
      *
      * @return list<int>
      */

@@ -20,8 +20,19 @@ also see your calendars there, because plMail asks for calendar access on the sa
 mailbox access. There is no second sign-in, no second application to register, and no second thing
 to configure — the account shows a **Find calendars on…** button and that is the whole of it.
 
-**Connections made for calendars alone.** A **CalDAV server** — Nextcloud, Radicale, Baïkal,
-Fastmail, iCloud, a box in a cupboard — or a **calendar address**, which is any published `.ics`.
+**Connections made for calendars alone.** A **CalDAV server** — Radicale, Baïkal, Fastmail,
+iCloud, a box in a cupboard — or a **calendar address**, which is any published `.ics`.
+
+**Your Nextcloud connection.** If you connected Nextcloud for files under **Settings →
+Integrations**, it is listed here too, with its own **Find calendars on…** button. The same app
+password reaches your Nextcloud calendars, so there is no address or password to type a second
+time. It is marked *Set up in Integrations* instead of offering a disconnect button: the
+connection holds your files as well, so it is disconnected there, and that confirmation says how
+many calendars go with it.
+
+A calendar already mirrored through another connection — a CalDAV connection you made by hand to
+the same Nextcloud, say — is shown as *Already mirrored through …* and cannot be ticked a second
+time, so its events are not synced twice.
 
 If the section says *No account or connection here carries calendars yet*, you have IMAP accounts and
 nothing else; connect a CalDAV server or subscribe to an address.

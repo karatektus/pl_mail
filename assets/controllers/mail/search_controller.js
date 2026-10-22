@@ -357,6 +357,9 @@ export default class extends Controller {
                 token: `${operator}:${this.#quote(contact.email)}`,
                 label: contact.displayName || contact.email,
                 hint: contact.email,
+                // Address-book hits carry the contact's photo when it has one;
+                // harvested correspondents send photoUrl: null.
+                photoUrl: contact.photoUrl ?? null,
             }));
         } else if (VALUES[operator]) {
             items = VALUES[operator]
@@ -743,6 +746,12 @@ export default class extends Controller {
     #suggestionMarkup(item, index) {
         const icon = item.kind === "contact" ? "fa-user" : "fa-terminal";
         const label = item.label ?? item.token;
+        // Address-book contacts show their photo when they have one; everyone
+        // else keeps the icon. The URL is same-origin and owner-gated.
+        const avatar = item.photoUrl
+            ? `<img src="${this._escape(item.photoUrl)}" alt="" aria-hidden="true"
+                    class="w-3.5 h-3.5 rounded-full object-cover flex-shrink-0">`
+            : `<i class="fa-solid ${icon} text-ink-faint w-3.5 flex-shrink-0" aria-hidden="true"></i>`;
 
         return `
             <li role="presentation">
@@ -755,7 +764,7 @@ export default class extends Controller {
                     class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-soft
                            hover:bg-hover transition-colors text-left"
                 >
-                    <i class="fa-solid ${icon} text-ink-faint w-3.5 flex-shrink-0" aria-hidden="true"></i>
+                    ${avatar}
                     <span class="font-mono text-xs text-ink truncate">${this._escape(label)}</span>
                     ${item.hint ? `<span class="ml-auto text-xs text-ink-faint truncate">${this._escape(item.hint)}</span>` : ""}
                 </button>

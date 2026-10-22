@@ -1241,6 +1241,10 @@ Bold the symptom in the user's words, then explain the cause and what changed:
 Each release states its migration and deployment impact up front —
 `No schema change, no deployment change.` — because migrations run automatically on boot.
 
+A pull request writes its entry as a file of its own (`changelog.d/266-jmap-read-state.md`), and
+the release collects them into the changelog with a script. Pull requests that each add a paragraph
+at the top of one file conflict with each other in turn, and each resolution re-runs CI.
+
 ### 11.4 Commit messages
 
 **Subject: an imperative sentence describing the change's effect, no prefix, no scope, no ticket.**

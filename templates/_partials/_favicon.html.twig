@@ -21,9 +21,9 @@
     the smallest icon that is big enough for the tab, which is the 192px PNG.
     A static file can only wear the product default, so every account saw the
     wax seal in its tabs whatever icon it had chosen. A second candidate can
-    only be wrong for someone. The PNGs still serve the places that need a
-    raster and have no per-account route: the apple-touch-icon in app.html.twig
-    and the manifest's install icons.
+    only be wrong for someone. The PNGs that rasters need follow the choice
+    too: the install manifest's icons and the apple-touch-icon in app.html.twig
+    are the user's own, drawn by their browser (#141, AppIconStorage).
 
     The SVG comes from a route rather than a file, because the logo is a
     per-user setting now (Settings → Appearance → Logo: an icon, then its

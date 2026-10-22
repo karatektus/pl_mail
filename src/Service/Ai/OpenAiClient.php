@@ -223,9 +223,7 @@ final readonly class OpenAiClient
                     'error'  => self::refusal($response->getContent(false)),
                 ]);
 
-                return AiChatResult::failed(
-                    404 === $status ? OllamaClient::ERROR_HTTP_404 : OllamaClient::ERROR_HTTP_STATUS,
-                );
+                return AiChatResult::refused($status);
             }
 
             /** @var array<string, mixed> $body */
@@ -353,9 +351,7 @@ final readonly class OpenAiClient
                                 'error'  => self::refusal($response->getContent(false)),
                             ]);
 
-                            return AiChatResult::failed(
-                                404 === $status ? OllamaClient::ERROR_HTTP_404 : OllamaClient::ERROR_HTTP_STATUS,
-                            );
+                            return AiChatResult::refused($status);
                         }
 
                         continue;

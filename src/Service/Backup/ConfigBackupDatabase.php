@@ -287,6 +287,7 @@ final readonly class ConfigBackupDatabase
             'holdMaxSeconds'        => $settings->holdMaxSeconds,
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
+            'contactHelpEnabled'    => $settings->contactHelpEnabled,
             'prompts'               => $prompts,
         ];
     }
@@ -375,6 +376,7 @@ final readonly class ConfigBackupDatabase
         $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
+        $settings->contactHelpEnabled    = true === ($values['contactHelpEnabled'] ?? false);
 
         $prompts = $values['prompts'] ?? [];
 
@@ -480,6 +482,13 @@ final readonly class ConfigBackupDatabase
         // Off only when the backup says so in as many words: a document that
         // lost the key must not come back with the check switched off.
         $config->requireVerifiedEmail = false !== ($values['requireVerifiedEmail'] ?? true);
+        // "Single sign-on only" is deliberately not in the backup, and is switched
+        // off here. The account links it depends on (who has signed in through
+        // the provider) are not restored, so bringing it back would shut a
+        // freshly restored install out of its own password form. An
+        // administrator ticks it again once they have signed in through the
+        // provider.
+        $config->passwordLoginDisabled = false;
 
         if (null === $config->id) {
             $this->entityManager->persist($config);

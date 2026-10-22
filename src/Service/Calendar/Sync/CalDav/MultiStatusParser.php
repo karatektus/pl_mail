@@ -108,7 +108,8 @@ final readonly class MultiStatusParser
 
         if (false === $document) {
             throw new CalendarSyncException(
-                'The calendar server answered with something that is not a CalDAV response. Check the server address.',
+                // Neutral wording: the same parser reads CardDAV answers.
+                'The server answered with something that is not a CalDAV or CardDAV response. Check the server address.',
             );
         }
 

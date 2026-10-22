@@ -94,9 +94,9 @@ final readonly class MailChangeRecorder
      * The id is passed rather than the entity because the caller has already
      * handed that to remove(): it is about to have none.
      *
-     * Its conversation is announced as updated rather than destroyed even when
-     * it is now empty, because the thread row is deliberately left standing —
-     * so the id a client holds still resolves.
+     * Its conversation is announced as updated. When this was its last message
+     * the thread goes too, and MessageEraser follows this with
+     * threadDestroyed(); a later destroy of the same id is what a client acts on.
      */
     public function emailDestroyed(int $accountId, string $messageId, ?MessageThread $thread): void
     {
@@ -122,14 +122,13 @@ final readonly class MailChangeRecorder
     }
 
     /**
-     * A conversation stopped existing because its messages joined another.
+     * A conversation stopped existing: its messages joined another, or it has
+     * none left (ThreadMerger, MessageEraser).
      *
-     * The one case where a Thread is destroyed rather than updated, and the
-     * reason emailDestroyed() can say "updated" does not apply: that row stays
-     * standing, this one is deleted, and a client that keeps an id which no
-     * longer resolves shows a conversation it can never open. The messages it
-     * held are announced as updated by the caller — their threadId changed —
-     * and so is the conversation they joined.
+     * Either way the row is gone, and a client that keeps an id which no longer
+     * resolves shows a conversation it can never open. After a merge the
+     * messages it held are announced as updated by the caller — their threadId
+     * changed — and so is the conversation they joined.
      */
     public function threadDestroyed(int $accountId, int $threadId): void
     {

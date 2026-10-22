@@ -552,6 +552,8 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
                 {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) }}
+                {% import '_partials/_unsent_mark.html.twig' as unsent %}
+                {{ unsent.sidebar(sidebarCounts.unsentDrafts()) }}
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
@@ -753,6 +755,30 @@ controller instead — the scroll position and which trees are open.
         </a>
         {% endif %}
         </details>
+        {% endif %}
+
+        {# Contacts: the address book. Above the labels and accounts, with
+           the mail views: under the accounts heading it read as one more
+           account.
+
+           Drawer only, as the calendar's row is and for its reason (#311): on
+           a wide screen the address book is a pane beside the mail, and the
+           topbar button that moves it is the way in. A row that went to the
+           page beside it read as a second, different contacts. #}
+        {% if _drawerMode is defined and _drawerMode %}
+        {% set _contactsHref = path('app_contacts_list') %}
+        <a href="{{ _contactsHref }}"
+           class="nav-item mb-2 flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_contactsHref) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'contacts.nav'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-address-book w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'contacts.nav'|trans }}</span>
+            </span>
+        </a>
         {% endif %}
 
         {# ── Labels section ────────────────────────────────────────────────

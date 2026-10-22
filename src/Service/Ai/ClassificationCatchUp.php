@@ -37,7 +37,9 @@ use Throwable;
  * WHAT THIS IS, AND IS MODELLED ON: EmbeddingCatchUp::sweep(). A budget per
  * call, no state of its own, nothing to resume — the message's own
  * `aiCategorisedAt` stamp is the progress marker, written by the handler
- * whether or not the model said anything usable.
+ * whether or not the model said anything usable, and left empty when the host
+ * could not be reached, which is how a message that met an outage is offered
+ * again.
  *
  * WHAT STANDS IN FOR STATE is the queue itself. A run posts nothing while its
  * queue still holds what the last run posted, which is all that keeps two

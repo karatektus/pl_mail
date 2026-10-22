@@ -10,6 +10,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
@@ -32,6 +33,7 @@ class SidebarCounts implements ResetInterface
     private ?int $starredCount = null;
     private ?int $unreadCount = null;
     private ?int $snoozedCount = null;
+    private ?int $unsentDrafts = null;
     private ?int $labelsUnread = null;
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
@@ -81,6 +83,7 @@ class SidebarCounts implements ResetInterface
         $this->starredCount       = null;
         $this->unreadCount        = null;
         $this->snoozedCount       = null;
+        $this->unsentDrafts       = null;
         $this->labelsUnread       = null;
         $this->userLabelTree      = null;
         $this->visibleLabels      = null;
@@ -98,6 +101,7 @@ class SidebarCounts implements ResetInterface
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
+        private readonly MessageRepository       $messages,
     ) {}
 
     /**
@@ -329,6 +333,24 @@ class SidebarCounts implements ResetInterface
         }
 
         return $this->labelsUnread;
+    }
+
+    /**
+     * Drafts whose send finally failed — the warning on the Drafts entry
+     * (#125). A count rather than a flag because the counts payload carries
+     * numbers, and zero is what hides it.
+     */
+    public function unsentDrafts(): int
+    {
+        if (null === $this->unsentDrafts) {
+            $user = $this->security->getUser();
+
+            $this->unsentDrafts = $user instanceof User
+                ? $this->messages->countUnsentDraftsForUser($user)
+                : 0;
+        }
+
+        return $this->unsentDrafts;
     }
 
     public function forStarred(): int

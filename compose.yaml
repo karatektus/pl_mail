@@ -22,6 +22,7 @@ x-app-env: &app-env
   OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile}
   OIDC_AUTO_CREATE: ${OIDC_AUTO_CREATE:-false}
   OIDC_REQUIRE_VERIFIED_EMAIL: ${OIDC_REQUIRE_VERIFIED_EMAIL:-true}
+  OIDC_DISABLE_PASSWORD_LOGIN: ${OIDC_DISABLE_PASSWORD_LOGIN:-false}
 
 x-app-storage: &app-storage
   - app_secrets:/app/var/secrets

@@ -91,6 +91,7 @@
      data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}"
+     data-settings--appearance-app-icons-url-value="{{ path('app_appearance_app_icons') }}"
      {# What a linked pl mark wears on a theme with no namesake colourway —
         LogoStyle::DEFAULT, read here rather than spelled in the script. #}
      data-settings--appearance-logo-default-value="{{ constant('App\\Domain\\Enum\\Theme\\LogoStyle::DEFAULT').value }}">
@@ -407,12 +408,17 @@
                     </span>
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3"
                          role="group" aria-labelledby="logo-motif-label">
+                        {# The installed app's URLs carry the user's key; see AppIconStorage. #}
+                        {% set _app_icon_key = app_icons().key %}
                         {% for motif in enum('App\\Domain\\Enum\\Theme\\LogoMotif').cases %}
                             {% set _url = logo_icon_url(motif) %}
                             <button type="button"
                                     data-logo-motif="{{ motif.value }}"
                                     data-logo-icon="{{ _url }}"
                                     data-logo-favicon="{{ logo_favicon_url(motif) }}"
+                                    data-logo-bleed="{{ logo_bleed_url(motif) }}"
+                                    data-logo-manifest="{{ logo_manifest_url(motif, null, _app_icon_key) }}"
+                                    data-logo-apple-touch="{{ logo_app_icon_url('bleed-180', _app_icon_key, motif) }}"
                                     data-logo-bar="{{ logo_url(motif) }}"
                                     data-logo-bar-dark="{{ logo_url(motif, null, true) }}"
                                     data-action="click->settings--appearance#pickMotif"

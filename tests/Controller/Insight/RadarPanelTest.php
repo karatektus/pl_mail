@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Insight;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Insight\MailInsight;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -339,7 +341,49 @@ final class RadarPanelTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-insight-strip]'));
     }
 
+    /**
+     * A card from mail in Spam is on neither the panel nor the conversation
+     * (#304): the strip would put a "track package" button from a likely
+     * phishing mail above it, in the app's own voice.
+     */
+    public function testACardFromSpamIsOnNeitherThePanelNorTheConversation(): void
+    {
+        $client = $this->signIn();
+
+        $thread = $this->inSpam($this->thread('Your parcel is held at customs'));
+        $this->parcel($thread);
+
+        $crawler = $client->request('GET', '/calendar/soon');
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-insight-card]'), 'the panel shows a card from spam');
+
+        $crawler = $client->request('GET', "/mail/thread/{$thread->id}");
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-insight-strip]'), 'a spam conversation shows its cards');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /** Spam the way marking it does: on the thread and on every message. */
+    private function inSpam(MessageThread $thread): MessageThread
+    {
+        $spam            = new Label();
+        $spam->usr       = $this->user;
+        $spam->name      = 'Spam';
+        $spam->role      = LabelRole::Spam;
+        $spam->isVisible = true;
+        $this->em->persist($spam);
+
+        $thread->addLabel($spam);
+
+        foreach ($thread->messages as $message) {
+            $message->addLabel($spam);
+        }
+
+        $this->em->flush();
+
+        return $thread;
+    }
 
     private function parcel(?MessageThread $thread = null): MailInsight
     {

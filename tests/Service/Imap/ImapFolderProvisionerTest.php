@@ -201,6 +201,33 @@ final class ImapFolderProvisionerTest extends KernelTestCase
     }
 
     /**
+     * A folder made just now has nothing to import, and says so — or the
+     * import indicator shows it as importing until a sync gets round to it.
+     * One the server already had is planned as usual: it may be full.
+     */
+    public function testAFolderMadeHereHasNothingToImport(): void
+    {
+        $this->folder('INBOX', 'INBOX', '.');
+
+        $this->provisioner->ensureSpecialUse($this->account, $this->client(), MailboxSpecialUse::ARCHIVE);
+        $this->provisioner->ensureExactPath($this->account, $this->client(), 'Elsewhere');
+
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists';
+
+        $this->provisioner->ensureExactPath($this->account, $this->client(), 'Existing');
+
+        $mailboxes = $this->em->getRepository(Mailbox::class);
+
+        self::assertFalse($mailboxes->findOneBy(['account' => $this->account, 'fullPath' => 'Archive'])?->isImporting());
+        self::assertFalse($mailboxes->findOneBy(['account' => $this->account, 'fullPath' => 'Elsewhere'])?->isImporting());
+        self::assertNull(
+            $mailboxes->findOneBy(['account' => $this->account, 'fullPath' => 'Existing'])?->importFloorUid,
+            'a folder the server already had was marked as having nothing to import',
+        );
+    }
+
+    /**
      * Nothing is created when plMail already has the folder. The provisioner is
      * the last step of resolution rather than the first.
      */

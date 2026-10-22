@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:86de4574a5dd3df515000f98f4e2ababc44d535e -->
+<!-- translated-from: install/upgrading.md sha1:8843e5bc0db3bd70577a5d29c566a6d5db35b950 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -51,6 +51,7 @@ Der Release-Workflow veröffentlicht ein Multi-Architektur-Manifest und richtet 
 |---|---|
 | `latest` | der jüngsten **Veröffentlichung** — er bewegt sich nur, wenn ein `v*`-Tag gepusht wird |
 | `main` | der Spitze des Standard-Branches, veröffentlicht oder nicht |
+| `milestone-v0.3.8` | der Arbeit, die für eine Veröffentlichung auf ihrem Milestone-Branch gesammelt wird, bevor sie `main` erreicht. Zum frühen Ausprobieren einer Veröffentlichung; er kann Migrationen enthalten, die `main` noch nicht hat, deshalb ist der Weg zurück zu `main` nicht immer möglich |
 | `0.0.16` | einer Veröffentlichung, festgenagelt. Ohne führendes `v`: Der Git-Tag heißt `v0.0.16`, der Image-Tag nicht |
 | `0.0` | dem neuesten Patch einer Minor-Linie |
 | `sha-1a2b3c` | einem Commit, exakt festgenagelt |
@@ -151,6 +152,14 @@ Welches Image die Prüfungen lesen, wird beim Bauen als `APP_IMAGE` eingestempel
 Image veröffentlicht, prüft also sein eigenes. Ein gesetztes `APP_IMAGE` in der Umgebung hat Vorrang.
 
 Die Seite installiert noch nichts; das erledigen die Befehle unter [Das Upgrade](#das-upgrade) oben.
+
+**Ohne Installation, die du fragen kannst**, folgst du den Veröffentlichungen auf GitHub. Jede
+getaggte Veröffentlichung ab v0.3.0 hat eine Seite unter
+[Releases](https://github.com/karatektus/pl_mail/releases), mit ihren Notizen aus `CHANGELOG.md` und
+dem Image, das du ziehst. Ein Feedreader kann `https://github.com/karatektus/pl_mail/releases.atom`
+abonnieren, und **Watch → Custom → Releases** im Repository schickt dir eine GitHub-Benachrichtigung.
+Die Seite erscheint erst, wenn das Image der Veröffentlichung veröffentlicht ist; was sie ankündigt,
+lässt sich also auch ziehen.
 
 **Der Fehlerfall ist eine Prüfung, die die Registry nicht erreicht.** Eine Installation hinter einer
 Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte beantwortete Prüfung

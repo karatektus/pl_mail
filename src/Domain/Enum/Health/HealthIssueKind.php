@@ -71,6 +71,17 @@ enum HealthIssueKind: string
     case AccountScopeMissing = 'account_scope_missing';
 
     /**
+     * A Google or Microsoft account whose grant predates contact sync.
+     *
+     * Not AccountScopeMissing, though it is the same comparison: that card
+     * says permissions were refused and parts of the account cannot work,
+     * which is untrue here — mail and calendars are fine, and the account
+     * was simply connected before plMail asked for contacts. A notice, with
+     * the same repair: one reconnect, which grants it.
+     */
+    case AccountContactsScopeMissing = 'account_contacts_scope_missing';
+
+    /**
      * The mailbox itself has stopped syncing, repeatedly, for a reason that is
      * not the sign-in.
      *
@@ -204,6 +215,7 @@ enum HealthIssueKind: string
             // Sitting this beside "your account has stopped receiving" would
             // teach people to read past both.
             self::AccountScopeMissing  => HealthSeverity::Warning,
+            self::AccountContactsScopeMissing => HealthSeverity::Notice,
             // Critical: this one means new mail is not arriving, which is the
             // application not doing its job rather than a part of it missing.
             self::AccountSyncFailing   => HealthSeverity::Critical,
@@ -261,6 +273,7 @@ enum HealthIssueKind: string
             self::AccountGrantWeeklyExpiry => 'fa-hourglass-half',
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
+            self::AccountContactsScopeMissing => 'fa-address-book',
             self::AccountSyncFailing   => 'fa-inbox',
             self::ServerAlert          => 'fa-bullhorn',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',

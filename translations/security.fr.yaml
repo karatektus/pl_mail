@@ -12,3 +12,5 @@ oidc.email_unverified: Votre fournisseur de connexion n’a pas confirmé votre 
 oidc.ambiguous: Plusieurs comptes ici ont votre adresse e-mail. Demandez à votre administrateur de régler cela.
 oidc.no_account: Il n’existe pas encore de compte plMail pour vous. Demandez à votre administrateur d’en créer un avec votre adresse e-mail.
 oidc.linked_elsewhere: Le compte qui a votre adresse e-mail est déjà lié à quelqu’un d’autre chez votre fournisseur de connexion. Adressez-vous à votre administrateur.
+oidc.unavailable_sso_only: 'L’authentification unique ne fonctionne pas pour le moment. Réessayez dans un instant, ou demandez à votre administrateur de consulter les journaux.'
+login.password_disabled: 'La connexion par mot de passe est désactivée sur cette installation. Utilisez l’authentification unique.'

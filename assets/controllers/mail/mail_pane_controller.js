@@ -114,6 +114,11 @@ const MORPHED_REGION = "rows";
 const CLIENT_OWNED = new Set([
     "data-entered", "data-enter", "data-enter-scope", "data-leaving",
     "data-selected", "aria-current",
+    // The row swipe's marker and side. See SWIPED: a marked row is skipped whole, and these
+    // two say which row it is and which way it is open, so they are not the server's to reset.
+    "data-swipe-owned", "data-swipe-side",
+    // The long-press marker on a row and its overlay, held while a finger is on them. See mail--row-hold.
+    "data-pressed",
 ]);
 
 /**
@@ -133,6 +138,23 @@ const CLIENT_OWNED = new Set([
  * becomes the server's again the moment it closes.
  */
 const MENU = '[data-ui--dropdown-target="menu"]';
+
+/**
+ * A row the client is holding: under a finger, or open for its swipe actions.
+ *
+ * Skipped whole, children included, like an open menu. The server's copy of the row
+ * knows nothing about the drag, and its inline transform, its open panel and its
+ * place in the gesture are all the client's. A refresh that resets any of them
+ * closes a row a person is holding, or snaps it back under their finger. The marker
+ * is removed when the row is released (row_swipe_controller.js #reset), and the
+ * next refresh then brings the row up to date as usual.
+ *
+ * A refresh that REMOVES a marked row is not skipped: the morph takes the row out.
+ * The gesture then gets no further events for that touch, because the touch targets
+ * the detached node and its touchend never reaches the list. The stale sequence is
+ * abandoned at the next one-finger touchstart (row_swipe_controller.js #touchStart).
+ */
+const SWIPED = "li[data-swipe-owned]";
 
 /**
  * One row of the list, as opposed to any of the hundreds of nodes inside one.
@@ -237,6 +259,16 @@ export default class extends Controller {
         };
         document.addEventListener("turbo:before-frame-render", this._onListRendering);
 
+        // A message link from outside this pane — the contacts pane's
+        // "Reference emails" — asks for it here, because a Stimulus action
+        // only reaches controllers around the element clicked. Cancelling the
+        // event tells the link this pane took it (see mail--open-in-pane).
+        this._onOpenRequest = (event) => {
+            event.preventDefault();
+            this._openUrl(event.detail.url);
+        };
+        document.addEventListener("mail-pane:open", this._onOpenRequest);
+
         // A refresh that came due while the tab was in the background is held
         // rather than dropped, and taken the moment it is looked at again.
         this._refreshPending = false;
@@ -292,6 +324,7 @@ export default class extends Controller {
         this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
         document.removeEventListener("turbo:before-frame-render", this._onListRendering);
+        document.removeEventListener("mail-pane:open", this._onOpenRequest);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
         // A trailing refresh outlives this controller otherwise: Turbo replaces
@@ -356,17 +389,51 @@ export default class extends Controller {
     async open(event) {
         event.preventDefault();
 
-        const link = event.currentTarget;
-        const url = link.href;
+        await this._openUrl(event.currentTarget.href);
+    }
 
-        // Remember where to go back to, if we don't already know.
-        if (!this._listUrl) {
+    async _openUrl(url) {
+        const fromContacts = this._contactsFull();
+
+        // Remember where to go back to, if we don't already know. Not the full
+        // contacts page's own address: closing a message opened from it shows
+        // the Inbox, in the mail column the message brought in.
+        if (fromContacts) {
+            this._listUrl = this.inboxUrlValue;
+        } else if (!this._listUrl) {
             this._listUrl = window.location.href;
         }
 
         await this._loadMessage(url);
 
         history.pushState({ mailPaneOpen: true }, "", url);
+
+        // Loaded while the column was still put away, so it arrives filled.
+        if (fromContacts) {
+            await this._revealFromContacts();
+            this._fillBesideList();
+        }
+    }
+
+    /**
+     * Whether this is the full contacts page, with the mail column put away
+     * (contacts/_page_shell.html.twig).
+     */
+    _contactsFull() {
+        return null !== document.querySelector("[data-contacts-full]");
+    }
+
+    /**
+     * Asks contacts--pane to bring the mail column in beside the address book,
+     * and waits until it is in the DOM — the transition itself may still be
+     * running. The shell owns that state, so it is asked rather than told;
+     * nobody answering is a page without one, where there is nothing to wait for.
+     */
+    async _revealFromContacts() {
+        const request = new CustomEvent("contacts-pane:reveal", { detail: { done: null } });
+        document.dispatchEvent(request);
+
+        await request.detail.done;
     }
 
     close(event) {
@@ -394,6 +461,13 @@ export default class extends Controller {
 
     async _handlePopState(event) {
         const state = event.state;
+
+        // Back to the full contacts page a message was opened from. That entry
+        // is Turbo's, and Turbo restores the page; a list fetched here for its
+        // address would be a contacts page, not a list.
+        if (false === window.location.pathname.startsWith("/mail")) {
+            return;
+        }
 
         if (state && state.mailPaneOpen) {
             await this._loadMessage(window.location.href);
@@ -474,7 +548,8 @@ export default class extends Controller {
      * widened after the page loaded is the same situation arriving late.
      */
     _fillBesideList() {
-        if (false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
+        // Nothing is beside anything while the contacts have the row.
+        if (this._contactsFull() || false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
             return;
         }
 
@@ -766,6 +841,13 @@ export default class extends Controller {
             return;
         }
 
+        // The full contacts page: no list on screen, and its address would
+        // answer with a contacts page. The list is fetched when the mail
+        // column comes in.
+        if (this._contactsFull()) {
+            return;
+        }
+
         // Nobody is looking. Remembered, not dropped: the visibilitychange
         // handler takes it the moment the tab is looked at again.
         if (document.hidden && !immediate) {
@@ -1016,9 +1098,14 @@ export default class extends Controller {
     /**
      * Whether this node and everything inside it may be brought up to date.
      *
-     * Only one thing says no, and see MENU for why: a dropdown that is open.
+     * Two things say no: a dropdown that is open (see MENU), and a row the client
+     * is holding under a finger or open (see SWIPED). Both are skipped whole.
      */
     _mayMorph(node) {
+        if (true === node.matches?.(SWIPED)) {
+            return false;
+        }
+
         if (true !== node.matches?.(MENU)) {
             return true;
         }

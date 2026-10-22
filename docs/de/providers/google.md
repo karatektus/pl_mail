@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:ab22097bf3000ba96411f571d10ade5dd0362ae3 -->
+<!-- translated-from: providers/google.md sha1:b48c1f67e02a6658bb083369e5cd0a089c282cb2 -->
 
 # Google
 
@@ -33,6 +33,11 @@ Alles unter **Einstellungen**, was dadurch möglich wird, beschreiben
 3. Aktiviere im selben Projekt die **Google Calendar API**, wenn du Kalender willst. Das ist der
    Schritt, den der Admin-Bildschirm meint, wenn er sagt, auf der plMail-Seite sei nichts
    einzurichten — der Kalenderzugriff wird vollständig in dieser Konsole erworben.
+4. Aktiviere außerdem die **Google People API**, wenn du Kontakte willst. Es ist derselbe Schritt für
+   das Adressbuch: Ohne ihn funktionieren Mail und Kalender, und das Google-Adressbuch jedes
+   Benutzers unter **Einstellungen → Kontakte** sagt, dass die Administration die People API
+   aktivieren muss. Sobald sie aktiviert ist, synchronisieren die Kontakte von selbst; niemand muss
+   sich neu anmelden.
 
 Notier dir gleich deine **project ID** (Projekt-ID). Sie ist kleingeschrieben und kann von dem
 Anzeigenamen abweichen, den du eingetippt hast; das Pub/Sub-Topic weiter unten wird mit der ID
@@ -86,12 +91,13 @@ am Zustimmungsbildschirm scheitert.
 
 ## Die Scopes, und wofür jeder da ist
 
-plMail fragt bei der Zustimmung diese vier ab, für jedes Gmail-Konto:
+plMail fragt bei der Zustimmung diese fünf ab, für jedes Gmail-Konto:
 
 | Scope | Wofür er da ist |
 |---|---|
 | `https://mail.google.com/` | Das Postfach selbst: Nachrichten lesen, senden, Labels vergeben und entfernen, verschieben und löschen. Das ist voller Postfachzugriff, und genau das ist ein Mail-Client. |
 | `https://www.googleapis.com/auth/calendar` | Kalender auf demselben Konto, lesend **und** schreibend. |
+| `https://www.googleapis.com/auth/contacts` | Kontakte auf demselben Konto, lesend **und** schreibend, über die People API. |
 | `openid` | Identifiziert das Konto, zu dem das Token gehört. |
 | `email` | Liefert die Adresse, nach der plMail das Konto benennt. |
 
@@ -122,6 +128,27 @@ versucht gar nicht erst, das bei der Erteilung zu erkennen; es merkt es, wenn ei
 abgelehnt wird, und sagt es in den Kalendereinstellungen — *„Auf Googles Zustimmungsseite lässt sich
 der Kalenderzugriff abwählen, während E-Mail erlaubt wird. Verbinde das Konto neu und lass das
 Kalenderhäkchen gesetzt."*
+
+### Kontakte hängen ebenfalls an derselben Anmeldung
+
+Der Kontakte-Scope reist auf derselben Freigabe, aus denselben Gründen. Ein mit plMail verbundenes
+Google-Konto bringt seine Kontakte mit: Sein Adressbuch erscheint unter **Kontakte** neben plMails
+eigenem, Googles Kontaktgruppen werden zu Schlagwörtern, und eine Änderung in plMail wird
+zurückgeschrieben — Namen, phonetische Namen, Organisation, Geburtstag und weitere Daten,
+Beziehungen, Websites, Chat- und SIP-Adressen, eigene Felder und das Foto, dazu Anschriften und
+Nummern — und von Google auf die Handys, die damit synchronisieren. Gesendet werden nur die Felder,
+die plMail zeigt, also bleibt, was Google darüber hinaus hat (Berufe, Interessen, das Kürzel einer
+Organisation), wie es ist. Siehe [Kontakte](../features/contacts.md).
+
+Ein Konto, das verbunden wurde, **bevor** plMail nach Kontakten gefragt hat, hält eine Freigabe ohne
+den Scope. Daran ist nichts kaputt: Mail und Kalender laufen weiter, und **Einstellungen →
+Zustand der Konten** zeigt einen Hinweis, *… erneut verbinden, um seine Kontakte zu synchronisieren*, dessen
+Knopf dich noch einmal anmeldet und die Berechtigung ergänzt. Das Adressbuch erscheint, sobald das
+erledigt ist.
+
+Google stuft den Kontakte-Scope als **sensibel** ein. Das ist eine leichtere Klasse als die
+*eingeschränkte* des Mail-Scopes, mit der eine Installation ohnehin leben muss (siehe unten), und
+ändert an der Überprüfung nichts.
 
 ### Was die Überprüfung „eingeschränkter Scope“ hier bedeutet
 
@@ -296,7 +323,7 @@ kommen* auftaucht, ohne Kalender daran. Verbinde es neu und lass das Häkchen ge
 **Die Calendar API zu aktivieren ist nicht dasselbe wie den Kalender-Scope hinzuzufügen**, und das
 eine ohne das andere scheitert auf zwei verschiedene Arten: der Scope ohne die API ist ein 403 bei
 jedem Kalenderaufruf, und die API ohne den Scope ist ein Token, dem der Kalenderzugriff nie erteilt
-wurde.
+wurde. Dasselbe gilt für die People API und den Kontakte-Scope.
 
 **Die Domainbestätigung gilt pro Cloud-Projekt, nicht pro Google-Konto.** Die Domain in der Search
 Console zu verifizieren ist nur die erste Hälfte; sie muss zusätzlich unter **Domain verification**

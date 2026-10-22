@@ -1,4 +1,4 @@
-<!-- translated-from: providers/microsoft.md sha1:593c30a706038d59877536d7f264562631d8d6fc -->
+<!-- translated-from: providers/microsoft.md sha1:3e529992d3beed2d19d98f73d09643bf23bb54af -->
 
 # Microsoft
 
@@ -66,6 +66,7 @@ stimmt dem Satz als Ganzem zu; anders als bei Google gibt es keine Teilerteilung
 | `Mail.Send` | Senden. In Graphs Modell vom Obigen getrennt, muss also getrennt hinzugefügt werden. |
 | `MailboxSettings.ReadWrite` | Master-Kategorien, unter `/me/outlook/masterCategories`. Diese sind **nicht** von `Mail.ReadWrite` abgedeckt: Sie liegen unter der Outlook-Ressource für Benutzereinstellungen und liefern ohne diese Berechtigung `ErrorAccessDenied`. ReadWrite statt Read, weil plMail Kategoriedefinitionen anlegt, wenn ein Label gespiegelt wird. |
 | `Calendars.ReadWrite` | Kalender auf demselben Konto, lesend und schreibend. |
+| `Contacts.ReadWrite` | Outlook-Kontakte auf demselben Konto, lesend und schreibend: Jeder Kontaktordner ist ein Adressbuch. |
 
 Zwei davon lohnen ein genaueres Verständnis, bevor du dich entscheidest, eine wegzulassen.
 
@@ -92,6 +93,32 @@ Löschen auf Microsofts Seite.
 Erscheinen für eine Person keine Kalender, sagt plMail unter **Einstellungen → Kalender**, welche der
 möglichen Ursachen es ist: Die Berechtigung kann in der App-Registrierung fehlen, oder das Konto hat
 schlicht keine Kalender.
+
+### Kontakte hängen ebenfalls an derselben Anmeldung
+
+`Contacts.ReadWrite` reist auf derselben Freigabe. Ein mit plMail verbundenes Microsoft-Konto bringt
+seine Outlook-Kontakte mit: Jeder Kontaktordner erscheint als Adressbuch unter **Kontakte**,
+Outlooks Kategorien werden zu Schlagwörtern, und eine Änderung in plMail wird zurückgeschrieben.
+Siehe [Kontakte](../features/contacts.md).
+
+Outlooks Kontakt hat feste Plätze, wo plMail Listen hat: drei E-Mail-Adressen, zwei geschäftliche und
+zwei private Nummern und eine Mobilnummer, je eine private, geschäftliche und sonstige Anschrift,
+einen Ehepartner (oder Partner), einen Vorgesetzten, eine Assistenz und die Namen der Kinder, eine
+Website (die geschäftliche, wenn es eine gibt), drei Chat-Adressen und einen Geburtstag. plMail
+füllt diese Plätze, die primären zuerst. Ein Eintrag darüber hinaus — eine vierte E-Mail-Adresse,
+ein zweiter Partner — wird nicht gesendet und bleibt nur in plMail, bis sich der Kontakt das nächste
+Mal in Outlook ändert; dann kommt Outlooks Fassung zurück. Für weitere Daten (einen Jahrestag), einen
+phonetischen zweiten Vornamen und eigene Felder hat Outlook gar keinen Platz; sie bleiben in plMail.
+Seine Chat-Adressen tragen keinen Dienst: Eine SIP-Adresse kommt als SIP zurück, jede andere als
+„Andere“.
+
+Fotos gehen in beide Richtungen, mit einer Ausnahme: Microsoft Graph kann das Foto eines
+Outlook-Kontakts ersetzen, aber nicht entfernen, also bleibt ein in plMail entferntes Foto in
+Outlook.
+
+Ein Konto, das verbunden wurde, bevor plMail nach Kontakten gefragt hat, hält ein Token ohne die
+Berechtigung. Mail und Kalender laufen weiter, und **Einstellungen → Zustand der Konten** zeigt einen Hinweis,
+dessen Knopf dich noch einmal anmeldet und sie ergänzt.
 
 ## Der Tenant-Wert
 
@@ -193,10 +220,24 @@ der Value ist brauchbar; er wird einmal angezeigt und lässt sich danach nicht m
 ersetzen.
 
 **Eine Berechtigung hinzuzufügen wertet bestehende Tokens nicht auf.** Wer sich verbunden hat, bevor
-du `Calendars.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält ein Token, das sie nicht
-trägt, und daran ändert kein Abwarten etwas. Das Konto muss getrennt und neu verbunden werden, damit
-eine frische Zustimmung ein neues Token ausstellt — `app:graph:diagnose` sagt das ausdrücklich, wenn
-es die Lücke findet.
+du `Calendars.ReadWrite`, `Contacts.ReadWrite` oder `MailboxSettings.ReadWrite` ergänzt hast, hält
+ein Token, das sie nicht trägt, und daran ändert kein Abwarten etwas. Das Konto muss sich neu
+anmelden, damit eine frische Zustimmung ein neues Token ausstellt — der Knopf zum erneuten Verbinden
+unter **Einstellungen → Zustand der Konten** tut das, ohne das Konto zu entfernen, und `app:graph:diagnose` sagt
+es ausdrücklich, wenn es die Lücke findet.
+
+**Eine Organisation, die Apps für ihre Benutzer freigibt, lehnt nach einem Update mit einer neuen
+Berechtigung jede Anmeldung ab.** In einem Tenant, in dem Benutzer Apps nicht selbst zustimmen
+dürfen, hat ein Administrator plMail einmal freigegeben, für die Berechtigungen, die es damals
+verlangt hat. Eine plMail-Version, die eine weitere verlangt (`Contacts.ReadWrite`, seit es die
+Kontaktsynchronisierung gibt), wird bei der Anmeldung abgelehnt, auch für Mail, mit `AADSTS65001`
+oder `AADSTS90094`, bis der Administrator erneut zustimmt: **Microsoft Entra Admin Center →
+Unternehmensanwendungen → plMail → Berechtigungen → Administratorzustimmung erteilen**. Tu das vor
+dem Update oder bevor sich jemand neu verbindet. Die Fehlermeldung bei der Anmeldung sagt dem
+Benutzer, dass er seinen Administrator fragen soll, **Admin → Integrationen → Microsoft-Mail-Anmeldung**
+trägt dieselbe Warnung, und ebenso das Angebot zum erneuten Verbinden unter
+**Einstellungen → Kontakte**. Private Microsoft-Konten und Tenants, in denen Benutzer Apps selbst
+freigeben, sind nicht betroffen.
 
 **Eine funktionierende Identität bei durchweg scheiternden Mail-Endpunkten ist kein Problem der
 Zugangsdaten.** Meistens heißt es, dass für das Microsoft-Konto überhaupt kein Outlook-Postfach

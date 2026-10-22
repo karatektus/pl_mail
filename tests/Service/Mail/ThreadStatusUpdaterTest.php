@@ -306,6 +306,27 @@ final class ThreadStatusUpdaterTest extends KernelTestCase
     }
 
     /**
+     * One message of a longer conversation, as the thread view's per-message
+     * button and a JMAP client both send. The counter used to be counted from
+     * the messages passed in, so one message marked unread set a conversation
+     * with three unread messages to 1, and one marked read set it to 0.
+     */
+    public function testMarkingOneMessageCountsTheWholeThread(): void
+    {
+        $thread   = $this->inboxThread(3);
+        $messages = $thread->messages->toArray();
+
+        $this->updater->markRead([$messages[0]], true);
+        self::assertSame(2, $thread->unreadCount);
+
+        $this->updater->markRead([$messages[1], $messages[2]], true);
+        self::assertSame(0, $thread->unreadCount);
+
+        $this->updater->markRead([$messages[2]], false);
+        self::assertSame(1, $thread->unreadCount);
+    }
+
+    /**
      * Opening a conversation marks it read every time, and most conversations
      * opened have been read before. Those calls used to be written all the
      * same: seenAt replaced, the provider told again, a JMAP change recorded —

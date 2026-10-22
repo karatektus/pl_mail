@@ -36,4 +36,16 @@ enum AiFeature: string
      * predicted exactly this.
      */
     case Summary = 'summary';
+
+    /**
+     * Reading contact details out of pasted text, and suggesting fixes to a
+     * contact from the signature of their latest mail — needs the CHAT model.
+     *
+     * Its own switch rather than riding on WritingHelp, because what it sends
+     * is different: writing help sends the draft somebody is writing, this
+     * sends text about another person (a signature, a pasted card). An
+     * operator can be happy with the first and not the second. Added last
+     * for the reason Summary's note above gives.
+     */
+    case ContactHelp = 'contact_help';
 }

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/oidc.md sha1:9f13620e5ec8619776cb422760e6bb37e3e5f6c2 -->
+<!-- translated-from: providers/oidc.md sha1:215b567147d6d394cdecb26af8b1a5e351d945f7 -->
 
 # Single Sign-on (OpenID Connect)
 
@@ -62,6 +62,7 @@ Anbieter einträgst, mit einem Button zum Kopieren.
 | **Scopes** | Scopes, durch Leerzeichen getrennt. `openid` wird immer ergänzt. | `openid email profile` |
 | **Konto für Personen anlegen, die plMail noch nicht kennt** | Ob jemand, den der Anbieter durchlässt und den plMail noch nie gesehen hat, ein neues gewöhnliches Konto bekommt. | aus |
 | **Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat** | Ein bestehendes Konto nur dann über die Adresse verknüpfen, wenn der Anbieter für die Adresse bürgt. | an |
+| **Nur Single Sign-on** | Blendet das Passwortformular aus und weist Passwort-Anmeldungen ab, sodass alle über den Anbieter hereinkommen. Siehe [Single Sign-on zum einzigen Weg machen](#single-sign-on-zum-einzigen-weg-machen). | aus |
 
 Issuer, Client-ID und Secret werden zusammen gespeichert oder gar nicht: Das Formular lehnt zwei von
 dreien ab, weil ein halber Anbieter hier eingerichtet aussähe, während sich niemand anmelden könnte.
@@ -81,12 +82,48 @@ es gilt immer dann, wenn unter Administration → SSO kein vollständiger Anbiet
 | `OIDC_SCOPES` | Scopes | `openid email profile` |
 | `OIDC_AUTO_CREATE` | Konto für Personen anlegen, die plMail noch nicht kennt | `false` |
 | `OIDC_REQUIRE_VERIFIED_EMAIL` | Nur eine Adresse verknüpfen, die der Anbieter bestätigt hat. Nur `false`, `0`, `no` oder `off` schalten es aus; leer oder alles andere lässt es an. | `true` |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | Nur Single Sign-on. Nur `true`, `1`, `yes` oder `on` schalten es ein; leer oder alles andere lässt das Passwortformular. | `false` |
 
 **Was unter Administration → SSO gespeichert ist, hat Vorrang**, und zwar im Ganzen: Ein
 gespeicherter Anbieter nutzt auch seine eigenen Optionen und liest nichts aus diesen Variablen. Der
 Chip auf der Seite sagt, was gilt — **An**, **An, aus der Umgebung** oder **Aus**. Um die
 Entscheidung an die Umgebung zurückzugeben, leere den Issuer und die Client-ID und setz den Haken
 bei **Gespeichertes Client-Secret vergessen**.
+
+## Single Sign-on zum einzigen Weg machen
+
+Standardmäßig bleibt das Passwortformular neben dem Button des Anbieters. Sollen alle über den
+Anbieter hereinkommen — eine Familie oder ein Team, wo der Anbieter die Konten und den zweiten
+Faktor ohnehin verwaltet —, setz unter **Administration → SSO** den Haken bei **Nur Single Sign-on**.
+Die Login-Seite zeigt dann nur noch den Button, und der Server weist eine Passwort-Anmeldung glatt
+ab: Wer das richtige Passwort an die Login-URL schickt, bekommt dieselbe „abgeschaltet“-Antwort wie
+bei einem falschen — für eine Adresse, die es gibt, genauso wie für eine, die es nicht gibt.
+
+- **Es braucht einen vollständigen Anbieter auf dieser Seite**, und **du musst dich selbst
+  mindestens einmal über den Anbieter angemeldet haben**, bevor du den Haken setzen kannst. Sonst
+  würde die erste Administratorin, die es probiert, sich aus einem Anbieter aussperren, den sie nie
+  benutzt hat.
+- **Konten, die sich noch nie über den Anbieter angemeldet haben, können es weiterhin.** Ihre erste
+  Anmeldung verknüpft das Konto über die E-Mail-Adresse. Das klappt nur, wenn der Anbieter einen
+  Benutzer mit genau dieser Adresse hat und sie als bestätigt meldet; ein Konto, dessen Adresse der
+  Anbieter nicht kennt, kommt mit gesetztem Haken nicht mehr hinein, und wer hier kein Konto hat,
+  ebenfalls nicht, wenn die automatische Anlage aus ist.
+- **Es gilt nur, solange Single Sign-on an ist.** Nimmst du den Anbieter weg oder lässt ihn halb
+  ausgefüllt, kommt das Passwortformular von allein zurück — eine Installation kann nie ohne Zugang
+  dastehen, nur weil ein Anbieter fehlt.
+- **Ist der Anbieter ausgefallen**, kann absichtlich nichts im Browser das Formular zurückholen. Auf
+  der Konsole:
+
+  ```bash
+  docker compose exec php php bin/console app:sso:allow-password-login
+  ```
+
+  Das löscht, was Administration → SSO gespeichert hat. Hast du `OIDC_DISABLE_PASSWORD_LOGIN` in der
+  Umgebung gesetzt, änder es dort und starte neu.
+- **Was es nicht anfasst:** App-Passwörter für Mail-Programme und die Android- und iOS-Apps (JMAP und
+  CalDAV) funktionieren weiter, ebenso bereits geöffnete Browser-Sitzungen. Die Passwörter bleiben in
+  der Datenbank, das Ausschalten braucht also kein Zurücksetzen. Um bereits geöffnete Sitzungen zu
+  beenden, nimm den Zugang beim Anbieter weg *und* deaktiviere das Konto unter Administration → Benutzer.
 
 ## Fallstricke
 

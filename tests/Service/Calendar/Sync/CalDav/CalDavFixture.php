@@ -187,9 +187,9 @@ final class CalDavFixture
 
     // ── Entities ──────────────────────────────────────────────────────────────
 
-    public static function integration(string $baseUrl = 'https://dav.example.com'): Integration
+    public static function integration(string $baseUrl = 'https://dav.example.com', Provider $provider = Provider::CalDav): Integration
     {
-        $integration           = new Integration(new User(), Provider::CalDav, 'Home server');
+        $integration           = new Integration(new User(), $provider, 'Home server');
         $integration->baseUrl  = $baseUrl;
         $integration->username = 'alice';
         $integration->secret   = 'app-password';

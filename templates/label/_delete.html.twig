@@ -1,0 +1,54 @@
+{#
+label/_delete.html.twig — the delete dialog, inside the modal frame.
+
+Replaces the browser confirm() both delete buttons used to raise. A confirm can
+ask "are you sure"; it cannot ask where the mail in a folder should go, and for
+a label that is a folder on the mail server that is the question (issue #40):
+the folder is deleted there too, and only once its mail has been moved out.
+
+Variables:
+  label      the label being deleted
+  form       LabelDeleteType — with a `destination` field when there is mail
+             to move, empty otherwise
+  onServer   whether the label (or one nested under it) is a folder on a server
+  mailCount  messages in those folders
+  nested     how many labels are nested under this one
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        label: label,
+        onServer: onServer,
+        mailCount: mailCount,
+        nested: nested,
+        title: 'label.delete.title'|trans({ '%name%': label|label_name }),
+        submit_label: 'label.form.delete'|trans,
+        danger: true,
+    } only %}
+        {% block before_fields %}
+            <div class="space-y-2.5 text-sm leading-snug text-ink-muted">
+                <p>
+                    {{ nested > 0
+                        ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': nested })
+                        : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}
+                </p>
+
+                {% if onServer %}
+                    <p>{{ 'label.delete.on_server'|trans }}</p>
+                {% endif %}
+
+                {% if mailCount > 0 %}
+                    <p class="text-ink">{{ 'label.delete.mail_count'|trans({ '%count%': mailCount }) }}</p>
+                {% endif %}
+            </div>
+        {% endblock %}
+
+        {# The route checks this token by hand, as it always has; the form has
+           no CSRF field of its own. See LabelDeleteType. #}
+        {% block after_fields %}
+            <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

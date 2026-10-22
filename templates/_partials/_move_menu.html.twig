@@ -45,7 +45,26 @@ Variables:
         row checkbox records — so the toolbar is what posts it. Left off the
         reading pane's copy, which has no toolbar above it to hear. #}
      {% if targetId is not defined or targetId is null %}data-action="mail--move-menu:picked->mail--list-toolbar#moveSelected"{% endif %}
-     class="relative">
+     class="relative flex items-center gap-1">
+
+    {# "Not spam": the Inbox entry of this picker, as a button of its own on a
+       conversation in Spam. The way out of Spam was two clicks into a menu
+       nobody thinks of as the answer, while the way in is a button beside
+       Delete. The same move as picking Inbox below — restore() takes Spam off
+       (MoveToService) — so it is this controller's action, not a new route.
+       Reading pane only: a selection in the list has the picker. #}
+    {% if 'spam' == placement|default('') and targetId is defined and targetId is not null %}
+        <button type="button"
+                data-action="click->mail--move-menu#move"
+                data-move-role="inbox"
+                data-not-spam
+                class="flex items-center gap-1.5 h-8 px-3 rounded-full text-sm
+                       text-ink-muted hover:text-ink hover:bg-hover
+                       transition-colors duration-100 cursor-pointer">
+            <i class="fa-solid fa-inbox text-[13px]" aria-hidden="true"></i>
+            <span>{{ 'toolbar.actions.not_spam'|trans }}</span>
+        </button>
+    {% endif %}
 
     <button type="button"
             data-action="click->mail--move-menu#toggle"

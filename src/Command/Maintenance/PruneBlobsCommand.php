@@ -8,6 +8,7 @@ use App\Domain\Helper\UploadStorage;
 use App\Repository\Mail\MessagePartRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\UploadedBlobRepository;
+use App\Service\Mail\AttachmentThumbnailer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -39,13 +40,40 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *   1. Expired staging uploads — rows (and files) for blobs a client uploaded
  *      but never attached to anything. RFC 8620 §6.1 lets the server expire
  *      these. Row-driven.
- *   2. Orphaned files — files under the three roots with no row pointing at
+ *   2. Orphaned files — files in the three stores with no row pointing at
  *      them. Filesystem-driven.
  *
  * Both respect the same retention window, and the window is what makes the
  * second pass safe: every writer creates the file before committing the row,
  * so a file younger than the cutoff may simply be waiting for its INSERT.
  * A week of slack is many orders of magnitude more than that gap.
+ *
+ * The second pass only looks where the three writers write: the per-account
+ * trees, uploads/<account>/, attachments/<account>/ and raw/<account>/, and
+ * in them only files laid out the way the writer lays them out. The roots are
+ * shared volumes, and other owners keep files there that no column of ours
+ * names: profile pictures (uploads/avatars), signature images
+ * (uploads/signatures), appearance backgrounds (uploads/backgrounds). Until
+ * #214 the sweep walked the whole root, took those for orphans and deleted
+ * them every Sunday, along with every attachment thumbnail (attachments/thumbs),
+ * which the third pass below now handles by its own rule.
+ *
+ * The roots are under APP_STORAGE_DIR, the same directory the writers use
+ * and the prefix of every path the three columns hold. They were hardcoded
+ * as var/… until #233, so an install with another storage dir swept
+ * directories nothing wrote to and reclaimed nothing.
+ *
+ * A third pass clears attachment thumbnails (attachments/thumbs/<part>.webp,
+ * AttachmentThumbnailer) whose part no longer exists. Nothing else deletes
+ * them, and until #228 they were only cleared by accident, along with the
+ * thumbnails of parts that still existed (#232).
+ *
+ * The road not taken is a deny-list of those directories. It would have been
+ * a smaller diff, and it fails the same way the original did: the next owner
+ * who adds a directory under a root (sealed messages under raw/ are one) is
+ * swept until somebody remembers to extend the list. Here the default for a
+ * path nobody claimed is to leave it alone; a leaked file costs disk, a swept
+ * one costs somebody's data.
  */
 #[AsCommand(
     name: 'app:prune:blobs',
@@ -56,16 +84,35 @@ final class PruneBlobsCommand extends Command
     private const int DEFAULT_DAYS = 7;
 
     /**
-     * The roots this command sweeps. Which column references files in each is
+     * The stores this command sweeps, by their directory under APP_STORAGE_DIR,
+     * each with the shape of a path its writer produces, relative to it. Which column references files in each is
      * the repositories' business — see referencedPaths().
      *
-     * @var list<string>
+     * The first segment is always the account id, so a directory under a root
+     * whose name is not a number is not ours and is never entered. The rest
+     * mirrors the writer exactly:
+     *
+     *   uploads      <account>/<32 hex>.blob              UploadStorage
+     *   attachments  <account>/<mailbox>/<uid>/<name>     AttachmentStorageHelper
+     *   raw          <account>/<id div 1000>/<id>.eml     RawMessageStorage
+     *
+     * A file inside an account tree that does not match is left alone too:
+     * if a writer ever changes its layout, the pattern here has to follow
+     * before anything in the new shape can be swept, not after.
+     *
+     * @var array<string, non-empty-string>
      */
     private const array STORES = [
-        'var/uploads',
-        'var/attachments',
-        'var/raw',
+        'uploads'     => '#^\d+/[0-9a-f]{32}\.blob$#',
+        'attachments' => '#^\d+/\d+/\d+/[^/]+$#',
+        'raw'         => '#^\d+/\d+/\d+\.eml$#',
     ];
+
+    /** How many part ids one existence query asks about. */
+    private const int ID_BATCH = 1000;
+
+    /** The largest message_part.id there can be (a Postgres integer). */
+    private const int MAX_PART_ID = 2_147_483_647;
 
     public function __construct(
         private readonly UploadedBlobRepository $repository,
@@ -74,6 +121,7 @@ final class PruneBlobsCommand extends Command
         private readonly UploadStorage $storage,
         private readonly EntityManagerInterface $em,
         private readonly string $projectDir,
+        private readonly string $storageDir,
     ) {
         parent::__construct();
     }
@@ -116,11 +164,15 @@ final class PruneBlobsCommand extends Command
         }
 
         if (false === $input->getOption('skip-orphans')) {
-            foreach (self::STORES as $root) {
-                [$count, $size] = $this->sweepOrphans($io, $root, $cutoff, $dryRun);
+            foreach (self::STORES as $store => $layout) {
+                [$count, $size] = $this->sweepOrphans($io, $store, $layout, $cutoff, $dryRun);
                 $files += $count;
                 $bytes += $size;
             }
+
+            [$count, $size] = $this->sweepThumbnails($io, $cutoff, $dryRun);
+            $files += $count;
+            $bytes += $size;
         }
 
         $io->success(sprintf(
@@ -173,12 +225,15 @@ final class PruneBlobsCommand extends Command
     }
 
     /**
-     * Pass 2: files under $root that no row points at any more.
+     * Pass 2: files in a store's account trees that no row points at any more.
+     *
+     * @param non-empty-string $layout
      *
      * @return array{int, int} files, bytes
      */
-    private function sweepOrphans(SymfonyStyle $io, string $root, \DateTimeImmutable $cutoff, bool $dryRun): array
+    private function sweepOrphans(SymfonyStyle $io, string $store, string $layout, \DateTimeImmutable $cutoff, bool $dryRun): array
     {
+        $root         = $this->storageDir.'/'.$store;
         $absoluteRoot = $this->projectDir.'/'.$root;
 
         if (false === is_dir($absoluteRoot)) {
@@ -187,34 +242,44 @@ final class PruneBlobsCommand extends Command
             return [0, 0];
         }
 
-        $referenced = $this->referencedPaths($root);
+        $referenced = $this->referencedPaths($store, $root);
 
         $files = 0;
         $bytes = 0;
 
-        foreach ($this->walk($absoluteRoot) as $file) {
-            // A file younger than the cutoff may be one whose row has not been
-            // committed yet. Leave it for the next run.
-            if ($file->getMTime() >= $cutoff->getTimestamp()) {
-                continue;
-            }
+        $accounts = $this->accountDirectories($absoluteRoot);
 
-            $path = $root.'/'.$this->relativeTo($absoluteRoot, $file);
+        foreach ($accounts as $account) {
+            foreach ($this->walk($account) as $file) {
+                $relative = $this->relativeTo($absoluteRoot, $file);
 
-            if (true === isset($referenced[$path])) {
-                continue;
-            }
+                if (1 !== preg_match($layout, $relative)) {
+                    continue;
+                }
 
-            ++$files;
-            $bytes += $file->getSize();
+                // A file younger than the cutoff may be one whose row has not
+                // been committed yet. Leave it for the next run.
+                if ($file->getMTime() >= $cutoff->getTimestamp()) {
+                    continue;
+                }
 
-            if (false === $dryRun) {
-                @unlink($file->getPathname());
+                if (true === isset($referenced[$root.'/'.$relative])) {
+                    continue;
+                }
+
+                ++$files;
+                $bytes += $file->getSize();
+
+                if (false === $dryRun) {
+                    @unlink($file->getPathname());
+                }
             }
         }
 
         if (false === $dryRun && $files > 0) {
-            $this->removeEmptyDirectories($absoluteRoot);
+            foreach ($accounts as $account) {
+                $this->removeEmptyDirectories($account);
+            }
         }
 
         $io->text(sprintf('Orphans in %s: %d (%s).', $root, $files, $this->humanBytes($bytes)));
@@ -233,17 +298,105 @@ final class PruneBlobsCommand extends Command
      *
      * @return array<string, true>
      */
-    private function referencedPaths(string $root): array
+    private function referencedPaths(string $store, string $root): array
     {
-        return match ($root) {
-            'var/uploads'     => $this->repository->findReferencedPaths($root),
-            'var/attachments' => $this->messageParts->findReferencedStoragePaths($root),
-            'var/raw'         => $this->messages->findReferencedRawPaths($root),
-            // Reached only by adding a root to STORES without saying who owns
+        return match ($store) {
+            'uploads'     => $this->repository->findReferencedPaths($root),
+            'attachments' => $this->messageParts->findReferencedStoragePaths($root),
+            'raw'         => $this->messages->findReferencedRawPaths($root),
+            // Reached only by adding a store to STORES without saying who owns
             // it. Loud, because the silent answer would be an empty keep-list,
             // and an empty keep-list deletes the store.
-            default => throw new \LogicException(sprintf('No repository owns the blob store "%s".', $root)),
+            default => throw new \LogicException(sprintf('No repository owns the blob store "%s".', $store)),
         };
+    }
+
+    /**
+     * Pass 3: thumbnails of attachments that no longer exist (#232).
+     *
+     * A thumbnail is named by its part's id and nothing deletes it with the
+     * part, so it is kept exactly while a message_part row with that id
+     * exists. Only files named `<id>.webp` are considered; anything else in
+     * the directory is left alone. The retention window applies as in the
+     * other passes, although a thumbnail is only ever written for a part that
+     * is already committed.
+     *
+     * @return array{int, int} files, bytes
+     */
+    private function sweepThumbnails(SymfonyStyle $io, \DateTimeImmutable $cutoff, bool $dryRun): array
+    {
+        $directory = $this->projectDir.'/'.$this->storageDir.'/'.AttachmentThumbnailer::DIRECTORY;
+
+        if (false === is_dir($directory)) {
+            $io->text('Orphaned thumbnails: none yet.');
+
+            return [0, 0];
+        }
+
+        /** @var array<int, \SplFileInfo> $candidates part id => file */
+        $candidates = [];
+
+        foreach (new \FilesystemIterator($directory) as $file) {
+            if (
+                $file instanceof \SplFileInfo
+                && true === $file->isFile()
+                && 1 === preg_match('/^(\d{1,10})\.webp$/', $file->getFilename(), $match)
+                // message_part.id is a Postgres integer: a larger number is no
+                // thumbnail of ours, and asking about it would fail the query.
+                && (int) $match[1] <= self::MAX_PART_ID
+                && $file->getMTime() < $cutoff->getTimestamp()
+            ) {
+                $candidates[(int) $match[1]] = $file;
+            }
+        }
+
+        $files = 0;
+        $bytes = 0;
+
+        foreach (array_chunk(array_keys($candidates), self::ID_BATCH) as $ids) {
+            $existing = $this->messageParts->findExistingIds($ids);
+
+            foreach ($ids as $id) {
+                if (true === isset($existing[$id])) {
+                    continue;
+                }
+
+                ++$files;
+                $bytes += $candidates[$id]->getSize();
+
+                if (false === $dryRun) {
+                    @unlink($candidates[$id]->getPathname());
+                }
+            }
+        }
+
+        $io->text(sprintf('Orphaned thumbnails: %d (%s).', $files, $this->humanBytes($bytes)));
+
+        return [$files, $bytes];
+    }
+
+    /**
+     * The per-account directories directly under a root: the ones named by a
+     * number. Everything else at that level belongs to someone else.
+     *
+     * @return list<string> absolute paths
+     */
+    private function accountDirectories(string $root): array
+    {
+        $accounts = [];
+
+        foreach (new \FilesystemIterator($root) as $entry) {
+            if (
+                $entry instanceof \SplFileInfo
+                && true === $entry->isDir()
+                && false === $entry->isLink()
+                && 1 === preg_match('/^\d+$/', $entry->getFilename())
+            ) {
+                $accounts[] = $entry->getPathname();
+            }
+        }
+
+        return $accounts;
     }
 
     /**
@@ -272,6 +425,10 @@ final class PruneBlobsCommand extends Command
      * Attachments fan out one directory per message and raw messages one per
      * thousand ids, so a sweep leaves behind a tree of empty directories that
      * would otherwise never be collected.
+     *
+     * Called per account tree, never on a root, so another owner's directory
+     * that happens to be empty right now is not removed from under it. The
+     * account directory itself goes once it is empty; the writers recreate it.
      */
     private function removeEmptyDirectories(string $root): void
     {
@@ -285,6 +442,8 @@ final class PruneBlobsCommand extends Command
                 @rmdir($entry->getPathname());
             }
         }
+
+        @rmdir($root);
     }
 
     private function humanBytes(int $bytes): string

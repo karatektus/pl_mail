@@ -155,6 +155,8 @@ admin:
             chat_keep_alive_help: '5m, 30m, 4h, or a plain number of seconds. -1 keeps it loaded for good, 0 unloads it after every request. Longer means the first reply comes back sooner; the host keeps the memory reserved for the whole time either way. Leave empty to use whatever the host itself is set to.'
             chat_model: 'Writing model'
             chat_model_help: 'Used for replies, summaries and sorting. Something instruction-tuned.'
+            contact_help: 'Contact help'
+            contact_help_help: 'Reads a contact out of pasted text, and suggests fixes to a contact from the signature of their latest mail. Uses the writing model, and sends that text to it.'
             embedding_keep_alive: 'Keep the search model loaded for'
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
             embedding_base_url: 'Search host'
@@ -562,8 +564,13 @@ admin:
             not_asked: 'not asked'
             rules: 'The rules said'
     integrations:
+        base_url_exempt: 'only lets feeds on this host past the private-network check'
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
+        calendar:
+            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until its host is in INTEGRATIONS_ALLOWED_HOSTS.'
+            heading: 'Calendars'
+            intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'
         configure: 'Configure'
         connected_users: '%count% connected'
@@ -572,6 +579,7 @@ admin:
         inherit_toggle_help: 'One Google project also covers Drive and Photos; one Microsoft app also covers OneDrive. Leave this on and there is nothing more to set up for them.'
         field:
             base_url: 'Server address'
+            base_url_help_ics: 'Leave empty. Every feed has its own address, so nothing here changes which feeds people subscribe to. An address stored here only lets feeds on its host past the private-network check.'
             base_url_help_saas: 'Leave empty. This service has one fixed address.'
             base_url_help_selfhosted: 'Optional. Set this to pin every user to one server; leave it empty to let each user enter their own.'
             client_id: 'Client ID'
@@ -603,6 +611,22 @@ admin:
                 calendars with the same sign-in they already use for mail.
                 Without it, mail keeps working and calendars simply do not
                 appear.
+            consent_heading: 'If your organisation approves apps for its users'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
+            contacts_google: >-
+                Enable the Google People API for this project and add the
+                .../auth/contacts scope to the consent screen — users then get
+                their contacts with the same sign-in. Accounts connected before
+                are asked once, in their settings, to sign in again. Without it,
+                mail and calendars keep working and contacts simply do not
+                appear.
+            contacts_heading: 'Contact sync uses this same app'
+            contacts_microsoft: >-
+                Add the Contacts.ReadWrite delegated permission to this app
+                registration — users then get their Outlook contacts with the
+                same sign-in. Accounts connected before are asked once, in
+                their settings, to sign in again. Without it, mail and calendars
+                keep working and contacts simply do not appear.
             env_note: 'Leaving these empty falls back to GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* in the environment, so an installation already configured that way keeps working.'
             from_env: 'From environment'
             google: 'Gmail sign-in'
@@ -617,6 +641,7 @@ admin:
         secret_stored: 'Stored'
         secret_unchanged: 'Leave blank to keep the stored secret'
         status:
+            always_offered: 'Offered to everyone'
             disabled: 'Disabled'
             enabled: 'Enabled'
             incomplete: 'Needs credentials'
@@ -628,7 +653,6 @@ admin:
                 security: 'Users should create an app-specific password rather than use their login password: app passwords are individually revocable and work with two-factor authentication. iCloud and Fastmail accept nothing else.'
                 step_app_password: 'Each user creates an app password on their own server — Nextcloud under Settings → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — and pastes it into their own calendar settings.'
                 step_base_url: 'Optionally pin the server address, for example https://cloud.example.com, if everyone here uses the same server.'
-                step_enable: 'Turn on "Offer this service to users" above.'
                 step_url: 'The address to enter is the CalDAV one, not the web interface: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", and it usually ends in /remote.php/dav. A bare domain works too — plMail asks it where its calendars live.'
             dropbox:
                 intro: 'Dropbox needs an app registered in the Dropbox developer console.'
@@ -652,6 +676,9 @@ admin:
                 intro: 'Google Photos uses OAuth and its own API, separate from Drive.'
                 scope_warning: 'Google restricted the Photos read scopes in March 2025. A newly registered app is generally granted only appcreateddata, which sees nothing but media plMail itself uploaded — browsing an existing library needs the photoslibrary.readonly scope, which Google grants case by case. Saving attachments to Photos works either way; browsing may show an empty library until that scope is approved.'
                 step_api: 'Enable the Photos Library API for the project.'
+            ics:
+                intro: 'A calendar feed needs nothing set up here. Each user pastes the address a calendar is published at, usually ending in .ics, under Settings → Calendars → Subscribe to an address.'
+                security: 'For a published calendar the address works like a password: anyone who has it can read the calendar.'
             immich:
                 intro: 'Immich authenticates with a per-user API key, so there is nothing to register here.'
                 no_share_links: 'Immich cannot create a public link for a single photo — sharing is album-level. Photos above the attachment size limit therefore cannot be attached at all.'
@@ -937,6 +964,8 @@ admin:
             client_secret: 'Client secret'
             issuer: 'Issuer'
             issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
+            password_login_disabled: 'Single sign-on only'
+            password_login_disabled_help: 'Hides the password form and refuses password sign-ins, so everybody comes in through the provider. Only in force while a provider is set up here. You can tick it only after you have signed in through the provider yourself, and if the provider is ever down, run bin/console app:sso:allow-password-login to bring the form back. Passwords for mail clients (app passwords) are not affected.'
             require_verified_email: 'Only link an address the provider has verified'
             require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
             scopes: 'Scopes'
@@ -1189,6 +1218,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Download %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1209,6 +1239,7 @@ attachment:
         download: Download
         failed: This PDF could not be opened. You can still download it.
         loading: Opening…
+        media_failed: This file could not be shown here. You can still download it.
         untitled: Attachment
         zoom_in: Zoom in
         zoom_out: Zoom out
@@ -1323,6 +1354,7 @@ calendar:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
+    empty_day: Nothing on this day
     details:
         description: Description
         edit: Edit
@@ -1681,6 +1713,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%month% %start%–%end%'
     upcoming:
         imminent: Starting within the hour
         later: Coming up today
@@ -2254,6 +2288,7 @@ jobs:
         move_to: Moving
         purge: Deleting for good
         reclassify: Sorting recent mail again
+        delete_label: Deleting a label
     state:
         done: '%count% done'
         failed: failed
@@ -2272,6 +2307,21 @@ label:
         violet: Violet
     empty: No conversations with this label.
     created: Label created.
+    delete:
+        already_running: '"%name%" is already being deleted.'
+        destination: Move its mail to
+        destination_placeholder: '— choose where it goes —'
+        destination_required: 'Choose where the mail goes. The folder is not deleted while there is mail in it.'
+        failed_destination_create: 'The mail server would not create the %name% folder the mail was to go to. Nothing was moved or deleted.'
+        failed_destination_gone: 'The place you chose for the mail no longer exists. Delete the label again and choose another.'
+        failed_new_mail: 'New mail arrived in the folder after you pressed Delete. Delete the label again to choose where it goes.'
+        failed_not_empty: 'The folder "%name%" still holds mail on the server, so it was not deleted. Move that mail in your mail client, then delete the label again.'
+        failed_server: 'The mail server would not delete "%name%": %error%'
+        mail_count: '%count% message(s) are in it. They are moved to the place you choose below before the folder is deleted.'
+        on_server: 'It is a folder on your mail server, so the folder is deleted there too.'
+        still_importing: 'plMail is still importing the mail in "%name%" from the server. Delete it once the import has finished, so none of that mail is left behind.'
+        title: 'Delete "%name%"'
+        waiting: 'Waiting for the mail server to empty "%name%" before deleting it.'
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
@@ -2457,10 +2507,7 @@ oauth:
     error:
         generic: We couldn't connect that account. Please try again.
         microsoft:
-            admin_consent_required: >-
-                Your organisation requires an administrator to approve plMail
-                before you can connect this account. Please ask your Microsoft
-                 administrator to grant access.
+            admin_consent_required: 'Your organisation requires an administrator to approve plMail before you can connect this account. If it worked before, plMail now also asks for access to your contacts, and that needs their approval too. Please ask your Microsoft administrator to grant access.'
             app_not_found: >-
                 plMail isn't registered in your Microsoft organisation.
             bad_credentials: >-
@@ -2753,6 +2800,8 @@ settings:
             admin_off: 'Not switched on for this installation'
             categorise: 'Sort mail into tabs'
             categorise_hint: 'Lets the model break the tie when the ordinary rules cannot place a message. Off leaves those messages where the rules put them.'
+            contact_help: 'Contact help'
+            contact_help_hint: 'Fills in a contact from a pasted signature or card, and suggests updates from the signature of their latest mail, when you ask for it.'
             search: 'Search by meaning'
             search_hint: 'Finds mail that means what you asked for, not only mail that spells it the same way. Off stops your mail being indexed as well as searched.'
             summary: 'Thread summaries'
@@ -2775,6 +2824,7 @@ settings:
             system_prompt_placeholder: 'Short sentences. No exclamation marks. Sign off with just my first name.'
         reads:
             categorise: 'Sorting: the sender, the subject and the start of the message.'
+            contact_help: 'Contacts: the text you paste, or a contact and the signature of their latest mail, when you ask.'
             heading: 'What the assistant is given'
             search: 'Indexing: the subject, the sender and the start of each message.'
             summary: 'The messages in a conversation you ask to have summarised'
@@ -3374,6 +3424,13 @@ settings:
                     not the same as verification; an unverified app still works,
                     it just shows a warning screen the first time.
                 title: '%account% needs you to sign in again — and will again in a week'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail can now sync this account's contacts, but %account%
+                    was connected before it asked for them. Mail and calendars
+                    are not affected. Sign in once more and allow contacts, and
+                    its address book appears under Contacts.
+                title: 'Connect %account% again to sync its contacts'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -3508,6 +3565,12 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_contacts:
+                label: 'Allow contacts'
+                promise: >-
+                    Takes you back to the provider to sign in as %account% and
+                    allow contacts. Nothing about your mail changes, and no
+                    mail is re-downloaded.
             grant_calendar:
                 label: 'Grant full access'
                 promise: >-
@@ -3598,6 +3661,7 @@ settings:
         disabled: 'Connection paused'
         disconnect: Disconnect
         disconnect_confirm: 'Disconnect %name%? Files already attached to mail are unaffected.'
+        disconnect_confirm_mirrored: 'Disconnect %name%? %calendars% calendar(s) and %books% address book(s) mirrored from it are removed here too; events that came from your mail are moved to your default calendar first. Files already attached to mail are unaffected.'
         disconnected: 'Service disconnected'
         edit: Edit
         empty: 'No services connected yet.'
@@ -3653,6 +3717,80 @@ settings:
         option_none: All three
         option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
+    contacts_behaviour:
+        button: 'Contacts button'
+        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside mail only'
+        option_none: 'All three'
+        option_split: 'Full width only'
+        subheading: 'How the contacts button in the top bar moves between views.'
+    contacts:
+        allow_contacts: 'Allow contacts'
+        allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
+        allow_contacts_microsoft: 'If your organisation approves apps for its users, ask your administrator to approve plMail''s contacts permission first. Until they do, Microsoft refuses this sign-in.'
+        carddav:
+            connect: Connect a CardDAV server
+            disconnect: Disconnect "%name%"
+            disconnect_confirm: >-
+                Disconnect "%name%"? Every address book mirrored from it is
+                removed here, with any change not yet sent to the server. The
+                contacts on the server are not touched.
+            field:
+                address: Server address
+                address_help: >-
+                    The CardDAV address your server shows you, or just its
+                    domain — plMail asks the domain where its address books live
+                    before giving up.
+                name: Name
+                name_help: What to call this connection in your settings.
+                reuse: Use the password from one of my mail accounts
+                reuse_account: Which account's password
+                reuse_account_none: Choose an account…
+                reuse_help: >-
+                    Off by default, and worth leaving off: most servers want an
+                    app-specific password, and ticking this sends a password you
+                    gave plMail for your mailbox to the address above.
+                secret: App password
+                secret_help: >-
+                    Create one on your server rather than using your login
+                    password — iCloud and Fastmail accept nothing else.
+                username: Username
+                username_help: The account name your server knows you by.
+            intro: >-
+                Any CardDAV server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Usually the same address and app password as your
+                calendars.
+            submit: Connect and find address books
+            title: Connect a CardDAV server
+        empty: No contacts server connected yet.
+        find: Choose address books
+        heading: Contacts
+        intro: >-
+            Address books mirrored from a CardDAV server. Contacts in them are
+            suggested when you write, and changes you make here are sent back.
+        never_synced: Not synced yet
+        no_books: No address book chosen from this server yet.
+        open: Open contacts
+        read_only: Read-only
+        subheading: Where your address books come from.
+        subscribe:
+            empty: '"%name%" offers no address books.'
+            intro: Choose which address books from "%name%" to mirror in plMail.
+            mirrored: Mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
+            save: Save
+            title: Choose address books
+            unsubscribe_note: >-
+                Unticking an address book removes its copy here, including any
+                change not yet sent. The server keeps its own.
+        sync_now: Sync "%name%" now
+        synced: Synced %date%
+        toast:
+            disconnected: Contacts server disconnected
+            saved: Address books saved
+            sync_queued: Sync queued
+            unchanged: Nothing changed
     calendars:
         account_hint: Where events found in mail from %address% are filed.
         caldav:
@@ -3714,6 +3852,8 @@ settings:
                 Outlook accounts do; connect a CalDAV server for anything else.
             find: Find calendars on %name%
             heading: Where calendars come from
+            managed: 'Set up in Integrations'
+            managed_hint: '%name% also holds your files. Disconnect it in Settings → Integrations.'
             why_admin: >-
                 Your administrator may not have added calendar permissions to
                 the app registration plMail signs in with. Mail keeps working
@@ -3736,6 +3876,7 @@ settings:
                 Tick the calendars on %name% to keep in step with plMail. Events
                 appear within a minute of ticking one.
             mirrored: Already mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
             primary: Main
             save: Save subscriptions
             title: Find my calendars
@@ -3783,6 +3924,22 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    swipe_actions:
+        heading: Swipe actions
+        hint: >-
+            A swipe acts once you drag far enough or flick quickly. Read and star
+            can be undone by swiping again, and archive offers Undo. Trash is not a
+            choice: a swipe that deleted mail would have nothing to undo it.
+        left:
+            label: Swipe left
+        option:
+            archive: Archive
+            none: Nothing
+            read_unread: Read / unread
+            star: Star
+        right:
+            label: Swipe right
+        subheading: What a swipe across a row does on a phone.
     whats_new:
         heading: 'What''s new'
         'off': 'Off'
@@ -3799,6 +3956,7 @@ settings:
         calendar_behaviour: Behaviour
         calendars: Calendars
         categories: "Categories"
+        contacts: Contacts
         disposal: Disposal
         filters: Filters
         general: General
@@ -3821,6 +3979,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Signatures
+        swipe_actions: Swipe actions
         templates: 'Templates'
     notifications:
         devices:
@@ -3848,6 +4007,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Not verified'
             verified: 'Verified'
+        error_server: 'The server turned this device down (%error%). Try again, and if it keeps happening, tell your administrator.'
+        error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to
@@ -4204,6 +4366,7 @@ sidebar:
     badge:
         total: '%count% in total'
         unread: '%count% unread'
+        unsent: A draft could not be sent
     compose: Compose
     labels:
         add: Create label
@@ -4302,8 +4465,18 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    send_failed:
+        failed: Not sent
+        may_have_sent: 'May have been sent: check Sent before sending it again'
+        rate_limited: 'Not sent: your mail provider was limiting sends'
+        refused: 'Not sent: the mail server refused it'
+        unavailable: 'Not sent: your mail provider could not be reached'
     scheduled: 'Scheduled %when%'
     select: Select
+    # The long-press sheet's own names: its dialog label, and the entry that ticks the row.
+    sheet:
+        label: Actions for this conversation
+        select: Select
     star: Star this message
     to: 'To: %recipients%'
     unread: Unread
@@ -4334,6 +4507,10 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
+    send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
+    send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
+    send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'
+    send_failed_unavailable: 'That message could not be sent: %subject%. Your mail provider could not be reached.'
     sent: Message sent.
     spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
     undo: Undo
@@ -4360,6 +4537,7 @@ toolbar:
         mark_unread: Mark as unread
         more: More
         move_to: Move to
+        not_spam: 'Not spam'
         purge: Delete forever
         snooze: Snooze
         spam: 'Mark as spam'
@@ -4499,3 +4677,307 @@ whats_new:
     screenshot_close: 'Close the screenshot'
     screenshot_open: 'Open the screenshot full size'
     title: 'What''s new'
+contacts:
+    add_address: 'Add address'
+    add_custom: 'Add field'
+    add_date: 'Add date'
+    add_email: 'Add email'
+    add_im: 'Add chat address'
+    add_phone: 'Add phone'
+    add_relation: 'Add person'
+    add_to_address_book: 'Add to contacts'
+    add_url: 'Add website'
+    back: Back
+    book_all: 'All books'
+    book_local: 'Not synced'
+    cancel: Cancel
+    check_carefully: 'Check carefully'
+    city: City
+    company: Company
+    confidence: '%pct%% match'
+    count: '{0}No contacts|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Country
+    created: 'Contact created.'
+    custom_label_placeholder: 'Field name'
+    custom_value_placeholder: 'Value'
+    date_full: '%month% %day%, %year%'
+    date_no_year: '%month% %day%'
+    day: 'Day'
+    delete: Delete
+    delete_confirm: 'Delete %name%? The contact goes to the trash and is permanently removed after 90 days.'
+    deleted_contact: '(deleted contact)'
+    display_name: 'Full name'
+    duplicates: Duplicates
+    duplicates_count: '{1}1 candidate pair|]1,Inf[ %count% candidate pairs'
+    duplicates_none: 'No duplicates found. New imports are checked automatically.'
+    edit: 'Edit contact'
+    email_placeholder: name@example.com
+    empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
+    empty_search: 'No contacts match this search.'
+    export_vcf: 'Export as vCard'
+    field:
+        birthday: 'Birthday'
+        company: 'Company'
+        department: 'Department'
+        familyName: 'Last name'
+        givenName: 'First name'
+        jobTitle: 'Job title'
+        middleName: 'Middle name'
+        namePrefix: 'Prefix'
+        nameSuffix: 'Suffix'
+        nickname: 'Nickname'
+        officeLocation: 'Office'
+        phoneticCompany: 'Company (phonetic)'
+        phoneticFamilyName: 'Last name (phonetic)'
+        phoneticGivenName: 'First name (phonetic)'
+        phoneticMiddleName: 'Middle name (phonetic)'
+    im_placeholder: 'Handle or address'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Other'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
+    import: Import
+    import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
+    import_choose: 'Choose file'
+    import_confirm: 'Import %count% contacts'
+    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    import_expired: 'The staged import expired. Please upload the file again.'
+    import_formats: '.vcf, .vcard or .csv'
+    import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
+    import_no_file: 'No file was uploaded.'
+    import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_step1: 'Step 1 — choose a file'
+    import_step2: 'Step 2 — preview'
+    import_upload: 'Upload & preview'
+    import_uploading: Uploading…
+    imported: 'Imported %count% contacts.'
+    in_address_book: 'In your contacts'
+    keep_this: 'Keep this one'
+    label: Label
+    label_home: Home
+    label_mobile: Mobile
+    label_other: Other
+    label_work: Work
+    labels:
+        anniversary: 'Anniversary'
+        assistant: 'Assistant'
+        blog: 'Blog'
+        brother: 'Brother'
+        child: 'Child'
+        father: 'Father'
+        friend: 'Friend'
+        home: 'Home'
+        manager: 'Manager'
+        mobile: 'Mobile'
+        mother: 'Mother'
+        other: 'Other'
+        parent: 'Parent'
+        partner: 'Partner'
+        profile: 'Profile'
+        relative: 'Relative'
+        sibling: 'Sibling'
+        sister: 'Sister'
+        spouse: 'Spouse'
+        work: 'Work'
+    merge: Merge
+    merge_pick_keep: 'Pick which contact to keep first.'
+    merge_read_only: 'A contact from a read-only address book cannot be merged.'
+    merge_undo: Undo
+    merge_undo_expired: 'The 90-day undo window for this merge has expired.'
+    merge_undone: 'Merge undone.'
+    merged: 'Contacts merged. You can undo it from the list below.'
+    merged_into: 'Merged %count% into %name%'
+    month: 'Month'
+    months:
+        1: 'January'
+        2: 'February'
+        3: 'March'
+        4: 'April'
+        5: 'May'
+        6: 'June'
+        7: 'July'
+        8: 'August'
+        9: 'September'
+        10: 'October'
+        11: 'November'
+        12: 'December'
+    nav: Contacts
+    new: 'New contact'
+    next: Next
+    no_details: 'No contact details yet.'
+    no_subject: '(no subject)'
+    notes: Notes
+    page: 'Page %page%'
+    pane:
+        close: 'Close contacts'
+        mode:
+            contacts: 'Show contacts full width'
+            mail: 'Hide contacts'
+            split: 'Show contacts beside the mail'
+        resize: 'Resize contacts'
+    pending: 'Waiting to be sent to the server'
+    phone_placeholder: '+1 555 010 2030'
+    phonetic: 'Phonetic spelling'
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
+    photo_remove: 'Remove photo'
+    photo_removed: 'Photo removed.'
+    photo_upload: 'Upload photo'
+    photo_uploaded: 'Photo updated.'
+    postcode: Postcode
+    prev: Previous
+    primary: Primary
+    primary_short: Primary
+    recent_merges: 'Recent merges'
+    reference_emails: 'Reference emails'
+    reference_emails_empty: 'No emails with this contact yet.'
+    reference_emails_hint: 'Every email to or from this contact that has not been deleted — inbox, sent, drafts, trash and labels.'
+    region: Region
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partner
+    rel_related: Related
+    related: 'Related contacts'
+    relation_placeholder: 'Name'
+    remove: Remove
+    save: Save
+    save_to: 'Save to'
+    save_to_book_hint: 'Goes to %book% on %server%, and from there to every device that syncs it.'
+    save_to_hint: 'A contact in a synced address book goes to its server, and from there to every device that syncs it.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Kept in plMail only.'
+    search: 'Search contacts'
+    search_placeholder: 'Search name, company or email…'
+    section_addresses: Addresses
+    section_custom: 'Custom fields'
+    section_dates: 'Dates'
+    section_details: Details
+    section_emails: Emails
+    section_ims: 'Chat'
+    section_name: Name
+    section_notes: Notes
+    section_phones: Phones
+    section_relations: 'People'
+    section_urls: 'Websites'
+    section_work: 'Work'
+    street: Street
+    synced_read_only: 'Read-only, from %book% on %server%'
+    synced_with: 'Synced with %book% on %server%'
+    tag_all: All
+    tags: Tags
+    tags_placeholder: 'Comma-separated, e.g. family, vendors'
+    title: Contacts
+    trashed: 'Contact moved to trash.'
+    updated: 'Contact saved.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Give the contact a name.'
+    year_optional: 'Year (optional)'
+    editor:
+        add: 'Add'
+        add_email: 'Add an email address'
+        add_phone: 'Add a phone number'
+        address: 'Address'
+        adds: 'New'
+        ai_failed: 'The AI did not answer. Try again in a moment.'
+        ai_nothing: 'The AI has nothing to suggest.'
+        ai_running: 'Asking the AI… It gets this contact and the signature of their latest mail.'
+        ai_sent: 'Sent this contact and the signature of their mail of %date% to the AI service your administrator set up. Nothing changes until you apply it.'
+        ai_sent_no_mail: 'Sent this contact to the AI service your administrator set up. There is no mail from them with a signature. Nothing changes until you apply it.'
+        ai_title: 'Suggestions from AI'
+        applied: 'Added to the form and highlighted: %count%. Nothing is saved until you click Save.'
+        apply_many: 'Apply %count% details'
+        apply_none: 'Nothing to apply'
+        apply_one: 'Apply 1 detail'
+        auto_label: 'Type guessed from what you typed. Pick one to set it.'
+        close_panel: 'Close'
+        dates: 'Dates'
+        dirty_many: '%count% unsaved changes'
+        dirty_one: '1 unsaved change'
+        discard: 'Discard'
+        edit_parts: 'Edit parts'
+        email: 'Email'
+        email_invalid: 'That doesn''t look like an email address yet.'
+        fills: 'Fills an empty field'
+        fix_emails: 'Fix the email address marked in red to save.'
+        hide_parts: 'Hide parts'
+        improve: 'Improve with AI'
+        more_work: 'Department, office, phonetic name'
+        name_placeholder: 'First and last name'
+        new_hint: 'A new contact. Save when it has what you need.'
+        note: 'Note'
+        nothing_found: 'Nothing in this text looks like a contact detail yet.'
+        parts_stale: 'The name and its parts no longer match.'
+        paste: 'Paste details'
+        paste_placeholder: 'Paste a signature, an address or a vCard. Nothing changes until you apply it.'
+        paste_title: 'Paste a signature, vCard or address'
+        person: 'Person'
+        phone: 'Phone'
+        preferred: 'Preferred'
+        reading: 'Reading…'
+        relabels: 'Changes the type from %from% to %to%'
+        remove_what: 'Remove %what%'
+        replaces: 'Replaces “%value%”'
+        same: 'Already there'
+        split_again: 'Split the name again'
+        summary_conflict: '%count% different from what is there'
+        summary_new: '%count% new'
+        summary_same: '%count% already there'
+        website: 'Website'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to an existing contact'
+        more_details: 'More details'
+        name: 'Name'
+        new: 'New contact'
+        no_matches: 'No contact matches.'
+        save: 'Save'
+        search: 'Search your contacts'
+        title: 'Add to contacts'
+    quick:
+        ai_ask: 'Some of this was not clear. The AI can usually sort signatures like this out.'
+        ai_ask_complete: 'Looks complete. You can still have the AI check it.'
+        ai_disclosure: 'Sends only this text to the AI service your administrator set up. Nothing is saved until you create the contact.'
+        ai_running: 'Asking the AI…'
+        ai_undo: 'Undo AI changes'
+        ai_undo_ask: 'Not what you wanted? Go back to what the rules found.'
+        all_fields: 'All fields'
+        box_hint: 'Read as you type. Every row below can be unticked, retyped or given another type.'
+        box_label: 'Type or paste anything about them'
+        box_placeholder: 'A name, an email signature, a line like  Mia Hoffmann <mia@example.net>, or a vCard'
+        change_type: 'Change what this is'
+        create: 'Create contact'
+        detail_ai: 'Changes are marked. Untick or fix anything before you create the contact.'
+        detail_ai_same: 'The AI found nothing to change.'
+        detail_rules: 'Every line was placed.'
+        detail_unsure: 'Not placed yet: %count%'
+        detail_vcard: 'All %count% fields read directly. Nothing was guessed.'
+        done_parts: 'Done'
+        existing: '%name% already has %email%.'
+        fix_parts: 'Fix'
+        ignore: 'Leave out'
+        keep: 'Keep'
+        no_name: 'Needs a name'
+        open_existing: 'Open that contact'
+        skipped: 'Left out as a greeting: %lines%'
+        source_ai: 'Improved by AI'
+        source_rules: 'Read by rules'
+        source_vcard: 'vCard'
+        summary_many: '%name% with %count% details'
+        summary_name: '%name%, name only'
+        summary_none: 'Type or paste something about them to start.'
+        summary_one: '%name% with 1 detail'
+        unsure_many: 'Where do these lines go?'
+        unsure_one: 'Where does this line go?'
+        use_as: 'Use as…'
+        you_placed: 'You placed this line'

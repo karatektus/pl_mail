@@ -1,0 +1,65 @@
+name: Close issues merged into a milestone
+
+# GitHub closes the issues a pull request names ("Closes #N") only when it is
+# merged into the default branch. Work for a release is merged into its
+# milestone branch first (`milestone/v0.3.8`), so its issues used to stay open
+# until the milestone's own pull request reached main, and the list of what is
+# left in a release said nothing about what was done. An issue is finished
+# when its fix is merged into the milestone, so that is when it closes now.
+#
+# The keywords are the ones GitHub accepts, read the same way as the
+# linked-issue check in pr-hygiene.yml does for these pull requests. Only
+# `#N` in this repository; a reference to another repository is left alone.
+#
+# pull_request_target, for the reason pr-hygiene.yml gives: a fork's own run
+# gets a read-only token, and closing an issue needs a write. Safe ONLY
+# because nothing here checks out or runs the pull request's code: the
+# description is read as text, through an environment variable. Do not add a
+# checkout of the head to this file. It runs from the BASE branch, so a
+# milestone branch must be cut from a main that has it.
+
+on:
+    pull_request_target:
+        types: [closed]
+        branches: ['milestone/**']
+
+permissions:
+    issues: write
+
+jobs:
+    close-issues:
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        steps:
+            - name: Close the issues the pull request names
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  NUMBER: ${{ github.event.pull_request.number }}
+                  BASE: ${{ github.event.pull_request.base.ref }}
+                  BODY: ${{ github.event.pull_request.body }}
+              run: |
+                  issues=$(printf '%s' "$BODY" \
+                      | grep -Eio '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+' \
+                      | grep -Eo '[0-9]+$' \
+                      | sort -un || true)
+
+                  if [ -z "$issues" ]; then
+                      echo "Names no issue to close." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+
+                  for issue in $issues; do
+                      state=$(gh issue view "$issue" --repo "$REPO" --json state -q .state 2>/dev/null || echo missing)
+
+                      # A pull request number, a typo or an issue already
+                      # closed: nothing to do, and no reason to fail the run.
+                      if [ "$state" != "OPEN" ]; then
+                          echo "#$issue: $state, left alone." >> "$GITHUB_STEP_SUMMARY"
+                          continue
+                      fi
+
+                      gh issue close "$issue" --repo "$REPO" --reason completed \
+                          --comment "Fixed by #$NUMBER, merged into \`$BASE\`. It ships with that release."
+                      echo "#$issue: closed." >> "$GITHUB_STEP_SUMMARY"
+                  done

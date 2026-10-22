@@ -93,20 +93,20 @@ Variables:
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                         </button>
 
-                        <form method="post" action="{{ path('app_label_delete', { id: label.id }) }}"
-                              data-turbo-confirm="{{ label.children|length > 0
-                                  ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': label.children|length })
-                                  : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}">
-                            <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
-                            <button
-                                type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
-                                aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label|label_name }) }}"
-                                title="{{ 'label.form.delete'|trans }}"
-                            >
-                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-                            </button>
-                        </form>
+                        {# Opens the delete dialog rather than posting: a label
+                           that is a folder on the mail server needs to be told
+                           where its mail goes first. See label/_delete.html.twig. #}
+                        <button
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'label.delete.title'|trans({ '%name%': label|label_name }) }}"
+                            data-ui--modal-src-value="{{ path('app_label_delete_confirm', { id: label.id }) }}"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label|label_name }) }}"
+                            title="{{ 'label.form.delete'|trans }}"
+                        >
+                            <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                        </button>
                     {% endif %}
 
                     <form method="post" action="{{ path('app_label_toggle_visibility', { id: label.id }) }}">

@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sync.md sha1:2035fa53b2757d4eef5706a37a0d6fab6f70ef92 -->
+<!-- translated-from: features/calendar-sync.md sha1:86f9d9e067468c420433595984c981709680f476 -->
 
 # Verbundene Kalender
 
@@ -23,9 +23,19 @@ Zustimmung erfragt wie den Postfachzugriff. Es gibt keine zweite Anmeldung, kein
 registrieren und nichts Zweites einzurichten — das Konto zeigt eine Schaltfläche **Kalender auf …
 suchen**, und das ist alles.
 
-**Verbindungen, die es nur für Kalender gibt.** Ein **CalDAV-Server** — Nextcloud, Radicale, Baïkal,
-Fastmail, iCloud, eine Kiste im Schrank — oder eine **Kalenderadresse**, also jede veröffentlichte
-`.ics`.
+**Verbindungen, die es nur für Kalender gibt.** Ein **CalDAV-Server** — Radicale, Baïkal, Fastmail,
+iCloud, eine Kiste im Schrank — oder eine **Kalenderadresse**, also jede veröffentlichte `.ics`.
+
+**Deine Nextcloud-Verbindung.** Hast du Nextcloud für Dateien unter **Einstellungen →
+Integrationen** verbunden, steht sie auch hier, mit einer eigenen Schaltfläche **Kalender auf …
+suchen**. Dasselbe App-Passwort erreicht deine Nextcloud-Kalender, es gibt also keine Adresse und
+kein Passwort ein zweites Mal einzugeben. Statt einer Schaltfläche zum Trennen steht dort *Unter
+Integrationen eingerichtet*: Die Verbindung hält auch deine Dateien, also wird sie dort getrennt,
+und die Rückfrage dort sagt, wie viele Kalender mitgehen.
+
+Ein Kalender, der schon über eine andere Verbindung gespiegelt wird — etwa über eine CalDAV-Verbindung,
+die du von Hand zur selben Nextcloud angelegt hast —, erscheint als *Wird bereits über … gespiegelt*
+und lässt sich kein zweites Mal anhaken, damit seine Termine nicht doppelt synchronisiert werden.
 
 Sagt der Abschnitt *Noch kein Konto und keine Verbindung hier führt Kalender.*, hast du IMAP-Konten
 und sonst nichts; verbinde einen CalDAV-Server oder abonniere eine Adresse.

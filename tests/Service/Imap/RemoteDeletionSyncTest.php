@@ -252,9 +252,9 @@ final class RemoteDeletionSyncTest extends KernelTestCase
      */
     public function testARemoteDeletionIsAnnouncedToJmapClientsAsADestroy(): void
     {
-        $message = $this->incoming('Rechnung', $this->inbox, 6);
-        $rowId   = (int) $message->id;
-        $thread  = $message->thread;
+        $message  = $this->incoming('Rechnung', $this->inbox, 6);
+        $rowId    = (int) $message->id;
+        $threadId = (int) $message->thread->id;
 
         $this->sweepAll(vanishing: [[$this->inbox, 6]], now: '2026-08-11 09:00:00');
 
@@ -273,7 +273,9 @@ final class RemoteDeletionSyncTest extends KernelTestCase
         );
 
         self::assertContains('Email:destroyed:' . $rowId, $announced);
-        self::assertContains('Thread:updated:' . $thread->id, $announced, 'the conversation it left changed too');
+        // Its only message, so the conversation goes with it (#299), and a
+        // client holding that id has to be told so too.
+        self::assertContains('Thread:destroyed:' . $threadId, $announced, 'the conversation it emptied went too');
     }
 
     /**
@@ -475,10 +477,11 @@ final class RemoteDeletionSyncTest extends KernelTestCase
 
     /**
      * Deleting a thread on the server deletes its messages here, and the thread
-     * they were in is recounted rather than decremented — the drift that made
-     * a header claim "3 messages" over two.
+     * they were in goes with the last of them (#299). It used to be left
+     * standing with its counters at zero: a list row with a subject, no
+     * participants and nothing to open.
      */
-    public function testDeletingAWholeThreadRemotelyEmptiesItAndRecountsIt(): void
+    public function testDeletingAWholeThreadRemotelyRemovesIt(): void
     {
         $thread = $this->thread('Langer Verlauf');
 
@@ -491,11 +494,11 @@ final class RemoteDeletionSyncTest extends KernelTestCase
 
         $this->sweepAll(vanishing: [[$this->inbox, 6], [$this->inbox, 7], [$this->inbox, 8]], now: '2026-08-11 09:00:00');
 
+        $threadId = (int) $thread->id;
+
         self::assertSame(3, $this->reap(server: []));
 
-        self::assertSame(0, $thread->messages->count());
-        self::assertSame(0, $thread->messageCount, 'recounted from what is left, not decremented');
-        self::assertSame(0, $thread->unreadCount);
+        self::assertNull($this->em->find(MessageThread::class, $threadId), 'the emptied thread was left standing');
     }
 
     /**

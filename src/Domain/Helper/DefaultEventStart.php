@@ -42,19 +42,30 @@ final readonly class DefaultEventStart
     /**
      * The default start for a bare date — a day named with no time on it.
      *
-     * The named day at the next full hour, unless that would be in the past,
-     * in which case the next full hour itself. The two differ only when the
-     * hour has rolled past midnight, and only for a day that is already
-     * underway; on any other day they are the same answer.
+     * The named day at the next full hour's time of day. For today, unless
+     * that would be in the past, in which case the next full hour itself: the
+     * two differ only when the hour has rolled past midnight. A day that has
+     * already gone keeps its date, at that time of day.
      */
     public static function onDay(DateTimeImmutable $day, DateTimeImmutable $now): DateTimeImmutable
     {
         $hour      = self::nextFullHour($now);
         $candidate = $day->setTime((int) $hour->format('G'), 0);
 
-        // Never behind the clock. A default the user has to correct is worse
-        // than no default, and one that is in the past is a meeting that
-        // cannot happen.
+        // A day that has already gone keeps its date (#253). Somebody who
+        // picks last Thursday and presses + is entering last Thursday — a
+        // meeting being written down after it happened, a day being filled in
+        // — and moving it to today put the event on a day they did not choose,
+        // in a field they had every reason to trust. It was an explicit rule
+        // here that a past day was pulled to the next hour; the month's day
+        // list, which offers + on any day of six weeks, is what showed it up.
+        if ($day->format('Y-m-d') < $now->format('Y-m-d')) {
+            return $candidate;
+        }
+
+        // Today or later, never behind the clock: the case that matters is the
+        // last hour of today, whose next full hour is 00:00 tomorrow, and
+        // which pinned to today's date would be today's midnight, gone.
         return $candidate < $now ? $hour : $candidate;
     }
 }

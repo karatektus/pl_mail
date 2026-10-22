@@ -1,83 +1,33 @@
 {#
 _calendar_pane.html.twig — the calendar docked beside the mail panes.
 
-Placement is the whole point. This is a SIBLING of .main-pane, not a child, so
-the two split the row's width and the handle between them moves the boundary:
-one grows exactly as much as the other shrinks. .main-pane keeps flex-1 and
-absorbs whatever is left, so the split is one number — --calendar-pane-width —
-and the handle only ever writes that. Two numbers would be two sources of truth
-for one boundary.
+The container, the handle and the sizing are _side_pane.html.twig's, shared
+with the address book. What is the calendar's own is below.
 
-Hidden below md. There, the calendar is a sidebar link to a full page that
-replaces the mail view; a 380px pane next to a message list on a phone is
-neither.
+Its ui--split lives on the row in _mailbox.html.twig, not here: it owns the
+boundary between two panes and the switch's three positions, and its scope has
+to reach the topbar's switch as well as this. So the wrapper is that
+controller's `wrapper` target, which it shows and hides.
 
-The width is rendered inline from the user's stored preference rather than
-restored by JavaScript, so the first paint is already the right size. A pane
-that appears at the default and jumps once the controller connects is worse
-than one that does not remember at all.
+Below lg it is still this pane, not a different page — it just takes the whole
+row and the mail steps aside (see [data-calendar-mode] in app.css). The row
+cannot hold a sidebar, a usable list and a usable calendar at once under
+1024px, so rather than squeezing both under their minimums the calendar takes
+over. That is also what the switch's third position does at every width. Same
+control, same DOM, no navigation: going back to the mail puts it back exactly
+as it was.
 #}
 
 {% set paneOpen = app.user.isCalendarPaneOpen %}
 
-{# The controller lives on the row in _mailbox.html.twig, not here: it owns the
-   boundary between two panes, and its scope has to reach the sidebar's toggle
-   as well as this. Visibility is one conditional class rather than
-   `lg:flex lg:hidden` — those two are the same breakpoint and which wins comes
-   down to CSS source order, which is not something to rely on.
-
-   Below lg it is still this pane, not a different page — it just takes the
-   whole row and the mail steps aside (see [data-calendar-mode] in app.css).
-   The row cannot hold a sidebar, a usable list and a usable calendar at once
-   under 1024px, so rather than squeezing both under their minimums the
-   calendar takes over. That is also what the switch's third position does at
-   every width. Same control, same DOM, no navigation: going back to the mail
-   puts it back exactly as it was. #}
-<div
-    data-ui--split-target="wrapper"
-    {# hidden lg:flex when remembered open: the preference is one value shared by
-       every device, and below lg this pane does not sit beside the mail, it
-       replaces it. Opening the calendar once at a desk should not mean every
-       phone lands on it. The mail is the phone's home; the toggle still works
-       and the width is still remembered. #}
-    class="{{ paneOpen ? 'hidden lg:flex lg:w-auto' : 'hidden' }} shrink-0 min-w-0"
->
-    {# The handle. role=separator with aria-orientation is what makes it
-       reachable and meaningful without a mouse; the arrow keys are handled by
-       the controller.
-
-       Two gutters wide and pulled left by one, so it spans the whole visual
-       space between the panes rather than sitting to one side of it. The row's
-       own gap-gutter falls to the LEFT of this wrapper, so a handle that was
-       merely one gutter wide put its grip 1.5 gutters from the mail pane and
-       0.5 from the calendar — visibly off-centre, and a thin target. #}
-    <div
-        data-ui--split-target="handle"
-        data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="{{ 'calendar.pane.resize'|trans }}"
-        tabindex="0"
-        class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
-               cursor-col-resize
-               hidden lg:flex items-center justify-center
-               focus:outline-none"
-    >
-        {# `.split-grip` is what the strain state in app.css grabs, so the two
-           pixels of grip can say "there is more past this" while the pane is
-           being dragged beyond its range. #}
-        <span class="split-grip w-0.5 h-8 rounded-full bg-line
-                     group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
-    </div>
-
-    {# Width in classes rather than an inline style: inline would beat the
-       breakpoint, and below lg this pane is full width rather than the stored
-       one. #}
-    <div
-        data-ui--split-target="pane"
-        class="main-pane flex flex-col overflow-hidden min-w-0
-               w-full lg:w-[var(--calendar-pane-width)]"
-    >
+{% embed '_partials/_side_pane.html.twig' with {
+    name: 'calendar',
+    open: paneOpen,
+    widthVar: '--calendar-pane-width',
+    handleLabel: 'calendar.pane.resize'|trans,
+    attrs: 'data-ui--split-target="wrapper"',
+} %}
+    {% block side_pane_body %}
         {# A pane the user will see on first paint is rendered WITH the page —
            embedding the same controller the frame's src would have fetched —
            so a reload shows mail and calendar together instead of a spinner
@@ -86,7 +36,7 @@ than one that does not remember at all.
            starts full instead of lazy. A closed pane keeps the lazy empty
            frame: its src is set the first time the switch opens it, and
            nobody pays for a calendar they are not looking at. #}
-        {% if paneOpen %}
+        {% if open %}
             {{ render(controller('App\\Controller\\Calendar\\CalendarController::pane')) }}
         {% else %}
             <turbo-frame
@@ -99,5 +49,5 @@ than one that does not remember at all.
                 </div>
             </turbo-frame>
         {% endif %}
-    </div>
-</div>
+    {% endblock %}
+{% endembed %}

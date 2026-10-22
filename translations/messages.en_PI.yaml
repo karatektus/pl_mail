@@ -149,6 +149,8 @@ admin:
             qwen3-embedding_0_6b: "The default, an' the one to take unless ye have cause otherwise. Speaks many tongues, which counts more than any benchmark for a hold that be not all one language, an' the only one here to strike perfect precision in testin'. 639 MB."
         field:
             base_url: "Oracle's berth"
+            contact_help: 'Crew roster help'
+            contact_help_help: 'Reads a shipmate out o’ pasted text, an’ suggests fixes from the signature o’ their latest letter. Uses the writin’ model, an’ sends it that text.'
             embedding_base_url: "Searcher's berth"
             embedding_own: 'The searcher sails from another berth'
             embedding_own_help: "For keepin' the search model somewhere other than the scrivener: a hired oracle for writin' an' a small one at home for searchin', or t'other way about. Ev'ry message goes to the searcher's berth once to be charted. If the search model bears the same name there, the old chart be kept."
@@ -506,8 +508,13 @@ admin:
             not_asked: 'never asked'
             rules: 'Th'' rules said'
     integrations:
+        base_url_exempt: 'only lets feeds from this port past th'' private-waters check'
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
+        calendar:
+            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till its host be in INTEGRATIONS_ALLOWED_HOSTS.'
+            heading: 'Calendars'
+            intro: 'Ports an'' feeds th'' crew copy their calendars from, under Settings → Calendars. Both be open to every hand; what can be set here be one port for all. Nextcloud be rigged with th'' cargo holds above, an'' its calendars sail with it.'
         clear_secret: 'Throw the stored secret overboard'
         configure: 'Set the rigging'
         connected_users: '%count% hands moored'
@@ -516,6 +523,7 @@ admin:
         inherit_toggle_help: 'One Google charter covers Drive an'' Photos; one Microsoft charter covers OneDrive. Leave it set an'' there be nothin'' more to rig for them.'
         field:
             base_url: 'Port address'
+            base_url_help_ics: 'Leave it empty. Every feed has its own bearin'', so nothin'' here changes which feeds th'' crew follow. A bearin'' stowed here only lets feeds from its port past th'' private-waters check.'
             base_url_help_saas: 'Leave it empty. This port never moves.'
             base_url_help_selfhosted: 'Optional. Set it to moor every hand at one port; leave it empty and each names their own.'
             client_id: 'Client ID'
@@ -546,6 +554,22 @@ admin:
                 permission to this app registration — the crew's almanacs then
                 come aboard with the same boardin' they already use for mail.
                 Without it, mail sails on an' the almanacs simply never appear.
+            consent_heading: 'If yer fleet approves apps for its crew'
+            consent_microsoft: 'Some Microsoft 365 fleets don''t let the crew approve apps themselves: an admiral approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval don''t cover, so Microsoft turns away every sign-in to plMail, mail and all, till it be approved again. Before any hand signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and fleets where the crew approve apps themselves, be not affected.'
+            contacts_google: >-
+                Hoist the Google People API for this project and add the
+                .../auth/contacts scope to the consent screen — the crew then
+                bring their shipmates aboard with the same sign-in. Hands who
+                came aboard earlier are asked once, in their settings, to sign
+                in again. Without it, post and almanacs sail on and the
+                shipmates simply stay ashore.
+            contacts_heading: 'The crew rolls sail under this same charter'
+            contacts_microsoft: >-
+                Add the Contacts.ReadWrite delegated permission to this app
+                registration — the crew then bring their Outlook shipmates
+                aboard with the same sign-in. Hands who came aboard earlier are
+                asked once, in their settings, to sign in again. Without it,
+                post and almanacs sail on and the shipmates simply stay ashore.
             env_note: 'Leave these empty and GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* from th'' environment take over, so a ship already rigged that way sails on.'
             from_env: 'From th'' environment'
             google: 'Gmail boardin'''
@@ -560,6 +584,7 @@ admin:
         secret_stored: 'Stored'
         secret_unchanged: 'Leave blank to keep th'' stored secret'
         status:
+            always_offered: 'Open to every hand'
             disabled: 'Struck down'
             enabled: 'Open'
             incomplete: 'Wants papers'
@@ -571,7 +596,6 @@ admin:
                 security: 'Hands should cut a ship''s key rather than hand over their boardin'' word: a ship''s key can be struck on its own an'' works with the two-lock. iCloud an'' Fastmail take naught else.'
                 step_app_password: 'Each hand cuts a ship''s key aboard their own port — Nextcloud under Settin''s → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — an'' pastes it into their own almanac settin''s.'
                 step_base_url: 'Ye may pin the port''s address, say https://cloud.example.com, if every hand here uses the same one.'
-                step_enable: 'Hoist "Offer this service to users" above.'
                 step_url: 'The address wanted be the CalDAV one, not the front door: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", an'' it mostly ends in /remote.php/dav. A bare domain serves too — plMail hails it an'' asks where the almanacs be moored.'
             dropbox:
                 intro: 'Dropbox wants an app registered in th'' Dropbox developer console.'
@@ -595,6 +619,9 @@ admin:
                 intro: 'Google Photos sails under OAuth with its own API, separate from Drive.'
                 scope_warning: 'Google battened down th'' Photos readin'' scopes in March 2025. A freshly registered app gets only appcreateddata and sees naught but what plMail hauled up itself — browsin'' an existin'' hold wants photoslibrary.readonly, granted case by case. Stowin'' cargo to Photos works regardless.'
                 step_api: 'Hoist th'' Photos Library API for th'' project.'
+            ics:
+                intro: 'A calendar feed wants no riggin'' here. Each hand pastes th'' bearin'' a calendar be published at, mostly endin'' in .ics, under Settings → Calendars → Follow a bearin''.'
+                security: 'For a published calendar th'' bearin'' be as good as a password: whoever holds it can read th'' calendar.'
             immich:
                 intro: 'Immich checks papers with a key per hand, so there be nothin'' to register here.'
                 no_share_links: 'Immich cannot cut a public line for a single picture — only whole albums. Pictures over th'' cargo limit therefore cannot be hauled aboard at all.'
@@ -870,6 +897,8 @@ admin:
             client_secret: 'Client secret'
             issuer: 'Issuer'
             issuer_help: 'Th'' fleet''s issuer URL, exactly as its discovery document states it. In Authentik it be th'' "OpenID Configuration Issuer" on th'' provider''s page.'
+            password_login_disabled: 'Th'' fleet''s seal only'
+            password_login_disabled_help: 'Hides th'' password form an'' turns away password boardin''s, so every sailor comes in through th'' fleet. Only holds while a fleet be set up here. Ye can tick it only after ye''ve boarded through th'' fleet yerself, an'' if th'' fleet ever sinks, run bin/console app:sso:allow-password-login t'' bring th'' form back. Passwords fer mail clients (app passwords) be left alone.'
             require_verified_email: 'Only tie a bottle address th'' fleet has vouched fer'
             require_verified_email_help: 'A first boardin'' finds its berth by bottle address. Shut this off only where sailors cannot change their own address at th'' fleet: with it off, any who can may claim any berth that has not boarded through th'' fleet yet.'
             scopes: 'Scopes'
@@ -1110,6 +1139,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Haul %name% aboard
     sign:
         action: Make yer mark
         draw: Scrawl yer mark, then slap it on the page.
@@ -1126,6 +1156,7 @@ attachment:
         download: Haul aboard
         failed: This scroll would not unroll. Ye can still haul it aboard.
         loading: Unrollin'…
+        media_failed: This cargo won't show itself here. Ye can still haul it aboard.
         untitled: Cargo
         zoom_in: Closer
         zoom_out: Further off
@@ -1239,6 +1270,7 @@ calendar:
         on_calendars: 'Upon %calendars%'
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
     empty: Naught on the horizon
+    empty_day: Naught be planned this day
     details:
         description: The tellin' of it
         edit: Change it
@@ -1597,6 +1629,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%month% %start%–%end%'
     upcoming:
         imminent: Within the hour
         later: Later this day
@@ -2134,6 +2168,7 @@ jobs:
         move_to: Haulin'
         purge: Sendin' to Davy Jones for good
         reclassify: Stowin' recent post again
+        delete_label: "Strikin' a flag"
     state:
         done: '%count% done'
         failed: foundered
@@ -2152,6 +2187,21 @@ label:
         violet: Violet
     empty: No yarns flyin' this flag.
     created: Flag hoisted.
+    delete:
+        already_running: '"%name%" be comin'' down already.'
+        destination: Haul its post to
+        destination_placeholder: '— pick a hold —'
+        destination_required: 'Pick where the post goes, matey. The hold be not scuttled with post still in it.'
+        failed_destination_create: 'The mail server wouldn''t build the %name% hold the post were bound fer. Nothin'' were hauled or scuttled.'
+        failed_destination_gone: 'The hold ye picked for the post be gone. Strike the flag again an'' pick another.'
+        failed_new_mail: 'Fresh post landed in the hold after ye gave the order. Strike the flag again to say where it goes.'
+        failed_not_empty: 'The hold "%name%" still has post in it on the server, so it were not scuttled. Haul that post out in yer other mail client, then strike the flag again.'
+        failed_server: 'The mail server refused to scuttle "%name%": %error%'
+        mail_count: '%count% yarn(s) be in it. They be hauled to the hold ye pick below afore the hold be scuttled.'
+        on_server: 'It be a hold on yer mail server, so the hold be scuttled there too.'
+        still_importing: 'plMail be still haulin'' the post in "%name%" off the server. Strike it once the haulin'' be done, so none o'' that post be left behind.'
+        title: 'Strike "%name%"'
+        waiting: 'Waitin'' fer the mail server to empty the hold "%name%" afore it be scuttled.'
     delete_confirm: 'Strike the flag "%name%"? It comes down on every ship in the fleet. Yarns keep their other flags and be not thrown overboard.'
     delete_confirm_children: 'Strike "%name%" and the %count% flag(s) beneath it? They come down on every ship in the fleet. No yarns be thrown overboard.'
     deleted: Flag struck.
@@ -2319,9 +2369,7 @@ oauth:
     error:
         generic: We couldn't tie up that crew member. Try again, matey.
         microsoft:
-            admin_consent_required: >-
-                Yer fleet requires an admiral to approve plMail afore ye can tie
-                up this crew member. Ask yer Microsoft admiral for leave.
+            admin_consent_required: 'Yer fleet needs an admiral to approve plMail afore ye can connect this account. If it worked afore, plMail now also asks for yer contacts, and that needs their blessing too. Ask yer Microsoft admiral to grant access.'
             app_not_found: >-
                 plMail ain't on the roster of yer Microsoft fleet.
             bad_credentials: >-
@@ -2599,6 +2647,8 @@ settings:
             admin_off: 'Not hoisted on this vessel'
             categorise: "Sortin' the Haul"
             categorise_hint: "Lets the oracle break the tie when plain rules can't place a message. Off leaves 'em where the rules dropped 'em."
+            contact_help: 'Crew roster help'
+            contact_help_hint: 'Fills in a shipmate from a pasted signature or card, an’ suggests updates from their latest letter’s signature, when ye ask.'
             search: "Divinin' Search"
             search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
             summary: 'Yarn-in-short'
@@ -2621,6 +2671,7 @@ settings:
             system_prompt_placeholder: "Short sentences. No shoutin' marks. Sign off with me first name alone."
         reads:
             categorise: "Sortin': the sender, the subject an' the start o' the message."
+            contact_help: 'Crew: the text ye paste, or a shipmate an’ the signature o’ their latest letter, when ye ask.'
             heading: 'What the Oracle Be Handed'
             search: "Chartin': the subject, the sender an' the start o' each message."
             summary: "Th' messages o' a yarn ye ask t' have boiled down"
@@ -3199,6 +3250,13 @@ settings:
                     lock be thrown, or when th'' harbourmaster tears up yer
                     papers.
                 title: '%account% must sign on again'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail can now keep this vessel's shipmates in its log, but
+                    %account% came aboard before it asked. Post and charts sail
+                    on unharmed. Sign aboard once more and allow the shipmates,
+                    and the crew roll appears under Shipmates.
+                title: 'Bring %account% aboard again to muster its shipmates'
             account_scope_missing:
                 body: >-
                     Some leave plMail asked for when ye signed this account on
@@ -3327,6 +3385,12 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_contacts:
+                label: 'Allow the shipmates'
+                promise: >-
+                    Sends ye back to the harbourmaster to sign aboard as
+                    %account% and allow the shipmates. Yer post stays as it is,
+                    and nothing is hauled aboard twice.
             grant_calendar:
                 label: 'Grant full leave'
                 promise: >-
@@ -3414,6 +3478,7 @@ settings:
         disabled: 'Line slackened'
         disconnect: 'Cast off'
         disconnect_confirm: 'Cast off from %name%? Cargo already hauled aboard stays put.'
+        disconnect_confirm_mirrored: 'Cast off from %name%? %calendars% almanac(s) and %books% ledger(s) o'' names go overboard with it; what came by mail be stowed in yer default almanac first. Cargo already hauled aboard stays put.'
         disconnected: 'Cast off'
         edit: Edit
         empty: 'No ports moored yet.'
@@ -3469,6 +3534,80 @@ settings:
         option_none: All three
         option_split: Full breadth only
         subheading: 'How the calendar button up top moves between views.'
+    contacts_behaviour:
+        button: 'Crew log button'
+        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside the post only'
+        option_none: 'All three'
+        option_split: 'Full deck only'
+        subheading: 'How the crew log button up top moves between views.'
+    contacts:
+        allow_contacts: 'Allow the shipmates'
+        allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
+        allow_contacts_microsoft: 'If yer fleet approves apps for its crew, ask yer admiral to approve plMail''s contacts permission first. Till they do, Microsoft turns this sign-in away.'
+        carddav:
+            connect: Make fast to a CardDAV port
+            disconnect: Cut the line to "%name%"
+            disconnect_confirm: >-
+                Cut the line to "%name%"? Every roll kept in step with it be
+                struck from this deck, with any change not yet sent. The hands
+                in port be left be.
+            field:
+                address: The port's address
+                address_help: >-
+                    The CardDAV address yer port shows ye, or just its domain —
+                    plMail hails the domain an' asks where its rolls be moored
+                    afore it gives up.
+                name: What it be called
+                name_help: What to call this line in yer settin's.
+                reuse: Use the word from one o' me parrot accounts
+                reuse_account: Which account's word
+                reuse_account_none: Pick an account…
+                reuse_help: >-
+                    Off unless ye say so, an' best left off: most ports want a
+                    ship's key of their own, an' a tick here sends a word ye
+                    gave plMail for yer parrots off to the address above.
+                secret: Ship's key
+                secret_help: >-
+                    Cut one aboard yer own port instead o' handin' over yer
+                    boardin' word — iCloud an' Fastmail take naught else.
+                username: Yer name aboard
+                username_help: The name yer port knows ye by.
+            intro: >-
+                Any CardDAV port at all: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Most like the same address an' ship's key as yer
+                almanacs.
+            submit: Make fast an' find the rolls
+            title: Make fast to a CardDAV port
+        empty: No port o' hands made fast yet.
+        find: Pick the rolls
+        heading: Rolls o' hands
+        intro: >-
+            Rolls kept in step with a CardDAV port. The hands on 'em be offered
+            when ye write, an' what ye mend here be sent back.
+        never_synced: Not yet in step
+        no_books: No roll picked from this port yet.
+        open: Open the rolls
+        read_only: Read only
+        subheading: Where yer rolls o' hands come from.
+        subscribe:
+            empty: '"%name%" offers no rolls.'
+            intro: Pick which rolls from "%name%" plMail keeps in step.
+            mirrored: Kept in step
+            mirrored_elsewhere: 'Already kept in step through %name%'
+            save: Stow it
+            title: Pick the rolls
+            unsubscribe_note: >-
+                Untick a roll an' its copy here goes overboard, with any change
+                not yet sent. The port keeps its own.
+        sync_now: Bring "%name%" in step now
+        synced: In step %date%
+        toast:
+            disconnected: Line to the port cut
+            saved: Rolls stowed
+            sync_queued: Bringin' 'em in step
+            unchanged: Naught changed
     calendars:
         account_hint: Where reckonin's found in parrots from %address% be filed.
         caldav:
@@ -3530,6 +3669,8 @@ settings:
                 accounts do; for aught else, make fast to a CalDAV port.
             find: Find the almanacs on %name%
             heading: Where almanacs come from
+            managed: 'Rigged under Integrations'
+            managed_hint: '%name% holds yer cargo too. Cut the line in Settings → Integrations.'
             why_admin: >-
                 Yer quartermaster may not have given the papers plMail signs in
                 with any almanac rights. Parrots sail without 'em; almanacs do
@@ -3552,6 +3693,7 @@ settings:
                 Tick the almanacs on %name% for plMail to keep in step with.
                 Reckonin's turn up within the minute.
             mirrored: Already kept in step
+            mirrored_elsewhere: 'Already kept in step through %name%'
             primary: The main one
             save: Stow the choosin'
             title: Find me almanacs
@@ -3592,6 +3734,22 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    swipe_actions:
+        heading: "Swipe deeds"
+        hint: >-
+            A swipe acts once ye drag far enough or flick quick. Read an' star can
+            be unswiped by swipin' again, an' archive offers Undo. Trash be no
+            choice: a swipe that sank mail would have nothing to haul it back.
+        left:
+            label: "Swipe left"
+        option:
+            archive: "Stow it away"
+            none: "Nowt"
+            read_unread: "Read / unread"
+            star: "Star"
+        right:
+            label: "Swipe right"
+        subheading: "What a swipe across a bottle does on yer phone."
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -3608,6 +3766,7 @@ settings:
         calendar_behaviour: Behaviour
         calendars: Almanacs
         categories: "Holds"
+        contacts: Rolls o' hands
         disposal: Disposal
         filters: Sieves
         general: General
@@ -3630,6 +3789,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Yer marks
+        swipe_actions: "Swipe deeds"
         templates: 'Form letters'
     notifications:
         devices:
@@ -3649,6 +3809,9 @@ settings:
                 webpush: "Web Push"
             unverified: "Not vouched for"
             verified: "Vouched for"
+        error_server: 'Th'' server turned this device away (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
+        error_subscribe: 'Th'' browser''s push service gave this device no berth (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s below-decks hand never woke (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
         heading: Word from the crow's nest
         ios_hint: >-
             On iPhone and iPad, the lookout only calls once plMail be added to
@@ -4002,6 +4165,7 @@ sidebar:
     badge:
         total: '%count% all told'
         unread: '%count% unread'
+        unsent: A draft never sailed
     compose: Scribble
     labels:
         add: Hoist a new flag
@@ -4097,8 +4261,17 @@ thread_row:
     new_badge: Fresh
     no_recipient: (bound for nowhere)
     no_subject: (no subject)
+    send_failed:
+        failed: Never sailed
+        may_have_sent: 'May have sailed: search th'' Sent hold afore firin'' again'
+        rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
+        refused: 'Never sailed: th'' harbour master turned it away'
+        unavailable: 'Never sailed: yer mail port could not be reached'
     scheduled: 'Due %when%'
     select: Pick it
+    sheet:
+        label: Things ye can do wi' this bottle
+        select: Pick it
     star: Mark this bottle with an X
     to: 'Bound for: %recipients%'
     unread: Unread by any soul
@@ -4113,6 +4286,10 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
+    send_failed_may_have_sent: '%subject% may have sailed, but no word came back. Search th'' Sent hold before ye fire it again.'
+    send_failed_rate_limited: 'That message could not be hoisted: %subject%. Yer mail port be rationin'' sailings; try again in a few minutes.'
+    send_failed_refused: 'That message could not be hoisted: %subject%. Th'' harbour master turned it away.'
+    send_failed_unavailable: 'That message could not be hoisted: %subject%. Yer mail port could not be reached.'
     sent: Message away!
     spam_filtered: 'Pumped into th'' bilge. Whatever %sender% sends next goes th'' same way.'
     undo: Belay that
@@ -4134,6 +4311,7 @@ toolbar:
         mark_unread: Mark as unread
         more: More besides
         move_to: Haul off to
+        not_spam: 'Not bilge'
         purge: "Send to Davy Jones for good"
         snooze: Let it drift
         spam: 'Call it bilge'
@@ -4270,3 +4448,307 @@ whats_new:
     screenshot_close: 'Stow the likeness'
     screenshot_open: 'Open the likeness full size'
     title: 'What''s new aboard'
+contacts:
+    add_address: 'Add port'
+    add_custom: 'Add a field, matey'
+    add_date: 'Add a date'
+    add_email: 'Add bottle address'
+    add_im: 'Add a parrot address'
+    add_phone: "Add speakin' tube"
+    add_relation: 'Add a shipmate'
+    add_to_address_book: 'Sign on to crew'
+    add_url: 'Add a port o'' call'
+    back: Back
+    book_all: 'Every hold'
+    book_local: 'Kept aboard'
+    cancel: 'Belay that'
+    check_carefully: 'Mind this one'
+    city: 'Port town'
+    company: Crew
+    confidence: '%pct%% alike'
+    count: '{0}No shipmates|{1}1 shipmate|]1,Inf[ %count% shipmates'
+    country: Land
+    created: 'Shipmate signed aboard.'
+    custom_label_placeholder: 'Field name'
+    custom_value_placeholder: 'Booty'
+    date_full: '%month% %day%, %year%'
+    date_no_year: '%month% %day%'
+    day: 'Day'
+    delete: "Make 'em walk the plank"
+    delete_confirm: 'Send %name% to Davy Jones? They sit in the brig 90 days afore they be gone for good.'
+    deleted_contact: '(shipmate gone)'
+    display_name: 'Full name'
+    duplicates: Doubles
+    duplicates_count: '{1}1 likely pair|]1,Inf[ %count% likely pairs'
+    duplicates_none: 'No doubles aboard. New hauls be checked by themselves.'
+    edit: 'Mend shipmate'
+    email_placeholder: name@example.com
+    empty: 'No shipmates yet. Sign on yer first, or haul some in from a vCard or CSV file.'
+    empty_search: 'No shipmate answers to that.'
+    export_vcf: 'Send off as vCard'
+    field:
+        birthday: 'Day o'' birth'
+        company: 'Ship'
+        department: 'Deck'
+        familyName: 'Last name'
+        givenName: 'First name'
+        jobTitle: 'Rank'
+        middleName: 'Middle name'
+        namePrefix: 'Title'
+        nameSuffix: 'Suffix'
+        nickname: 'Pirate name'
+        officeLocation: 'Cabin'
+        phoneticCompany: 'Ship (as it be spoken)'
+        phoneticFamilyName: 'Last name (as it be spoken)'
+        phoneticGivenName: 'First name (as it be spoken)'
+        phoneticMiddleName: 'Middle name (as it be spoken)'
+    im_placeholder: 'Handle or address'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Other'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
+    import: 'Haul in'
+    import_bad_format: 'Only .vcf/.vcard and .csv files be hauled in.'
+    import_choose: 'Pick file'
+    import_confirm: 'Haul in %count% shipmates'
+    import_dedupe_note: 'After the haul ye land on the doubles page to merge any sailor hauled twice.'
+    import_expired: 'The haul went stale. Hoist the file again.'
+    import_formats: '.vcf, .vcard or .csv'
+    import_hint: 'A .vcf/.vcard crew list or a .csv file. Doubles be checked after the haul.'
+    import_no_file: 'No file came aboard.'
+    import_preview_count: '%count% shipmates found in the %format% file. The first few:'
+    import_step1: 'Step 1 — pick a file'
+    import_step2: 'Step 2 — a look'
+    import_upload: 'Hoist & look'
+    import_uploading: "Hoistin'…"
+    imported: 'Hauled in %count% shipmates.'
+    in_address_book: 'In yer crew'
+    keep_this: 'Keep this one'
+    label: Label
+    label_home: 'Home port'
+    label_mobile: 'Spyglass line'
+    label_other: Other
+    label_work: Ship
+    labels:
+        anniversary: 'Anniversary'
+        assistant: 'Cabin boy'
+        blog: 'Ship''s log'
+        brother: 'Brother'
+        child: 'Wee one'
+        father: 'Father'
+        friend: 'Matey'
+        home: 'Home port'
+        manager: 'Captain'
+        mobile: 'Mobile'
+        mother: 'Mother'
+        other: 'Other'
+        parent: 'Parent'
+        partner: 'First mate'
+        profile: 'Profile'
+        relative: 'Kin'
+        sibling: 'Sibling'
+        sister: 'Sister'
+        spouse: 'Spouse'
+        work: 'Ship'
+    merge: 'Lash together'
+    merge_pick_keep: 'Pick which shipmate stays aboard first.'
+    merge_read_only: 'A shipmate from a read-only book cannot be lashed together.'
+    merge_undo: Undo
+    merge_undo_expired: 'The 90-day window to undo this lashing has passed.'
+    merge_undone: 'Lashing undone.'
+    merged: 'Shipmates lashed together. Ye can undo it below.'
+    merged_into: 'Lashed %count% into %name%'
+    month: 'Month'
+    months:
+        1: 'January'
+        2: 'February'
+        3: 'March'
+        4: 'April'
+        5: 'May'
+        6: 'June'
+        7: 'July'
+        8: 'August'
+        9: 'September'
+        10: 'October'
+        11: 'November'
+        12: 'December'
+    nav: Shipmates
+    new: 'New shipmate'
+    next: Ahead
+    no_details: 'No particulars yet.'
+    no_subject: '(no subject)'
+    notes: Scribblings
+    page: 'Page %page%'
+    pane:
+        close: 'Stow the shipmates'
+        mode:
+            contacts: 'Spread the crew log across the deck'
+            mail: 'Stow the shipmates'
+            split: 'Muster the shipmates beside the post'
+        resize: 'Haul the shipmates wider or narrower'
+    pending: 'Waiting on a fair wind to the server'
+    phone_placeholder: '+1 555 010 2030'
+    phonetic: 'As it be spoken'
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_invalid: "That portrait won't hang. JPG, PNG or WebP up to 5 MB."
+    photo_remove: 'Scuttle the portrait'
+    photo_removed: 'Portrait scuttled.'
+    photo_upload: 'Hang a portrait'
+    photo_uploaded: 'Portrait hung.'
+    postcode: Postcode
+    prev: Astern
+    primary: 'First mate'
+    primary_short: First
+    recent_merges: 'Recent lashings'
+    reference_emails: 'Letters exchanged'
+    reference_emails_empty: 'No bottles with this shipmate yet.'
+    reference_emails_hint: 'Every bottle to or from this shipmate not yet sunk — inbox, sent, drafts, bin and labels.'
+    region: Waters
+    rel_assistant: 'Cabin hand'
+    rel_manager: Captain
+    rel_partner: Partner
+    rel_related: Kin
+    related: 'Kin and crew'
+    relation_placeholder: 'Name'
+    remove: 'Toss overboard'
+    save: 'Stow it'
+    save_to: 'Stow in'
+    save_to_book_hint: 'Sails to %book% on %server%, an’ from there to every vessel that syncs it.'
+    save_to_hint: 'A shipmate stowed in a synced book sails to its server, and from there to every vessel that syncs it.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Kept aboard plMail only.'
+    search: 'Search the crew'
+    search_placeholder: 'Search name, company or bottle address…'
+    section_addresses: Ports
+    section_custom: 'Yer own fields'
+    section_dates: 'Dates'
+    section_details: Particulars
+    section_emails: 'Bottle addresses'
+    section_ims: 'Parrots'
+    section_name: Name
+    section_notes: Scribblings
+    section_phones: "Speakin' tubes"
+    section_relations: 'Crew'
+    section_urls: 'Ports o'' call'
+    section_work: 'Ship'
+    street: Street
+    synced_read_only: 'Look but never touch: from %book% aboard %server%'
+    synced_with: 'Synced with %book% aboard %server%'
+    tag_all: 'All hands'
+    tags: Markings
+    tags_placeholder: 'Comma-separated, e.g. kin, traders'
+    title: Shipmates
+    trashed: 'Shipmate sent to the brig.'
+    updated: 'Shipmate stowed.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Give the shipmate a name.'
+    year_optional: 'Year (if ye know it)'
+    editor:
+        add: 'Add'
+        add_email: 'Add a letter-box'
+        add_phone: 'Add a speakin’ tube'
+        address: 'Port o’ call'
+        adds: 'New'
+        ai_failed: 'The oracle kept silent. Try again in a moment.'
+        ai_nothing: 'The oracle has naught to say.'
+        ai_running: 'Askin’ the oracle… It gets this shipmate an’ the signature o’ their latest letter.'
+        ai_sent: 'Sent this shipmate an’ the signature o’ their letter o’ %date% to the oracle yer captain set up. Nothin’ changes till ye apply it.'
+        ai_sent_no_mail: 'Sent this shipmate to the oracle yer captain set up. No letter from them bears a signature. Nothin’ changes till ye apply it.'
+        ai_title: 'The oracle’s counsel'
+        applied: 'Hauled into the form an’ marked: %count%. Nothin’ be saved till ye hit Save.'
+        apply_many: 'Haul in %count% particulars'
+        apply_none: 'Nothin’ to haul in'
+        apply_one: 'Haul in 1 particular'
+        auto_label: 'Type guessed from what ye scrawled. Pick one to nail it down.'
+        close_panel: 'Close'
+        dates: 'Dates'
+        dirty_many: '%count% unsaved changes'
+        dirty_one: '1 unsaved change'
+        discard: 'Scuttle changes'
+        edit_parts: 'Mend the parts'
+        email: 'Letter-box'
+        email_invalid: 'That be no proper letter-box yet.'
+        fills: 'Fills an empty hold'
+        fix_emails: 'Mend the letter-box marked in red to save.'
+        hide_parts: 'Stow the parts'
+        improve: 'Ask the oracle'
+        more_work: 'Deck, cabin, how ye say it'
+        name_placeholder: 'Given an’ family name'
+        new_hint: 'A fresh shipmate. Save when they be complete.'
+        note: 'Scribble'
+        nothing_found: 'Nothin’ in this text looks like a shipmate’s particulars yet.'
+        parts_stale: 'The name an’ its parts don’t match no more.'
+        paste: 'Paste the particulars'
+        paste_placeholder: 'Paste a signature, a port o’ call or a vCard. Nothin’ changes till ye apply it.'
+        paste_title: 'Paste a signature, vCard or port o’ call'
+        person: 'Crewmate'
+        phone: 'Speakin’ tube'
+        preferred: 'Favoured'
+        reading: 'Readin’…'
+        relabels: 'Changes the type from %from% to %to%'
+        remove_what: 'Throw %what% overboard'
+        replaces: 'Replaces “%value%”'
+        same: 'Already aboard'
+        split_again: 'Split the name again'
+        summary_conflict: '%count% differ from what be there'
+        summary_new: '%count% new'
+        summary_same: '%count% already aboard'
+        website: 'Web-port'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to a hand already in yer log'
+        more_details: 'More particulars'
+        name: 'Name'
+        new: 'New hand'
+        no_matches: 'No soul matches.'
+        save: 'Stow it'
+        search: 'Search yer crew log'
+        title: 'Add to yer crew log'
+    quick:
+        ai_ask: 'Some o’ this be murky. The oracle can most often sort such signatures.'
+        ai_ask_complete: 'Looks shipshape. Ye can still have the oracle look it over.'
+        ai_disclosure: 'Sends only this text to the oracle yer captain set up. Naught be saved till ye sign them on.'
+        ai_running: 'Askin’ the oracle…'
+        ai_undo: 'Undo the oracle’s changes'
+        ai_undo_ask: 'Not what ye wanted? Go back to what the code found.'
+        all_fields: 'All fields'
+        box_hint: 'Read as ye type. Every row below can be unticked, rewritten or given another type.'
+        box_label: 'Scrawl or paste anythin’ about them'
+        box_placeholder: 'A name, a letter signature, a line like  Mia Hoffmann <mia@example.net>, or a vCard'
+        change_type: 'Change what this be'
+        create: 'Sign on the shipmate'
+        detail_ai: 'Changes be marked. Untick or mend aught before ye sign them on.'
+        detail_ai_same: 'The oracle found naught to change.'
+        detail_rules: 'Every line found its berth.'
+        detail_unsure: 'Not yet berthed: %count%'
+        detail_vcard: 'All %count% fields read straight off. Naught was guessed.'
+        done_parts: 'Done'
+        existing: '%name% already has %email%.'
+        fix_parts: 'Mend'
+        ignore: 'Leave out'
+        keep: 'Keep'
+        no_name: 'Needs a name'
+        open_existing: 'Open that shipmate'
+        skipped: 'Left out as a farewell: %lines%'
+        source_ai: 'Bettered by the oracle'
+        source_rules: 'Read by the code'
+        source_vcard: 'vCard'
+        summary_many: '%name% with %count% particulars'
+        summary_name: '%name%, name only'
+        summary_none: 'Scrawl or paste somethin’ about them to begin.'
+        summary_one: '%name% with 1 particular'
+        unsure_many: 'Where do these lines belong?'
+        unsure_one: 'Where does this line belong?'
+        use_as: 'Use as…'
+        you_placed: 'Ye berthed this line'
