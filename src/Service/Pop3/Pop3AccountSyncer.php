@@ -442,6 +442,22 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
                 $this->em->flush();
             }
 
+            // The import tracker reads a mailbox as "still importing" while
+            // $importFloorUid is null — "nobody has looked yet" — and this
+            // syncer never sets it, because that marker is the IMAP importer's
+            // page-walk bookkeeping and a POP3 mailbox has no page walk: one
+            // pass brings in everything the server has. Left null, every POP3
+            // account read as importing for ever and the topbar badge spun
+            // for ever with it. Zero is the IMAP importer's own "done" value
+            // (ImapFolderProvisioner sets it the same way), so this is the
+            // same state that machinery arrives at, written by the one path
+            // that has no reason ever to arrive at it.
+            if (null === $existing->importFloorUid) {
+                $existing->importFloorUid = 0;
+
+                $this->em->flush();
+            }
+
             // The mailbox's own binding is only half of it. Messages already
             // stored carry the labels THEY were given at build time, and the
             // ones written before this fix were given none — binding the
@@ -466,6 +482,9 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         $mailbox->specialUse   = MailboxSpecialUse::INBOX;
         $mailbox->isSelectable = true;
         $mailbox->isSyncEnabled = true;
+        // No import walk to do — see the healing branch above for why the
+        // tracker needs this rather than null.
+        $mailbox->importFloorUid = 0;
 
         // isSyncEnabled on a POP3 account is a switch with nothing to switch:
         // there is one mailbox and no folder tree, so there is no second one to
