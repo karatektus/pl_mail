@@ -55,13 +55,13 @@ lines; a month cell has room for two chips of two lines each and gives it one,
 which is 12 characters where inline gave four. The rest is the day's peek, where
 the clamp comes off entirely — see _view_month.
 
-**A month chip is clamped to one line of title and it STAYS clamped**, which is
-what lets the day's peek widen without anything moving. This looks backwards
-until you try it the other way: unclamping is what changes a chip's height, and
-a chip changing height moves every chip under it. Clamped, a wider box is simply
-a longer line — the same two rows, the same y for every neighbour, and a title
-that finishes because there is now room for it to. The peek is the width; the
-clamp is what makes the width free.
+**A month chip's title is clamped, to two lines since #253, and it STAYS
+clamped** when the day's peek opens. Unclamping is what would change a chip's
+height without limit, and a chip changing height moves every chip under it.
+Clamped, a wider box is mostly a longer line. Mostly: a title that needed both
+of its lines in the cell can finish on one in the peek, and the chips under it
+then close up by that line. That was accepted for #253 as the price of a second
+line at rest, where a title is read far more often than in the peek.
 
 **The colour is a bar where the chip has a height, and a dot where it is one
 line.** Same information, drawn as tall as there is room for it to be: a 6px
@@ -211,12 +211,26 @@ identity is threaded through a URL that would outlive the render that made it.
 {% set tooltip = tooltip ?? not monthCell %}
 {% set roomy = timeColumn or tall or monthCell %}
 
-{# The month's. A month cell is the one place a title had no way to finish —
-   `tall` needs a block with a height and `timeColumn` needs a list with rows,
-   and a cell has neither — so it is one line, and stays one line on hover.
-   Unclamping the chip under the pointer pushed every chip below it down, which
-   is movement where the reader asked for a larger view. Hovering the day widens
-   the whole cell instead (see _month_shell's `shellCellExpands`). #}
+{# The month's. **A month chip is its title first, on up to two lines, and
+   then when it is and where (#253).** It was the time on a line and the title
+   clamped to one under it, which in a cell about 180px wide left "Lea…",
+   "Ihre…" and, for an invitation whose icon took the line, a lone "…", while
+   three quarters of the cell stood empty. A cell's height is the one thing it
+   has spare, so the title gets a second line and the time moves under it,
+   where it is read second: what an entry is before when it is, because the
+   cell already says which day.
+
+   **The narrower the day, the more of the chip is title.** From 9rem down the
+   end time and the place go, and the title gets a third line at 11px; long
+   words are hyphenated (`hyphens-auto`, in the page's `lang`) rather than cut
+   at the end of a line, which is most of what a German title loses. Below 5.5rem
+   the chip is a bar, and the day opens to a card wide enough for all of it on
+   hover (see _month_shell).
+
+   The clamp is fixed at two and does not open on hover. Unclamping the chip
+   under the pointer pushed every chip below it down, which is movement where
+   the reader asked for a larger view. Hovering the day widens the whole cell
+   instead (see _month_shell's `shellCellExpands`). #}
 
 {# Whether the chip prints "18:00–19:00" or just "18:00".
 
@@ -231,7 +245,18 @@ identity is threaded through a URL that would outlive the render that made it.
    condition. The en dash and the absence of spaces around it match the ranges
    in _invite_card, _proposal_card and sharing/_entry_row; there is one way this
    application writes a span of time. #}
-{% set showRange = showTime and showRange|default(false) %}
+{# A month chip prints its range as well, now that the time has a line of its
+   own under the title rather than sharing one with it. #}
+{% set showRange = showTime and (showRange ?? monthCell) %}
+
+{# The details line under a month chip's title: the time, then the place. #}
+{% set monthDetails = monthCell and (showTime or event.location is not empty) %}
+
+{# An invitation nobody has answered yet. Its bar is dashed in a month cell,
+   the one view where a chip had nothing to tell it apart from a meeting that
+   was accepted: the time grid has the invite card beside it, and a month cell
+   is where the week's unanswered ones should be seen at a glance. #}
+{% set awaiting = event.myParticipation is not null and 'needs-action' == event.myParticipation.value %}
 
 {# The clock this chip's time is printed on, and it is the VIEW's, not the
    reader's default.
@@ -411,12 +436,23 @@ identity is threaded through a URL that would outlive the render that made it.
            competing with and nothing to give up. #}
         <span class="shrink-0 text-[11px] tabular-nums text-ink-faint
                      {{ stacked
-                         ? 'col-start-2 row-start-1 leading-4' ~ (monthCell ? ' @max-[5.5rem]:sr-only' : '')
+                         ? (monthCell
+                             ? 'col-start-2 row-start-2 leading-4 truncate @max-[5.5rem]:sr-only'
+                             : 'col-start-2 row-start-1 leading-4')
                          : '@max-[7rem]:sr-only @max-[7rem]:group-hover/chip:not-sr-only' }}">
             {{- occurrence.startsAt|date(longTime ? clock.time : clock.timeCompact, chip_zone) -}}
+            {#- Under 9rem a month chip keeps only the start: the end and the
+                place are what a narrow day gives up first, so that the title
+                keeps its third line (#253). -#}
             {%- if showRange -%}
-                –{{ occurrence.endsAt|date(clock.timeCompact, chip_zone) }}
+                <span class="{{ monthCell ? '@max-[9rem]:hidden' : '' }}">–{{ occurrence.endsAt|date(clock.timeCompact, chip_zone) }}</span>
             {%- endif -%}
+            {%- if monthCell and event.location is not empty %}<span class="@max-[9rem]:hidden"> · {{ event.location }}</span>{% endif -%}
+        </span>
+    {% elseif monthDetails %}
+        {# An all-day entry with a place: the place on its own under the title. #}
+        <span class="col-start-2 row-start-2 leading-4 truncate text-[11px] text-ink-faint @max-[5.5rem]:sr-only @max-[9rem]:hidden">
+            {{- event.location -}}
         </span>
     {% endif %}
 
@@ -442,6 +478,7 @@ identity is threaded through a URL that would outlive the render that made it.
           {# A month cell too narrow for words draws the chip as this bar and
              nothing else, so there the bar carries a Maybe's stripes. #}
           {% if tentative and monthCell %}data-tentative-bar{% endif %}
+          {% if awaiting and monthCell %}data-awaiting-bar{% endif %}
           aria-hidden="true"></span>
 
     {# Truncated to one line in a list, wrapped into the height it has in a
@@ -455,7 +492,8 @@ identity is threaded through a URL that would outlive the render that made it.
                  {{ tall
                      ? 'whitespace-normal break-words line-clamp-2 leading-4 group-hover/chip:line-clamp-none'
                      : (monthCell
-                         ? 'whitespace-normal break-words line-clamp-1 leading-4'
+                         ? 'row-start-1 font-medium whitespace-normal break-words hyphens-auto line-clamp-2 leading-4
+                            @max-[9rem]:line-clamp-3 @max-[9rem]:text-[11px] @max-[9rem]:leading-[0.9rem]'
                          : 'truncate') }}
                  {{ roomy and not tall ? 'group-hover/chip:whitespace-normal' : '' }}
                  {{ occurrence.cancelled ? 'line-through' : '' }}">

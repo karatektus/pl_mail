@@ -9,6 +9,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Service\Integration\IntegrationUrlValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -76,6 +77,27 @@ final class IntegrationUrlValidatorTest extends TestCase
             ->assertAllowed('http://10.0.0.5:8080');
     }
 
+    public function testAPinnedServerAddressExemptsItsHostFromThePrivateNetworkRule(): void
+    {
+        // The documented way to say "our Nextcloud is the container next
+        // door". CalDavClient checks each request through assertAllowed(), so
+        // the pin has to count there and not only in UserUrlHttpClient.
+        $config = new IntegrationProviderConfig(Provider::Nextcloud);
+        // Addresses rather than container names: a name this machine cannot
+        // resolve is not refused at all, which would pass the test vacuously.
+        $config->baseUrl = 'http://10.0.0.5:8080';
+
+        $validator = new IntegrationUrlValidator(allowHttp: true, configs: $this->configs($config));
+
+        $validator->assertAllowed('http://10.0.0.5:8080/remote.php/dav/calendars/alice/');
+
+        $this->expectException(IntegrationException::class);
+        $this->expectExceptionMessageMatches('/private network/');
+
+        // Only the pinned host: its neighbours on the same network stay refused.
+        $validator->assertAllowed('http://10.0.0.6:5432/');
+    }
+
     /**
      * A NAME that resolves into loopback is refused as surely as the address.
      * `localhost.` with the trailing dot slips past a comparison against
@@ -121,5 +143,28 @@ final class IntegrationUrlValidatorTest extends TestCase
         $this->expectExceptionMessageMatches('/No server address/');
 
         (new IntegrationUrlValidator())->resolve(new Integration(new User(), Provider::Nextcloud, 'Home'), null);
+    }
+
+    /** A repository holding exactly these provider configs, with no Doctrine behind it. */
+    private function configs(IntegrationProviderConfig ...$configs): IntegrationProviderConfigRepository
+    {
+        return new class (array_values($configs)) extends IntegrationProviderConfigRepository {
+            /** @param list<IntegrationProviderConfig> $configs */
+            public function __construct(private readonly array $configs)
+            {
+                // Deliberately does not call the parent: it wants a
+                // ManagerRegistry, and findAll() is all this test asks.
+            }
+
+            /**
+             * @return list<IntegrationProviderConfig>
+             *
+             * @phpstan-pure Doctrine marks findAll() impure; this one only returns the array.
+             */
+            public function findAll(): array
+            {
+                return $this->configs;
+            }
+        };
     }
 }

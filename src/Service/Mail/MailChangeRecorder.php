@@ -69,15 +69,34 @@ final readonly class MailChangeRecorder
     }
 
     /**
+     * New mail arrived in the account's Inbox.
+     *
+     * A distinct announcement from emailChanged(), though it sounds like one of
+     * its cases. That call answers "did an Email change", which every JMAP
+     * client needs and which a draft or a sent copy also answers. This answers
+     * "did mail arrive", which only one device wants, and it is the only signal
+     * that device gets. It is not a feature in the sense the class docblock
+     * refuses: it is a different question with a different audience, and folding
+     * it into emailChanged() would make every create look like new mail.
+     *
+     * Recorded by the caller in addition to emailChanged(created: true), never
+     * instead of it: the Email still changed for everybody else.
+     */
+    public function mailArrived(int $accountId): void
+    {
+        $this->stateManager->recordArrival($accountId);
+    }
+
+    /**
      * An Email was really deleted — unlike Email/set destroy, which moves the
      * message to Trash and keeps its id resolvable.
      *
      * The id is passed rather than the entity because the caller has already
      * handed that to remove(): it is about to have none.
      *
-     * Its conversation is announced as updated rather than destroyed even when
-     * it is now empty, because the thread row is deliberately left standing —
-     * so the id a client holds still resolves.
+     * Its conversation is announced as updated. When this was its last message
+     * the thread goes too, and MessageEraser follows this with
+     * threadDestroyed(); a later destroy of the same id is what a client acts on.
      */
     public function emailDestroyed(int $accountId, string $messageId, ?MessageThread $thread): void
     {
@@ -100,6 +119,20 @@ final readonly class MailChangeRecorder
     public function threadsTouched(int $accountId, iterable $threadIds): void
     {
         $this->stateManager->recordThreadsTouched($accountId, $threadIds);
+    }
+
+    /**
+     * A conversation stopped existing: its messages joined another, or it has
+     * none left (ThreadMerger, MessageEraser).
+     *
+     * Either way the row is gone, and a client that keeps an id which no longer
+     * resolves shows a conversation it can never open. After a merge the
+     * messages it held are announced as updated by the caller — their threadId
+     * changed — and so is the conversation they joined.
+     */
+    public function threadDestroyed(int $accountId, int $threadId): void
+    {
+        $this->stateManager->recordDestroyed($accountId, JmapObjectType::Thread, (string) $threadId);
     }
 
     /**

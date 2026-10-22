@@ -5,6 +5,7 @@ namespace App\Controller\Mail;
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Mail\ComposeContext;
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -130,6 +131,7 @@ class ComposeController extends AbstractController
             // reason.
             $message->bodyHtml = $this->window->signatureSeed($account);
 
+            $message->toAddresses = $this->addressedTo();
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $this->assertEditableDraft($message);
@@ -141,6 +143,27 @@ class ComposeController extends AbstractController
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
+    }
+
+    /**
+     * The recipient a link asked for: `?to=` (and `name=`), as the contact
+     * page's email links send. Nothing for an address that is not one — the
+     * link is a URL anybody can type.
+     *
+     * @return list<array{name: ?string, address: string}>|null
+     */
+    private function addressedTo(): ?array
+    {
+        $query = $this->requestStack->getCurrentRequest()?->query;
+        $email = AddressHelper::email((string) $query?->get('to', ''));
+
+        if (false === AddressHelper::isValidEmail($email)) {
+            return null;
+        }
+
+        $name = trim((string) $query?->get('name', ''));
+
+        return [['name' => '' === $name ? null : mb_substr($name, 0, 255), 'address' => $email]];
     }
 
     #[Route('/reply/{id}', name: 'reply', methods: ['GET'])]
@@ -869,19 +892,22 @@ class ComposeController extends AbstractController
         // in the sync layer; MessageEraser is the one path now.
         $this->eraser->erase($message);
 
-        $remaining = $thread?->messages->count() ?? 0;
+        // Before the flush, not after: a draft that was its conversation's only
+        // message takes the thread with it (#299), the flush takes the thread's
+        // id away, and the stream that drops its row is addressed by that id.
+        $threadId = $this->window->rowToDrop(
+            $thread,
+            $messageId,
+            $thread?->messages->count() ?? 0,
+            'drafts' === $request->query->get('scope'),
+        );
 
         $this->em->flush();
 
         return $this->renderTurboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
             'ctx'       => $ctx,
-            'threadId'  => $this->window->rowToDrop(
-                $thread,
-                $messageId,
-                $remaining,
-                'drafts' === $request->query->get('scope'),
-            ),
+            'threadId'  => $threadId,
         ]);
     }
 

@@ -34,11 +34,14 @@ shell's `after_fields` slot, and an include cannot fill a block.
         next to the primary one is how it gets pressed by muscle memory. It says
         what it will do before it does it, and then asks.
 
-        `formaction` rather than a <form> of its own, because this markup sits
-        INSIDE the label form and nested forms are not a thing — the browser
-        drops the inner one and the button silently posts the label edit
-        instead. `formnovalidate` so a cleared Name field cannot block a delete;
-        the fields are irrelevant to a row that is about to be removed.
+        A link into the delete dialog, in this same modal frame, rather than a
+        button that posts. It used to post through `formaction` with the
+        browser's confirm() in front, and a confirm cannot ask where the mail
+        in a folder should go — which, for a label that is a folder on the mail
+        server, has to be asked before the folder can be deleted there (issue
+        #40). A link also sidesteps what `formaction` was there for: this
+        markup sits INSIDE the label form, where a <form> of its own would be
+        dropped by the browser.
         #}
         {% block after_fields %}
             {% if label.id is not null and not label.isSystem %}
@@ -47,16 +50,9 @@ shell's `after_fields` slot, and an include cannot fill a block.
                         {{ 'label.form.delete_hint'|trans }}
                     </p>
 
-                    <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
-
-                    <button
-                        type="submit"
-                        formmethod="post"
-                        formnovalidate
-                        formaction="{{ path('app_label_delete', { id: label.id }) }}"
-                        data-turbo-confirm="{{ label.children|length > 0
-                            ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': label.children|length })
-                            : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}"
+                    <a
+                        href="{{ path('app_label_delete_confirm', { id: label.id }) }}"
+                        data-turbo-frame="modal"
                         class="inline-flex items-center justify-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                            text-danger
                            bg-transparent
@@ -67,7 +63,7 @@ shell's `after_fields` slot, and an include cannot fill a block.
                     >
                         <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
                         {{ 'label.form.delete'|trans }}
-                    </button>
+                    </a>
                 </div>
             {% endif %}
         {% endblock %}

@@ -74,6 +74,7 @@ These are the variables in `.env`, in the order they appear there.
 | `OIDC_SCOPES` | Space-separated scopes asked for. `openid` is always added. | `openid email profile` | No | Without `email`, a first sign-in cannot find the account it belongs to. |
 | `OIDC_AUTO_CREATE` | Whether somebody the provider lets in, and plMail has never seen, gets a new ordinary account. | `false` | No | On, everyone the provider admits to the application gets a mailbox client here — limit who that is at the provider. Off, an administrator creates each account first with the same address. |
 | `OIDC_REQUIRE_VERIFIED_EMAIL` | Link an existing account by address only when the provider says it verified that address. | `true` | No | Only `false`, `0`, `no` or `off` switch it off — blank or a typo leaves it on, so a mistake cannot open it. Off on a provider where people can edit their own address, and anybody can claim any account that has not signed in through the provider yet — administrators included. |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | Make single sign-on the only way in: the login page shows no password form and a password sign-in is refused. | `false` | No | Ignored while no provider is configured, so it cannot lock an install out of a provider that is not there. Only `true`, `1`, `yes` or `on` turn it on; a typo leaves the form. If the provider is down, the console brings the form back: `php bin/console app:sso:allow-password-login` clears what Admin → SSO saved, while this variable has to be changed in your compose file. See [Single sign-on](../providers/oidc.md#making-single-sign-on-the-only-way-in). |
 | `APP_DB_LOG_LEVEL` | Minimum Monolog level kept in the database for the admin log browser. | `warning` | No | The **default** — Admin → Logs can override it without a restart, and does so until it is set back to *from the environment*. Lowering it to `info` or `debug` fills the `log_entry` table quickly; `app:monitoring:prune` keeps 14 days by default, which is a lot of rows at debug. |
 | `APP_CONTAINER_NAME` | Which container a log row and a worker heartbeat are attributed to. | `web` in `.env`; set per service in `compose.yaml` | No | Unset, the heartbeat key falls back to the hostname — which changes every time a container is recreated, so the admin panel accumulates dead workers until the stale sweep reaps them. |
 | `TRUSTED_PROXIES` | Proxies whose `X-Forwarded-*` headers Symfony believes. | `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` | Behind a proxy, yes | Too narrow and Symfony sees the proxy's address and `http`; too wide and a client can forge its own address. Both consequences are spelled out in [Behind a reverse proxy](reverse-proxy.md). |
@@ -86,6 +87,7 @@ These are the variables in `.env`, in the order they appear there.
 | `PUSH_ALLOWED_HOSTS` | Comma-separated hosts a push endpoint may point at although they resolve to a private address. | blank | Only for a LAN ntfy | Every other private, loopback or link-local push endpoint is refused at registration and at send. Running the bundled ntfy on a LAN or Tailscale address, set it to your `SERVER_NAME` or phones stop receiving pushes. See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOW_HTTP` | Whether a user may name a `http://` server for a self-hosted integration. | `false` | No | See [the SSRF guard](#the-ssrf-guard) below. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Comma-separated hosts exempt from the private-range block. | blank | No | See [the SSRF guard](#the-ssrf-guard) below. |
+| `APP_FEEDBACK_TO` | Where **Send feedback** in What's new mails to. The mail leaves through the person's own account; this is only the recipient. | `feedback@pluetzner.de` (also the `app.fallback_feedback_to` parameter, used when the variable is absent) | No | Feedback from the people on this install goes to plMail's developer. Point it at your own address to read it yourself; a typo sends it nowhere, and the person who wrote it gets a bounce in their own mailbox. |
 
 **The failure mode of this table is treating a blank as a missing value.** Four of the blanks
 above are load-bearing: they are blank so that first-run generation happens, and filling one in
@@ -109,7 +111,7 @@ reads them directly when it assembles `DATABASE_URL`.
 | `POSTGRES_PASSWORD` | Database password. | blank — 24 random bytes, hex, generated on first start | Never rotated by `app:reset`: Postgres was initialised with it and keeps its own copy, so a new one locks the app out of the database it just reset. |
 | `POSTGRES_HOST` | Host in the assembled DSN. Read by the entrypoint only. | `database` | Only relevant when running plMail outside this compose file. |
 | `POSTGRES_CHARSET` | `charset` in the assembled DSN. Entrypoint only. | `utf8` | — |
-| `APP_SECRETS_DIR` | Directory `generate-secrets` writes into. | `/app/var/secrets` | Must agree with `APP_SECRETS_FILE`. `truenas.compose.yaml` moves both under one bind mount. |
+| `APP_SECRETS_DIR` | Directory `generate-secrets` writes into. | `/app/var/secrets` | Must agree with `APP_SECRETS_FILE`. The TrueNAS app moves both under one bind mount. |
 | `NTFY_PORT` | Host port for the optional ntfy container. | `8090` | Only used under the `push` profile. |
 | `NTFY_BASE_URL` | Base URL ntfy hands out in push endpoints. | `http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}` | Baked into every endpoint handed out, so changing it later invalidates every existing subscription and every device must re-register. |
 | `NTFY_AUTH_DEFAULT_ACCESS` | ntfy's default access policy. | `read-write` | Open by design — UnifiedPush topics are unguessable and payloads are encrypted to the device — but set it to `deny-all` and create a user if this is exposed to the internet rather than reached over a VPN. |
@@ -213,8 +215,8 @@ environment when it is non-empty:
 | Which file integrations are offered at all | Admin → Integrations |
 | Integration provider base URLs (the SSRF pin above) | Admin → Integrations |
 
-This is the path the [admin page](../features/admin.md) documents, and the one `truenas.compose.yaml`
-points people at, because it shows the exact redirect URI to paste into the provider's console.
+This is the path the [admin page](../features/admin.md) documents, and the recommended one, because
+it shows the exact redirect URI to paste into the provider's console.
 
 **The failure mode is a half-filled row.** A stored value only shadows the environment when it is
 actually set, so a row holding a client id and no secret does not silently disable a working `.env`

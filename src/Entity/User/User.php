@@ -5,6 +5,8 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Contacts\ContactsPaneMode;
+use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
@@ -676,6 +678,44 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * Whether the address book is docked beside the mail, and how wide.
+     *
+     * The settings bag for the calendar pane's reasons: rendered into the first
+     * paint, the same at every desk, no migration. Its own keys rather than a
+     * position of the calendar switch, because from a wide enough screen the
+     * two are docked side by side (see contacts--pane) — one setting cannot
+     * say "both".
+     *
+     * Three positions since #311, the calendar's: closed, beside the mail, and
+     * full width with the mail behind it (ContactsPaneMode). Kept as
+     * SETTING_CONTACTS_PANE_MODE; SETTING_CONTACTS_PANE_OPEN is what it grew
+     * out of, and is still read for somebody who has never moved the switch
+     * since, so their pane opens where they left it.
+     */
+    public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
+    public const string SETTING_CONTACTS_PANE_MODE = 'contacts.pane_mode';
+    public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
+
+    /**
+     * Which position the contacts button skips — SETTING_CALENDAR_SWITCH_SKIP,
+     * for the address book. Absent for the default three-way cycle.
+     */
+    public const string SETTING_CONTACTS_SWITCH_SKIP = 'contacts.switch_skip';
+
+    /**
+     * Matches the clamp in ui--split; the server is what enforces it.
+     *
+     * 368 (23rem), not 320: the narrowest the list's header fits on one line
+     * — the title in full ("Shipmates", the longest of the four) and its five
+     * buttons. At 320 the title ran under the buttons, and both other ways out
+     * (truncating it, wrapping the buttons) read worse than a slightly wider
+     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     */
+    public const int CONTACTS_PANE_MIN_WIDTH = 368;
+    public const int CONTACTS_PANE_MAX_WIDTH = 900;
+    public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
+
+    /**
      * How wide the live preview beside the appearance settings is.
      *
      * The settings bag for the same reason the calendar's width is: rendered
@@ -848,6 +888,74 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    public int $contactsPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_CONTACTS_PANE_WIDTH, self::CONTACTS_PANE_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::CONTACTS_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::CONTACTS_PANE_MIN_WIDTH, min(self::CONTACTS_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. The
+     * old open flag is read when no mode was ever stored, and written null once
+     * one is, so the two cannot disagree later.
+     */
+    public ContactsPaneMode $contactsPaneMode {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_PANE_MODE);
+
+            if (true === is_string($stored) && null !== ContactsPaneMode::tryFrom($stored)) {
+                return ContactsPaneMode::from($stored);
+            }
+
+            return true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false)
+                ? ContactsPaneMode::Split
+                : ContactsPaneMode::Mail;
+        }
+        set (ContactsPaneMode $mode) {
+            $this->setSetting(self::SETTING_CONTACTS_PANE_MODE, $mode->value);
+            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, null);
+        }
+    }
+
+    /**
+     * Whether the address book is on screen, in either position. Opening one
+     * that is already open keeps its position; opening a closed one docks it.
+     */
+    public bool $contactsPaneOpen {
+        get => $this->contactsPaneMode->showsContacts();
+        set (bool $open) {
+            if (false === $open) {
+                $this->contactsPaneMode = ContactsPaneMode::Mail;
+            } elseif (false === $this->contactsPaneMode->showsContacts()) {
+                $this->contactsPaneMode = ContactsPaneMode::Split;
+            }
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_SWITCH_SKIP. */
+    public ContactsSwitchSkip $contactsSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? ContactsSwitchSkip::tryFrom($stored) ?? ContactsSwitchSkip::None
+                : ContactsSwitchSkip::None;
+        }
+        set (ContactsSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CONTACTS_SWITCH_SKIP,
+                ContactsSwitchSkip::None === $skip ? null : $skip->value,
+            );
         }
     }
 
@@ -1087,6 +1195,59 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether remote images load in every message without the "Show images"
+     * bar, as if every sender were on the allowlist (#124).
+     *
+     * OFF unless somebody switches it on. The block is what keeps a sender's
+     * tracking pixel from learning that, when and where a message was opened,
+     * and that protection is worth most to the people who never thought to ask
+     * for it. Somebody who has weighed it and would rather not click every time
+     * can say so once. Only a stored true is on, so the key is absent for
+     * nearly everybody.
+     *
+     * Spam is still blocked with this on — MessageRenderer reads a message in
+     * Spam as the provider disputing who sent it, and no standing permission
+     * outranks that. Images still come through the proxy, so a sender learns
+     * that the message was opened but not the reader's address. Per USER, like
+     * the allowlist it widens — Settings → Mail → Images.
+     */
+    public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
+
+    /** Virtual, out of the settings bag — see SETTING_IMAGES_ALWAYS_SHOW. */
+    public bool $alwaysShowImages {
+        get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether an account's own inbox (the account row in the sidebar) is shown
+     * in the category tabs as well as the unified Inbox (#55).
+     *
+     * OFF unless somebody switches it on. With it on, clicking an account opens
+     * its Primary tab, and its Social or Promotions mail is one more click
+     * away; off, the account page is the account's whole inbox, which is what
+     * it always was and what the account's own "Inbox" folder row still lists.
+     * Turning a familiar page into a narrower one is a change somebody should
+     * ask for, not one that arrives with an upgrade.
+     *
+     * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
+     * somebody who chose One list gets one list everywhere, whatever this says.
+     * Only a stored true is on, so the key is absent for nearly everybody.
+     * Per USER — Settings → Mail → Categories.
+     */
+    public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
+
+    /** Virtual, out of the settings bag — see SETTING_ACCOUNT_INBOX_TABS. */
+    public bool $accountInboxTabs {
+        get => true === $this->getSetting(self::SETTING_ACCOUNT_INBOX_TABS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_ACCOUNT_INBOX_TABS, $on ? true : null);
+        }
+    }
+
+    /**
      * Which position the topbar's calendar button leaves out — Settings →
      * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
      * is what the button has always done, and a person who has learned it
@@ -1118,6 +1279,48 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
                 self::SETTING_CALENDAR_SWITCH_SKIP,
                 CalendarSwitchSkip::None === $skip ? null : $skip->value,
             );
+        }
+    }
+
+    /**
+     * The last plMail release this person was shown What's new for, as
+     * `0.3.6` (#165).
+     *
+     * State, not a choice: WhatsNew writes it when the dialog is drawn, and
+     * nobody sets it by hand. Everybody who existed when the dialog shipped
+     * was given 0.3.1 by Version20261016090000; anybody created since gets the
+     * running release on their first request (WhatsNewFirstSighting), which
+     * is what keeps the dialog off a fresh install.
+     */
+    public const string SETTING_WHATS_NEW_SEEN = 'whats_new.seen_version';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_SEEN. */
+    public ?string $whatsNewSeenVersion {
+        get {
+            $stored = $this->getSetting(self::SETTING_WHATS_NEW_SEEN);
+
+            return true === is_string($stored) && 1 === preg_match('/^\d+\.\d+\.\d+$/', $stored) ? $stored : null;
+        }
+        set (?string $version) {
+            $this->setSetting(self::SETTING_WHATS_NEW_SEEN, $version);
+        }
+    }
+
+    /**
+     * "Don't show this after updates", from the What's new dialog's footer, and
+     * its way back under Settings → General (#165).
+     *
+     * Quiet means quiet: the dialog does not open by itself and the ? in the
+     * top bar shows no dot. What's new is still in that menu for someone who
+     * goes looking. Off unless somebody asks, so only a stored true is on.
+     */
+    public const string SETTING_WHATS_NEW_QUIET = 'whats_new.quiet';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_QUIET. */
+    public bool $whatsNewQuiet {
+        get => true === $this->getSetting(self::SETTING_WHATS_NEW_QUIET, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_WHATS_NEW_QUIET, $on ? true : null);
         }
     }
 

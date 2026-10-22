@@ -353,3 +353,34 @@ test.describe("from a label", () => {
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(1);
     });
 });
+
+test.describe("out of spam", () => {
+    test("Not spam in the reading pane puts the conversation back in the Inbox", async ({ page }) => {
+        // Into Spam through the feature itself, as the bin tests above do.
+        await page.goto("/mail/inbox");
+        await select(mailRow(page, INBOX_SUBJECTS.trash));
+        await moveTo(listToolbar(page), "Spam");
+        await expect(mailRow(page, INBOX_SUBJECTS.trash)).toHaveCount(0);
+
+        // Not offered on mail that is not in Spam.
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).locator("a").first().click();
+        await expect(page.locator("div.mail-sheet")).toBeVisible();
+        await expect(page.locator("div.mail-sheet [data-not-spam]")).toHaveCount(0);
+
+        await page.goto("/mail/spam");
+        await mailRow(page, INBOX_SUBJECTS.trash).locator("a").first().click();
+
+        const sheet = page.locator("div.mail-sheet");
+        await expect(sheet).toBeVisible();
+
+        await sheet.getByRole("button", { name: "Not spam" }).click();
+
+        await expect(toast(page, "Moved to Inbox")).toBeVisible();
+        await expect(sheet).toBeHidden();
+        await expect(mailRow(page, INBOX_SUBJECTS.trash)).toHaveCount(0);
+
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.trash)).toHaveCount(1);
+    });
+});

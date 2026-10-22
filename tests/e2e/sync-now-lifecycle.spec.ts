@@ -20,7 +20,8 @@ import { test, expect, type Page } from "./support/test";
  */
 test.use({ viewport: { width: 1280, height: 800 } });
 
-const BUTTON = '[data-controller~="mail--sync-now"]';
+// The bar's button; the user menu holds a second one for phones.
+const BUTTON = '[data-sync-now-bar]';
 const ICON = `${BUTTON} [data-mail--sync-now-target="icon"]`;
 const POLL_MS = 1500;
 

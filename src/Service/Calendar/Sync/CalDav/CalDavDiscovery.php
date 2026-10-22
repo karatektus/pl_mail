@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sync\CalDav;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Integration\Integration;
+use App\Service\Integration\Driver\NextcloudDriver;
 use Psr\Log\LoggerInterface;
 
 /**
- * Finding the calendars behind an address a person typed.
+ * Finding the calendars — or the address books — behind an address a person
+ * typed.
  *
  * CalDAV's own bootstrap, RFC 6764: ask `/.well-known/caldav` on the domain,
  * follow where it points, PROPFIND for `current-user-principal`, PROPFIND that
@@ -19,6 +22,11 @@ use Psr\Log\LoggerInterface;
  * six lines inside discover() — the connect form calls it to tell a user
  * whether their address works at all, and it is the one part of this driver a
  * person will meet directly when it fails.
+ *
+ * CardDAV is the same ladder with different nouns — `/.well-known/carddav`,
+ * `addressbook-home-set`, an `addressbook` resourcetype — so the nouns come
+ * from DavService and the ladder is written once. Calendars are the default,
+ * which is what every caller that predates address books still gets.
  *
  * A service rather than a method for a second reason: **what people paste is
  * usually not a domain.** Every other client shows a "CalDAV URL" somewhere,
@@ -42,9 +50,6 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class CalDavDiscovery
 {
-    /** RFC 6764 §6: the well-known URI a CalDAV service is advertised at. */
-    private const string WELL_KNOWN = '/.well-known/caldav';
-
     /**
      * How many redirects the bootstrap follows.
      *
@@ -54,24 +59,6 @@ final readonly class CalDavDiscovery
      * request, so the loop is bounded rather than trusted.
      */
     private const int MAX_HOPS = 3;
-
-    /**
-     * What every probe asks for. resourcetype answers "is this itself a
-     * calendar", and the other two are the two rungs of the bootstrap — asked
-     * together because a server that can answer both saves a round trip, and
-     * most can.
-     */
-    private const string PROBE_BODY = <<<'XML'
-        <?xml version="1.0" encoding="utf-8"?>
-        <d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
-          <d:prop>
-            <d:resourcetype/>
-            <d:displayname/>
-            <d:current-user-principal/>
-            <cal:calendar-home-set/>
-          </d:prop>
-        </d:propfind>
-        XML;
 
     /**
      * Statuses that mean "there is nothing here", as opposed to "you may not".
@@ -94,26 +81,40 @@ final readonly class CalDavDiscovery
     }
 
     /**
-     * Where this connection's calendars live.
+     * Where this connection's calendars, or address books, live.
      *
      * @throws CalendarSyncException
      */
-    public function endpointFor(Integration $integration): CalDavEndpoint
+    public function endpointFor(Integration $integration, DavService $service = DavService::Calendar): CalDavEndpoint
     {
         $base = $this->client->baseUrl($integration);
 
-        // The address as given, first — see the class docblock. Skipped when it
-        // is a bare origin, because probing "https://example.com/" and then
-        // probing its .well-known is the same server twice for the first half.
-        if (true === $this->hasPath($base)) {
-            $endpoint = $this->probe($integration, $base);
+        // A Nextcloud connection's address is the web interface, not a DAV
+        // URL, so the address as given would only answer with a login page.
+        // Nextcloud always serves DAV at the same path under it — subfolder
+        // installs included, which is why it is appended to the base rather
+        // than to the origin — and starting there skips .well-known, the
+        // redirect Nextcloud's own setup check warns about when a reverse
+        // proxy does not forward it.
+        if (Provider::Nextcloud === $integration->provider) {
+            $endpoint = $this->probe($integration, $service, $base . NextcloudDriver::DAV_ROOT);
+
+            if (null !== $endpoint) {
+                return $endpoint;
+            }
+        } elseif (true === $this->hasPath($base)) {
+            // The address as given, first — see the class docblock. Skipped
+            // when it is a bare origin, because probing "https://example.com/"
+            // and then probing its .well-known is the same server twice for the
+            // first half.
+            $endpoint = $this->probe($integration, $service, $base);
 
             if (null !== $endpoint) {
                 return $endpoint;
             }
         }
 
-        $endpoint = $this->probe($integration, $this->client->origin($base) . self::WELL_KNOWN);
+        $endpoint = $this->probe($integration, $service, $this->client->origin($base) . $service->wellKnown());
 
         if (null !== $endpoint) {
             return $endpoint;
@@ -122,17 +123,15 @@ final readonly class CalDavDiscovery
         // Last: the origin itself. A server that neither serves .well-known nor
         // was given a usable path can still answer the bootstrap at its root,
         // and this is one request rather than a support ticket.
-        $endpoint = $this->probe($integration, $this->client->origin($base));
+        $endpoint = $this->probe($integration, $service, $this->client->origin($base));
 
         if (null !== $endpoint) {
             return $endpoint;
         }
 
-        throw new CalendarSyncPermanentException(sprintf(
-            'No calendar service answered at %s. Enter the CalDAV address your server shows you — often something like %s/remote.php/dav — rather than the address of its web interface.',
-            $base,
-            $this->client->origin($base),
-        ));
+        throw new CalendarSyncPermanentException(
+            $service->notFoundMessage($base, $this->client->origin($base)),
+        );
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -146,7 +145,7 @@ final readonly class CalDavDiscovery
      *
      * @throws CalendarSyncException
      */
-    private function probe(Integration $integration, string $url, int $hops = 0): ?CalDavEndpoint
+    private function probe(Integration $integration, DavService $service, string $url, int $hops = 0): ?CalDavEndpoint
     {
         if ($hops > self::MAX_HOPS) {
             return null;
@@ -157,37 +156,37 @@ final readonly class CalDavDiscovery
                 'Depth'        => '0',
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
-            'body' => self::PROBE_BODY,
-        ], [301, 302, 303, 307, 308, ...self::NOT_HERE]);
+            'body' => $service->probeBody(),
+        ], [301, 302, 303, 307, 308, ...self::NOT_HERE], $service);
 
         $redirect = $this->client->redirectTarget($response, $url);
 
         if (null !== $redirect) {
-            return $this->probe($integration, $redirect, $hops + 1);
+            return $this->probe($integration, $service, $redirect, $hops + 1);
         }
 
         if (true === in_array($response['status'], self::NOT_HERE, true)) {
             return null;
         }
 
-        return $this->readEndpoint($integration, $response['body'], $url);
+        return $this->readEndpoint($integration, $service, $response['body'], $url);
     }
 
     /**
      * @throws CalendarSyncException
      */
-    private function readEndpoint(Integration $integration, string $body, string $url): ?CalDavEndpoint
+    private function readEndpoint(Integration $integration, DavService $service, string $body, string $url): ?CalDavEndpoint
     {
         foreach ($this->parser->parse($body) as $resource) {
             // A pasted calendar URL. Answered before the home, because a
             // calendar collection inside somebody's home also carries a
             // calendar-home-set on several servers — and the user pointed at
             // this calendar, not at everything they own.
-            if (true === $resource->isCalendarCollection()) {
+            if (true === $service->isCollection($resource)) {
                 return CalDavEndpoint::collection($this->client->absolutise($resource->href, $url));
             }
 
-            $home = $resource->href('calendar-home-set');
+            $home = $resource->href($service->homeProperty());
 
             if (null !== $home) {
                 return CalDavEndpoint::home(
@@ -206,39 +205,39 @@ final readonly class CalDavDiscovery
                 continue;
             }
 
-            $home = $this->homeOf($integration, $principal);
+            $home = $this->homeOf($integration, $service, $principal);
 
             if (null !== $home) {
                 return CalDavEndpoint::home($home, $principal);
             }
         }
 
-        $this->logger->info('CalDav: no principal or calendar home in the response', ['url' => $url]);
+        $this->logger->info('CalDav: no principal or home collection in the response', ['url' => $url, 'service' => $service->name]);
 
         return null;
     }
 
     /**
-     * The calendar-home-set on a principal.
+     * The calendar-home-set (or addressbook-home-set) on a principal.
      *
      * @throws CalendarSyncException
      */
-    private function homeOf(Integration $integration, string $principal): ?string
+    private function homeOf(Integration $integration, DavService $service, string $principal): ?string
     {
         $response = $this->client->request($integration, 'PROPFIND', $principal, [
             'headers' => [
                 'Depth'        => '0',
                 'Content-Type' => 'application/xml; charset=utf-8',
             ],
-            'body' => self::PROBE_BODY,
-        ], self::NOT_HERE);
+            'body' => $service->probeBody(),
+        ], self::NOT_HERE, $service);
 
         if (true === in_array($response['status'], self::NOT_HERE, true)) {
             return null;
         }
 
         foreach ($this->parser->parse($response['body']) as $resource) {
-            $home = $resource->href('calendar-home-set');
+            $home = $resource->href($service->homeProperty());
 
             if (null !== $home) {
                 return $this->client->absolutise($home, $principal);

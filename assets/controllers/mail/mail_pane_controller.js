@@ -246,6 +246,28 @@ export default class extends Controller {
             this._showList();
         };
         document.addEventListener("turbo:frame-load", this._onListSwap);
+        // Turbo swaps the frame's contents and keeps the frame element, with
+        // its data attributes, from the page before. Those name the list — what
+        // a sync refreshes and what a row's buttons tell the server they were
+        // pressed in (list_view.js) — so the incoming list's values are copied
+        // across before it renders, or All Mail would go on describing itself
+        // as whatever was open before it.
+        this._onListRendering = (event) => {
+            if (LIST_FRAME_ID === event.target.id) {
+                this._copyListContext(event.target, event.detail.newFrame);
+            }
+        };
+        document.addEventListener("turbo:before-frame-render", this._onListRendering);
+
+        // A message link from outside this pane — the contacts pane's
+        // "Reference emails" — asks for it here, because a Stimulus action
+        // only reaches controllers around the element clicked. Cancelling the
+        // event tells the link this pane took it (see mail--open-in-pane).
+        this._onOpenRequest = (event) => {
+            event.preventDefault();
+            this._openUrl(event.detail.url);
+        };
+        document.addEventListener("mail-pane:open", this._onOpenRequest);
 
         // A refresh that came due while the tab was in the background is held
         // rather than dropped, and taken the moment it is looked at again.
@@ -301,6 +323,8 @@ export default class extends Controller {
         document.removeEventListener("reading-split:layout", this._onSplitLayout);
         this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
+        document.removeEventListener("turbo:before-frame-render", this._onListRendering);
+        document.removeEventListener("mail-pane:open", this._onOpenRequest);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
         // A trailing refresh outlives this controller otherwise: Turbo replaces
@@ -365,17 +389,51 @@ export default class extends Controller {
     async open(event) {
         event.preventDefault();
 
-        const link = event.currentTarget;
-        const url = link.href;
+        await this._openUrl(event.currentTarget.href);
+    }
 
-        // Remember where to go back to, if we don't already know.
-        if (!this._listUrl) {
+    async _openUrl(url) {
+        const fromContacts = this._contactsFull();
+
+        // Remember where to go back to, if we don't already know. Not the full
+        // contacts page's own address: closing a message opened from it shows
+        // the Inbox, in the mail column the message brought in.
+        if (fromContacts) {
+            this._listUrl = this.inboxUrlValue;
+        } else if (!this._listUrl) {
             this._listUrl = window.location.href;
         }
 
         await this._loadMessage(url);
 
         history.pushState({ mailPaneOpen: true }, "", url);
+
+        // Loaded while the column was still put away, so it arrives filled.
+        if (fromContacts) {
+            await this._revealFromContacts();
+            this._fillBesideList();
+        }
+    }
+
+    /**
+     * Whether this is the full contacts page, with the mail column put away
+     * (contacts/_page_shell.html.twig).
+     */
+    _contactsFull() {
+        return null !== document.querySelector("[data-contacts-full]");
+    }
+
+    /**
+     * Asks contacts--pane to bring the mail column in beside the address book,
+     * and waits until it is in the DOM — the transition itself may still be
+     * running. The shell owns that state, so it is asked rather than told;
+     * nobody answering is a page without one, where there is nothing to wait for.
+     */
+    async _revealFromContacts() {
+        const request = new CustomEvent("contacts-pane:reveal", { detail: { done: null } });
+        document.dispatchEvent(request);
+
+        await request.detail.done;
     }
 
     close(event) {
@@ -403,6 +461,13 @@ export default class extends Controller {
 
     async _handlePopState(event) {
         const state = event.state;
+
+        // Back to the full contacts page a message was opened from. That entry
+        // is Turbo's, and Turbo restores the page; a list fetched here for its
+        // address would be a contacts page, not a list.
+        if (false === window.location.pathname.startsWith("/mail")) {
+            return;
+        }
 
         if (state && state.mailPaneOpen) {
             await this._loadMessage(window.location.href);
@@ -483,7 +548,8 @@ export default class extends Controller {
      * widened after the page loaded is the same situation arriving late.
      */
     _fillBesideList() {
-        if (false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
+        // Nothing is beside anything while the contacts have the row.
+        if (this._contactsFull() || false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
             return;
         }
 
@@ -723,10 +789,10 @@ export default class extends Controller {
         // attribute's own note in _layout/_mailbox.html.twig.
         const scope =
             document.getElementById(LIST_FRAME_ID)?.dataset.syncScope || "*";
-        // Unread gathers mail from every folder, so a sync of any of them can
-        // change it — the same answer "*" gives. Without this, new mail put the
-        // badge up and left the list beside it as it was.
-        if (scope === "*" || scope === "unread") {
+        // Unread and All Mail gather mail from every folder, so a sync of any
+        // of them can change them — the same answer "*" gives. Without this,
+        // new mail put the badge up and left the list beside it as it was.
+        if (scope === "*" || scope === "unread" || scope === "all_mail") {
             return true;
         }
 
@@ -772,6 +838,13 @@ export default class extends Controller {
         if (frame === null) {
             console.warn("[mail-pane] no list frame to refresh");
 
+            return;
+        }
+
+        // The full contacts page: no list on screen, and its address would
+        // answer with a contacts page. The list is fetched when the mail
+        // column comes in.
+        if (this._contactsFull()) {
             return;
         }
 
@@ -882,7 +955,7 @@ export default class extends Controller {
             // Carried over with the content: the response says whether it
             // actually rendered a list, and _listNeedsRendering() reads it back
             // off the live frame on the next Back.
-            frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
+            this._copyListContext(frame, fresh);
         } catch (error) {
             // A failed refresh is not worth surfacing: the next sync event, or
             // the next navigation, redraws it anyway.
@@ -898,6 +971,21 @@ export default class extends Controller {
                 this._refreshList(again);
             }
         }
+    }
+
+    /**
+     * What the frame element says about the list it holds, taken from the
+     * list that has just arrived: whether it rendered one (read back by
+     * _listNeedsRendering() on the next Back), what a sync refreshes it for,
+     * and the value that narrows its scope (list_view.js).
+     *
+     * @param {Element} frame  the live frame
+     * @param {Element} fresh  the frame as the server has just rendered it
+     */
+    _copyListContext(frame, fresh) {
+        frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
+        frame.dataset.syncScope = fresh.dataset.syncScope ?? "*";
+        frame.dataset.listScopeValue = fresh.dataset.listScopeValue ?? "";
     }
 
     /**

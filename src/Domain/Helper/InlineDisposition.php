@@ -116,6 +116,65 @@ final class InlineDisposition
         return '' === $clean ? $default : $clean;
     }
 
+    /**
+     * Did the sender decline to say what this is?
+     *
+     * S3 hands back `application/octet-stream` for any object uploaded without
+     * a content type, and a great deal of the web's images live in exactly
+     * that state. Amazon's return-label QR codes are one: a real 8KB PNG,
+     * served unlabelled, refused by the image proxy for years while the reader
+     * saw a blank space where their barcode should be.
+     *
+     * Mail does the same to inline parts: `application/octet-stream` is common,
+     * and so is `image/octet-stream`, which is not a registered type at all —
+     * Vaultwarden's notification mails put it on their logo. Neither is on the
+     * list above, so those images were served as downloads and an `<img>`
+     * could not show them.
+     *
+     * Treated as "unknown", not as "not an image" — the difference between the
+     * two is the whole bug. For these labels, and only these, the bytes decide;
+     * see sniff().
+     */
+    public static function isUnlabelled(?string $contentType): bool
+    {
+        return in_array(self::normalise($contentType), [
+            '',
+            'application/octet-stream',
+            'binary/octet-stream',
+            'image/octet-stream',
+        ], true);
+    }
+
+    /**
+     * What the bytes actually are, when that is a type on the list above;
+     * null for anything else.
+     *
+     * This is not trusting the sender — the declared type is discarded and the
+     * content is identified from its own magic bytes, then held to the same
+     * allow-list, which excludes SVG. SVG matters here: it is the one image
+     * format that can carry script, and serving one inline would be serving
+     * script from our own origin. So an unlabelled part can only ever come out
+     * as one of a fixed set of raster types, whatever the sender wrote.
+     * The start of the content is enough; there is no need to pass a whole
+     * attachment.
+     */
+    public static function sniff(string $bytes): ?string
+    {
+        if ('' === $bytes) {
+            return null;
+        }
+
+        $sniffed = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+
+        if (false === $sniffed) {
+            return null;
+        }
+
+        $sniffed = self::normalise($sniffed);
+
+        return true === self::allows($sniffed) ? $sniffed : null;
+    }
+
     /** The bare type, lowercased, with any parameters and padding removed. */
     public static function normalise(?string $contentType): string
     {

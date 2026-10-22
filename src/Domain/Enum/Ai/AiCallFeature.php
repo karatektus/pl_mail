@@ -39,6 +39,9 @@ enum AiCallFeature: string
     /** Summarising one conversation, on request. ThreadSummariser. */
     case ThreadSummary = 'thread_summary';
 
+    /** Contact details from text, or suggestions for a contact. ContactAssistant. */
+    case ContactHelp = 'contact_help';
+
     /** Which capability gate this workload sits behind. */
     public function gate(): AiFeature
     {
@@ -48,6 +51,7 @@ enum AiCallFeature: string
             self::Categorise    => AiFeature::Categorise,
             self::WritingHelp   => AiFeature::WritingHelp,
             self::ThreadSummary => AiFeature::Summary,
+            self::ContactHelp   => AiFeature::ContactHelp,
         };
     }
 
@@ -65,6 +69,7 @@ enum AiCallFeature: string
             AiFeature::Categorise  => self::Categorise,
             AiFeature::WritingHelp => self::WritingHelp,
             AiFeature::Summary     => self::ThreadSummary,
+            AiFeature::ContactHelp => self::ContactHelp,
             AiFeature::Search      => self::SearchQuery,
         };
     }

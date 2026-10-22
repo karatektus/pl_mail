@@ -18,6 +18,7 @@ use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * What a JMAP client may rewrite, and on what.
@@ -139,9 +140,8 @@ final class EmailPatchApplierTest extends KernelTestCase
     // ── Keywords still work ───────────────────────────────────────────────
 
     /**
-     * Read state is carried by seenAt, not by the SEEN flag — note this path
-     * differs from the web UI's, which sets both. Asserted on seenAt because
-     * that is what this code actually contracts to change.
+     * Read state is carried by seenAt and the SEEN flag together, the same as
+     * in the web UI, because both now go through ThreadStatusUpdater.
      */
     public function testSeenKeywordTogglesReadState(): void
     {
@@ -149,9 +149,72 @@ final class EmailPatchApplierTest extends KernelTestCase
 
         $this->applier->apply($this->account, $message, ['keywords/$seen' => true]);
         self::assertNotNull($message->seenAt);
+        self::assertTrue($message->hasFlag(MessageFlag::SEEN));
 
         $this->applier->apply($this->account, $message, ['keywords/$seen' => null]);
         self::assertNull($message->seenAt);
+        self::assertFalse($message->hasFlag(MessageFlag::SEEN));
+    }
+
+    /**
+     * The regression. The web list draws a conversation in bold from
+     * MessageThread::$unreadCount, and $seen used to write seenAt and leave
+     * the counter alone: read on the phone stayed bold in the browser, unread
+     * on the phone stayed plain.
+     */
+    public function testSeenKeywordMovesTheThreadUnreadCountBothWays(): void
+    {
+        $thread  = $this->thread(messages: 1);
+        $message = $thread->messages->first();
+
+        self::assertInstanceOf(Message::class, $message);
+
+        $this->applier->apply($this->account, $message, ['keywords/$seen' => true]);
+        self::assertSame(0, $thread->unreadCount, 'read over JMAP, still bold on the web');
+
+        $this->applier->apply($this->account, $message, ['keywords/$seen' => null]);
+        self::assertSame(1, $thread->unreadCount, 'unread over JMAP, still plain on the web');
+    }
+
+    /**
+     * Counted from the whole conversation, not from the one message the patch
+     * names: marking one of three unread messages read leaves two.
+     */
+    public function testSeenKeywordOnOneMessageCountsTheRestOfTheThread(): void
+    {
+        $thread   = $this->thread(messages: 3);
+        $messages = $thread->messages->toArray();
+
+        $this->applier->apply($this->account, $messages[0], ['keywords/$seen' => true]);
+        self::assertSame(2, $thread->unreadCount);
+
+        $this->applier->apply($this->account, $messages[1], ['keywords' => ['$seen' => true, '$flagged' => true]]);
+        self::assertSame(1, $thread->unreadCount);
+        self::assertNotNull($messages[1]->starredAt, '$flagged in the same patch still applies');
+
+        $this->applier->apply($this->account, $messages[0], ['keywords/$seen' => false]);
+        self::assertSame(2, $thread->unreadCount);
+    }
+
+    /**
+     * The provider is told once. The read now goes through ThreadStatusUpdater,
+     * which calls the propagator itself; calling it here as well would queue
+     * every read twice.
+     */
+    public function testSeenKeywordIsPropagatedOnce(): void
+    {
+        $thread  = $this->thread(messages: 1);
+        $message = $thread->messages->first();
+
+        self::assertInstanceOf(Message::class, $message);
+
+        $transport = self::getContainer()->get('messenger.transport.export');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $this->applier->apply($this->account, $message, ['keywords/$seen' => true]);
+
+        self::assertCount(1, $transport->getSent());
     }
 
     public function testFlaggedKeywordTogglesStarred(): void
@@ -227,6 +290,42 @@ final class EmailPatchApplierTest extends KernelTestCase
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * A conversation of unread messages whose counter agrees with them. A
+     * mailbox and a UID on each, because LabelChangePropagator skips messages
+     * that have neither.
+     */
+    private function thread(int $messages): MessageThread
+    {
+        $thread = new MessageThread();
+        $thread->account = $this->account;
+        $thread->subject = 'Read fixture';
+        $thread->normalizedSubject = 'read fixture';
+        $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
+        $thread->threadingMethod = ThreadingMethod::References;
+        $thread->unreadCount = $messages;
+        $this->em->persist($thread);
+
+        for ($i = 0; $i < $messages; $i++) {
+            $message = new Message();
+            $message->account = $this->account;
+            $message->subject = sprintf('Read fixture %d', $i);
+            $message->fromAddress = 'sender@example.test';
+            $message->receivedAt = new \DateTimeImmutable('-1 hour');
+            $message->hasAttachments = false;
+            $message->messageId = sprintf('<read-%s-%d@example.test>', uniqid('', true), $i);
+            $message->mailbox = $this->mailbox;
+            $message->imapUid = 3000 + $i;
+
+            $thread->addMessage($message);
+            $this->em->persist($message);
+        }
+
+        $this->em->flush();
+
+        return $thread;
+    }
 
     private function message(bool $draft): Message
     {

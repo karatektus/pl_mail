@@ -31,6 +31,10 @@ Everything under **Settings** that this enables is described in
 3. Enable the **Google Calendar API** on the same project if you want calendars. This is the step
    the admin screen means when it says there is nothing to set up on the plMail side — calendar
    access is bought entirely in this console.
+4. Enable the **Google People API** too if you want contacts. It is the same kind of step for the
+   address book: without it, mail and calendars work, and each user's Google address book in
+   **Settings → Contacts** says that the administrator needs to enable the People API. Once it is
+   enabled, contacts sync on their own; nobody has to sign in again.
 
 Note your **project ID** while you are here. It is lower-case and may differ from the display name
 you typed; the Pub/Sub topic below is named with the ID, not the name.
@@ -79,12 +83,13 @@ it, because that combination looks configured and fails at the consent screen.
 
 ## The scopes, and what each one is for
 
-plMail asks for these four at consent time, for every Gmail account:
+plMail asks for these five at consent time, for every Gmail account:
 
 | Scope | What it is for |
 |---|---|
 | `https://mail.google.com/` | The mailbox itself: reading messages, sending, applying and removing labels, moving and deleting. This is full mailbox access, and it is what a mail client is. |
 | `https://www.googleapis.com/auth/calendar` | Calendars on the same account, read **and** write. |
+| `https://www.googleapis.com/auth/contacts` | Contacts on the same account, read **and** write, through the People API. |
 | `openid` | Identifies the account the token belongs to. |
 | `email` | Supplies the address, which is what plMail names the account after. |
 
@@ -113,6 +118,25 @@ back with mail access and no calendar access. plMail does not try to detect that
 finds out when a calendar call is refused, and says so in the calendar settings — *"Google's consent
 screen lets you untick calendar access while allowing mail. Reconnect the account and leave the
 calendar box ticked."*
+
+### Contacts are on the same sign-in too
+
+The contacts scope rides the same grant, for the same reasons. A Google account connected to plMail
+brings its contacts with it: its address book appears under **Contacts** beside plMail's own, with
+Google's contact groups as tags, and an edit made in plMail is written back — names, phonetic names,
+organisation, birthday and other dates, relations, websites, chat and SIP addresses, custom fields
+and the photo, as well as addresses and numbers — and from Google to the phones that sync with it.
+Only the fields plMail shows are sent, so what Google holds beyond them (occupations, interests, an
+organisation's symbol) is left as it is. See [Contacts](../features/contacts.md).
+
+An account connected **before** plMail asked for contacts holds a grant without the scope. Nothing
+is wrong with it: mail and calendars carry on, and **Settings → Account health** shows a notice, *Connect
+… again to sync its contacts*, whose button signs in once more and adds the permission. Its address
+book appears as soon as that is done.
+
+Google classes the contacts scope as **sensitive**. That is a lighter class than the mail scope's
+*restricted*, which an installation already has to live with (see below), so it changes nothing
+about verification.
 
 ### What "restricted scope" verification means here
 
@@ -274,7 +298,8 @@ from* with no calendars on it. Reconnect and leave the box ticked.
 
 **Enabling the Calendar API is not the same as adding the calendar scope**, and doing one without
 the other fails in two different ways: the scope without the API is a 403 on every calendar call,
-and the API without the scope is a token that was never granted calendar access.
+and the API without the scope is a token that was never granted calendar access. The same goes for
+the People API and the contacts scope.
 
 **Domain verification is per Cloud project, not per Google account.** Verifying the domain in Search
 Console is only the first half; it also has to be added under **Domain verification** in the same

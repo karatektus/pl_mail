@@ -11,6 +11,7 @@ use App\Domain\Exception\AvatarRefusedException;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AvatarStorage;
 use App\Domain\Interface\IntegrationDriverInterface;
+use App\Domain\Interface\OriginalFileDriverInterface;
 use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationRepository;
@@ -79,6 +80,28 @@ final class AvatarFromIntegrationTest extends TestCase
         self::assertNull($user->avatar);
     }
 
+    /**
+     * Paperless lists a scanned photograph as image/jpeg and serves the archived
+     * PDF it made from it. A picture taken from it has to be the photograph, so
+     * a driver that keeps the original apart is asked for that one — the
+     * rendition would be refused as "not an image" every time.
+     */
+    public function testADriverThatKeepsAnOriginalIsAskedForIt(): void
+    {
+        $user = new User();
+        $driver = new OriginalKeepingDriver(
+            rendition: new RemoteFile('scan.pdf', 'application/pdf', "%PDF-1.7
+"),
+            original: new RemoteFile('scan.png', 'image/png', self::PNG),
+        );
+
+        $this->pickerFor($driver)->apply($user, $this->integration(), 'f1');
+
+        self::assertNotNull($user->avatar);
+        self::assertStringEndsWith('.png', $user->avatar);
+        self::assertSame(['downloadOriginal'], $driver->calls);
+    }
+
     public function testADownloadThatFailsIsRefusedRatherThanThrown(): void
     {
         $this->expectExceptionObject(new AvatarRefusedException(AvatarRefusedException::UNAVAILABLE));
@@ -128,6 +151,11 @@ final class AvatarFromIntegrationTest extends TestCase
             }
         };
 
+        return $this->pickerFor($driver);
+    }
+
+    private function pickerFor(IntegrationDriverInterface $driver): AvatarFromIntegration
+    {
         return new AvatarFromIntegration(
             $this->createStub(IntegrationRepository::class),
             new IntegrationDriverRegistry([$driver]),
@@ -139,5 +167,64 @@ final class AvatarFromIntegrationTest extends TestCase
     private function integration(): Integration
     {
         return new Integration(new User(), Provider::Nextcloud, 'Nextcloud');
+    }
+}
+
+/**
+ * A service whose download() is a rendition and whose original is a different
+ * file, recording which one it was asked for.
+ */
+final class OriginalKeepingDriver implements IntegrationDriverInterface, OriginalFileDriverInterface
+{
+    /** @var list<string> */
+    public array $calls = [];
+
+    public function __construct(
+        private readonly RemoteFile $rendition,
+        private readonly RemoteFile $original,
+    ) {
+    }
+
+    public function supports(Provider $provider): bool
+    {
+        return true;
+    }
+
+    public function verify(Integration $integration): void
+    {
+    }
+
+    public function list(Integration $integration, ?string $folderId = null, ?string $cursor = null): Listing
+    {
+        return new Listing([]);
+    }
+
+    public function download(Integration $integration, string $fileId): RemoteFile
+    {
+        $this->calls[] = 'download';
+
+        return $this->rendition;
+    }
+
+    public function downloadOriginal(Integration $integration, string $fileId): RemoteFile
+    {
+        $this->calls[] = 'downloadOriginal';
+
+        return $this->original;
+    }
+
+    public function upload(Integration $integration, string $absolutePath, string $filename, string $mime, ?string $folderId = null): string
+    {
+        return 'unused';
+    }
+
+    public function shareLink(Integration $integration, string $fileId): ?string
+    {
+        return null;
+    }
+
+    public function thumbnail(Integration $integration, string $fileId): ?RemoteFile
+    {
+        return null;
     }
 }

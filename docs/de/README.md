@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:0672ad1ba0164a9c746efbc168be740b1de378b1 -->
+<!-- translated-from: README.md sha1:2b4822814b48a42b23e2129e94c51d2eac8d6548 -->
 
 # plMail-Dokumentation
 
@@ -37,6 +37,7 @@ wo der Mechanismus dahinter steht.
 | [Erinnerungen](features/calendar-alerts.md) | Erinnerungen setzen, wie sie zugestellt werden, was eine frische Installation braucht, damit sie ankommen |
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
+| [Kontakte](features/contacts.md) | Das Adressbuch: eigene und synchronisierte Kontakte nebeneinander, Bearbeiten, Duplikate und Zusammenführen, vCard- und CSV-Import und -Export |
 | [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich und Paperless-ngx |
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
@@ -67,6 +68,7 @@ Jede Seite nennt die genaue Konsole, die genauen Häkchen und die genauen Redire
 | [Microsoft](providers/microsoft.md) | App-Registrierung in Azure, Redirect-URIs, delegierte Berechtigungen, Wahl des Tenants, Graph-Abonnements |
 | [IMAP und SMTP](providers/imap-smtp.md) | Gewöhnliche Postfächer, IDLE, und die Einstellungen, über die sich die Server uneinig sind |
 | [CalDAV](providers/caldav.md) | Discovery, App-Passwörter, und die Server, die getestet wurden |
+| [CardDAV](providers/carddav.md) | Adressbücher von Nextcloud und anderen Servern: Vorschläge beim Schreiben, Bearbeiten, und Synchronisation in beide Richtungen |
 | [ICS-Feeds](providers/ics-feeds.md) | Einen veröffentlichten Kalender per URL abonnieren, und warum manche Adressen abgelehnt werden |
 | [Single Sign-on](providers/oidc.md) | Anmeldung bei plMail über Authentik, Keycloak oder einen anderen OpenID-Connect-Anbieter: Einrichtung, Verknüpfung von Konten und automatisches Anlegen |
 

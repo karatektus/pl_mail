@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:122f0e14aa2280cfe38b171539644284c35d7c38 -->
+<!-- translated-from: features/calendar.md sha1:d781321a4c7533e5b2770a4250b64e69f3cfee39 -->
 
 # Kalender
 
@@ -76,13 +76,25 @@ Zurück und Weiter springen in der Monatsansicht um einen Monat, in der 7-Tage-A
 und überall sonst um einen Tag — die Agenda eingeschlossen, denn sie ist eine fortlaufende Liste und
 keine Seite.
 
+**Auf einem schmalen Bildschirm rückt die Werkzeugleiste zusammen, statt zu scrollen.** Unter etwa
+590 Pixeln zeigt der Ansichtsumschalter Symbole, und das Datum nimmt eine kurze Form an: der Monat
+ohne Jahr, solange es dieses Jahr ist (**Oktober**), eine Woche als **20.–26. Okt.**, ein Tag als
+**20. Okt.** Auf den schmalsten Telefonen wird **Heute** zum heutigen Datum in einem kleinen Kästchen.
+
 Die volle Seite öffnet mit der Ansicht **7 Tage**. Die angedockte Fläche öffnet mit **Agenda** — sie
 ist 380 Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus
 leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
 die Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda
 zeigen.
 
-In der Monatsansicht zeichnet eine Zelle so viele Einträge ihres Tages, wie hineinpassen, und blendet
+**In der Monatsansicht steht bei einem Eintrag der Titel zuerst**, auf bis zu zwei Zeilen, und
+darunter, wann er ist und wo: **Quartalsplanung Q4**, dann **10:00–11:00 · Raum Elbe**. In einem
+schmaleren Tag fallen das Ende und der Ort weg, und der Titel bekommt eine dritte Zeile in kleinerer
+Schrift; lange Wörter werden in der Sprache getrennt, auf die plMail eingestellt ist. Eine Einladung,
+die du noch nicht beantwortet hast, hat einen gestrichelten Balken, damit die offenen Einladungen
+der Woche auf einen Blick zu sehen sind.
+
+Eine Zelle zeichnet so viele Einträge ihres Tages, wie hineinpassen, und blendet
 den letzten dort aus, wo der Platz endet — statt sie zu zählen. Früher stand dort **N weitere**, und
 diese Zahl konnte nicht stimmen: Die Höhe einer Zelle ist die des Fensters geteilt durch sechs, und
 ein Eintrag ist ein oder zwei Zeilen hoch, je nachdem, ob er eine Uhrzeit hat. Die Zahl war immer
@@ -92,13 +104,18 @@ diesen Tag, und dort stehen die übrigen.
 **Bleibt der Zeiger auf einem Tag stehen, klappt dieser ganze Tag heraus.** Die Zelle wird zu einer
 kleinen Fläche, breit genug für die vollen Titel und lang genug für jeden Eintrag. Dabei verrutscht
 nichts: Sie wächst nach rechts und nach unten, genau von dort, wo die Liste ohnehin stand, und der
-Eintrag, den du angesehen hast, liegt weiterhin unter dem Zeiger.
+Eintrag, den du angesehen hast, liegt weiterhin unter dem Zeiger. Auf einem Touchscreen, der keinen
+Zeiger hat, der stehen bleiben könnte, **öffnet der erste Tipp auf einen Tag diesen Tag** und tut
+sonst nichts; die Einträge darin öffnen sich beim nächsten Tipp.
 
-**Wo eine Zelle zu schmal für Wörter ist, verzichtet sie darauf.** Sieben Spalten eines Telefons
-sind je etwa vierzig Pixel breit, und in dieser Breite wird weder ein Titel noch eine Uhrzeit fertig.
-Darunter wird ein Eintrag deshalb als Balken in der Farbe seines Kalenders gezeichnet — wie viele,
-und aus welchen Kalendern, auf einen Blick. Ein Tipp auf das Datum öffnet den Tag, dort stehen sie
-ausgeschrieben.
+**Wo eine Zelle zu schmal für Wörter ist, verzichtet sie darauf, und der Tag steht stattdessen
+unter dem Monat.** Sieben Spalten eines Telefons sind je etwa fünfzig Pixel breit, und in dieser
+Breite wird weder ein Titel noch eine Uhrzeit fertig. Dort wird ein Eintrag deshalb als Balken in der
+Farbe seines Kalenders gezeichnet — wie viele, und aus welchen Kalendern, auf einen Blick —, und das
+Raster wird kleiner, um darunter Platz für die Liste eines Tages zu machen, ausgeschrieben, wie die
+Agenda schreibt. Sie beginnt mit heute; **ein Tipp auf einen beliebigen Tag, die Balken
+eingeschlossen, listet stattdessen diesen Tag**. Die Liste hat ihr eigenes **+**, das einen neuen
+Termin an diesem Tag öffnet, und **Neuer Termin** in der Werkzeugleiste legt ihn ebenfalls dort an.
 
 Die Agenda fasst ihre Einträge unter einer Überschrift je Tag zusammen, die oben stehen bleibt,
 solange die Termine dieses Tages auf dem Schirm sind. Beginn und Ende — oder **Ganztägig** — stehen
@@ -141,6 +158,11 @@ Quadratzentimeter groß und hat keinen Platz zu sagen, wo im Tag etwas liegt; un
 Agenda besteht darin, die leere Zeit zu überspringen — also genau das, was eine Rasterachse zeichnen
 würde.
 
+**Die rote Linie der aktuellen Zeit läuft mit der Uhr mit**, einmal pro Minute, und wenn sich das
+Datum ändert, zeichnet sich die Ansicht neu — die Linie, die Tönung auf heute und der Kreis um das
+heutige Datum im Monat wandern zum neuen Tag —, sodass ein Kalender, der neben der Mail offen bleibt,
+stimmt.
+
 **Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
 Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
 auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
@@ -179,7 +201,12 @@ Agenda, und die Tagesansicht ist in der Werkzeugleiste einen Tipper entfernt und
 **Neuer Termin** in der Werkzeugleiste, das **+** an einer Tagesüberschrift und ein Klick auf einen
 vorhandenen Termin öffnen alle denselben Editor. Er ist ein Dialog über der Seite, auf der du gerade
 warst — der Kalenderseite oder einer Mail-Ansicht mit dem angedockten Kalender daneben — und
-Speichern bringt dich dorthin zurück, statt dich in den Kalender zu ziehen.
+Speichern bringt dich dorthin zurück, statt dich in den Kalender zu ziehen. Auf einem Telefon füllt er
+den ganzen Bildschirm, wie das Fenster zum Verfassen.
+
+Ein **+** an einem Tag öffnet den Editor an diesem Tag zur nächsten vollen Stunde. Ein Tag, der schon
+vorbei ist, behält sein Datum: Ein Termin, den du nachträglich einträgst, landet an dem Tag, an dem er
+war, nicht an heute.
 
 Die Felder sind **Titel**, **Beginn**, **Ende**, **Ganztägig**, **Kalender**, **Wiederholung**,
 **Ort**, **Beschreibung** und **Erinnerungen**, dazu **Ändern**, sobald sich der Termin wiederholt.

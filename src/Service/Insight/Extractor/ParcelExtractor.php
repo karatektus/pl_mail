@@ -9,6 +9,7 @@ use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -103,9 +104,37 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * Shops that ship but also send marketing all day long, so the domain
      * alone admits nothing: the subject has to talk about a shipment too.
      *
+     * Each is a storefront of its own, and the card's button goes back to the
+     * one that sent the mail (see merchantTrackingUrl()): an amazon.co.uk
+     * order is not found on amazon.de. Matched as domainIs() matches, so
+     * amazon.com.au is its own entry and not a subdomain of amazon.com.
+     *
+     * Only storefronts whose mail is written in a language SHIPPING_WORDS and
+     * statusIn() read — English, German, French. An amazon.it subject says
+     * "Spedito", which the gate does not know, so listing that domain would
+     * promise parcels the extractor still cannot read.
+     *
      * @var list<string>
      */
-    private const array MERCHANT_DOMAINS = ['amazon.de', 'amazon.com', 'amazon.fr'];
+    private const array MERCHANT_DOMAINS = [
+        'amazon.de', 'amazon.com', 'amazon.fr',
+        'amazon.co.uk', 'amazon.ca', 'amazon.com.au', 'amazon.in', 'amazon.sg',
+    ];
+
+    /**
+     * The storefronts of MERCHANT_DOMAINS whose country writes the day first,
+     * so a "23/10/2026" in their mail is the 23rd of October — see dateIn().
+     *
+     * A list of the ones that do rather than of the ones that do not, so a
+     * storefront added above reads no slash date until someone says which way
+     * round it writes them. amazon.com is month first, and amazon.ca is left
+     * out because Canada writes both.
+     *
+     * @var list<string>
+     */
+    private const array DAY_FIRST_STOREFRONTS = [
+        'amazon.de', 'amazon.fr', 'amazon.co.uk', 'amazon.com.au', 'amazon.in', 'amazon.sg',
+    ];
 
     /**
      * Subject words that make a mail about a shipment, EN and DE, lowercase.
@@ -162,6 +191,49 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * order.
      */
     private const string ORDER_PLACED = '~^\s*(bestellt|ordered)\b~iu';
+
+    /**
+     * "Delivered" that has not happened: the future and the conditional a
+     * carrier writes before the parcel arrives. "Your package will be
+     * delivered tomorrow", "scheduled to be delivered", "is being
+     * delivered", "Want a text when it's delivered?". Each contains the word
+     * statusIn() takes for the last stage, and read as that, a parcel still
+     * a day out wears a Delivered badge next to tomorrow's date (#120).
+     *
+     * Removed from the text before "delivered" is looked for, rather than
+     * the past tense being required: "Delivered" alone, as a subject or a
+     * heading, is how half the carriers say it, and it has no tense to ask.
+     * The "when"/"once" clause allows up to three words between the
+     * conjunction and the verb ("once your package is delivered") and no
+     * more, so it cannot reach across a sentence into a real statement.
+     */
+    private const string NOT_YET_DELIVERED = '~\b(?:will|to|would|should|could|can|may|might|must|shall)\s+(?:not\s+)?be\s+delivered\b'
+        . '|\bbeing\s+delivered\b'
+        . '|\b(?:when|once|until|before|if|as soon as)\s+(?:[\w\']+\s+){0,3}?(?:is\s+|are\s+|gets?\s+|has been\s+)?delivered\b~u';
+
+    /**
+     * The label a bare digit run wears when it is somebody else's number:
+     * "eBay order number: 123456789012", "Reference: …", "Bestellnummer …",
+     * "N° de commande …". Twelve digits after "order number" are the shape
+     * of a FedEx tracking number and the meaning of an order, and a FedEx
+     * mail for an eBay purchase states both — the card took the order and
+     * its Track button led nowhere (#120).
+     *
+     * Asked of the text right before the number — nothing but a colon, a
+     * hash or whitespace (a line break included, for "Order #" over the
+     * number) may stand between them — so the label has to be the number's
+     * own: "Tracking number" two lines above an order number does not lend
+     * it its meaning, and an order number mentioned in the same sentence as
+     * a tracking number does not take the tracking number's away. Only the bare digit runs are asked;
+     * the distinctive shapes are tracking numbers whatever stands in front.
+     */
+    private const string FOREIGN_NUMBER_LABEL = '~\b(?:order|purchase|invoice|item|reference|ref\.?|customer|account'
+        . '|bestell\w*|auftrag\w*|rechnung\w*|artikel\w*|kunden\w*|referenz'
+        . '|commande|facture|r[ée]f[ée]rence|client)'
+        . '(?:\s*(?:number|no\.?|nr\.?|nummer|num[ée]ro|n[°º]|id|#))?\s*[:#]?\s*$~iu';
+
+    /** How much text before a digit run FOREIGN_NUMBER_LABEL is asked of. */
+    private const int LABEL_REACH = 40;
 
     /** @var array<string, string> carrier id to the name a card wears */
     private const array CARRIER_NAMES = [
@@ -259,6 +331,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'décembre' => 12, 'decembre' => 12,
     ];
 
+    public function __construct(
+        private UserTimezoneResolver $timezones,
+    ) {
+    }
+
     public static function key(): string
     {
         return 'parcel';
@@ -351,7 +428,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         $status = $this->status($subject, $whole);
-        $eta = $this->eta($whole, $message->receivedAt);
+        $eta = $this->eta($whole, $this->receivedOnTheReadersClock($message));
         $fromName = trim((string) $message->fromName);
 
         // The relay network's display name may name the carrier; the sender's
@@ -445,7 +522,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 'merchant'       => '' === $fromName ? null : $fromName,
                 'status'         => $this->status($subject, $whole),
             ],
-            happensAt: $this->eta($whole, $message->receivedAt),
+            happensAt: $this->eta(
+                $whole,
+                $this->receivedOnTheReadersClock($message),
+                in_array($this->merchantDomainOf($domain), self::DAY_FIRST_STOREFRONTS, true),
+            ),
         )];
     }
 
@@ -500,11 +581,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      */
     private function merchantTrackingUrl(string $domain, string $order, int $index, ?string $shipment): string
     {
-        $root = match (true) {
-            true === $this->domainIs($domain, 'amazon.com') => 'amazon.com',
-            true === $this->domainIs($domain, 'amazon.fr')  => 'amazon.fr',
-            default                                         => 'amazon.de',
-        };
+        $root = $this->merchantDomainOf($domain) ?? 'amazon.de';
 
         if (null === $shipment) {
             return sprintf('https://www.%s/gp/your-account/order-details?orderID=%s', $root, $order);
@@ -603,7 +680,13 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             }
         }
 
-        foreach ($this->allMatches('~\b\d{12,20}\b~', $text) as $number) {
+        preg_match_all('~\b\d{12,20}\b~', $text, $runs, PREG_OFFSET_CAPTURE);
+
+        foreach ($runs[0] as [$number, $offset]) {
+            if (true === $this->labelledAsAnotherNumber($text, $offset)) {
+                continue;
+            }
+
             // A mail that literally says "fedex" outranks DHL's generic
             // context words for the 12-digit shape — "tracking" appears in
             // every carrier's mail, the competitor's name only deliberately.
@@ -621,6 +704,16 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         return $found;
+    }
+
+    /** Whether the digit run at $offset is labelled as an order, an invoice or the like. */
+    private function labelledAsAnotherNumber(string $text, int $offset): bool
+    {
+        // mb_strcut and not substr: the offset is in bytes, and a cut through
+        // an "é" would make the pattern refuse the whole window.
+        $before = mb_strcut($text, max(0, $offset - self::LABEL_REACH), min($offset, self::LABEL_REACH));
+
+        return 1 === preg_match(self::FOREIGN_NUMBER_LABEL, $before);
     }
 
     /**
@@ -770,8 +863,10 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         // and say the opposite; a failed attempt must not read as delivered.
         $negated = 1 === preg_match('~\bpas (encore )?(été|est) (livr|retir|récupér)~u', $text);
 
+        $done = (string) preg_replace(self::NOT_YET_DELIVERED, '', $text);
+
         foreach (['delivered', 'zugestellt', 'été livré', 'est livré', 'livraison réussie', 'livré :', 'livrée :'] as $phrase) {
-            if (false === $negated && true === str_contains($text, $phrase)) {
+            if (false === $negated && true === str_contains($done, $phrase)) {
                 return 'delivered';
             }
         }
@@ -816,8 +911,11 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * make. Every announcing word gets a chance, because "estimated delivery"
      * and the actual "Zustellung am 24.12.2026" are frequently different
      * sentences of the same mail.
+     *
+     * $dayFirstShop is the sender's say on "23/10/2026": a storefront in a
+     * country that writes the day first (see DAY_FIRST_STOREFRONTS).
      */
-    private function eta(string $text, ?DateTimeImmutable $receivedAt): ?DateTimeImmutable
+    private function eta(string $text, ?DateTimeImmutable $receivedAt, bool $dayFirstShop = false): ?DateTimeImmutable
     {
         preg_match_all(
             '~voraussichtlich|estimated|expected|arriving|zustellung am|zustellung:|liefertermin'
@@ -839,7 +937,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 continue;
             }
 
-            $date = $this->dateIn($window, $receivedAt, 1 === preg_match(self::FRENCH_ETA_WORD, $word));
+            $date = $this->dateIn($window, $receivedAt, 1 === preg_match(self::FRENCH_ETA_WORD, $word), $dayFirstShop);
 
             if (null !== $date) {
                 return $date;
@@ -854,7 +952,12 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * carrier promises a day, never an hour, and midnight would render as the
      * previous evening in any timezone west of the parcel.
      */
-    private function dateIn(string $window, ?DateTimeImmutable $receivedAt, bool $dayFirstSlashes): ?DateTimeImmutable
+    private function dateIn(
+        string $window,
+        ?DateTimeImmutable $receivedAt,
+        bool $dayFirstSlashes,
+        bool $dayFirstShop,
+    ): ?DateTimeImmutable
     {
         // 24.12.2026 — the German convention, day first, full year required.
         if (1 === preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b~', $window, $m)) {
@@ -881,6 +984,21 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         if (true === $dayFirstSlashes
             && 1 === preg_match('~\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b~', $window, $m)) {
             $date = $this->dateFrom((int) $m[1], (int) $m[2], '' === ($m[3] ?? '') ? null : (int) $m[3], $receivedAt);
+
+            if (null !== $date) {
+                return $date;
+            }
+        }
+
+        // 23/10/2026 from a shop in a country that writes the day first —
+        // amazon.co.uk's "Estimated delivery: 23/10/2026". The sender settles
+        // the order where the French word above settles it for French mail,
+        // but the year is required here: an English mail says "24/7" about
+        // its support line, and with the year left optional that is the 24th
+        // of July.
+        if (true === $dayFirstShop
+            && 1 === preg_match('~\b(\d{1,2})/(\d{1,2})/(\d{4})\b~', $window, $m)) {
+            $date = $this->dateFrom((int) $m[1], (int) $m[2], (int) $m[3], $receivedAt);
 
             if (null !== $date) {
                 return $date;
@@ -923,6 +1041,10 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * reason: a backfill re-reading this mail next year has to land on the day
      * it always did.
      *
+     * The day is the one on the reader's calendar when the mail arrived (see
+     * receivedOnTheReadersClock()), so receivedAt is taken in whatever zone it
+     * comes in and not turned back into UTC here.
+     *
      * Without a receivedAt there is nothing to be relative TO, and a refusal is
      * the only honest answer.
      */
@@ -933,7 +1055,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         }
 
         $text = mb_strtolower($window);
-        $day = $receivedAt->setTimezone(new DateTimeZone('UTC'));
+        $day = $receivedAt;
 
         if (1 === preg_match("~\b(today|heute|aujourd['’]hui|ce jour)\b~u", $text)) {
             return $this->noonOn($day);
@@ -1088,13 +1210,42 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
 
     private function isMerchantDomain(string $domain): bool
     {
+        return null !== $this->merchantDomainOf($domain);
+    }
+
+    /** The storefront this sender belongs to — shipment-tracking@amazon.co.uk is amazon.co.uk. */
+    private function merchantDomainOf(string $domain): ?string
+    {
         foreach (self::MERCHANT_DOMAINS as $known) {
             if (true === $this->domainIs($domain, $known)) {
-                return true;
+                return $known;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    /**
+     * When the mail arrived, on the clock of the person it was sent to: the
+     * day "Arriving today" means.
+     *
+     * Not UTC. Read in UTC, an amazon.com.au mail at eight in the morning in
+     * Sydney still has yesterday's date, and an amazon.com mail at half past
+     * seven in the evening in Los Angeles already has tomorrow's, so the
+     * parcel landed a day early or a day late. A carrier promises a day in
+     * the recipient's country, and the recipient's timezone is the best
+     * stand-in for that there is. The offset in the mail's Date header is the
+     * sending server's, which says nothing about where the parcel is going.
+     *
+     * The account's owner, or the install's default for a user who never
+     * chose a zone. A user who later changes zone gets the new answer on a
+     * backfill, which is the only time the same mail is read twice.
+     */
+    private function receivedOnTheReadersClock(Message $message): ?DateTimeImmutable
+    {
+        $owner = true === isset($message->account) ? $message->account->usr : null;
+
+        return $message->receivedAt?->setTimezone($this->timezones->resolve($owner));
     }
 
     /** Exact or subdomain-of — mail.amazon.de is amazon.de, notamazon.de is not. */

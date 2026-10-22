@@ -13,6 +13,27 @@ pointing it at Google's CalDAV endpoint is the first thing somebody tries.
 What happens after a server is connected — ticking which calendars to mirror, two-way sync,
 read-only calendars — is in [Connected calendars](../features/calendar-sync.md).
 
+## Nextcloud: no second connection
+
+A Nextcloud connected for files under **Settings → Integrations** also gives you its calendars.
+Nextcloud serves CalDAV under the same `/remote.php/dav` with the same app password, so that
+connection is listed in **Settings → Calendars** and its calendars are found from there. Nothing
+on this page needs doing for it.
+
+- **The address** is the one the Nextcloud connection uses, so an address an administrator pinned
+  in **Admin → Integrations** applies to calendars as well, including its exemption from the
+  private-network rule below.
+- **Discovery** starts at `/remote.php/dav` under that address, subfolder installs included, and
+  only falls back to `.well-known` when nothing answers there.
+- **Disconnecting** Nextcloud in Settings → Integrations removes its calendars too. As with any
+  calendar connection, events that came from your mail rather than from the server are moved to
+  your default calendar first.
+- **A separate CalDAV connection** you made earlier to the same Nextcloud keeps working. Its
+  calendars show as *Already mirrored through …* on the Nextcloud connection's list, so the same
+  calendar is never mirrored twice.
+
+The generic CalDAV connection below stays for every other server.
+
 ## Connecting a server
 
 **Settings → Calendars → Connect a CalDAV server.** Four fields, in the order the questions actually
@@ -95,7 +116,8 @@ as every other user-supplied server address:
 - A username or password embedded in the URL is refused outright — it would be logged wherever the
   URL is, and would silently override the credentials on the connection.
 - Anything resolving into loopback, link-local or a private range is refused unless the host is
-  listed in `INTEGRATIONS_ALLOWED_HOSTS`.
+  listed in `INTEGRATIONS_ALLOWED_HOSTS`, or is the host of a server address an administrator
+  pinned in **Admin → Integrations**.
 
 That last rule is the one a self-hoster meets. A Nextcloud on your LAN at `192.168.1.10` or
 `nextcloud.lan` is refused until you allow it, and a Nextcloud with no certificate needs the http

@@ -67,9 +67,13 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator('[data-surface="reading"]')).toBeVisible();
         await expect(page).toHaveURL(/\/mail\/(thread|message)\//);
 
-        // With a conversation open, j is the next one to read.
+        // With a conversation open, j is the next one to read. Its toolbar,
+        // by type as well as id: a row's id is a conversation's, and the
+        // conversation's own messages carry the same attribute with their
+        // message ids — when a message happened to share the number, both
+        // matched and the locator stopped being one element.
         await page.keyboard.press("j");
-        await expect(page.locator(`[data-mail--message-actions-entity-id-value="${ids[1]}"]`)).toBeVisible();
+        await expect(page.locator(`[data-mail--message-actions-entity-type-value="thread"][data-mail--message-actions-entity-id-value="${ids[1]}"]`)).toBeVisible();
 
         await page.keyboard.press("u");
         await expect(page.locator(ROWS).first()).toBeVisible();

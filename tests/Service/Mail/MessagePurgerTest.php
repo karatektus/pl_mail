@@ -15,6 +15,7 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MessagePurger;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -201,6 +202,31 @@ final class MessagePurgerTest extends KernelTestCase
 
         self::assertSame(2, $thread->messageCount);
         self::assertCount(2, $thread->messages);
+    }
+
+    /**
+     * And wears only the labels its remaining messages carry.
+     *
+     * The purge used to recount the thread and stop there, so a conversation
+     * whose only Trash message was purged stayed in the Trash list over mail
+     * that was not in it. The local half is MessageEraser's now (#299), which
+     * re-derives the labels.
+     */
+    public function testAThreadThatKeepsMessagesDropsTheLabelsOnlyThePurgedOnesHad(): void
+    {
+        $thread = $this->thread(2);
+        $trash  = $this->labelResolver->systemLabel(LabelRole::Trash, $this->account);
+        $victim = $thread->messages->last();
+
+        $victim->addLabel($trash);
+        self::getContainer()->get(ThreadLabelSynchronizer::class)->sync($thread);
+        $this->em->flush();
+
+        self::assertTrue($thread->hasLabel($trash), 'fixture: the thread wears the label first');
+
+        $this->purger->purge([$victim]);
+
+        self::assertFalse($thread->hasLabel($trash));
     }
 
     public function testPurgingNothingDoesNothing(): void

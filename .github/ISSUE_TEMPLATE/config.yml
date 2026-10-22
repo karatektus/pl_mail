@@ -1,0 +1,12 @@
+# The chooser shown on "New issue". Blank issues are off so that every issue
+# arrives as a bug or a feature, labelled and waiting for triage — see
+# CONTRIBUTING.md, "How work gets in". Questions about running plMail go to
+# Discussions, where an answer helps the next person too.
+blank_issues_enabled: false
+contact_links:
+    - name: Ask a question
+      url: https://github.com/karatektus/pl_mail/discussions
+      about: Installing, configuring or using plMail — anything that is not a bug or a feature request.
+    - name: Read the handbook
+      url: https://karatektus.github.io/pl_mail/
+      about: Features, installation and providers, in English and German.

@@ -1,0 +1,39 @@
+{#
+mail/unified_all_mail.html.twig — All Mail across the reader's accounts.
+─────────────────────────────────────────────────────────────────────────────
+Every conversation outside Spam and the bin, archived mail included: the list
+archived mail has to be browsed in. Opt-in — its sidebar row is the All Mail
+label, created hidden and switched on in label settings (LabelRole::AllMail).
+
+Scope `all_mail` with an empty value, which is how the toolbar, a row's
+buttons and "select all" tell the server which list they were pressed in;
+an account's own All Mail carries the account id instead
+(mail/all_mail.html.twig, AllMailView).
+
+One list, no category tabs, as Unread: everything together is the point.
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block list_scope %}all_mail{% endblock %}
+
+{% block title %}{{ 'sidebar.nav.all_mail'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.all_mail'|trans }}</h2>
+    </div>
+{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
+            {{ 'all_mail.empty'|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {# The account dot, as on the unified Inbox: rows from every
+               account sit side by side here. #}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: true } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

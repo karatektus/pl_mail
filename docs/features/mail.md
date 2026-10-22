@@ -19,12 +19,13 @@ label you made shows everything carrying it, wherever it arrived.
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
 | **Archive** | Conversations you archived |
+| **All Mail** | Every conversation outside Spam and the bin, archived mail, sent mail and drafts included — off until you switch it on |
 | **Accounts** | One row per account; clicking it opens that account's inbox |
 
-Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**,
-and **Spam** where an account has a junk folder — has an eye in **Settings → Labels**: switch one off
-and its row leaves the sidebar, switch it back on and it returns, both straight away. **Unread** is
-the one that starts off.
+Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **All
+Mail**, **Trash**, and **Spam** where an account has a junk folder — has an eye in **Settings →
+Labels**: switch one off and its row leaves the sidebar, switch it back on and it returns, both
+straight away. **Unread** and **All Mail** are the ones that start off.
 
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
@@ -35,6 +36,16 @@ way: the conversation is starred where it lies, and one that already was stays s
 Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
 click further; the account row is not an archive of everything the account has ever held.
+
+**All Mail** is everything you have, in one list: what arrived, what you sent, your drafts, and
+above all what you archived, which otherwise has no list to be browsed in. Only Spam and the bin
+are left out. It is Gmail's All Mail, and like Gmail's it holds your own mail too. Switched on, it
+is a row beside **Drafts** for all your accounts together, and a row at the top of each account's
+folders for that account alone; the account row itself still opens the account's inbox. One eye in
+**Settings → Labels** shows or hides both. Archiving or snoozing a conversation from All Mail
+leaves it in the list, where it still belongs; moving it to Spam or the bin takes it out. A
+conversation carrying several labels is listed once, and the unread filter counts the same list.
+Nothing can be dropped on it — there is nothing to move into a list that already holds everything.
 
 Under **Accounts**, expanding an account shows the labels that actually exist on it. That list is
 narrower than the sidebar's own label list on purpose: the sidebar means "across every account",
@@ -78,6 +89,18 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 **Updates** and **Forums**. For a Gmail account plMail trusts Gmail's own `CATEGORY_*` labels.
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
+
+The tabs are on the top-level Inbox, and you can have them on **an account's own inbox** too (click
+the account in the sidebar): **Settings → Mail → Categories**, **Tabs on each account**. It is off
+until you turn it on, and then an Outlook or any other account has them, [tabs of your
+own](#tabs-of-your-own) included; off, an account's page is its whole inbox in one list. The switch
+is there only while **Inbox tabs** is on, and a config backup carries it. A tab is there while it holds mail, and on an account's page it counts only that
+account's mail — so a tab of yours that holds mail only in another account is not on this one. The
+account page's tabs are plainer: no
+"new" pills, sender hints or unread tint, because those add up every account and would describe the
+wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
+
+Switching tabs replaces the entry in the browser's history rather than adding one, as Gmail does, so the browser's Back leaves the inbox instead of stepping back through the tabs you looked at. The same goes for the tabs on an account's page.
 
 ### An inbox without tabs
 
@@ -276,11 +299,23 @@ card. Dated ones queue
 up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
 something also shows its cards in a **Found in this conversation** strip above the messages.
 
+Mail in Spam yields no cards, and neither does mail you move there later: its cards leave the panel
+and the strip above the mail list, and a spam conversation shows none above its messages, because a
+fake delivery notice is exactly what spam imitates. **Not spam** (or moving it to the inbox) brings
+them back. The bin is different: deleting a shipping confirmation does not stop the parcel, so its
+cards stay.
+
 A shop that never names a carrier still yields a parcel. Amazon states an order number and a link
 into its own tracker and no tracking number anywhere, so that is what the card carries — and a
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
-it always did.
+it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
+from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
+shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
+and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
+such as "23/10/2026", is read day first from the shops of countries that write it that way, and only
+with the year; from amazon.com and amazon.ca it is not read at all, because the month may come first.
 
 The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
 GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
@@ -292,7 +327,10 @@ carriers, so its address names none of them: a card takes its carrier from the s
 that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
 link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
 satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
-card back into something else.
+card back into something else. A parcel is only **Delivered** when the mail says it happened: "will
+be delivered", "scheduled to be delivered" or "when it's delivered" are about a delivery still to
+come. And a number labelled as something else, such as "Order number", "Reference" or
+"Bestellnummer", is not taken for a tracking number even when it has the same shape.
 
 ### The strip above the mail list
 
@@ -365,8 +403,10 @@ provider recorded an `Authentication-Results` header. Both it and **Print** open
 
 HTML bodies are rendered inline rather than in an iframe. Before that happens the body is put
 through a sanitiser once, at ingest: `cid:` references are rewritten to plMail's own attachment
-route, `<style>` blocks are flattened onto the elements they applied to, and scripts, forms,
-iframes and classes are dropped. Links are forced to open away from the app.
+route, `<style>` blocks are flattened onto the elements they applied to, and scripts, iframes and
+classes are dropped. A form is taken apart rather than dropped: what is in it stays, its text
+fields and menus go, and the mail looks the way its sender meant it to in a mail program without
+forms. Links are forced to open away from the app.
 
 ### Summarising a long conversation
 
@@ -447,9 +487,21 @@ off unless you switch it on per account; see [Accounts and aliases](accounts.md)
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
-as well as from **Settings → Labels**, and the confirmation says plainly that the label goes from
-every account and how many nested labels are going with it — rather than asking you to agree to
-something whose reach it has not mentioned.
+as well as from **Settings → Labels**, and the dialog says plainly that the label goes from every
+account and how many nested labels are going with it — rather than asking you to agree to something
+whose reach it has not mentioned.
+
+When the label is a folder on your mail server — any folder on a plain IMAP account, or a mail
+folder on Outlook — the folder is deleted there as well, so the next sync does not bring the label
+back. A folder cannot be deleted with mail still in it, so if there is any, the dialog asks where it
+goes first: **Inbox**, **Archive**, **Trash**, or one of your other folders. The mail is moved, the
+folder is deleted once the server says it is empty, and only then does the label go. This runs in
+the background and shows in the activity indicator, which says which folder it is waiting for. If
+the server still holds mail plMail never imported, nothing is deleted: the folder and the label stay,
+and the indicator says which folder it was. If the server refuses to delete the folder, the job stops
+at once with the server's reason, and the label stays. A folder whose mail plMail is still importing
+cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
+and moves nothing.
 
 ### Move to
 
@@ -502,6 +554,9 @@ whose body only ever says `help.wirhub.de`.
 `in:` accepts `inbox`, `sent`, `drafts` (or `draft`), `trash` (or `deleted`, or `bin`), `junk` (or
 `spam`), `archive` (or `archived`) and `snoozed`. Quoted values are kept together, so
 `from:"Ada Lovelace"` works.
+
+Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
+as the lists do. The suggestions as you type leave both out.
 
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview
@@ -688,6 +743,9 @@ conversation back and takes away a filter the same click created.
 Above a selection the button moves everything selected to Spam and offers no filter: a selection
 has no one sender. The button is not shown for mail that is already in Spam or in the bin.
 
+An open conversation in Spam has a **Not spam** button in its toolbar instead. It moves the
+conversation back to the inbox, the same as **Move to → Inbox**.
+
 Moving mail to spam tells plMail nothing about the next message. plMail has no spam filter of its
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter
 is how you make it stick here.
@@ -773,6 +831,29 @@ you had it.
 **Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
+
+## Remote images
+
+Pictures that a message loads from the sender's servers are blocked until you ask for them: a
+picture fetched when you open a message tells its sender that, and when, you read it. The message
+says how many it held back, with two ways to show them — **Show images** for this message only, and
+**Always show images from** the sender, which remembers that sender for your account. A trusted
+sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
+yourself shows its pictures without asking.
+
+Shown pictures always come through plMail, and only over an encrypted connection: a picture the
+mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
+an empty box.
+
+**Settings → Mail → Images**, **Always show remote images**, turns the question off for every
+sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
+your address: the pictures are fetched by plMail and passed on to you, never by your browser. The
+senders you trusted one by one are kept either way, so switching it off again brings back exactly
+the list you had. A config backup carries the choice.
+
+Mail in **Spam** stays blocked whatever you choose, trusted senders included: a message filed as
+spam is your provider doubting it comes from who it says, and **Show images** is still there to
+load one message's pictures by hand.
 
 ## Snooze
 
@@ -1083,6 +1164,28 @@ told so plainly: *Too late — that message had already been sent.* You are not 
 of mail that has gone out. Because the window offered is eight seconds against a ten-second hold,
 losing is rare rather than routine.
 
+## When a send fails
+
+A send that fails for a passing reason is tried again on its own, for up to **two minutes**: a rate
+limit (Gmail and Outlook say how long to wait, and that wait is kept), the provider failing on its
+side, a mail server that is busy or greylisting, or a connection that never opened. Nothing is said
+while it is being retried. If it goes through, the **Message sent** toast says so as usual.
+
+A send that cannot work is not retried: a recipient the server does not know, a message that is too
+large, a password the server no longer accepts. That is said at once.
+
+**When the answer to a send is lost** — the connection dropped or timed out after the provider had
+been handed the mail — the mail may have gone out. It is never sent again without checking. For Gmail
+and Outlook accounts plMail looks for the message in Sent a few seconds later: found, it is recorded
+as sent; not found, it is sent again. For other accounts (SMTP) there is nothing to look in, so it is
+reported straight away as possibly sent: check **Sent** before sending it again.
+
+When a send finally fails, a toast says why, and the draft is marked: a **red warning triangle** on
+its row in **Drafts**, with the reason when you point at it, and the same triangle on **Drafts** in
+the sidebar for as long as any draft has one. That is what is left to find when nobody saw the toast
+— a scheduled send fails with nobody watching. The mark goes when the draft is sent, or sent again,
+or deleted. Editing it does not lift the mark, because the mail has still not gone.
+
 ## Where to read further
 
 - [Mail ingest](../internals/mail-ingest.md) — the pipeline from provider to database, threading and
@@ -1158,6 +1261,10 @@ marker working, not a marker that failed to appear.
 **Plain-text mode is only reversible until the draft is saved.** The warning says so before the
 switch. Once the draft has been stored as plain text there is no formatting left anywhere to come
 back to.
+
+**A warning triangle on a draft means its send failed, not that the draft is broken.** Open it and
+send it again; the mark goes as soon as the new attempt starts. *May have been sent* is the one to
+take care with: look in Sent first, or the recipient may get it twice.
 
 **A scheduled send cannot be closer than a minute away.** Typing the next whole minute is exactly
 the time a person picks to try the feature, and it is refused — with a reason, in the window,

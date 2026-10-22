@@ -1,0 +1,94 @@
+{#
+_side_pane.html.twig — a pane docked beside the mail panes, with the handle
+that resizes it. The calendar and the address book are both one of these.
+
+Embedded, not included: the caller fills `side_pane_body`.
+
+    {% embed '_partials/_side_pane.html.twig' with {
+        name:        'contacts',                 data-side-pane, which app.css keys on
+        open:        app.user.contactsPaneOpen,  drawn open on first paint
+        widthVar:    '--contacts-pane-width',    the property ui--split writes
+        width:       app.user.contactsPaneWidth, optional: sets widthVar here, for
+                                                 a pane whose ui--split is this
+                                                 wrapper rather than the shell
+        handleLabel: 'contacts.pane.resize'|trans,
+        attrs:       '…',                        raw attributes for the wrapper
+        controller:  'ui--side-split',           optional: the boundary's
+                                                 controller, for its targets and
+                                                 actions (default ui--split)
+    } %}
+
+Placement is the whole point. This is a SIBLING of .main-pane, not a child, so
+the two split the row's width and the handle between them moves the boundary:
+one grows exactly as much as the other shrinks. .main-pane keeps flex-1 and
+absorbs whatever is left, so each split is one number — the pane's width
+property — and its handle only ever writes that. Two numbers would be two
+sources of truth for one boundary.
+
+The width reaches the pane through --side-pane-width, set on the wrapper from
+the caller's own property. The pane's class has to name ONE property literally
+for Tailwind to generate it, and each pane keeps its own stored width, so the
+wrapper is where the two meet.
+
+The width is rendered inline from the user's stored preference rather than
+restored by JavaScript, so the first paint is already the right size. A pane
+that appears at the default and jumps once the controller connects is worse
+than one that does not remember at all.
+#}
+
+{% set controller = controller|default('ui--split') %}
+
+{# Visibility is one conditional class rather than `lg:flex lg:hidden` — those
+   two are the same breakpoint and which wins comes down to CSS source order,
+   which is not something to rely on.
+
+   hidden lg:flex when remembered open: the preference is one value shared by
+   every device, and below lg a pane does not sit beside the mail. Opening it
+   once at a desk should not mean every phone lands on it. #}
+<div
+    data-side-pane="{{ name }}"
+    style="{% if width is defined %}{{ widthVar }}: {{ width }}px; {% endif %}--side-pane-width: var({{ widthVar }})"
+    {{ attrs|default('')|raw }}
+    class="{{ open ? 'hidden lg:flex lg:w-auto' : 'hidden' }} shrink-0 min-w-0"
+>
+    {# The handle. role=separator with aria-orientation is what makes it
+       reachable and meaningful without a mouse; the arrow keys are handled by
+       the controller. Its actions reach the pane's own boundary: the
+       calendar's ui--split on the shell, the address book's ui--side-split on
+       this wrapper.
+
+       Two gutters wide and pulled left by one, so it spans the whole visual
+       space between the panes rather than sitting to one side of it. The row's
+       own gap-gutter falls to the LEFT of this wrapper, so a handle that was
+       merely one gutter wide put its grip 1.5 gutters from the mail pane and
+       0.5 from the pane — visibly off-centre, and a thin target. #}
+    <div
+        data-{{ controller }}-target="handle"
+        data-action="pointerdown->{{ controller }}#start keydown->{{ controller }}#nudge dblclick->{{ controller }}#reset"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="{{ handleLabel }}"
+        tabindex="0"
+        class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
+               cursor-col-resize
+               hidden lg:flex items-center justify-center
+               focus:outline-none"
+    >
+        {# `.split-grip` is what the strain state in app.css grabs, so the two
+           pixels of grip can say "there is more past this" while the pane is
+           being dragged beyond its range. #}
+        <span class="split-grip w-0.5 h-8 rounded-full bg-line
+                     group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
+    </div>
+
+    {# Width in classes rather than an inline style: inline would beat the
+       breakpoint, and below lg the calendar's pane is full width rather than
+       the stored one. #}
+    <div
+        data-{{ controller }}-target="pane"
+        class="main-pane flex flex-col overflow-hidden min-w-0
+               w-full lg:w-[var(--side-pane-width)]"
+    >
+        {% block side_pane_body %}{% endblock %}
+    </div>
+</div>

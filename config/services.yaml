@@ -15,6 +15,11 @@ parameters:
     app.fallback_timezone: 'Europe/Berlin'
     app.default_timezone: '%env(default:app.fallback_timezone:APP_DEFAULT_TIMEZONE)%'
 
+    # Where What's new's "Send feedback" goes (#165). Through `default:` so an
+    # install whose .env predates the variable still has somewhere to send to.
+    app.fallback_feedback_to: 'feedback@pluetzner.de'
+    app.feedback_to: '%env(default:app.fallback_feedback_to:APP_FEEDBACK_TO)%'
+
     # Whether this install is a public demo. Read through `default:` so an
     # install that never heard of the variable is a normal one — the accident
     # worth preventing is a real deployment turning into a demo, not the
@@ -155,9 +160,15 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
+    App\Domain\Helper\AppIconStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
+            $secret: '%kernel.secret%'
     App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
 
     App\Service\Ai\BackfillPolicy:
         arguments:
@@ -171,6 +182,7 @@ services:
     App\Service\Mail\AttachmentThumbnailer:
         arguments:
             $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Service\Mail\MessageFrameScript:
         arguments:
             $projectDir: '%kernel.project_dir%'
@@ -308,6 +320,10 @@ services:
         arguments:
             $drivers: !tagged_iterator app.calendar_sync_driver
 
+    App\Service\AddressBook\AddressBookDriverRegistry:
+        arguments:
+            $drivers: !tagged_iterator app.address_book_driver
+
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
@@ -323,6 +339,11 @@ services:
         # CalendarSource that may carry a mail Account instead.
         App\Domain\Interface\CalendarSyncDriverInterface:
             tags: ['app.calendar_sync_driver']
+        # Address books, keyed on an AddressBookSource for the calendar
+        # drivers' reason. The CardDAV driver carries this tag and the
+        # integration one: it also proves a connection's credentials.
+        App\Domain\Interface\AddressBookDriverInterface:
+            tags: ['app.address_book_driver']
         # And a calendar push manager is neither of those. It is keyed on a
         # Calendar where PushSubscriptionManagerInterface is keyed on an
         # Account, so the two must not share a tag: the mail managers cannot

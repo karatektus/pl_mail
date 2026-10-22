@@ -6,6 +6,8 @@ namespace App\Tests\Service\Imap;
 
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\ImapAccountSyncer;
 use App\Service\Imap\MailboxSyncer;
@@ -85,13 +87,38 @@ final class ImapAccountSyncerTest extends KernelTestCase
     }
 
     /**
+     * A flush Doctrine refuses before it opens a transaction leaves the manager
+     * open, with what it refused still scheduled (#299). Left there, every
+     * later folder's flush was refused on the same entities, and so was the
+     * handler's flush after the sync.
+     */
+    public function testAFolderWhoseFlushWasRefusedOpenDoesNotPoisonTheNextOne(): void
+    {
+        $handedOver = $this->syncAccount(function (): void {
+            // A part pointing at a message nobody persisted: the shape of the
+            // erased-message leftovers, and refused the same way.
+            $part              = new MessagePart();
+            $part->message     = new Message();
+            $part->contentType = 'text/plain';
+            $part->size        = 0;
+            $part->storagePath = 'nowhere';
+            $this->em->persist($part);
+
+            $this->em->flush();
+        });
+
+        self::assertTrue($handedOver[1]['open']);
+        self::assertTrue($handedOver[1]['clean'], 'the next folder inherited the refused entities');
+    }
+
+    /**
      * Syncs the account through a real ImapAccountSyncer. The first folder's
      * sync does $first; every folder reports the state it arrived in.
      *
      * In call order rather than by id: the folders come from an unordered
      * findBy(), and which of the two goes first is not this test's business.
      *
-     * @return list<array{open: bool, managed: bool}>
+     * @return list<array{open: bool, managed: bool, clean: bool}>
      */
     private function syncAccount(\Closure $first): array
     {
@@ -103,6 +130,7 @@ final class ImapAccountSyncerTest extends KernelTestCase
                 $handedOver[] = [
                     'open'    => $this->em->isOpen(),
                     'managed' => $this->em->contains($mailbox),
+                    'clean'   => [] === $this->em->getUnitOfWork()->getScheduledEntityInsertions(),
                 ];
 
                 if (1 === count($handedOver)) {

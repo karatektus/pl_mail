@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:b6811f7a30b83e84b3cfb2b3c0ad17b3588dc65f -->
+<!-- translated-from: install/configuration.md sha1:266e01b33455c04b3cf920de06d706f99f1d7fd1 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -78,6 +78,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `OIDC_SCOPES` | Angefragte Scopes, durch Leerzeichen getrennt. `openid` wird immer ergänzt. | `openid email profile` | Nein | Ohne `email` findet eine erste Anmeldung das Konto nicht, zu dem sie gehört. |
 | `OIDC_AUTO_CREATE` | Ob jemand, den der Anbieter durchlässt und den plMail noch nie gesehen hat, ein neues gewöhnliches Konto bekommt. | `false` | Nein | An, und jede Person, die der Anbieter zur Anwendung zulässt, bekommt hier ein Konto — begrenz beim Anbieter, wer das ist. Aus, und die Administration legt jedes Konto vorher mit derselben Adresse an. |
 | `OIDC_REQUIRE_VERIFIED_EMAIL` | Ein bestehendes Konto nur dann über die Adresse verknüpfen, wenn der Anbieter sagt, dass er sie bestätigt hat. | `true` | Nein | Nur `false`, `0`, `no` oder `off` schalten es aus — leer oder ein Tippfehler lässt es an, damit ein Versehen es nicht öffnen kann. Aus bei einem Anbieter, bei dem man die eigene Adresse selbst ändern kann, und jede Person kann jedes Konto übernehmen, das sich noch nicht über den Anbieter angemeldet hat — Administrationskonten eingeschlossen. |
+| `OIDC_DISABLE_PASSWORD_LOGIN` | Single Sign-on zum einzigen Weg machen: Die Login-Seite zeigt kein Passwortformular, und eine Passwort-Anmeldung wird abgewiesen. | `false` | Nein | Wird ignoriert, solange kein Anbieter eingerichtet ist, kann also nicht aus einem Anbieter aussperren, den es nicht gibt. Nur `true`, `1`, `yes` oder `on` schalten es ein; ein Tippfehler lässt das Formular. Ist der Anbieter ausgefallen, holt die Konsole das Formular zurück: `php bin/console app:sso:allow-password-login` löscht, was Administration → SSO gespeichert hat; diese Variable musst du in deiner Compose-Datei ändern. Siehe [Single Sign-on](../providers/oidc.md#single-sign-on-zum-einzigen-weg-machen). |
 | `APP_DB_LOG_LEVEL` | Niedrigste Monolog-Stufe, die für den Protokollbrowser im Administrationsbereich in der Datenbank aufbewahrt wird. | `warning` | Nein | Der **Standard** — Administration → Protokolle kann ihn ohne Neustart überschreiben und tut das, bis wieder *aus der Umgebung* gewählt wird. Auf `info` oder `debug` gesenkt füllt sich die Tabelle `log_entry` schnell; `app:monitoring:prune` bewahrt standardmäßig 14 Tage auf, und das sind auf `debug` sehr viele Zeilen. |
 | `APP_CONTAINER_NAME` | Welchem Container eine Protokollzeile und ein Worker-Heartbeat zugeordnet werden. | `web` in `.env`; in `compose.yaml` je Dienst gesetzt | Nein | Ist sie nicht gesetzt, fällt der Heartbeat-Schlüssel auf den Hostnamen zurück — der sich bei jedem Neuerzeugen eines Containers ändert, sodass sich im Administrationsbereich tote Worker ansammeln, bis der Durchlauf für Veraltetes sie einsammelt. |
 | `TRUSTED_PROXIES` | Proxys, deren `X-Forwarded-*`-Headern Symfony glaubt. | `127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` | Hinter einem Proxy: ja | Zu eng, und Symfony sieht die Adresse des Proxys und `http`; zu weit, und ein Client kann seine eigene Adresse fälschen. Beide Folgen sind in [Hinter einem Reverse-Proxy](reverse-proxy.md) ausbuchstabiert. |
@@ -90,6 +91,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `PUSH_ALLOWED_HOSTS` | Kommagetrennte Hosts, auf die ein Push-Endpunkt zeigen darf, obwohl sie auf eine private Adresse auflösen. | leer | Nur für ein ntfy im LAN | Jeder andere private, Loopback- oder Link-Local-Endpunkt wird bei der Registrierung und beim Senden abgewiesen. Läuft das mitgelieferte ntfy auf einer LAN- oder Tailscale-Adresse, setz hier deinen `SERVER_NAME`, sonst bekommen die Telefone keine Pushes mehr. Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOW_HTTP` | Ob jemand für eine selbst gehostete Integration einen `http://`-Server angeben darf. | `false` | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Kommagetrennte Hosts, die von der Sperre privater Adressbereiche ausgenommen sind. | leer | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
+| `APP_FEEDBACK_TO` | Wohin **Feedback senden** in „Was ist neu“ mailt. Die Mail geht über das eigene Konto der Person; das hier ist nur der Empfänger. | `feedback@pluetzner.de` (auch der Parameter `app.fallback_feedback_to`, der greift, wenn die Variable fehlt) | Nein | Das Feedback der Leute auf dieser Installation geht an den Entwickler von plMail. Trag deine eigene Adresse ein, um es selbst zu lesen; ein Tippfehler schickt es ins Leere, und wer es geschrieben hat, bekommt einen Bounce ins eigene Postfach. |
 
 **Der typische Fehlerfall bei dieser Tabelle ist, ein Leerfeld für einen fehlenden Wert zu halten.**
 Vier der obigen Leerfelder sind tragend: Sie sind leer, damit die Erzeugung beim ersten Start
@@ -113,7 +115,7 @@ sie direkt, wenn er `DATABASE_URL` zusammensetzt.
 | `POSTGRES_PASSWORD` | Datenbankpasswort. | leer — 24 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Wird von `app:reset` nie gewechselt: Postgres wurde damit initialisiert und behält seine eigene Kopie, ein neues sperrt die Anwendung also aus der Datenbank aus, die sie gerade zurückgesetzt hat. |
 | `POSTGRES_HOST` | Host in der zusammengesetzten DSN. Wird nur vom Entrypoint gelesen. | `database` | Nur relevant, wenn plMail außerhalb dieser Compose-Datei läuft. |
 | `POSTGRES_CHARSET` | `charset` in der zusammengesetzten DSN. Nur Entrypoint. | `utf8` | — |
-| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. `truenas.compose.yaml` verschiebt beides unter einen Bind-Mount. |
+| `APP_SECRETS_DIR` | Verzeichnis, in das `generate-secrets` schreibt. | `/app/var/secrets` | Muss zu `APP_SECRETS_FILE` passen. Die TrueNAS-App verschiebt beides unter einen Bind-Mount. |
 | `NTFY_PORT` | Host-Port für den optionalen ntfy-Container. | `8090` | Wird nur unter dem Profil `push` verwendet. |
 | `NTFY_BASE_URL` | Basis-URL, die ntfy in Push-Endpunkten ausgibt. | `http://${SERVER_NAME:-localhost}:${NTFY_PORT:-8090}` | Wird in jeden ausgegebenen Endpunkt eingebacken; eine spätere Änderung macht daher jedes bestehende Abonnement ungültig, und jedes Gerät muss sich neu registrieren. |
 | `NTFY_AUTH_DEFAULT_ACCESS` | ntfys Standard-Zugriffsrichtlinie. | `read-write` | Bewusst offen — UnifiedPush-Topics sind nicht erratbar und Nutzdaten sind für das Gerät verschlüsselt —, aber setz sie auf `deny-all` und leg einen Benutzer an, wenn das hier im Internet steht statt über ein VPN erreicht zu werden. |
@@ -223,8 +225,8 @@ die Umgebung, solange er nicht leer ist:
 | Welche Dateiintegrationen überhaupt angeboten werden | Administration → Integrationen |
 | Basis-URLs der Integrationsanbieter (das SSRF-Festlegen von oben) | Administration → Integrationen |
 
-Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert und auf den
-`truenas.compose.yaml` verweist, denn dort wird die exakte Redirect-URI angezeigt, die in die
+Das ist der Weg, den die [Administrationsseite](../features/admin.md) dokumentiert, und der
+empfohlene, denn dort wird die exakte Redirect-URI angezeigt, die in die
 Konsole des Anbieters einzufügen ist.
 
 **Der typische Fehlerfall ist ein halb ausgefüllter Eintrag.** Ein gespeicherter Wert überdeckt die

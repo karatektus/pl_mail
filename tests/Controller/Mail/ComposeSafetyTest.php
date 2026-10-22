@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Service\Graph\GraphMessageBuilder;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -164,6 +165,42 @@ final class ComposeSafetyTest extends WebTestCase
         );
     }
 
+    /**
+     * Bcc alone is a recipient.
+     *
+     * The rule used to count To only, so a mail meant for Bcc recipients and
+     * nobody else came back with "Add at least one recipient", although the
+     * window itself had let it through.
+     */
+    public function testASendToBccAloneIsAccepted(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $account = $this->account($user, 'sender@joder.dev', sortOrder: 0, primary: true);
+
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
+        $token   = $crawler->filter('input[name="compose[_token]"]')->attr('value');
+
+        $client->request('POST', '/compose/send', [
+            'compose' => [
+                '_token'       => $token,
+                'account'      => $account->id . '|sender@joder.dev',
+                'bccAddresses' => ['hidden@example.test'],
+                'subject'      => 'Bcc only',
+                'bodyHtml'     => '<p>Body</p>',
+            ],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString(
+            'add at least one recipient',
+            strtolower((string) $client->getResponse()->getContent()),
+        );
+    }
+
     /** A draft, by contrast, may have no recipient at all. */
     public function testADraftMayStillBeSavedWithNoRecipient(): void
     {
@@ -208,6 +245,33 @@ final class ComposeSafetyTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * A draft that arrived by sync opens like one written here.
+     *
+     * Outlook gives a draft a receivedDateTime and no sentDateTime, and the
+     * builder used to turn the first into sentAt, which the editor reads as
+     * "already sent": the thread offered the draft and the link answered 404.
+     * The same builder on the same payload minus the draft flag is the
+     * companion — a received mail must still be refused, or the guard above has
+     * been loosened rather than the draft fixed.
+     */
+    public function testADraftSyncedFromTheProviderOpensInTheEditor(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'outlook@joder.dev', sortOrder: 0, primary: true);
+        $builder = static::getContainer()->get(GraphMessageBuilder::class);
+
+        $draft    = $this->synced($builder, $account, draft: true);
+        $received = $this->synced($builder, $account, draft: false);
+
+        $client->request('GET', '/compose/edit/' . $received->id, server: self::DOCK_FRAME);
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request('GET', '/compose/edit/' . $draft->id, server: self::DOCK_FRAME);
+        self::assertResponseIsSuccessful();
+    }
+
     /** The stored body is not trusted on the way into the editor either. */
     public function testScriptInADraftBodyIsNotRendered(): void
     {
@@ -238,6 +302,26 @@ final class ComposeSafetyTest extends WebTestCase
         $message->bodyHtml       = $bodyHtml;
         $message->hasAttachments = false;
         $message->flags          = true === $draft ? [MessageFlag::DRAFT->value] : [];
+
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $message;
+    }
+
+    /** A message as the Graph sync stores it, draft or not. */
+    private function synced(GraphMessageBuilder $builder, Account $account, bool $draft): Message
+    {
+        $message = $builder->build([
+            'id'                => 'graph-' . uniqid('', true),
+            'internetMessageId' => '<' . uniqid('', true) . '@example.test>',
+            'subject'           => 'Synced',
+            'isDraft'           => $draft,
+            'from'              => ['emailAddress' => ['name' => 'Me', 'address' => $account->email]],
+            'toRecipients'      => [['emailAddress' => ['address' => 'you@example.test']]],
+            'receivedDateTime'  => '2026-10-14T14:15:51Z',
+            'body'              => ['contentType' => 'html', 'content' => '<p>Hello</p>'],
+        ], $account, []);
 
         $this->em->persist($message);
         $this->em->flush();

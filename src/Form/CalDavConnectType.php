@@ -44,6 +44,11 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * express, so it is a POST_SUBMIT check: neither supplied is an error on the
  * password field, which is where a person is looking when they have not filled
  * it in.
+ *
+ * CardDAV connects through this same form with `protocol: carddav`. The
+ * questions are the same questions in the same order — usually even the same
+ * answers, on the same server — and only the words change, so the option picks
+ * the translation keys and nothing else.
  */
 final class CalDavConnectType extends AbstractType
 {
@@ -56,51 +61,53 @@ final class CalDavConnectType extends AbstractType
     {
         $integration = $options['data'];
         $isNew       = false === $integration instanceof Integration || null === $integration->id;
+        $field       = 'carddav' === $options['protocol'] ? 'settings.contacts.carddav.field.' : 'settings.calendars.caldav.field.';
+        $messages    = 'carddav' === $options['protocol'] ? 'carddav.' : 'caldav.';
 
         $builder
             ->add('baseUrl', UrlType::class, [
-                'label'       => 'settings.calendars.caldav.field.address',
-                'help'        => 'settings.calendars.caldav.field.address_help',
+                'label'       => $field . 'address',
+                'help'        => $field . 'address_help',
                 'attr'        => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
-                'constraints' => [new NotBlank(message: 'caldav.address_required')],
+                'constraints' => [new NotBlank(message: $messages . 'address_required')],
             ])
             ->add('name', TextType::class, [
-                'label'       => 'settings.calendars.caldav.field.name',
-                'help'        => 'settings.calendars.caldav.field.name_help',
+                'label'       => $field . 'name',
+                'help'        => $field . 'name_help',
                 'attr'        => ['maxlength' => 100] + PasswordManagerIgnore::ATTR,
                 'constraints' => [new Length(max: 100)],
             ])
             ->add('username', TextType::class, [
-                'label'       => 'settings.calendars.caldav.field.username',
-                'help'        => 'settings.calendars.caldav.field.username_help',
+                'label'       => $field . 'username',
+                'help'        => $field . 'username_help',
                 'attr'        => ['autocomplete' => 'off'] + PasswordManagerIgnore::ATTR,
-                'constraints' => [new NotBlank(message: 'caldav.username_required')],
+                'constraints' => [new NotBlank(message: $messages . 'username_required')],
             ])
             // Unmapped and unchecked by default. Rendering it checked, or
             // remembering the last answer, would both make reuse the thing that
             // happens when nobody reads the form.
             ->add('reuseMailPassword', CheckboxType::class, [
-                'label'    => 'settings.calendars.caldav.field.reuse',
-                'help'     => 'settings.calendars.caldav.field.reuse_help',
+                'label'    => $field . 'reuse',
+                'help'     => $field . 'reuse_help',
                 'required' => false,
                 'mapped'   => false,
                 'data'     => false,
             ])
             ->add('reuseAccount', EntityType::class, [
-                'label'        => 'settings.calendars.caldav.field.reuse_account',
+                'label'        => $field . 'reuse_account',
                 'class'        => Account::class,
                 'choices'      => $options['lending_accounts'],
                 'choice_label' => static fn (Account $account): string => (string) $account->displayAddress,
                 'required'     => false,
                 'mapped'       => false,
-                'placeholder'  => 'settings.calendars.caldav.field.reuse_account_none',
+                'placeholder'  => $field . 'reuse_account_none',
             ])
             // Write-only, like every other credential field here: blank keeps
             // what is stored, so renaming a connection does not require
             // re-pasting an app password the user no longer has.
             ->add('secret', SecretType::class, [
-                'label'    => 'settings.calendars.caldav.field.secret',
-                'help'     => 'settings.calendars.caldav.field.secret_help',
+                'label'    => $field . 'secret',
+                'help'     => $field . 'secret_help',
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
@@ -117,8 +124,10 @@ final class CalDavConnectType extends AbstractType
             ->setDefaults([
                 'data_class'       => Integration::class,
                 'lending_accounts' => [],
+                'protocol'         => 'caldav',
             ])
-            ->setAllowedTypes('lending_accounts', 'array');
+            ->setAllowedTypes('lending_accounts', 'array')
+            ->setAllowedValues('protocol', ['caldav', 'carddav']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

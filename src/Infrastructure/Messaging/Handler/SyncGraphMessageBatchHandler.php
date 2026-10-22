@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
+use DateTimeImmutable;
 use App\Service\Graph\GraphMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Mail\GraphApiClient;
@@ -130,6 +131,27 @@ final readonly class SyncGraphMessageBatchHandler
                     // push here would wake every client for nothing. Label and
                     // flag changes arrive via GraphApiSyncer, which does record.
                     $existing->graphId = $graphId;
+
+                    // And the full resource just fetched says whether this is
+                    // still a draft. Filing a draft in Sent Items changes its
+                    // id on a mailbox without immutable ids, so this is where
+                    // that send is heard; the stored row would otherwise stay
+                    // an unsent draft for good. Like the locator above it is
+                    // not announced to JMAP clients: this handler has no
+                    // change log. Only an explicit false counts: a payload that
+                    // does not say is not an answer.
+                    if (false === ($payload['isDraft'] ?? null)) {
+                        $sentAt = $payload['sentDateTime'] ?? null;
+
+                        try {
+                            $at = is_string($sentAt) && '' !== $sentAt ? new DateTimeImmutable($sentAt) : new DateTimeImmutable();
+                        } catch (\Exception) {
+                            $at = new DateTimeImmutable();
+                        }
+
+                        $existing->settleAsSent($at);
+                    }
+
                     continue;
                 }
             }

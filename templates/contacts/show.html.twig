@@ -1,0 +1,272 @@
+{#
+contacts/show.html.twig — one contact: profile header, details, notes,
+related contacts, and REFERENCE EMAILS (every non-deleted message to/from
+them, across inbox/sent/drafts/trash/labels/starred).
+
+Variables: contact, outRelations (ContactRelation[] this contact points at),
+inRelations (ones pointing at it), refEmails (ReferenceEmailFinder rows).
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% block title %}{{ contact.displayName }} — {{ 'contacts.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
+        <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.back'|trans }}">
+            <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+        </a>
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ contact.displayName }}</h1>
+        {% if contact.editable %}
+            <a href="{{ path('app_contacts_edit', { id: contact.id }) }}" class="{{ btnGhost }}">
+                <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>{{ 'contacts.edit'|trans }}
+            </a>
+        {% endif %}
+        {% include 'contacts/_pane_actions.html.twig' %}
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 @2xl:p-6">
+        <div class="max-w-3xl mx-auto flex flex-col gap-5">
+
+            {# ── Profile header ── #}
+            <section class="{{ cardCls }}">
+                <div class="flex items-center gap-4">
+                    {{ cm.avatar(contact, 'w-16 h-16 text-2xl') }}
+                    <div class="min-w-0">
+                        <h2 class="text-xl font-semibold text-ink truncate">{{ contact.displayName }}</h2>
+                        {% set fullName = [contact.namePrefix, contact.givenName, contact.middleName, contact.familyName, contact.nameSuffix]|filter(v => v)|join(' ') %}
+                        {% if fullName and fullName != contact.displayName %}
+                            <p class="text-sm text-ink-muted truncate">{{ fullName }}</p>
+                        {% endif %}
+                        {% set phonetic = [contact.phoneticGivenName, contact.phoneticMiddleName, contact.phoneticFamilyName]|filter(v => v)|join(' ') %}
+                        {% if phonetic %}
+                            <p class="text-xs text-ink-faint truncate">{{ phonetic }}</p>
+                        {% endif %}
+                        {% if contact.jobTitle or contact.company or contact.department %}
+                            <p class="text-sm text-ink-muted truncate">
+                                {{- [contact.jobTitle, contact.department, contact.company]|filter(v => v)|join(' · ') -}}
+                            </p>
+                        {% endif %}
+                        {% if contact.officeLocation %}
+                            <p class="text-xs text-ink-faint truncate">{{ 'contacts.field.officeLocation'|trans }}: {{ contact.officeLocation }}</p>
+                        {% endif %}
+                        {% if contact.nickname %}
+                            <p class="text-xs text-ink-faint">"{{ contact.nickname }}"</p>
+                        {% endif %}
+                        {% if contact.addressBook %}
+                            <p class="text-xs text-ink-faint mt-1 flex items-center gap-1.5" data-contact-book>
+                                <i class="fa-solid {{ contact.addressBook.isReadOnly ? 'fa-lock' : 'fa-cloud' }}" aria-hidden="true"></i>
+                                {{ (contact.addressBook.isReadOnly ? 'contacts.synced_read_only' : 'contacts.synced_with')|trans({'%book%': contact.addressBook.name, '%server%': contact.addressBook.holderName}) }}
+                            </p>
+                        {% endif %}
+                        {% if contact.tags is not empty %}
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                {% for t in contact.tags %}
+                                    <a href="{{ path('app_contacts_list', { tag: t }) }}"
+                                       class="h-6 px-2 inline-flex items-center rounded-full text-xs font-medium bg-sunken text-ink-muted hover:bg-hover transition-colors">{{ t }}</a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <div class="grid gap-5 @3xl:grid-cols-2">
+                {# ── Details ── #}
+                <section class="{{ cardCls }}">
+                    <h3 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.section_details'|trans }}</h3>
+                    <dl class="flex flex-col gap-3 text-sm">
+                        {% for email in contact.emails %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-envelope w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0">
+                                    <a href="{{ path('app_compose_new', {to: email.email, name: contact.displayName}) }}" data-turbo-frame="compose_dock" class="text-accent hover:underline break-all">{{ email.email }}</a>
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ ('contacts.label_' ~ email.label)|trans }}{{ email.isPrimary ? ' · ' ~ 'contacts.primary_short'|trans }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for phone in contact.phones %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-phone w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0">
+                                    <a href="tel:{{ phone.phone }}" class="text-accent hover:underline">{{ phone.phone }}</a>
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ ('contacts.label_' ~ phone.label)|trans }}{{ phone.isPrimary ? ' · ' ~ 'contacts.primary_short'|trans }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for addr in contact.addresses %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-location-dot w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {% if addr.street %}{{ addr.street }}<br>{% endif %}
+                                    {{ [addr.city, addr.region, addr.postcode]|filter(v => v)|join(' ') }}
+                                    {% if addr.country %}<br>{{ addr.country }}{% endif %}
+                                    <span class="block text-xs text-ink-faint">{{ ('contacts.label_' ~ addr.label)|trans }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% if contact.birthday %}
+                            <div class="flex items-start gap-2.5 min-w-0" data-contact-birthday>
+                                <i class="fa-solid fa-cake-candles w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ _self.date(contact.birthday) }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ 'contacts.field.birthday'|trans }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% for row in contact.dates %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-calendar-day w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ _self.date(row.date) }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.relations %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-user-group w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    {{ row.name }}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.urls %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-globe w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0">
+                                    {% if row.url matches '{^https?://}i' %}
+                                        <a href="{{ row.url }}" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline break-all">{{ row.url }}</a>
+                                    {% else %}
+                                        <span class="text-ink break-all">{{ row.url }}</span>
+                                    {% endif %}
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ cm.labelText(row.label) }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.ims %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid {{ row.service == 'sip' ? 'fa-headset' : 'fa-comment' }} w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    <span class="break-all">{{ row.handle }}</span>
+                                    <span class="text-xs text-ink-faint ml-1.5">
+                                        {%- set svc = 'contacts.im_service.' ~ row.service -%}
+                                        {{ svc|trans != svc ? svc|trans : row.service }}{{ row.label != 'other' ? ' · ' ~ cm.labelText(row.label) }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% for row in contact.customFields %}
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <i class="fa-solid fa-tag w-4 text-center text-ink-faint mt-0.5 shrink-0" aria-hidden="true"></i>
+                                <div class="min-w-0 text-ink">
+                                    <span class="break-words">{{ row.value }}</span>
+                                    <span class="text-xs text-ink-faint ml-1.5">{{ row.label }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        {% if contact.emails is empty and contact.phones is empty and contact.addresses is empty
+                            and not contact.birthday and contact.dates is empty and contact.relations is empty
+                            and contact.urls is empty and contact.ims is empty and contact.customFields is empty %}
+                            <p class="text-xs text-ink-faint">{{ 'contacts.no_details'|trans }}</p>
+                        {% endif %}
+                    </dl>
+                </section>
+
+                {# ── Notes + related ── #}
+                <div class="flex flex-col gap-5">
+                    {% if contact.notes %}
+                        <section class="{{ cardCls }}">
+                            <h3 class="text-sm font-semibold text-ink mb-2">{{ 'contacts.notes'|trans }}</h3>
+                            <p class="text-sm text-ink whitespace-pre-wrap">{{ contact.notes }}</p>
+                        </section>
+                    {% endif %}
+                    {% if outRelations is not empty or inRelations is not empty %}
+                        <section class="{{ cardCls }}">
+                            <h3 class="text-sm font-semibold text-ink mb-3">{{ 'contacts.related'|trans }}</h3>
+                            <ul class="flex flex-col gap-2">
+                                {% for rel in outRelations %}
+                                    <li>
+                                        <a href="{{ path('app_contacts_show', { id: rel.relatedContact.id }) }}"
+                                           class="flex items-center gap-2.5 text-sm hover:bg-hover rounded-lg p-1.5 -m-1.5 transition-colors">
+                                            {{ cm.avatar(rel.relatedContact, 'w-8 h-8 text-xs') }}
+                                            <span class="min-w-0">
+                                                <span class="block truncate text-ink font-medium">{{ rel.relatedContact.displayName }}</span>
+                                                <span class="block text-xs text-ink-faint">{{ ('contacts.rel_' ~ rel.relType)|trans }}</span>
+                                            </span>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                                {% for rel in inRelations %}
+                                    <li>
+                                        <a href="{{ path('app_contacts_show', { id: rel.ownerContact.id }) }}"
+                                           class="flex items-center gap-2.5 text-sm hover:bg-hover rounded-lg p-1.5 -m-1.5 transition-colors">
+                                            {{ cm.avatar(rel.ownerContact, 'w-8 h-8 text-xs') }}
+                                            <span class="min-w-0">
+                                                <span class="block truncate text-ink font-medium">{{ rel.ownerContact.displayName }}</span>
+                                                <span class="block text-xs text-ink-faint">{{ ('contacts.rel_' ~ rel.relType)|trans }}</span>
+                                            </span>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </section>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# ── Reference emails ── #}
+            <section class="{{ cardCls }}">
+                <h3 class="text-sm font-semibold text-ink mb-1">{{ 'contacts.reference_emails'|trans }}</h3>
+                <p class="text-xs text-ink-faint mb-3">{{ 'contacts.reference_emails_hint'|trans }}</p>
+                {% if refEmails is empty %}
+                    <p class="text-sm text-ink-faint">{{ 'contacts.reference_emails_empty'|trans }}</p>
+                {% else %}
+                    {# Opened in the mail pane, beside the contact: see
+                       mail--open-in-pane. #}
+                    <ul class="flex flex-col divide-y divide-line" data-controller="mail--open-in-pane" data-action="click->mail--open-in-pane#open">
+                        {% for row in refEmails %}
+                            <li>
+                                <a href="{{ path('app_mail_message', { id: row.id }) }}" data-reference-email
+                                   class="flex items-center gap-3 py-2.5 hover:bg-hover rounded-lg px-2 -mx-2 transition-colors min-w-0">
+                                    {% if row.isStarred %}
+                                        <i class="fa-solid fa-star text-warning text-xs shrink-0" aria-hidden="true"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-envelope text-ink-faint text-xs shrink-0" aria-hidden="true"></i>
+                                    {% endif %}
+                                    <span class="flex-1 min-w-0">
+                                        <span class="block truncate text-sm text-ink {{ row.subject ? '' : 'italic text-ink-faint' }}">
+                                            {{ row.subject|default('contacts.no_subject'|trans) }}
+                                        </span>
+                                        <span class="block truncate text-xs text-ink-faint">
+                                            {{ row.fromName ?: row.fromAddress }}
+                                            {% if row.receivedAt %} · {{ row.receivedAt|date('M j, Y H:i') }}{% endif %}
+                                        </span>
+                                    </span>
+                                    {% if row.hasAttachment %}
+                                        <i class="fa-solid fa-paperclip text-ink-faint text-xs shrink-0" aria-hidden="true"></i>
+                                    {% endif %}
+                                    {% if row.mailbox %}
+                                        <span class="shrink-0 h-6 px-2 inline-flex items-center rounded-full text-[11px] font-medium bg-sunken text-ink-muted">{{ row.mailbox }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
+
+        </div>
+    </div>
+{% endblock %}
+
+{# A contact date for reading, in the language's order; the year when there is one. #}
+{% macro date(value) -%}
+    {%- set parts = value|split('-') -%}
+    {%- if value starts with '--' -%}
+        {{- 'contacts.date_no_year'|trans({'%day%': parts[3] * 1, '%month%': ('contacts.months.' ~ (parts[2] * 1))|trans}) -}}
+    {%- else -%}
+        {{- 'contacts.date_full'|trans({'%day%': parts[2] * 1, '%month%': ('contacts.months.' ~ (parts[1] * 1))|trans, '%year%': parts[0]}) -}}
+    {%- endif -%}
+{%- endmacro %}

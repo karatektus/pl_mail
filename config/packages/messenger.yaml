@@ -300,6 +300,11 @@ framework:
             # serialised instead, which removes that pairing outright; the
             # handler's in-process retry covers the collisions that are left.
             App\Infrastructure\Messaging\Message\RunBulkStatusMessage: bulk
+            # Beside it for its reason: deleting a folder-backed label moves
+            # every message in it first, which is a bulk move by another name.
+            # Its server half waits by re-dispatching itself on a delay, so it
+            # never holds the one consumer while it waits.
+            App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
 
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export
@@ -417,6 +422,26 @@ framework:
             # every failure worth retrying is a third-party rate limit that
             # takes minutes to clear.
             App\Infrastructure\Messaging\Message\SyncCalendarMessage: ingest
+            # Same queue and the same reasoning as SyncCalendarMessage: the sweep
+            # and a book's first sync are reads of the server, minutes long on a
+            # big book, and nobody waits on them.
+            App\Infrastructure\Messaging\Message\SyncAddressBookMessage: ingest
+            # Beside it: finding a Google or Microsoft account's address books
+            # once its grant carries contacts, which then queues their first
+            # sync. Routed so it never runs inside the OAuth callback.
+            App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage: ingest
+            # export, unlike the calendar: an edit on the contacts page leaving
+            # plMail is what that queue is for, and a push is a handful of PUTs,
+            # not a read of the whole book — which is why it is a message of its
+            # own rather than SyncAddressBookMessage. On ingest it waited behind
+            # every mailbox sync. A push that runs out of export's short retries
+            # loses nothing: the contact is still pending, and the next sweep
+            # sends it before it reads.
+            App\Infrastructure\Messaging\Message\PushAddressBookMessage: export
+            # Beside it, for its reason. This one has no row left to stay
+            # pending on (the contact is gone), so once its retries are spent it
+            # waits in `failed` like any other outbound write.
+            App\Infrastructure\Messaging\Message\DeleteRemoteContactMessage: export
             # maintenance rather than ingest, although it is dispatched beside
             # the SyncCalendarMessage above and for the same calendar. Two
             # reasons, and the first is the point of the message existing at

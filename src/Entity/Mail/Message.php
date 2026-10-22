@@ -7,6 +7,7 @@ use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
@@ -36,6 +37,9 @@ use Doctrine\ORM\Mapping as ORM;
 // nearly every row. Serves "which mail is in this category" and the SET NULL a
 // category's removal performs.
 #[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => 'rule_category_id IS NOT NULL'])]
+// The sidebar's unsent-draft warning counts these on every refresh; partial,
+// because nearly every row is null here and only the few marked ones matter.
+#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => 'send_failed_at IS NOT NULL'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -159,6 +163,14 @@ class Message extends MessageModel
 
 
 
+    /**
+     * When the message went out (for received mail, when it arrived).
+     *
+     * An unsent draft has none, however it came to be here: the editor, the
+     * send queue and the thread all read "has a sentAt" as "has gone out". So
+     * a sync builder must leave it null for a draft, or a draft written in
+     * another client is listed and then refused (404) by the editor.
+     */
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $sentAt = null;
 
@@ -341,6 +353,46 @@ class Message extends MessageModel
     public ?DateTimeImmutable $submissionCancelledAt = null;
 
     /**
+     * When the last send of this draft finally failed, or null — the warning
+     * the Drafts list and the sidebar show (#125).
+     *
+     * Final means after the retries: a send that is still being retried has
+     * no warning yet, and a refusal or a lost answer that cannot be checked
+     * has one at once. Cleared when the draft is claimed for another send, so
+     * a second attempt starts clean, and when a send succeeds. Editing the
+     * draft leaves it: the mail has still not gone.
+     *
+     * Written by a bulk update in MessageRepository, never through the entity:
+     * it is written on the way out of a failed send, after the entity manager
+     * has been cleared of whatever the attempt left half-done.
+     */
+    #[ORM\Column(name: 'send_failed_at', nullable: true)]
+    public ?DateTimeImmutable $sendFailedAt = null;
+
+    /** Why it failed — see SendFailure. Set and cleared with sendFailedAt. */
+    #[ORM\Column(name: 'send_failure', length: 20, nullable: true, enumType: SendFailure::class)]
+    public ?SendFailure $sendFailure = null;
+
+    /**
+     * When this send began waiting out a passing failure — the start of the
+     * two minutes a send may spend being retried. See SendMessageHandler.
+     *
+     * Kept across attempts, which is the point: the claim is released between
+     * them, and the wait has to be measured from the first. Cleared when the
+     * send succeeds or finally fails, so the next send gets its own two minutes.
+     */
+    #[ORM\Column(name: 'send_retrying_since', nullable: true)]
+    public ?DateTimeImmutable $sendRetryingSince = null;
+
+    /**
+     * When an attempt lost its answer: the provider may have the mail. The
+     * next attempt looks for it in Sent before sending again, and clears this
+     * either way. See SendOutcomeUnknownException.
+     */
+    #[ORM\Column(name: 'send_unconfirmed_at', nullable: true)]
+    public ?DateTimeImmutable $sendUnconfirmedAt = null;
+
+    /**
      * How urgent this message claims to be, or null if nobody said.
      *
      * Written from the composer's more-options menu on the way out, where
@@ -515,7 +567,10 @@ class Message extends MessageModel
      *
      * Set even when the answer was unusable, because "asked and got nothing"
      * and "never asked" need to be distinguishable or a backfill would retry
-     * the same unanswerable message on every pass forever.
+     * the same unanswerable message on every pass forever. Not set when the
+     * host could not be reached (timeout, refused connection, 401, 403, 408,
+     * 429 or a 5xx): nothing was asked, and the catch-up sweep offers the
+     * message again. See ClassifyMailHandler::hostUnreachable().
      */
     #[ORM\Column(name: 'ai_categorised_at', nullable: true)]
     public ?DateTimeImmutable $aiCategorisedAt = null;
@@ -733,6 +788,43 @@ class Message extends MessageModel
     public function hasFlag(MessageFlag $flag): bool
     {
         return in_array($flag->value, $this->flags, true);
+    }
+
+    /**
+     * A stored draft that the provider says has been sent.
+     *
+     * Sync stores a draft once, as an unsent draft, and never rebuilds a stored
+     * row, so sending it from Outlook or Gmail left it flagged `\Draft` with no
+     * sentAt: the editor would open it, the send queue would send it again, and
+     * discarding it would delete the sent copy at the provider. This is the one
+     * place that says what "was sent" means for the row, for every provider.
+     *
+     * The thread is ranked by $at, as the local send does (ThreadOrderingOnSendTest),
+     * but never moved backwards. Its category is not re-adopted: that is the
+     * threader's, and a draft's reply context was settled when it was written.
+     *
+     * Anything that is not an unsent draft is left exactly as it is, since the
+     * sync asks about every stored message the provider says is not a draft.
+     */
+    public function settleAsSent(DateTimeImmutable $at): void
+    {
+        if (false === $this->isDraft()) {
+            return;
+        }
+
+        $this->removeFlag(MessageFlag::DRAFT);
+
+        // A draft stored before synced drafts were kept unsent already has a
+        // sentAt (its receivedAt). That is the time it keeps, and the one the
+        // thread is ranked by: $at is only when this was noticed, and a mass
+        // re-read of old drafts must not float every conversation to the top.
+        $this->sentAt ??= $at;
+
+        $thread = $this->thread;
+
+        if (null !== $thread && (null === $thread->lastMessageAt || $this->sentAt > $thread->lastMessageAt)) {
+            $thread->lastMessageAt = $this->sentAt;
+        }
     }
 
     /**

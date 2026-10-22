@@ -115,8 +115,11 @@ final class GmailMessageBuilder
             ? new DateTimeImmutable()->setTimestamp((int)($internalDateMs / 1000))
             : new DateTimeImmutable();
 
+        $isDraft = true === in_array('DRAFT', $labelIds, true);
+
         $message->receivedAt = $receivedAt;
-        $message->sentAt = $receivedAt;
+        // A draft has not been sent, whatever internalDate says (see Message::$sentAt).
+        $message->sentAt = true === $isDraft ? null : $receivedAt;
 
         // ── Flags (derived from label IDs) ────────────────────────────────────
         $flags = [];
@@ -131,7 +134,7 @@ final class GmailMessageBuilder
             $message->starredAt = new DateTimeImmutable();
         }
 
-        if (true === in_array('DRAFT', $labelIds, true)) {
+        if (true === $isDraft) {
             $flags[] = '\\Draft';
         }
 

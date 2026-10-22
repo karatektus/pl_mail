@@ -122,7 +122,10 @@ final readonly class ImapMailboxImporter
         $page = array_slice($missing, 0, self::PAGE_SIZE);
         $path = (string) $mailbox->fullPath;
 
-        $query      = $folder->messages()->where(MessageSyncer::uidSetCriteria($page));
+        // Not emptyWhenNoSuchMessage(): these UIDs were all on the server a
+        // moment ago, and a refusal of the set may be about one of them alone.
+        // Read as "none", the floor would move past the rest for good.
+        $query      = ImapQuery::of($folder)->where(MessageSyncer::uidSetCriteria($page));
         $lowestHeld = null;
 
         try {
@@ -196,7 +199,8 @@ final readonly class ImapMailboxImporter
      */
     private function missingBelow(Mailbox $mailbox, \Webklex\PHPIMAP\Folder $folder, int $floor): array
     {
-        $onServer = $folder->messages()
+        $onServer = ImapQuery::of($folder)
+            ->emptyWhenNoSuchMessage()
             ->where(MessageSyncer::uidRangeCriteria(sprintf('1:%d', $floor - 1)))
             ->search()
             ->all();

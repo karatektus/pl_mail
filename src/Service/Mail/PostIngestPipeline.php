@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
+use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\ContactRepository;
@@ -127,6 +128,22 @@ final readonly class PostIngestPipeline
                 created: true,
                 thread: null,
             );
+
+            // NEW MAIL, as distinct from the create above: an Email created
+            // here is new mail only when it landed in the Inbox of a mailbox
+            // that has finished importing. Spam, other folders and unplaced
+            // messages are creates too, and a message from an import is one
+            // nobody is watching arrive.
+            //
+            // A copy of something you sent that a sync brings back from the
+            // Sent folder is filed as Elsewhere, and a draft written here is
+            // stored outside any sync and left unplaced (null); neither counts.
+            //
+            // The arrivals buffer is what the in-app PWA's "new mail" push
+            // reads; see StateManager::recordArrival().
+            if (true === $live && ArrivalPlace::Inbox === $message->arrivedIn) {
+                $this->changes->mailArrived($accountId);
+            }
 
             $message->category = $this->categorizer->categorize($message, $correspondents, $user?->categorySorting);
 

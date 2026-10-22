@@ -11,6 +11,25 @@
    inside it, the way it styles its own hover. */
 @custom-variant lit (&:where(.is-lit, .is-lit > *));
 
+/* A month day opened: under the pointer, or tapped on a screen that has no
+   pointer to hover with (#253). `group-hover/cell:` was the whole of it, and
+   Tailwind gates `hover:` on `(hover: hover)`, so on a phone a day never opened
+   and its narrowest days were bars nobody could read. calendar/month_tap_controller.js
+   puts `data-open` on the day a finger tapped; everything a hover opened, this
+   opens, from the same classes. The cell itself as well as what is inside it,
+   for the `z-40` that lifts it over its neighbours. */
+@custom-variant day-open {
+    @media (hover: hover) {
+        &:where(.group\/cell:hover, .group\/cell:hover *) {
+            @slot;
+        }
+    }
+
+    &:where(.group\/cell[data-open], .group\/cell[data-open] *) {
+        @slot;
+    }
+}
+
 /* ═══ Palette channels + runtime knobs ══════════════════════════════════════
    Unlayered on purpose: these are variable definitions, not utilities, and
    unlayered declarations outrank Tailwind's cascade layers.
@@ -2656,14 +2675,32 @@
    told to grow, which is what `flex: 1 1 0%` says and what `width: auto`
    un-says about the stored pixel count. The handle goes too: there is no
    boundary left to drag when one side has all of it. */
-[data-calendar-mode="calendar"] [data-ui--split-target="wrapper"],
-[data-calendar-mode="calendar"] [data-ui--split-target="pane"] {
+[data-calendar-mode="calendar"] [data-side-pane="calendar"],
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="pane"] {
     flex: 1 1 0%;
     width: auto;
 }
 
-[data-calendar-mode="calendar"] [data-ui--split-target="handle"] {
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="handle"] {
     display: none;
+}
+
+/* ═══ The address book beside the calendar ═══════════════════════════════════
+   Both are docked panes (_side_pane.html.twig), and from 1920px up the row
+   holds them side by side. Below that it holds one beside the mail, so the
+   address book is not drawn while the calendar is — contacts--pane keeps what
+   is remembered in step, but the layout must not wait for it: a first paint
+   with both remembered open, or a window made narrower with both showing,
+   would otherwise squeeze the mail under three panes. And a calendar that has
+   the whole row has it at every width. The numbers match contacts--pane. */
+[data-calendar-mode="calendar"] [data-side-pane="contacts"] {
+    display: none;
+}
+
+@media (max-width: 1919px) {
+    [data-calendar-mode="split"] [data-side-pane="contacts"] {
+        display: none;
+    }
 }
 
 /* Split below lg is Calendar. The row cannot hold a sidebar, a usable message
@@ -2674,6 +2711,82 @@
     [data-calendar-mode="split"]:not([data-calendar-restored]) .main-pane:not([data-ui--split-target="pane"]),
     [data-calendar-mode="split"]:not([data-calendar-restored]) [data-mail-column] {
         display: none;
+    }
+}
+
+/* ═══ The address book at full size ═════════════════════════════════════════
+   The full contacts page is the mailbox with `data-contacts-full` on the shell
+   (contacts/_page_shell.html.twig): the mail column put away and the address
+   book's dock given what is left of the row, at every width. A calendar the
+   user keeps open stays beside it — there is no mail here to take turns with.
+
+   After the rules above, which they have to beat: a calendar that covers the
+   mail, or splits it on a notebook, hides the dock, and its .main-pane rule
+   catches the dock's pane as well. Same specificity, later in the file.
+
+   The dock's own way out to the full page, its × and its handle go while it
+   has the row — each of them is about a boundary that is not there. */
+[data-contacts-full] [data-mail-column] {
+    display: none;
+}
+
+[data-contacts-full] [data-side-pane="contacts"],
+[data-contacts-full] [data-side-pane="contacts"] .main-pane {
+    display: flex;
+    flex: 1 1 0%;
+    width: auto;
+}
+
+[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"],
+[data-contacts-full] [data-contacts-pane-actions] {
+    display: none;
+}
+
+/* Leaving it — a message opened from the contact — is a view transition (see
+   contacts--pane#reveal): the mail column comes in from the left and the
+   address book draws back to its docked width, the same DOM throughout. The
+   names are only given for the length of it, so no other change of the page
+   is animated by accident. The two pictures of the address book are pinned to
+   its right edge and not stretched: the contact narrows, it does not squash. */
+[data-contacts-revealing] [data-mail-column] {
+    view-transition-name: contacts-reveal-mail;
+}
+
+[data-contacts-revealing] [data-side-pane="contacts"] {
+    view-transition-name: contacts-reveal-dock;
+}
+
+[data-contacts-revealing] [data-side-pane="calendar"] {
+    view-transition-name: contacts-reveal-calendar;
+}
+
+::view-transition-group(contacts-reveal-mail),
+::view-transition-group(contacts-reveal-dock),
+::view-transition-group(contacts-reveal-calendar) {
+    animation-duration: 280ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-group(contacts-reveal-dock) {
+    overflow: clip;
+}
+
+::view-transition-old(contacts-reveal-dock),
+::view-transition-new(contacts-reveal-dock) {
+    height: 100%;
+    object-fit: none;
+    object-position: right top;
+    animation-duration: 280ms;
+}
+
+::view-transition-new(contacts-reveal-mail) {
+    animation: contacts-reveal-mail 280ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes contacts-reveal-mail {
+    from {
+        opacity: 0;
+        transform: translateX(-2rem);
     }
 }
 
@@ -2692,13 +2805,15 @@
    switches position; short of it, this transition is what puts the pane back.
    Only ever on for the length of that settle: a transition left on would make
    every drag lag a frame behind the pointer. */
-[data-ui--split-target="pane"].is-settling {
+[data-ui--split-target="pane"].is-settling,
+[data-ui--side-split-target="pane"].is-settling {
     transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* And the grip says the same thing, so the affordance is visible on a handle
    that is only two pixels wide. */
-[data-ui--split-target="handle"].is-straining .split-grip {
+[data-ui--split-target="handle"].is-straining .split-grip,
+[data-ui--side-split-target="handle"].is-straining .split-grip {
     background-color: rgb(var(--rgb-accent));
     transform: scaleY(1.6);
 }
@@ -2709,11 +2824,13 @@
 
 @media (prefers-reduced-motion: reduce) {
     [data-ui--split-target="pane"].is-settling,
+    [data-ui--side-split-target="pane"].is-settling,
     .split-grip {
         transition: none;
     }
 
-    [data-ui--split-target="handle"].is-straining .split-grip {
+    [data-ui--split-target="handle"].is-straining .split-grip,
+    [data-ui--side-split-target="handle"].is-straining .split-grip {
         transform: none;
     }
 }
@@ -3766,6 +3883,21 @@ html {
 @container (max-width: 5.5rem) {
     [data-tentative-bar] {
         background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 2px, transparent 2px 4px);
+    }
+}
+
+/* An invitation not answered yet, in a month cell (see _event_chip): its bar is
+   dashed. A mask rather than a dashed border, because the bar is a background
+   (a gradient, for a meeting on several calendars) and a mask cuts whichever
+   it is. Across the bar below 5.5rem, where the bar is the whole chip and
+   lies on its side. */
+[data-awaiting-bar] {
+    mask-image: repeating-linear-gradient(to bottom, black 0 3px, transparent 3px 5px);
+}
+
+@container (max-width: 5.5rem) {
+    [data-awaiting-bar] {
+        mask-image: repeating-linear-gradient(to right, black 0 6px, transparent 6px 9px);
     }
 }
 
@@ -4938,6 +5070,32 @@ emoji-picker {
     animation-timing-function: var(--motion-ease);
 }
 
+/* ── What's new: a screenshot, grown to fill the dialog (#179) ─────────────
+   A layer over the What's new body (its container is `relative`), with the
+   picture centred and contained in it. The surface behind the picture is a
+   separate element so the controller can fade it in while the picture grows:
+   fading the layer itself would fade the picture with it. Opaque, not the
+   panel's glass, so the notes do not show through behind the picture. */
+.whats-new-shot {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.whats-new-shot[hidden] {
+    display: none;
+}
+
+.whats-new-shot-backdrop {
+    position: absolute;
+    inset: 0;
+    background-color: rgb(var(--rgb-surface));
+}
+
 /* ═══ Appearance: typography, the mail list, and per-surface density ════════
    Everything below is driven by custom properties AppearanceRenderer writes
    inline on <html>. That is not a decoration of the existing scheme, it IS the
@@ -5384,6 +5542,45 @@ label:has(> input.sr-only) {
 */
 .thread-message-head:has([data-mail--message-actions-target="panel"]:not(.hidden)) {
     z-index: 30;
+}
+
+/* ═══ A message header in a narrow pane ═════════════════════════════════════
+   The header is one row: avatar, sender, and a block holding the date, the ⋮
+   menu and the chevron. The last of those is as wide as it is on a desktop
+   (the date alone is ~150px), so in a pane of phone width it left the sender
+   about 110px and the address broke mid-word onto three lines.
+
+   Keyed to the width of `.thread-messages`, NOT to a media query. The reading
+   pane on the right makes a ~400px message pane on a 1920px monitor, and a
+   viewport breakpoint would fix the phone and leave exactly that case broken.
+   36rem is the same threshold the list rows use for their own narrow layout.
+
+   Narrow, the date block drops to a row of its own: the date at the left, ⋮
+   and the chevron at the right, indented to line up under the sender rather
+   than under the avatar. That gives the sender the full width, and the row it
+   already is (name, address, labels, `flex-wrap`) does the rest: the address
+   sits beside the name when it fits and takes a line of its own when it does
+   not. How much of a long address shows on that line is the address's own
+   styling, which this block does not touch. */
+.thread-messages {
+    container: thread-messages / inline-size;
+}
+
+@container thread-messages (max-width: 36rem) {
+    .thread-message-head {
+        flex-wrap: wrap;
+        row-gap: 0.125rem;
+    }
+
+    /* 3rem = the avatar (2.25rem) and the header's gap (0.75rem). */
+    .thread-message-meta {
+        flex: 0 0 100%;
+        padding-left: 3rem;
+    }
+
+    .thread-message-date {
+        margin-right: auto;
+    }
 }
 
 /* ═══ Dragging conversations onto folders and tabs ═════════════════════════

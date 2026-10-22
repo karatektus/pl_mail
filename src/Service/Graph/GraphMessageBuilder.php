@@ -142,14 +142,16 @@ final class GraphMessageBuilder
         // ── Dates ─────────────────────────────────────────────────────────────
         $receivedAt = $this->parseDate($payload['receivedDateTime'] ?? null) ?? new DateTimeImmutable();
         $sentAt     = $this->parseDate($payload['sentDateTime'] ?? null);
+        $isDraft    = true === ($payload['isDraft'] ?? false);
 
         $message->receivedAt = $receivedAt;
-        $message->sentAt = $sentAt ?? $receivedAt;
+        // Outlook stamps a draft with a receivedDateTime and no sentDateTime;
+        // falling back to the first would make an unsent draft look sent.
+        $message->sentAt = true === $isDraft ? null : ($sentAt ?? $receivedAt);
 
         // ── Flags ─────────────────────────────────────────────────────────────
         $flags   = [];
         $isRead  = true === ($payload['isRead'] ?? false);
-        $isDraft = true === ($payload['isDraft'] ?? false);
         $flagged = 'notFlagged' !== (string) ($payload['flag']['flagStatus'] ?? 'notFlagged');
 
         if (true === $isRead) {

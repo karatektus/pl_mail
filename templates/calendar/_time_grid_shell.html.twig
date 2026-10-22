@@ -475,10 +475,12 @@ one) `placed`:
                     {% endif %}
 
                     {% if isToday %}
-                        {# Rendered at the minute the page was built and never
-                           moved afterwards. A timer that crept it down the
-                           column would be a repaint a minute forever, on a view
-                           that is re-rendered by every navigation anyway. #}
+                        {# Rendered at the minute the page was built, and moved
+                           once a minute after that by calendar--now when the
+                           caller mounts it (#253): a style write a minute,
+                           where a calendar left open had this an hour behind
+                           by lunch. The shared page does not, and its line
+                           stays where it was drawn. #}
                         {# `z-[3]`: over the blocks, which carry no number of
                            their own, and UNDER the pinned gutter at 5. Its dot
                            hangs 4px into the column to its left, which is the
@@ -493,6 +495,7 @@ one) `placed`:
                         <div class="absolute left-0 right-0 h-px bg-danger pointer-events-none z-[3]"
                              style="top: {{ (nowMinute * 100 / 1440)|round(4) }}%"
                              data-calendar--time-grid-target="nowLine"
+                             data-calendar--now-target="line"
                              aria-hidden="true">
                             <span class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-danger"></span>
                         </div>

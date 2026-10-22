@@ -12,8 +12,10 @@ use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\MessageEraser;
+use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
@@ -97,13 +99,25 @@ final class GraphApiSyncer
         private readonly MessageEraser          $eraser,
         private readonly ThreadStatusUpdater    $status,
         private readonly SyncOrigin             $origin,
+        private readonly ThreadLabelSynchronizer $threadLabels,
+        private readonly SyncNotifier           $notifier,
     ) {}
+
+    /**
+     * Set by partition() and eraseVanished() when a row we already hold
+     * changed, consumed by announceChanges() at the end of the run that set
+     * it. Reset at the start of each public entry point, so a run that threw
+     * halfway cannot announce on behalf of the next.
+     */
+    private bool $changedExisting = false;
 
     /**
      * @param list<string> $folderIds
      */
     public function sync(Account $account, array $folderIds): void
     {
+        $this->changedExisting = false;
+
         $deltaLinks = $account->graphDeltaLinks;
         $pending    = [];
 
@@ -233,6 +247,8 @@ final class GraphApiSyncer
 
         $this->em->flush();
 
+        $this->announceChanges($account);
+
         $this->dispatchBatches($account, array_map(strval(...), array_keys($pending)));
     }
 
@@ -252,6 +268,8 @@ final class GraphApiSyncer
      */
     public function importPage(Account $account): GraphImportStep
     {
+        $this->changedExisting = false;
+
         $plan = $account->graphImport;
 
         if ([] === $plan) {
@@ -315,11 +333,13 @@ final class GraphApiSyncer
 
             $account->graphImport = [...$plan, ['folder' => $folderId, 'since' => $entry['since'], 'next' => null]];
             $this->em->flush();
+            $this->announceChanges($account);
 
             return GraphImportStep::Waiting;
         }
 
         $this->em->flush();
+        $this->announceChanges($account);
 
         return [] === $account->graphImport ? GraphImportStep::Finished : GraphImportStep::More;
     }
@@ -493,6 +513,8 @@ final class GraphApiSyncer
         }
 
         if ($erased > 0) {
+            $this->changedExisting = true;
+
             $this->logger->info('GraphApiSyncer: messages removed from every folder were deleted here', [
                 'accountId' => $account->id,
                 'reported'  => count($graphIds),
@@ -519,6 +541,7 @@ final class GraphApiSyncer
 
         $needsFetch = [];
         $flagStates = [];
+        $changed    = false;
 
         // Before the loop, because the echo guard is measured from the moment
         // the provider was asked and the delta was already in hand when this
@@ -533,7 +556,8 @@ final class GraphApiSyncer
             }
 
             if (true === array_key_exists('@removed', $item)) {
-                $this->detachFolderLabel($account, $graphId, $folderId);
+                // The call first: `||` would skip it once $changed is true.
+                $changed = $this->detachFolderLabel($account, $graphId, $folderId) || $changed;
                 continue;
             }
 
@@ -544,16 +568,20 @@ final class GraphApiSyncer
 
             // Already synced and still present — where it lives, and what state
             // it is in.
-            $this->attachFolderLabel($account, $graphId, (string) ($item['parentFolderId'] ?? $folderId));
+            $changed = $this->attachFolderLabel($account, $graphId, (string) ($item['parentFolderId'] ?? $folderId)) || $changed;
 
             // Read state used to stop here. The comment above this block said
             // the only cheap thing that could have changed was location, and it
-            // was wrong: a Graph delta entry carries the whole message resource,
-            // isRead and flag included, so a message read in Outlook announced
-            // itself in this very payload and plMail dropped it. Mail read on a
+            // was wrong: a Graph delta entry carries the properties the chain
+            // was begun with, and with isRead and flag among them a message read
+            // in Outlook announced itself in this very payload. Mail read on a
             // phone stayed unread here, exactly as it did on IMAP, and for the
             // same reason — nothing ever re-read the state of a row it already
             // had.
+            //
+            // That holds only for a chain begun with them: GraphApiClient::
+            // DELTA_SELECT. One begun without is sent no entry at all for a
+            // message that was merely read, so this block cannot make up for it.
             $state = $this->flagStateOf($account, $graphId, $item);
 
             if (null !== $state) {
@@ -564,11 +592,43 @@ final class GraphApiSyncer
         // One call for the batch: it recounts threads and writes the JMAP
         // change log, and it is where the echo guard keeps an unconfirmed local
         // change from being reverted by a delta that predates it.
-        if ([] !== $flagStates) {
-            $this->status->applyRemoteFlags($flagStates, $readAt);
+        if ([] !== $flagStates && 0 < $this->status->applyRemoteFlags($flagStates, $readAt)) {
+            $changed = true;
+        }
+
+        if (true === $changed) {
+            $this->changedExisting = true;
         }
 
         return $needsFetch;
+    }
+
+    /**
+     * Tell the open list that rows changed under it, once, and only after the
+     * commit that makes the change visible to the request it triggers.
+     *
+     * A delta that only moved, deleted or re-flagged mail we already hold
+     * builds nothing, so SyncGraphMessageBatchHandler never runs and never
+     * publishes account.synced; GraphAccountSyncer returns no mailbox ids, so
+     * there is no mailbox.synced either. The sidebar counts do move
+     * (mail.changed), and the list kept showing the old rows until the page was
+     * reloaded. Only when a row really changed: a delta that agrees with what
+     * we hold (every echo of our own push), or a change the echo guard declines,
+     * is not news.
+     *
+     * One flag per run rather than a publish per folder page: partition() is
+     * reached from sync(), importPage() and receivedSince(), and publishing
+     * from inside it would announce label changes that are not flushed yet.
+     */
+    private function announceChanges(Account $account): void
+    {
+        if (false === $this->changedExisting) {
+            return;
+        }
+
+        $this->changedExisting = false;
+
+        $this->notifier->publishAccountSynced($account);
     }
 
     /**
@@ -578,8 +638,10 @@ final class GraphApiSyncer
      * Graph has no flag list, so the two booleans it does answer are turned
      * into one: RemoteFlagState::storedFlags() synthesises the mirror. \Draft
      * is deliberately not carried here — isDraft is a property of the message
-     * that GraphMessageBuilder sets at ingest and that a delta on a stored
-     * message does not change without the message being rewritten anyway.
+     * that GraphMessageBuilder sets at ingest, and a delta does not say when it
+     * changes. A draft being sent is heard elsewhere instead: attachFolderLabel()
+     * for a move into Sent Items, SyncGraphMessageBatchHandler for a new id
+     * (both Message::settleAsSent()).
      *
      * @param array<string,mixed> $item
      */
@@ -613,19 +675,25 @@ final class GraphApiSyncer
         );
     }
 
-    private function attachFolderLabel(Account $account, string $graphId, string $folderId): void
+    /**
+     * @return bool whether the message's folder labels changed, i.e. whether it
+     *              really moved. Re-reporting it where it already is does not.
+     */
+    private function attachFolderLabel(Account $account, string $graphId, string $folderId): bool
     {
         $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
 
         if (null === $message) {
-            return;
+            return false;
         }
 
         $label = $this->folderResolver->resolveFolder($folderId, $account);
 
         if (null === $label) {
-            return;
+            return false;
         }
+
+        $moved = false === $message->hasLabel($label);
 
         // Exclusive, not additive. An Exchange message is in exactly one
         // folder, and this half of a move used to rely on the other half —
@@ -645,39 +713,89 @@ final class GraphApiSyncer
         foreach ($this->labelPolicy->folderLabels($message) as $current) {
             if ($current !== $label) {
                 $message->removeLabel($current);
+                $moved = true;
             }
         }
 
         $message->addLabel($label);
 
+        // Filed in Sent Items, so it was sent. A delta says nothing about
+        // isDraft and a stored message is never rebuilt, so this is the only
+        // place a draft sent from Outlook (same id under immutable ids) is
+        // heard. Trash and Drafts are not it: a draft thrown away or put back
+        // is still unsent.
+        //
+        // A settle is a change of its own, even with no move: a draft filed in
+        // Sent Items before settling existed still wears \Draft beside its
+        // Sent label, and the next re-report is the first chance to end that.
+        // It changes the Email's keywords and the list's draft marker, so it
+        // is recorded and announced like a move.
+        if (LabelRole::Sent === $label->role && true === $message->isDraft()) {
+            $message->settleAsSent(new DateTimeImmutable());
+            $moved = true;
+        }
+
         // A folder move on the Microsoft side changes Email.mailboxIds, which
         // is the single most visible thing a JMAP client watches for. Without
         // this the message silently moves in Outlook and never in ltt.rs.
-        $this->recordMoved($account, $message);
-
-        $thread = $message->thread;
-
-        if (null !== $thread) {
-            $thread->addLabel($label);
+        //
+        // Only when it did move. Graph re-sends a message in its folder's
+        // delta for reasons that are not a move — plMail marking it read is
+        // one — and recording a change for a message that is already where it
+        // should be announces nothing true to a JMAP client.
+        if (true === $moved) {
+            $this->recordMoved($account, $message);
         }
+
+        // A list shows the thread's labels, and a thread wears a folder while
+        // any of its messages does. Adding the destination alone left the
+        // thread under the folder the message had just left: mail marked as
+        // spam in another client stayed in the inbox list here.
+        $this->syncThreadLabels($message);
+
+        return $moved;
     }
 
-    private function detachFolderLabel(Account $account, string $graphId, string $folderId): void
+    /**
+     * @return bool whether the message was wearing the label, so whether
+     *              anything changed
+     */
+    private function detachFolderLabel(Account $account, string $graphId, string $folderId): bool
     {
         $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
 
         if (null === $message) {
-            return;
+            return false;
         }
 
         $label = $this->folderResolver->resolveFolder($folderId, $account);
 
         if (null === $label) {
-            return;
+            return false;
+        }
+
+        $wasThere = $message->hasLabel($label);
+
+        // A removal for a folder the message is not in changes nothing, and
+        // recording it would announce a move that did not happen.
+        if (false === $wasThere) {
+            return false;
         }
 
         $message->removeLabel($label);
         $this->recordMoved($account, $message);
+        $this->syncThreadLabels($message);
+
+        return $wasThere;
+    }
+
+    private function syncThreadLabels(Message $message): void
+    {
+        $thread = $message->thread;
+
+        if (null !== $thread) {
+            $this->threadLabels->sync($thread);
+        }
     }
 
     /**

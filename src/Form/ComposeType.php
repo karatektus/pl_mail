@@ -21,7 +21,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Validator\Constraints\Count;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Validator\Constraints\Callback;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class ComposeType extends AbstractType
 {
@@ -70,12 +72,17 @@ class ComposeType extends AbstractType
             // ContactAutocompleteField, which drops what it cannot validate).
             // "No valid recipient" and "no recipient" are therefore the same
             // failure by the time the form is bound, and one rule covers both.
+            //
+            // Counted across To, Cc and Bcc, as the window's own guard does: a
+            // mail sent only to Bcc is a normal thing to want (a list kept
+            // private, a copy to oneself), and SMTP, Gmail and Graph all take
+            // it. The rule sits on To so the refusal shows where the user looks
+            // first.
             ->add('toAddresses', ContactAutocompleteField::class, [
                 'mapped'      => false,
                 'constraints' => [
-                    new Count(
-                        min: 1,
-                        minMessage: 'compose.recipient_required',
+                    new Callback(
+                        callback: self::requireARecipient(...),
                         groups: ['send'],
                     ),
                 ],
@@ -268,6 +275,34 @@ class ComposeType extends AbstractType
         $name = null !== $name ? trim($name) : '';
 
         return '' !== $name ? sprintf('%s <%s>', $name, $address) : $address;
+    }
+
+    /**
+     * Refuse a send with nobody in To, Cc or Bcc.
+     *
+     * Read off the bound form rather than off the Message: the three fields are
+     * unmapped, and the controller copies them onto the entity only after
+     * validation has run.
+     */
+    private static function requireARecipient(mixed $to, ExecutionContextInterface $context): void
+    {
+        $field = $context->getObject();
+
+        if (false === $field instanceof FormInterface || null === $field->getParent()) {
+            return;
+        }
+
+        $form = $field->getParent();
+
+        foreach (['toAddresses', 'ccAddresses', 'bccAddresses'] as $name) {
+            $selected = $form->get($name)->getData();
+
+            if (true === is_countable($selected) && count($selected) > 0) {
+                return;
+            }
+        }
+
+        $context->buildViolation('compose.recipient_required')->addViolation();
     }
 
     public function configureOptions(OptionsResolver $resolver): void

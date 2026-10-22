@@ -235,6 +235,31 @@ final class ReadReceiptTest extends KernelTestCase
     }
 
     /**
+     * A draft that asks for a receipt is our own mail on its way out, not a
+     * request to answer. The policy used to rely on sentAt for this, which a
+     * synced draft now lacks (it has not been sent), so the draft flag has to
+     * say it.
+     *
+     * The same row without the flag is the presence companion: under "always"
+     * it is a sendable request, so the silence is the flag's doing.
+     */
+    public function testADraftAsksForAReceiptButIsNeverAnswered(): void
+    {
+        $this->setMode(ReadReceiptMode::Always);
+
+        $message        = $this->receiptRequestedMessage();
+        $message->flags = [MessageFlag::DRAFT->value];
+        $this->em->flush();
+
+        self::assertFalse($this->policy->decide($message)->isSendable(), 'a draft is not answered');
+
+        $message->flags = [];
+        $this->em->flush();
+
+        self::assertTrue($this->policy->decide($message)->isSendable(), 'the same row, not a draft, is');
+    }
+
+    /**
      * Re-marking an already-read message read is what the bulk toolbar does
      * routinely over a mixed selection. Only the transition may fire.
      */

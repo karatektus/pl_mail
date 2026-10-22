@@ -125,6 +125,25 @@ class PushSubscription
     #[ORM\Column]
     public int $failureCount = 0;
 
+    /**
+     * Told only when mail ARRIVED, not on every StateChange.
+     *
+     * Set by the in-app browser/PWA device's own registration (WebPushController)
+     * and by nothing else. That device wants "new mail" and no more: a
+     * StateChange says that an Email changed, which a read, a flag or a sent
+     * copy also does, and the installed app turned each one into a notification.
+     * JMAP clients and FCM phones keep the full stream.
+     *
+     * Deliberately not part of the JMAP vocabulary: PushSubscription/get does not
+     * return it and PushSubscription/set cannot set it, so a client cannot opt
+     * itself out of the stream or into the filter.
+     *
+     * Defaulted in the column as well as here, so a row written by anything else
+     * is a full-stream one, which is the behaviour every row had before this.
+     */
+    #[ORM\Column(name: 'arrivals_only', options: ['default' => false])]
+    public private(set) bool $arrivalsOnly = false;
+
     private function __construct(User $usr, string $deviceClientId, PushTransport $transport)
     {
         $this->usr = $usr;
@@ -215,6 +234,16 @@ class PushSubscription
         $this->verified = false;
         $this->verificationCode = bin2hex(random_bytes(16));
         $this->failureCount = 0;
+    }
+
+    /**
+     * Narrow this row to new-mail pushes. Nothing clears it again: there is no
+     * setter for false, so a row that should get the full stream back is a
+     * different row, not an edit.
+     */
+    public function markArrivalsOnly(): void
+    {
+        $this->arrivalsOnly = true;
     }
 
     public function isExpired(?DateTimeImmutable $now = null): bool

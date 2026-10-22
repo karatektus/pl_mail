@@ -20,7 +20,9 @@ rendered it: an album is a pile of pictures, a folder is a folder.
    404 the navigation; presence of the field is what tells the two apart. See
    FilePickerController::browseDestination(). #}
 {% set browseArgs = { id: integration.id, folder: entry.id, draft: draftId } %}
-{% if mode|default('attach') == 'destination' %}
+{% if mode|default('attach') == 'avatar' %}
+    {% set browseArgs = { id: integration.id, folder: entry.id, mode: 'avatar' } %}
+{% elseif mode|default('attach') == 'destination' %}
     {% set browseArgs = { id: integration.id, folder: entry.id, mode: 'destination' } %}
     {% if part|default(null) is not null %}
         {% set browseArgs = browseArgs|merge({ part: part }) %}

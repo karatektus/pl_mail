@@ -1,6 +1,5 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, bulkMore, mailRow, seed } from "./support/config";
-import { acceptConfirm } from "./support/confirm";
 
 /**
  * Runs authenticated as this worker's own user, signed in by the worker
@@ -150,8 +149,18 @@ test.describe("manage labels", () => {
         await expect(row).toBeVisible();
 
         await row.getByRole("button", { name: `Delete label "${LABEL_NAME}"` }).click();
-        await acceptConfirm(page);
 
+        // A dialog, not the browser's confirm(): for a label that is a folder
+        // on the mail server it also asks where the mail goes (issue #40). The
+        // seeded label is a plain one, so there is nothing to choose here.
+        const modal = page.locator("#modal-backdrop");
+        await expect(modal).toBeVisible();
+        await expect(modal).toContainText("goes from every account");
+        await expect(modal.locator("select")).toHaveCount(0);
+
+        await modal.getByRole("button", { name: "Delete label" }).click();
+
+        await expect(modal).toBeHidden();
         await expect(list.locator("li").filter({ hasText: LABEL_NAME })).toHaveCount(0);
         await expect(
             page.locator("#label-list").getByRole("link", { name: LABEL_NAME }),
@@ -191,11 +200,14 @@ test.describe("manage labels", () => {
         await expect(modal).toContainText("removes the label from every account");
         await expect(modal).toContainText("is not deleted");
 
-        const remove = modal.getByRole("button", { name: "Delete label" });
+        // Into the delete dialog, in the same modal, and confirmed there.
+        const remove = modal.getByRole("link", { name: "Delete label" });
         await expect(remove).toBeVisible();
 
         await remove.click();
-        await acceptConfirm(page);
+
+        await expect(modal).toContainText("goes from every account");
+        await modal.getByRole("button", { name: "Delete label" }).click();
 
         await expect(modal).toBeHidden();
         await expect(
@@ -226,7 +238,7 @@ test.describe("manage labels", () => {
             const save = Array.from(root.querySelectorAll("button")).find(
                 (b) => b.textContent?.trim() === "Save",
             );
-            const remove = Array.from(root.querySelectorAll("button")).find((b) =>
+            const remove = Array.from(root.querySelectorAll("a, button")).find((b) =>
                 b.textContent?.includes("Delete label"),
             );
 
@@ -266,10 +278,12 @@ test.describe("manage labels", () => {
     test("rejects a delete without a valid CSRF token", async ({ page, request }) => {
         await page.goto(SETTINGS_URL);
 
+        // The row's button opens the dialog at the same path the delete
+        // posts to.
         const id = await page
-            .locator("#settings-label-list form[action*='/delete']")
+            .locator("#settings-label-list [data-ui--modal-src-value*='/delete']")
             .first()
-            .getAttribute("action");
+            .getAttribute("data-ui--modal-src-value");
         expect(id).toBeTruthy();
 
         const response = await request.post(id!, {

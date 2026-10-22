@@ -147,7 +147,7 @@ final class SessionBuilder
                 // property of one account, and every value lives in that
                 // account's entry under the same URN.
                 Capability::SYNC => new \stdClass(),
-                Capability::CONTACTS => $this->contactsCapabilities(),
+                Capability::CONTACTS => $this->contactsCapabilities($base),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
                 Capability::INBOX_TABS => new \stdClass(),
             ],
@@ -422,9 +422,10 @@ final class SessionBuilder
      *
      * @return array<string,mixed>
      */
-    private function contactsCapabilities(): array
+    private function contactsCapabilities(string $base): array
     {
         return [
+            'apiUrl' => $base.'/jmap/contacts',
             'maxSuggestions' => ContactAutocompleteMethod::MAX_LIMIT,
             'defaultSuggestions' => ContactAutocompleteMethod::DEFAULT_LIMIT,
         ];

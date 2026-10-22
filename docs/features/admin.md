@@ -581,7 +581,7 @@ on the host itself applies. plMail cannot read that variable, so an empty box is
 nothing. Useful after a restart, and useful for finding out what a cold load actually costs on your
 hardware before you decide how long to hold it.
 
-### The four features are separate switches
+### The five features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.
 
@@ -591,6 +591,7 @@ They have very different costs, and very different consequences when the model i
 | **Sort mail into tabs** | Fills in a category when no rule recognised the message | On every message that arrives |
 | **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
 | **Thread summaries** | Writes a short account of a long conversation | Only when somebody asks for one |
+| **Contact help** | Reads a contact out of pasted text, and suggests updates to a contact from the signature of their latest mail | Only when somebody presses **Improve with AI** |
 
 Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker —
 if a header, a Gmail label or the fact that you have written to somebody already decided the
@@ -614,13 +615,20 @@ Two things keep sorting from getting in the way of mail arriving:
 
 Writing help never replaces what you wrote. It appends, so the original is always still there.
 
-Summaries are the most expensive of the four. They use the same writing model, but a whole
+Summaries are the most expensive of the five. They use the same writing model, but a whole
 conversation is a much larger prompt than a draft: on a 30B model and one GPU, expect around a
 minute for the first summary after a quiet spell and around half that once the model is warm. The
 GPU is held for the whole of it, so on a shared machine a summary is felt by everybody. Nothing is
 ever summarised on its own — no arriving message, no nightly pass — and a summary that has been
 written is kept and shown again, so opening the same conversation twice costs nothing the second
 time.
+
+Contact help sends text about somebody else: what a person pasted into a new contact, or a saved
+contact together with the signature block of the newest mail that contact sent — the part under
+`-- ` or under the closing ("Best regards"), never the body of the mail. A mail with neither sends
+nothing from that mail. Nothing it suggests is saved until the person ticks it and saves the
+contact. Without it, pasting still works: plMail reads the text by rules, and only the button that
+asks the model goes away.
 
 ### Searching by meaning needs one pass first
 

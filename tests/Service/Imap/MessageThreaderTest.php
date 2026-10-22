@@ -9,26 +9,24 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
-use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Imap\MessageThreader;
+use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class MessageThreaderTest extends TestCase
 {
+    use BuildsThreaderWithoutDatabase;
+
     private MessageThreader $threader;
 
     protected function setUp(): void
     {
         // Both methods under test are pure string handling — the collaborators
         // are stubs purely to satisfy the constructor and are never called.
-        $this->threader = new MessageThreader(
-            $this->createStub(EntityManagerInterface::class),
-            $this->createStub(MessageRepository::class),
-            $this->createStub(MessageThreadRepository::class),
-        );
+        $this->threader = $this->threaderWithoutDatabase();
     }
 
     #[DataProvider('normalizeSubjectCases')]
@@ -426,11 +424,7 @@ final class MessageThreaderTest extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('contains')->willReturn($managed);
 
-        return new MessageThreader(
-            $entityManager,
-            $this->createStub(MessageRepository::class),
-            $threadRepository,
-        );
+        return $this->threaderWithoutDatabase($entityManager, $threadRepository);
     }
 
     private function message(?MessageCategory $category, string $receivedAt): Message

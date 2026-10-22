@@ -211,6 +211,12 @@ the user checker, the throttle above and two-factor apply to it unchanged — se
   unlinked account is found by address, so an administrator with a second login at the provider can
   reach an account that has not been linked yet. `app:user:oidc-unlink` is console-only for the same
   reason.
+- **"Single sign-on only" is enforced by the server, and undone only from the console.**
+  `LoginFormAuthenticator` refuses a password sign-in before it looks the user up, so a POST to
+  `/login` with the right password fails like a wrong one. It is in force only while the provider is
+  whole and in force, and the form that sets it needs the saving administrator to be linked to the
+  provider already. `app:sso:allow-password-login` is console-only: an administrator's browser
+  session must not be able to undo a setting that exists to keep passwords out.
 
 ### Access control, and the endpoints that cannot hold a session
 
@@ -650,6 +656,13 @@ The Spam banner is separate and needs no heuristic at all: the message carries a
 role is Spam. A trusted sender does **not** get images inside Spam — the allowlist records a
 belief about a sender, and a message in Spam is the provider disagreeing about whether this is
 really that sender.
+
+**Settings → Mail → Images** can widen the allowlist to every sender (`images.always_show` in the
+user's settings, off unless switched on, #124). It is read in `MessageRenderer` beside the
+allowlist and stops where the allowlist stops: Spam still wins, and images still go through the
+proxy, so a sender learns that a message was opened but not the reader's address. It is kept
+apart from the allowlist on purpose, so no "Stop showing" line is drawn for a sender nobody
+trusted, and switching it off leaves the per-sender entries as they were.
 
 ## Things that bite
 

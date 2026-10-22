@@ -168,6 +168,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
         $this->check('setting search.sort', 'oldest', $user->getSetting(User::SETTING_SEARCH_SORT));
         $this->check('setting calendar.pane_width', 420, $user->getSetting(User::SETTING_CALENDAR_PANE_WIDTH));
+        $this->check('setting contacts.pane_open', true, $user->getSetting(User::SETTING_CONTACTS_PANE_OPEN));
+        $this->check('setting contacts.pane_width', 560, $user->getSetting(User::SETTING_CONTACTS_PANE_WIDTH));
         // Neither value is the default (off, 55), so a restore that dropped the
         // keys and read the defaults back would fail here rather than pass.
         $this->check('setting reading.pane_mode', 'right', $user->getSetting(User::SETTING_READING_PANE_MODE));
@@ -245,6 +247,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('aiSettings.embeddingDimensions', 768, $ai?->embeddingDimensions);
         $this->check('aiSettings.isEnabled', true, $ai?->isEnabled);
         $this->check('aiSettings.summaryEnabled', true, $ai?->summaryEnabled);
+        $this->check('aiSettings.contactHelpEnabled', true, $ai?->contactHelpEnabled);
         $this->check('aiSettings.prompts.summary', 'Fasse dich kurz.', $ai?->prompts->of(PromptSlot::Summary));
 
         $log = $container->get(LogSettingsRepository::class)->current();
@@ -396,6 +399,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_CLOCK, '24h');
         $user->setSetting(User::SETTING_SEARCH_SORT, 'oldest');
         $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, 420);
+        $user->setSetting(User::SETTING_CONTACTS_PANE_OPEN, true);
+        $user->setSetting(User::SETTING_CONTACTS_PANE_WIDTH, 560);
         $user->setSetting(User::SETTING_READING_PANE_MODE, 'right');
         $user->setSetting(User::SETTING_READING_PANE_WIDTH, 40);
         $user->setSetting(User::SETTING_SIDEBAR_COLLAPSED, ['section:labels']);
@@ -468,6 +473,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $ai->embeddingDimensions = 768;
         $ai->searchEnabled       = true;
         $ai->summaryEnabled      = true;
+        $ai->contactHelpEnabled  = true;
         $ai->prompts->put(PromptSlot::Summary, 'Fasse dich kurz.');
         $this->entityManager->persist($ai);
 

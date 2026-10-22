@@ -138,7 +138,7 @@ final readonly class ApplyLabelStructureHandler
         $asFolder = null !== $label && true === $this->labelPolicy->pushesAsFolder($label, $account);
 
         if (ApplyLabelStructureMessage::ACTION_DELETE === $message->action) {
-            $this->deleteGraph($account, $message, $asFolder);
+            $this->deleteGraph($account, $message);
 
             return;
         }
@@ -305,16 +305,29 @@ final readonly class ApplyLabelStructureHandler
         }
     }
 
-    private function deleteGraph(Account $account, ApplyLabelStructureMessage $message, bool $asFolder): void
+    /**
+     * Delete the master category a label is, found by its id or its name.
+     *
+     * It used to be addressed by $message->remoteId, which is the FOLDER id
+     * and is null for every label that is only a category — so the guard at
+     * the top returned, no category was ever deleted, and the next sync read
+     * it back as a label (issue #40). The category id travels on its own
+     * field for exactly this reason; see LabelStructurePropagator::dispatch().
+     * A category recorded nowhere is looked up by name, as renameGraph() does,
+     * because on Exchange the name IS its identity.
+     *
+     * Decided by the folder id on the message, not by GraphLabelPolicy: this
+     * runs after the label row is gone, so there is no label to ask about, and
+     * the policy answered "category" for every delete.
+     *
+     * A label with a folder behind it does not belong here. LabelController
+     * sends those to DeleteLabelHandler, which empties the folder before it
+     * deletes it; one that arrives anyway is refused, because Graph deletes a
+     * folder's mail along with it.
+     */
+    private function deleteGraph(Account $account, ApplyLabelStructureMessage $message): void
     {
-        if (null === $message->remoteId) {
-            return;
-        }
-
-        if (true === $asFolder) {
-            // Graph deletes the messages inside a folder along with it. The
-            // local delete has already detached them, but the remote copies
-            // would go too — so refuse rather than destroy mail.
+        if (null !== $message->remoteId) {
             $this->logger->warning('ApplyLabelStructure: refusing to delete a folder-backed label remotely', [
                 'accountId' => $message->accountId,
                 'label'     => $message->fullName,
@@ -323,7 +336,11 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        $this->graphApiClient->deleteMasterCategory($account, $message->remoteId);
+        $categoryId = $message->categoryRemoteId ?? $this->categoryIdByName($account, $message->fullName);
+
+        if (null !== $categoryId) {
+            $this->graphApiClient->deleteMasterCategory($account, $categoryId);
+        }
     }
 
     /**

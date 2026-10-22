@@ -87,6 +87,16 @@ class OidcConfig
     public bool $requireVerifiedEmail = true;
 
     /**
+     * Single sign-on is the only way in: the login page shows no password form
+     * and the server refuses a password sign-in. Takes effect only while the
+     * registration is whole and in force — see OidcConfiguration::allowsPasswordLogin()
+     * — so a half-finished or removed provider can never leave an install with
+     * no way in at all.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $passwordLoginDisabled = false;
+
+    /**
      * Whether this row alone is enough to sign people in. A method rather than
      * a property for the reason MailProviderConfig gives: it weighs three
      * columns together.

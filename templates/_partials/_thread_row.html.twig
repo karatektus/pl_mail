@@ -458,6 +458,16 @@ be a worse regression than the one this feature fixes.
                    different places depending on how wide the list happens to
                    be. #}
                 <span class="min-w-0 flex items-center gap-1.5">
+                    {# A send of this draft that finally failed (#125): first in
+                       the marker slot, at the very start of the row, where a
+                       glance down the Drafts list finds it before anything
+                       else. See _unsent_mark.html.twig; `draftMessage` is only
+                       set on a conversation row. #}
+                    {% if draftMessage|default(null) and draftMessage.sendFailure %}
+                        {% import '_partials/_unsent_mark.html.twig' as unsent %}
+                        {{ unsent.row(draftMessage.sendFailure) }}
+                    {% endif %}
+
                     {# The "New" marker: a filled accent pill carrying a WORD.
                        Deliberately nothing like the unread dot further down
                        this file, which is a bare 8px green circle — the two

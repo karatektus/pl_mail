@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:78653fc65a62ca43340ac5dd61085201338e7e46 -->
+<!-- translated-from: features/mail.md sha1:df37980670901d8064e9a02c3c0316ebd5549b93 -->
 
 # Mail
 
@@ -22,13 +22,14 @@ gleich, wo es angekommen ist.
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Konversationen, die du archiviert hast |
+| **Alle E-Mails** | Jede Konversation außerhalb von Spam und Papierkorb, Archiviertes, Gesendetes und Entwürfe eingeschlossen — aus, bis du es einschaltest |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
 
 Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürfe**, **Zurückgestellt**,
-**Archiv**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter
-**Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
-Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
-einzige, der ausgeschaltet beginnt.
+**Archiv**, **Alle E-Mails**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat —
+hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
+der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
+**Alle E-Mails** beginnen ausgeschaltet.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -41,6 +42,18 @@ Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die d
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
 Kontos stehen als Ordnerzeilen darunter, einen Klick weiter; die Kontozeile ist kein Archiv über
 alles, was das Konto je enthalten hat.
+
+**Alle E-Mails** ist alles, was du hast, in einer Liste: was angekommen ist, was du gesendet hast,
+deine Entwürfe und vor allem, was du archiviert hast und sonst in keiner Liste durchsehen kannst.
+Nur Spam und Papierkorb bleiben draußen. Es ist Gmails „Alle E-Mails“, und wie dort steht auch deine
+eigene Mail darin. Eingeschaltet ist es eine Zeile neben **Entwürfe** für alle Konten zusammen und
+eine Zeile ganz oben in den Ordnern jedes Kontos für dieses Konto allein; die Kontozeile selbst
+öffnet weiterhin den Posteingang des Kontos. Ein Auge unter **Einstellungen → Labels** zeigt oder
+verbirgt beide. Archivierst du eine Konversation in Alle E-Mails oder stellst sie zurück, bleibt sie
+in der Liste, wo sie weiterhin hingehört; verschiebst du sie in Spam oder den Papierkorb, ist sie
+weg. Eine Konversation mit mehreren Labels steht einmal da, und der Ungelesen-Filter zählt dieselbe
+Liste. Ablegen kannst du darauf nichts — in eine Liste, die schon alles enthält, gibt es nichts zu
+verschieben.
 
 Klappst du unter **Konten** ein Konto auf, siehst du die Labels, die es dort tatsächlich gibt.
 Diese Liste ist absichtlich schmaler als die Label-Liste der Seitenleiste selbst: die
@@ -90,6 +103,20 @@ Netzwerke**, **Werbung**, **Updates** und **Foren**. Bei einem Gmail-Konto vertr
 Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie aus Headern ab,
 die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
 Synchronisierung.
+
+Die Tabs gibt es im Posteingang ganz oben, und du kannst sie auch im **Posteingang eines einzelnen
+Kontos** haben (Klick auf das Konto in der Seitenleiste): **Einstellungen → Mail → Kategorien**,
+**Tabs in jedem Konto**. Es ist aus, bis du es einschaltest; dann hat ein Outlook-Konto oder jedes
+andere sie auch, [eigene Tabs](#eigene-tabs) eingeschlossen. Ist es aus, zeigt die Seite eines Kontos
+seinen ganzen Posteingang als eine Liste. Den Schalter gibt es nur, solange **Tabs im Posteingang**
+an ist, und eine Konfigurationssicherung enthält ihn. Ein Tab ist da, solange er Mail enthält, und auf der Seite
+eines Kontos zählt er nur dessen Mail — ein eigener Tab, der nur in einem anderen Konto Mail
+enthält, fehlt auf dieser Seite also. Die Tabs auf
+der Kontoseite sind schlichter: keine „neu“-Markierungen, keine Absenderhinweise und keine
+Ungelesen-Färbung, denn die zählen alle Konten zusammen und würden dort das falsche Postfach
+beschreiben. Eine Konversation auf einen Tab zu ziehen geht nur im Posteingang ganz oben.
+
+Ein Tab-Wechsel ersetzt den Eintrag im Browser-Verlauf, statt einen neuen anzulegen, so wie in Gmail. Die Zurück-Taste des Browsers verlässt darum den Posteingang, statt dich durch die Tabs zurückzuführen, die du dir angesehen hast. Für die Tabs auf der Seite eines Kontos gilt dasselbe.
 
 ### Ein Posteingang ohne Tabs
 
@@ -306,11 +333,24 @@ Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **A
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
 
+Mail im Spam ergibt keine Karten, auch nicht Mail, die du später dorthin verschiebst: Ihre Karten
+verschwinden aus dem Panel und aus der Leiste über der Mailliste, und eine Spam-Konversation zeigt
+keine über ihren Nachrichten — eine gefälschte Versandbenachrichtigung ist genau das, was Spam
+nachahmt. **Kein Spam** (oder das Verschieben in den Posteingang) holt sie zurück. Der Papierkorb ist
+etwas anderes: Wer eine Versandbestätigung löscht, hält das Paket nicht auf, also bleiben ihre Karten.
+
 Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt eine Bestellnummer und
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
-landet auf demselben Tag wie beim ersten Mal.
+landet auf demselben Tag wie beim ersten Mal. "Heute" ist der Tag, der in deinem Kalender stand, als
+die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein** (oder der Vorgabe der Installation, wenn du
+nie eine gewählt hast). Eine Mail, die früh morgens in Sydney oder abends in Los Angeles ankommt,
+landet so nicht einen Tag daneben. Gelesen werden die Amazon-Shops amazon.de, amazon.com, amazon.fr,
+amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer Karte öffnet
+den Shop, der die Mail geschickt hat. Ein Datum mit Schrägstrichen wie "23/10/2026" wird bei den
+Shops aus Ländern, die den Tag zuerst schreiben, als Tag/Monat gelesen, und nur mit Jahr; bei
+amazon.com und amazon.ca gar nicht, weil dort der Monat vorne stehen kann.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr
@@ -323,7 +363,11 @@ Zusteller aus dem Absendernamen, wenn der mit Chronopost oder Colissimo beginnt,
 die Überschrift **Pickup**, ohne Zusteller und ohne Sendungslink. Noch nicht gelesen werden die
 Stufen "an den Absender zurück" und "Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die
 ein Zusteller nach der Zustellung schickt, wird ignoriert, damit sie eine Karte **Zugestellt**
-nicht in etwas anderes zurückverwandelt.
+nicht in etwas anderes zurückverwandelt. **Zugestellt** ist ein Paket erst, wenn die Mail sagt, dass
+es passiert ist: "will be delivered", "scheduled to be delivered" oder "when it's delivered" meinen
+eine Zustellung, die noch kommt. Und eine Nummer, die als etwas anderes beschriftet ist, etwa
+"Order number", "Reference" oder "Bestellnummer", gilt nicht als Sendungsnummer, auch wenn sie so
+aussieht.
 
 ### Die Leiste über der Mailliste
 
@@ -405,8 +449,10 @@ die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
 HTML-Texte werden direkt eingebettet dargestellt und nicht in einem iframe. Vorher läuft der
 Text genau einmal, beim Import, durch einen Sanitizer: `cid:`-Verweise werden auf plMails
 eigene Anhang-Route umgeschrieben, `<style>`-Blöcke werden auf die Elemente heruntergezogen,
-für die sie galten, und Skripte, Formulare, iframes und Klassen fallen weg. Links werden
-gezwungen, außerhalb der App zu öffnen.
+für die sie galten, und Skripte, iframes und Klassen fallen weg. Ein Formular wird aufgelöst statt
+entfernt: Sein Inhalt bleibt, seine Textfelder und Auswahllisten fallen weg, und die Mail sieht so
+aus, wie ihr Absender sie für ein Mailprogramm ohne Formulare gedacht hat. Links werden gezwungen,
+außerhalb der App zu öffnen.
 
 ### Ein langes Gespräch zusammenfassen
 
@@ -494,9 +540,23 @@ solange du es nicht pro Konto einschaltest; siehe [Konten und Aliase](accounts.m
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
 Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem
-Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und die Bestätigung sagt
-klar, dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen —
-statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
+Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und der Dialog sagt klar,
+dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen — statt
+dich etwas bestätigen zu lassen, dessen Reichweite er verschwiegen hat.
+
+Ist das Label ein Ordner auf deinem Mailserver — jeder Ordner eines reinen IMAP-Kontos oder ein
+Mailordner bei Outlook —, wird der Ordner dort ebenfalls gelöscht, damit die nächste Synchronisierung
+das Label nicht zurückbringt. Ein Ordner lässt sich nicht löschen, solange Mail darin liegt; liegt
+welche darin, fragt der Dialog deshalb zuerst, wohin sie soll: **Posteingang**, **Archiv**,
+**Papierkorb** oder einer deiner anderen Ordner. Die Mail wird verschoben, der Ordner wird gelöscht,
+sobald der Server ihn leer meldet, und erst dann verschwindet das Label. Das läuft im Hintergrund und
+erscheint in der Aktivitätsanzeige, die auch sagt, auf welchen Ordner sie wartet. Liegt auf dem
+Server noch Mail, die plMail nie importiert hat, wird nichts gelöscht: Ordner und Label bleiben, und
+die Anzeige nennt den Ordner. Lehnt der Server das Löschen des Ordners ab, endet der Vorgang sofort
+mit der Begründung des Servers, und das Label bleibt. Einen Ordner, dessen Mail plMail noch
+importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt dir das. Ein Gmail-Label
+oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
+und verschiebt nichts.
 
 ### Verschieben nach
 
@@ -551,6 +611,9 @@ deren Text nur `help.wirhub.de` steht.
 `in:` nimmt `inbox`, `sent`, `drafts` (oder `draft`), `trash` (oder `deleted`, oder `bin`),
 `junk` (oder `spam`), `archive` (oder `archived`) und `snoozed`. Werte in Anführungszeichen
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
+
+Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
 
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
@@ -676,7 +739,8 @@ für eine Auswahl eingeschlossen.
 
 Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
 Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern und Nichts.
-Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*).
+Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*). Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
+ungelesen; Archivieren bietet sein **Rückgängig** an.
 
 Auf dem Telefon öffnet auch ein längeres Drücken einer Zeile ihre Aktionen. Halte eine Zeile etwa eine
 halbe Sekunde still, und von unten erscheint ein Aktionsblatt mit allem, was die Zeile anbietet:
@@ -692,8 +756,6 @@ die die Zeile aus der Liste nimmt, schließt es. Wo der Browser vibrieren kann (
 beim Öffnen einen kurzen Impuls; iOS kennt für Webseiten keine Vibration, dort gibt es keinen. Bei
 reduzierter Bewegung erscheint das Blatt ohne Gleiten. Ohne Berührung erledigen die Knöpfe der Zeile und
 die Leiste dieselbe Arbeit.
-Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
-ungelesen; Archivieren bietet sein **Rückgängig** an.
 
 ### Tastenkürzel
 
@@ -757,6 +819,9 @@ holt die Konversation zurück und nimmt einen Filter wieder weg, den derselbe Kl
 Über einer Auswahl verschiebt der Knopf alles Ausgewählte in den Spam und bietet keinen Filter
 an: Eine Auswahl hat nicht den einen Absender. Für Mail, die schon im Spam oder im Papierkorb
 liegt, wird der Knopf nicht gezeigt.
+
+Eine geöffnete Konversation im Spam hat stattdessen einen Knopf **Kein Spam** in ihrer
+Werkzeugleiste. Er verschiebt sie zurück in den Posteingang, wie **Verschieben nach → Posteingang**.
 
 Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
@@ -852,6 +917,30 @@ zurückbringt, wie du es eingerichtet hattest.
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
+## Externe Bilder
+
+Bilder, die eine Mail von den Servern des Absenders lädt, bleiben blockiert, bis du sie anforderst:
+Ein Bild, das beim Öffnen geladen wird, verrät dem Absender, dass und wann du seine Mail gelesen
+hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an — **Bilder anzeigen**
+nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
+Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
+zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte Verbindung: Ein Bild,
+das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht
+antwortet, hinterlässt ein leeres Feld.
+
+**Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
+alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail
+geöffnet hast, aber nicht deine Adresse: Die Bilder holt plMail und reicht sie an dich weiter, nie
+dein Browser. Die Absender, denen du einzeln vertraut hast, bleiben so oder so erhalten; schaltest
+du es wieder aus, gilt genau die Liste, die du hattest. Eine Konfigurationssicherung enthält die
+Einstellung.
+
+Mail im **Spam** bleibt blockiert, egal was du wählst, auch von vertrauten Absendern: Eine als Spam
+abgelegte Mail ist dein Anbieter, der bezweifelt, dass sie von dem kommt, der sie zu sein vorgibt.
+**Bilder anzeigen** ist dort trotzdem da, um die Bilder einer Mail von Hand zu laden.
 
 ## Zurückstellen
 
@@ -1195,6 +1284,35 @@ bereits an sich genommen hat —, wird dir das klar gesagt: *Zu spät — diese 
 gesendet.* Du bekommst keine bearbeitbare Kopie von Post, die schon draußen ist. Weil das angebotene
 Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten und nicht die Regel.
 
+## Wenn das Senden scheitert
+
+Scheitert ein Senden aus einem vorübergehenden Grund, versucht plMail es von selbst noch einmal, bis
+zu **zwei Minuten** lang: bei einem Limit (Gmail und Outlook sagen, wie lange zu warten ist, und daran
+wird sich gehalten), bei einem Fehler auf der Seite des Anbieters, bei einem Mailserver, der gerade
+ausgelastet ist oder per Greylisting vertröstet, oder bei einer Verbindung, die gar nicht erst
+zustande kam. Solange es noch versucht wird, wird nichts gemeldet. Geht es durch, bestätigt der Toast
+**Nachricht gesendet** das wie immer.
+
+Ein Senden, das so nicht klappen kann, wird nicht wiederholt: ein Empfänger, den der Server nicht
+kennt, eine zu große Nachricht, ein Passwort, das der Server nicht mehr annimmt. Das wird sofort
+gemeldet.
+
+**Wenn die Antwort auf ein Senden verloren geht** — die Verbindung brach ab oder lief in eine
+Zeitüberschreitung, nachdem der Anbieter die Mail schon hatte —, ist die Mail vielleicht schon
+unterwegs. Sie wird dann nie ungeprüft noch einmal gesendet. Bei Gmail- und Outlook-Konten schaut
+plMail ein paar Sekunden später unter Gesendet nach: Ist sie da, gilt sie als gesendet; ist sie nicht
+da, wird sie noch einmal gesendet. Bei anderen Konten (SMTP) gibt es nichts, wo man nachschauen
+könnte, deshalb wird sofort gemeldet, dass sie vielleicht gesendet wurde: Schau unter **Gesendet**
+nach, bevor du sie noch einmal sendest.
+
+Scheitert ein Senden endgültig, sagt ein Toast, warum, und der Entwurf wird markiert: mit einem
+**roten Warndreieck** an seiner Zeile unter **Entwürfe**, das den Grund zeigt, wenn du darauf zeigst,
+und mit demselben Dreieck an **Entwürfe** in der Seitenleiste, solange ein Entwurf eins trägt. Das ist
+es, was zu finden bleibt, wenn niemand den Toast gesehen hat — ein geplanter Versand scheitert, ohne
+dass jemand zuschaut. Die Markierung verschwindet, wenn der Entwurf gesendet oder noch einmal
+gesendet oder gelöscht wird. Bearbeiten allein nimmt sie nicht weg, denn die Mail ist ja immer noch
+nicht raus.
+
 ## Wo du weiterliest
 
 - [Mail-Ingest](../internals/mail-ingest.md) — der Weg vom Anbieter in die Datenbank, Zuordnung
@@ -1245,6 +1363,11 @@ ohne „Neu“ zurück — das ist die Markierung, die funktioniert, und keine, 
 **Der Nur-Text-Modus lässt sich nur zurücknehmen, solange der Entwurf nicht gespeichert ist.** Die
 Warnung sagt das vor dem Umschalten. Ist der Entwurf einmal als Nur-Text abgelegt, gibt es
 nirgends mehr eine Formatierung, zu der man zurückkehren könnte.
+
+**Ein Warndreieck an einem Entwurf heißt, dass sein Senden gescheitert ist, nicht dass der Entwurf
+kaputt ist.** Öffne ihn und sende ihn noch einmal; die Markierung verschwindet, sobald der neue
+Versuch beginnt. Vorsicht nur bei *Vielleicht gesendet*: Schau erst unter Gesendet nach, sonst
+bekommt der Empfänger die Mail womöglich doppelt.
 
 **Ein geplanter Versand kann nicht näher als eine Minute liegen.** Die nächste volle Minute
 einzutippen ist genau die Zeit, die man zum Ausprobieren wählt, und sie wird abgelehnt — mit

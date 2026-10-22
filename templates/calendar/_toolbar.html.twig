@@ -49,12 +49,16 @@ calendar has no ends, so it never does.
     frame:     frame|default(null),
 } %}
     {% block toolbar_actions %}
+        {# `data-calendar-new-event`: on a narrow month the day chosen under the
+           grid is put in this button's URL, so it adds to that day, as the
+           list's own + does (calendar/month_tap_controller.js). #}
         <button type="button"
+           data-calendar-new-event="{{ path('app_calendar_event_new') }}"
            data-controller="ui--modal"
            data-action="click->ui--modal#open"
            data-ui--modal-src-value="{{ path('app_calendar_event_new') }}"
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
-           class="w-7 h-7 flex items-center justify-center rounded-lg shrink-0
+           class="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 @max-[37rem]/toolbar:w-6 @max-[37rem]/toolbar:h-6
                   bg-accent text-accent-ink hover:opacity-90 transition-opacity"
            aria-label="{{ 'calendar.event.new'|trans }}"
         ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>

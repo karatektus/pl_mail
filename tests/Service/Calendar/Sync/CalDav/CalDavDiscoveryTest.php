@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
+use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Service\Calendar\Sync\CalDav\DavService;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -36,7 +38,7 @@ final class CalDavDiscoveryTest extends TestCase
 
         $endpoint = $fixture->discovery->endpointFor(CalDavFixture::integration('https://dav.example.com'));
 
-        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->calendarHome);
+        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->home);
         self::assertSame('https://dav.example.com/dav/principals/alice/', $endpoint->principal);
         self::assertFalse($endpoint->isSingleCollection());
 
@@ -75,7 +77,7 @@ final class CalDavDiscoveryTest extends TestCase
             CalDavFixture::integration('https://dav.example.com/dav/principals/alice'),
         );
 
-        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->calendarHome);
+        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->home);
         self::assertSame(1, $fixture->requestCount());
         self::assertStringNotContainsString('.well-known', $fixture->url(0));
     }
@@ -161,7 +163,7 @@ final class CalDavDiscoveryTest extends TestCase
 
         $endpoint = $fixture->discovery->endpointFor(CalDavFixture::integration('https://dav.example.com/dav'));
 
-        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->calendarHome);
+        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->home);
         self::assertSame('https://dav.example.com/.well-known/caldav', $fixture->url(1));
     }
 
@@ -193,9 +195,141 @@ final class CalDavDiscoveryTest extends TestCase
 
         $endpoint = $fixture->discovery->endpointFor(CalDavFixture::integration('https://dav.example.com/dav'));
 
-        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->calendarHome);
+        self::assertSame('https://dav.example.com/dav/calendars/alice/', $endpoint->home);
         self::assertSame('https://dav.example.com/dav/principals/alice/', $endpoint->principal);
         self::assertSame(1, $fixture->requestCount());
+    }
+
+    // ── Nextcloud ─────────────────────────────────────────────────────────────
+
+    /**
+     * A Nextcloud connection holds the web interface's address, so the lookup
+     * starts at /remote.php/dav under it — after a subfolder too, which is
+     * where an origin-based guess would go wrong — and never asks .well-known.
+     */
+    public function testANextcloudConnectionIsLookedUpUnderItsDavRoot(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->principalResponse('/nextcloud/remote.php/dav/')),
+            CalDavFixture::multistatus($this->homeResponse('/dav/principals/alice/')),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://cloud.example.com/nextcloud', Provider::Nextcloud),
+        );
+
+        self::assertSame('https://cloud.example.com/nextcloud/remote.php/dav', $fixture->url(0));
+        self::assertSame('https://cloud.example.com/dav/calendars/alice/', $endpoint->home);
+        self::assertSame(2, $fixture->requestCount(), 'no probe of the web interface, no .well-known');
+    }
+
+    /**
+     * Not a dead end: a Nextcloud behind a proxy that rewrites its paths can
+     * still be found the RFC 6764 way.
+     */
+    public function testANextcloudThatDoesNotAnswerAtItsDavRootFallsBackToWellKnown(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::status(404),
+            CalDavFixture::multistatus($this->homeResponse('/dav/', withPrincipal: true)),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://cloud.example.com', Provider::Nextcloud),
+        );
+
+        self::assertSame('https://cloud.example.com/remote.php/dav', $fixture->url(0));
+        self::assertSame('https://cloud.example.com/.well-known/caldav', $fixture->url(1));
+        self::assertSame('https://cloud.example.com/dav/calendars/alice/', $endpoint->home);
+    }
+
+    // ── CardDAV ───────────────────────────────────────────────────────────────
+
+    /**
+     * The same ladder with the address-book nouns: its own well-known address,
+     * addressbook-home-set asked for and read, and a calendar home on the same
+     * principal ignored.
+     */
+    public function testAddressBooksAreFoundThroughTheirOwnWellKnownAddress(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::redirect('https://dav.example.com/dav/'),
+            CalDavFixture::multistatus($this->principalResponse('/dav/')),
+            CalDavFixture::multistatus(<<<'XML'
+                <?xml version="1.0" encoding="utf-8"?>
+                <d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav" xmlns:card="urn:ietf:params:xml:ns:carddav">
+                  <d:response>
+                    <d:href>/dav/principals/alice/</d:href>
+                    <d:propstat>
+                      <d:prop>
+                        <cal:calendar-home-set><d:href>/dav/calendars/alice/</d:href></cal:calendar-home-set>
+                        <card:addressbook-home-set><d:href>/dav/addressbooks/users/alice/</d:href></card:addressbook-home-set>
+                      </d:prop>
+                      <d:status>HTTP/1.1 200 OK</d:status>
+                    </d:propstat>
+                  </d:response>
+                </d:multistatus>
+                XML),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://dav.example.com'),
+            DavService::AddressBook,
+        );
+
+        self::assertSame('https://dav.example.com/dav/addressbooks/users/alice/', $endpoint->home);
+        self::assertSame('https://dav.example.com/.well-known/carddav', $fixture->url(0));
+        self::assertStringContainsString('addressbook-home-set', $fixture->body(2));
+        self::assertStringNotContainsString('calendar-home-set', $fixture->body(2));
+    }
+
+    public function testAPastedAddressBookUrlIsUsedAsItStands(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus(<<<'XML'
+                <?xml version="1.0" encoding="utf-8"?>
+                <d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">
+                  <d:response>
+                    <d:href>/dav/addressbooks/users/alice/contacts/</d:href>
+                    <d:propstat>
+                      <d:prop><d:resourcetype><d:collection/><card:addressbook/></d:resourcetype></d:prop>
+                      <d:status>HTTP/1.1 200 OK</d:status>
+                    </d:propstat>
+                  </d:response>
+                </d:multistatus>
+                XML),
+        );
+
+        $endpoint = $fixture->discovery->endpointFor(
+            CalDavFixture::integration('https://dav.example.com/dav/addressbooks/users/alice/contacts'),
+            DavService::AddressBook,
+        );
+
+        self::assertTrue($endpoint->isSingleCollection());
+        self::assertSame('https://dav.example.com/dav/addressbooks/users/alice/contacts/', $endpoint->collection);
+        self::assertSame(1, $fixture->requestCount());
+    }
+
+    /** A calendar is not an address book, however specific the URL was. */
+    public function testAPastedCalendarUrlIsNotTakenForAnAddressBook(): void
+    {
+        $fixture = new CalDavFixture(
+            CalDavFixture::multistatus($this->collectionResponse('/dav/calendars/alice/personal/')),
+            CalDavFixture::status(404),
+            CalDavFixture::status(404),
+        );
+
+        try {
+            $fixture->discovery->endpointFor(
+                CalDavFixture::integration('https://dav.example.com/dav/calendars/alice/personal'),
+                DavService::AddressBook,
+            );
+            self::fail('a calendar collection must not be accepted as an address book');
+        } catch (CalendarSyncPermanentException $e) {
+            self::assertStringContainsString('CardDAV address', $e->getMessage());
+        }
+
+        self::assertSame('https://dav.example.com/.well-known/carddav', $fixture->url(1));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────

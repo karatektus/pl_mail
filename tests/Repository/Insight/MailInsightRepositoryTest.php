@@ -7,7 +7,9 @@ namespace App\Tests\Repository\Insight;
 use App\Domain\Enum\Insight\InsightKind;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Insight\MailInsight;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Repository\Insight\MailInsightRepository;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
@@ -17,7 +19,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * Which undated cards the radar offers, and on whose clock.
+ * Which undated cards the radar offers, and on whose clock — and which cards
+ * it leaves out because their mail is in Spam (#304).
  *
  * An undated card — GitHub activity, a code whose mail states no expiry — has
  * no date of its own, so the radar measures how recent it is. The first version
@@ -129,6 +132,106 @@ final class MailInsightRepositoryTest extends KernelTestCase
             ['stub:otp:on-the-edge', 'stub:github:three-days#7'],
             $this->dedupeKeys($this->recent()),
         );
+    }
+
+    /**
+     * Spam is where a fake parcel notice ends up, usually after it was read:
+     * the harvester skips mail that arrives in Spam, not mail moved there
+     * later. Any Spam label on the conversation takes its card off both lists.
+     */
+    public function testACardWhoseMailIsInSpamIsLeftOffBothLists(): void
+    {
+        $spam = $this->seedLabel('Spam', LabelRole::Spam);
+
+        $this->datedCard('parcel:real', $this->thread('real parcel'));
+        $this->datedCard('parcel:fake', $this->spam($this->thread('fake parcel'), $spam));
+        $this->card('github:real#1', mail: '2026-10-12 08:00:00', created: '2026-10-12 08:00:00');
+        $undated = $this->card('github:fake#2', mail: '2026-10-12 09:00:00', created: '2026-10-12 09:00:00');
+        self::assertInstanceOf(Message::class, $undated->message);
+        $undated->thread = $this->spam($undated->message->thread, $spam);
+        $this->em->flush();
+
+        self::assertSame(['stub:parcel:real'], $this->dedupeKeys($this->upcoming()));
+        self::assertSame(['stub:github:real#1'], $this->dedupeKeys($this->recent()));
+    }
+
+    /** Nothing is deleted: moving the mail out of Spam brings the card back. */
+    public function testMovingTheMailOutOfSpamBringsTheCardBack(): void
+    {
+        $spam   = $this->seedLabel('Spam', LabelRole::Spam);
+        $thread = $this->spam($this->thread('parcel'), $spam);
+        $this->datedCard('parcel:back', $thread);
+
+        self::assertSame([], $this->upcoming());
+
+        $thread->removeLabel($spam);
+
+        foreach ($thread->messages as $message) {
+            $message->removeLabel($spam);
+        }
+
+        $this->em->flush();
+
+        self::assertSame(['stub:parcel:back'], $this->dedupeKeys($this->upcoming()));
+    }
+
+    /** The bin is left alone: deleting the shipping notice does not stop the parcel. */
+    public function testACardWhoseConversationIsInTheBinStays(): void
+    {
+        $binned = $this->thread('binned parcel');
+        $this->binThread($binned, $this->seedLabel('Trash', LabelRole::Trash));
+        $this->datedCard('parcel:binned', $binned);
+
+        self::assertSame(['stub:parcel:binned'], $this->dedupeKeys($this->upcoming()));
+    }
+
+    /** A card whose mail was deleted has no conversation to judge, and stays. */
+    public function testACardWithNoConversationStays(): void
+    {
+        $this->datedCard('parcel:orphan', null);
+
+        self::assertSame(['stub:parcel:orphan'], $this->dedupeKeys($this->upcoming()));
+    }
+
+    /**
+     * @return list<MailInsight>
+     */
+    private function upcoming(): array
+    {
+        return $this->repository()->upcomingForUser($this->user, new DateTimeImmutable(self::NOW, new DateTimeZone('UTC')));
+    }
+
+    /** One parcel due tomorrow at noon, linked to `$thread` (or to none). */
+    private function datedCard(string $key, ?MessageThread $thread): MailInsight
+    {
+        $insight            = new MailInsight();
+        $insight->account   = $this->account;
+        $insight->kind      = InsightKind::Parcel;
+        $insight->title     = $key;
+        $insight->extractor = 'stub';
+        $insight->dedupeKey = 'stub:' . $key;
+        $insight->payload   = [];
+        $insight->thread    = $thread;
+        $insight->happensAt = new DateTimeImmutable('2026-10-14 12:00:00', new DateTimeZone('UTC'));
+
+        $this->em->persist($insight);
+        $this->em->flush();
+
+        return $insight;
+    }
+
+    /** Spam the way marking it does: on the thread and on every message. */
+    private function spam(MessageThread $thread, Label $spam): MessageThread
+    {
+        $thread->addLabel($spam);
+
+        foreach ($thread->messages as $message) {
+            $message->addLabel($spam);
+        }
+
+        $this->em->flush();
+
+        return $thread;
     }
 
     /**
