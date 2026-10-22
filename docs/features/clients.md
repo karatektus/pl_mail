@@ -36,6 +36,23 @@ withdrawn by revoking the app password, not from the Security page.
 An app password is **user-scoped**. One credential enumerates every mail account you have connected,
 matching the JMAP session object, which is why a client shows all of them at once.
 
+### Limiting what an app password may do
+
+The same page carries three switches — **read**, **send**, and **delete and move** — and a
+credential gets only what was ticked. All three are granted by default, which is what an app
+password had before the switches existed, so nothing changes unless you untick something.
+
+A capability the credential does not hold is refused **per method call**, with a JMAP `forbidden`
+error inline in the response rather than a transport-level 403 — a client that receives a 403
+tends to declare the session dead and stop trying, which turns a limited credential into a broken
+account. `Email/set` carries three powers in one call, so it is decided per operation: creating a
+draft needs **send**, updating keywords or mailboxes needs **read**, and destroying needs
+**delete**; a call asking for more than the credential holds is refused whole.
+
+A credential with none of the three can do nothing at all. That is deliberate: a value the server
+does not recognise is dropped rather than read as full access, so the failure always goes the safe
+way.
+
 ## Pairing a device
 
 **Settings → App passwords → Pair a device** shows a QR code for a plMail app to scan. The app

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Entity\User;
 
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Mail\Account;
 use App\Repository\User\ApiTokenRepository;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -72,6 +74,24 @@ class ApiToken
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $lastUsedAt = null;
 
+    /**
+     * What this credential may do, as {@see ApiTokenScope} values.
+     *
+     * A jsonb list rather than a bitmask or three booleans, following the
+     * settings bag on Account: a future capability is then an addition rather
+     * than a migration, and a value this version does not recognise is dropped
+     * by ApiTokenScope::fromStored() instead of being guessed at.
+     *
+     * The default is empty, which means a token can do nothing — the safe
+     * direction for a credential. Every caller that mints one must grant
+     * explicitly; the settings page does, and the migration backfills the ones
+     * that predate scopes with all of them.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
+    private array $scopes = [];
+
     #[ORM\Column(nullable: true)]
     public private(set) ?DateTimeImmutable $revokedAt = null;
 
@@ -85,11 +105,20 @@ class ApiToken
      * Mint a new credential. Returns the entity plus the one and only copy of
      * the plaintext secret — it is never recoverable afterwards.
      *
+     * $scopes is required rather than defaulted on purpose. Every caller has
+     * to say what the credential may do; there is no "sensible default" that
+     * is safe for both a phone and an automation. The settings page passes
+     * what the person ticked, and the pairing flow passes everything, because
+     * a paired app is the person's own client.
+     *
+     * @param list<ApiTokenScope> $scopes
+     *
      * @return array{token:self,secret:string}
      */
-    public static function create(User $usr, string $name): array
+    public static function create(User $usr, string $name, array $scopes): array
     {
         $token = new self($usr, $name);
+        $token->grantedScopes = $scopes;
         $secret = self::PREFIX.bin2hex(random_bytes(self::SECRET_BYTES));
 
         $token->tokenHash = self::hash($secret);
@@ -125,8 +154,14 @@ class ApiToken
         ?DateTimeImmutable $lastUsedAt,
         ?DateTimeImmutable $revokedAt,
         ?DateTimeImmutable $createdAt = null,
+        ?array $scopes = null,
     ): self {
         $token = new self($usr, $name);
+
+        // Null means a backup written before scopes existed, whose tokens had
+        // all of them. Falling back to "none" would restore every client as
+        // read-only and look like a broken restore rather than an old document.
+        $token->grantedScopes = $scopes ?? ApiTokenScope::all();
 
         $token->tokenHash  = $tokenHash;
         $token->hint       = $hint;
@@ -152,6 +187,77 @@ class ApiToken
     public static function hash(string $secret): string
     {
         return hash('sha256', $secret);
+    }
+
+    /**
+     * What this credential may do.
+     *
+     * Filtered on the way out as well as in: the column is jsonb, and a value
+     * that is not a list of known scopes must not reach a comparison. An empty
+     * answer is the correct reading of a token nobody has granted anything to.
+     *
+     * @var list<ApiTokenScope>
+     */
+    public array $grantedScopes {
+        get => ApiTokenScope::fromStored($this->scopes);
+        set (array $scopes) {
+            $this->scopes = ApiTokenScope::toStored($scopes);
+        }
+    }
+
+    /**
+     * Whether this credential holds a capability.
+     *
+     * The one question JmapProcessor asks. Named with has- rather than is- so
+     * the call site reads as the sentence it is: a token *has* the read scope.
+     */
+    public function hasScope(ApiTokenScope $scope): bool
+    {
+        return in_array($scope, $this->grantedScopes, true);
+    }
+
+    /**
+     * Grant a capability. Idempotent, so a settings form that submits the same
+     * set twice is not an error.
+     */
+    public function grantScope(ApiTokenScope $scope): static
+    {
+        $scopes = $this->grantedScopes;
+
+        if (false === in_array($scope, $scopes, true)) {
+            $scopes[] = $scope;
+        }
+
+        $this->grantedScopes = $scopes;
+
+        return $this;
+    }
+
+    public function revokeScope(ApiTokenScope $scope): static
+    {
+        $this->grantedScopes = array_values(array_filter(
+            $this->grantedScopes,
+            static fn (ApiTokenScope $held): bool => $held !== $scope,
+        ));
+
+        return $this;
+    }
+
+    /**
+     * Grant every capability — what a token created before scopes existed is
+     * given by the migration, and what the settings page's default ticks.
+     */
+    public function grantAllScopes(): static
+    {
+        $this->grantedScopes = ApiTokenScope::all();
+
+        return $this;
+    }
+
+    /** Whether this credential was minted with nothing granted at all. */
+    public function hasNoScopes(): bool
+    {
+        return [] === $this->grantedScopes;
     }
 
     public function revoke(): static

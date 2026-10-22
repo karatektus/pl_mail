@@ -64,7 +64,7 @@ final class MailServerHostTest extends TestCase
             new \RuntimeException('* OK Dovecot (Ubuntu) 2.3.16 ready, AUTHENTICATIONFAILED Authentication failed.'),
         ));
 
-        $result = new ConnectionTester($imap, new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger())->test($account);
+        $result = new ConnectionTester($imap, new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger(), new \App\Service\Imap\ImapDeadline(new NullLogger()))->test($account);
 
         self::assertFalse($result->imapOk);
         self::assertSame('account.test.result.auth', $result->imapMessage);

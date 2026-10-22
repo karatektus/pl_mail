@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:a74d79f0110b60eefe51388f2743ee644d27ec4f -->
+<!-- translated-from: features/clients.md sha1:3bf6099af8d6d1f4833bf905e4b90c7dfd0ce1f0 -->
 
 # Andere Clients
 
@@ -42,6 +42,25 @@ indem du das App-Passwort widerrufst, und nicht von der Seite Sicherheit aus.
 Ein App-Passwort gilt **für dich als Benutzer**. Ein einziges Zugangsdatum zählt jedes
 Mail-Konto auf, das du verbunden hast, passend zum JMAP-Session-Objekt — deshalb zeigt ein
 Client sie alle auf einmal.
+
+### Beschränken, was ein App-Passwort darf
+
+Dieselbe Seite trägt drei Schalter — **read**, **send** und **löschen und verschieben** — und ein
+Zugangsdatum bekommt nur, was angehakt wurde. Alle drei sind standardmäßig erlaubt, was einem
+App-Passwort vor diesen Schaltern entsprach; nichts ändert sich also, solange du nichts
+abwählst.
+
+Ein Recht, das das Zugangsdatum nicht hat, wird **pro Methodenaufruf** abgelehnt, mit einem
+JMAP-`forbidden` direkt in der Antwort statt einer HTTP-403 — ein Client, der eine 403 bekommt,
+hält die Sitzung oft für tot und versucht es nicht mehr, was aus einem beschränkten Zugang ein
+kaputtes Konto macht. `Email/set` trägt drei Befugnisse in einem Aufruf und wird deshalb pro
+Vorgang entschieden: einen Entwurf anzulegen braucht **send**, Schlüsselwörter oder Ordner zu
+ändern braucht **read**, und zu löschen braucht **löschen**; ein Aufruf, der mehr verlangt als
+das Zugangsdatum hat, wird ganz abgelehnt.
+
+Ein Zugangsdatum ohne alle drei kann gar nichts. Das ist Absicht: ein Wert, den der Server nicht
+kennt, wird verworfen statt als Vollzugriff gelesen, sodass der Fehler immer in die sichere
+Richtung geht.
 
 ## Ein Gerät koppeln
 

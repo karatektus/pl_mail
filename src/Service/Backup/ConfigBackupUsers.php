@@ -12,6 +12,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Rule\MailRule;
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Repository\Calendar\BookingPageRepository;
@@ -214,6 +215,15 @@ final readonly class ConfigBackupUsers
         // host: the mailbox is a catch-all for the same domains wherever
         // plMail reads it from.
         Account::SETTING_CATCH_ALL_DOMAINS,
+        // Carried, unlike the ledger below: whether an account deletes from
+        // the server after fetching is a standing instruction its owner gave
+        // on purpose, and a restore that silently turned it back to Keep
+        // would leave a mailbox growing on a server that was being pruned.
+        // Getting it wrong the other way — carrying Delete to a host that
+        // has never fetched — is harmless: nothing is marked until a message
+        // has been stored, and a host with an empty ledger stores before it
+        // deletes.
+        Account::SETTING_POP3_DELETE_MODE,
     ];
 
     /**
@@ -252,6 +262,15 @@ final readonly class ConfigBackupUsers
         Account::SETTING_GRAPH_IMPORT => 'the folders the OTHER host had still to read, by ids and page links that mean nothing to a mailbox connected afresh; the target plans its own on its first sync',
         Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
         Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
+        // The one where carrying it would do real damage rather than untidy
+        // bookkeeping: this is the list of messages the OTHER host has
+        // already stored. Restored onto an empty installation it would tell
+        // the sync every message in the mailbox is already here, so nothing
+        // would ever be fetched and the mailbox would come up empty and stay
+        // empty. The target starts its own ledger from its first sync, which
+        // fetches everything — the correct answer for a host that has none of
+        // the mail.
+        Account::SETTING_POP3_SEEN_UIDLS => 'the UIDLs the OTHER host has already stored; carried, a restored installation would believe it holds mail it has never fetched and the mailbox would stay empty',
     ];
 
     public function __construct(
@@ -431,6 +450,12 @@ final readonly class ConfigBackupUsers
                 'lastUsedAt' => $token->lastUsedAt?->format(DateTimeInterface::ATOM),
                 'revokedAt'  => $token->revokedAt?->format(DateTimeInterface::ATOM),
                 'createdAt'  => $token->createdAt->format(DateTimeInterface::ATOM),
+                // What the credential may do. Carried because a restore that
+                // dropped it would grant everything back — a read-only token
+                // somebody deliberately limited would come back able to delete.
+                // A file written before scopes existed has no such key, which
+                // the restorer reads as "all of them", matching the migration.
+                'scopes'     => ApiTokenScope::toStored($token->grantedScopes),
             ];
         }
 

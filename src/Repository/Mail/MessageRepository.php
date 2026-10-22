@@ -2078,6 +2078,30 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every Message-ID an account holds, for a caller that is about to store
+     * many messages and must skip the ones already here — an mbox import, say,
+     * where a third of the archive can be copies POP3 made of mail it had
+     * already fetched. One column, one account, one query: the per-message
+     * findOneBy() this sits beside would be a query per message on a run of
+     * hundreds.
+     *
+     * @return list<string>
+     */
+    public function messageIdsForAccount(Account $account): array
+    {
+        return $this->createQueryBuilder('m')
+            ->select('m.messageId')
+            ->innerJoin('m.account', 'a')
+            ->where('a = :account')
+            ->andWhere('m.messageId IS NOT NULL')
+            ->andWhere('m.messageId <> :empty')
+            ->setParameter('account', $account)
+            ->setParameter('empty', '')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    /**
      * Joined via thread since Gmail-API messages carry no mailbox — a join
      * across an association, which findOneBy() has no way to state.
      */

@@ -8,6 +8,8 @@ use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
+use App\Infrastructure\Pop3\Pop3Connection;
+use App\Service\Imap\ImapDeadline;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
@@ -30,12 +32,15 @@ final class ConnectionTester
         private readonly SmtpDsnFactory        $dsnFactory,
         private readonly TranslatorInterface   $translator,
         private readonly LoggerInterface       $logger,
+        private readonly ImapDeadline          $deadline,
     ) {
     }
 
     public function test(Account $account): ConnectionTestResult
     {
-        [$imapOk, $imapMessage] = $this->probeImap($account);
+        [$imapOk, $imapMessage] = true === $account->isPop3()
+            ? $this->probePop3($account)
+            : $this->probeImap($account);
         [$smtpOk, $smtpMessage] = $this->probeSmtp($account);
 
         return new ConnectionTestResult(
@@ -83,6 +88,47 @@ final class ConnectionTester
                     // Nothing useful to do — the probe result already stands.
                 }
             }
+        }
+    }
+
+    /**
+     * The POP3 probe.
+     *
+     * Deliberately answers the same two things the IMAP one does — can we log
+     * in, and how much is there — with the count coming from LIST rather than
+     * from a folder list, because that is the only structure a POP3 server
+     * has. The greeting, the TLS handshake and USER/PASS are all exercised by
+     * open(), so a passing answer means exactly what it means on the IMAP
+     * side: this account will sync.
+     *
+     * @return array{0: bool, 1: string}
+     */
+    private function probePop3(Account $account): array
+    {
+        try {
+            $connection = Pop3Connection::open(
+                (string) $account->imapHost,
+                (int) $account->imapPort,
+                $account->imapEncryption,
+                (string) $account->username,
+                (string) $account->password,
+                $this->deadline,
+            );
+
+            try {
+                $count = count($connection->list());
+            } finally {
+                $connection->quit();
+            }
+
+            return [true, $this->translator->trans('account.test.result.pop3_ok', ['%count%' => $count])];
+        } catch (Throwable $e) {
+            // 'imap' as the protocol argument on purpose: the categories and
+            // the port hints are keyed by which credential-bearing protocol
+            // failed, and POP3's failures are the same set — bad certificate,
+            // refused login, wrong port — read off the same field pair. A
+            // second key would be two copies of one message.
+            return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
         }
     }
 

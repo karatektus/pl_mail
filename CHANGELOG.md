@@ -7,6 +7,34 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**An app password can be limited to what it is for.** Settings → App passwords now carries three
+switches — **read**, **send**, and **delete and move** — and a credential gets only what was
+ticked. All three are granted by default, which is what an app password had before this existed,
+so every existing client keeps working; untick one and that credential is refused at the JMAP
+level, inline (`forbidden` on the method call, not a dead session). The settings list shows what
+each credential may do. Unrecognised values read as no access rather than as full access, and a
+restored config backup brings the switches back as they were. Schema change: one jsonb column on
+`api_token`. **Every app password that exists when this runs is granted all three scopes** — the
+migration backfills deliberately, because a token created before scopes had everything and
+leaving it empty would sign out every connected client.
+
+**POP3 accounts can be added and read.** Settings → Mail accounts → Add account now offers a
+protocol choice above the connection fields. POP3 accounts are fetched over TLS, stored locally, and
+read in the same unified inbox as every other account; the first sync brings in the mailbox and
+later ones fetch only what is new. Recognition is by UIDL rather than by message number, so mail
+left on the server is never fetched twice. Flags, labels and moves are local — POP3 has no way to
+receive them — and nothing is ever pushed back at the server. Schema change: one column on
+`account`, `incoming_protocol`, defaulting to `imap` for every existing row.
+
+**An option for what POP3 leaves behind on the server.** A POP3 account is set to **Leave it on the
+server** unless its owner says otherwise, and a message kept there is recognised next sync by its
+UIDL and skipped. Choosing **Delete the message on the server** marks it for deletion only after its
+row has been committed here; the marks are sent with the session's `QUIT`, so a sync that fails part
+way deletes nothing. Off by default, because the server's copy is the only second one plMail has.
+
+
 ## v0.3.8 — 2026-10-21
 
 **The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier

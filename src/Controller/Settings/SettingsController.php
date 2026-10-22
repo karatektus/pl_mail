@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
+use App\Domain\Enum\User\ApiTokenScope;
 use App\Domain\Enum\User\ClockFormat;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\Ai\AiFeature;
@@ -166,6 +167,10 @@ final class SettingsController extends AbstractController
                 : [],
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
+            // The three checkboxes the form was built with, in the order a
+            // person would grant them — the template iterates this rather than
+            // hard-coding scope names, so adding one is a change to one class.
+            'scopes'             => ApiTokenScope::all(),
             // A refused profile save forwards here with its form, so the page
             // comes back whole with the errors on it — see ProfileController.
             ...$this->profileSection->build(

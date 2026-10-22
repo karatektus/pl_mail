@@ -42,7 +42,7 @@ final class JmapAuthenticationTest extends WebTestCase
         $this->user->password  = 'x';
         $this->em->persist($this->user);
 
-        $minted       = ApiToken::create($this->user, 'auth test');
+        $minted       = ApiToken::create($this->user, 'auth test', \App\Domain\Enum\User\ApiTokenScope::all());
         $this->token  = $minted['token'];
         $this->secret = $minted['secret'];
         $this->em->persist($this->token);
