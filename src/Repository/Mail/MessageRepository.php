@@ -1711,10 +1711,14 @@ class MessageRepository extends ServiceEntityRepository
      * source; a row with one is the IMAP server's, and Gmail only knows about
      * it. See GmailifyLinks.
      *
-     * @param Account|null $carrier null for every carrier on the install
+     * By the carrier's id rather than the entity: the callers page through
+     * tens of thousands of rows and clear the entity manager between pages,
+     * which would leave an entity argument detached.
+     *
+     * @param int|null $carrierId null for every carrier on the install
      * @return list<Message>
      */
-    public function findImapCopiesCarried(?Account $carrier, int $afterId, int $limit): array
+    public function findImapCopiesCarried(?int $carrierId, int $afterId, int $limit): array
     {
         $qb = $this->createQueryBuilder('m')
             ->where('m.gmailCarrierAccount IS NOT NULL')
@@ -1724,23 +1728,23 @@ class MessageRepository extends ServiceEntityRepository
             ->orderBy('m.id', 'ASC')
             ->setMaxResults($limit);
 
-        if (null !== $carrier) {
-            $qb->andWhere('m.gmailCarrierAccount = :carrier')->setParameter('carrier', $carrier);
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
         }
 
         return $qb->getQuery()->getResult();
     }
 
     /** How many rows findImapCopiesCarried() would page through. */
-    public function countImapCopiesCarried(?Account $carrier): int
+    public function countImapCopiesCarried(?int $carrierId): int
     {
         $qb = $this->createQueryBuilder('m')
             ->select('COUNT(m.id)')
             ->where('m.gmailCarrierAccount IS NOT NULL')
             ->andWhere('m.mailbox IS NOT NULL');
 
-        if (null !== $carrier) {
-            $qb->andWhere('m.gmailCarrierAccount = :carrier')->setParameter('carrier', $carrier);
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();

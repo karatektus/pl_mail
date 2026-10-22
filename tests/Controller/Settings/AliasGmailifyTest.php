@@ -8,15 +8,14 @@ use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
-use App\Entity\Mail\Mailbox;
-use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
 use App\Repository\User\UserRepository;
-use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * Settings → Aliases: the Gmailify switch on a Gmail account (#205).
@@ -59,16 +58,15 @@ final class AliasGmailifyTest extends WebTestCase
     }
 
     /**
-     * Off is stored and detaches the other account's IMAP copies this mailbox
-     * had merged into; on again only clears the setting.
+     * Off is stored at once and the detaching is queued: a mailbox that
+     * collected for years carries tens of thousands of copies, minutes of work
+     * a request has no time for. On again only clears the setting.
      */
-    public function testSwitchingItOffDetachesTheOtherAccountsCopies(): void
+    public function testSwitchingItOffQueuesTheDetaching(): void
     {
-        $client  = static::createClient();
-        $user    = $this->boot($client);
-        $gmail   = $this->account($user, 'me@gmail.test', true);
-        $sibling = $this->account($user, 'me@joder.dev', false);
-        $copy    = $this->imapCopy($sibling, $gmail);
+        $client = static::createClient();
+        $user   = $this->boot($client);
+        $gmail  = $this->account($user, 'me@gmail.test', true);
 
         $url   = sprintf('/account/%d/alias/gmailify', $gmail->id);
         $token = $this->token($client, $url);
@@ -78,16 +76,18 @@ final class AliasGmailifyTest extends WebTestCase
         self::assertResponseRedirects();
         self::assertFalse($this->reload($gmail)->gmailifyEnabled);
 
-        $copy = $this->em->find(Message::class, $copy->id);
-        self::assertNotNull($copy);
-        self::assertNull($copy->gmailId);
-        self::assertNull($copy->gmailCarrierAccount);
+        $queued = $this->queued();
+        self::assertCount(1, $queued);
+        self::assertSame($gmail->id, $queued[0]->accountId);
 
         $client->request('POST', $url, ['_token' => $token, 'enabled' => '1']);
 
         $gmail = $this->reload($gmail);
         self::assertTrue($gmail->gmailifyEnabled);
         self::assertSame('absent', $gmail->getSetting(Account::SETTING_GMAILIFY, 'absent'), 'on is the default, and is not stored');
+        // The in-memory transport is reset between requests, so this is what
+        // the second request queued: nothing.
+        self::assertCount(0, $this->queued(), 'turning it on queues nothing');
     }
 
     public function testTheSwitchCannotBeFlippedWithoutTheRowsToken(): void
@@ -106,6 +106,18 @@ final class AliasGmailifyTest extends WebTestCase
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** @return list<SeverGmailifyLinksMessage> */
+    private function queued(): array
+    {
+        /** @var InMemoryTransport $transport */
+        $transport = static::getContainer()->get('messenger.transport.maintenance');
+
+        return array_values(array_filter(
+            array_map(static fn (object $envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof SeverGmailifyLinksMessage,
+        ));
+    }
 
     private function token(KernelBrowser $client, string $formAction): string
     {
@@ -179,35 +191,5 @@ final class AliasGmailifyTest extends WebTestCase
         $this->em->flush();
 
         return $account;
-    }
-
-    private function imapCopy(Account $sibling, Account $carrier): Message
-    {
-        $mailbox = new Mailbox();
-        $mailbox->account       = $sibling;
-        $mailbox->name          = 'INBOX';
-        $mailbox->fullPath      = 'INBOX';
-        $mailbox->isSyncEnabled = true;
-        $mailbox->isIdleEnabled = false;
-        $this->em->persist($mailbox);
-
-        $message = new Message();
-        $message->account             = $sibling;
-        $message->mailbox             = $mailbox;
-        $message->imapUid             = 1;
-        $message->gmailId             = 'gmail-' . uniqid('', true);
-        $message->gmailCarrierAccount = $carrier;
-        $message->gmailLabelIds       = ['INBOX'];
-        $message->messageId           = uniqid('', true) . '@example.test';
-        $message->subject             = 'Rechnung';
-        $message->fromAddress         = 'kunde@example.test';
-        $message->hasAttachments      = false;
-        $message->flags               = [];
-        $message->receivedAt          = new DateTimeImmutable('2026-08-10 09:00:00');
-        $message->sentAt              = $message->receivedAt;
-        $this->em->persist($message);
-        $this->em->flush();
-
-        return $message;
     }
 }

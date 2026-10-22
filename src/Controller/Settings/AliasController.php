@@ -11,15 +11,16 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Form\EmailAliasType;
 use App\Form\Factory\AliasAddFormFactory;
+use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\EmailAliasRepository;
 use App\Security\Voter\OwnershipVoter;
-use App\Service\Gmail\GmailifyLinks;
 use App\Service\Mail\AliasSeeder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
@@ -37,7 +38,7 @@ final class AliasController extends AbstractController
         private readonly EmailAliasRepository   $aliasRepository,
         private readonly AliasSeeder            $aliasSeeder,
         private readonly AliasAddFormFactory    $aliasAddForms,
-        private readonly GmailifyLinks          $gmailifyLinks,
+        private readonly MessageBusInterface    $bus,
     ) {}
 
     #[Route('/add', name: 'add', methods: ['POST'])]
@@ -233,6 +234,9 @@ final class AliasController extends AbstractController
      * the other account, with no IMAP copy behind it, stays linked: Gmail is
      * all it has. See GmailifyLinks.
      *
+     * The detaching is a job on the maintenance queue, so the switch answers at
+     * once and the copies follow shortly after.
+     *
      * On again changes nothing that is stored: mail that arrives from then on
      * is matched as before, and the detached copies are matched again only
      * when Gmail next reports a change to them.
@@ -256,8 +260,10 @@ final class AliasController extends AbstractController
         $account->gmailifyEnabled = $enabled;
         $this->em->flush();
 
+        // Queued: tens of thousands of copies is minutes of work, not a
+        // request's. See SeverGmailifyLinksMessage.
         if (false === $enabled) {
-            $this->gmailifyLinks->severCarriedBy($account);
+            $this->bus->dispatch(new SeverGmailifyLinksMessage((int) $account->id));
         }
 
         return $this->streamResponse($request, $account, $enabled ? 'alias.gmailify_on' : 'alias.gmailify_off');

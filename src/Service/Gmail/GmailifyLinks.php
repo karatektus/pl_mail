@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Gmail;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
@@ -93,15 +92,20 @@ final readonly class GmailifyLinks
      *
      * Rows Gmail built for a sibling are left linked; see the class comment.
      *
+     * Run from SeverGmailifyLinksHandler, never inside a request: a mailbox
+     * that collected an address's mail for years carries tens of thousands of
+     * copies. Flushed and cleared per page so the identity map never holds
+     * them all, which is why it takes the carrier's id and not the entity.
+     *
      * @return int the rows detached
      */
-    public function severCarriedBy(Account $carrier): int
+    public function severCarriedBy(int $carrierId): int
     {
         $detached = 0;
         $afterId  = 0;
 
         while (true) {
-            $rows = $this->messages->findImapCopiesCarried($carrier, $afterId, self::BATCH_SIZE);
+            $rows = $this->messages->findImapCopiesCarried($carrierId, $afterId, self::BATCH_SIZE);
 
             if (0 === count($rows)) {
                 break;
@@ -113,9 +117,8 @@ final readonly class GmailifyLinks
                 ++$detached;
             }
 
-            // Flushed per page but not cleared: the carrier is the caller's
-            // entity, and clearing would detach it under the caller's feet.
             $this->em->flush();
+            $this->em->clear();
         }
 
         return $detached;

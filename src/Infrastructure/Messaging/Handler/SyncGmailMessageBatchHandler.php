@@ -289,7 +289,17 @@ final readonly class SyncGmailMessageBatchHandler
             // as this account's, the user's other accounts are asked for the
             // same Message-ID, and a copy found there is enriched instead,
             // exactly as a Gmailify sibling's is below.
-            if ($targetAccount === $account && false === $this->namesCarrier($labelIds, $headers, $account)) {
+            //
+            // Not with Gmailify switched off. With it off, received mail reaches
+            // this point only when it names this account, so what is left is
+            // mail this account sent as another address, and merging that into
+            // the other account's copy would link it to Gmail again: the very
+            // link the switch took off (#205).
+            if (
+                true === $account->gmailifyEnabled
+                && $targetAccount === $account
+                && false === $this->namesCarrier($labelIds, $headers, $account)
+            ) {
                 $copy = $this->copyOnAnotherAccount($headers, $siblingAccounts);
 
                 if (null !== $copy) {

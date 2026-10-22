@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:7a9945eb967123b1fe0e794e5811fafcb5a48080 -->
+<!-- translated-from: features/accounts.md sha1:37a91fdad03e06cc3af9398107cf58e3f784b41e -->
 
 # Konten und Aliase
 
@@ -303,7 +303,8 @@ Konto zugeordnet. Wenn es aus ist:
   Adressen hat, wird nicht noch einmal gespeichert.
 - Die eigenen Kopien des anderen Kontos folgen Gmail nicht mehr. Sie verlieren die Labels, die
   Gmail ihnen gegeben hat, und was du an ihnen änderst, geht nicht mehr an Gmail. Die Mail selbst
-  bleibt, wo ihr IMAP-Ordner sie hat.
+  bleibt, wo ihr IMAP-Ordner sie hat. Das läuft im Hintergrund, bei einem Postfach, das jahrelang
+  Mail abgeholt hat, also unter Umständen noch ein paar Minuten nach dem Ausschalten.
 - Mail, die Gmail unter dem anderen Konto abgelegt hat und die der IMAP-Server des anderen Kontos
   nie hatte, bleibt, wie sie ist, und folgt weiter Gmail. Gmail ist der einzige Ort, an dem es
   diese Mail gibt.

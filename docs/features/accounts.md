@@ -268,7 +268,8 @@ and late copies keep being matched to the other account. With it off:
   stored again.
 - The other account's own copies stop following Gmail. They lose the labels Gmail put on them,
   and a change you make to them is no longer sent to Gmail. The mail itself stays where its IMAP
-  folder has it.
+  folder has it. This runs in the background, so on a mailbox that has collected mail for years it
+  can take a few minutes after the switch is turned off.
 - Mail that Gmail filed under the other account, and that the other account's IMAP server never
   had, stays as it is and keeps following Gmail. Gmail is the only place that mail exists.
 

@@ -6,6 +6,8 @@ namespace App\Tests\Service\Gmail;
 
 use App\Command\Backfill\GmailifyPlacementBackfillTask;
 use App\Domain\Enum\Account\AuthType;
+use App\Infrastructure\Messaging\Handler\SeverGmailifyLinksHandler;
+use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
@@ -174,11 +176,42 @@ final class GmailifyLinksTest extends KernelTestCase
         $gmailOnly->imapUid = null;
         $this->em->flush();
 
-        self::assertSame(1, $this->links->severCarriedBy($this->carrier));
+        self::assertSame(1, $this->links->severCarriedBy((int) $this->carrier->id));
+
+        // Read back: severing clears the entity manager after every page.
+        $imapCopy  = $this->em->find(Message::class, $imapCopy->id);
+        $gmailOnly = $this->em->find(Message::class, $gmailOnly->id);
+        self::assertNotNull($imapCopy);
+        self::assertNotNull($gmailOnly);
 
         self::assertNull($imapCopy->gmailCarrierAccount);
-        self::assertSame($this->carrier, $gmailOnly->gmailCarrierAccount);
+        self::assertSame($this->carrier->id, $gmailOnly->gmailCarrierAccount?->id);
         self::assertNotNull($gmailOnly->gmailId);
+    }
+
+    /**
+     * The job reads the switch again: turned off and straight back on, the
+     * second choice is the one that counts, and nothing is detached.
+     */
+    public function testTheJobDoesNothingOnceTheSwitchIsBackOn(): void
+    {
+        $copy = $this->imapCopy();
+        $job  = self::getContainer()->get(SeverGmailifyLinksHandler::class);
+
+        $job(new SeverGmailifyLinksMessage((int) $this->carrier->id));
+
+        $copy = $this->em->find(Message::class, $copy->id);
+        self::assertNotNull($copy?->gmailCarrierAccount, 'Gmailify is on, so the link stays');
+
+        $carrier                  = $this->em->find(Account::class, $this->carrier->id);
+        self::assertNotNull($carrier);
+        $carrier->gmailifyEnabled = false;
+        $this->em->flush();
+
+        $job(new SeverGmailifyLinksMessage((int) $this->carrier->id));
+
+        $copy = $this->em->find(Message::class, $copy->id);
+        self::assertNull($copy?->gmailCarrierAccount);
     }
 
     /** `app:backfill gmailify-placement` runs the same repair over every carried IMAP copy. */
