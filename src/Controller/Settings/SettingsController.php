@@ -80,6 +80,7 @@ final class SettingsController extends AbstractController
         'categorise'   => 'fa-solid fa-inbox',
         'writing_help' => 'fa-solid fa-wand-magic-sparkles',
         'summary'      => 'fa-solid fa-align-left',
+        'contact_help' => 'fa-solid fa-address-card',
     ];
 
     public function __construct(

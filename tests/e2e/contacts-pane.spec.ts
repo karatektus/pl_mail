@@ -24,10 +24,9 @@ const frame = (page: Page) => page.locator("turbo-frame#contacts-pane-frame");
  */
 async function createSender(page: Page): Promise<void> {
     await frame(page).getByRole("link", { name: "New contact" }).first().click();
-    await frame(page).locator("[name='displayName']").fill("E2E Sender");
-    await frame(page).getByRole("button", { name: "Add email" }).click();
-    await frame(page).locator("[name='emails[0][value]']").fill("sender@e2e.test");
-    await frame(page).getByRole("button", { name: "Save" }).click();
+    await frame(page).getByLabel("Type or paste anything about them").fill("E2E Sender <sender@e2e.test>");
+    await expect(frame(page).locator("[name='displayName']")).toHaveValue("E2E Sender");
+    await frame(page).getByRole("button", { name: "Create contact" }).click();
     await expect(frame(page).locator("a[data-reference-email]").first()).toBeVisible();
 }
 

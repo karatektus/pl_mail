@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:49c4d9dde9ba2c50954b3d7f30351d7a4a1f60fb -->
+<!-- translated-from: features/contacts.md sha1:5f4fbb8cd5a8c2c563c954eae1da9bb9f2361093 -->
 
 # Kontakte
 
@@ -50,7 +50,40 @@ Die Seite eines Kontakts zeigt seine Angaben, seine Notizen, verwandte Kontakte 
 Klick öffnet sie in der Mail neben dem Kontakt, der bleibt, wie er ist; auf der ganzen Seite schiebt
 sich die Mail von links herein.
 
-**Neuer Kontakt** fragt nach einem Namen; alles andere ist freiwillig. Ein Kontakt hat:
+**Neuer Kontakt** öffnet die **Schnellerfassung**: ein Feld, in das du irgendetwas über die Person
+tippst oder einfügst — einen Namen, eine E-Mail-Signatur, eine Zeile wie
+`Mia Hoffmann <mia@example.net>`, eine Adresse oder eine ganze vCard. Es wird beim Tippen gelesen,
+und was gefunden wird, erscheint darunter als Zeilen: Jede kannst du abwählen, neu tippen oder mit
+einem Klick einem anderen Typ zuordnen (eine Arbeitsnummer, die eine private ist, eine Zeile, die als
+Position erkannt wurde und eigentlich die Firma ist). Eine Zeile, die nicht zugeordnet werden konnte,
+wird erfragt statt geraten, eine Grußformel über einer Signatur wird weggelassen, und eine Adresse,
+die schon bei einem deiner Kontakte steht, wird angezeigt. Eine vCard wird Feld für Feld gelesen,
+nichts wird geraten. **Alle Felder** öffnet den vollständigen Editor mit allem, was gefunden wurde.
+
+Der **Editor** zeigt den Namen als ein Feld; seine Teile (Anrede/Titel, Vor-, zweiter Vor- und
+Nachname, Namenszusatz) füllen sich beim Tippen und öffnen sich unter **Teile bearbeiten**. Bearbeitest
+du einen Teil von Hand, bleibt er so, und die Seite sagt, wenn Name und Teile nicht mehr zusammenpassen.
+E-Mail und Telefon enden in einer gestrichelten Zeile — tipp hinein, und sie wird zu einer Zeile,
+als privat oder geschäftlich nach der Adresse oder als Handy nach der Nummer eingeordnet, bis du
+selbst einen Typ wählst. Der Stern markiert die bevorzugte. Jede andere Art von Angabe erscheint nur,
+wenn der Kontakt eine hat; die Chips unter **Hinzufügen** holen den Rest. Sobald sich etwas geändert
+hat, sagt eine Leiste unten, wie viel, und bietet **Speichern** und **Verwerfen** an.
+
+**Details einfügen** im Editor liest eingefügten Text genauso und vergleicht ihn mit dem Kontakt,
+bevor sich etwas ändert: Was schon da ist, ist ausgegraut, was neu ist, ist angehakt, und was vom
+Gespeicherten abweicht („Ersetzt …“ oder ein anderer Typ für dieselbe Nummer), hakst du selbst an.
+**Übernehmen** trägt das Angehakte ins Formular ein und markiert es; gespeichert wird erst, wenn du
+speicherst.
+
+Hat deine Administration die **Kontakthilfe** eingeschaltet (Admin → KI), haben beide Seiten
+**Mit KI verbessern**. In der Schnellerfassung liest es den Text ein zweites Mal — die Firma, die die
+Regeln nicht von einem Slogan unterscheiden konnten, eine Faxnummer, die als `Fax -99` dasteht — und
+markiert, was es geändert hat; **KI-Änderungen rückgängig** geht zurück. Im Editor schickt es den
+Kontakt und die Signatur der neuesten Mail, die der Kontakt dir geschickt hat, und zeigt seine
+Vorschläge, jeden mit Begründung, in derselben Liste wie eingefügte Details. Für dich selbst schaltest
+du es unter Einstellungen → Assistent ab.
+
+Ein Kontakt hat:
 
 - seinen Namen in Teilen (Anrede/Titel, Vor-, zweiter Vor- und Nachname, Namenszusatz), einen
   Spitznamen und wie die Namen gesprochen werden (**Phonetische Schreibweise**, für Namen, die ein
@@ -67,10 +100,11 @@ sich die Mail von links herein.
 Eine Bezeichnung, die vom Server kommt und keine von plMails eigenen ist (eine auf dem Handy
 getippte „Patentante“), wird so gezeigt, wie sie ist, und bleibt beim Speichern erhalten.
 
-Hast du ein
-synchronisiertes Adressbuch, wählst du unter **Speichern in**, wohin der Kontakt kommt. **Nicht
-synchronisiert** behält ihn nur in plMail. Sonst geht er an den Server dieses Adressbuchs und von
-dort auf jedes Gerät, das es synchronisiert.
+Hast du ein synchronisiertes Adressbuch, wählst du unter **Speichern in**, wohin ein neuer Kontakt
+kommt: ein Knopf pro Adressbuch, wenn du bis zu vier hast, ein Menü, wenn es mehr sind. **plMail**
+behält ihn nur in plMail. Sonst geht er an den Server dieses Adressbuchs und von dort auf jedes
+Gerät, das es synchronisiert; die Zeile unter den Knöpfen sagt, wohin. Ein schreibgeschütztes
+Adressbuch wird nie angeboten.
 
 Bearbeiten geht bei beiden Arten gleich. Bei einem synchronisierten Kontakt wird die Änderung hier
 sofort gespeichert und gleich danach an den Server geschickt, und von dort auf dein Handy. Was
@@ -86,8 +120,8 @@ sagt, woher er kommt.
 
 **Fotos** sind JPG, PNG oder WebP bis 5 MB und werden mit höchstens 512 Pixeln an der längeren
 Seite gespeichert. Sie gehen in beide Richtungen: Ein Foto auf dem Server wird hier angezeigt, und
-ein Foto, das du hier hochlädst oder entfernst, geht an den Server. Das Papierkorb-Symbol neben
-**Foto hochladen** entfernt es.
+ein Foto, das du hier hochlädst oder entfernst, geht an den Server. Im Editor lädt die Kamera am
+Foto eines hoch, und **Foto entfernen** unten entfernt es.
 
 ## Löschen
 

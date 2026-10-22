@@ -180,16 +180,35 @@ final class ContactController extends AbstractController
 
     // ── Create / edit ─────────────────────────────────────────────────────
 
+    /**
+     * A new contact starts as quick add: one box to type or paste into, read
+     * as it is typed (ContactAssistController::parse()), and the rows found
+     * shown to keep, fix or untick. It posts to create() like the full editor
+     * does, with the same field names.
+     */
     #[Route('/new', name: 'new', methods: ['GET'])]
     public function new(): Response
     {
-        return $this->render('contacts/form.html.twig', [
-            'contact'  => null,
-            'isNew'    => true,
-            'postUrl'  => $this->generateUrl('app_contacts_create'),
-            'tokenId'  => 'contacts_create',
-            'books'    => $this->addressBooks->findWritableForUser($this->user()),
+        return $this->render('contacts/new.html.twig', [
+            'books' => $this->addressBooks->findWritableForUser($this->user()),
         ]);
+    }
+
+    /**
+     * The full editor for a new contact: empty from a link, or holding what
+     * quick add found when its "All fields" button posts here. Nothing is
+     * saved by this route — the editor's own Save posts to create().
+     */
+    #[Route('/new/full', name: 'new_full', methods: ['GET', 'POST'])]
+    public function newFull(Request $request): Response
+    {
+        $all = $request->isMethod('POST') ? $request->request->all() : [];
+
+        if ([] !== $all) {
+            $this->assertCsrf($request, 'contacts_create');
+        }
+
+        return $this->newForm($this->draftContact($all), (string) ($all['addressBook'] ?? ''));
     }
 
     #[Route('', name: 'create', methods: ['POST'])]
@@ -204,14 +223,11 @@ final class ContactController extends AbstractController
         if ('' === $displayName) {
             $this->addFlash('error', $this->trans('contacts.validation.name_required'));
 
-            return $this->render('contacts/form.html.twig', [
-                'contact' => null,
-                'isNew'   => true,
-                'postUrl' => $this->generateUrl('app_contacts_create'),
-                'tokenId' => 'contacts_create',
-                'draft'   => $all,
-                'books'   => $this->addressBooks->findWritableForUser($user),
-            ], new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY));
+            return $this->newForm(
+                $this->draftContact($all),
+                (string) ($all['addressBook'] ?? ''),
+                new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY),
+            );
         }
 
         $contact = Contact::create($user, $displayName);
@@ -625,6 +641,44 @@ final class ContactController extends AbstractController
         }
 
         throw $this->createAccessDeniedException();
+    }
+
+    /**
+     * The editor for a contact that does not exist yet.
+     */
+    private function newForm(Contact $draft, string $book, ?Response $response = null): Response
+    {
+        return $this->render('contacts/form.html.twig', [
+            'contact' => $draft,
+            'isNew'   => true,
+            'postUrl' => $this->generateUrl('app_contacts_create'),
+            'tokenId' => 'contacts_create',
+            'books'   => $this->addressBooks->findWritableForUser($this->user()),
+            'book'    => $book,
+        ], $response);
+    }
+
+    /**
+     * An unsaved contact holding what a form posted — quick add's rows, or a
+     * create that was refused — so the editor has one shape to show, saved
+     * or not. Never persisted: nothing managed points at it, so a flush
+     * elsewhere in the request cannot pick it up. The name is the one typed,
+     * even empty; VCardMapper would otherwise make one up from an address,
+     * and the editor would hide the reason the save was refused.
+     *
+     * @param array<string, mixed> $all
+     */
+    private function draftContact(array $all): Contact
+    {
+        $contact = Contact::create($this->user(), '');
+
+        if ([] !== $all) {
+            $this->mapper->apply($this->parsedFromForm($all), $contact);
+        }
+
+        $contact->displayName = trim((string) ($all['displayName'] ?? ''));
+
+        return $contact;
     }
 
     private function trans(string $key, array $params = []): string

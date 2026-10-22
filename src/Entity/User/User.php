@@ -688,8 +688,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
     public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
 
-    /** Matches the clamp in ui--split; the server is what enforces it. */
-    public const int CONTACTS_PANE_MIN_WIDTH = 320;
+    /**
+     * Matches the clamp in ui--split; the server is what enforces it.
+     *
+     * 368 (23rem), not 320: the narrowest the list's header fits on one line
+     * — the title in full ("Shipmates", the longest of the four) and its five
+     * buttons. At 320 the title ran under the buttons, and both other ways out
+     * (truncating it, wrapping the buttons) read worse than a slightly wider
+     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     */
+    public const int CONTACTS_PANE_MIN_WIDTH = 368;
     public const int CONTACTS_PANE_MAX_WIDTH = 900;
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 

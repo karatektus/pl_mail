@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:745cb9593e98a39e4729dffb19f7be3e1808df78 -->
+<!-- translated-from: features/admin.md sha1:8774edcb87c3bc5ff625fb6144f44d2e8562f7fe -->
 
 # Administration
 
@@ -638,7 +638,7 @@ Speicher und der Klick hat nichts gebracht. Praktisch nach einem Neustart — un
 was ein kalter Ladevorgang auf deiner Hardware wirklich kostet, bevor du entscheidest, wie lange du
 das Modell hältst.
 
-### Die vier Funktionen sind einzeln schaltbar
+### Die fünf Funktionen sind einzeln schaltbar
 
 Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn das Modell danebenliegt.
 
@@ -648,6 +648,7 @@ Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn
 | **Mail in Tabs einsortieren** | Setzt eine Kategorie, wenn keine Regel gegriffen hat | Bei jeder eingehenden Nachricht |
 | **Beim Schreiben helfen** | Bietet Entwürfe und Umformulierungen im Editor an | Nur wenn du fragst |
 | **Konversationen zusammenfassen** | Schreibt einen kurzen Abriss eines langen Gesprächs | Nur wenn jemand darum bittet |
+| **Kontakthilfe** | Liest einen Kontakt aus eingefügtem Text und schlägt Änderungen an einem Kontakt anhand der Signatur seiner letzten Mail vor | Nur wenn jemand auf **Mit KI verbessern** klickt |
 
 Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsichtigt. Es kann immer nur
 den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
@@ -674,13 +675,20 @@ Zwei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg st
 
 Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
 
-Zusammenfassungen sind die teuerste der vier. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
+Zusammenfassungen sind die teuerste der fünf. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
 Gespräch ist eine deutlich größere Eingabe als ein Entwurf: Auf einem 30B-Modell mit einer GPU
 rechne mit rund einer Minute für die erste Zusammenfassung nach einer ruhigen Phase und etwa der
 Hälfte, solange das Modell warm ist. Die GPU ist die ganze Zeit belegt, auf einer geteilten Maschine
 merken das also alle. Von allein wird nie etwas zusammengefasst — keine eingehende Nachricht, kein
 nächtlicher Durchlauf — und eine geschriebene Zusammenfassung wird aufbewahrt und wieder angezeigt,
 das zweite Öffnen derselben Konversation kostet also nichts.
+
+Die Kontakthilfe schickt Text über andere Menschen: was jemand in einen neuen Kontakt eingefügt hat,
+oder einen gespeicherten Kontakt zusammen mit dem Signaturblock der neuesten Mail, die dieser Kontakt
+geschickt hat — der Teil unter `-- ` oder unter der Grußformel („Viele Grüße“), nie der Text der Mail.
+Eine Mail mit keinem von beiden schickt nichts aus dieser Mail. Nichts, was sie vorschlägt, wird
+gespeichert, bevor die Person es anhakt und den Kontakt speichert. Ohne sie funktioniert das Einfügen
+trotzdem: plMail liest den Text nach Regeln, nur der Knopf, der das Modell fragt, fällt weg.
 
 ### Suchen nach Bedeutung braucht einmal einen Durchlauf
 

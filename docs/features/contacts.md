@@ -42,7 +42,37 @@ message to or from the contact that has not been deleted, in any folder. Clickin
 the mail beside the contact, which stays as it was; on the full page the mail slides in from the
 left.
 
-**New contact** asks for a name; everything else is optional. A contact holds:
+**New contact** opens **quick add**: one box to type or paste anything about the person into — a
+name, an email signature, a line like `Mia Hoffmann <mia@example.net>`, an address, or a whole
+vCard. It is read as you type, and what it finds appears below as rows: each can be unticked,
+retyped, or given another type with one click (a work number that is a home number, a line taken
+for the job title that is really the company). A line that could not be placed is asked about
+rather than guessed, a greeting above a signature is left out, and an address that is already on
+one of your contacts is pointed out. A vCard is read field by field and nothing is guessed. **All
+fields** opens the full editor with everything found already filled in.
+
+The **editor** shows the name as one field; its parts (prefix, first, middle and last name,
+suffix) fill themselves as you type and open under **Edit parts**. Once you edit a part by hand it
+stays, and the page says when the name and its parts no longer match. Email and phone end in a
+dashed row — type into it and it becomes a row, typed as home or work from the address, or as a
+mobile from the number, until you pick a type yourself. The star marks the preferred one. Every
+other kind of detail shows only when the contact has one; the chips under **Add** bring the rest.
+Once something has changed, a bar at the bottom says how much and offers **Save** and **Discard**.
+
+**Paste details** in the editor reads pasted text the same way and compares it with the contact
+before anything changes: what is already there is greyed out, what is new is ticked, and what
+differs from what is saved ("Replaces …", or a different type for the same number) is left for you
+to tick. **Apply** puts the ticked details into the form and highlights them; nothing is saved
+until you save.
+
+When your administrator has switched on **Contact help** (Admin → AI), both pages have **Improve
+with AI**. On quick add it gives the text a second reading — the company the rules could not tell
+from a slogan, a fax number written as `Fax -99` — and marks what it changed, with **Undo AI
+changes** to go back. In the editor it sends the contact and the signature of the newest mail the
+contact sent you, and shows its suggestions, each with its reason, in the same list as pasted
+details. You can switch it off for yourself under Settings → Assistant.
+
+A contact holds:
 
 - its name in parts (prefix, first, middle and last name, suffix), a nickname, and how the names are
   spoken (**Phonetic spelling**, for names a phone should sort or read out differently);
@@ -56,9 +86,10 @@ left.
 
 A label that came from the server and is not one of plMail's own (a "Godmother" typed on a phone)
 is shown as it is and kept when you save.
- If you have a synced address book
-you can choose where the contact goes under **Save to**. **Not synced** keeps it in plMail only.
-Otherwise it goes to that address book's server and from there to every device that syncs it.
+If you have a synced address book you can choose where a new contact goes under **Save to**: one
+button per address book when you have up to four, a menu when you have more. **plMail** keeps it in
+plMail only. Otherwise it goes to that address book's server and from there to every device that
+syncs it; the line under the buttons says which. A read-only address book is never offered.
 
 Editing works the same for both kinds. For a synced contact, the edit is saved here at once and sent
 to the server straight after, and from there to your phone. Anything plMail has no field for, such
@@ -71,7 +102,8 @@ written to, but not changed or deleted here. Its page says where it comes from.
 
 **Photos** are JPG, PNG or WebP up to 5 MB, and kept at up to 512 pixels on the longer side. They go
 both ways: a photo on the server is shown here, and a photo uploaded or removed here is sent to the
-server. The bin icon beside **Upload photo** removes it.
+server. In the editor, the camera on the photo uploads one and **Remove photo** at the bottom removes
+it.
 
 ## Deleting
 
