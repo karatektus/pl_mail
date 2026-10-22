@@ -241,7 +241,6 @@ export default class extends Controller {
         }
 
         // A row a refresh removed under the finger is no hold: nothing is claimed and nothing opens.
-        // A row a refresh removed under the finger is no hold: nothing is claimed and nothing opens.
         if (active.row.isConnected === false) {
             this.#release(active);
             this._active = null;
