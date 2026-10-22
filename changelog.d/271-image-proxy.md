@@ -8,4 +8,4 @@ stayed hidden; plMail now follows the stylesheet as a browser does. Mail already
 repaired on request: `php bin/console app:backfill safe-html-hidden-cards` writes the shown copy of
 every message with a form or such a stylesheet again from the sender's original. The `http://` fix
 needs nothing. When plMail refuses a picture's address, the log now says why. No schema change.
-[#271](https://github.com/karatektus/pl_mail/issues/271).
+[#271](https://github.com/karatektus/pl_mail/issues/271), by @pmdevelopment.
