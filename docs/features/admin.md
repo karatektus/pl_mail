@@ -334,9 +334,12 @@ among the file services, and its calendars use that address.
   address counts again. A change applies the next time calendars are found on a connection.
   Calendars already mirrored keep the address they were found at, and clearing an address in a
   private range also ends its exemption from the private-network rule, so those calendars stop
-  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. See [CalDAV](../providers/caldav.md).
-- **Calendar feed** has no server to pin, because every feed is its own address. An address stored
-  here only lets feeds on its host past the private-network rule; clear it if nobody meant that.
+  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. Once people have connected, the form
+  says how many connections a change reaches. See [CalDAV](../providers/caldav.md).
+- **Calendar feed** has no server to pin, because every feed is its own address, so its row has
+  nothing to configure. Only an address the setup wizard stored before is shown, with a
+  **Configure** button to clear it: such an address only lets feeds on its host past the
+  private-network rule.
 
 **Reuse Gmail credentials** and its Microsoft equivalent copy a client id and secret across
 server-side, without ever showing the secret. One Google Cloud project also covers Drive and Photos;

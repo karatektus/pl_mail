@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:164660464ed7dc672aaa6bc3b24bbebce782b278 -->
+<!-- translated-from: features/admin.md sha1:32548a111582d707b9c8a1ef8439eeaebb02c69c -->
 
 # Administration
 
@@ -369,11 +369,13 @@ eingerichtet, und seine Kalender nutzen diese Adresse.
   auf einer Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender
   behalten die Adresse, unter der sie gefunden wurden, und wer eine Adresse in einem privaten Netz
   leert, beendet auch ihre Ausnahme von der Regel für private Netze — diese Kalender
-  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Siehe
+  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Sobald sich
+  jemand verbunden hat, sagt das Formular, wie viele Verbindungen eine Änderung erreicht. Siehe
   [CalDAV](../providers/caldav.md).
 - **Calendar feed**, der Kalender-Feed, hat keinen Server zum Festlegen, denn jeder Feed ist seine
-  eigene Adresse. Eine hier gespeicherte Adresse lässt nur Feeds auf ihrem Host an der Regel für
-  private Netze vorbei; leere sie, wenn das niemand so wollte.
+  eigene Adresse; seine Zeile hat darum nichts einzurichten. Nur eine Adresse, die der
+  Einrichtungsassistent früher gespeichert hat, wird angezeigt, mit **Konfigurieren**, um sie zu
+  leeren: Eine solche Adresse lässt nur Feeds auf ihrem Host an der Regel für private Netze vorbei.
 
 **Zugangsdaten von … übernehmen** kopiert für Google wie für Microsoft eine Client-ID und ein
 Secret serverseitig hinüber, ohne das Secret je anzuzeigen. Ein Google-Cloud-Projekt deckt auch

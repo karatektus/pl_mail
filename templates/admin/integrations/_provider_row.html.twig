@@ -72,6 +72,14 @@ Variables:
 
     <div class="border-t border-line {{ chrome.body() }} space-y-4">
 
+        {# A calendar feed has nothing to configure: every feed is its own address.
+           Its row shows an address and a Configure button only while one is stored,
+           because that address quietly exempts its host from the private-network
+           check, and the form is where it is cleared. #}
+        {% set storedAddress = config is not null and config.baseUrl %}
+        {% set configurable = provider.value != 'ics' or storedAddress %}
+
+        {% if configurable %}
         {# Current setup, read-only. The secret is never rendered — only
            whether one is on file. #}
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
@@ -79,7 +87,7 @@ Variables:
             <dd class="text-ink truncate">
                 {% if config is not null and config.baseUrl %}
                     <code class="text-xs">{{ config.baseUrl }}</code>
-                    <span class="text-xs text-ink-faint">— {{ 'admin.integrations.base_url_pinned'|trans }}</span>
+                    <span class="text-xs text-ink-faint">— {{ (provider.value == 'ics' ? 'admin.integrations.base_url_exempt' : 'admin.integrations.base_url_pinned')|trans }}</span>
                 {% elseif provider.needsBaseUrl %}
                     <span class="text-ink-faint">{{ 'admin.integrations.base_url_per_user'|trans }}</span>
                 {% else %}
@@ -109,8 +117,17 @@ Variables:
                 </dd>
             {% endif %}
         </dl>
+        {% endif %}
 
+        {% set mailSource = inheritable[provider.value] ?? null %}
+        {% set sourceConfig = mailSource ? (mailConfigs[mailSource] ?? null) : null %}
+        {% set inherits = sourceConfig is not null and sourceConfig.isComplete %}
+
+        {# No row of buttons at all when it would be empty: an empty flex row still
+           takes its place in space-y-4, and the feed's row has neither button. #}
+        {% if configurable or inherits %}
         <div class="flex items-center gap-2 flex-wrap">
+            {% if configurable %}
             <button type="button"
                     data-controller="ui--modal"
                     data-ui--modal-src-value="{{ path('app_admin_integrations_edit', { provider: provider.value }) }}"
@@ -121,16 +138,14 @@ Variables:
                 <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
                 {{ 'admin.integrations.configure'|trans }}
             </button>
+            {% endif %}
 
             {# ── Reuse the mail credentials ──
                Offered only when the counterpart is actually configured,
                because a button that explains why it cannot work is worse
                than no button. The copy happens server-side: the secret
                moves between rows and is never sent to the browser. #}
-            {% set mailSource = inheritable[provider.value] ?? null %}
-            {% set sourceConfig = mailSource ? (mailConfigs[mailSource] ?? null) : null %}
-
-            {% if sourceConfig is not null and sourceConfig.isComplete %}
+            {% if inherits %}
                 <form method="post"
                       action="{{ path('app_admin_integrations_inherit', { provider: provider.value }) }}"
                       data-turbo-stream>
@@ -147,8 +162,9 @@ Variables:
                 </form>
             {% endif %}
         </div>
+        {% endif %}
 
-        {% if sourceConfig is not null and sourceConfig.isComplete %}
+        {% if inherits %}
             <p class="text-[11px] text-ink-faint">
                 <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
                 {{ 'admin.integrations.inherit_help'|trans }}

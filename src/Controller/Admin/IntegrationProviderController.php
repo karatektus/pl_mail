@@ -94,9 +94,15 @@ final class IntegrationProviderController extends AbstractController
         }
 
         return $this->render('admin/integrations/_form.html.twig', [
-            'provider' => $provider,
-            'config'   => $config,
-            'form'     => $form,
+            'provider'  => $provider,
+            'config'    => $config,
+            'form'      => $form,
+            // For the CalDAV form's warning: a pin reaches every connection
+            // already made, on its next discovery, and an admin changing it
+            // should know how many people that is before saving.
+            'connected' => Provider::CalDav === $provider
+                ? $this->integrationRepository->countUsersByProvider()[$provider->value] ?? 0
+                : 0,
         ]);
     }
 

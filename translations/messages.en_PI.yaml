@@ -508,9 +508,11 @@ admin:
             not_asked: 'never asked'
             rules: 'Th'' rules said'
     integrations:
+        base_url_exempt: 'only lets feeds from this port past th'' private-waters check'
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
         calendar:
+            connected_warning: 'Hands already moored: %count%. A changed or cleared bearin'' applies to each of ''em th'' next time their calendars be sought, so a hand moored at another port, iCloud say, gets hailed about this one with their own password. Calendars already copied keep th'' bearin'' they were found at; if a cleared bearin'' lay in private waters, they stop syncin'' till its host be in INTEGRATIONS_ALLOWED_HOSTS.'
             heading: 'Calendars'
             intro: 'Ports an'' feeds th'' crew copy their calendars from, under Settings → Calendars. Both be open to every hand; what can be set here be one port for all. Nextcloud be rigged with th'' cargo holds above, an'' its calendars sail with it.'
         clear_secret: 'Throw the stored secret overboard'

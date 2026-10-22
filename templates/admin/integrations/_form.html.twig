@@ -15,12 +15,25 @@ field to fill in.
         form: form,
         title: provider.label,
         provider: provider,
+        connected: connected|default(0),
     } only %}
         {% block before_fields %}
             {% if not provider.isImplemented %}
                 <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
                     <i class="fa-solid fa-hammer mt-0.5 shrink-0" aria-hidden="true"></i>
                     <p class="leading-snug">{{ 'admin.integrations.unimplemented_notice'|trans }}</p>
+                </div>
+            {% endif %}
+
+            {# A pinned CalDAV address wins over every user's own, so changing it
+               after people have connected moves all of them, and clearing one
+               in a private range ends the exemption their mirrored calendars
+               sync through. The docs say so; this says it where it is done. #}
+            {% if connected > 0 %}
+                <div role="status" data-caldav-connected-warning
+                     class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                    <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.integrations.calendar.connected_warning'|trans({'%count%': connected}) }}</p>
                 </div>
             {% endif %}
         {% endblock %}

@@ -564,9 +564,11 @@ admin:
             not_asked: 'not asked'
             rules: 'The rules said'
     integrations:
+        base_url_exempt: 'only lets feeds on this host past the private-network check'
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
         calendar:
+            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until its host is in INTEGRATIONS_ALLOWED_HOSTS.'
             heading: 'Calendars'
             intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'

@@ -575,9 +575,11 @@ admin:
             not_asked: 'nicht gefragt'
             rules: 'Die Regeln sagen'
     integrations:
+        base_url_exempt: 'nimmt nur Feeds auf diesem Host von der Prüfung auf private Netze aus'
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
         calendar:
+            connected_warning: 'Bereits verbunden: %count%. Eine geänderte oder entfernte Adresse gilt für jede dieser Verbindungen, sobald ihre Kalender das nächste Mal gesucht werden. Wer mit einem anderen Server verbunden ist, etwa iCloud, wird dann mit dem eigenen Passwort bei diesem angefragt. Bereits gespiegelte Kalender behalten die Adresse, unter der sie gefunden wurden; lag eine entfernte Adresse in einem privaten Netz, synchronisieren sie nicht mehr, bis ihr Host in INTEGRATIONS_ALLOWED_HOSTS steht.'
             heading: 'Kalender'
             intro: 'Server und Feeds, aus denen unter Einstellungen → Kalender Kalender gespiegelt werden. Beide stehen allen zur Verfügung; hier lässt sich eine Serveradresse für alle festlegen. Nextcloud wird oben bei den Dateidiensten eingerichtet, seine Kalender kommen mit.'
         clear_secret: 'Gespeichertes Client-Secret entfernen'

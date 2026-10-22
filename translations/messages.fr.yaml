@@ -569,9 +569,11 @@ admin:
             not_asked: 'non demandé'
             rules: 'Les règles ont dit'
     integrations:
+        base_url_exempt: 'exempte seulement les flux de cet hôte du contrôle des réseaux privés'
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
         calendar:
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
             heading: 'Calendriers'
             intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'

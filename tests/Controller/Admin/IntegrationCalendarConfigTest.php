@@ -9,6 +9,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Repository\Integration\IntegrationRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Calendar\Sync\CalDav\CalDavClient;
 use Doctrine\DBAL\Connection;
@@ -277,6 +278,70 @@ final class IntegrationCalendarConfigTest extends WebTestCase
 
         $this->client->request('GET', '/admin/integrations/googleDrive/edit');
         self::assertStringNotContainsString('drive-secret-value', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * A pin reaches every CalDAV connection already made, so the form says how
+     * many there are before it is changed. Counted through the same query as
+     * the row, because the seed may have connections of its own.
+     */
+    public function testTheCalDavFormSaysHowManyConnectionsAChangeReaches(): void
+    {
+        $connection          = new Integration($this->admin, Provider::CalDav, 'Own server');
+        $connection->baseUrl = self::OWN_ADDRESS;
+        $this->em()->persist($connection);
+        $this->em()->flush();
+
+        $count = static::getContainer()->get(IntegrationRepository::class)->countUsersByProvider()[Provider::CalDav->value];
+
+        $this->client->loginUser($this->admin);
+        $warning = $this->client->request('GET', '/admin/integrations/caldav/edit')->filter('[data-caldav-connected-warning]');
+
+        self::assertCount(1, $warning);
+        self::assertStringContainsString(sprintf('Connections already made: %d.', $count), $warning->text());
+
+        // The file services' pins are not this warning's business.
+        $nextcloud = $this->client->request('GET', '/admin/integrations/nextcloud/edit');
+        self::assertCount(0, $nextcloud->filter('[data-caldav-connected-warning]'));
+    }
+
+    /**
+     * A feed has no server to pin, and an address stored for it only exempts
+     * its host from the private-network check. Without one there is nothing to
+     * configure: no address line, no Configure button, no field.
+     */
+    public function testTheFeedOffersNothingToConfigureWithoutAStoredAddress(): void
+    {
+        $this->client->loginUser($this->admin);
+        $row = $this->client->request('GET', '/admin/integrations')->filter('#integration-provider-ics');
+
+        self::assertCount(0, $row->filter('dl'));
+        self::assertCount(0, $row->filter('[data-ui--modal-src-value]'));
+
+        $form = $this->client->request('GET', '/admin/integrations/ics/edit')->filter('form')->form();
+        self::assertFalse($form->has('integration_provider_config[baseUrl]'));
+    }
+
+    /** One that is stored is shown for what it does, and can be cleared. */
+    public function testAStoredFeedAddressIsShownAndCanBeCleared(): void
+    {
+        $stored          = new IntegrationProviderConfig(Provider::Ics);
+        $stored->baseUrl = 'http://calendar.internal';
+        $this->em()->persist($stored);
+        $this->em()->flush();
+
+        $this->client->loginUser($this->admin);
+        $row = $this->client->request('GET', '/admin/integrations')->filter('#integration-provider-ics');
+
+        self::assertStringContainsString('http://calendar.internal', $row->filter('dl')->text());
+        self::assertStringContainsString('past the private-network check', $row->filter('dl')->text());
+        self::assertCount(1, $row->filter('[data-ui--modal-src-value]'));
+
+        $form = $this->client->request('GET', '/admin/integrations/ics/edit')->filter('form')->form();
+        $form['integration_provider_config[baseUrl]']->setValue('');
+        $this->client->submit($form);
+
+        self::assertNull($this->config(Provider::Ics)?->baseUrl);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

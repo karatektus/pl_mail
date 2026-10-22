@@ -52,6 +52,18 @@ final class IntegrationProviderConfigType extends AbstractType
             ]);
         }
 
+        // A feed has no server to pin: every subscription is its own address,
+        // and a stored one only exempts its host from the private-network
+        // check. Offering an empty field invited exactly that by accident, so
+        // it is shown only to see and clear an address that is already there.
+        $storedAddress = $config instanceof IntegrationProviderConfig
+            && null !== $config->baseUrl
+            && '' !== $config->baseUrl;
+
+        if (Provider::Ics === $provider && false === $storedAddress) {
+            return;
+        }
+
         $builder
             ->add('baseUrl', UrlType::class, [
                 'label'    => 'admin.integrations.field.base_url',
