@@ -742,12 +742,6 @@ class MessageThreadRepository extends ServiceEntityRepository
      * looking live. Opening it from there is how someone edits a conversation
      * they believe they threw away a month ago.
      *
-     * A NOT IN over a sub-query rather than a second join with a negation: the
-     * label join is to-many, so `l.role <> :trash` would only say "this thread
-     * has SOME label that is not Trash", which every trashed thread also
-     * satisfies. The question is about the thread, so it has to be asked of
-     * the thread.
-     *
      * "In the bin" means EVERY message of it is (#268). The rule used to be
      * "carries the Trash label", and the thread's labels are the union of its
      * messages' — so one deleted message took the whole conversation out of
@@ -758,7 +752,10 @@ class MessageThreadRepository extends ServiceEntityRepository
      * the Inbox, unread, shown by the phone app and nowhere on the web.
      * A conversation deleted as a whole has every message in the bin and
      * still leaves its Receipts list, which is what the rule above is for.
-     * See binnedThreads() for the query.
+     *
+     * Read off MessageThread::$binned, which the database keeps (#223). It
+     * used to be worked out here from the messages, a sub-query that took
+     * about 170 ms on every list and badge of a 67k-thread mailbox.
      *
      * Deliberately not applied to the Trash view itself, nor to the per-account
      * Trash folder row — see the callers, each of which decides. Applying it
@@ -766,41 +763,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     private function excludeTrashed(QueryBuilder $qb): void
     {
-        $qb->andWhere($qb->expr()->notIn('t.id', self::binnedThreads()))
-            ->setParameter('trashRole', LabelRole::Trash);
-    }
-
-    /**
-     * DQL for the ids of the threads that are in the bin: they carry Trash,
-     * and none of their messages is outside it. Callers bind :trashRole.
-     *
-     * One fragment for every list and badge that leaves the bin out, so a
-     * badge cannot count a conversation its list hides — the two used to
-     * repeat the sub-query word for word, and a rule changed in one of them
-     * would have been a number that opens on a different list. Search builds
-     * its own SQL and spells the same rule out there (buildSearchSql()).
-     *
-     * Asked of the messages, not of thread_label: the thread's labels say a
-     * message somewhere carries Trash, and which one is the question. The
-     * Trash join first, so only threads that have a deleted message at all
-     * reach the per-message check.
-     *
-     * A thread with no messages and a Trash label counts as binned, as it did
-     * before: there is no live message to keep it listed.
-     */
-    private static function binnedThreads(): string
-    {
-        return 'SELECT binned.id FROM ' . MessageThread::class . ' binned'
-            . ' JOIN binned.labels binnedLabel'
-            . ' WHERE binnedLabel.role = :trashRole'
-            . ' AND NOT EXISTS ('
-            . 'SELECT live.id FROM ' . Message::class . ' live'
-            . ' WHERE live.thread = binned'
-            . ' AND NOT EXISTS ('
-            . 'SELECT liveTrash.id FROM ' . Message::class . ' liveBinned'
-            . ' JOIN liveBinned.labels liveTrash'
-            . ' WHERE liveBinned = live AND liveTrash.role = :trashRole'
-            . '))';
+        $qb->andWhere('t.binned = false');
     }
     /**
      * QueryBuilder for the join to Account: both the owner and whether the
@@ -942,7 +905,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $qb->andWhere(
             $qb->expr()->orX(
                 'l.role = :trashRole',
-                $qb->expr()->notIn('t.id', self::binnedThreads()),
+                't.binned = false',
             ),
         )->setParameter('trashRole', LabelRole::Trash);
 
@@ -1337,7 +1300,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $qb->andWhere(
             $qb->expr()->orX(
                 'l.role = :trashRole',
-                $qb->expr()->notIn('t.id', self::binnedThreads()),
+                't.binned = false',
             ),
         )->setParameter('trashRole', LabelRole::Trash);
 
@@ -2567,21 +2530,10 @@ class MessageThreadRepository extends ServiceEntityRepository
         // rows where the question is about the thread.
         if (LabelRole::Trash->value !== $query->mailboxRole) {
             //
-            // And "deleted" is all of it, as binnedThreads() has it in DQL: a
-            // thread with a live message is searched like any other (#268).
-            $where[] = 'NOT EXISTS ('
-                . 'SELECT 1 FROM thread_label xtl'
-                . ' JOIN label xlbl ON xlbl.id = xtl.label_id'
-                . ' WHERE xtl.message_thread_id = t.id AND xlbl.role = :trashRole'
-                . ' AND NOT EXISTS ('
-                . 'SELECT 1 FROM message xlive'
-                . ' WHERE xlive.thread_id = t.id'
-                . ' AND NOT EXISTS ('
-                . 'SELECT 1 FROM message_label xml'
-                . ' JOIN label xmlbl ON xmlbl.id = xml.label_id'
-                . ' WHERE xml.message_id = xlive.id AND xmlbl.role = :trashRole'
-                . ')))';
-            $params['trashRole'] = LabelRole::Trash->value;
+            // And "deleted" is all of it, as the lists have it: a thread with
+            // a live message is searched like any other (#268). The stored
+            // answer, as excludeTrashed() reads it (#223).
+            $where[] = 'NOT t.binned';
         }
 
         // ── Spam stays in Spam ────────────────────────────────────────────

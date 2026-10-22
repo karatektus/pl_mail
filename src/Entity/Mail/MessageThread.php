@@ -46,6 +46,19 @@ class MessageThread
     #[ORM\Column]
     public ?int $unreadCount = 0;
 
+    /**
+     * Whether the conversation is in the bin: it carries Trash and none of its
+     * messages is outside Trash (#268). Lists, badges and search leave it out.
+     *
+     * Postgres writes it and PHP never does, so it is neither inserted nor
+     * updated from here: triggers recompute it whenever a Trash label goes on
+     * or off a message or the thread, or a message arrives, leaves or moves
+     * (Version20261022160000). In memory it can lag behind a change that has
+     * not been flushed; the queries that use it read the column (#223).
+     */
+    #[ORM\Column(insertable: false, updatable: false, options: ['default' => false])]
+    public private(set) bool $binned = false;
+
     #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
     public ?MessageCategory $category = null;
 
