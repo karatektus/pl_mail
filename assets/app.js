@@ -5,6 +5,7 @@ import './password_manager_ignore.js';
 import './nav_origin.js';
 import './motion.js';
 import './confirm.js';
+import './panes.js';
 import './client_errors.js';
 import './request_errors.js';
 import { watchForMailChanges } from './mail_writes.js';

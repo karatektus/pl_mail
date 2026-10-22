@@ -18,7 +18,11 @@ synced address books), book ('' for all, 'local', or a book id).
        is never the thing that goes missing. Container breakpoints, so the
        pane and the page each decide by their own width — see _layout. #}
     <div class="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 @2xl:px-6 py-2.5 min-h-14 border-b border-line shrink-0">
-        <nav class="flex items-center gap-1 min-w-0 flex-1 text-sm" aria-label="{{ 'contacts.title'|trans }}">
+        {# The title never shrinks below its own width (no min-w-0): when the
+           row is too narrow for it and the buttons, the buttons wrap to a line
+           of their own instead of sliding under the title, which is what a
+           shrinking flex item with unshrinkable text did in the docked pane. #}
+        <nav class="flex items-center gap-1 flex-1 shrink-0 text-sm whitespace-nowrap" aria-label="{{ 'contacts.title'|trans }}">
             <i class="fa-solid fa-address-book text-ink-faint mr-1.5" aria-hidden="true"></i>
             <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
             <span class="hidden @lg:inline text-xs text-ink-faint ml-1 whitespace-nowrap">{{ 'contacts.count'|trans({'%count%': total}) }}</span>
@@ -34,7 +38,9 @@ synced address books), book ('' for all, 'local', or a book id).
                    class="h-8 w-full @2xl:w-44 @4xl:w-56 rounded-lg border border-field bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
         </form>
 
-        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}" title="{{ 'contacts.import'|trans }}">
+        {# The actions as one group, so they wrap together and stay at the end. #}
+        <div class="flex items-center gap-2 ml-auto shrink-0">
+        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}" title="{{ 'contacts.import'|trans }}" aria-label="{{ 'contacts.import'|trans }}">
             <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i><span class="hidden @3xl:inline">{{ 'contacts.import'|trans }}</span>
         </a>
         {# A download, not a page: Turbo would fetch it into the pane's
@@ -46,6 +52,7 @@ synced address books), book ('' for all, 'local', or a book id).
             <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i><span class="hidden @md:inline">{{ 'contacts.new'|trans }}</span>
         </a>
         {% include 'contacts/_pane_actions.html.twig' %}
+        </div>
     </div>
 
     {% set chipOn = 'bg-accent-soft text-accent border-accent' %}

@@ -57,6 +57,12 @@ import { Controller } from "@hotwired/stimulus";
  * side_split_controller.js and _contacts_pane.html.twig). The mail pane is
  * outside that wrapper, so `main-selector-value` finds it instead of a target.
  *
+ * Its positions are contacts--pane's, not this boundary's, so it is modeless
+ * with `snap-value="true"`: the band and the threshold as the calendar has
+ * them, and a release past either end reported as `snap` for contacts--pane to
+ * turn into full width or closed — the calendar's drag, without this class
+ * learning a second set of positions.
+ *
  * Whether the two can be docked at once is contacts--pane's to decide. This
  * side only reports: every position the user moves the calendar to is
  * dispatched as `ui--split:mode`, and `yield` puts the calendar back on the
@@ -71,6 +77,12 @@ export default class extends Controller {
         // Whether this boundary has the three positions at all. Without them
         // the handle is a handle and nothing else.
         modes: { type: Boolean, default: true },
+        // The rubber band and its threshold for a boundary WITHOUT positions
+        // of its own: a release past either end dispatches `ui--split:snap`
+        // (`ui--side-split:snap` for the address book) with `toward` "more"
+        // or "less", and whoever owns the positions decides what that is.
+        // See "A second docked pane" above.
+        snap: { type: Boolean, default: false },
         // Which position the switch skips: "none" (the three-way cycle),
         // "split" or "calendar". User::$calendarSwitchSkip. See _nextMode().
         skip: { type: String, default: "none" },
@@ -423,6 +435,16 @@ export default class extends Controller {
             return;
         }
 
+        // The same for a boundary whose positions are somebody else's: while
+        // they have it anywhere but beside the mail (`data-split-held`, set by
+        // contacts--pane) the pane is not at its own width — full width it is
+        // the row's — and clamping that would put the row's width into the
+        // variable, so the next "beside the mail" came back as wide as the
+        // limit instead of as it was left.
+        if (this.element.hasAttribute("data-split-held")) {
+            return;
+        }
+
         // A pane that is not laid out has no width to re-clamp, and clamping
         // its zero up to the minimum would throw away the stored width for the
         // rest of the session. The appearance preview is `display: none` below
@@ -706,6 +728,26 @@ export default class extends Controller {
         // No band, no threshold — just keep where it was let go, and write it.
         // The grip's flare is cleared here as well: it says something about the
         // pointer, and the pointer has gone.
+        if (false === this.modesValue && true === this.snapValue) {
+            const strain = this._strain ?? 0;
+            this._strain = 0;
+            this.handleTarget?.classList.remove("is-straining");
+
+            if (Math.abs(strain) >= this.constructor.RUBBER_THRESHOLD) {
+                // The width the drag started from, not where it was let go:
+                // past the limit that is the limit, and coming back beside the
+                // mail should give back the pane as it was before the snap.
+                this._apply(this._startWidth);
+                this.dispatch("snap", { detail: { toward: strain > 0 ? "more" : "less" } });
+
+                return;
+            }
+
+            this._animateTo(this._currentWidth());
+
+            return;
+        }
+
         if (false === this.modesValue) {
             this._strain = 0;
             this.handleTarget?.classList.remove("is-straining");
@@ -730,6 +772,17 @@ export default class extends Controller {
 
         // Short of the threshold, the band pulls back.
         this._animateTo(this._currentWidth());
+    }
+
+    /**
+     * Fields written with the next width, through the same coalesced queue —
+     * for whoever owns this boundary's positions (contacts--pane, its mode).
+     * One writer per endpoint, as the calendar has: two separate requests to
+     * the same settings bag race, and the one that lands last writes the bag
+     * back without the other's change, which lost a width just set.
+     */
+    remember(fields) {
+        this._persist(fields);
     }
 
     _stopListening() {
@@ -790,7 +843,7 @@ export default class extends Controller {
         if (true === this._dragging) {
             this._strain = width - bounded;
 
-            if (true === this.modesValue) {
+            if (true === this.modesValue || true === this.snapValue) {
                 drawn = bounded + this._rubber(this._strain);
             }
 

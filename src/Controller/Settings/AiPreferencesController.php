@@ -101,6 +101,7 @@ final class AiPreferencesController extends AbstractController
             AiFeature::Categorise  => $user->aiPreferences->categoriseOff = $off,
             AiFeature::WritingHelp => $user->aiPreferences->writingHelpOff = $off,
             AiFeature::Summary     => $user->aiPreferences->summaryOff = $off,
+            AiFeature::ContactHelp => $user->aiPreferences->contactHelpOff = $off,
         };
 
         $this->entityManager->flush();

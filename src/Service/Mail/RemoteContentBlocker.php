@@ -327,9 +327,18 @@ final readonly class RemoteContentBlocker
     }
 
     /**
-     * The absolute http(s) URL a reference points at, or null when it points at
+     * The absolute https URL a reference points at, or null when it points at
      * nothing remote — our own attachment route, a `data:` URI, an unresolved
      * `cid:`, or a relative path.
+     *
+     * `http://` comes back as `https://`, and this is the only place that does
+     * it. MailBodySanitizer keeps http sources on purpose and leaves the
+     * upgrade to render time; ImageProxyFetcher will only ever connect over
+     * TLS. Between the two nothing upgraded anything, so every http image —
+     * a BAUHAUS logo served from `http://photos-eu.bazaarvoice.com`, which
+     * answers the same bytes over https — was signed as http, refused by the
+     * fetcher and drawn as the placeholder (#271). Upgraded before signing, so
+     * the URL the proxy is handed is the one it will actually fetch.
      */
     private static function remoteUrl(string $reference): ?string
     {
@@ -345,7 +354,11 @@ final readonly class RemoteContentBlocker
 
         $scheme = strtolower((string) parse_url($reference, PHP_URL_SCHEME));
 
-        if ('http' !== $scheme && 'https' !== $scheme) {
+        if ('http' === $scheme) {
+            return 'https' . substr($reference, 4);
+        }
+
+        if ('https' !== $scheme) {
             return null;
         }
 

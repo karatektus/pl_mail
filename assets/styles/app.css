@@ -5839,3 +5839,139 @@ html[data-dnd-active] [data-dnd-ghost] {
 .mail-pull-indicator[data-state="release"] {
     color: var(--accent-text);
 }
+
+/* ── Row swipe ─────────────────────────────────────────────────────────────
+   The action revealed on each side of a row, on a phone. row_swipe_controller.js
+   moves the row's content (data-swipe-content) with an inline transform, sets
+   data-swipe-side on the row while it is dragged or open, and sizes the panel
+   with --swipe-reveal. The panels themselves come from the server: one per
+   direction that does something on that row, so a direction with no panel is
+   inert and draws nothing.
+
+   Touch only, below md: a mouse never reaches these rules, and the row claims
+   no horizontal pan (pan-y), so the browser leaves a sideways drag to the
+   gesture. Colours are tokens.
+
+   Unlayered, like the rules above. */
+
+@media (pointer: coarse) and (width < 48rem) {
+    li[data-controller~="mail--message-row"] {
+        touch-action: pan-y;
+    }
+}
+
+[data-swipe-panel] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    width: var(--swipe-reveal, 0px);
+    overflow: hidden;
+    display: flex;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+[data-swipe-panel="right"] {
+    left: 0;
+}
+
+[data-swipe-panel="left"] {
+    right: 0;
+    justify-content: flex-end;
+}
+
+li[data-swipe-side="right"] > [data-swipe-panel="right"],
+li[data-swipe-side="left"] > [data-swipe-panel="left"] {
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* The button is a fixed 96px, the same figure the controller rests an open row at. */
+[data-swipe-commit] {
+    flex: 0 0 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    color: rgb(var(--rgb-accent-ink));
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+[data-swipe-panel="right"] [data-swipe-commit] {
+    background: rgb(var(--rgb-success));
+}
+
+[data-swipe-panel="left"] [data-swipe-commit] {
+    background: rgb(var(--rgb-info));
+}
+
+/* Eased back into place by a release, and held still under a finger. */
+[data-swipe-content] {
+    transition: transform 180ms ease-out;
+}
+
+/* Above the overlay link and the panels only while the row is in motion or open.
+   At rest the link is on top, so a tap on the row still opens the message. */
+li[data-swipe-side] > [data-swipe-content] {
+    position: relative;
+    z-index: 2;
+}
+
+/* ── Action sheet ──────────────────────────────────────────────────────────
+   The long-press sheet on a phone (mail--action-sheet, opened by mail--row-hold).
+   A copy of the list's template, appended to <body>, so it sits above the page and
+   outside the list's own stacking. Its slide takes --sheet-duration, which the
+   controller sets to 0ms under reduced motion.
+
+   Pressed rows (data-pressed, while a finger is on them) switch off iOS's touch
+   callout and text selection, on the row and on its overlay link, which is the
+   element iOS calls out on. Pressed is CLIENT_OWNED in mail_pane, so a refresh
+   does not strip it mid-press.
+
+   The pickers (move, labels, snooze) are the list's own menus, each behind its
+   own trigger. The trigger is invisible and never clicked by a finger; the sheet
+   presses it. Only the picker's panel takes pointer events, so the entry under it
+   stays tappable. Unlayered, like the rules above. */
+
+/* Both spellings: iOS Safari reads only -webkit-user-select, and the stylesheet build adds no
+   prefix to a hand-written rule (only to Tailwind's own utilities). Unprefixed alone, the
+   press on a word still starts a selection on an iPhone. */
+[data-pressed],
+[data-pressed] > a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.action-sheet-panel {
+    animation: action-sheet-rise var(--sheet-duration, 200ms) ease-out both;
+
+    /* The base is 1rem, what the panel had as pb-4. The inset clears the home indicator on an iPhone:
+       the sheet is appended to <body>, outside the padding the app gives its own body. */
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes action-sheet-rise {
+    from {
+        transform: translateY(100%);
+    }
+}
+
+[data-sheet-picker-scope] {
+    pointer-events: none;
+}
+
+[data-sheet-picker-scope] > * > button:first-child {
+    opacity: 0;
+    pointer-events: none;
+}
+
+[data-sheet-picker-scope] [role="menu"],
+[data-sheet-picker-scope] [data-mail--label-menu-target="panel"],
+[data-sheet-picker-scope] [data-ui--dropdown-target="menu"] {
+    pointer-events: auto;
+}

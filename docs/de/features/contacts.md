@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:49c4d9dde9ba2c50954b3d7f30351d7a4a1f60fb -->
+<!-- translated-from: features/contacts.md sha1:713dc966d588067fd0d5ad0abafcfad4a6e76e2e -->
 
 # Kontakte
 
@@ -17,13 +17,19 @@ Ein Konto, das verbunden wurde, bevor plMail Kontakte synchronisiert hat, brauch
 Anmeldung, um sie zu erlauben: **Einstellungen → Kontakte** und **Einstellungen → Zustand der Konten** bieten sie
 beide an.
 
-Du öffnest es über **Kontakte** in der Seitenleiste als ganze Seite, oder über das Adressbuch-Symbol
-neben dem Kalender-Knopf, das es neben der Mail andockt, so wie den Kalender. Das angedockte
-Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und führst Kontakte
-dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es breiter oder
-schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es zurück), und plMail
-merkt sich die Breite und ob es offen war. Die Pfeile in seiner Kopfzeile öffnen dieselbe Seite in
-voller Größe, und das × schließt es.
+Du öffnest es mit dem Adressbuch-Symbol neben dem Kalender-Knopf. Wie der Kalender-Knopf schaltet
+es durch drei Stellungen: das Adressbuch neben der Mail, dann in voller Breite mit deiner Mail
+dahinter, dann wieder zu. **Einstellungen → Kontakte → Verhalten** macht daraus zwei Stellungen
+(**Nur volle Breite** oder **Nur neben der Mail**), wie beim Kalender. Auf dem Handy öffnet
+**Kontakte** im Menü die ganze Seite.
+
+Das angedockte Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und
+führst Kontakte dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es
+breiter oder schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es
+zurück). Ziehst du es über seine größte Breite hinaus und lässt los, geht es auf volle Breite; über
+seine kleinste hinaus, schließt es sich. plMail merkt sich Breite und Stellung. Die Pfeile in seiner
+Kopfzeile schalten auf volle Breite, und das × schließt es. Öffnest du bei voller Breite eine
+Nachricht aus einem Kontakt, kommt die Mail daneben zurück.
 
 Auf einem breiten Monitor (ab 1920 Pixeln Breite) können Adressbuch und Kalender nebeneinander
 angedockt sein. Auf einem kleineren Bildschirm, etwa dem eines Laptops, ist neben der Mail Platz für
@@ -50,7 +56,40 @@ Die Seite eines Kontakts zeigt seine Angaben, seine Notizen, verwandte Kontakte 
 Klick öffnet sie in der Mail neben dem Kontakt, der bleibt, wie er ist; auf der ganzen Seite schiebt
 sich die Mail von links herein.
 
-**Neuer Kontakt** fragt nach einem Namen; alles andere ist freiwillig. Ein Kontakt hat:
+**Neuer Kontakt** öffnet die **Schnellerfassung**: ein Feld, in das du irgendetwas über die Person
+tippst oder einfügst — einen Namen, eine E-Mail-Signatur, eine Zeile wie
+`Mia Hoffmann <mia@example.net>`, eine Adresse oder eine ganze vCard. Es wird beim Tippen gelesen,
+und was gefunden wird, erscheint darunter als Zeilen: Jede kannst du abwählen, neu tippen oder mit
+einem Klick einem anderen Typ zuordnen (eine Arbeitsnummer, die eine private ist, eine Zeile, die als
+Position erkannt wurde und eigentlich die Firma ist). Eine Zeile, die nicht zugeordnet werden konnte,
+wird erfragt statt geraten, eine Grußformel über einer Signatur wird weggelassen, und eine Adresse,
+die schon bei einem deiner Kontakte steht, wird angezeigt. Eine vCard wird Feld für Feld gelesen,
+nichts wird geraten. **Alle Felder** öffnet den vollständigen Editor mit allem, was gefunden wurde.
+
+Der **Editor** zeigt den Namen als ein Feld; seine Teile (Anrede/Titel, Vor-, zweiter Vor- und
+Nachname, Namenszusatz) füllen sich beim Tippen und öffnen sich unter **Teile bearbeiten**. Bearbeitest
+du einen Teil von Hand, bleibt er so, und die Seite sagt, wenn Name und Teile nicht mehr zusammenpassen.
+E-Mail und Telefon enden in einer gestrichelten Zeile — tipp hinein, und sie wird zu einer Zeile,
+als privat oder geschäftlich nach der Adresse oder als Handy nach der Nummer eingeordnet, bis du
+selbst einen Typ wählst. Der Stern markiert die bevorzugte. Jede andere Art von Angabe erscheint nur,
+wenn der Kontakt eine hat; die Chips unter **Hinzufügen** holen den Rest. Sobald sich etwas geändert
+hat, sagt eine Leiste unten, wie viel, und bietet **Speichern** und **Verwerfen** an.
+
+**Details einfügen** im Editor liest eingefügten Text genauso und vergleicht ihn mit dem Kontakt,
+bevor sich etwas ändert: Was schon da ist, ist ausgegraut, was neu ist, ist angehakt, und was vom
+Gespeicherten abweicht („Ersetzt …“ oder ein anderer Typ für dieselbe Nummer), hakst du selbst an.
+**Übernehmen** trägt das Angehakte ins Formular ein und markiert es; gespeichert wird erst, wenn du
+speicherst.
+
+Hat deine Administration die **Kontakthilfe** eingeschaltet (Admin → KI), haben beide Seiten
+**Mit KI verbessern**. In der Schnellerfassung liest es den Text ein zweites Mal — die Firma, die die
+Regeln nicht von einem Slogan unterscheiden konnten, eine Faxnummer, die als `Fax -99` dasteht — und
+markiert, was es geändert hat; **KI-Änderungen rückgängig** geht zurück. Im Editor schickt es den
+Kontakt und die Signatur der neuesten Mail, die der Kontakt dir geschickt hat, und zeigt seine
+Vorschläge, jeden mit Begründung, in derselben Liste wie eingefügte Details. Für dich selbst schaltest
+du es unter Einstellungen → Assistent ab.
+
+Ein Kontakt hat:
 
 - seinen Namen in Teilen (Anrede/Titel, Vor-, zweiter Vor- und Nachname, Namenszusatz), einen
   Spitznamen und wie die Namen gesprochen werden (**Phonetische Schreibweise**, für Namen, die ein
@@ -67,10 +106,11 @@ sich die Mail von links herein.
 Eine Bezeichnung, die vom Server kommt und keine von plMails eigenen ist (eine auf dem Handy
 getippte „Patentante“), wird so gezeigt, wie sie ist, und bleibt beim Speichern erhalten.
 
-Hast du ein
-synchronisiertes Adressbuch, wählst du unter **Speichern in**, wohin der Kontakt kommt. **Nicht
-synchronisiert** behält ihn nur in plMail. Sonst geht er an den Server dieses Adressbuchs und von
-dort auf jedes Gerät, das es synchronisiert.
+Hast du ein synchronisiertes Adressbuch, wählst du unter **Speichern in**, wohin ein neuer Kontakt
+kommt: ein Knopf pro Adressbuch, wenn du bis zu vier hast, ein Menü, wenn es mehr sind. **plMail**
+behält ihn nur in plMail. Sonst geht er an den Server dieses Adressbuchs und von dort auf jedes
+Gerät, das es synchronisiert; die Zeile unter den Knöpfen sagt, wohin. Ein schreibgeschütztes
+Adressbuch wird nie angeboten.
 
 Bearbeiten geht bei beiden Arten gleich. Bei einem synchronisierten Kontakt wird die Änderung hier
 sofort gespeichert und gleich danach an den Server geschickt, und von dort auf dein Handy. Was
@@ -86,8 +126,8 @@ sagt, woher er kommt.
 
 **Fotos** sind JPG, PNG oder WebP bis 5 MB und werden mit höchstens 512 Pixeln an der längeren
 Seite gespeichert. Sie gehen in beide Richtungen: Ein Foto auf dem Server wird hier angezeigt, und
-ein Foto, das du hier hochlädst oder entfernst, geht an den Server. Das Papierkorb-Symbol neben
-**Foto hochladen** entfernt es.
+ein Foto, das du hier hochlädst oder entfernst, geht an den Server. Im Editor lädt die Kamera am
+Foto eines hoch, und **Foto entfernen** unten entfernt es.
 
 ## Löschen
 
@@ -122,8 +162,23 @@ Kontakte vollständig umzuziehen, nimm vCard.
 
 ## Beim Lesen und Schreiben von E-Mails
 
-Beim Absender einer Nachricht siehst du, ob er schon in deinen Kontakten steht, mit einem Knopf, um
-ihn hinzuzufügen, wenn nicht. Adressierst du eine Nachricht, werden dir deine Kontakte
+Beim Absender einer Nachricht und bei jeder Adresse in ihren Details (An, Cc, Antwort an) siehst du,
+ob sie schon in deinen Kontakten steht, mit einem Knopf, um sie hinzuzufügen, wenn nicht. Der Knopf
+fragt, wer das ist:
+
+- **Neuer Kontakt**: Prüf den Namen aus der E-Mail und speichere. *Weitere Angaben* öffnet den
+  vollen Editor, Name und Adresse sind schon eingetragen.
+- **Zu einem bestehenden Kontakt hinzufügen**: Such beim Tippen in deinen Kontakten und wähl einen
+  aus. Die Adresse kommt zu diesem Kontakt dazu, so bleibt jemand, der von einer zweiten Adresse
+  schreibt, eine Person. Die Suche beginnt mit dem Namen des Absenders. Kontakte in
+  schreibgeschützten Adressbüchern werden nicht angeboten.
+
+Nach dem Speichern öffnet sich der Kontakt im angedockten Adressbuch neben der Mail. War es zu,
+geht es auf, war es offen, springt es zu diesem Kontakt. Auch *Weitere Angaben* öffnet den Editor
+dort. Auf dem Handy wird nichts angedockt: *Weitere Angaben* öffnet den Editor als Seite, und nach
+dem Speichern wird der Knopf zu einem Link auf den Kontakt.
+
+Adressierst du eine Nachricht, werden dir deine Kontakte
 vorgeschlagen, zusammen mit den Adressen, die plMail aus deinen E-Mails kennt. Die Reihenfolge steht
 unter [Vorschläge beim Schreiben](../providers/carddav.md#vorschläge-beim-schreiben).
 

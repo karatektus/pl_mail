@@ -398,7 +398,7 @@ final class ContactsFlowTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/contacts/new');
 
-        self::assertCount(1, $crawler->filter('select[name="addressBook"] option[value="' . $book->id . '"]'));
+        self::assertCount(1, $crawler->filter('input[type="radio"][name="addressBook"][value="' . $book->id . '"]'), 'one book: a button, not a dropdown');
 
         $this->client->request('POST', '/contacts', [
             '_token'      => $crawler->filter('input[name="_token"]')->first()->attr('value'),
@@ -489,7 +489,7 @@ final class ContactsFlowTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         $crawler = $this->client->request('GET', '/contacts/new');
-        self::assertCount(0, $crawler->filter('select[name="addressBook"] option[value="' . $book->id . '"]'), 'not offered to save into');
+        self::assertCount(0, $crawler->filter('[name="addressBook"][value="' . $book->id . '"], [name="addressBook"] option[value="' . $book->id . '"]'), 'not offered to save into');
     }
 
     public function testAContactCannotBeSavedIntoABookThatIsNotWritableOrNotTheirs(): void

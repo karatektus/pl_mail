@@ -252,4 +252,36 @@ class ContactRepository extends ServiceEntityRepository
         return array_values($out);
     }
 
+    /**
+     * The person's contacts that already have one of these addresses, for
+     * quick add's "already in your contacts". Rooted at the email for the
+     * reason findForAutocomplete() is, and compared lower-cased: addresses
+     * are stored as typed.
+     *
+     * @param list<string> $emails
+     *
+     * @return list<ContactEmail>
+     */
+    public function findByEmails(UserInterface $user, array $emails): array
+    {
+        $emails = array_values(array_unique(array_filter(array_map(static fn (string $e): string => mb_strtolower(trim($e)), $emails))));
+
+        if ([] === $emails) {
+            return [];
+        }
+
+        /** @var list<ContactEmail> */
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('e', 'c')
+            ->from(ContactEmail::class, 'e')
+            ->innerJoin('e.contact', 'c')
+            ->where('c.usr = :user')
+            ->andWhere('c.trashedAt IS NULL')
+            ->andWhere('LOWER(e.email) IN (:emails)')
+            ->setParameter('user', $user)
+            ->setParameter('emails', $emails)
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+    }
 }

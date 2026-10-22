@@ -158,6 +158,7 @@
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
                                         { section: 'images',        icon: 'fa-regular fa-image' },
+                                        { section: 'swipe-actions', icon: 'fa-solid fa-hand-pointer', label: 'settings.nav.swipe_actions' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
                                     ]|merge(ai_settings_available() or section == 'ai'
                                             ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
@@ -482,6 +483,19 @@
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}
+                                    {% elseif section == 'swipe-actions' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.swipe_actions.heading'|trans,
+                                            subheading: 'settings.swipe_actions.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_swipe_actions.html.twig' with {
+                                                    choices: swipeChoices,
+                                                    right:   app.user.swipeRightAction,
+                                                    left:    app.user.swipeLeftAction,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
                                     {% elseif section == 'images' %}
                                         {% embed 'settings/_card.html.twig' with {
                                             heading:    'settings.images.heading'|trans,
@@ -741,24 +755,42 @@
                                         {% endembed %}
 
                                     {% elseif section == 'contacts' %}
-                                        {% embed 'settings/_card.html.twig' with {
-                                            heading:    'settings.contacts.heading'|trans,
-                                            subheading: 'settings.contacts.subheading'|trans,
-                                        } %}
-                                            {% block body %}
-                                                {# The stream's target, re-emitted inside each
-                                                   replacement — see the calendars block below. #}
-                                                <div id="settings-contacts-list">
-                                                    {% include 'settings/_contacts.html.twig' with {
-                                                        contactConnections: contactConnections|default([]),
-                                                        addressBooks: addressBooks|default({}),
-                                                        contactAccounts: contactAccounts|default([]),
-                                                        accountBooks: accountBooks|default({}),
-                                                        contactAccountsGranted: contactAccountsGranted|default({}),
+                                        {# Two cards, so the gap between them, as every two-card section has. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.contacts.heading'|trans,
+                                                subheading: 'settings.contacts.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {# The stream's target, re-emitted inside each
+                                                       replacement — see the calendars block below. #}
+                                                    <div id="settings-contacts-list">
+                                                        {% include 'settings/_contacts.html.twig' with {
+                                                            contactConnections: contactConnections|default([]),
+                                                            addressBooks: addressBooks|default({}),
+                                                            contactAccounts: contactAccounts|default([]),
+                                                            accountBooks: accountBooks|default({}),
+                                                            contactAccountsGranted: contactAccountsGranted|default({}),
+                                                        } only %}
+                                                    </div>
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {# The contacts button's steps, under the address
+                                               book's own section rather than a section of its
+                                               own like the calendar's: one choice did not earn
+                                               a row in the nav. #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.contacts_behaviour.heading'|trans,
+                                                subheading: 'settings.contacts_behaviour.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_contacts_behaviour.html.twig' with {
+                                                        skip: app.user.contactsSwitchSkip,
                                                     } only %}
-                                                </div>
-                                            {% endblock %}
-                                        {% endembed %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
 
                                     {% elseif section == 'calendars' %}
                                         {% embed 'settings/_card.html.twig' with {

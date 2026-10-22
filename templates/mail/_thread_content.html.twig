@@ -191,6 +191,18 @@ self-contained: no {% extends %}, no block dependencies.
         {# `.thread-messages` is the container the message headers query: how
            much room a header has is the width of THIS block, which in the
            reading pane is the pane's, not the window's. See app.css. #}
+        {# Every address the messages below show a contact badge for, looked
+           up in one query rather than one per address (see
+           AddressBookExtension::prime()). #}
+        {% set badgeAddresses = [] %}
+        {% for message in messages %}
+            {% set badgeAddresses = badgeAddresses|merge([message.fromAddress]) %}
+            {% for kind in ['to', 'cc', 'bcc', 'reply-to'] %}
+                {% set badgeAddresses = badgeAddresses|merge(message_addresses(message, kind)|map(entry => entry.address)) %}
+            {% endfor %}
+        {% endfor %}
+        {% do address_book_prime(badgeAddresses) %}
+
         <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {

@@ -226,6 +226,39 @@ final class RemoteContentBlockerTest extends TestCase
         self::assertStringContainsString('/mail/image-proxy?u=', $result->html);
     }
 
+    /**
+     * The proxy only ever connects over TLS, and the sanitizer keeps http
+     * sources for render time to deal with. Nothing did: the BAUHAUS logo in a
+     * review request, `http://photos-eu.bazaarvoice.com/…`, was signed as http
+     * and refused, though the host serves the same bytes over https (#271).
+     * Upgraded before signing, so the signature covers the URL that is fetched.
+     */
+    public function testAnHttpImageGoesThroughTheProxyAsHttps(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="http://photos.example/logo.png">'
+            . '<table><tr><td style="background: url(HTTP://photos.example/bg.png)">x</td></tr></table>',
+            true,
+        );
+
+        self::assertSame(2, $result->allowed);
+        self::assertStringContainsString('u=' . rawurlencode('https://photos.example/logo.png') . '&amp;s=', $result->html);
+        self::assertStringContainsString('u=' . rawurlencode('https://photos.example/bg.png') . '&amp;s=', $result->html);
+        self::assertStringNotContainsStringIgnoringCase(rawurlencode('http://'), $result->html);
+    }
+
+    /**
+     * And the same URL is what a blocked image parks for the un-block, or
+     * "show images" would bring back the placeholder it was meant to replace.
+     */
+    public function testABlockedHttpImageParksTheHttpsProxyUrl(): void
+    {
+        $result = $this->blocker->rewrite('<img src="http://photos.example/logo.png">', false);
+
+        self::assertSame(1, $result->blocked);
+        self::assertStringContainsString('data-plmail-src="/mail/image-proxy?u=' . rawurlencode('https://photos.example/logo.png'), $result->html);
+    }
+
     public function testAnEmptyBodyIsNotARemoteBody(): void
     {
         $result = $this->blocker->rewrite(null, false);

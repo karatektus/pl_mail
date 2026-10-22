@@ -149,6 +149,8 @@ admin:
             qwen3-embedding_0_6b: "The default, an' the one to take unless ye have cause otherwise. Speaks many tongues, which counts more than any benchmark for a hold that be not all one language, an' the only one here to strike perfect precision in testin'. 639 MB."
         field:
             base_url: "Oracle's berth"
+            contact_help: 'Crew roster help'
+            contact_help_help: 'Reads a shipmate out o’ pasted text, an’ suggests fixes from the signature o’ their latest letter. Uses the writin’ model, an’ sends it that text.'
             embedding_base_url: "Searcher's berth"
             embedding_own: 'The searcher sails from another berth'
             embedding_own_help: "For keepin' the search model somewhere other than the scrivener: a hired oracle for writin' an' a small one at home for searchin', or t'other way about. Ev'ry message goes to the searcher's berth once to be charted. If the search model bears the same name there, the old chart be kept."
@@ -2643,6 +2645,8 @@ settings:
             admin_off: 'Not hoisted on this vessel'
             categorise: "Sortin' the Haul"
             categorise_hint: "Lets the oracle break the tie when plain rules can't place a message. Off leaves 'em where the rules dropped 'em."
+            contact_help: 'Crew roster help'
+            contact_help_hint: 'Fills in a shipmate from a pasted signature or card, an’ suggests updates from their latest letter’s signature, when ye ask.'
             search: "Divinin' Search"
             search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
             summary: 'Yarn-in-short'
@@ -2665,6 +2669,7 @@ settings:
             system_prompt_placeholder: "Short sentences. No shoutin' marks. Sign off with me first name alone."
         reads:
             categorise: "Sortin': the sender, the subject an' the start o' the message."
+            contact_help: 'Crew: the text ye paste, or a shipmate an’ the signature o’ their latest letter, when ye ask.'
             heading: 'What the Oracle Be Handed'
             search: "Chartin': the subject, the sender an' the start o' each message."
             summary: "Th' messages o' a yarn ye ask t' have boiled down"
@@ -3527,6 +3532,14 @@ settings:
         option_none: All three
         option_split: Full breadth only
         subheading: 'How the calendar button up top moves between views.'
+    contacts_behaviour:
+        button: 'Crew log button'
+        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside the post only'
+        option_none: 'All three'
+        option_split: 'Full deck only'
+        subheading: 'How the crew log button up top moves between views.'
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
@@ -3718,6 +3731,22 @@ settings:
         'off': Off
         'on': On
         subheading: "Whether pictures a bottle hauls in from elsewhere wait to be asked for."
+    swipe_actions:
+        heading: "Swipe deeds"
+        hint: >-
+            A swipe acts once ye drag far enough or flick quick. Read an' star can
+            be unswiped by swipin' again, an' archive offers Undo. Trash be no
+            choice: a swipe that sank mail would have nothing to haul it back.
+        left:
+            label: "Swipe left"
+        option:
+            archive: "Stow it away"
+            none: "Nowt"
+            read_unread: "Read / unread"
+            star: "Star"
+        right:
+            label: "Swipe right"
+        subheading: "What a swipe across a bottle does on yer phone."
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -3757,6 +3786,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Yer marks
+        swipe_actions: "Swipe deeds"
         templates: 'Form letters'
     notifications:
         devices:
@@ -4236,6 +4266,9 @@ thread_row:
         unavailable: 'Never sailed: yer mail port could not be reached'
     scheduled: 'Due %when%'
     select: Pick it
+    sheet:
+        label: Things ye can do wi' this bottle
+        select: Pick it
     star: Mark this bottle with an X
     to: 'Bound for: %recipients%'
     unread: Unread by any soul
@@ -4275,6 +4308,7 @@ toolbar:
         mark_unread: Mark as unread
         more: More besides
         move_to: Haul off to
+        not_spam: 'Not bilge'
         purge: "Send to Davy Jones for good"
         snooze: Let it drift
         spam: 'Call it bilge'
@@ -4554,10 +4588,11 @@ contacts:
     page: 'Page %page%'
     pane:
         close: 'Stow the shipmates'
-        open_page: 'Unfurl the shipmates across the whole deck'
+        mode:
+            contacts: 'Spread the crew log across the deck'
+            mail: 'Stow the shipmates'
+            split: 'Muster the shipmates beside the post'
         resize: 'Haul the shipmates wider or narrower'
-        toggle_close: 'Stow the shipmates'
-        toggle_open: 'Muster the shipmates beside the post'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'As it be spoken'
@@ -4585,7 +4620,10 @@ contacts:
     remove: 'Toss overboard'
     save: 'Stow it'
     save_to: 'Stow in'
+    save_to_book_hint: 'Sails to %book% on %server%, an’ from there to every vessel that syncs it.'
     save_to_hint: 'A shipmate stowed in a synced book sails to its server, and from there to every vessel that syncs it.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Kept aboard plMail only.'
     search: 'Search the crew'
     search_placeholder: 'Search name, company or bottle address…'
     section_addresses: Ports
@@ -4613,3 +4651,101 @@ contacts:
     validation:
         name_required: 'Give the shipmate a name.'
     year_optional: 'Year (if ye know it)'
+    editor:
+        add: 'Add'
+        add_email: 'Add a letter-box'
+        add_phone: 'Add a speakin’ tube'
+        address: 'Port o’ call'
+        adds: 'New'
+        ai_failed: 'The oracle kept silent. Try again in a moment.'
+        ai_nothing: 'The oracle has naught to say.'
+        ai_running: 'Askin’ the oracle… It gets this shipmate an’ the signature o’ their latest letter.'
+        ai_sent: 'Sent this shipmate an’ the signature o’ their letter o’ %date% to the oracle yer captain set up. Nothin’ changes till ye apply it.'
+        ai_sent_no_mail: 'Sent this shipmate to the oracle yer captain set up. No letter from them bears a signature. Nothin’ changes till ye apply it.'
+        ai_title: 'The oracle’s counsel'
+        applied: 'Hauled into the form an’ marked: %count%. Nothin’ be saved till ye hit Save.'
+        apply_many: 'Haul in %count% particulars'
+        apply_none: 'Nothin’ to haul in'
+        apply_one: 'Haul in 1 particular'
+        auto_label: 'Type guessed from what ye scrawled. Pick one to nail it down.'
+        close_panel: 'Close'
+        dates: 'Dates'
+        dirty_many: '%count% unsaved changes'
+        dirty_one: '1 unsaved change'
+        discard: 'Scuttle changes'
+        edit_parts: 'Mend the parts'
+        email: 'Letter-box'
+        email_invalid: 'That be no proper letter-box yet.'
+        fills: 'Fills an empty hold'
+        fix_emails: 'Mend the letter-box marked in red to save.'
+        hide_parts: 'Stow the parts'
+        improve: 'Ask the oracle'
+        more_work: 'Deck, cabin, how ye say it'
+        name_placeholder: 'Given an’ family name'
+        new_hint: 'A fresh shipmate. Save when they be complete.'
+        note: 'Scribble'
+        nothing_found: 'Nothin’ in this text looks like a shipmate’s particulars yet.'
+        parts_stale: 'The name an’ its parts don’t match no more.'
+        paste: 'Paste the particulars'
+        paste_placeholder: 'Paste a signature, a port o’ call or a vCard. Nothin’ changes till ye apply it.'
+        paste_title: 'Paste a signature, vCard or port o’ call'
+        person: 'Crewmate'
+        phone: 'Speakin’ tube'
+        preferred: 'Favoured'
+        reading: 'Readin’…'
+        relabels: 'Changes the type from %from% to %to%'
+        remove_what: 'Throw %what% overboard'
+        replaces: 'Replaces “%value%”'
+        same: 'Already aboard'
+        split_again: 'Split the name again'
+        summary_conflict: '%count% differ from what be there'
+        summary_new: '%count% new'
+        summary_same: '%count% already aboard'
+        website: 'Web-port'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to a hand already in yer log'
+        more_details: 'More particulars'
+        name: 'Name'
+        new: 'New hand'
+        no_matches: 'No soul matches.'
+        save: 'Stow it'
+        search: 'Search yer crew log'
+        title: 'Add to yer crew log'
+    quick:
+        ai_ask: 'Some o’ this be murky. The oracle can most often sort such signatures.'
+        ai_ask_complete: 'Looks shipshape. Ye can still have the oracle look it over.'
+        ai_disclosure: 'Sends only this text to the oracle yer captain set up. Naught be saved till ye sign them on.'
+        ai_running: 'Askin’ the oracle…'
+        ai_undo: 'Undo the oracle’s changes'
+        ai_undo_ask: 'Not what ye wanted? Go back to what the code found.'
+        all_fields: 'All fields'
+        box_hint: 'Read as ye type. Every row below can be unticked, rewritten or given another type.'
+        box_label: 'Scrawl or paste anythin’ about them'
+        box_placeholder: 'A name, a letter signature, a line like  Mia Hoffmann <mia@example.net>, or a vCard'
+        change_type: 'Change what this be'
+        create: 'Sign on the shipmate'
+        detail_ai: 'Changes be marked. Untick or mend aught before ye sign them on.'
+        detail_ai_same: 'The oracle found naught to change.'
+        detail_rules: 'Every line found its berth.'
+        detail_unsure: 'Not yet berthed: %count%'
+        detail_vcard: 'All %count% fields read straight off. Naught was guessed.'
+        done_parts: 'Done'
+        existing: '%name% already has %email%.'
+        fix_parts: 'Mend'
+        ignore: 'Leave out'
+        keep: 'Keep'
+        no_name: 'Needs a name'
+        open_existing: 'Open that shipmate'
+        skipped: 'Left out as a farewell: %lines%'
+        source_ai: 'Bettered by the oracle'
+        source_rules: 'Read by the code'
+        source_vcard: 'vCard'
+        summary_many: '%name% with %count% particulars'
+        summary_name: '%name%, name only'
+        summary_none: 'Scrawl or paste somethin’ about them to begin.'
+        summary_one: '%name% with 1 particular'
+        unsure_many: 'Where do these lines belong?'
+        unsure_one: 'Where does this line belong?'
+        use_as: 'Use as…'
+        you_placed: 'Ye berthed this line'

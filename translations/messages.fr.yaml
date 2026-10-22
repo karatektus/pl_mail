@@ -156,6 +156,8 @@ admin:
             chat_keep_alive_help: '5m, 30m, 4h, ou un nombre de secondes. -1 le garde chargé en permanence, 0 le décharge après chaque requête. Plus c’est long, plus la première réponse arrive vite ; l’hôte garde la mémoire réservée pendant toute la durée dans les deux cas. Laissez vide pour utiliser le réglage de l’hôte.'
             chat_model: 'Modèle de rédaction'
             chat_model_help: 'Utilisé pour les réponses, les résumés et le tri. Un modèle entraîné aux instructions.'
+            contact_help: 'Aide aux contacts'
+            contact_help_help: 'Lit un contact dans un texte collé et propose des corrections d’après la signature de son dernier e-mail. Utilise le modèle de rédaction et lui envoie ce texte.'
             embedding_keep_alive: 'Garder le modèle de recherche chargé pendant'
             embedding_keep_alive_help: 'Même format que ci-dessus. Ce modèle est petit et sollicité en permanence, donc -1 — chargé pour de bon — coûte généralement peu et évite une attente à chaque recherche ; à régler si l’hôte a la mémoire nécessaire. Laissez vide pour utiliser le réglage de l’hôte.'
             embedding_base_url: 'Hôte de recherche'
@@ -2812,6 +2814,8 @@ settings:
             admin_off: 'Non activé sur cette installation'
             categorise: 'Trier le courrier dans les onglets'
             categorise_hint: 'Laisse le modèle départager quand les règles ordinaires ne savent pas où placer un message. Désactivé, ces messages restent là où les règles les ont mis.'
+            contact_help: 'Aide aux contacts'
+            contact_help_hint: 'Remplit un contact à partir d’une signature ou d’une carte collée, et propose des mises à jour d’après la signature de son dernier e-mail, quand vous le demandez.'
             search: 'Recherche par le sens'
             search_hint: 'Trouve le courrier qui veut dire ce que vous cherchez, pas seulement celui qui l’écrit de la même façon. Désactivé, votre courrier cesse d’être indexé autant que d’être recherché.'
             summary: 'Résumés de conversation'
@@ -2834,6 +2838,7 @@ settings:
             system_prompt_placeholder: 'Phrases courtes. Pas de points d’exclamation. Signer uniquement de mon prénom.'
         reads:
             categorise: 'Tri : l’expéditeur, l’objet et le début du message.'
+            contact_help: 'Contacts : le texte que vous collez, ou un contact et la signature de son dernier e-mail, quand vous le demandez.'
             heading: 'Ce que reçoit l’assistant'
             search: 'Indexation : l’objet, l’expéditeur et le début de chaque message.'
             summary: 'Les messages d’une conversation dont vous demandez le résumé'
@@ -3758,6 +3763,14 @@ settings:
         option_none: Les trois
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
+    contacts_behaviour:
+        button: 'Bouton Contacts'
+        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
+        heading: 'Comportement'
+        option_contacts: 'À côté du courrier seulement'
+        option_none: 'Les trois'
+        option_split: 'Pleine largeur seulement'
+        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
     contacts:
         allow_contacts: 'Autoriser les contacts'
         allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
@@ -3962,6 +3975,23 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    swipe_actions:
+        heading: Balayage des lignes
+        hint: >-
+            Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
+            Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
+            propose Annuler. La corbeille n’est pas proposée : un balayage qui
+            supprimerait du courrier n’aurait rien pour l’annuler.
+        left:
+            label: Balayer vers la gauche
+        option:
+            archive: Archiver
+            none: Aucune action
+            read_unread: Lu / non lu
+            star: Étoile
+        right:
+            label: Balayer vers la droite
+        subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -4001,6 +4031,7 @@ settings:
         sharing: Partage
         shortcuts: Raccourcis clavier
         signature: Signatures
+        swipe_actions: Balayage des lignes
         templates: 'Modèles'
     notifications:
         devices:
@@ -4470,6 +4501,9 @@ thread_row:
         unavailable: 'Non envoyé : votre fournisseur était injoignable'
     scheduled: 'Programmé %when%'
     select: Sélectionner
+    sheet:
+        label: Actions pour cette conversation
+        select: Sélectionner
     star: Suivre ce message
     to: 'À : %recipients%'
     unread: Non lu
@@ -4530,6 +4564,7 @@ toolbar:
         mark_unread: Marquer comme non lu
         more: Plus
         move_to: Déplacer vers
+        not_spam: 'Pas un spam'
         purge: Supprimer définitivement
         snooze: Mettre en attente
         spam: 'Marquer comme spam'
@@ -4812,10 +4847,11 @@ contacts:
     page: 'Page %page%'
     pane:
         close: 'Fermer les contacts'
-        open_page: 'Ouvrir les contacts en pleine page'
+        mode:
+            contacts: 'Afficher les contacts en pleine largeur'
+            mail: 'Masquer les contacts'
+            split: 'Afficher les contacts à côté du courrier'
         resize: 'Redimensionner les contacts'
-        toggle_close: 'Masquer les contacts'
-        toggle_open: 'Afficher les contacts à côté du courrier'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
     phonetic: 'Orthographe phonétique'
@@ -4843,7 +4879,10 @@ contacts:
     remove: Retirer
     save: Enregistrer
     save_to: 'Enregistrer dans'
+    save_to_book_hint: 'Va dans %book% sur %server%, puis sur chaque appareil qui le synchronise.'
     save_to_hint: 'Un contact dans un carnet synchronisé est envoyé à son serveur, puis sur chaque appareil qui le synchronise.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Conservé uniquement dans plMail.'
     search: 'Rechercher des contacts'
     search_placeholder: 'Rechercher nom, société ou e-mail…'
     section_addresses: Adresses
@@ -4871,3 +4910,101 @@ contacts:
     validation:
         name_required: 'Donnez un nom au contact.'
     year_optional: 'Année (facultatif)'
+    editor:
+        add: 'Ajouter'
+        add_email: 'Ajouter une adresse e-mail'
+        add_phone: 'Ajouter un numéro'
+        address: 'Adresse'
+        adds: 'Nouveau'
+        ai_failed: 'L’IA n’a pas répondu. Réessayez dans un instant.'
+        ai_nothing: 'L’IA n’a rien à suggérer.'
+        ai_running: 'Interrogation de l’IA… Elle reçoit ce contact et la signature de son dernier e-mail.'
+        ai_sent: 'Ce contact et la signature de son e-mail du %date% ont été envoyés au service d’IA configuré par votre administrateur. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_sent_no_mail: 'Ce contact a été envoyé au service d’IA configuré par votre administrateur. Aucun e-mail de sa part ne contient de signature. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_title: 'Suggestions de l’IA'
+        applied: 'Ajouté au formulaire et surligné : %count%. Rien n’est enregistré avant de cliquer sur Enregistrer.'
+        apply_many: 'Appliquer %count% informations'
+        apply_none: 'Rien à appliquer'
+        apply_one: 'Appliquer 1 information'
+        auto_label: 'Type deviné d’après la saisie. Choisissez-en un pour le fixer.'
+        close_panel: 'Fermer'
+        dates: 'Dates'
+        dirty_many: '%count% modifications non enregistrées'
+        dirty_one: '1 modification non enregistrée'
+        discard: 'Annuler les modifications'
+        edit_parts: 'Modifier les parties'
+        email: 'E-mail'
+        email_invalid: 'Cela ne ressemble pas encore à une adresse e-mail.'
+        fills: 'Remplit un champ vide'
+        fix_emails: 'Corrigez l’adresse e-mail en rouge pour enregistrer.'
+        hide_parts: 'Masquer les parties'
+        improve: 'Améliorer avec l’IA'
+        more_work: 'Service, bureau, nom phonétique'
+        name_placeholder: 'Prénom et nom'
+        new_hint: 'Un nouveau contact. Enregistrez quand il est complet.'
+        note: 'Note'
+        nothing_found: 'Rien dans ce texte ne ressemble encore à une information de contact.'
+        parts_stale: 'Le nom et ses parties ne correspondent plus.'
+        paste: 'Coller des informations'
+        paste_placeholder: 'Collez une signature, une adresse ou une vCard. Rien ne change tant que vous ne l’appliquez pas.'
+        paste_title: 'Coller une signature, une vCard ou une adresse'
+        person: 'Personne'
+        phone: 'Téléphone'
+        preferred: 'Préféré'
+        reading: 'Lecture…'
+        relabels: 'Change le type de %from% en %to%'
+        remove_what: 'Retirer : %what%'
+        replaces: 'Remplace « %value% »'
+        same: 'Déjà présent'
+        split_again: 'Redécouper le nom'
+        summary_conflict: '%count% différent(s) de l’existant'
+        summary_new: '%count% nouveau(x)'
+        summary_same: '%count% déjà présent(s)'
+        website: 'Site web'
+    from_mail:
+        add_to: 'Ajouter à %name%'
+        existing: 'Ajouter à un contact existant'
+        more_details: 'Plus de détails'
+        name: 'Nom'
+        new: 'Nouveau contact'
+        no_matches: 'Aucun contact ne correspond.'
+        save: 'Enregistrer'
+        search: 'Chercher dans vos contacts'
+        title: 'Ajouter aux contacts'
+    quick:
+        ai_ask: 'Certains éléments n’étaient pas clairs. L’IA sait généralement trier ce genre de signature.'
+        ai_ask_complete: 'Cela semble complet. Vous pouvez quand même demander à l’IA de vérifier.'
+        ai_disclosure: 'N’envoie que ce texte au service d’IA configuré par votre administrateur. Rien n’est enregistré avant la création du contact.'
+        ai_running: 'Interrogation de l’IA…'
+        ai_undo: 'Annuler les changements de l’IA'
+        ai_undo_ask: 'Pas ce que vous vouliez ? Revenez à ce que les règles ont trouvé.'
+        all_fields: 'Tous les champs'
+        box_hint: 'Lu pendant la saisie. Chaque ligne ci-dessous peut être décochée, retapée ou changée de type.'
+        box_label: 'Saisissez ou collez n’importe quoi à son sujet'
+        box_placeholder: 'Un nom, une signature d’e-mail, une ligne comme  Mia Hoffmann <mia@example.net>, ou une vCard'
+        change_type: 'Changer ce que c’est'
+        create: 'Créer le contact'
+        detail_ai: 'Les modifications sont marquées. Décochez ou corrigez avant de créer le contact.'
+        detail_ai_same: 'L’IA n’a rien trouvé à changer.'
+        detail_rules: 'Chaque ligne a été placée.'
+        detail_unsure: 'Pas encore placé : %count%'
+        detail_vcard: 'Les %count% champs lus directement. Rien n’a été deviné.'
+        done_parts: 'Terminé'
+        existing: '%name% a déjà %email%.'
+        fix_parts: 'Corriger'
+        ignore: 'Laisser de côté'
+        keep: 'Garder'
+        no_name: 'Il faut un nom'
+        open_existing: 'Ouvrir ce contact'
+        skipped: 'Laissé de côté comme formule de politesse : %lines%'
+        source_ai: 'Amélioré par l’IA'
+        source_rules: 'Lu par règles'
+        source_vcard: 'vCard'
+        summary_many: '%name% avec %count% informations'
+        summary_name: '%name%, nom seulement'
+        summary_none: 'Saisissez ou collez quelque chose à son sujet pour commencer.'
+        summary_one: '%name% avec 1 information'
+        unsure_many: 'Où vont ces lignes ?'
+        unsure_one: 'Où va cette ligne ?'
+        use_as: 'Utiliser comme…'
+        you_placed: 'Placée par vous'

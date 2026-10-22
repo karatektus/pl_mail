@@ -5,7 +5,11 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Contacts\ContactsPaneMode;
+use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SwipeAction;
+use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -682,14 +686,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * two are docked side by side (see contacts--pane) — one setting cannot
      * say "both".
      *
-     * Two positions, not the calendar's three. Contacts full width is the
-     * /contacts page itself, which is already one click away in the pane.
+     * Three positions since #311, the calendar's: closed, beside the mail, and
+     * full width with the mail behind it (ContactsPaneMode). Kept as
+     * SETTING_CONTACTS_PANE_MODE; SETTING_CONTACTS_PANE_OPEN is what it grew
+     * out of, and is still read for somebody who has never moved the switch
+     * since, so their pane opens where they left it.
      */
     public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
+    public const string SETTING_CONTACTS_PANE_MODE = 'contacts.pane_mode';
     public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
 
-    /** Matches the clamp in ui--split; the server is what enforces it. */
-    public const int CONTACTS_PANE_MIN_WIDTH = 320;
+    /**
+     * Which position the contacts button skips — SETTING_CALENDAR_SWITCH_SKIP,
+     * for the address book. Absent for the default three-way cycle.
+     */
+    public const string SETTING_CONTACTS_SWITCH_SKIP = 'contacts.switch_skip';
+
+    /**
+     * Matches the clamp in ui--split; the server is what enforces it.
+     *
+     * 368 (23rem), not 320: the narrowest the list's header fits on one line
+     * — the title in full ("Shipmates", the longest of the four) and its five
+     * buttons. At 320 the title ran under the buttons, and both other ways out
+     * (truncating it, wrapping the buttons) read worse than a slightly wider
+     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     */
+    public const int CONTACTS_PANE_MIN_WIDTH = 368;
     public const int CONTACTS_PANE_MAX_WIDTH = 900;
     public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
 
@@ -728,6 +750,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_READING_PANE_MODE = 'reading.pane_mode';
     public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
+
+    /**
+     * What a dragged row does, one key per direction — see SwipeAction and
+     * SwipeDirection. The bag, like the reading pane's keys beside them, for a
+     * choice about THIS screen that needs no column and no migration. Each
+     * stores one SwipeAction value; "trash" is not one of them, and a stored
+     * "trash" reads as the direction's default (SwipeAction::fromSetting).
+     */
+    public const string SETTING_SWIPE_RIGHT_ACTION = 'swipe.right_action';
+    public const string SETTING_SWIPE_LEFT_ACTION = 'swipe.left_action';
 
     /**
      * The range the divider can be dragged through, in percent of the mail card.
@@ -872,11 +904,58 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
-    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    /**
+     * Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. The
+     * old open flag is read when no mode was ever stored, and written null once
+     * one is, so the two cannot disagree later.
+     */
+    public ContactsPaneMode $contactsPaneMode {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_PANE_MODE);
+
+            if (true === is_string($stored) && null !== ContactsPaneMode::tryFrom($stored)) {
+                return ContactsPaneMode::from($stored);
+            }
+
+            return true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false)
+                ? ContactsPaneMode::Split
+                : ContactsPaneMode::Mail;
+        }
+        set (ContactsPaneMode $mode) {
+            $this->setSetting(self::SETTING_CONTACTS_PANE_MODE, $mode->value);
+            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, null);
+        }
+    }
+
+    /**
+     * Whether the address book is on screen, in either position. Opening one
+     * that is already open keeps its position; opening a closed one docks it.
+     */
     public bool $contactsPaneOpen {
-        get => true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false);
+        get => $this->contactsPaneMode->showsContacts();
         set (bool $open) {
-            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, $open);
+            if (false === $open) {
+                $this->contactsPaneMode = ContactsPaneMode::Mail;
+            } elseif (false === $this->contactsPaneMode->showsContacts()) {
+                $this->contactsPaneMode = ContactsPaneMode::Split;
+            }
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_SWITCH_SKIP. */
+    public ContactsSwitchSkip $contactsSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? ContactsSwitchSkip::tryFrom($stored) ?? ContactsSwitchSkip::None
+                : ContactsSwitchSkip::None;
+        }
+        set (ContactsSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CONTACTS_SWITCH_SKIP,
+                ContactsSwitchSkip::None === $skip ? null : $skip->value,
+            );
         }
     }
 
@@ -927,6 +1006,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SWIPE_RIGHT_ACTION.
+     *
+     * Read per direction: an unreadable value here falls back to Right's default
+     * and never touches the left choice.
+     */
+    public SwipeAction $swipeRightAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_RIGHT_ACTION),
+            SwipeDirection::Right->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_RIGHT_ACTION, $action->value);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SWIPE_LEFT_ACTION. Falls back to Left's default. */
+    public SwipeAction $swipeLeftAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_LEFT_ACTION),
+            SwipeDirection::Left->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_LEFT_ACTION, $action->value);
         }
     }
 

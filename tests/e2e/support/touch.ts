@@ -106,3 +106,50 @@ export async function recordTouchMoves(page: Page): Promise<void> {
 export async function touchMoveCancelable(page: Page): Promise<boolean[]> {
     return page.evaluate(() => (window as unknown as { __touchMoves: boolean[] }).__touchMoves);
 }
+
+/** One touchmove sample: the finger's x in CSS px and the event's timestamp in ms. */
+export interface TouchSample {
+    x: number;
+    t: number;
+}
+
+/**
+ * Record the finger's x and time on every touchmove, passively, as recordTouchMoves
+ * does. A swipe's release velocity is a function of these samples, so a test
+ * reads them back to prove the velocity it set up is the one the page measured
+ * (a fixture fact, not an assumption about the timing of CDP events).
+ */
+export async function recordTouchSamples(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const win = window as unknown as { __touchSamples: { x: number; t: number }[] };
+
+        win.__touchSamples = [];
+        document.addEventListener(
+            "touchmove",
+            (event) => win.__touchSamples.push({ x: event.touches[0]?.clientX ?? NaN, t: event.timeStamp }),
+            { passive: true },
+        );
+    });
+}
+
+/** The samples recorded since recordTouchSamples(). */
+export async function touchSamples(page: Page): Promise<TouchSample[]> {
+    return page.evaluate(() => (window as unknown as { __touchSamples: TouchSample[] }).__touchSamples);
+}
+
+/**
+ * The finger's speed over the last `windowMs` of samples, in px/ms, as the sample
+ * set measures it: the displacement from the first sample in the window to the
+ * last, over the time between them. The window is measured back from the last
+ * sample, so a finger that stopped more than `windowMs` ago reads as 0.
+ */
+export function velocityOverLast(samples: TouchSample[], windowMs: number): number {
+    if (samples.length < 2) {
+        return 0;
+    }
+
+    const last = samples[samples.length - 1];
+    const first = samples.find((sample) => sample.t >= last.t - windowMs) ?? samples[samples.length - 2];
+
+    return first.t === last.t ? 0 : Math.abs(last.x - first.x) / (last.t - first.t);
+}

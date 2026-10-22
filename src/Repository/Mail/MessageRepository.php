@@ -1295,6 +1295,49 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose HTML body holds a form, or a stylesheet that says
+     * `!important` — the set the hidden-card repair has to walk (#271).
+     *
+     * The sanitizer dropped a form with everything in it, and the inliner let
+     * an inline `display:none` beat a stylesheet `!important`. Neither leaves a
+     * mark in bodyHtmlSafe that SQL could find, because what is missing is
+     * simply not there, so the walk is narrowed on the cause in the sender's
+     * own copy. Loosely, as the table-link walk is: `!important` anywhere after
+     * a `<style>` is far more mail than was hidden, and re-sanitising the rest
+     * writes back what the sanitizer makes of it today.
+     *
+     * @return list<Message>
+     */
+    public function findWithFormOrImportantRule(int $afterId, int $limit): array
+    {
+        return $this->formOrImportantRuleQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithFormOrImportantRule(): int
+    {
+        return (int) $this->formOrImportantRuleQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function formOrImportantRuleQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded: tags and the keyword are written in every case there is.
+            ->andWhere("(LOWER(m.bodyHtml) LIKE '%<form%' OR LOWER(m.bodyHtml) LIKE '%<style%!important%')")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose HTML body has a table somewhere after a link opens — the
      * set the table-in-a-link repair has to walk.
      *

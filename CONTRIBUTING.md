@@ -24,7 +24,10 @@ in the meantime. An issue costs a paragraph; a rejected pull request costs the w
 plMail wants it, where it lives, and whether it is a setting. A setting that changes how plMail
 behaves for everybody starts off. **A bug fix may come straight as a pull request** if its
 description says what the bug was; an issue is still welcome. A large feature — a new provider, a
-new section of the app — gets a short design in its issue before any code.
+new section of the app — gets a short design in its issue before any code. **One issue per
+feature, not per change:** what comes up while a feature is being built on its branch or a
+milestone branch — a follow-up, a small addition asked for along the way — goes into the same pull
+request without an issue of its own, and the pull request says what else it brings.
 
 **Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
 an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue

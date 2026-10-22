@@ -10,6 +10,7 @@ use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\SwipeAction;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
 use App\Service\User\ClockFormatResolver;
@@ -64,7 +65,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'calendar-behaviour', 'contacts'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'swipe-actions', 'calendar-behaviour', 'contacts'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -80,6 +81,7 @@ final class SettingsController extends AbstractController
         'categorise'   => 'fa-solid fa-inbox',
         'writing_help' => 'fa-solid fa-wand-magic-sparkles',
         'summary'      => 'fa-solid fa-align-left',
+        'contact_help' => 'fa-solid fa-address-card',
     ];
 
     public function __construct(
@@ -192,7 +194,24 @@ final class SettingsController extends AbstractController
             ...$this->insightsSectionData($section),
             ...$this->aiSectionData($section),
             ...$this->templatesSectionData($section),
+            ...$this->swipeActionsSectionData($section),
         ]);
+    }
+
+    /**
+     * The choices the swipe selects offer, for their own section only. Every case
+     * the enum has and nothing else: trash is not a case, so it is not offered
+     * (see SwipeAction).
+     *
+     * @return array<string, mixed>
+     */
+    private function swipeActionsSectionData(string $section): array
+    {
+        if ('swipe-actions' !== $section) {
+            return [];
+        }
+
+        return ['swipeChoices' => SwipeAction::cases()];
     }
 
     /**
