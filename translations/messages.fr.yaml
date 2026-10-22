@@ -1172,6 +1172,7 @@ admin:
         two_factor_short: 2FA
     version:
         hint: La version que cette installation exécute — la publication, et le commit à partir duquel elle a été construite.
+        copy: Copier la version %version%
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:

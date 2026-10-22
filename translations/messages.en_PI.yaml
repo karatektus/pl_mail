@@ -1086,6 +1086,7 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
+        copy: Copy the build %version% to yer clipboard
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:

@@ -206,6 +206,12 @@ text: the plain-text part of the mail ended where it began, so the signature was
 an encrypted message's plain-text part quoted it with `>`. Mail already sent is unchanged. No schema
 change.
 
+**The build in the Administration header copies itself.** The chip beside the Administration
+title, which names the running image and its commit (`milestone-v0.4.0 0805208`), is now a button
+with a clipboard icon: one click puts both on the clipboard, ready for a bug report or a deploy
+command, and the icon turns into a tick to say so. It works on a phone and on an installation served
+over plain HTTP too. No schema change. [#313](https://github.com/karatektus/pl_mail/issues/313).
+
 ## v0.3.8 — 2026-10-21
 
 **The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier
