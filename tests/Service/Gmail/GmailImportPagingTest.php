@@ -163,7 +163,9 @@ final class GmailImportPagingTest extends TestCase
         $tokens->method('getValidAccessToken')->willReturn('test-token');
 
         $messages = $this->createStub(MessageRepository::class);
-        $messages->method('findSyncedGmailIdsForUser')->willReturn($synced);
+        $messages->method('findStoredGmailIdsForUser')->willReturnCallback(
+            static fn (\App\Entity\User\User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
+        );
 
         $bus = $this->createStub(MessageBusInterface::class);
         $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []): Envelope {

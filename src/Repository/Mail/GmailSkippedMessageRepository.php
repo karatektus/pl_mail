@@ -20,25 +20,6 @@ class GmailSkippedMessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every Gmail id this account has an answer for that is not "stored".
-     *
-     * One column, for the listing: it holds this beside the stored ids while
-     * it walks the mailbox, and an entity per skipped message would be two
-     * thousand objects to read one string off each.
-     *
-     * @return list<string>
-     */
-    public function findGmailIdsForAccount(Account $account): array
-    {
-        return array_map(strval(...), $this->createQueryBuilder('s')
-            ->select('s.gmailId')
-            ->where('s.account = :account')
-            ->setParameter('account', $account)
-            ->getQuery()
-            ->getSingleColumnResult());
-    }
-
-    /**
      * Which of these ids the account has skipped.
      *
      * @param list<string> $gmailIds

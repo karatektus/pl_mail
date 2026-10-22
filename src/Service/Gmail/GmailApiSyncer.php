@@ -618,10 +618,6 @@ final class GmailApiSyncer
     }
 
     /**
-     * @param list<array{id?: string}> $refs
-     * @return list<string>
-     */
-    /**
      * Whether everything in the mailbox is here, by count: stored on this
      * account, stored on the account it was addressed to, or looked at and
      * declined — measured against Gmail's total as it is now, not as it was
@@ -649,32 +645,54 @@ final class GmailApiSyncer
         return $done >= $account->importTotal;
     }
 
+    /**
+     * The listed ids plMail has neither stored nor declined.
+     *
+     * @param list<array{id?: string}> $refs
+     * @return list<string>
+     */
     private function newGmailIds(Account $account, array $refs): array
     {
+        $listed = [];
+
+        foreach ($refs as $ref) {
+            $gmailId = (string) ($ref['id'] ?? '');
+
+            if ('' !== $gmailId) {
+                $listed[$gmailId] = true;
+            }
+        }
+
+        // Nothing listed, nothing to ask: the incremental sync calls this
+        // after every history window, and most windows add nothing.
+        if ([] === $listed) {
+            return [];
+        }
+
+        $ids = array_map(strval(...), array_keys($listed));
+
+        // Only the ids in hand, not every id the owner has (#223). This read
+        // every stored gmail_id of the user and every one the account had
+        // declined, on every history window and every listing page, to look
+        // up at most a page's worth: thousands of rows per sync on a large
+        // mailbox, growing with it, for an answer about five hundred.
+        //
         // "Not here yet" means neither stored nor already looked at and
         // declined. Without the second half a declined message is missing for
         // ever: named by every listing, fetched in full each time, and the
         // import waits out its whole attempt ceiling on mail that is not
         // coming. See GmailSkippedMessage.
-        $syncedGmailIds = array_flip([
-            ...$this->messageRepository->findSyncedGmailIdsForUser($account->usr),
-            ...$this->skipped->findGmailIdsForAccount($account),
+        $known = array_flip([
+            ...$this->messageRepository->findStoredGmailIdsForUser($account->usr, $ids),
+            ...$this->skipped->findGmailIdsAmong($account, $ids),
         ]);
 
         $pending = [];
 
-        foreach ($refs as $ref) {
-            $gmailId = (string) ($ref['id'] ?? '');
-
-            if ('' === $gmailId) {
-                continue;
+        foreach ($ids as $gmailId) {
+            if (false === isset($known[$gmailId])) {
+                $pending[] = $gmailId;
             }
-
-            if (true === isset($syncedGmailIds[$gmailId])) {
-                continue;
-            }
-
-            $pending[] = $gmailId;
         }
 
         return $pending;

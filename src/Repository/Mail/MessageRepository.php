@@ -2058,11 +2058,10 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * The rows behind a set of Gmail ids, scoped to one owner.
      *
-     * Scoped through the user rather than the account for the same reason
-     * findSyncedGmailIdsForUser() is: plMail attributes a Gmail message to
-     * whichever of the owner's accounts it was actually addressed to, so the
-     * row for an id that arrived on one account's history feed may well hang
-     * off a sibling.
+     * Scoped through the user rather than the account: plMail attributes a
+     * Gmail message to whichever of the owner's accounts it was actually
+     * addressed to, so the row for an id that arrived on one account's
+     * history feed may well hang off a sibling.
      *
      * @param list<string> $gmailIds
      *
@@ -2150,23 +2149,6 @@ class MessageRepository extends ServiceEntityRepository
             ->setParameter('gmailIds', $gmailIds)
             ->getQuery()
             ->getSingleColumnResult());
-    }
-
-    /**
-     * QueryBuilder on two counts: the owner is reached through the account
-     * association, which findBy() cannot traverse, and only one column comes
-     * back.
-     */
-    public function findSyncedGmailIdsForUser(User $user): array
-    {
-        return $this->createQueryBuilder('m')
-            ->select('m.gmailId')
-            ->innerJoin('m.account', 'a')
-            ->where('a.usr = :usr')
-            ->andWhere('m.gmailId IS NOT NULL')
-            ->setParameter('usr', $user)
-            ->getQuery()
-            ->getSingleColumnResult();
     }
 
     /**
@@ -2639,7 +2621,7 @@ class MessageRepository extends ServiceEntityRepository
 
     /**
      * QueryBuilder for the join to the owning user and for the single-column
-     * projection, as with findSyncedGmailIdsForUser().
+     * projection.
      *
      * @return list<string>
      */

@@ -503,7 +503,9 @@ final class GmailApiSyncerHistoryTest extends TestCase
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
         $messageRepository = $this->createStub(MessageRepository::class);
-        $messageRepository->method('findSyncedGmailIdsForUser')->willReturn($synced);
+        $messageRepository->method('findStoredGmailIdsForUser')->willReturnCallback(
+            static fn (User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
+        );
         $messageRepository->method('findByGmailIdsForUser')->willReturn($rows);
 
         $erased     = [];
