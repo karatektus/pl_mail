@@ -4895,6 +4895,16 @@ contacts:
         summary_new: '%count% neu'
         summary_same: '%count% schon vorhanden'
         website: 'Website'
+    from_mail:
+        add_to: 'Zu %name% hinzufügen'
+        existing: 'Zu einem bestehenden Kontakt hinzufügen'
+        more_details: 'Weitere Angaben'
+        name: 'Name'
+        new: 'Neuer Kontakt'
+        no_matches: 'Kein Kontakt passt.'
+        save: 'Speichern'
+        search: 'Kontakte durchsuchen'
+        title: 'Zu Kontakten hinzufügen'
     quick:
         ai_ask: 'Manches war nicht eindeutig. Solche Signaturen kann die KI meist sortieren.'
         ai_ask_complete: 'Sieht vollständig aus. Du kannst die KI trotzdem drüberschauen lassen.'

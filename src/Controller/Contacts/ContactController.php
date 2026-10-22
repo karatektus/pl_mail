@@ -198,6 +198,11 @@ final class ContactController extends AbstractController
      * The full editor for a new contact: empty from a link, or holding what
      * quick add found when its "All fields" button posts here. Nothing is
      * saved by this route — the editor's own Save posts to create().
+     *
+     * A GET may carry `name` and `email`: "More details" in the add-to-contacts
+     * dialog (ContactFromMailController) is a link, and starts the editor with
+     * the address it was opened on. A link rather than a post, because Turbo
+     * wants a post answered with a redirect, and this renders.
      */
     #[Route('/new/full', name: 'new_full', methods: ['GET', 'POST'])]
     public function newFull(Request $request): Response
@@ -206,6 +211,11 @@ final class ContactController extends AbstractController
 
         if ([] !== $all) {
             $this->assertCsrf($request, 'contacts_create');
+        } elseif ($request->query->has('email')) {
+            $all = [
+                'displayName' => AddressHelper::name((string) $request->query->get('name')),
+                'emails'      => [['value' => (string) $request->query->get('email'), 'label' => 'other', 'primary' => '1']],
+            ];
         }
 
         return $this->newForm($this->draftContact($all), (string) ($all['addressBook'] ?? ''));

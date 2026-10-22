@@ -2,7 +2,7 @@
 contacts/_sender_badge.html.twig
 ─────────────────────────────────────────────────────────────────────────────
 A sender's standing in the address book: a link to the contact when there is
-one, otherwise a button that adds them.
+one, otherwise a button that opens the add-to-contacts dialog.
 
 Variables:
   address    string   the sender's address
@@ -25,16 +25,17 @@ targets, so every message from this sender is updated at once.
             <i class="fa-solid fa-address-book text-[11px]" aria-hidden="true"></i>
         </a>
     {% else %}
-        <form method="post" action="{{ path('app_contacts_from_mail') }}" data-turbo-stream class="inline">
-            <input type="hidden" name="_token" value="{{ csrf_token('contacts_from_mail') }}">
-            <input type="hidden" name="address" value="{{ address }}">
-            <input type="hidden" name="name" value="{{ name }}">
-            <button type="submit"
-                    title="{{ 'contacts.add_to_address_book'|trans }}"
-                    aria-label="{{ 'contacts.add_to_address_book'|trans }}"
-                    class="text-ink-faint hover:text-accent transition-colors cursor-pointer">
-                <i class="fa-solid fa-user-plus text-[11px]" aria-hidden="true"></i>
-            </button>
-        </form>
+        {# Opens the dialog that asks whether this is somebody new or somebody
+           already in the address book (ContactFromMailController::choose()). #}
+        <button type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open"
+                data-ui--modal-src-value="{{ path('app_contacts_from_mail_choose', { address: address, name: name }) }}"
+                data-ui--modal-title-value="{{ 'contacts.from_mail.title'|trans }}"
+                title="{{ 'contacts.add_to_address_book'|trans }}"
+                aria-label="{{ 'contacts.add_to_address_book'|trans }}"
+                class="text-ink-faint hover:text-accent transition-colors cursor-pointer">
+            <i class="fa-solid fa-user-plus text-[11px]" aria-hidden="true"></i>
+        </button>
     {% endif %}
 </span>

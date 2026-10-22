@@ -134,8 +134,21 @@ back in; use vCard to move contacts whole.
 
 ## While reading and writing mail
 
-A message's sender shows whether they are already in your contacts, with a button to add them if
-not. When you address a message, your contacts are suggested along with the addresses plMail has
+A message's sender, and every address in its details (To, Cc, Reply-To), shows whether it is already
+in your contacts, with a button to add it if not. The button asks who it is:
+
+- **New contact**: check the name taken from the mail and save. *More details* opens the full
+  editor with the name and address filled in.
+- **Add to an existing contact**: search your contacts as you type and pick one. The address is
+  added to that contact, so somebody writing from a second address stays one person. The search
+  starts with the sender's name. Contacts in read-only address books are not offered.
+
+Once saved, the contact opens in the contacts pane beside the mail. If the pane was closed it opens,
+and if it was open it goes to that contact. *More details* opens the editor there too. On a phone
+there is no pane: *More details* opens the editor as a page, and after a save the button turns into
+a link to the contact.
+
+When you address a message, your contacts are suggested along with the addresses plMail has
 learned from your mail. The order is explained under
 [suggestions while writing](../providers/carddav.md#suggestions-while-writing).
 

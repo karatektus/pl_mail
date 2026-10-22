@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
+import { registerPane } from "../../panes.js";
 
 /*
  * The address book docked beside the mail: whether it is open, and whether it
@@ -34,6 +35,12 @@ import * as Turbo from "@hotwired/turbo";
  * from the sidebar: the mail comes in from the left and the dock draws back to
  * its width, as a view transition, with the contact as it was. From then on it
  * is the mailbox with the pane open, and remembered so.
+ *
+ * ── Asked from elsewhere ──────────────────────────────────────────────────
+ *
+ * Registered in assets/panes.js as "contacts", so anything can open it on a
+ * contact — "Add to contacts" does, with an open_pane stream — without
+ * knowing this controller: show(), below.
  */
 export default class extends Controller {
     static targets = ["dock", "toggle"];
@@ -69,6 +76,13 @@ export default class extends Controller {
         };
         document.addEventListener("turbo:frame-load", this._onFrameLoad);
 
+        this._unregister = registerPane("contacts", {
+            available: () => this.hasDockTarget && false === this._isNarrow(),
+            isOpen: () => this._isFull() || true === this.openValue,
+            open: ({ src } = {}) => this.show(src),
+            close: () => this._set(false),
+        });
+
         // At full size the pane is open whatever is remembered, and has the
         // calendar beside it rather than taking turns — there is no mail on
         // screen to share the row with.
@@ -93,6 +107,36 @@ export default class extends Controller {
     disconnect() {
         document.removeEventListener("contacts-pane:reveal", this._onReveal);
         document.removeEventListener("turbo:frame-load", this._onFrameLoad);
+        this._unregister?.();
+    }
+
+    /**
+     * On screen, showing src if given: the pane opened on it when it was
+     * closed, the pane's frame sent there when it was open. Opening is _set(),
+     * as the topbar button's is, so the calendar is asked for room and the
+     * choice remembered the same way.
+     *
+     * The frame is pointed before the pane is opened, so _render() finds a src
+     * and does not start loading the list first. Asked for the page it already
+     * shows, it reloads: the contact was just changed, which is why it is
+     * being shown.
+     *
+     * @param {string} [src]
+     */
+    show(src) {
+        const frame = this.hasDockTarget ? this.dockTarget.querySelector("turbo-frame#contacts-pane-frame") : null;
+
+        if (frame && src) {
+            if (new URL(src, location.href).href === frame.src) {
+                frame.reload();
+            } else {
+                frame.src = src;
+            }
+        }
+
+        if (false === this._isFull() && true !== this.openValue) {
+            this._set(true);
+        }
     }
 
     /**

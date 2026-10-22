@@ -4666,6 +4666,16 @@ contacts:
         summary_new: '%count% new'
         summary_same: '%count% already aboard'
         website: 'Web-port'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to a hand already in yer log'
+        more_details: 'More particulars'
+        name: 'Name'
+        new: 'New hand'
+        no_matches: 'No soul matches.'
+        save: 'Stow it'
+        search: 'Search yer crew log'
+        title: 'Add to yer crew log'
     quick:
         ai_ask: 'Some o’ this be murky. The oracle can most often sort such signatures.'
         ai_ask_complete: 'Looks shipshape. Ye can still have the oracle look it over.'

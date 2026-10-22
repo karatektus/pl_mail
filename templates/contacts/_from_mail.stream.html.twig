@@ -1,6 +1,10 @@
-{# Swaps every badge for this sender to the "in your contacts" state. #}
+{# Swaps every badge for this sender to the "in your contacts" state, and
+   shows the contact in the contacts pane: opened on it when it is closed,
+   sent to it when it is open (assets/panes.js). Where there is no pane —
+   below lg — the open_pane does nothing and the badge is the way there. #}
 <turbo-stream action="replace" targets="[data-contact-badge='{{ address_book_key(address) }}']">
     <template>
         {% include 'contacts/_sender_badge.html.twig' with {address: address, name: name, contactId: contactId} only %}
     </template>
 </turbo-stream>
+<turbo-stream action="open_pane" pane="contacts" src="{{ path('app_contacts_show', {id: contactId}) }}"></turbo-stream>

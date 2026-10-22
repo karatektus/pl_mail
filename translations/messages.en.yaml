@@ -4894,6 +4894,16 @@ contacts:
         summary_new: '%count% new'
         summary_same: '%count% already there'
         website: 'Website'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to an existing contact'
+        more_details: 'More details'
+        name: 'Name'
+        new: 'New contact'
+        no_matches: 'No contact matches.'
+        save: 'Save'
+        search: 'Search your contacts'
+        title: 'Add to contacts'
     quick:
         ai_ask: 'Some of this was not clear. The AI can usually sort signatures like this out.'
         ai_ask_complete: 'Looks complete. You can still have the AI check it.'
