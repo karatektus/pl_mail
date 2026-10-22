@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:37a91fdad03e06cc3af9398107cf58e3f784b41e -->
+<!-- translated-from: features/accounts.md sha1:a008e379503ce8b4292e95d3580ed2550552e214 -->
 
 # Konten und Aliase
 
@@ -308,6 +308,14 @@ Konto zugeordnet. Wenn es aus ist:
 - Mail, die Gmail unter dem anderen Konto abgelegt hat und die der IMAP-Server des anderen Kontos
   nie hatte, bleibt, wie sie ist, und folgt weiter Gmail. Gmail ist der einzige Ort, an dem es
   diese Mail gibt.
+
+**Am besten ausschalten, sobald Gmail nicht mehr abholt.** Solange Gmail die Mail der anderen
+Adresse noch abholt, unterscheidet plMail diese Mail an ihren Empfängern: Eine Nachricht, deren An
+oder Cc die andere Adresse nennt und nicht die Gmail-Adresse, bleibt dem anderen Konto überlassen,
+auch wenn Gmail seine eigene Adresse als Zustelladresse daraufstempelt. Eine Nachricht, die per Bcc
+an die andere Adresse ging, nennt niemanden, sieht deshalb wie eigene Mail des Gmail-Kontos aus und
+liegt in beiden Konten. Mailinglisten und Newsletter kommen oft so an. Beende das Abholen in Gmail
+(Einstellungen → Konten → E-Mails von anderen Konten abrufen), dann hören auch diese Doppelten auf.
 
 Schaltest du es wieder an, ändert sich an Gespeichertem nichts. Mail, die danach ankommt, wird
 wieder zugeordnet, und eine ältere Nachricht ebenso, sobald Gmail eine Änderung an ihr meldet.

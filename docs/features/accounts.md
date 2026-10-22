@@ -273,6 +273,14 @@ and late copies keep being matched to the other account. With it off:
 - Mail that Gmail filed under the other account, and that the other account's IMAP server never
   had, stays as it is and keeps following Gmail. Gmail is the only place that mail exists.
 
+**Best turned off once Gmail has stopped collecting.** While Gmail still collects the other
+address's mail, plMail tells that mail apart by its recipients: a message whose To or Cc names the
+other address, and not the Gmail address, is left to the other account, even though Gmail stamps
+its own address on it as the place it was delivered. A message Bcc'd to the other address names
+nobody, so it looks like the Gmail account's own mail and is kept on both accounts. Mailing lists
+and newsletters often arrive that way. Stop the collecting in Gmail (Settings → Accounts → Check
+mail from other accounts) and those duplicates stop too.
+
 Turning it back on changes nothing that is already stored. Mail that arrives afterwards is matched
 again, and so is an older message once Gmail reports a change to it.
 

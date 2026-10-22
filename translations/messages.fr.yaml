@@ -2957,7 +2957,7 @@ settings:
         empty: 'Aucune adresse pour l’instant.'
         enable: 'Activer'
         gmailify:
-            hint: 'Pour un compte Gmail qui relève le courrier d’une autre adresse connectée ici. Activé, ce courrier est classé sous l’autre compte, et sa copie y suit ce que vous faites dans Gmail. Désactivé, ce compte ne garde que le courrier qui lui est adressé, et les copies de l’autre compte ne suivent plus Gmail ; désactivez-le dès que Gmail ne relève plus ce courrier.'
+            hint: 'Pour un compte Gmail qui relève le courrier d’une autre adresse connectée ici. Activé, ce courrier est classé sous l’autre compte, et sa copie y suit ce que vous faites dans Gmail. Désactivé, ce compte ne garde que le courrier qui lui est adressé, et les copies de l’autre compte ne suivent plus Gmail. À désactiver de préférence quand Gmail ne relève plus ce courrier : tant qu’il le fait, un courrier envoyé en Cci à l’autre adresse ne nomme personne et se retrouve donc ici comme là-bas.'
             label: 'Classer le courrier de mes autres comptes sous ceux-ci (Gmailify)'
             'off': 'Désactivé'
             'on': 'Activé'

@@ -2786,7 +2786,7 @@ settings:
         empty: 'No addresses yet.'
         enable: 'Unfurl it'
         gmailify:
-            hint: 'For a Gmail ship that hauls in letters from another address ye have moored here. Hoisted, those letters be stowed with the other crew member, and their copy there follows what ye do in Gmail. Furled, this ship keeps only letters addressed to her, and the other crew’s copies stop following Gmail; furl it once Gmail no longer hauls those letters.'
+            hint: 'For a Gmail ship that hauls in letters from another address ye have moored here. Hoisted, those letters be stowed with the other crew member, and their copy there follows what ye do in Gmail. Furled, this ship keeps only letters addressed to her, and the other crew’s copies stop following Gmail. Best furled once Gmail no longer hauls those letters: while it still does, a letter Bcc’d to the other address names nobody, so it lands here as well as there.'
             label: 'Stow letters for me other crew with them (Gmailify)'
             'off': 'Furled'
             'on': 'Hoisted'

@@ -2940,7 +2940,7 @@ settings:
         empty: 'No addresses yet.'
         enable: 'Enable'
         gmailify:
-            hint: 'For a Gmail account that collects mail from another address you have connected here. On, that mail is filed under the other account, and its copy there follows what you do in Gmail. Off, this account keeps only mail addressed to itself, and the other account’s copies stop following Gmail; switch it off once Gmail no longer collects that mail.'
+            hint: 'For a Gmail account that collects mail from another address you have connected here. On, that mail is filed under the other account, and its copy there follows what you do in Gmail. Off, this account keeps only mail addressed to itself, and the other account’s copies stop following Gmail. Best switched off once Gmail no longer collects that mail: while it still does, mail Bcc’d to the other address names nobody, so it is kept here as well as there.'
             label: 'File mail for my other accounts under them (Gmailify)'
             'off': 'Off'
             'on': 'On'

@@ -2930,7 +2930,7 @@ settings:
         empty: 'Noch keine Adressen.'
         enable: 'Aktivieren'
         gmailify:
-            hint: 'Für ein Gmail-Konto, das Mail von einer anderen Adresse abholt, die du hier verbunden hast. An: Diese Mail wird unter dem anderen Konto abgelegt, und ihre Kopie dort folgt dem, was du in Gmail tust. Aus: Dieses Konto behält nur Mail an sich selbst, und die Kopien des anderen Kontos folgen Gmail nicht mehr. Schalte es aus, sobald Gmail diese Mail nicht mehr abholt.'
+            hint: 'Für ein Gmail-Konto, das Mail von einer anderen Adresse abholt, die du hier verbunden hast. An: Diese Mail wird unter dem anderen Konto abgelegt, und ihre Kopie dort folgt dem, was du in Gmail tust. Aus: Dieses Konto behält nur Mail an sich selbst, und die Kopien des anderen Kontos folgen Gmail nicht mehr. Am besten schaltest du es aus, sobald Gmail diese Mail nicht mehr abholt: Solange es das noch tut, nennt Mail, die per Bcc an die andere Adresse ging, niemanden und landet deshalb hier und dort.'
             label: 'Mail für meine anderen Konten unter diesen ablegen (Gmailify)'
             'off': 'Aus'
             'on': 'An'
