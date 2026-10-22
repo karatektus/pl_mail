@@ -114,8 +114,19 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                     // folder would die on its first persist, with every one of
                     // its messages blamed for it. Reopened, one folder's failure
                     // stays that folder's.
+                    //
+                    // And cleared when it is still open. Doctrine refuses some
+                    // flushes before it opens a transaction — "a new entity was
+                    // found through the relationship" is one — and those leave
+                    // the manager open with the offending entities still in it.
+                    // Every later folder's flush then failed on the same
+                    // entities, and the handler's flush after the sync did too
+                    // (#299). Clearing is safe here for the reason it is between
+                    // batches: each folder is found again by id.
                     if (false === $this->em->isOpen()) {
                         $this->registry->resetManager();
+                    } else {
+                        $this->em->clear();
                     }
                 }
             }

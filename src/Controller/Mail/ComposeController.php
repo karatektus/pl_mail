@@ -892,19 +892,22 @@ class ComposeController extends AbstractController
         // in the sync layer; MessageEraser is the one path now.
         $this->eraser->erase($message);
 
-        $remaining = $thread?->messages->count() ?? 0;
+        // Before the flush, not after: a draft that was its conversation's only
+        // message takes the thread with it (#299), the flush takes the thread's
+        // id away, and the stream that drops its row is addressed by that id.
+        $threadId = $this->window->rowToDrop(
+            $thread,
+            $messageId,
+            $thread?->messages->count() ?? 0,
+            'drafts' === $request->query->get('scope'),
+        );
 
         $this->em->flush();
 
         return $this->renderTurboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
             'ctx'       => $ctx,
-            'threadId'  => $this->window->rowToDrop(
-                $thread,
-                $messageId,
-                $remaining,
-                'drafts' === $request->query->get('scope'),
-            ),
+            'threadId'  => $threadId,
         ]);
     }
 
