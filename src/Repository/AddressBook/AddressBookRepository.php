@@ -89,6 +89,25 @@ class AddressBookRepository extends ServiceEntityRepository
     }
 
     /**
+     * A user's books mirroring any of these remote ids, through whichever
+     * connection or account — CalendarRepository::findMirroredForUserByRemoteIds()
+     * for address books. The subscribe list asks it to find a book another
+     * holder already mirrors (#317).
+     *
+     * @param list<string> $remoteIds
+     *
+     * @return list<AddressBook>
+     */
+    public function findForUserByRemoteIds(UserInterface $user, array $remoteIds): array
+    {
+        if ([] === $remoteIds) {
+            return [];
+        }
+
+        return $this->findBy(['usr' => $user, 'remoteId' => $remoteIds], ['id' => 'ASC']);
+    }
+
+    /**
      * Books not synced since $before, oldest first — the stale sweep.
      *
      * QueryBuilder for the `IS NULL OR <` that findBy() cannot say. A paused

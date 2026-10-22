@@ -3595,6 +3595,7 @@ settings:
             empty: '"%name%" offers no rolls.'
             intro: Pick which rolls from "%name%" plMail keeps in step.
             mirrored: Kept in step
+            mirrored_elsewhere: 'Already kept in step through %name%'
             save: Stow it
             title: Pick the rolls
             unsubscribe_note: >-

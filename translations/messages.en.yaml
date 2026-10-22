@@ -3778,6 +3778,7 @@ settings:
             empty: '"%name%" offers no address books.'
             intro: Choose which address books from "%name%" to mirror in plMail.
             mirrored: Mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
             save: Save
             title: Choose address books
             unsubscribe_note: >-

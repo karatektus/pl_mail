@@ -163,6 +163,48 @@ final class ContactsFlowTest extends WebTestCase
         self::assertContains((int) $books[0]->id, $this->queuedSyncs());
     }
 
+    /**
+     * Two connections to the same server reach the same book under the same
+     * remote id — a separate CardDAV connection beside the Nextcloud one is the
+     * real case. Mirrored through one, it is offered locked through the other,
+     * and a crafted tick is refused, or every contact in it would show twice
+     * (#317).
+     */
+    public function testABookAlreadyMirroredThroughAnotherConnectionCannotBeTickedAgain(): void
+    {
+        $home     = $this->connection('Home');
+        $work     = $this->connection('Work');
+        $remoteId = self::SERVER . '/remote.php/dav/addressbooks/users/alice/contacts/';
+
+        $this->em->persist(new AddressBook($this->user, $home, $remoteId, 'Contacts'));
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/settings/contacts/subscribe/' . $work->id);
+
+        self::assertResponseIsSuccessful();
+
+        $box = $crawler->filter('input[name="remoteIds[]"]');
+        self::assertSame($remoteId, $box->attr('value'));
+        self::assertNotNull($box->attr('disabled'), 'locked, not merely unticked');
+        self::assertSame('Already mirrored through Home', trim($crawler->filter('[data-book-elsewhere]')->text()));
+
+        $this->client->request('POST', '/settings/contacts/subscribe/' . $work->id, [
+            '_token'    => $crawler->filter('input[name="_token"]')->attr('value'),
+            'remoteIds' => [$remoteId],
+        ]);
+
+        self::assertResponseIsSuccessful();
+
+        $books = static::getContainer()->get(AddressBookRepository::class);
+        self::assertCount(0, $books->findForIntegration($work), 'the post is refused on the server too');
+        self::assertCount(1, $books->findForIntegration($home), 'and the first mirror is left as it was');
+
+        // The connection that mirrors it still lists it as its own, ticked and editable.
+        $own = $this->client->request('GET', '/settings/contacts/subscribe/' . $home->id)->filter('input[name="remoteIds[]"]');
+        self::assertNotNull($own->attr('checked'));
+        self::assertNull($own->attr('disabled'));
+    }
+
     // ── Google and Microsoft accounts ─────────────────────────────────────────
 
     /**

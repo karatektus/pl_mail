@@ -3828,6 +3828,7 @@ settings:
             empty: '« %name% » ne propose aucun carnet d’adresses.'
             intro: Choisissez les carnets d’adresses de « %name% » à refléter dans plMail.
             mirrored: Reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
             save: Enregistrer
             title: Choisir les carnets d’adresses
             unsubscribe_note: >-

@@ -25,7 +25,9 @@ button, because the connection also holds your files and calendars; disconnectin
 its address books along with them, and the confirmation says how many. Its address books are
 looked up under `/remote.php/dav`, as for [its calendars](caldav.md#nextcloud-no-second-connection).
 A CardDAV connection pointed at a Nextcloud by hand keeps working, and its contacts app shows a
-per-book address under **Contacts → Settings** if you want to point at one book only.
+per-book address under **Contacts → Settings** if you want to point at one book only. An address
+book already mirrored through one of the two is shown as *Already mirrored through …* on the
+other's list and cannot be ticked there, so its contacts are not listed twice.
 
 Saving connects immediately and then lists the address books the server offers, with tick boxes.
 Ticked books are mirrored; their first sync is queued at once, so the contacts appear within a

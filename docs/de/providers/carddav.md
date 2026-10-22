@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:d9aba3d3312b94ce31019b8353e4a96a13b79a56 -->
+<!-- translated-from: providers/carddav.md sha1:bc3ce68500077b393156115361373684803ffdbc -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -29,7 +29,9 @@ Rückfrage sagt, wie viele. Ihre Adressbücher werden unter `/remote.php/dav` ge
 [ihre Kalender](caldav.md#nextcloud-keine-zweite-verbindung). Eine CardDAV-Verbindung, die du von
 Hand auf eine Nextcloud gerichtet hast, funktioniert weiter, und deren Kontakte-App zeigt unter
 **Kontakte → Einstellungen** eine Adresse pro Buch, falls du nur auf ein einzelnes Buch zeigen
-willst.
+willst. Ein Adressbuch, das schon über eine der beiden gespiegelt wird, steht in der Liste der
+anderen als *Wird bereits über … gespiegelt* und lässt sich dort nicht ankreuzen, damit seine
+Kontakte nicht doppelt erscheinen.
 
 Speichern verbindet sofort und listet dann die Adressbücher, die der Server anbietet, mit
 Kästchen zum Anhaken. Angehakte Bücher werden gespiegelt; ihre erste Synchronisierung wird sofort

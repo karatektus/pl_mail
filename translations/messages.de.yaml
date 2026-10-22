@@ -3794,6 +3794,7 @@ settings:
             empty: '"%name%" bietet keine Adressbücher an.'
             intro: Wähle, welche Adressbücher von "%name%" plMail spiegeln soll.
             mirrored: Gespiegelt
+            mirrored_elsewhere: 'Wird bereits über %name% gespiegelt'
             save: Speichern
             title: Adressbücher wählen
             unsubscribe_note: >-

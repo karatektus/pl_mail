@@ -43,7 +43,15 @@ final readonly class AddressBookSubscriber
     /**
      * What the connection or account offers, each paired with the row mirroring it.
      *
-     * @return list<array{remote: RemoteAddressBook, local: AddressBook|null}>
+     * `elsewhere` is the same book mirrored through another of the user's
+     * connections or accounts — a separate CardDAV connection to the same
+     * Nextcloud, say. Remote ids are absolute URLs for CardDAV, so both reach
+     * the book under one id, and nothing else would notice: the unique index is
+     * per holder. Ticking it here would show every contact twice (#317), so the
+     * list offers it locked and apply() skips it. Null whenever `local` is set:
+     * a book this holder already mirrors is its own, whoever else has it.
+     *
+     * @return list<array{remote: RemoteAddressBook, local: AddressBook|null, elsewhere: AddressBook|null}>
      *
      * @throws CalendarSyncException
      */
@@ -55,12 +63,20 @@ final readonly class AddressBookSubscriber
             $mirrored[$book->remoteId] = $book;
         }
 
+        $source  = $holder instanceof Integration ? AddressBookSource::ofIntegration($holder) : AddressBookSource::ofAccount($holder);
+        $remotes = $this->drivers->for($source)->discover($source);
+        $other   = $this->mirroredElsewhere($holder, $remotes);
+
         $offers = [];
 
-        $source = $holder instanceof Integration ? AddressBookSource::ofIntegration($holder) : AddressBookSource::ofAccount($holder);
+        foreach ($remotes as $remote) {
+            $local = $mirrored[$remote->remoteId] ?? null;
 
-        foreach ($this->drivers->for($source)->discover($source) as $remote) {
-            $offers[] = ['remote' => $remote, 'local' => $mirrored[$remote->remoteId] ?? null];
+            $offers[] = [
+                'remote'    => $remote,
+                'local'     => $local,
+                'elsewhere' => null === $local ? $other[$remote->remoteId] ?? null : null,
+            ];
         }
 
         return $offers;
@@ -88,6 +104,13 @@ final readonly class AddressBookSubscriber
             $remote   = $offer['remote'];
             $local    = $offer['local'];
             $isWanted = true === array_key_exists($remote->remoteId, $wanted);
+
+            // Already mirrored through another holder: a second row would show
+            // every contact twice. The list draws this box locked; this is the
+            // server half, as CalendarSubscriber does for calendars.
+            if (null !== $offer['elsewhere']) {
+                continue;
+            }
 
             if (true === $isWanted && null === $local) {
                 $book             = new AddressBook($holder->usr ?? throw new \LogicException('An account with no user cannot hold an address book.'), $holder, $remote->remoteId, $remote->name);
@@ -123,5 +146,39 @@ final readonly class AddressBookSubscriber
         }
 
         return ['subscribed' => count($fresh), 'unsubscribed' => $unsubscribed];
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The same remotes, mirrored by another of this user's holders, keyed by
+     * remote id. CalendarDiscoverer::mirroredElsewhere() for address books.
+     *
+     * @param list<RemoteAddressBook> $remotes
+     *
+     * @return array<string, AddressBook>
+     */
+    private function mirroredElsewhere(Integration|Account $holder, array $remotes): array
+    {
+        $user = $holder->usr;
+
+        if (null === $user || [] === $remotes) {
+            return [];
+        }
+
+        $ids    = array_map(static fn (RemoteAddressBook $remote): string => $remote->remoteId, $remotes);
+        $others = [];
+
+        foreach ($this->books->findForUserByRemoteIds($user, $ids) as $book) {
+            $isThisHolder = $holder instanceof Integration
+                ? $book->integration === $holder
+                : $book->account === $holder;
+
+            if (false === $isThisHolder) {
+                $others[$book->remoteId] = $book;
+            }
+        }
+
+        return $others;
     }
 }
