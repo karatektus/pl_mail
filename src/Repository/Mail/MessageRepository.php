@@ -1702,6 +1702,50 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * A sibling's own IMAP copies that a Gmail mailbox has merged into, a page
+     * at a time in id order: the rows with a folder of their own AND a carrier.
+     *
+     * The folder is what tells these apart from the other carried rows. A row
+     * Gmail built for a sibling has no IMAP folder and Gmail is its only
+     * source; a row with one is the IMAP server's, and Gmail only knows about
+     * it. See GmailifyLinks.
+     *
+     * @param Account|null $carrier null for every carrier on the install
+     * @return list<Message>
+     */
+    public function findImapCopiesCarried(?Account $carrier, int $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $carrier) {
+            $qb->andWhere('m.gmailCarrierAccount = :carrier')->setParameter('carrier', $carrier);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** How many rows findImapCopiesCarried() would page through. */
+    public function countImapCopiesCarried(?Account $carrier): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('m.mailbox IS NOT NULL');
+
+        if (null !== $carrier) {
+            $qb->andWhere('m.gmailCarrierAccount = :carrier')->setParameter('carrier', $carrier);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     public function countForAccount(Account $account): int
     {
         return (int) $this->createQueryBuilder('m')

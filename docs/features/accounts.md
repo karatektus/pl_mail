@@ -249,6 +249,46 @@ One caveat plMail states on the page itself: **Outlook sends as the account's pr
 regardless of what you choose here.** That is Microsoft's behaviour, changed in your Microsoft
 account settings, not here.
 
+### Gmail collecting mail for another account (Gmailify)
+
+Gmail can fetch the mail of another address into your Gmail inbox. When that other address is
+connected here as well, every message reaches plMail twice: once through Gmail and once through the
+other account's own IMAP sync. plMail files such mail under the other account and merges the two
+copies into one, so a message is listed once. The merged message is still the other account's: its
+IMAP folder decides whether it is in the Inbox, the bin or another folder, whatever Gmail did with
+its own copy. Labels you give it in Gmail show here, and archiving, starring or labelling it here
+is also sent to Gmail.
+
+Under each Gmail account on this page, **File mail for my other accounts under them** turns this
+on or off. It is on unless you turn it off. Turn it off once Gmail no longer collects that mail,
+typically after a domain has moved from Gmail to an IMAP provider of its own. Otherwise Gmail's old
+and late copies keep being matched to the other account. With it off:
+
+- The Gmail account keeps only mail addressed to itself. Mail it has for other addresses is not
+  stored again.
+- The other account's own copies stop following Gmail. They lose the labels Gmail put on them,
+  and a change you make to them is no longer sent to Gmail. The mail itself stays where its IMAP
+  folder has it.
+- Mail that Gmail filed under the other account, and that the other account's IMAP server never
+  had, stays as it is and keeps following Gmail. Gmail is the only place that mail exists.
+
+Turning it back on changes nothing that is already stored. Mail that arrives afterwards is matched
+again, and so is an older message once Gmail reports a change to it.
+
+**Mail moved by Gmail before v0.3.9.** Earlier versions moved the other account's copy wherever
+Gmail moved its own. Mail trashed or archived in Gmail showed in plMail's bin or archive, although
+the IMAP server still had it in its Inbox. To put that mail back where its IMAP folder has it, an
+administrator runs:
+
+```bash
+php bin/console app:backfill gmailify-placement
+```
+
+Run it while the workers are quiet. A move you make in plMail updates the labels first and the IMAP
+folder a moment later, and a message caught in between would briefly go back to its old folder.
+Mail that those earlier versions removed because Gmail had emptied it from its bin is not brought
+back by this. The IMAP sync only fetches mail newer than what it already has.
+
 ### What each address does by default
 
 Two settings hang off the alias list rather than off the account, because they are properties of the

@@ -689,7 +689,7 @@ final readonly class SyncGmailMessageBatchHandler
         }
 
         $written          = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
-        $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
+        $gmailifyEnabled  = $account->gmailifyEnabled;
 
         if (false === $written) {
             if (false === $gmailifyEnabled) {

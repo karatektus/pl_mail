@@ -257,7 +257,7 @@ final class GmailMessageBuilder
      */
     private const array PLACEMENT_LABEL_IDS = ['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM'];
 
-    private const array PLACEMENT_ROLES = [
+    public const array PLACEMENT_ROLES = [
         LabelRole::Inbox,
         LabelRole::Sent,
         LabelRole::Drafts,

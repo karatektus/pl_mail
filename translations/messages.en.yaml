@@ -1206,6 +1206,9 @@ alias:
     catch_all_unsupported: 'Gmail and Outlook only send as addresses the provider knows, so a catch-all domain cannot be used on this account.'
     deleted: 'Address removed.'
     duplicate: 'That address is already on this account.'
+    gmailify_off: 'Gmailify is off. This Gmail account keeps only mail addressed to it, and the other accounts’ own copies no longer follow Gmail.'
+    gmailify_on: 'Gmailify is on. Mail this Gmail account collects for your other accounts is filed under them.'
+    gmailify_unsupported: 'Gmailify is a setting of Gmail accounts.'
     invalid: "That doesn't look like a valid email address."
     name_cleared: 'Sender name removed. This address sends under the account name again.'
     name_set: 'Sender name saved.'
@@ -2936,6 +2939,11 @@ settings:
         disable: 'Disable'
         empty: 'No addresses yet.'
         enable: 'Enable'
+        gmailify:
+            hint: 'For a Gmail account that collects mail from another address you have connected here. On, that mail is filed under the other account, and its copy there follows what you do in Gmail. Off, this account keeps only mail addressed to itself, and the other account’s copies stop following Gmail; switch it off once Gmail no longer collects that mail.'
+            label: 'File mail for my other accounts under them (Gmailify)'
+            'off': 'Off'
+            'on': 'On'
         heading: 'Email addresses'
         make_primary: 'Make primary'
         ms_sender_hint: 'Outlook sends as your account’s primary alias regardless of the address chosen here — change it in your'

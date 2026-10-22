@@ -230,6 +230,10 @@ final readonly class ConfigBackupUsers
         // host: the mailbox is a catch-all for the same domains wherever
         // plMail reads it from.
         Account::SETTING_CATCH_ALL_DOMAINS,
+        // A choice about which account mail is filed under, not a record of
+        // anything the other host did: restored, the target files the mail it
+        // imports the way the user asked for.
+        Account::SETTING_GMAILIFY,
     ];
 
     /**

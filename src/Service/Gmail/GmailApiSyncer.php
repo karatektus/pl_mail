@@ -68,6 +68,7 @@ final class GmailApiSyncer
         private readonly MessageEraser          $eraser,
         private readonly SyncOrigin             $origin,
         private readonly GmailSkippedMessageRepository $skipped,
+        private readonly GmailifyLinks          $links,
     ) {}
 
     /**
@@ -568,6 +569,16 @@ final class GmailApiSyncer
      * recounted, the JMAP destroy is announced to clients holding the id, and
      * the stored bytes and attachments go with it.
      *
+     * ── Except a Gmailify sibling's own IMAP copy, which is only detached ──────
+     * Proof that GMAIL's copy is gone is not proof about the IMAP server's.
+     * Mail Gmail collected from another address and then emptied out of its
+     * Trash is still on that address's server, and the row the merge gave
+     * this Gmail id to is that server's copy. Erasing it took the mail out of
+     * plMail for good: the erase is local, and the IMAP sync, which asks only
+     * for UIDs above the highest it has, never fetched it again (#203). The
+     * row loses its Gmail identity and stays; whether it is deleted is the
+     * IMAP sync's to say. See GmailifyLinks.
+     *
      * @param list<string> $gmailIds
      */
     private function eraseDeleted(Account $account, array $gmailIds): void
@@ -582,12 +593,27 @@ final class GmailApiSyncer
             return;
         }
 
-        $erased = $this->eraser->eraseAll($rows);
+        $owned    = [];
+        $detached = 0;
+
+        foreach ($rows as $row) {
+            if (true === GmailifyLinks::isImapCopy($row)) {
+                $this->links->detach($row);
+                ++$detached;
+
+                continue;
+            }
+
+            $owned[] = $row;
+        }
+
+        $erased = [] === $owned ? 0 : $this->eraser->eraseAll($owned);
 
         $this->logger->info('GmailApiSyncer: messages deleted on the server were removed here', [
             'accountId' => $account->id,
             'reported'  => count($gmailIds),
             'erased'    => $erased,
+            'detached'  => $detached,
         ]);
     }
 

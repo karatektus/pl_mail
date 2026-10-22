@@ -179,6 +179,16 @@ final class GmailImportPagingTest extends TestCase
             $this->createStub(MessageEraser::class),
             new SyncOrigin(),
             $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 

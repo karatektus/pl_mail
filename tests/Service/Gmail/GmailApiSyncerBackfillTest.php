@@ -306,6 +306,16 @@ final class GmailApiSyncerBackfillTest extends TestCase
             $this->createStub(MessageEraser::class),
             new \App\Service\Mail\SyncOrigin(),
             $this->skipped,
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 

@@ -1215,6 +1215,9 @@ alias:
     catch_all_unsupported: 'Gmail et Outlook n’envoient qu’au nom d’adresses que le fournisseur connaît : un domaine fourre-tout ne peut donc pas être utilisé sur ce compte.'
     deleted: 'Adresse supprimée.'
     duplicate: 'Cette adresse est déjà sur ce compte.'
+    gmailify_off: 'Gmailify est désactivé. Ce compte Gmail ne garde que le courrier qui lui est adressé, et les copies des autres comptes ne suivent plus Gmail.'
+    gmailify_on: 'Gmailify est activé. Le courrier que ce compte Gmail relève pour vos autres comptes est classé sous ceux-ci.'
+    gmailify_unsupported: 'Gmailify est un réglage des comptes Gmail.'
     invalid: "Cela ne ressemble pas à une adresse e-mail valide."
     name_cleared: 'Nom d’expéditeur supprimé. Cette adresse envoie de nouveau sous le nom du compte.'
     name_set: 'Nom d’expéditeur enregistré.'
@@ -2953,6 +2956,11 @@ settings:
         disable: 'Désactiver'
         empty: 'Aucune adresse pour l’instant.'
         enable: 'Activer'
+        gmailify:
+            hint: 'Pour un compte Gmail qui relève le courrier d’une autre adresse connectée ici. Activé, ce courrier est classé sous l’autre compte, et sa copie y suit ce que vous faites dans Gmail. Désactivé, ce compte ne garde que le courrier qui lui est adressé, et les copies de l’autre compte ne suivent plus Gmail ; désactivez-le dès que Gmail ne relève plus ce courrier.'
+            label: 'Classer le courrier de mes autres comptes sous ceux-ci (Gmailify)'
+            'off': 'Désactivé'
+            'on': 'Activé'
         heading: 'Adresses e-mail'
         make_primary: 'Définir comme principale'
         ms_sender_hint: 'Outlook envoie avec l’alias principal de votre compte quelle que soit l’adresse choisie ici — changez-le dans vos'
