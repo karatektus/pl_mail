@@ -1,4 +1,4 @@
-<!-- translated-from: features/contacts.md sha1:6a32ed17c1f5cc1aebc367eb76632ab47b8fe54a -->
+<!-- translated-from: features/contacts.md sha1:713dc966d588067fd0d5ad0abafcfad4a6e76e2e -->
 
 # Kontakte
 
@@ -17,13 +17,19 @@ Ein Konto, das verbunden wurde, bevor plMail Kontakte synchronisiert hat, brauch
 Anmeldung, um sie zu erlauben: **Einstellungen → Kontakte** und **Einstellungen → Zustand der Konten** bieten sie
 beide an.
 
-Du öffnest es über **Kontakte** in der Seitenleiste als ganze Seite, oder über das Adressbuch-Symbol
-neben dem Kalender-Knopf, das es neben der Mail andockt, so wie den Kalender. Das angedockte
-Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und führst Kontakte
-dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es breiter oder
-schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es zurück), und plMail
-merkt sich die Breite und ob es offen war. Die Pfeile in seiner Kopfzeile öffnen dieselbe Seite in
-voller Größe, und das × schließt es.
+Du öffnest es mit dem Adressbuch-Symbol neben dem Kalender-Knopf. Wie der Kalender-Knopf schaltet
+es durch drei Stellungen: das Adressbuch neben der Mail, dann in voller Breite mit deiner Mail
+dahinter, dann wieder zu. **Einstellungen → Kontakte → Verhalten** macht daraus zwei Stellungen
+(**Nur volle Breite** oder **Nur neben der Mail**), wie beim Kalender. Auf dem Handy öffnet
+**Kontakte** im Menü die ganze Seite.
+
+Das angedockte Adressbuch ist das ganze Adressbuch: Du suchst, öffnest, bearbeitest, legst an und
+führst Kontakte dort zusammen, während deine Mail bleibt, wo sie war. Zieh an seinem Rand, um es
+breiter oder schmaler zu machen (oder nimm die Pfeiltasten am Rand; ein Doppelklick stellt es
+zurück). Ziehst du es über seine größte Breite hinaus und lässt los, geht es auf volle Breite; über
+seine kleinste hinaus, schließt es sich. plMail merkt sich Breite und Stellung. Die Pfeile in seiner
+Kopfzeile schalten auf volle Breite, und das × schließt es. Öffnest du bei voller Breite eine
+Nachricht aus einem Kontakt, kommt die Mail daneben zurück.
 
 Auf einem breiten Monitor (ab 1920 Pixeln Breite) können Adressbuch und Kalender nebeneinander
 angedockt sein. Auf einem kleineren Bildschirm, etwa dem eines Laptops, ist neben der Mail Platz für

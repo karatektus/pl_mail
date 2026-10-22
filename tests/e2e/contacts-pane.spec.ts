@@ -30,6 +30,14 @@ async function createSender(page: Page): Promise<void> {
     await expect(frame(page).locator("a[data-reference-email]").first()).toBeVisible();
 }
 
+/** Settings → Contacts → Behaviour, which the page saves on change. */
+async function chooseSteps(page: Page, option: string): Promise<void> {
+    await page.goto("/settings?section=contacts");
+    await page.getByRole("radiogroup", { name: "Contacts button" }).getByText(option).click();
+    await expect(page).toHaveURL(/section=contacts/);
+    await expect(page.getByRole("radiogroup", { name: "Contacts button" }).getByRole("radio", { name: option })).toBeChecked();
+}
+
 /**
  * Both panes back to closed. The state is server-side on the per-worker user,
  * which every other spec file this worker runs shares — see calendar-pane.
@@ -61,9 +69,10 @@ test.describe("contacts pane on a notebook", () => {
     test.beforeEach(async ({ page }) => closeEverything(page));
     test.afterEach(async ({ page }) => closeEverything(page));
 
-    test("the contacts button docks the address book without leaving the mail", async ({ page }) => {
+    test("the contacts button steps closed, beside the mail, full width, closed", async ({ page }) => {
         await page.goto("/mail/inbox");
         await expect(dock(page)).toBeHidden();
+        await expect(toggle(page)).toHaveAttribute("aria-label", "Show contacts beside the mail");
 
         await toggle(page).click();
 
@@ -71,11 +80,134 @@ test.describe("contacts pane on a notebook", () => {
         await expect(dock(page)).toBeVisible();
         await expect(frame(page).locator("[data-contacts-page]")).toBeVisible();
         await expect(toggle(page)).toHaveAttribute("aria-pressed", "true");
+        await expect(toggle(page)).toHaveAttribute("aria-label", "Show contacts full width");
+
+        // Full width is the full page's layout on the mailbox: the mail is
+        // put away, not left, and the address is still the mail's.
+        await toggle(page).click();
+
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+        await expect(page.locator("[data-mail-column]")).toBeHidden();
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(toggle(page)).toHaveAttribute("aria-label", "Hide contacts");
+
+        // The icon of the position it is in shows, on a reload as well:
+        // restored beside the mail it was once an empty square.
+        await toggle(page).click();
+        await toggle(page).click();
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await expect(toggle(page).locator("[data-contacts-mode-icon='split']")).toBeVisible();
+        await toggle(page).click();
+
+        // Remembered: a reload comes back at full width. Once the write has
+        // gone, as a person's reload would be: the writes are queued in order,
+        // and one still waiting when the page goes is not sent.
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
 
         await toggle(page).click();
 
         await expect(dock(page)).toBeHidden();
+        await expect(shell(page)).not.toHaveAttribute("data-contacts-full", "");
+        await expect(page.locator("[data-mail-column]")).toBeVisible();
         await expect(page).toHaveURL(/\/mail\/inbox/);
+    });
+
+    test("with full width skipped, the button goes between closed and beside the mail", async ({ page }) => {
+        await chooseSteps(page, "Beside mail only");
+
+        try {
+            await page.goto("/mail/inbox");
+            await toggle(page).click();
+            await expect(dock(page)).toBeVisible();
+            await expect(toggle(page)).toHaveAttribute("aria-label", "Hide contacts");
+
+            await toggle(page).click();
+            await expect(dock(page)).toBeHidden();
+        } finally {
+            await chooseSteps(page, "All three");
+        }
+    });
+
+    test("the width beside the mail survives full width, a snap and a reload", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        // Narrower than it opened, with the arrow keys on its edge.
+        const handle = dock(page).getByRole("separator");
+        await handle.focus();
+        await handle.press("ArrowRight");
+        await handle.press("ArrowRight");
+        const width = Math.round((await dock(page).boundingBox())?.width ?? 0);
+
+        // Full width at once: the two writes must not undo each other.
+        await toggle(page).click();
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+        await toggle(page).click();
+        await toggle(page).click();
+        await expect(dock(page)).toBeVisible();
+        expect(Math.round((await dock(page).boundingBox())?.width ?? 0)).toBe(width);
+
+        // Snapped closed and opened again.
+        const box = await handle.boundingBox();
+
+        if (null === box) {
+            throw new Error("the pane's handle is not on screen");
+        }
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + 700, box.y + box.height / 2, { steps: 20 });
+        await page.mouse.up();
+        await expect(dock(page)).toBeHidden();
+        await toggle(page).click();
+        expect(Math.round((await dock(page).boundingBox())?.width ?? 0)).toBe(width);
+
+        await page.waitForLoadState("networkidle");
+        await page.reload();
+        await expect(dock(page)).toBeVisible();
+        expect(Math.round((await dock(page).boundingBox())?.width ?? 0)).toBe(width);
+    });
+
+    test("dragging the edge past its widest snaps the address book to full width", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        const handle = dock(page).getByRole("separator");
+        const box = await handle.boundingBox();
+
+        if (null === box) {
+            throw new Error("the pane's handle is not on screen");
+        }
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x - 1200, box.y + box.height / 2, { steps: 20 });
+        await page.mouse.up();
+
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+        await expect(page.locator("[data-mail-column]")).toBeHidden();
+    });
+
+    test("dragging the edge past its narrowest closes the address book", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        const handle = dock(page).getByRole("separator");
+        const box = await handle.boundingBox();
+
+        if (null === box) {
+            throw new Error("the pane's handle is not on screen");
+        }
+
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + 700, box.y + box.height / 2, { steps: 20 });
+        await page.mouse.up();
+
+        await expect(dock(page)).toBeHidden();
     });
 
     test("the whole address book runs inside the pane, and its × closes it", async ({ page }) => {
@@ -108,6 +240,17 @@ test.describe("contacts pane on a notebook", () => {
         await expect(reference).toBeVisible();
     });
 
+    test("the pane's arrows make it full width in place, beside nothing but the mail behind it", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+
+        await frame(page).getByRole("link", { name: "Show contacts full width" }).click();
+
+        await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(toggle(page)).toHaveAttribute("aria-label", "Hide contacts");
+    });
+
     test("from the full contacts page, the mail comes in beside the contact, which stays as it was", async ({ page }) => {
         await page.goto("/mail/inbox");
         await toggle(page).click();
@@ -115,7 +258,10 @@ test.describe("contacts pane on a notebook", () => {
 
         // The contact's own page, full size, with the calendar beside it — the
         // state a notebook came back to on the calendar when this was a visit.
-        await frame(page).getByRole("link", { name: "Open contacts full page" }).click();
+        // A visit by address: the pane's ↗ goes full width in place now (the
+        // next test), and this is about the page.
+        const contactUrl = await frame(page).getAttribute("src");
+        await page.goto(contactUrl ?? "/contacts");
         await expect(page).toHaveURL(/\/contacts\/\d+$/);
         await expect(shell(page)).toHaveAttribute("data-contacts-full", "");
         await page.locator("[data-calendar-toggle]").first().click();

@@ -3756,6 +3756,14 @@ settings:
         option_none: Les trois
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
+    contacts_behaviour:
+        button: 'Bouton Contacts'
+        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
+        heading: 'Comportement'
+        option_contacts: 'À côté du courrier seulement'
+        option_none: 'Les trois'
+        option_split: 'Pleine largeur seulement'
+        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
     contacts:
         allow_contacts: 'Autoriser les contacts'
         allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
@@ -4811,10 +4819,11 @@ contacts:
     page: 'Page %page%'
     pane:
         close: 'Fermer les contacts'
-        open_page: 'Ouvrir les contacts en pleine page'
+        mode:
+            contacts: 'Afficher les contacts en pleine largeur'
+            mail: 'Masquer les contacts'
+            split: 'Afficher les contacts à côté du courrier'
         resize: 'Redimensionner les contacts'
-        toggle_close: 'Masquer les contacts'
-        toggle_open: 'Afficher les contacts à côté du courrier'
     pending: 'En attente d’envoi au serveur'
     phone_placeholder: '+33 6 12 34 56 78'
     phonetic: 'Orthographe phonétique'

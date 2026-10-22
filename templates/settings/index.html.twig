@@ -760,6 +760,21 @@
                                             {% endblock %}
                                         {% endembed %}
 
+                                        {# The contacts button's steps, under the address
+                                           book's own section rather than a section of its
+                                           own like the calendar's: one choice did not earn
+                                           a row in the nav. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.contacts_behaviour.heading'|trans,
+                                            subheading: 'settings.contacts_behaviour.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_contacts_behaviour.html.twig' with {
+                                                    skip: app.user.contactsSwitchSkip,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+
                                     {% elseif section == 'calendars' %}
                                         {% embed 'settings/_card.html.twig' with {
                                             heading:    'settings.calendars.heading'|trans,

@@ -3525,6 +3525,14 @@ settings:
         option_none: All three
         option_split: Full breadth only
         subheading: 'How the calendar button up top moves between views.'
+    contacts_behaviour:
+        button: 'Crew log button'
+        button_hint: 'Which views the button up top steps through. A view it skips be not thrown overboard: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside the post only'
+        option_none: 'All three'
+        option_split: 'Full deck only'
+        subheading: 'How the crew log button up top moves between views.'
     contacts:
         allow_contacts: 'Allow the shipmates'
         allow_contacts_hint: 'Came aboard before plMail asked for shipmates. Sign aboard once more and allow them, and this vessel''s crew roll appears here.'
@@ -4553,10 +4561,11 @@ contacts:
     page: 'Page %page%'
     pane:
         close: 'Stow the shipmates'
-        open_page: 'Unfurl the shipmates across the whole deck'
+        mode:
+            contacts: 'Spread the crew log across the deck'
+            mail: 'Stow the shipmates'
+            split: 'Muster the shipmates beside the post'
         resize: 'Haul the shipmates wider or narrower'
-        toggle_close: 'Stow the shipmates'
-        toggle_open: 'Muster the shipmates beside the post'
     pending: 'Waiting on a fair wind to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'As it be spoken'

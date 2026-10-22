@@ -3708,6 +3708,14 @@ settings:
         option_none: All three
         option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
+    contacts_behaviour:
+        button: 'Contacts button'
+        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside mail only'
+        option_none: 'All three'
+        option_split: 'Full width only'
+        subheading: 'How the contacts button in the top bar moves between views.'
     contacts:
         allow_contacts: 'Allow contacts'
         allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
@@ -4781,10 +4789,11 @@ contacts:
     page: 'Page %page%'
     pane:
         close: 'Close contacts'
-        open_page: 'Open contacts full page'
+        mode:
+            contacts: 'Show contacts full width'
+            mail: 'Hide contacts'
+            split: 'Show contacts beside the mail'
         resize: 'Resize contacts'
-        toggle_close: 'Hide contacts'
-        toggle_open: 'Show contacts beside the mail'
     pending: 'Waiting to be sent to the server'
     phone_placeholder: '+1 555 010 2030'
     phonetic: 'Phonetic spelling'

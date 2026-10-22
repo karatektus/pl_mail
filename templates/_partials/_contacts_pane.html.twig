@@ -10,9 +10,13 @@ first and owns the shell:
     the NEAREST controller of its name, so the handle and pane below are this
     one's. It cannot see the mail pane as a target for the same reason, and
     measures it by selector instead (main-selector).
-  - It has two positions, not three, and no switch of its own in ui--split:
-    whether it is open is contacts--pane's, on the shell, which also decides
-    when it and the calendar can be docked side by side.
+  - Its positions (closed, beside the mail, full width) are not ui--split's
+    but contacts--pane's, on the shell, which also decides when it and the
+    calendar can be docked side by side. The boundary only snaps: dragged
+    past either end it reports `snap`, and contacts--pane makes that full
+    width or closed, as the calendar's handle does for the calendar. Anywhere
+    but beside the mail the boundary is `data-split-held` and leaves the
+    width alone (ui--split's _reclamp()), from the first paint on.
 
 The pane runs the whole address book. Every contacts page renders into
 `contacts-pane-frame` when the frame asks for it — see contacts/_layout.html.twig
@@ -35,6 +39,9 @@ mail beside it never reloads.
     attrs: 'data-contacts--pane-target="dock"'
         ~ ' data-controller="ui--side-split"'
         ~ ' data-ui--side-split-modes-value="false"'
+        ~ ' data-ui--side-split-snap-value="true"'
+        ~ (contactsPaneBody is defined or 'split' != app.user.contactsPaneMode.value ? ' data-split-held' : '')
+        ~ ' data-action="ui--side-split:snap->contacts--pane#snapped"'
         ~ ' data-ui--side-split-variable-value="--contacts-pane-width"'
         ~ ' data-ui--side-split-main-selector-value="[data-ui--split-target=&quot;main&quot;]"'
         ~ ' data-ui--side-split-state-url-value="' ~ path('app_contacts_pane_state') ~ '"'

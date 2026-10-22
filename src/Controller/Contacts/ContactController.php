@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Contacts;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Exception\ContactReadOnlyException;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\AddressBook\AddressBook;
@@ -105,7 +106,14 @@ final class ContactController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (true === $request->request->has('open')) {
+        // `mode` is the switch's position (ContactsPaneMode); `open` the
+        // older yes/no, still what the pane's × and a reveal send. A mode
+        // that is not one of the three is not a choice and is left out.
+        $mode = ContactsPaneMode::tryFrom((string) $request->request->get('mode'));
+
+        if (null !== $mode) {
+            $user->contactsPaneMode = $mode;
+        } elseif (true === $request->request->has('open')) {
             $user->contactsPaneOpen = $request->request->getBoolean('open');
         }
 
@@ -120,6 +128,7 @@ final class ContactController extends AbstractController
 
         return $this->json([
             'open'  => $user->contactsPaneOpen,
+            'mode'  => $user->contactsPaneMode->value,
             'width' => $user->contactsPaneWidth,
         ]);
     }

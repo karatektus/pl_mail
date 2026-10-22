@@ -173,11 +173,18 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              {# contacts--pane after ui--split: it reads the calendar's position
                 on connect, once ui--split has settled it for this window. #}
              data-controller="ui--split contacts--pane"
-             {# A contacts page at full size: the mail column put away and the
-                dock given the row, open whatever is remembered. See
-                contacts/_page_shell.html.twig. #}
-             {% if contactsFull|default(false) %}data-contacts-full{% endif %}
+             {# A contacts page at full size, or the mailbox with the address
+                book in its full-width position: the mail column put away and
+                the dock given the row. See contacts/_page_shell.html.twig. #}
+             {% if contactsFull|default(false) or app.user.contactsPaneMode.value == 'contacts' %}data-contacts-full{% endif %}
              data-contacts--pane-open-value="{{ contactsFull|default(false) or app.user.contactsPaneOpen ? 'true' : 'false' }}"
+             {# The stored position, and which one the button skips (Settings →
+                Contacts → Behaviour). `contacts` is drawn as full width above
+                too: the mailbox with the full page's attribute. `page` is the
+                /contacts page, where there is no mail behind it. #}
+             data-contacts--pane-mode-value="{{ app.user.contactsPaneMode.value }}"
+             data-contacts--pane-skip-value="{{ app.user.contactsSwitchSkip.value }}"
+             data-contacts--pane-page-value="{{ contactsFull|default(false) ? 'true' : 'false' }}"
              data-contacts--pane-src-value="{{ path('app_contacts_list') }}"
              data-contacts--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
              data-contacts--pane-state-url-value="{{ path('app_contacts_pane_state') }}"

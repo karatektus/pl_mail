@@ -7,9 +7,12 @@ until a message opened from it docks the pane beside the mail.
 
 Included, so it reads `inPane` and `iconBtn` from contacts/_layout.html.twig.
 
-The way out goes to the address this page was asked for, `_top`, so a contact
-open here is the one open there. A page rendered WITH the mailbox has no
-address of its own (it is a sub-request) and goes to the list.
+The way out is the full-width position (contacts--pane#expand, #311): the
+same pane given the row, the mail behind it, the contact as it is. The href
+is for a middle click and a modified one, which are a new tab: the address
+this page was asked for, so a contact open here is the one open there. A page
+rendered WITH the mailbox has no address of its own (it is a sub-request) and
+goes to the list.
 #}
 {% if inPane %}
     {% set pageUrl = true == app.request.attributes.get('_contacts_pane')
@@ -18,9 +21,10 @@ address of its own (it is a sub-request) and goes to the list.
     <span class="flex items-center gap-0.5 -mr-2" data-contacts-pane-actions>
         <a href="{{ pageUrl }}"
            data-turbo-frame="_top"
+           data-action="contacts--pane#expand"
            class="{{ iconBtn }}"
-           aria-label="{{ 'contacts.pane.open_page'|trans }}"
-           title="{{ 'contacts.pane.open_page'|trans }}">
+           aria-label="{{ 'contacts.pane.mode.contacts'|trans }}"
+           title="{{ 'contacts.pane.mode.contacts'|trans }}">
             <i class="fa-solid fa-up-right-and-down-left-from-center text-xs" aria-hidden="true"></i>
         </a>
         <button type="button"

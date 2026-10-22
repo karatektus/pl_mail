@@ -3722,6 +3722,14 @@ settings:
         option_none: Alle drei
         option_split: Nur volle Breite
         subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
+    contacts_behaviour:
+        button: 'Kontakte-Knopf'
+        button_hint: 'Durch welche Ansichten der Knopf in der oberen Leiste schaltet. Eine ausgelassene Ansicht ist nicht weg: Der Ziehgriff erreicht sie weiterhin.'
+        heading: 'Verhalten'
+        option_contacts: 'Nur neben der Mail'
+        option_none: 'Alle drei'
+        option_split: 'Nur volle Breite'
+        subheading: 'Wie der Kontakte-Knopf in der oberen Leiste zwischen den Ansichten wechselt.'
     contacts:
         allow_contacts: 'Kontakte erlauben'
         allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
@@ -4782,10 +4790,11 @@ contacts:
     page: 'Seite %page%'
     pane:
         close: 'Kontakte schließen'
-        open_page: 'Kontakte als ganze Seite öffnen'
+        mode:
+            contacts: 'Kontakte in voller Breite zeigen'
+            mail: 'Kontakte ausblenden'
+            split: 'Kontakte neben der Mail zeigen'
         resize: 'Kontakte in der Breite ändern'
-        toggle_close: 'Kontakte ausblenden'
-        toggle_open: 'Kontakte neben der Mail zeigen'
     pending: 'Wartet darauf, an den Server zu gehen'
     phone_placeholder: '+49 30 1234567'
     phonetic: 'Phonetische Schreibweise'
