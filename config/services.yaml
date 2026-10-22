@@ -320,6 +320,10 @@ services:
         arguments:
             $drivers: !tagged_iterator app.calendar_sync_driver
 
+    App\Service\AddressBook\AddressBookDriverRegistry:
+        arguments:
+            $drivers: !tagged_iterator app.address_book_driver
+
     _instanceof:
         App\Domain\Interface\AccountSyncerInterface:
             tags: ['app.account_syncer']
@@ -335,6 +339,11 @@ services:
         # CalendarSource that may carry a mail Account instead.
         App\Domain\Interface\CalendarSyncDriverInterface:
             tags: ['app.calendar_sync_driver']
+        # Address books, keyed on an AddressBookSource for the calendar
+        # drivers' reason. The CardDAV driver carries this tag and the
+        # integration one: it also proves a connection's credentials.
+        App\Domain\Interface\AddressBookDriverInterface:
+            tags: ['app.address_book_driver']
         # And a calendar push manager is neither of those. It is keyed on a
         # Calendar where PushSubscriptionManagerInterface is keyed on an
         # Account, so the two must not share a tag: the mail managers cannot

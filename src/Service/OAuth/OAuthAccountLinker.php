@@ -8,6 +8,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\Mail\Account;
+use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Mail\AccountCreator;
@@ -16,6 +17,7 @@ use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Everything that turns a completed OAuth handshake into a usable mail account.
@@ -34,6 +36,7 @@ final readonly class OAuthAccountLinker
         private PushSubscriptionRegistry $pushRegistry,
         private AliasSeeder              $aliasSeeder,
         private AccountCreator           $accountCreator,
+        private MessageBusInterface      $bus,
     ) {
     }
 
@@ -53,6 +56,7 @@ final readonly class OAuthAccountLinker
 
         $this->registerPush($account);
         $this->aliasSeeder->seed($account);
+        $this->bringContacts($account, $provider);
 
         return $account;
     }
@@ -143,7 +147,30 @@ final readonly class OAuthAccountLinker
         // would otherwise never pick it up.
         $this->aliasSeeder->seed($account);
 
+        // A reconnect is how an account connected before contact sync gets
+        // the scope, so it is also when its address book first appears.
+        $this->bringContacts($account, $provider);
+
         return $account;
+    }
+
+    /**
+     * The account's address book, mirrored without anybody having to ask:
+     * the contacts scope rides the mail grant (MailProvider::scopes()), so a
+     * Google or Microsoft account brings its contacts with it, as it brings
+     * its calendars.
+     *
+     * Queued, not done here: finding the books is a call to the provider, and
+     * this is the OAuth callback somebody is waiting on. Skipped when the
+     * grant came back without the scope — the health card says what to do.
+     */
+    private function bringContacts(Account $account, MailProvider $provider): void
+    {
+        if (false === $provider->grantsContactsAccess($account->oauthGrantedScopes) || null === $account->id) {
+            return;
+        }
+
+        $this->bus->dispatch(new SubscribeAccountContactsMessage((int) $account->id));
     }
 
     /**

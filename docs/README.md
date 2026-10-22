@@ -35,6 +35,7 @@ mechanism behind it.
 | [Reminders](features/calendar-alerts.md) | Setting alerts, how they are delivered, what a fresh install needs before they arrive |
 | [Connected calendars](features/calendar-sync.md) | Subscribing to Google, Microsoft and CalDAV calendars, two-way sync, ICS import, export and feed subscriptions, duplicate meetings |
 | [Sharing and booking](features/calendar-sharing.md) | Share links and what each reveals, appointment pages, how a booking arrives |
+| [Contacts](features/contacts.md) | The address book: your own contacts and synced ones side by side, editing, duplicates and merging, vCard and CSV import and export |
 | [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich and Paperless-ngx |
 | [Security](features/security.md) | Changing your password, two-factor authentication, recovery codes, remembered devices, app passwords, sessions |
 | [Other clients](features/clients.md) | Connecting a JMAP client, per-app passwords, the PWA and browser notifications |
@@ -65,6 +66,7 @@ Each page names the exact console, the exact checkboxes and the exact redirect U
 | [Microsoft](providers/microsoft.md) | Azure app registration, redirect URIs, delegated permissions, tenant choice, Graph subscriptions |
 | [IMAP and SMTP](providers/imap-smtp.md) | Plain mailboxes, IDLE, and the settings servers disagree about |
 | [CalDAV](providers/caldav.md) | Discovery, app passwords, and the servers that have been tested |
+| [CardDAV](providers/carddav.md) | Address books from Nextcloud and other servers: suggestions while writing, editing, and two-way sync |
 | [ICS feeds](providers/ics-feeds.md) | Subscribing to a published calendar by URL, and why some addresses are refused |
 | [Single sign-on](providers/oidc.md) | Signing in to plMail through Authentik, Keycloak or another OpenID Connect provider: setup, account linking, and auto-creation |
 

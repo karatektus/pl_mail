@@ -144,6 +144,15 @@ Variables:
                     <span class="text-xs text-ink-faint truncate">&lt;{{ message.fromAddress }}&gt;</span>
                 {% endif %}
 
+                {# In the address book, or one click to put them there. #}
+                {% if message.fromAddress %}
+                    {% include 'contacts/_sender_badge.html.twig' with {
+                        address: message.fromAddress,
+                        name: message.fromName,
+                        contactId: address_book_contact_id(message.fromAddress),
+                    } only %}
+                {% endif %}
+
                 {# The labels on THIS message, not on the thread. A rule that
                    files one reply, or a label applied to a single message,
                    was visible in the list row and nowhere in the thread it

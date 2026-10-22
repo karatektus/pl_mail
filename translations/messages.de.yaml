@@ -152,6 +152,8 @@ admin:
             qwen3-embedding_0_6b: 'Die Voreinstellung, und ohne besonderen Grund die richtige Wahl. Mehrsprachig, was für ein Postfach, das nicht nur eine Sprache spricht, mehr zählt als jeder Benchmark — und das einzige hier, das im Test perfekte Präzision erreicht hat. 639 MB.'
         field:
             base_url: 'Modell-Host'
+            contact_help: 'Kontakthilfe'
+            contact_help_help: 'Liest einen Kontakt aus eingefügtem Text und schlägt Korrekturen anhand der Signatur der letzten Mail vor. Nutzt das Schreibmodell und schickt ihm diesen Text.'
             embedding_base_url: 'Such-Host'
             embedding_own: 'Die Suche nutzt einen anderen Modell-Host'
             embedding_own_help: 'Wenn das Such-Modell woanders laufen soll als das Schreib-Modell: ein gehostetes Modell zum Schreiben und ein kleines zu Hause für die Suche, oder umgekehrt. Jede Nachricht geht einmal an den Such-Host, um indiziert zu werden. Heißt das Such-Modell dort gleich, bleibt der vorhandene Index erhalten.'
@@ -613,6 +615,23 @@ admin:
                 Calendars.ReadWrite in dieser App-Registrierung — die Kalender
                 kommen dann mit derselben Anmeldung wie die E-Mails. Ohne das
                 funktioniert E-Mail weiter, die Kalender erscheinen einfach nicht.
+            consent_heading: 'Wenn deine Organisation Apps für ihre Benutzer freigibt'
+            consent_microsoft: 'Manche Microsoft-365-Organisationen lassen Benutzer Apps nicht selbst freigeben: Ein Administrator hat plMail einmal freigegeben, für die Berechtigungen, die es damals verlangt hat. plMail fragt jetzt zusätzlich nach Contacts.ReadWrite, und das deckt diese Freigabe nicht ab. Microsoft lehnt deshalb jede Anmeldung bei plMail ab, auch für Mail, bis die Freigabe erneuert ist. Bevor sich jemand neu anmeldet: Öffne das Microsoft Entra Admin Center → Unternehmensanwendungen → plMail → Berechtigungen und wähle „Administratorzustimmung erteilen“. Private Microsoft-Konten und Organisationen, in denen Benutzer Apps selbst freigeben, sind nicht betroffen.'
+            contacts_google: >-
+                Aktiviere die Google People API für dieses Projekt und füge den
+                Scope .../auth/contacts zum Zustimmungsbildschirm hinzu — dann
+                bekommen Nutzer ihre Kontakte mit derselben Anmeldung. Konten,
+                die schon vorher verbunden waren, werden in ihren Einstellungen
+                einmal gebeten, sich neu anzumelden. Ohne das funktionieren Mail
+                und Kalender weiter, und Kontakte erscheinen einfach nicht.
+            contacts_heading: 'Die Kontakt-Synchronisation nutzt dieselbe App'
+            contacts_microsoft: >-
+                Füge dieser App-Registrierung die delegierte Berechtigung
+                Contacts.ReadWrite hinzu — dann bekommen Nutzer ihre
+                Outlook-Kontakte mit derselben Anmeldung. Konten, die schon
+                vorher verbunden waren, werden in ihren Einstellungen einmal
+                gebeten, sich neu anzumelden. Ohne das funktionieren Mail und
+                Kalender weiter, und Kontakte erscheinen einfach nicht.
             env_note: 'Bleiben diese Felder leer, greifen GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* aus der Umgebung — eine so konfigurierte Installation läuft unverändert weiter.'
             from_env: 'Aus der Umgebung'
             google: 'Gmail-Anmeldung'
@@ -1205,6 +1224,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: '%name% herunterladen'
     sign:
         action: Unterschreiben
         draw: Zeichne deine Unterschrift und setze sie dann auf die Seite.
@@ -1221,6 +1241,7 @@ attachment:
         download: Herunterladen
         failed: Dieses PDF konnte nicht geöffnet werden. Du kannst es trotzdem herunterladen.
         loading: Wird geöffnet…
+        media_failed: Diese Datei kann hier nicht angezeigt werden. Du kannst sie trotzdem herunterladen.
         untitled: Anhang
         zoom_in: Vergrößern
         zoom_out: Verkleinern
@@ -2461,10 +2482,7 @@ oauth:
     error:
         generic: Dieses Konto konnte nicht verbunden werden. Bitte versuche es erneut.
         microsoft:
-            admin_consent_required: >-
-                Deine Organisation verlangt, dass ein Administrator plMail
-                freigibt, bevor du dieses Konto verbinden kannst. Bitte deinen
-                Microsoft-Administrator um die Freigabe.
+            admin_consent_required: 'Deine Organisation verlangt, dass ein Administrator plMail freigibt, bevor du dieses Konto verbinden kannst. Hat es vorher funktioniert, fragt plMail jetzt zusätzlich nach Zugriff auf deine Kontakte, und auch das muss freigegeben werden. Bitte deinen Microsoft-Administrator, den Zugriff zu erteilen.'
             app_not_found: >-
                 plMail ist in deiner Microsoft-Organisation nicht registriert.
             bad_credentials: >-
@@ -2756,6 +2774,8 @@ settings:
             admin_off: 'Für diese Installation nicht aktiviert'
             categorise: 'Mails in Tabs einsortieren'
             categorise_hint: 'Lässt das Modell entscheiden, wenn die normalen Regeln eine Mail nicht einordnen können. Aus lässt diese Mails dort, wo die Regeln sie abgelegt haben.'
+            contact_help: 'Kontakthilfe'
+            contact_help_hint: 'Füllt einen Kontakt aus einer eingefügten Signatur oder Visitenkarte aus und schlägt Änderungen anhand der Signatur der letzten Mail vor, wenn du darum bittest.'
             search: 'Suche nach Bedeutung'
             search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
             summary: 'Zusammenfassungen'
@@ -2778,6 +2798,7 @@ settings:
             system_prompt_placeholder: 'Kurze Sätze. Keine Ausrufezeichen. Als Grußformel nur mein Vorname.'
         reads:
             categorise: 'Einsortieren: Absender, Betreff und der Anfang der Mail.'
+            contact_help: 'Kontakte: der Text, den du einfügst, oder ein Kontakt und die Signatur seiner letzten Mail, wenn du darum bittest.'
             heading: 'Was der Assistent bekommt'
             search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
             summary: 'Die Nachrichten eines Gesprächs, das du zusammenfassen lässt'
@@ -3389,6 +3410,14 @@ settings:
                     oder die Zwei-Faktor-Anmeldung eingeschaltet wurde, oder
                     wenn die Anmeldung beim Anbieter widerrufen wurde.
                 title: '%account% muss sich neu anmelden'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail kann jetzt die Kontakte dieses Kontos
+                    synchronisieren, aber %account% wurde verbunden, bevor
+                    plMail danach gefragt hat. Mail und Kalender sind nicht
+                    betroffen. Melde dich einmal neu an und erlaube den Zugriff
+                    auf Kontakte, dann erscheint sein Adressbuch unter Kontakte.
+                title: '%account% erneut verbinden, um seine Kontakte zu synchronisieren'
             account_scope_missing:
                 body: >-
                     Einige Rechte, die plMail beim Verbinden dieses Kontos
@@ -3535,6 +3564,13 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_contacts:
+                label: 'Kontakte erlauben'
+                promise: >-
+                    Bringt dich zurück zum Anbieter, um dich als %account%
+                    anzumelden und den Zugriff auf Kontakte zu erlauben. An
+                    deiner Mail ändert sich nichts, und keine Mail wird neu
+                    heruntergeladen.
             grant_calendar:
                 label: 'Alle Rechte erteilen'
                 promise: >-
@@ -3630,6 +3666,7 @@ settings:
         disabled: 'Verbindung pausiert'
         disconnect: Trennen
         disconnect_confirm: '%name% trennen? Bereits angehängte Dateien bleiben unberührt.'
+        disconnect_confirm_mirrored: '%name% trennen? %calendars% Kalender und %books% Adressbuch/Adressbücher, die von dort gespiegelt werden, werden hier ebenfalls entfernt; Termine aus deinen E-Mails kommen vorher in deinen Standardkalender. Bereits angehängte Dateien bleiben unberührt.'
         disconnected: 'Dienst getrennt'
         edit: Bearbeiten
         empty: 'Noch keine Dienste verbunden.'
@@ -3685,6 +3722,82 @@ settings:
         option_none: Alle drei
         option_split: Nur volle Breite
         subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
+    contacts_behaviour:
+        button: 'Kontakte-Knopf'
+        button_hint: 'Durch welche Ansichten der Knopf in der oberen Leiste schaltet. Eine ausgelassene Ansicht ist nicht weg: Der Ziehgriff erreicht sie weiterhin.'
+        heading: 'Verhalten'
+        option_contacts: 'Nur neben der Mail'
+        option_none: 'Alle drei'
+        option_split: 'Nur volle Breite'
+        subheading: 'Wie der Kontakte-Knopf in der oberen Leiste zwischen den Ansichten wechselt.'
+    contacts:
+        allow_contacts: 'Kontakte erlauben'
+        allow_contacts_hint: 'Verbunden, bevor plMail nach Kontakten gefragt hat. Melde dich einmal neu an und erlaube sie, dann erscheint das Adressbuch dieses Kontos hier.'
+        allow_contacts_microsoft: 'Gibt deine Organisation Apps für ihre Benutzer frei, bitte zuerst deinen Administrator, plMails Berechtigung für Kontakte freizugeben. Bis dahin lehnt Microsoft diese Anmeldung ab.'
+        carddav:
+            connect: CardDAV-Server verbinden
+            disconnect: '"%name%" trennen'
+            disconnect_confirm: >-
+                "%name%" trennen? Jedes von dort gespiegelte Adressbuch wird
+                hier entfernt, samt Änderungen, die noch nicht an den Server
+                gegangen sind. Die Kontakte auf dem Server bleiben unberührt.
+            field:
+                address: Serveradresse
+                address_help: >-
+                    Die CardDAV-Adresse, die dein Server anzeigt — oder einfach
+                    die Domain: plMail fragt die Domain, wo ihre Adressbücher
+                    liegen, bevor es aufgibt.
+                name: Name
+                name_help: Wie diese Verbindung in deinen Einstellungen heißen soll.
+                reuse: Das Passwort eines meiner E-Mail-Konten verwenden
+                reuse_account: Das Passwort welchen Kontos
+                reuse_account_none: Konto wählen…
+                reuse_help: >-
+                    Standardmäßig aus, und das aus gutem Grund: Die meisten
+                    Server wollen ein App-Passwort, und ein Haken hier schickt
+                    ein Passwort, das du plMail für dein Postfach gegeben hast,
+                    an die Adresse oben.
+                secret: App-Passwort
+                secret_help: >-
+                    Lege eines auf deinem Server an, statt dein Anmeldepasswort
+                    zu nehmen — iCloud und Fastmail akzeptieren nichts anderes.
+                username: Benutzername
+                username_help: Der Kontoname, unter dem dich dein Server kennt.
+            intro: >-
+                Jeder CardDAV-Server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Meist dieselbe Adresse und dasselbe App-Passwort wie
+                bei deinen Kalendern.
+            submit: Verbinden und Adressbücher suchen
+            title: CardDAV-Server verbinden
+        empty: Noch kein Kontakte-Server verbunden.
+        find: Adressbücher wählen
+        heading: Kontakte
+        intro: >-
+            Adressbücher, gespiegelt von einem CardDAV-Server. Ihre Kontakte
+            werden dir beim Schreiben vorgeschlagen, und was du hier änderst,
+            geht zurück an den Server.
+        never_synced: Noch nicht synchronisiert
+        no_books: Von diesem Server ist noch kein Adressbuch gewählt.
+        open: Kontakte öffnen
+        read_only: Schreibgeschützt
+        subheading: Woher deine Adressbücher kommen.
+        subscribe:
+            empty: '"%name%" bietet keine Adressbücher an.'
+            intro: Wähle, welche Adressbücher von "%name%" plMail spiegeln soll.
+            mirrored: Gespiegelt
+            save: Speichern
+            title: Adressbücher wählen
+            unsubscribe_note: >-
+                Nimmst du den Haken bei einem Adressbuch weg, verschwindet seine
+                Kopie hier, samt Änderungen, die noch nicht gesendet sind. Der
+                Server behält seine eigene.
+        sync_now: '"%name%" jetzt synchronisieren'
+        synced: Synchronisiert %date%
+        toast:
+            disconnected: Kontakte-Server getrennt
+            saved: Adressbücher gespeichert
+            sync_queued: Synchronisierung eingereiht
+            unchanged: Nichts geändert
     calendars:
         account_hint: Hier landen Termine aus E-Mails von %address%.
         caldav:
@@ -3748,6 +3861,8 @@ settings:
                 einen CalDAV-Server.
             find: Kalender auf %name% suchen
             heading: Woher Kalender kommen
+            managed: 'Unter Integrationen eingerichtet'
+            managed_hint: '%name% enthält auch deine Dateien. Trenne die Verbindung unter Einstellungen → Integrationen.'
             why_admin: >-
                 Vielleicht hat deine Administration der App-Registrierung, mit
                 der plMail sich anmeldet, keine Kalenderberechtigungen gegeben.
@@ -3770,6 +3885,7 @@ settings:
                 Wähle die Kalender auf %name%, die plMail mitführen soll.
                 Termine erscheinen innerhalb einer Minute.
             mirrored: Wird bereits gespiegelt
+            mirrored_elsewhere: 'Wird bereits über %name% gespiegelt'
             primary: Haupt
             save: Auswahl speichern
             title: Meine Kalender finden
@@ -3833,6 +3949,7 @@ settings:
         calendar_behaviour: Verhalten
         calendars: Kalender
         categories: "Kategorien"
+        contacts: Kontakte
         disposal: Entsorgen
         filters: Filter
         general: Allgemein
@@ -3883,6 +4000,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Nicht bestätigt'
             verified: 'Bestätigt'
+        error_server: 'Der Server hat dieses Gerät abgelehnt (%error%). Versuch es erneut; passiert es wieder, sag deiner Administration Bescheid.'
+        error_subscribe: 'Der Push-Dienst des Browsers hat diesem Gerät keine Adresse gegeben (%error%). In Brave schalte vorher „Google-Dienste für Push-Nachrichten verwenden“ ein.'
+        error_worker: 'Der Hintergrunddienst von plMail ist nicht gestartet (%error%). Versuch es erneut; passiert es wieder, sag deiner Administration Bescheid.'
         heading: Benachrichtigungen
         ios_hint: >-
             Auf iPhone und iPad funktionieren Benachrichtigungen erst, wenn
@@ -4387,6 +4507,7 @@ toolbar:
         mark_unread: Als ungelesen markieren
         more: Mehr
         move_to: Verschieben nach
+        not_spam: 'Kein Spam'
         purge: Endgültig löschen
         snooze: Zurückstellen
         spam: 'Als Spam markieren'
@@ -4526,3 +4647,307 @@ whats_new:
     screenshot_close: 'Screenshot schließen'
     screenshot_open: 'Screenshot in voller Größe öffnen'
     title: 'Was ist neu'
+contacts:
+    add_address: 'Adresse hinzufügen'
+    add_custom: 'Feld hinzufügen'
+    add_date: 'Datum hinzufügen'
+    add_email: 'E-Mail hinzufügen'
+    add_im: 'Chat-Adresse hinzufügen'
+    add_phone: 'Telefon hinzufügen'
+    add_relation: 'Person hinzufügen'
+    add_to_address_book: 'Zu Kontakten hinzufügen'
+    add_url: 'Website hinzufügen'
+    back: Zurück
+    book_all: 'Alle Bücher'
+    book_local: 'Nicht synchronisiert'
+    cancel: Abbrechen
+    check_carefully: 'Genau prüfen'
+    city: Ort
+    company: Firma
+    confidence: '%pct%% Übereinstimmung'
+    count: '{0}Keine Kontakte|{1}1 Kontakt|]1,Inf[ %count% Kontakte'
+    country: Land
+    created: 'Kontakt angelegt.'
+    custom_label_placeholder: 'Feldname'
+    custom_value_placeholder: 'Wert'
+    date_full: '%day%. %month% %year%'
+    date_no_year: '%day%. %month%'
+    day: 'Tag'
+    delete: Löschen
+    delete_confirm: '%name% löschen? Der Kontakt kommt in den Papierkorb und wird nach 90 Tagen endgültig entfernt.'
+    deleted_contact: '(gelöschter Kontakt)'
+    display_name: 'Vollständiger Name'
+    duplicates: Doppelte
+    duplicates_count: '{1}1 mögliches Paar|]1,Inf[ %count% mögliche Paare'
+    duplicates_none: 'Keine Doppelten gefunden. Neue Importe werden automatisch geprüft.'
+    edit: 'Kontakt bearbeiten'
+    email_placeholder: name@example.com
+    empty: 'Noch keine Kontakte. Leg den ersten an oder importiere eine vCard- oder CSV-Datei.'
+    empty_search: 'Kein Kontakt passt zu dieser Suche.'
+    export_vcf: 'Als vCard exportieren'
+    field:
+        birthday: 'Geburtstag'
+        company: 'Firma'
+        department: 'Abteilung'
+        familyName: 'Nachname'
+        givenName: 'Vorname'
+        jobTitle: 'Position'
+        middleName: 'Zweiter Vorname'
+        namePrefix: 'Anrede/Titel'
+        nameSuffix: 'Namenszusatz'
+        nickname: 'Spitzname'
+        officeLocation: 'Büro'
+        phoneticCompany: 'Firma (phonetisch)'
+        phoneticFamilyName: 'Nachname (phonetisch)'
+        phoneticGivenName: 'Vorname (phonetisch)'
+        phoneticMiddleName: 'Zweiter Vorname (phonetisch)'
+    im_placeholder: 'Name oder Adresse'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Andere'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Dienst'
+    import: Importieren
+    import_bad_format: 'Nur .vcf/.vcard- und .csv-Dateien lassen sich importieren.'
+    import_choose: 'Datei wählen'
+    import_confirm: '%count% Kontakte importieren'
+    import_dedupe_note: 'Nach dem Import landest du auf der Seite mit den Doppelten, um doppelt Importiertes zusammenzuführen.'
+    import_expired: 'Der vorbereitete Import ist abgelaufen. Bitte lade die Datei erneut hoch.'
+    import_formats: '.vcf, .vcard oder .csv'
+    import_hint: 'Ein .vcf/.vcard-Adressbuchexport oder eine .csv-Datei. Doppelte werden nach dem Import geprüft.'
+    import_no_file: 'Es wurde keine Datei hochgeladen.'
+    import_preview_count: '%count% Kontakte in der %format%-Datei gefunden. Die ersten davon:'
+    import_step1: 'Schritt 1 — Datei wählen'
+    import_step2: 'Schritt 2 — Vorschau'
+    import_upload: 'Hochladen & Vorschau'
+    import_uploading: 'Wird hochgeladen…'
+    imported: '%count% Kontakte importiert.'
+    in_address_book: 'In deinen Kontakten'
+    keep_this: 'Diesen behalten'
+    label: Bezeichnung
+    label_home: Privat
+    label_mobile: Mobil
+    label_other: Sonstige
+    label_work: Arbeit
+    labels:
+        anniversary: 'Jahrestag'
+        assistant: 'Assistenz'
+        blog: 'Blog'
+        brother: 'Bruder'
+        child: 'Kind'
+        father: 'Vater'
+        friend: 'Freund/in'
+        home: 'Privat'
+        manager: 'Vorgesetzte/r'
+        mobile: 'Mobil'
+        mother: 'Mutter'
+        other: 'Sonstige'
+        parent: 'Elternteil'
+        partner: 'Partner/in'
+        profile: 'Profil'
+        relative: 'Verwandte/r'
+        sibling: 'Geschwister'
+        sister: 'Schwester'
+        spouse: 'Ehepartner/in'
+        work: 'Arbeit'
+    merge: Zusammenführen
+    merge_pick_keep: 'Wähle zuerst, welcher Kontakt bleiben soll.'
+    merge_read_only: 'Ein Kontakt aus einem schreibgeschützten Adressbuch kann nicht zusammengeführt werden.'
+    merge_undo: Rückgängig
+    merge_undo_expired: 'Die 90-tägige Frist zum Rückgängigmachen ist abgelaufen.'
+    merge_undone: 'Zusammenführung rückgängig gemacht.'
+    merged: 'Kontakte zusammengeführt. Du kannst es in der Liste unten rückgängig machen.'
+    merged_into: '%count% in %name% zusammengeführt'
+    month: 'Monat'
+    months:
+        1: 'Januar'
+        2: 'Februar'
+        3: 'März'
+        4: 'April'
+        5: 'Mai'
+        6: 'Juni'
+        7: 'Juli'
+        8: 'August'
+        9: 'September'
+        10: 'Oktober'
+        11: 'November'
+        12: 'Dezember'
+    nav: Kontakte
+    new: 'Neuer Kontakt'
+    next: Weiter
+    no_details: 'Noch keine Kontaktdaten.'
+    no_subject: '(kein Betreff)'
+    notes: Notizen
+    page: 'Seite %page%'
+    pane:
+        close: 'Kontakte schließen'
+        mode:
+            contacts: 'Kontakte in voller Breite zeigen'
+            mail: 'Kontakte ausblenden'
+            split: 'Kontakte neben der Mail zeigen'
+        resize: 'Kontakte in der Breite ändern'
+    pending: 'Wartet darauf, an den Server zu gehen'
+    phone_placeholder: '+49 30 1234567'
+    phonetic: 'Phonetische Schreibweise'
+    photo_hint: 'JPG, PNG oder WebP, bis 5 MB.'
+    photo_invalid: 'Dieses Foto ließ sich nicht verwenden. JPG, PNG oder WebP bis 5 MB.'
+    photo_remove: 'Foto entfernen'
+    photo_removed: 'Foto entfernt.'
+    photo_upload: 'Foto hochladen'
+    photo_uploaded: 'Foto aktualisiert.'
+    postcode: PLZ
+    prev: Zurück
+    primary: Hauptadresse
+    primary_short: Haupt
+    recent_merges: 'Letzte Zusammenführungen'
+    reference_emails: Bezugs-E-Mails
+    reference_emails_empty: 'Noch keine E-Mails mit diesem Kontakt.'
+    reference_emails_hint: 'Jede nicht gelöschte E-Mail von oder an diesen Kontakt — Posteingang, Gesendet, Entwürfe, Papierkorb und Labels.'
+    region: Bundesland/Region
+    rel_assistant: Assistenz
+    rel_manager: Vorgesetzte(r)
+    rel_partner: Partner(in)
+    rel_related: Verwandt
+    related: 'Verknüpfte Kontakte'
+    relation_placeholder: 'Name'
+    remove: Entfernen
+    save: Speichern
+    save_to: 'Speichern in'
+    save_to_book_hint: 'Geht an %book% auf %server% und von dort auf jedes Gerät, das es synchronisiert.'
+    save_to_hint: 'Ein Kontakt in einem synchronisierten Adressbuch geht an dessen Server und von dort auf jedes Gerät, das es synchronisiert.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Bleibt nur in plMail.'
+    search: 'Kontakte durchsuchen'
+    search_placeholder: 'Name, Firma oder E-Mail suchen…'
+    section_addresses: Adressen
+    section_custom: 'Eigene Felder'
+    section_dates: 'Daten'
+    section_details: Details
+    section_emails: E-Mail-Adressen
+    section_ims: 'Chat'
+    section_name: Name
+    section_notes: Notizen
+    section_phones: Telefonnummern
+    section_relations: 'Personen'
+    section_urls: 'Websites'
+    section_work: 'Arbeit'
+    street: Straße
+    synced_read_only: 'Schreibgeschützt, aus %book% auf %server%'
+    synced_with: 'Synchronisiert mit %book% auf %server%'
+    tag_all: Alle
+    tags: Schlagwörter
+    tags_placeholder: 'Durch Kommas getrennt, z. B. Familie, Lieferanten'
+    title: Kontakte
+    trashed: 'Kontakt in den Papierkorb verschoben.'
+    updated: 'Kontakt gespeichert.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Gib dem Kontakt einen Namen.'
+    year_optional: 'Jahr (optional)'
+    editor:
+        add: 'Hinzufügen'
+        add_email: 'E-Mail-Adresse hinzufügen'
+        add_phone: 'Telefonnummer hinzufügen'
+        address: 'Adresse'
+        adds: 'Neu'
+        ai_failed: 'Die KI hat nicht geantwortet. Versuch es gleich noch einmal.'
+        ai_nothing: 'Die KI hat keine Vorschläge.'
+        ai_running: 'Die KI wird gefragt. Dafür bekommt sie diesen Kontakt und die Signatur seiner letzten Mail.'
+        ai_sent: 'Diesen Kontakt und die Signatur seiner Mail vom %date% an den KI-Dienst geschickt, den deine Administration eingerichtet hat. Nichts ändert sich, bevor du es übernimmst.'
+        ai_sent_no_mail: 'Diesen Kontakt an den KI-Dienst geschickt, den deine Administration eingerichtet hat. Es gibt keine Mail von ihm mit Signatur. Nichts ändert sich, bevor du es übernimmst.'
+        ai_title: 'Vorschläge der KI'
+        applied: 'Ins Formular übernommen und markiert: %count%. Gespeichert wird erst, wenn du auf Speichern klickst.'
+        apply_many: '%count% Angaben übernehmen'
+        apply_none: 'Nichts zu übernehmen'
+        apply_one: '1 Angabe übernehmen'
+        auto_label: 'Typ aus deiner Eingabe erraten. Wähl einen aus, um ihn festzulegen.'
+        close_panel: 'Schließen'
+        dates: 'Daten'
+        dirty_many: '%count% ungespeicherte Änderungen'
+        dirty_one: '1 ungespeicherte Änderung'
+        discard: 'Verwerfen'
+        edit_parts: 'Teile bearbeiten'
+        email: 'E-Mail'
+        email_invalid: 'Das sieht noch nicht nach einer E-Mail-Adresse aus.'
+        fills: 'Füllt ein leeres Feld'
+        fix_emails: 'Korrigier die rot markierte E-Mail-Adresse, um zu speichern.'
+        hide_parts: 'Teile ausblenden'
+        improve: 'Mit KI verbessern'
+        more_work: 'Abteilung, Büro, phonetische Schreibweise'
+        name_placeholder: 'Vor- und Nachname'
+        new_hint: 'Ein neuer Kontakt. Speichere, wenn alles drin ist.'
+        note: 'Notiz'
+        nothing_found: 'In diesem Text sieht noch nichts nach Kontaktdaten aus.'
+        parts_stale: 'Name und Namensteile passen nicht mehr zusammen.'
+        paste: 'Details einfügen'
+        paste_placeholder: 'Füg eine Signatur, eine Adresse oder eine vCard ein. Nichts ändert sich, bevor du es übernimmst.'
+        paste_title: 'Signatur, vCard oder Adresse einfügen'
+        person: 'Person'
+        phone: 'Telefon'
+        preferred: 'Bevorzugt'
+        reading: 'Wird gelesen …'
+        relabels: 'Ändert den Typ von %from% zu %to%'
+        remove_what: '%what% entfernen'
+        replaces: 'Ersetzt „%value%“'
+        same: 'Schon vorhanden'
+        split_again: 'Namen neu aufteilen'
+        summary_conflict: '%count% weicht ab'
+        summary_new: '%count% neu'
+        summary_same: '%count% schon vorhanden'
+        website: 'Website'
+    from_mail:
+        add_to: 'Zu %name% hinzufügen'
+        existing: 'Zu einem bestehenden Kontakt hinzufügen'
+        more_details: 'Weitere Angaben'
+        name: 'Name'
+        new: 'Neuer Kontakt'
+        no_matches: 'Kein Kontakt passt.'
+        save: 'Speichern'
+        search: 'Kontakte durchsuchen'
+        title: 'Zu Kontakten hinzufügen'
+    quick:
+        ai_ask: 'Manches war nicht eindeutig. Solche Signaturen kann die KI meist sortieren.'
+        ai_ask_complete: 'Sieht vollständig aus. Du kannst die KI trotzdem drüberschauen lassen.'
+        ai_disclosure: 'Schickt nur diesen Text an den KI-Dienst, den deine Administration eingerichtet hat. Gespeichert wird erst, wenn du den Kontakt anlegst.'
+        ai_running: 'Die KI wird gefragt …'
+        ai_undo: 'KI-Änderungen rückgängig'
+        ai_undo_ask: 'Nicht, was du wolltest? Zurück zu dem, was die Regeln gefunden haben.'
+        all_fields: 'Alle Felder'
+        box_hint: 'Wird beim Tippen gelesen. Jede Zeile unten kannst du abwählen, neu tippen oder einem anderen Typ zuordnen.'
+        box_label: 'Tipp oder füg irgendetwas über die Person ein'
+        box_placeholder: 'Einen Namen, eine E-Mail-Signatur, eine Zeile wie  Mia Hoffmann <mia@example.net> oder eine vCard'
+        change_type: 'Ändern, was das ist'
+        create: 'Kontakt anlegen'
+        detail_ai: 'Änderungen sind markiert. Nimm weg oder korrigier, was nicht passt, bevor du den Kontakt anlegst.'
+        detail_ai_same: 'Die KI hat nichts zu ändern gefunden.'
+        detail_rules: 'Jede Zeile wurde zugeordnet.'
+        detail_unsure: 'Noch nicht zugeordnet: %count%'
+        detail_vcard: 'Alle %count% Felder direkt gelesen. Nichts wurde geraten.'
+        done_parts: 'Fertig'
+        existing: '%name% hat schon %email%.'
+        fix_parts: 'Korrigieren'
+        ignore: 'Weglassen'
+        keep: 'Behalten'
+        no_name: 'Braucht einen Namen'
+        open_existing: 'Diesen Kontakt öffnen'
+        skipped: 'Als Grußformel weggelassen: %lines%'
+        source_ai: 'Von der KI verbessert'
+        source_rules: 'Nach Regeln gelesen'
+        source_vcard: 'vCard'
+        summary_many: '%name% mit %count% Angaben'
+        summary_name: '%name%, nur der Name'
+        summary_none: 'Tipp oder füg etwas über die Person ein, um anzufangen.'
+        summary_one: '%name% mit 1 Angabe'
+        unsure_many: 'Wohin gehören diese Zeilen?'
+        unsure_one: 'Wohin gehört diese Zeile?'
+        use_as: 'Verwenden als …'
+        you_placed: 'Von dir zugeordnet'

@@ -76,7 +76,7 @@ final class AiPermissionsTest extends KernelTestCase
      */
     public function testAnAdministratorsRefusalIsNotOverridableByAUser(): void
     {
-        $permissions = $this->permissions(search: false, categorise: false, writingHelp: false, summary: false);
+        $permissions = $this->permissions(search: false, categorise: false, writingHelp: false, summary: false, contactHelp: false);
         $user        = new User();
 
         foreach (AiFeature::cases() as $feature) {
@@ -105,6 +105,7 @@ final class AiPermissionsTest extends KernelTestCase
         $user->aiPreferences->categoriseOff  = true;
         $user->aiPreferences->writingHelpOff = true;
         $user->aiPreferences->summaryOff     = true;
+        $user->aiPreferences->contactHelpOff = true;
 
         foreach (AiFeature::cases() as $feature) {
             self::assertFalse($permissions->allows($user, $feature));
@@ -186,6 +187,7 @@ final class AiPermissionsTest extends KernelTestCase
         $user->aiPreferences->categoriseOff  = true;
         $user->aiPreferences->writingHelpOff = true;
         $user->aiPreferences->summaryOff     = true;
+        $user->aiPreferences->contactHelpOff = true;
 
         self::assertTrue($permissions->anyAdminEnabled());
     }
@@ -193,8 +195,8 @@ final class AiPermissionsTest extends KernelTestCase
     /** One feature is enough for the section to be worth showing. */
     public function testOneAdminFeatureIsEnoughForTheSectionToExist(): void
     {
-        self::assertTrue($this->permissions(search: false, categorise: false, summary: false)->anyAdminEnabled());
-        self::assertFalse($this->permissions(search: false, categorise: false, writingHelp: false, summary: false)->anyAdminEnabled());
+        self::assertTrue($this->permissions(search: false, categorise: false, summary: false, contactHelp: false)->anyAdminEnabled());
+        self::assertFalse($this->permissions(search: false, categorise: false, writingHelp: false, summary: false, contactHelp: false)->anyAdminEnabled());
     }
 
     private function permissions(
@@ -202,6 +204,7 @@ final class AiPermissionsTest extends KernelTestCase
         bool $categorise = true,
         bool $writingHelp = true,
         bool $summary = true,
+        bool $contactHelp = true,
     ): AiPermissions {
         // Reused rather than inserted afresh, because ai_settings is a
         // singleton held by a unique index — a second insert inside one test is
@@ -216,6 +219,7 @@ final class AiPermissionsTest extends KernelTestCase
         $settings->categorisationEnabled = $categorise;
         $settings->writingHelpEnabled    = $writingHelp;
         $settings->summaryEnabled        = $summary;
+        $settings->contactHelpEnabled    = $contactHelp;
 
         $this->em->persist($settings);
         $this->em->flush();

@@ -5,6 +5,8 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Contacts\ContactsPaneMode;
+use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
@@ -674,6 +676,44 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * Whether the address book is docked beside the mail, and how wide.
+     *
+     * The settings bag for the calendar pane's reasons: rendered into the first
+     * paint, the same at every desk, no migration. Its own keys rather than a
+     * position of the calendar switch, because from a wide enough screen the
+     * two are docked side by side (see contacts--pane) — one setting cannot
+     * say "both".
+     *
+     * Three positions since #311, the calendar's: closed, beside the mail, and
+     * full width with the mail behind it (ContactsPaneMode). Kept as
+     * SETTING_CONTACTS_PANE_MODE; SETTING_CONTACTS_PANE_OPEN is what it grew
+     * out of, and is still read for somebody who has never moved the switch
+     * since, so their pane opens where they left it.
+     */
+    public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
+    public const string SETTING_CONTACTS_PANE_MODE = 'contacts.pane_mode';
+    public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
+
+    /**
+     * Which position the contacts button skips — SETTING_CALENDAR_SWITCH_SKIP,
+     * for the address book. Absent for the default three-way cycle.
+     */
+    public const string SETTING_CONTACTS_SWITCH_SKIP = 'contacts.switch_skip';
+
+    /**
+     * Matches the clamp in ui--split; the server is what enforces it.
+     *
+     * 368 (23rem), not 320: the narrowest the list's header fits on one line
+     * — the title in full ("Shipmates", the longest of the four) and its five
+     * buttons. At 320 the title ran under the buttons, and both other ways out
+     * (truncating it, wrapping the buttons) read worse than a slightly wider
+     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     */
+    public const int CONTACTS_PANE_MIN_WIDTH = 368;
+    public const int CONTACTS_PANE_MAX_WIDTH = 900;
+    public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
+
+    /**
      * How wide the live preview beside the appearance settings is.
      *
      * The settings bag for the same reason the calendar's width is: rendered
@@ -836,6 +876,74 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    public int $contactsPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_CONTACTS_PANE_WIDTH, self::CONTACTS_PANE_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::CONTACTS_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::CONTACTS_PANE_MIN_WIDTH, min(self::CONTACTS_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. The
+     * old open flag is read when no mode was ever stored, and written null once
+     * one is, so the two cannot disagree later.
+     */
+    public ContactsPaneMode $contactsPaneMode {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_PANE_MODE);
+
+            if (true === is_string($stored) && null !== ContactsPaneMode::tryFrom($stored)) {
+                return ContactsPaneMode::from($stored);
+            }
+
+            return true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false)
+                ? ContactsPaneMode::Split
+                : ContactsPaneMode::Mail;
+        }
+        set (ContactsPaneMode $mode) {
+            $this->setSetting(self::SETTING_CONTACTS_PANE_MODE, $mode->value);
+            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, null);
+        }
+    }
+
+    /**
+     * Whether the address book is on screen, in either position. Opening one
+     * that is already open keeps its position; opening a closed one docks it.
+     */
+    public bool $contactsPaneOpen {
+        get => $this->contactsPaneMode->showsContacts();
+        set (bool $open) {
+            if (false === $open) {
+                $this->contactsPaneMode = ContactsPaneMode::Mail;
+            } elseif (false === $this->contactsPaneMode->showsContacts()) {
+                $this->contactsPaneMode = ContactsPaneMode::Split;
+            }
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_SWITCH_SKIP. */
+    public ContactsSwitchSkip $contactsSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? ContactsSwitchSkip::tryFrom($stored) ?? ContactsSwitchSkip::None
+                : ContactsSwitchSkip::None;
+        }
+        set (ContactsSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CONTACTS_SWITCH_SKIP,
+                ContactsSwitchSkip::None === $skip ? null : $skip->value,
+            );
         }
     }
 

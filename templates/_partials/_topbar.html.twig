@@ -506,6 +506,54 @@
             </span>
         {% endif %}
     </a>
+
+    {# ── Contacts ──────────────────────────────────────────────────────
+       The address book, beside the calendar switch: both are the
+       non-mail half of the "all in one" system. Hidden on a phone, where
+       the bar has no room (it is in the drawer there).
+
+       On the mailbox it steps the address book through its positions —
+       closed, beside the mail, full width (contacts--pane, on the shell);
+       everywhere else, below lg, and on a middle click it is the link to
+       /contacts it looks like.
+       Accented for its first paint from lg up only, as the calendar
+       switch is, because below lg there is no dock to be open; the
+       controller takes those classes off once it has drawn its own. #}
+    {% set contactsDocked = calendarRestored is defined and app.user and app.user.contactsPaneOpen %}
+    {% set contactsMode = contactsDocked ? app.user.contactsPaneMode : enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').Mail %}
+    {% set contactsSkip = app.user ? app.user.contactsSwitchSkip : enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').None %}
+    {# Three positions since #311, the calendar switch's way: one icon per
+       position, the one for where it is shown (from lg, on first paint; the
+       controller draws it from then on), and the names of all three for the
+       label, which says what the next press does. #}
+    {% set contactsIcons = contactsDocked
+        ? { mail: 'flex lg:hidden', (contactsMode.value): 'hidden lg:flex' }
+        : { mail: 'flex' } %}
+    <a
+        href="{{ path('app_contacts_list') }}"
+        data-contacts--pane-target="toggle"
+        data-action="click->contacts--pane#toggle"
+        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+               transition-colors flex-shrink-0
+               text-ink-muted hover:bg-hover
+               {{ contactsDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
+        aria-label="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
+        title="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
+    >
+        {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
+            {% set shown = contactsIcons[candidate.value] ?? null %}
+            <span data-contacts-mode-icon="{{ candidate.value }}"
+                  class="{{ shown ?? 'flex' }}"
+                  {{ shown is null ? 'hidden' }}>
+                <i class="{{ candidate.icon }} text-base" aria-hidden="true"></i>
+            </span>
+        {% endfor %}
+        <span hidden>
+            {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
+                <span data-contacts-mode-name="{{ candidate.value }}">{{ ('contacts.pane.mode.' ~ candidate.value)|trans }}</span>
+            {% endfor %}
+        </span>
+    </a>
     </div>
 
     {# Right actions #}

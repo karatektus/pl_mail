@@ -3,11 +3,29 @@
 Notable changes per release. plMail runs its migrations automatically on boot,
 so anything that changes the schema irreversibly is called out explicitly.
 
+Changes not yet released wait in [`changelog.d/`](changelog.d/), one file each, and are collected
+here by the release.
+
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
 ## Unreleased
+
+**A conversation with one message in the bin stays in your other lists, and so does new mail in it.**
+Deleting one message of a conversation took the whole conversation out of the Inbox, its tab, its
+labels, All Mail, Unread and search, because the conversation then carried the Trash label. A reply
+that arrived in it afterwards, by its references or by its subject, was unread mail the phone app
+showed and the web did not. A conversation now leaves those lists only once every message of it is
+in the bin. One that you deleted whole still leaves its labels, as before. A partly deleted
+conversation is listed in Trash too, and opening it still shows the deleted messages with the rest.
+No schema change. [#268](https://github.com/karatektus/pl_mail/issues/268).
+
+**A long message scrolls in the expanded compose window.** Expanded, the editor stayed 170px tall
+and cut a longer message off mid-line, with nothing to scroll. It now fills the window and grows
+with the text, and the window scrolls. A short message still fills the window, so clicking under
+the text still puts the cursor there. The plain-text field fills the expanded window as well.
+[#262](https://github.com/karatektus/pl_mail/issues/262).
 
 **The month view says what is on a day.** An entry in a month cell was its time on one line and its
 title cut to a single line under it, which at a normal width left "Lea…" and "Ihre…", and for an
@@ -47,18 +65,6 @@ invisible, and in plMail the "···" opened onto nothing. Replies go out unfold
 already received that way opens properly in plMail. Copies already delivered to other mail
 programs stay as they went out. No schema change. [#257](https://github.com/karatektus/pl_mail/issues/257).
 
-**Pictures in mail show up again where they were missing.** A BAUHAUS review request showed
-neither its logo nor its product photos, even with images allowed, for three reasons. Pictures
-linked as `http://` were never asked for, because plMail only fetches over an encrypted
-connection; they are now fetched as `https://`. Everything inside a form was removed along with the
-form, here the whole first product with its photo, name and stars; the form's content now stays and
-only its text fields go. And a card a mail hides by default and switches on with its stylesheet
-stayed hidden; plMail now follows the stylesheet as a browser does. Mail already in the mailbox is
-repaired on request: `php bin/console app:backfill safe-html-hidden-cards` writes the shown copy of
-every message with a form or such a stylesheet again from the sender's original. The `http://` fix
-needs nothing. When plMail refuses a picture's address, the log now says why. No schema change.
-[#271](https://github.com/karatektus/pl_mail/issues/271).
-
 **The preview line in the list shows what the newest mail says.** A short reply ("Passt!")
 previewed as the mail it quoted, often your own, because the preview skipped short lines to find
 the first long one and landed in the quote. The quoted history and a `-- ` signature are cut off
@@ -66,6 +72,25 @@ first now, in HTML and plain-text mail alike. Only bulk mail (promotions, update
 skips its "View in browser" lines; a person's mail starts at its first line, greeting included.
 The Android and iOS apps get the same preview. No schema change.
 [#257](https://github.com/karatektus/pl_mail/issues/257).
+
+**A message marked read or unread in the phone app is shown that way on the web too.** Marking a
+message read or unread over JMAP changed the message but not its conversation's unread count, which
+is what the web list draws in bold from, so a message marked unread on the phone stayed read in the
+browser and one marked read there stayed bold. It now goes the same way as the web's own read
+button, and so does an automatic read receipt where the mailbox sends one. Marking a single message
+of a longer conversation read or unread on the web also set the conversation's count from that one
+message alone; it is now counted from all of them. A conversation whose count is already wrong is
+put right the next time one of its messages is marked. No schema change.
+[#266](https://github.com/karatektus/pl_mail/issues/266), by @phdelodder.
+
+**Trashing a conversation with one message already in the bin no longer fails.** On an IMAP account,
+the message that was already in the Trash was sent to the server as a move from Trash into Trash,
+which the server refused with "NO Not permitted in EXAMINE state". The rest of the conversation
+moved, but the refusal was logged as an error and recorded on the account as a change the server
+would not take, and the binned message lost its address until the next sync found it again. A
+message that is already where a trash, archive or restore sends it now stays put and keeps its
+address; its labels change as before. No schema change.
+[#269](https://github.com/karatektus/pl_mail/issues/269), by @phdelodder.
 
 ## v0.3.7 — 2026-10-20
 

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Repository\Insight;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessageThread;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -61,9 +63,9 @@ class MailInsightRepository extends ServiceEntityRepository
         int $hoursBack = 18,
         int $limit = 30,
     ): array {
-        return $this->createQueryBuilder('i')
+        return $this->leaveOutSpam($this->createQueryBuilder('i'))
             ->join('i.account', 'a')
-            ->where('a.usr = :user')
+            ->andWhere('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('i.dismissedAt IS NULL')
             ->andWhere('i.happensAt IS NOT NULL')
@@ -118,11 +120,11 @@ class MailInsightRepository extends ServiceEntityRepository
         int $limit = 20,
         int $otpMinutes = 15,
     ): array {
-        return $this->createQueryBuilder('i')
+        return $this->leaveOutSpam($this->createQueryBuilder('i'))
             ->join('i.account', 'a')
             ->leftJoin('i.message', 'm')
             ->addSelect('COALESCE(m.receivedAt, i.createdAt) AS HIDDEN seenAt')
-            ->where('a.usr = :user')
+            ->andWhere('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('i.dismissedAt IS NULL')
             ->andWhere('i.happensAt IS NULL')
@@ -140,6 +142,37 @@ class MailInsightRepository extends ServiceEntityRepository
             ->setParameter('otpFrom', $now->modify(sprintf('-%d minutes', $otpMinutes)))
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * The radar's lists leave out cards whose conversation is in Spam (#304).
+     *
+     * Spam is where a forged parcel notice, a fake booking or a phishing "your
+     * code is" ends up, and a card states the mail's claim in the app's own
+     * voice, one click from anywhere and with a tracking button on it. The
+     * harvester already skips mail that ARRIVES in Spam (RecentMailPolicy), but
+     * not mail the user moves there afterwards, and that is the usual way a
+     * fake gets found out: it was read first.
+     *
+     * At read time rather than at harvest time, and nothing is deleted: moving
+     * the mail out of Spam brings the card back without a re-harvest, and the
+     * row goes on absorbing its own follow-ups meanwhile.
+     *
+     * Any Spam label on the conversation takes it out — the All Mail rule
+     * (MessageThreadRepository::allMailQuery()). A card whose conversation is
+     * gone has nothing to ask and stays (MailInsight::$thread).
+     *
+     * The bin is left alone on purpose: deleting a shipping confirmation does
+     * not stop the parcel, and the card is still the answer to "where is my
+     * parcel?".
+     */
+    private function leaveOutSpam(QueryBuilder $qb): QueryBuilder
+    {
+        return $qb
+            ->where('NOT EXISTS (SELECT spamThread.id FROM ' . MessageThread::class . ' spamThread'
+                . ' JOIN spamThread.labels spamLabel'
+                . ' WHERE spamThread.id = IDENTITY(i.thread) AND spamLabel.role = :spamRole)')
+            ->setParameter('spamRole', LabelRole::Spam);
     }
 
     /**

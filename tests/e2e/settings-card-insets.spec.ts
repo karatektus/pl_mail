@@ -109,6 +109,7 @@ const SECTIONS = [
     "app-passwords",
     "notifications",
     "general",
+    "contacts",
 ] as const;
 
 /**

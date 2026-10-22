@@ -64,9 +64,17 @@ export default class extends Controller {
             return;
         }
 
+        // Which step failed is the whole diagnosis. Registering the worker,
+        // subscribing and the server's answer break for different reasons
+        // (a proxy, the push service, CSRF or configuration), and one shared
+        // "something went wrong" left a report saying nothing about which.
+        let step = "worker";
+
         try {
             const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
             await navigator.serviceWorker.ready;
+
+            step = "subscribe";
 
             // An existing subscription may be bound to a rotated VAPID key, in
             // which case subscribe() throws; dropping it first is cheaper than
@@ -84,6 +92,8 @@ export default class extends Controller {
 
             const json = subscription.toJSON();
 
+            step = "server";
+
             const response = await fetch(this.subscribeUrlValue, {
                 method: "POST",
                 credentials: "same-origin",
@@ -99,7 +109,7 @@ export default class extends Controller {
             });
 
             if (false === response.ok) {
-                this._setState("error");
+                this._fail(step, `HTTP ${response.status}`);
 
                 return;
             }
@@ -108,7 +118,7 @@ export default class extends Controller {
             this._setState("pending");
             this._pollStatus(6);
         } catch (e) {
-            this._setState("error");
+            this._fail(step, e);
         }
     }
 
@@ -205,13 +215,32 @@ export default class extends Controller {
         }, 1000);
     }
 
-    _setState(state) {
+    /**
+     * The error state, worded for the step that failed and naming the cause.
+     *
+     * The cause is the DOMException's name (AbortError, InvalidAccessError,
+     * SecurityError…) or the HTTP status: short, the same in every language,
+     * and exactly what a bug report needs. The full exception goes to the
+     * console for anyone who can open it.
+     */
+    _fail(step, cause) {
+        const detail = cause instanceof Error ? cause.name : String(cause);
+
+        if (cause instanceof Error) {
+            console.error(`plMail: enabling notifications failed at the ${step} step`, cause);
+        }
+
+        this._setState("error", this._label(`error_${step}`).replace("%error%", detail));
+    }
+
+    /** `text` overrides the state's own label, for an error that names its cause. */
+    _setState(state, text = null) {
         if (true === this.hasStateTarget) {
             this.stateTarget.dataset.pushState = state;
             // The data attribute alone is invisible — the label has to be
             // written, or the pane sits on its server-rendered "Checking…"
             // forever no matter what the real state is.
-            this.stateTarget.textContent = this._label(state);
+            this.stateTarget.textContent = text ?? this._label(state);
         }
 
         if (true === this.hasToggleTarget) {

@@ -118,6 +118,14 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
         User::SETTING_CALENDAR_PANE_MODE,
+        // The address book docked beside the mail, for the calendar pane's
+        // reason: a layout somebody chose, a bool and a number — and since
+        // #311 its position (what the bool grew into) and which position its
+        // button skips, one enum value each, like the calendar's.
+        User::SETTING_CONTACTS_PANE_OPEN,
+        User::SETTING_CONTACTS_PANE_MODE,
+        User::SETTING_CONTACTS_PANE_WIDTH,
+        User::SETTING_CONTACTS_SWITCH_SKIP,
         // Which view each shape opens on. In the backup for the same reason the
         // pane's width and mode are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week

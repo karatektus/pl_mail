@@ -93,6 +93,10 @@ final class AiPreferences
     #[ORM\Column(name: 'summary_off', type: 'boolean', options: ['default' => false])]
     public bool $summaryOff = false;
 
+    /** Reading contacts out of pasted text, and suggestions for a contact. */
+    #[ORM\Column(name: 'contact_help_off', type: 'boolean', options: ['default' => false])]
+    public bool $contactHelpOff = false;
+
     /**
      * The writer's own standing instruction, appended to the app's.
      *
@@ -144,6 +148,7 @@ final class AiPreferences
             AiFeature::Categorise  => $this->categoriseOff,
             AiFeature::WritingHelp => $this->writingHelpOff,
             AiFeature::Summary     => $this->summaryOff,
+            AiFeature::ContactHelp => $this->contactHelpOff,
         };
     }
 
@@ -165,6 +170,7 @@ final class AiPreferences
             'categoriseOff'  => $this->categoriseOff,
             'writingHelpOff' => $this->writingHelpOff,
             'summaryOff'     => $this->summaryOff,
+            'contactHelpOff' => $this->contactHelpOff,
             'systemPrompt'   => $this->systemPrompt,
             'aboutMe'        => $this->aboutMe,
             'replyContext'   => $this->replyContext->value,
@@ -176,7 +182,7 @@ final class AiPreferences
      */
     public function applyArray(array $data): static
     {
-        foreach (['searchOff', 'categoriseOff', 'writingHelpOff', 'summaryOff'] as $flag) {
+        foreach (['searchOff', 'categoriseOff', 'writingHelpOff', 'summaryOff', 'contactHelpOff'] as $flag) {
             if (true === isset($data[$flag])) {
                 $this->{$flag} = self::boolean($data[$flag]);
             }

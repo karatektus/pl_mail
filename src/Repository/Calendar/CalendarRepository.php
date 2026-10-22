@@ -96,6 +96,69 @@ class CalendarRepository extends ServiceEntityRepository
         );
     }
 
+    /**
+     * How many calendars each of a user's connections mirrors, keyed by the
+     * connection's id. A connection mirroring none is absent.
+     *
+     * For the disconnect confirmation in Settings → Integrations: a Nextcloud
+     * connection takes its calendars with it, and the sentence says how many.
+     *
+     * @return array<int,int>
+     */
+    public function countMirroredByIntegration(UserInterface $user): array
+    {
+        /** @var list<array{integrationId:int|string,mirrored:int|string}> $rows */
+        $rows = $this->createQueryBuilder('calendar')
+            ->select('IDENTITY(calendar.integration) AS integrationId', 'COUNT(calendar.id) AS mirrored')
+            ->where('calendar.usr = :user')
+            ->andWhere('calendar.integration IS NOT NULL')
+            ->andWhere('calendar.role = :remote')
+            ->groupBy('calendar.integration')
+            ->setParameter('user', $user)
+            ->setParameter('remote', CalendarRole::Remote)
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(int) $row['integrationId']] = (int) $row['mirrored'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * A user's mirrored calendars pointing at any of these remote ids, from
+     * whichever account or connection mirrors them.
+     *
+     * The unique index on calendars is per connection, so the same Nextcloud
+     * calendar reached through a separate CalDAV connection and through the
+     * Nextcloud one would be two rows syncing the same events twice. The
+     * subscribe screen asks this to refuse the second (#158).
+     *
+     * @param list<string> $remoteIds
+     *
+     * @return list<Calendar>
+     */
+    public function findMirroredForUserByRemoteIds(UserInterface $user, array $remoteIds): array
+    {
+        if ([] === $remoteIds) {
+            return [];
+        }
+
+        /** @var list<Calendar> */
+        return $this->createQueryBuilder('calendar')
+            ->where('calendar.usr = :user')
+            ->andWhere('calendar.role = :remote')
+            ->andWhere('calendar.remoteId IN (:remoteIds)')
+            ->setParameter('user', $user)
+            ->setParameter('remote', CalendarRole::Remote)
+            ->setParameter('remoteIds', $remoteIds)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findOneForUser(UserInterface $user, int $id): ?Calendar
     {
         return $this->findOneBy(['id' => $id, 'usr' => $user]);

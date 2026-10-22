@@ -25,4 +25,7 @@ enum ServiceKind: string
 
     /** Calendars mirrored into plMail and written back to. */
     case Calendar = 'calendar';
+
+    /** Address books mirrored into plMail and written back to. */
+    case Contacts = 'contacts';
 }

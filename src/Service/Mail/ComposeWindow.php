@@ -134,7 +134,8 @@ final readonly class ComposeWindow
      * every row standing.
      *
      * List rows stand for threads, so an emptied thread loses its row wherever
-     * it is shown. The Drafts list is the other case: its rows are there
+     * it is shown. It is gone from the database by then (MessageEraser removes
+     * it), so this is asked before the flush, while the thread still has an id. The Drafts list is the other case: its rows are there
      * because of a draft, so a conversation that just lost its last one drops
      * out of that view even though the thread lives on.
      *

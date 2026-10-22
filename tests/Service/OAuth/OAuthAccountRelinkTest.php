@@ -11,6 +11,7 @@ use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Infrastructure\Messaging\Message\SubscribeAccountContactsMessage;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
@@ -19,6 +20,7 @@ use App\Service\OAuth\OAuthAccountLinker;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use League\OAuth2\Client\Token\AccessToken;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -249,6 +251,54 @@ final class OAuthAccountRelinkTest extends KernelTestCase
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /** An OAuth account in exactly the state the live install was found in. */
+    /**
+     * A reconnect is how an account connected before contact sync gets the
+     * scope, so it is also when its address book is asked for — on the queue,
+     * not inside the callback.
+     */
+    public function testAReconnectThatGrantsContactsQueuesTheAddressBook(): void
+    {
+        $account = $this->deadAccount('contacts@joder.dev');
+        $this->transport()->reset();
+
+        $this->linker->relink($account, MailProvider::Google, 'contacts@joder.dev', $this->token('fresh-access'));
+
+        $queued = array_values(array_filter(
+            array_map(static fn ($e): object => $e->getMessage(), $this->transport()->getSent()),
+            static fn (object $m): bool => $m instanceof SubscribeAccountContactsMessage,
+        ));
+
+        self::assertCount(1, $queued, 'no scope in the answer means the grant matched the request, contacts included');
+        self::assertSame($account->id, $queued[0]->accountId);
+    }
+
+    public function testAReconnectWithoutTheContactsScopeQueuesNothing(): void
+    {
+        $account = $this->deadAccount('no-contacts@joder.dev');
+        $this->transport()->reset();
+
+        $token = new AccessToken([
+            'access_token' => 'fresh-access',
+            'expires'      => time() + 3600,
+            'scope'        => 'https://mail.google.com/ https://www.googleapis.com/auth/calendar',
+        ]);
+
+        $this->linker->relink($account, MailProvider::Google, 'no-contacts@joder.dev', $token);
+
+        foreach ($this->transport()->getSent() as $envelope) {
+            self::assertNotInstanceOf(SubscribeAccountContactsMessage::class, $envelope->getMessage());
+        }
+    }
+
+    private function transport(): InMemoryTransport
+    {
+        $transport = static::getContainer()->get('messenger.transport.ingest');
+
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
     private function deadAccount(string $email): Account
     {
         $account = new Account();

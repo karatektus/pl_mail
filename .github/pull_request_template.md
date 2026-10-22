@@ -21,5 +21,5 @@ come without one if this description says what the bug was.
 - [ ] PHPStan and the suites pass (`npm run test:unit:docker`, `npm run test:e2e:docker`)
 - [ ] New or changed copy is in all four catalogues: `messages.en`, `.de`, `.fr`, `.en_PI`
 - [ ] Handbook updated if behaviour changed, with the German page and its `translated-from` hash
-- [ ] An entry under `## Unreleased` in CHANGELOG.md for anything a user would notice
+- [ ] A changelog entry in `changelog.d/<issue>-<words>.md` for anything a user would notice (not in CHANGELOG.md itself; see `changelog.d/README.md`)
 - [ ] A setting that changes how plMail behaves for everybody is off by default, or says why not

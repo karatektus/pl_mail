@@ -51,6 +51,14 @@ export default class extends Controller {
         );
     }
 
+    /**
+     * Close whatever card stands in the dock's slot — the error card below, or
+     * one the server sent instead of a window (compose/_no_account.html.twig).
+     */
+    dismiss() {
+        this.element.querySelector('turbo-frame#compose_dock')?.replaceChildren();
+    }
+
     _onError() {
         this._render(this._t('offline', 'The compose window could not be opened — you appear to be offline.'));
     }

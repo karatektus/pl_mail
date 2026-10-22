@@ -57,6 +57,35 @@ prose and the copyable redirect URI, neither of which is a field.
                 </p>
             </div>
 
+            {# Contacts ride it too, the same way, since plMail syncs Google
+               and Outlook address books. #}
+            <div class="rounded-lg border border-line bg-sunken px-3 py-2.5">
+                <p class="text-xs font-medium text-ink-soft">
+                    <i class="fa-regular fa-address-book mr-1" aria-hidden="true"></i>
+                    {{ 'admin.integrations.mail.contacts_heading'|trans }}
+                </p>
+                <p class="text-xs text-ink-faint mt-1 leading-relaxed">
+                    {{ ('admin.integrations.mail.contacts_' ~ provider.value)|trans }}
+                </p>
+            </div>
+
+            {# A tenant where only an administrator approves apps approved
+               plMail for the permissions it asked for then. Contacts added
+               one, and until it is approved too Microsoft refuses the whole
+               sign-in, mail included. The admin is on this page when they
+               would want to know. #}
+            {% if 'microsoft' == provider.value %}
+                <div class="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5" role="note" data-admin-consent-warning>
+                    <p class="text-xs font-medium text-ink-soft">
+                        <i class="fa-solid fa-triangle-exclamation text-warning mr-1" aria-hidden="true"></i>
+                        {{ 'admin.integrations.mail.consent_heading'|trans }}
+                    </p>
+                    <p class="text-xs text-ink-muted mt-1 leading-relaxed">
+                        {{ 'admin.integrations.mail.consent_microsoft'|trans }}
+                    </p>
+                </div>
+            {% endif %}
+
             <p class="text-xs text-ink-faint">
                 <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
                 {{ 'admin.integrations.mail.env_note'|trans }}

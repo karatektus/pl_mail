@@ -66,7 +66,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * AiCallMetricRepository::lastInteractiveCallAt() names the same workloads for
  * the same reason, and both halves have to agree or the yielding comes back
  * through the other one. When the summary route was added here, that predicate
- * gained 'thread_summary' in the same edit.
+ * gained 'thread_summary' in the same edit, and 'contact_help' came in with
+ * the contact editor's AI routes the same way.
  */
 final readonly class InteractiveAiActivitySubscriber implements EventSubscriberInterface
 {
@@ -74,6 +75,7 @@ final readonly class InteractiveAiActivitySubscriber implements EventSubscriberI
     private const array INTERACTIVE_ROUTE_PREFIXES = [
         'app_compose_assist',
         'app_mail_thread_summary',
+        'app_contacts_ai_',
     ];
 
     public function __construct(
