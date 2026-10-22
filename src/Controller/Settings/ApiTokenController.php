@@ -122,6 +122,13 @@ final class ApiTokenController extends AbstractController
                 // A fresh form: the replaced frame carries the create field, and
                 // reusing the submitted one would redisplay what was just saved.
                 'apiTokenForm' => $this->createForm(ApiTokenType::class)->createView(),
+                // The partial renders the scope checkboxes from this list, and
+                // the settings page supplies it — this stream replaces that
+                // partial, so it needs the same thing. Missed and every Generate
+                // or Revoke answered 500: "Variable scopes does not exist",
+                // which the user saw as a red "that didn't work" toast and the
+                // e2e suite saw as the show-once assertion failing.
+                'scopes' => ApiTokenScope::all(),
             ]);
         }
 
