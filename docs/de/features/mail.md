@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:3ce077e532ee6d78f8b007edb8ab2e563af0413d -->
+<!-- translated-from: features/mail.md sha1:b48a34eb670021f2041a404ec938b25a0293edb1 -->
 
 # Mail
 
@@ -333,6 +333,12 @@ Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **A
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
 
+Mail im Spam ergibt keine Karten, auch nicht Mail, die du später dorthin verschiebst: Ihre Karten
+verschwinden aus dem Panel und aus der Leiste über der Mailliste, und eine Spam-Konversation zeigt
+keine über ihren Nachrichten — eine gefälschte Versandbenachrichtigung ist genau das, was Spam
+nachahmt. **Kein Spam** (oder das Verschieben in den Posteingang) holt sie zurück. Der Papierkorb ist
+etwas anderes: Wer eine Versandbestätigung löscht, hält das Paket nicht auf, also bleiben ihre Karten.
+
 Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt eine Bestellnummer und
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
@@ -604,6 +610,9 @@ deren Text nur `help.wirhub.de` steht.
 `junk` (oder `spam`), `archive` (oder `archived`) und `snoozed`. Werte in Anführungszeichen
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
+Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
+
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
 und nicht die Antwort: Es laufen nur die Durchgänge, die schnell genug für jeden Tastendruck sind.
@@ -777,6 +786,9 @@ holt die Konversation zurück und nimmt einen Filter wieder weg, den derselbe Kl
 Über einer Auswahl verschiebt der Knopf alles Ausgewählte in den Spam und bietet keinen Filter
 an: Eine Auswahl hat nicht den einen Absender. Für Mail, die schon im Spam oder im Papierkorb
 liegt, wird der Knopf nicht gezeigt.
+
+Eine geöffnete Konversation im Spam hat stattdessen einen Knopf **Kein Spam** in ihrer
+Werkzeugleiste. Er verschiebt sie zurück in den Posteingang, wie **Verschieben nach → Posteingang**.
 
 Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet

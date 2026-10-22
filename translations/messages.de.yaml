@@ -4499,6 +4499,7 @@ toolbar:
         mark_unread: Als ungelesen markieren
         more: Mehr
         move_to: Verschieben nach
+        not_spam: 'Kein Spam'
         purge: Endgültig löschen
         snooze: Zurückstellen
         spam: 'Als Spam markieren'

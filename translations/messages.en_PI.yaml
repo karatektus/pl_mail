@@ -4273,6 +4273,7 @@ toolbar:
         mark_unread: Mark as unread
         more: More besides
         move_to: Haul off to
+        not_spam: 'Not bilge'
         purge: "Send to Davy Jones for good"
         snooze: Let it drift
         spam: 'Call it bilge'

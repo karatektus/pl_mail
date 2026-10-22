@@ -299,6 +299,12 @@ card. Dated ones queue
 up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
 something also shows its cards in a **Found in this conversation** strip above the messages.
 
+Mail in Spam yields no cards, and neither does mail you move there later: its cards leave the panel
+and the strip above the mail list, and a spam conversation shows none above its messages, because a
+fake delivery notice is exactly what spam imitates. **Not spam** (or moving it to the inbox) brings
+them back. The bin is different: deleting a shipping confirmation does not stop the parcel, so its
+cards stay.
+
 A shop that never names a carrier still yields a parcel. Amazon states an order number and a link
 into its own tracker and no tracking number anywhere, so that is what the card carries — and a
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
@@ -547,6 +553,9 @@ whose body only ever says `help.wirhub.de`.
 `spam`), `archive` (or `archived`) and `snoozed`. Quoted values are kept together, so
 `from:"Ada Lovelace"` works.
 
+Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
+as the lists do. The suggestions as you type leave both out.
+
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview
 rather than the answer: they run only the passes that are fast enough to spend on every keystroke,
@@ -703,6 +712,9 @@ conversation back and takes away a filter the same click created.
 
 Above a selection the button moves everything selected to Spam and offers no filter: a selection
 has no one sender. The button is not shown for mail that is already in Spam or in the bin.
+
+An open conversation in Spam has a **Not spam** button in its toolbar instead. It moves the
+conversation back to the inbox, the same as **Move to → Inbox**.
 
 Moving mail to spam tells plMail nothing about the next message. plMail has no spam filter of its
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter

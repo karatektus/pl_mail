@@ -2584,6 +2584,21 @@ class MessageThreadRepository extends ServiceEntityRepository
             $params['trashRole'] = LabelRole::Trash->value;
         }
 
+        // ── Spam stays in Spam ────────────────────────────────────────────
+        // The same rule for the same reason (#304): a search for "invoice" or
+        // "DHL" turned up the forged ones beside the real ones, which is the
+        // one place they do the most harm. `in:spam` asks for them. Any Spam
+        // label takes the conversation out, as All Mail has it
+        // (allMailQuery()), and NOT EXISTS for the reason given above.
+        if (LabelRole::Spam->value !== $query->mailboxRole) {
+            $where[] = 'NOT EXISTS ('
+                . 'SELECT 1 FROM thread_label stl'
+                . ' JOIN label slbl ON slbl.id = stl.label_id'
+                . ' WHERE stl.message_thread_id = t.id AND slbl.role = :spamRole'
+                . ')';
+            $params['spamRole'] = LabelRole::Spam->value;
+        }
+
         $whereClause = implode(' AND ', $where);
 
         // ── The label joins, only when something asks about a label ───────
