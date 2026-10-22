@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:2a5ac40d476e8bbadb62071938fdbe90998a9274 -->
+<!-- translated-from: features/admin.md sha1:f956cd82e1ff74b646cbebf6e3f68ac3ad640efb -->
 
 # Administration
 
@@ -26,6 +26,11 @@ describe` zurück, und wo niemand die Antwort kennt, fehlt der Chip ganz, statt 
 
 Zwei Images können sich beide `main` nennen, und darum steht der Commit neben dem Namen und
 nicht an seiner Stelle.
+
+Ein Klick auf den Chip kopiert beides, Namen und Commit mit einem Leerzeichen dazwischen
+(`milestone-v0.4.0 0805208`), bereit für einen Fehlerbericht oder einen Deploy-Befehl; sein
+Zwischenablage-Symbol wird dabei zu einem Haken. Das geht auch auf dem Handy und auf einer
+Instanz, die nur über HTTP erreichbar ist.
 
 ## System
 

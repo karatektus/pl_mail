@@ -22,6 +22,10 @@ answer the chip is absent entirely rather than reading "development" beside ever
 Two images can both call themselves `main`, which is why the commit is shown next to the label and
 not instead of it.
 
+A click on the chip copies both, label and commit with one space between them
+(`milestone-v0.4.0 0805208`), ready for a bug report or a deploy command; its clipboard icon turns
+into a tick to say so. It also works on a phone and on an instance served over plain HTTP.
+
 ## System
 
 Live panels, refreshed every ten seconds. Each can be collapsed, and a collapsed card shows a
