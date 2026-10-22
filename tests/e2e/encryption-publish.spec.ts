@@ -83,6 +83,10 @@ test("offers no publishing once the person switches key servers off", async ({ p
 
     await frame.getByTestId("key-servers-switch").getByText("Off", { exact: true }).click();
     await expect(frame.getByTestId("key-servers-switch").locator('input[value="0"]')).toBeChecked();
+    // Checked at the click, stored only when the switch's post answers: the
+    // lookup hint naming no key server is drawn from that answer. Reloading
+    // before it could cancel the post.
+    await expect(frame.getByText("Asks the address's own domain for its key (Web Key Directory). The request goes through this server.")).toBeVisible({ timeout: 15000 });
 
     await page.reload();
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });

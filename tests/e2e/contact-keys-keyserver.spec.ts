@@ -22,6 +22,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 const PASSWORD = "a-password-for-key-servers";
 const REPORTED = "test@pluetzner.de";
+const LOOKUP_HINT_WITHOUT_SERVERS = "Asks the address's own domain for its key (Web Key Directory). The request goes through this server.";
 
 test.describe("contacts' keys from key servers", () => {
     test("finds a key only a key server has, and says which server", async ({ page }) => {
@@ -54,6 +55,13 @@ test.describe("contacts' keys from key servers", () => {
 
         await switcher.getByText("Off", { exact: true }).click();
         await expect(switcher.locator('input[value="0"]')).toBeChecked();
+
+        // The radio is checked the moment it is clicked; the switch's own post
+        // draws the frame again when it answers. Looking up before that, the
+        // two answers raced for the frame, and when the switch's came last it
+        // wiped the lookup's notice. The lookup hint naming no key server is
+        // the server's word that the choice is stored and the frame redrawn.
+        await expect(frame.getByText(LOOKUP_HINT_WITHOUT_SERVERS)).toBeVisible({ timeout: 15000 });
 
         await lookUp(page, address);
 
