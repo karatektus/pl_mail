@@ -1,1 +1,0 @@
-- "Add to contacts" on a mail now asks whether the address belongs to somebody new or to a contact you already have. You can search for that contact as you type, or name a new one and open the full editor for more details. The contact then opens in the contacts pane beside the mail. The button is on every address in a message's details too, not only the sender.

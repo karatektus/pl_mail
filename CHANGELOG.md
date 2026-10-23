@@ -10,7 +10,227 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.3.9 — 2026-10-23
+
+<!-- highlight -->
+**Contacts: an address book, with your Google, Outlook, Nextcloud or CardDAV contacts in it.** A new
+**Contacts** page (in the sidebar) lists, searches and tags your contacts, shows each one's details
+and the mail you exchanged, and creates, edits and deletes them: names in parts and how they are
+spoken, organisation and office, postal addresses, birthdays and other dates, related people,
+websites, chat addresses, custom fields, notes and a photo. The button beside the calendar's docks the whole address book beside the mail, resizable like
+the calendar, and on a wide monitor the two sit side by side. Duplicates are found and merged, with
+90 days to undo, and contacts import from and export to vCard and CSV. A message's sender shows
+whether they are in your contacts, with one click to add them. Address books on a server come in
+too: a Google or Microsoft mail account brings its contacts on the same sign-in as its mail and
+calendars (an account connected before this asks once, in Settings → Account health, to sign in
+again and allow them), a Nextcloud connected under Settings → Integrations is listed under
+**Settings → Contacts** with no second connection to make, and Radicale, Baïkal, Fastmail or iCloud
+connect there over CardDAV. Their contacts sit beside plMail's own, a filter shows one book at a
+time, and every change made here — the photo included — is sent back to the server and from there
+to your phone. Anything plMail has no field for stays on the card. Changes made elsewhere arrive within fifteen minutes
+(`app:contacts:sync --stale`). Contacts are suggested when you address a message, and over JMAP
+(`Contact/get`, `Contact/query`, `Contact/set`) for the apps. See
+[Contacts](docs/features/contacts.md) and [CardDAV](docs/providers/carddav.md).
+[#157](https://github.com/karatektus/pl_mail/issues/157), by @jo2904 and @DanversKara.
+
+**Migration:** adds the `address_book` and `contacts_*` tables; nothing existing changes. For
+contacts on Google accounts, enable the **People API** in the Cloud project and add the
+`.../auth/contacts` scope to the consent screen; for Microsoft accounts, add the
+`Contacts.ReadWrite` delegated permission to the app registration — see
+[Google](docs/providers/google.md) and [Microsoft](docs/providers/microsoft.md). Without the People
+API, mail and calendars work as before, and a Google address book says the API needs enabling.
+**A Microsoft 365 organisation where only administrators approve apps refuses every sign-in to
+plMail after this upgrade, mail included, until an administrator approves the new permission:**
+Microsoft Entra admin centre → Enterprise applications → plMail → Permissions → Grant admin
+consent. Do it before upgrading. Personal Microsoft accounts are not affected.
+
+<!-- highlight -->
+**Pictures and videos open in a preview when you click them, like PDFs.** Clicking an image
+attachment (JPEG, PNG, GIF, WebP, AVIF, BMP, ICO) or a video (MP4, WebM, Ogg, QuickTime) now opens
+it in the same dialog as the PDF reader instead of downloading it. Videos play with the browser's
+own controls and can be seeked without loading the whole file. Every attachment that opens a preview,
+PDFs included, has a download button on the right side of its chip, so downloading is still one click.
+If the browser can't show the file after all, the dialog says so and offers the download. Other
+attachments download on click as before. No schema change.
+[#295](https://github.com/karatektus/pl_mail/issues/295).
+
+<!-- highlight -->
+**A simpler contact editor, and new contacts from whatever you paste.** **New contact** is now one
+box: type or paste a name, an email signature, a `Name <address>` line, an address or a vCard, and
+the details it finds appear below it, each one easy to untick, retype or give another type with one
+click (a work number that is a home number). Lines it cannot place are asked about instead of
+guessed. The editor shows the name as one field whose parts fill themselves, email and phone rows
+that appear as you type, and only the kinds of detail a contact has, with the rest a click away; a
+bar at the bottom says what changed. **Paste details** in the editor compares pasted text with the
+contact before anything changes: new details ticked, ones that differ left for you to decide.
+
+**Improve with AI, for contacts.** With the new **Contact help** switch on (Admin → AI, off by
+default), quick add can give pasted text a second reading by the AI, with what it changed marked
+and undoable, and the editor can suggest updates to a contact from the signature of the newest mail
+they sent you, each with its reason. Only the signature block of that mail is sent, never its body,
+and nothing is saved until you tick it and save. Everyone can switch it off for themselves under
+Settings → Assistant.
+
+**Migration:** one migration adds the switch's two columns (`ai_settings.contact_help_enabled`,
+`"user".ai_contact_help_off`), both off by default.
+
+**On a phone, archiving a mail or marking it read meant opening it first.** The row's buttons show
+on hover, and a phone has no hover, so they never appeared in the list. A row now swipes: drag it to
+the right to mark it read or unread, and to the left to archive it, past a third of its width to
+reveal the action or past two thirds to do it straight away. It is for a finger on a phone-width
+screen only; a mouse and wider windows behave as before. Read / unread and archive are offered only
+on ordinary mail, never on a draft or in the archive, the bin or spam, as the row's own buttons do;
+star is offered on every row. Trashing is not a swipe. Each direction can be changed under Settings
+→ Mail → Swipe actions (next entry). No schema change, no deployment change.
+[#147](https://github.com/karatektus/pl_mail/issues/147), by @Flouss.
+
+**On a phone, a swipe to the right or to the left always did the same thing.** The two directions
+were read or unread and archive, with no way to change either. Settings → Mail → Swipe actions now
+sets each direction to read or unread, archive, star, or nothing, and the defaults are the same as
+before. Trash is not one of the choices: a swipe commits without a tap, and a trashed row has no
+Undo. A value stored for trash reads as the direction's default. No schema change: the two choices
+live in the settings bag, and the config backup carries them.
+[#148](https://github.com/karatektus/pl_mail/issues/148), by @Flouss.
+
+**On a phone, a mail row's actions were only reachable through buttons that appear on hover, and a
+phone has no hover.** Archive, delete, snooze, move and label were in the row's strip, which a phone
+never shows. Holding a row for about half a second now opens an action sheet with every action the
+row offers, the same ones the strip and the swipe offer, in the same places. Move to (on a
+conversation, not a single message), Label as and Snooze open their pickers over the sheet, and
+Select ticks the row for a bulk action. A row is no longer a native drag on a phone, so iOS does not
+lift it during the hold. Trash in the sheet has no Undo, as the strip's trash button has none, and
+delete forever is offered only with the delete-now buttons switched on under Settings → Mail →
+Disposal. The sheet is only for a finger on a phone-width screen; a mouse and wider windows behave
+as before. Android Chrome gives a short vibration when the sheet opens; iOS has no vibration for web
+pages. No schema change, no deployment change.
+[#149](https://github.com/karatektus/pl_mail/issues/149), by @Flouss.
+
+**Mail trashed or archived in Gmail no longer leaves the Inbox of the account Gmail collected it
+for.** When a Gmail account collects mail for another connected account (Gmailify), plMail merges
+the Gmail copy into that account's own IMAP copy, and the merge applied Gmail's `TRASH`, `SPAM`,
+`INBOX`, `SENT` and `DRAFT` too. Mail still in the IMAP server's Inbox showed as trashed or
+archived and dropped out of the Inbox list. The IMAP folder now decides where such a message sits;
+Gmail's other labels still merge. Mail that Gmail deleted for good, by emptying its bin, was also
+removed from the other account here, although its IMAP server still had it, and the IMAP sync
+never fetched it again. That copy now only loses its link to Gmail. Mail already moved this way is
+put back with `app:backfill gmailify-placement`; mail already removed is not brought back. No
+schema change. See [Accounts](docs/features/accounts.md#gmail-collecting-mail-for-another-account-gmailify).
+[#203](https://github.com/karatektus/pl_mail/issues/203), by @phdelodder.
+
+**A Gmail account can stop filing mail under your other accounts.** A Gmail account that collects
+mail for another connected address files that mail under the other account (Gmailify), and
+nothing in Settings could turn this off. After a domain moved from Gmail to an IMAP provider of
+its own, Gmail went on matching old and late copies to it. Settings → Aliases now has a switch
+under each Gmail account, on by default. Turned off, the Gmail account keeps only mail addressed
+to itself, and the other account's own IMAP copies lose their link to Gmail, in a background job
+on the maintenance queue. Mail Gmail filed there that the IMAP server never had keeps it. While
+Gmail is still collecting, mail whose To or Cc names the other address is left to that account even
+though Gmail stamps its own address on it; mail Bcc'd there names nobody and is kept on both, so the
+switch is best turned off once Gmail has stopped collecting. No schema change: the choice lives in the account's settings, as it did before there was a switch.
+[#205](https://github.com/karatektus/pl_mail/issues/205).
+
+**Admin → Integrations lists the calendar services, so a CalDAV server pinned during setup can be
+changed later.** The setup wizard could pin one CalDAV server address for everybody, and once setup
+was finished nothing showed that address again. CalDAV and calendar feeds now have their own group
+under the file services, with the same row, setup notes and **Configure** form, where the address
+can be changed or cleared. A change applies the next time calendars are found on a connection;
+calendars already mirrored keep the address they were found at. Both services are offered to every
+user as before, so their rows say so and the form has no on/off switch. Once people have connected,
+the CalDAV form says how many connections a change reaches. A calendar feed has no server to pin, so
+its row offers nothing to configure unless an older address is stored, which it shows so it can be
+cleared. Nextcloud stays with the file services, where its calendars' address is already set. The
+server address field now accepts only an http or https address. No schema change.
+[#212](https://github.com/karatektus/pl_mail/issues/212), by @phdelodder.
+
+**A Gmail sync no longer reads every Gmail id you have stored.** To tell new mail from mail it
+already had, each Gmail sync loaded the id of every message stored for you, and every one it had
+declined. It did this after every history window, including the many that bring nothing, and on
+every page of a listing. On a large mailbox that is thousands of rows every few minutes, and more as
+the mailbox grows. It now asks only about the ids Gmail has just listed, and nothing when there are
+none. No schema change. [#223](https://github.com/karatektus/pl_mail/issues/223), reported by
+@phdelodder.
+
+**Lists, unread badges and search answer faster on a large mailbox.** Every list and badge leaves
+out conversations that are entirely in the bin (#268), and each of them worked that out from the
+messages on every query: about 170 ms each on a mailbox of 67k conversations, and the sidebar
+asks about ten times. Whether a conversation is in the bin is now stored on it and kept by the
+database. On the same mailbox the Inbox count dropped to 35 ms, the unified Inbox page to 52 ms,
+and most other lists and badges to between 1 and 20 ms. The results are the same on all 41 lists,
+badges and searches compared. [#223](https://github.com/karatektus/pl_mail/issues/223).
+
+**Migration:** adds `message_thread.binned` with the triggers that keep it, and fills it for the
+conversations already stored. That took under a second on 67k conversations.
+
+**Nextcloud calendars come with the Nextcloud connection.** A Nextcloud connected for files under
+Settings → Integrations is now listed in Settings → Calendars, and **Find calendars on…** lists its
+calendars with the same app password. There is no second address or password to type. The address
+is the connection's own, or the one an administrator pinned in Admin → Integrations; a pinned
+address on a private network now works for calendars too, where before it was refused as a private
+address. Disconnecting Nextcloud removes its calendars as well, and the confirmation says how many;
+events that came from mail are moved to the default calendar first, as when a CalDAV server is
+disconnected. A calendar already mirrored through a separate CalDAV connection to the same
+Nextcloud shows as *Already mirrored through …* and cannot be ticked a second time. Existing CalDAV
+connections are left as they are. No schema change.
+[#236](https://github.com/karatektus/pl_mail/issues/236), by @jo2904.
+
+**Pictures in mail show up again where they were missing.** A BAUHAUS review request showed
+neither its logo nor its product photos, even with images allowed, for three reasons. Pictures
+linked as `http://` were never asked for, because plMail only fetches over an encrypted
+connection; they are now fetched as `https://`. Everything inside a form was removed along with the
+form, here the whole first product with its photo, name and stars; the form's content now stays and
+only its text fields go. And a card a mail hides by default and switches on with its stylesheet
+stayed hidden; plMail now follows the stylesheet as a browser does. Mail already in the mailbox is
+repaired on request: `php bin/console app:backfill safe-html-hidden-cards` writes the shown copy of
+every message with a form or such a stylesheet again from the sender's original. The `http://` fix
+needs nothing. When plMail refuses a picture's address, the log now says why. No schema change.
+[#271](https://github.com/karatektus/pl_mail/issues/271), by @pmdevelopment.
+
+**When notifications can't be turned on, Settings now says why.** Every way that turning on
+notifications can fail used to end in the same "Something went wrong. Try again." Now the pane says
+which step failed: the browser's background worker, the browser's push service, or the server. It
+also gives the browser's error name or the server's HTTP status, and writes the full error to the
+browser console. For Brave, where push needs "Use Google services for push messaging" switched on,
+the push-service message says so. No schema change.
+[#277](https://github.com/karatektus/pl_mail/issues/277).
+
+**A sync no longer fails after mail with an attachment was deleted on the server.** When Gmail,
+Outlook or an IMAP server reported a message with an attachment as deleted, the sync that removed it
+failed on its next database write: "A new entity was found through the relationship
+'MessagePart#message'". The retry went through, but the failed run did not record the sync, and on
+IMAP every folder after the one that tripped was skipped until the next run. Deleting mail now goes
+the same way whether the server, a discarded draft or "Delete forever" asked for it. As a result,
+a conversation that loses its last message is removed instead of left behind empty, and one deleted
+for good drops the labels only its deleted messages carried. No schema change.
+[#299](https://github.com/karatektus/pl_mail/issues/299).
+
+**Spam stays in Spam: off the radar and out of search.** Cards read out of mail in Spam showed in the
+**Happening Soon** panel and the strip above the mail list, beside the real ones, though a fake
+delivery notice is exactly what spam imitates. They are now left out, and a spam conversation no
+longer shows its cards above the message; mail in the bin keeps its cards, since deleting a shipping
+confirmation does not stop the parcel. Search, and the results as you type, likewise leave out Spam
+unless you search with `in:spam`, as they already did for the bin. No schema change.
+[#304](https://github.com/karatektus/pl_mail/issues/304).
+
+**A Not spam button.** An open conversation in Spam has a **Not spam** button in its toolbar, which
+moves it back to the inbox in one click instead of through **Move to**. No schema change.
+
+- "Add to contacts" on a mail now asks whether the address belongs to somebody new or to a contact you already have. You can search for that contact as you type, or name a new one and open the full editor for more details. The contact then opens in the contacts pane beside the mail. The button is on every address in a message's details too, not only the sender.
+
+- The contacts button in the top bar now steps through three positions, like the calendar button: the address book beside the mail, full width with the mail behind it, and closed. Dragging the pane's edge past either end snaps it to full width or closes it. Settings → Contacts → Behaviour can leave one of the open positions out. On a wide screen the sidebar no longer has a Contacts row; on a phone it stays in the menu.
+
+**A sync that can't reach Gmail or Outlook no longer fills the log with stack traces.** When the
+worker could not connect to the provider at all, every retry of the account sync was logged as a
+warning with three nested stack traces. An outage that lasted ended at CRITICAL, with the job parked
+on the failed queue. Now the sync waits and tries again on the same schedule as before, with one
+info line per attempt. If the provider is still unreachable after about eight minutes, the sync is
+dropped with a single warning. Nothing is lost: the next sync resumes from the same point. Fetching
+particular messages still retries and fails as before, because nothing would list those again.
+[#332](https://github.com/karatektus/pl_mail/issues/332)
+
+**Pressing Compose before adding a mailbox says so.** With no mail account yet, the compose window
+answered "The compose window could not be opened. Please try again.", which no retry could fix. It
+now shows "No mail account yet" with a button to add one, as it was meant to, and the button opens
+Settings → Mail accounts.
 
 **A conversation with one message in the bin stays in your other lists, and so does new mail in it.**
 Deleting one message of a conversation took the whole conversation out of the Inbox, its tab, its
