@@ -267,6 +267,10 @@ framework:
                     # kind is dropped with a warning, the other is put back to
                     # wait, and neither is a CRITICAL any more.
                     - App\Infrastructure\Messaging\Middleware\GiveUpQuietlyOnThrottling
+                    # An account sync that could not reach the provider at
+                    # all is put back to wait, quietly, and dropped with one
+                    # warning if the outage lasts. See the class.
+                    - App\Infrastructure\Messaging\Middleware\WaitOutConnectionFailures
                     # A clock on every message a worker handles, which closes
                     # the IMAP connections it opened if it runs out — so one
                     # server sending a trickle cannot hold a queue. See
