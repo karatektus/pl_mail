@@ -203,11 +203,27 @@ self-contained: no {% extends %}, no block dependencies.
         {% endfor %}
         {% do address_book_prime(badgeAddresses) %}
 
+        {# Which messages are in the bin, when only some of them are. A
+           conversation stays in the Inbox and its labels until EVERY message of
+           it is deleted (#268), so opening one shows deleted messages among
+           live ones, and nothing said which was which. Where all of them are in
+           the bin — Trash itself — the mark would sit on every message and say
+           nothing, so it is drawn only for a mixed conversation. Read per
+           message by the same MailPlacement the actions use. #}
+        {% set binnedIds = [] %}
+        {% for message in messages %}
+            {% if mail_placement(message) == 'trash' %}
+                {% set binnedIds = binnedIds|merge([message.id]) %}
+            {% endif %}
+        {% endfor %}
+        {% set markBinned = binnedIds|length > 0 and binnedIds|length < messages|length %}
+
         <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,
                     expanded: loop.last or message.seenAt is null,
+                    binned:   markBinned and message.id in binnedIds,
                 } only %}
             {% endfor %}
         </div>

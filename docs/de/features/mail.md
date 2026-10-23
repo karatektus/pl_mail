@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:df37980670901d8064e9a02c3c0316ebd5549b93 -->
+<!-- translated-from: features/mail.md sha1:bcc21c95d2ccc5c21500be5207c2ada07416b10e -->
 
 # Mail
 
@@ -439,6 +439,12 @@ deine Notiz steht dabei zum Ändern bereit. Was die Administration mit dem Stape
 Antworten klappen zu einer Konversation zusammen, von alt nach neu sortiert, die letzte
 Nachricht aufgeklappt. Jede Nachricht hat ihr eigenes Menü: **Markieren**, **Archivieren**,
 **Als ungelesen markieren**, **Diese Nachricht löschen**, **Drucken** und **Original anzeigen**.
+
+Wenn du eine Nachricht einer Konversation löschst, bleibt die Konversation, wo sie ist: Sie steht im
+Posteingang und unter ihren Labels, bis jede Nachricht darin im Papierkorb liegt. Geöffnet zeigt sie
+die gelöschte Nachricht zwischen den anderen mit dem Hinweis **Im Papierkorb** und einer abgeblendeten
+Kopfzeile, ohne **Archivieren** und **Diese Nachricht löschen**, die für Post im Papierkorb nichts
+bedeuten. Im Papierkorb selbst ist jede Nachricht gelöscht, deshalb wird dort nichts markiert.
 
 **Original anzeigen** setzt die Nachricht aus der gespeicherten Header-Zuordnung und dem
 dekodierten Text wieder zusammen — ein roher RFC-822-Blob wird nicht aufbewahrt — und stellt
