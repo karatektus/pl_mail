@@ -7,6 +7,12 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Bullet and numbered lists show up in the compose editor.** The list buttons made lists that were
+drawn without bullets or numbers, and in a reply put them under the quoted message. They now show
+their markers and are inserted at the caret. (#328)
+
 ## v0.3.8 — 2026-10-21
 
 **The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier
