@@ -3,6 +3,7 @@
 namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
@@ -1294,6 +1295,49 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose HTML body holds a form, or a stylesheet that says
+     * `!important` — the set the hidden-card repair has to walk (#271).
+     *
+     * The sanitizer dropped a form with everything in it, and the inliner let
+     * an inline `display:none` beat a stylesheet `!important`. Neither leaves a
+     * mark in bodyHtmlSafe that SQL could find, because what is missing is
+     * simply not there, so the walk is narrowed on the cause in the sender's
+     * own copy. Loosely, as the table-link walk is: `!important` anywhere after
+     * a `<style>` is far more mail than was hidden, and re-sanitising the rest
+     * writes back what the sanitizer makes of it today.
+     *
+     * @return list<Message>
+     */
+    public function findWithFormOrImportantRule(int $afterId, int $limit): array
+    {
+        return $this->formOrImportantRuleQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithFormOrImportantRule(): int
+    {
+        return (int) $this->formOrImportantRuleQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function formOrImportantRuleQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded: tags and the keyword are written in every case there is.
+            ->andWhere("(LOWER(m.bodyHtml) LIKE '%<form%' OR LOWER(m.bodyHtml) LIKE '%<style%!important%')")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose HTML body has a table somewhere after a link opens — the
      * set the table-in-a-link repair has to walk.
      *
@@ -1658,6 +1702,54 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * A sibling's own IMAP copies that a Gmail mailbox has merged into, a page
+     * at a time in id order: the rows with a folder of their own AND a carrier.
+     *
+     * The folder is what tells these apart from the other carried rows. A row
+     * Gmail built for a sibling has no IMAP folder and Gmail is its only
+     * source; a row with one is the IMAP server's, and Gmail only knows about
+     * it. See GmailifyLinks.
+     *
+     * By the carrier's id rather than the entity: the callers page through
+     * tens of thousands of rows and clear the entity manager between pages,
+     * which would leave an entity argument detached.
+     *
+     * @param int|null $carrierId null for every carrier on the install
+     * @return list<Message>
+     */
+    public function findImapCopiesCarried(?int $carrierId, int $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit);
+
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** How many rows findImapCopiesCarried() would page through. */
+    public function countImapCopiesCarried(?int $carrierId): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.gmailCarrierAccount IS NOT NULL')
+            ->andWhere('m.mailbox IS NOT NULL');
+
+        if (null !== $carrierId) {
+            $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     public function countForAccount(Account $account): int
     {
         return (int) $this->createQueryBuilder('m')
@@ -1966,11 +2058,10 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * The rows behind a set of Gmail ids, scoped to one owner.
      *
-     * Scoped through the user rather than the account for the same reason
-     * findSyncedGmailIdsForUser() is: plMail attributes a Gmail message to
-     * whichever of the owner's accounts it was actually addressed to, so the
-     * row for an id that arrived on one account's history feed may well hang
-     * off a sibling.
+     * Scoped through the user rather than the account: plMail attributes a
+     * Gmail message to whichever of the owner's accounts it was actually
+     * addressed to, so the row for an id that arrived on one account's
+     * history feed may well hang off a sibling.
      *
      * @param list<string> $gmailIds
      *
@@ -2058,23 +2149,6 @@ class MessageRepository extends ServiceEntityRepository
             ->setParameter('gmailIds', $gmailIds)
             ->getQuery()
             ->getSingleColumnResult());
-    }
-
-    /**
-     * QueryBuilder on two counts: the owner is reached through the account
-     * association, which findBy() cannot traverse, and only one column comes
-     * back.
-     */
-    public function findSyncedGmailIdsForUser(User $user): array
-    {
-        return $this->createQueryBuilder('m')
-            ->select('m.gmailId')
-            ->innerJoin('m.account', 'a')
-            ->where('a.usr = :usr')
-            ->andWhere('m.gmailId IS NOT NULL')
-            ->setParameter('usr', $user)
-            ->getQuery()
-            ->getSingleColumnResult();
     }
 
     /**
@@ -2547,7 +2621,7 @@ class MessageRepository extends ServiceEntityRepository
 
     /**
      * QueryBuilder for the join to the owning user and for the single-column
-     * projection, as with findSyncedGmailIdsForUser().
+     * projection.
      *
      * @return list<string>
      */
@@ -2841,12 +2915,13 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * The two body columns MessageSnippet reads, for specific messages only —
-     * one per list row, the row's latest.
+     * The columns MessageSnippet reads, for specific messages only — one per
+     * list row, the row's latest. The category decides whether the preview
+     * may skip a bulk mail's chrome.
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2854,9 +2929,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2865,7 +2940,13 @@ class MessageRepository extends ServiceEntityRepository
         $bodies = [];
 
         foreach ($rows as $row) {
-            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+            $category = $row['category'];
+
+            $bodies[(int) $row['id']] = [
+                'bodyHtmlSafe' => $row['bodyHtmlSafe'],
+                'bodyText'     => $row['bodyText'],
+                'category'     => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+            ];
         }
 
         return $bodies;

@@ -156,6 +156,8 @@ admin:
             chat_keep_alive_help: '5m, 30m, 4h, ou un nombre de secondes. -1 le garde chargé en permanence, 0 le décharge après chaque requête. Plus c’est long, plus la première réponse arrive vite ; l’hôte garde la mémoire réservée pendant toute la durée dans les deux cas. Laissez vide pour utiliser le réglage de l’hôte.'
             chat_model: 'Modèle de rédaction'
             chat_model_help: 'Utilisé pour les réponses, les résumés et le tri. Un modèle entraîné aux instructions.'
+            contact_help: 'Aide aux contacts'
+            contact_help_help: 'Lit un contact dans un texte collé et propose des corrections d’après la signature de son dernier e-mail. Utilise le modèle de rédaction et lui envoie ce texte.'
             embedding_keep_alive: 'Garder le modèle de recherche chargé pendant'
             embedding_keep_alive_help: 'Même format que ci-dessus. Ce modèle est petit et sollicité en permanence, donc -1 — chargé pour de bon — coûte généralement peu et évite une attente à chaque recherche ; à régler si l’hôte a la mémoire nécessaire. Laissez vide pour utiliser le réglage de l’hôte.'
             embedding_base_url: 'Hôte de recherche'
@@ -567,8 +569,13 @@ admin:
             not_asked: 'non demandé'
             rules: 'Les règles ont dit'
     integrations:
+        base_url_exempt: 'exempte seulement les flux de cet hôte du contrôle des réseaux privés'
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
+        calendar:
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
+            heading: 'Calendriers'
+            intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
         configure: 'Configurer'
         connected_users: '%count% connecté(s)'
@@ -577,6 +584,7 @@ admin:
         inherit_toggle_help: 'Un même projet Google couvre aussi Drive et Photos ; une même application Microsoft couvre aussi OneDrive. Laissez ceci activé et il n’y a rien de plus à configurer pour eux.'
         field:
             base_url: 'Adresse du serveur'
+            base_url_help_ics: 'Laissez vide. Chaque flux a sa propre adresse, donc rien ici ne change les flux auxquels on s’abonne. Une adresse enregistrée ici exempte seulement les flux de son hôte du contrôle des réseaux privés.'
             base_url_help_saas: 'Laissez vide. Ce service a une adresse fixe.'
             base_url_help_selfhosted: 'Facultatif. Renseignez-la pour imposer un même serveur à tous ; laissez vide pour que chacun saisisse le sien.'
             client_id: 'ID client'
@@ -608,6 +616,24 @@ admin:
                 utilisateurs obtiennent alors leurs agendas avec la connexion qu’ils
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
+            consent_heading: 'Si votre organisation approuve les applications pour ses utilisateurs'
+            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
+            contacts_google: >-
+                Activez l’API Google People pour ce projet et ajoutez le scope
+                .../auth/contacts à l’écran de consentement : les utilisateurs
+                obtiennent alors leurs contacts avec la même connexion. Les
+                comptes connectés avant sont invités une fois, dans leurs
+                réglages, à se reconnecter. Sans cela, le courrier et les
+                agendas continuent de fonctionner et les contacts n’apparaissent
+                simplement pas.
+            contacts_heading: 'La synchronisation des contacts utilise cette même application'
+            contacts_microsoft: >-
+                Ajoutez l’autorisation déléguée Contacts.ReadWrite à cet
+                enregistrement d’application : les utilisateurs obtiennent alors
+                leurs contacts Outlook avec la même connexion. Les comptes
+                connectés avant sont invités une fois, dans leurs réglages, à se
+                reconnecter. Sans cela, le courrier et les agendas continuent de
+                fonctionner et les contacts n’apparaissent simplement pas.
             env_note: 'Si ces champs restent vides, GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* de l’environnement sont utilisés : une installation déjà configurée ainsi continue de fonctionner.'
             from_env: 'Depuis l’environnement'
             google: 'Connexion Gmail'
@@ -622,6 +648,7 @@ admin:
         secret_stored: 'Enregistré'
         secret_unchanged: 'Laissez vide pour conserver le secret enregistré'
         status:
+            always_offered: 'Proposé à tous'
             disabled: 'Désactivé'
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
@@ -633,7 +660,6 @@ admin:
                 security: 'Les utilisateurs devraient créer un mot de passe d’application plutôt qu’utiliser leur mot de passe de connexion : les mots de passe d’application sont révocables un par un et fonctionnent avec l’authentification à deux facteurs. iCloud et Fastmail n’acceptent rien d’autre.'
                 step_app_password: 'Chaque utilisateur crée un mot de passe d’application sur son propre serveur — Nextcloud sous Paramètres → Sécurité, iCloud sur appleid.apple.com, Fastmail sous Settings → Password & Security — et le colle dans ses propres réglages d’agenda.'
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://cloud.example.com, si tout le monde ici utilise le même serveur.'
-                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_url: 'L’adresse à saisir est l’adresse CalDAV, pas celle de l’interface web : Nextcloud l’affiche sous Agenda → Paramètres → « Copier l’adresse CalDAV principale », et elle se termine généralement par /remote.php/dav. Un simple domaine fonctionne aussi — plMail lui demande où se trouvent ses agendas.'
             dropbox:
                 intro: 'Dropbox nécessite une application enregistrée dans la console développeur Dropbox.'
@@ -657,6 +683,9 @@ admin:
                 intro: 'Google Photos utilise OAuth et sa propre API, distincte de Drive.'
                 scope_warning: 'Google a restreint les portées de lecture de Photos en mars 2025. Une application nouvellement enregistrée n’obtient généralement que appcreateddata, qui ne voit que les médias envoyés par plMail lui-même — parcourir une bibliothèque existante nécessite la portée photoslibrary.readonly, que Google accorde au cas par cas. Enregistrer des pièces jointes dans Photos fonctionne dans tous les cas ; la navigation peut afficher une bibliothèque vide tant que cette portée n’est pas approuvée.'
                 step_api: 'Activez l’API Photos Library pour le projet.'
+            ics:
+                intro: 'Un flux de calendrier ne demande aucune configuration ici. Chaque utilisateur colle l’adresse où un calendrier est publié, qui se termine généralement par .ics, dans Réglages → Calendriers → « S’abonner à une adresse ».'
+                security: 'Pour un calendrier publié, l’adresse vaut mot de passe : quiconque la connaît peut lire le calendrier.'
             immich:
                 intro: 'Immich s’authentifie avec une clé d’API propre à chaque utilisateur : il n’y a rien à enregistrer ici.'
                 no_share_links: 'Immich ne peut pas créer de lien public pour une seule photo — le partage se fait par album. Les photos au-dessus de la taille limite des pièces jointes ne peuvent donc pas du tout être jointes.'
@@ -1186,6 +1215,9 @@ alias:
     catch_all_unsupported: 'Gmail et Outlook n’envoient qu’au nom d’adresses que le fournisseur connaît : un domaine fourre-tout ne peut donc pas être utilisé sur ce compte.'
     deleted: 'Adresse supprimée.'
     duplicate: 'Cette adresse est déjà sur ce compte.'
+    gmailify_off: 'Gmailify est désactivé. Ce compte Gmail ne garde que le courrier qui lui est adressé, et les copies des autres comptes ne suivent plus Gmail.'
+    gmailify_on: 'Gmailify est activé. Le courrier que ce compte Gmail relève pour vos autres comptes est classé sous ceux-ci.'
+    gmailify_unsupported: 'Gmailify est un réglage des comptes Gmail.'
     invalid: "Cela ne ressemble pas à une adresse e-mail valide."
     name_cleared: 'Nom d’expéditeur supprimé. Cette adresse envoie de nouveau sous le nom du compte.'
     name_set: 'Nom d’expéditeur enregistré.'
@@ -1198,6 +1230,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Télécharger %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1218,6 +1251,7 @@ attachment:
         download: Télécharger
         failed: Ce PDF n’a pas pu être ouvert. Vous pouvez toujours le télécharger.
         loading: Ouverture…
+        media_failed: Ce fichier ne peut pas être affiché ici. Vous pouvez toujours le télécharger.
         untitled: Pièce jointe
         zoom_in: Zoom avant
         zoom_out: Zoom arrière
@@ -1332,6 +1366,7 @@ calendar:
         on_calendars: 'Dans %calendars%'
     delete_confirm: 'Supprimer « %name% » et tous ses événements ? Cette action est irréversible.'
     empty: Rien à venir
+    empty_day: Rien ce jour-là
     details:
         description: Description
         edit: Modifier
@@ -1691,6 +1726,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%start%–%end% %month%'
     upcoming:
         imminent: Commence dans l’heure
         later: Plus tard aujourd’hui
@@ -2486,10 +2523,7 @@ oauth:
     error:
         generic: Impossible de connecter ce compte. Veuillez réessayer.
         microsoft:
-            admin_consent_required: >-
-                Votre organisation exige qu’un administrateur approuve plMail avant
-                que vous puissiez connecter ce compte. Demandez à votre administrateur
-                Microsoft d’accorder l’accès.
+            admin_consent_required: 'Votre organisation exige qu''un administrateur approuve plMail avant que vous puissiez connecter ce compte. Si cela fonctionnait auparavant, plMail demande désormais aussi l''accès à vos contacts, ce qui nécessite également son approbation. Demandez à votre administrateur Microsoft d''accorder l''accès.'
             app_not_found: >-
                 plMail n’est pas enregistré dans votre organisation Microsoft.
             bad_credentials: >-
@@ -2785,6 +2819,8 @@ settings:
             admin_off: 'Non activé sur cette installation'
             categorise: 'Trier le courrier dans les onglets'
             categorise_hint: 'Laisse le modèle départager quand les règles ordinaires ne savent pas où placer un message. Désactivé, ces messages restent là où les règles les ont mis.'
+            contact_help: 'Aide aux contacts'
+            contact_help_hint: 'Remplit un contact à partir d’une signature ou d’une carte collée, et propose des mises à jour d’après la signature de son dernier e-mail, quand vous le demandez.'
             search: 'Recherche par le sens'
             search_hint: 'Trouve le courrier qui veut dire ce que vous cherchez, pas seulement celui qui l’écrit de la même façon. Désactivé, votre courrier cesse d’être indexé autant que d’être recherché.'
             summary: 'Résumés de conversation'
@@ -2807,6 +2843,7 @@ settings:
             system_prompt_placeholder: 'Phrases courtes. Pas de points d’exclamation. Signer uniquement de mon prénom.'
         reads:
             categorise: 'Tri : l’expéditeur, l’objet et le début du message.'
+            contact_help: 'Contacts : le texte que vous collez, ou un contact et la signature de son dernier e-mail, quand vous le demandez.'
             heading: 'Ce que reçoit l’assistant'
             search: 'Indexation : l’objet, l’expéditeur et le début de chaque message.'
             summary: 'Les messages d’une conversation dont vous demandez le résumé'
@@ -2919,6 +2956,11 @@ settings:
         disable: 'Désactiver'
         empty: 'Aucune adresse pour l’instant.'
         enable: 'Activer'
+        gmailify:
+            hint: 'Pour un compte Gmail qui relève le courrier d’une autre adresse connectée ici. Activé, ce courrier est classé sous l’autre compte, et sa copie y suit ce que vous faites dans Gmail. Désactivé, ce compte ne garde que le courrier qui lui est adressé, et les copies de l’autre compte ne suivent plus Gmail. À désactiver de préférence quand Gmail ne relève plus ce courrier : tant qu’il le fait, un courrier envoyé en Cci à l’autre adresse ne nomme personne et se retrouve donc ici comme là-bas.'
+            label: 'Classer le courrier de mes autres comptes sous ceux-ci (Gmailify)'
+            'off': 'Désactivé'
+            'on': 'Activé'
         heading: 'Adresses e-mail'
         make_primary: 'Définir comme principale'
         ms_sender_hint: 'Outlook envoie avec l’alias principal de votre compte quelle que soit l’adresse choisie ici — changez-le dans vos'
@@ -3439,6 +3481,14 @@ settings:
                     une application non vérifiée fonctionne toujours, elle affiche
                     simplement un écran d’avertissement la première fois.
                 title: '%account% demande que vous vous reconnectiez — et le redemandera dans une semaine'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail peut désormais synchroniser les contacts de ce
+                    compte, mais %account% a été connecté avant qu’il ne les
+                    demande. Le courrier et les agendas ne sont pas concernés.
+                    Reconnectez-vous une fois et autorisez les contacts : son
+                    carnet d’adresses apparaîtra dans Contacts.
+                title: 'Reconnectez %account% pour synchroniser ses contacts'
             account_scope_missing:
                 body: >-
                     Certaines des autorisations demandées par plMail à la connexion de ce
@@ -3570,6 +3620,12 @@ settings:
                 promise: >-
                     Réessaie une fois les tâches abandonnées. Sans risque — celles qui
                     échouent encore reviennent simplement ici.
+            grant_contacts:
+                label: 'Autoriser les contacts'
+                promise: >-
+                    Vous ramène chez le fournisseur pour vous connecter en tant
+                    que %account% et autoriser les contacts. Rien ne change pour
+                    votre courrier, et aucun message n’est retéléchargé.
             grant_calendar:
                 label: 'Accorder un accès complet'
                 promise: >-
@@ -3661,6 +3717,7 @@ settings:
         disabled: 'Connexion en pause'
         disconnect: Déconnecter
         disconnect_confirm: 'Déconnecter %name% ? Les fichiers déjà joints à des mails ne sont pas concernés.'
+        disconnect_confirm_mirrored: 'Déconnecter %name% ? %calendars% agenda(s) et %books% carnet(s) d’adresses reflétés depuis ce service sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
         disconnected: 'Service déconnecté'
         edit: Modifier
         empty: 'Aucun service connecté pour l’instant.'
@@ -3716,6 +3773,82 @@ settings:
         option_none: Les trois
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
+    contacts_behaviour:
+        button: 'Bouton Contacts'
+        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
+        heading: 'Comportement'
+        option_contacts: 'À côté du courrier seulement'
+        option_none: 'Les trois'
+        option_split: 'Pleine largeur seulement'
+        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
+    contacts:
+        allow_contacts: 'Autoriser les contacts'
+        allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
+        allow_contacts_microsoft: 'Si votre organisation approuve les applications pour ses utilisateurs, demandez d''abord à votre administrateur d''approuver l''autorisation de plMail sur les contacts. D''ici là, Microsoft refuse cette connexion.'
+        carddav:
+            connect: Connecter un serveur CardDAV
+            disconnect: Déconnecter « %name% »
+            disconnect_confirm: >-
+                Déconnecter « %name% » ? Chaque carnet d’adresses reflété depuis ce
+                serveur est supprimé ici, avec toute modification pas encore envoyée au
+                serveur. Les contacts sur le serveur ne sont pas touchés.
+            field:
+                address: Adresse du serveur
+                address_help: >-
+                    L’adresse CardDAV que votre serveur vous indique, ou simplement son
+                    domaine — plMail demande au domaine où se trouvent ses carnets
+                    d’adresses avant d’abandonner.
+                name: Nom
+                name_help: Comment appeler cette connexion dans vos réglages.
+                reuse: Utiliser le mot de passe d’un de mes comptes mail
+                reuse_account: Le mot de passe de quel compte
+                reuse_account_none: Choisissez un compte…
+                reuse_help: >-
+                    Désactivé par défaut, et mieux vaut le laisser ainsi : la plupart
+                    des serveurs veulent un mot de passe d’application, et cocher ceci
+                    envoie un mot de passe que vous avez donné à plMail pour votre boîte
+                    à l’adresse ci-dessus.
+                secret: Mot de passe d’application
+                secret_help: >-
+                    Créez-en un sur votre serveur plutôt que d’utiliser votre mot de
+                    passe de connexion — iCloud et Fastmail n’acceptent rien d’autre.
+                username: Nom d’utilisateur
+                username_help: Le nom de compte sous lequel votre serveur vous connaît.
+            intro: >-
+                N’importe quel serveur CardDAV : Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. En général la même adresse et le même mot de passe d’application
+                que vos agendas.
+            submit: Connecter et trouver les carnets d’adresses
+            title: Connecter un serveur CardDAV
+        empty: Aucun serveur de contacts connecté pour l’instant.
+        find: Choisir les carnets d’adresses
+        heading: Contacts
+        intro: >-
+            Les carnets d’adresses reflétés depuis un serveur CardDAV. Leurs contacts
+            sont suggérés quand vous écrivez, et les modifications faites ici sont
+            renvoyées au serveur.
+        never_synced: Pas encore synchronisé
+        no_books: Aucun carnet d’adresses choisi sur ce serveur pour l’instant.
+        open: Ouvrir les contacts
+        read_only: Lecture seule
+        subheading: D’où viennent vos carnets d’adresses.
+        subscribe:
+            empty: '« %name% » ne propose aucun carnet d’adresses.'
+            intro: Choisissez les carnets d’adresses de « %name% » à refléter dans plMail.
+            mirrored: Reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
+            save: Enregistrer
+            title: Choisir les carnets d’adresses
+            unsubscribe_note: >-
+                Décocher un carnet d’adresses supprime sa copie ici, y compris toute
+                modification pas encore envoyée. Le serveur garde la sienne.
+        sync_now: Synchroniser « %name% » maintenant
+        synced: Synchronisé %date%
+        toast:
+            disconnected: Serveur de contacts déconnecté
+            saved: Carnets d’adresses enregistrés
+            sync_queued: Synchronisation programmée
+            unchanged: Rien n’a changé
     calendars:
         account_hint: Là où sont classés les événements trouvés dans le courrier de %address%.
         caldav:
@@ -3779,6 +3912,8 @@ settings:
                 reste.
             find: Trouver les agendas de %name%
             heading: D’où viennent les agendas
+            managed: 'Configuré dans Intégrations'
+            managed_hint: '%name% contient aussi vos fichiers. Déconnectez-le dans Réglages → Intégrations.'
             why_admin: >-
                 Votre administrateur n’a peut-être pas ajouté les autorisations
                 d’agenda à l’inscription d’application avec laquelle plMail se
@@ -3801,6 +3936,7 @@ settings:
                 Cochez les agendas de %name% à synchroniser avec plMail. Les
                 événements apparaissent dans la minute qui suit.
             mirrored: Déjà reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
             primary: Principal
             save: Enregistrer les abonnements
             title: Trouver mes agendas
@@ -3850,6 +3986,23 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    swipe_actions:
+        heading: Balayage des lignes
+        hint: >-
+            Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
+            Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
+            propose Annuler. La corbeille n’est pas proposée : un balayage qui
+            supprimerait du courrier n’aurait rien pour l’annuler.
+        left:
+            label: Balayer vers la gauche
+        option:
+            archive: Archiver
+            none: Aucune action
+            read_unread: Lu / non lu
+            star: Étoile
+        right:
+            label: Balayer vers la droite
+        subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -3866,6 +4019,7 @@ settings:
         calendar_behaviour: Comportement
         calendars: Agendas
         categories: "Catégories"
+        contacts: Contacts
         disposal: Suppression
         filters: Filtres
         general: Général
@@ -3888,6 +4042,7 @@ settings:
         sharing: Partage
         shortcuts: Raccourcis clavier
         signature: Signatures
+        swipe_actions: Balayage des lignes
         templates: 'Modèles'
     notifications:
         devices:
@@ -3916,6 +4071,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Non vérifié'
             verified: 'Vérifié'
+        error_server: 'Le serveur a refusé cet appareil (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
+        error_subscribe: 'Le service push du navigateur n’a attribué aucune adresse à cet appareil (%error%). Dans Brave, activez d’abord « Utiliser les services Google pour les messages push ».'
+        error_worker: 'Le service d’arrière-plan de plMail n’a pas démarré (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
         heading: Notifications
         ios_hint: >-
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
@@ -4354,6 +4512,9 @@ thread_row:
         unavailable: 'Non envoyé : votre fournisseur était injoignable'
     scheduled: 'Programmé %when%'
     select: Sélectionner
+    sheet:
+        label: Actions pour cette conversation
+        select: Sélectionner
     star: Suivre ce message
     to: 'À : %recipients%'
     unread: Non lu
@@ -4414,6 +4575,7 @@ toolbar:
         mark_unread: Marquer comme non lu
         more: Plus
         move_to: Déplacer vers
+        not_spam: 'Pas un spam'
         purge: Supprimer définitivement
         snooze: Mettre en attente
         spam: 'Marquer comme spam'
@@ -4553,3 +4715,307 @@ whats_new:
     screenshot_close: 'Fermer la capture'
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'
+contacts:
+    add_address: 'Ajouter une adresse'
+    add_custom: 'Ajouter un champ'
+    add_date: 'Ajouter une date'
+    add_email: 'Ajouter un e-mail'
+    add_im: 'Ajouter une adresse de messagerie'
+    add_phone: 'Ajouter un téléphone'
+    add_relation: 'Ajouter une personne'
+    add_to_address_book: 'Ajouter aux contacts'
+    add_url: 'Ajouter un site web'
+    back: Retour
+    book_all: 'Tous les carnets'
+    book_local: 'Non synchronisés'
+    cancel: Annuler
+    check_carefully: 'Vérifier attentivement'
+    city: Ville
+    company: Société
+    confidence: '%pct%% de correspondance'
+    count: '{0}Aucun contact|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Pays
+    created: 'Contact créé.'
+    custom_label_placeholder: 'Nom du champ'
+    custom_value_placeholder: 'Valeur'
+    date_full: '%day% %month% %year%'
+    date_no_year: '%day% %month%'
+    day: 'Jour'
+    delete: Supprimer
+    delete_confirm: 'Supprimer %name% ? Le contact ira dans la corbeille et sera définitivement effacé après 90 jours.'
+    deleted_contact: '(contact supprimé)'
+    display_name: 'Nom complet'
+    duplicates: Doublons
+    duplicates_count: '{1}1 paire suspecte|]1,Inf[ %count% paires suspectes'
+    duplicates_none: 'Aucun doublon trouvé. Les nouveaux imports sont vérifiés automatiquement.'
+    edit: 'Modifier le contact'
+    email_placeholder: nom@exemple.com
+    empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
+    empty_search: 'Aucun contact ne correspond à cette recherche.'
+    export_vcf: 'Exporter en vCard'
+    field:
+        birthday: 'Anniversaire'
+        company: 'Entreprise'
+        department: 'Service'
+        familyName: 'Nom'
+        givenName: 'Prénom'
+        jobTitle: 'Poste'
+        middleName: 'Deuxième prénom'
+        namePrefix: 'Civilité'
+        nameSuffix: 'Suffixe'
+        nickname: 'Surnom'
+        officeLocation: 'Bureau'
+        phoneticCompany: 'Entreprise (phonétique)'
+        phoneticFamilyName: 'Nom (phonétique)'
+        phoneticGivenName: 'Prénom (phonétique)'
+        phoneticMiddleName: 'Deuxième prénom (phonétique)'
+    im_placeholder: 'Identifiant ou adresse'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Autre'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
+    import: Importer
+    import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
+    import_choose: 'Choisir un fichier'
+    import_confirm: 'Importer %count% contacts'
+    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
+    import_formats: '.vcf, .vcard ou .csv'
+    import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
+    import_no_file: 'Aucun fichier téléversé.'
+    import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_step1: 'Étape 1 — choisir un fichier'
+    import_step2: 'Étape 2 — aperçu'
+    import_upload: 'Importer & aperçu'
+    import_uploading: 'Envoi en cours…'
+    imported: '%count% contacts importés.'
+    in_address_book: 'Dans vos contacts'
+    keep_this: 'Garder celui-ci'
+    label: Étiquette
+    label_home: Domicile
+    label_mobile: Mobile
+    label_other: Autre
+    label_work: Travail
+    labels:
+        anniversary: 'Anniversaire de mariage'
+        assistant: 'Assistant(e)'
+        blog: 'Blog'
+        brother: 'Frère'
+        child: 'Enfant'
+        father: 'Père'
+        friend: 'Ami(e)'
+        home: 'Domicile'
+        manager: 'Responsable'
+        mobile: 'Mobile'
+        mother: 'Mère'
+        other: 'Autre'
+        parent: 'Parent'
+        partner: 'Partenaire'
+        profile: 'Profil'
+        relative: 'Proche'
+        sibling: 'Frère ou sœur'
+        sister: 'Sœur'
+        spouse: 'Conjoint(e)'
+        work: 'Travail'
+    merge: Fusionner
+    merge_pick_keep: 'Choisissez d’abord le contact à garder.'
+    merge_read_only: 'Un contact d’un carnet en lecture seule ne peut pas être fusionné.'
+    merge_undo: Annuler
+    merge_undo_expired: 'Le délai d’annulation de 90 jours pour cette fusion est dépassé.'
+    merge_undone: 'Fusion annulée.'
+    merged: 'Contacts fusionnés. Annulation possible dans la liste ci-dessous.'
+    merged_into: '%count% fusionné(s) dans %name%'
+    month: 'Mois'
+    months:
+        1: 'janvier'
+        2: 'février'
+        3: 'mars'
+        4: 'avril'
+        5: 'mai'
+        6: 'juin'
+        7: 'juillet'
+        8: 'août'
+        9: 'septembre'
+        10: 'octobre'
+        11: 'novembre'
+        12: 'décembre'
+    nav: Contacts
+    new: 'Nouveau contact'
+    next: Suivant
+    no_details: 'Aucune coordonnée pour le moment.'
+    no_subject: '(sans objet)'
+    notes: Notes
+    page: 'Page %page%'
+    pane:
+        close: 'Fermer les contacts'
+        mode:
+            contacts: 'Afficher les contacts en pleine largeur'
+            mail: 'Masquer les contacts'
+            split: 'Afficher les contacts à côté du courrier'
+        resize: 'Redimensionner les contacts'
+    pending: 'En attente d’envoi au serveur'
+    phone_placeholder: '+33 6 12 34 56 78'
+    phonetic: 'Orthographe phonétique'
+    photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
+    photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
+    photo_remove: 'Supprimer la photo'
+    photo_removed: 'Photo supprimée.'
+    photo_upload: 'Changer la photo'
+    photo_uploaded: 'Photo mise à jour.'
+    postcode: 'Code postal'
+    prev: Précédent
+    primary: Principal
+    primary_short: Principal
+    recent_merges: 'Fusions récentes'
+    reference_emails: 'E-mails de référence'
+    reference_emails_empty: 'Aucun e-mail avec ce contact pour le moment.'
+    reference_emails_hint: 'Tous les e-mails échangés avec ce contact et non supprimés — boîte de réception, envoyés, brouillons, corbeille et étiquettes.'
+    region: Région
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partenaire
+    rel_related: Lié
+    related: 'Contacts liés'
+    relation_placeholder: 'Nom'
+    remove: Retirer
+    save: Enregistrer
+    save_to: 'Enregistrer dans'
+    save_to_book_hint: 'Va dans %book% sur %server%, puis sur chaque appareil qui le synchronise.'
+    save_to_hint: 'Un contact dans un carnet synchronisé est envoyé à son serveur, puis sur chaque appareil qui le synchronise.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Conservé uniquement dans plMail.'
+    search: 'Rechercher des contacts'
+    search_placeholder: 'Rechercher nom, société ou e-mail…'
+    section_addresses: Adresses
+    section_custom: 'Champs personnalisés'
+    section_dates: 'Dates'
+    section_details: Coordonnées
+    section_emails: E-mails
+    section_ims: 'Messagerie'
+    section_name: Nom
+    section_notes: Notes
+    section_phones: Téléphones
+    section_relations: 'Personnes'
+    section_urls: 'Sites web'
+    section_work: 'Travail'
+    street: Rue
+    synced_read_only: 'En lecture seule, depuis %book% sur %server%'
+    synced_with: 'Synchronisé avec %book% sur %server%'
+    tag_all: Tous
+    tags: Étiquettes
+    tags_placeholder: 'Séparées par des virgules, p. ex. famille, fournisseurs'
+    title: Contacts
+    trashed: 'Contact déplacé dans la corbeille.'
+    updated: 'Contact enregistré.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Donnez un nom au contact.'
+    year_optional: 'Année (facultatif)'
+    editor:
+        add: 'Ajouter'
+        add_email: 'Ajouter une adresse e-mail'
+        add_phone: 'Ajouter un numéro'
+        address: 'Adresse'
+        adds: 'Nouveau'
+        ai_failed: 'L’IA n’a pas répondu. Réessayez dans un instant.'
+        ai_nothing: 'L’IA n’a rien à suggérer.'
+        ai_running: 'Interrogation de l’IA… Elle reçoit ce contact et la signature de son dernier e-mail.'
+        ai_sent: 'Ce contact et la signature de son e-mail du %date% ont été envoyés au service d’IA configuré par votre administrateur. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_sent_no_mail: 'Ce contact a été envoyé au service d’IA configuré par votre administrateur. Aucun e-mail de sa part ne contient de signature. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_title: 'Suggestions de l’IA'
+        applied: 'Ajouté au formulaire et surligné : %count%. Rien n’est enregistré avant de cliquer sur Enregistrer.'
+        apply_many: 'Appliquer %count% informations'
+        apply_none: 'Rien à appliquer'
+        apply_one: 'Appliquer 1 information'
+        auto_label: 'Type deviné d’après la saisie. Choisissez-en un pour le fixer.'
+        close_panel: 'Fermer'
+        dates: 'Dates'
+        dirty_many: '%count% modifications non enregistrées'
+        dirty_one: '1 modification non enregistrée'
+        discard: 'Annuler les modifications'
+        edit_parts: 'Modifier les parties'
+        email: 'E-mail'
+        email_invalid: 'Cela ne ressemble pas encore à une adresse e-mail.'
+        fills: 'Remplit un champ vide'
+        fix_emails: 'Corrigez l’adresse e-mail en rouge pour enregistrer.'
+        hide_parts: 'Masquer les parties'
+        improve: 'Améliorer avec l’IA'
+        more_work: 'Service, bureau, nom phonétique'
+        name_placeholder: 'Prénom et nom'
+        new_hint: 'Un nouveau contact. Enregistrez quand il est complet.'
+        note: 'Note'
+        nothing_found: 'Rien dans ce texte ne ressemble encore à une information de contact.'
+        parts_stale: 'Le nom et ses parties ne correspondent plus.'
+        paste: 'Coller des informations'
+        paste_placeholder: 'Collez une signature, une adresse ou une vCard. Rien ne change tant que vous ne l’appliquez pas.'
+        paste_title: 'Coller une signature, une vCard ou une adresse'
+        person: 'Personne'
+        phone: 'Téléphone'
+        preferred: 'Préféré'
+        reading: 'Lecture…'
+        relabels: 'Change le type de %from% en %to%'
+        remove_what: 'Retirer : %what%'
+        replaces: 'Remplace « %value% »'
+        same: 'Déjà présent'
+        split_again: 'Redécouper le nom'
+        summary_conflict: '%count% différent(s) de l’existant'
+        summary_new: '%count% nouveau(x)'
+        summary_same: '%count% déjà présent(s)'
+        website: 'Site web'
+    from_mail:
+        add_to: 'Ajouter à %name%'
+        existing: 'Ajouter à un contact existant'
+        more_details: 'Plus de détails'
+        name: 'Nom'
+        new: 'Nouveau contact'
+        no_matches: 'Aucun contact ne correspond.'
+        save: 'Enregistrer'
+        search: 'Chercher dans vos contacts'
+        title: 'Ajouter aux contacts'
+    quick:
+        ai_ask: 'Certains éléments n’étaient pas clairs. L’IA sait généralement trier ce genre de signature.'
+        ai_ask_complete: 'Cela semble complet. Vous pouvez quand même demander à l’IA de vérifier.'
+        ai_disclosure: 'N’envoie que ce texte au service d’IA configuré par votre administrateur. Rien n’est enregistré avant la création du contact.'
+        ai_running: 'Interrogation de l’IA…'
+        ai_undo: 'Annuler les changements de l’IA'
+        ai_undo_ask: 'Pas ce que vous vouliez ? Revenez à ce que les règles ont trouvé.'
+        all_fields: 'Tous les champs'
+        box_hint: 'Lu pendant la saisie. Chaque ligne ci-dessous peut être décochée, retapée ou changée de type.'
+        box_label: 'Saisissez ou collez n’importe quoi à son sujet'
+        box_placeholder: 'Un nom, une signature d’e-mail, une ligne comme  Mia Hoffmann <mia@example.net>, ou une vCard'
+        change_type: 'Changer ce que c’est'
+        create: 'Créer le contact'
+        detail_ai: 'Les modifications sont marquées. Décochez ou corrigez avant de créer le contact.'
+        detail_ai_same: 'L’IA n’a rien trouvé à changer.'
+        detail_rules: 'Chaque ligne a été placée.'
+        detail_unsure: 'Pas encore placé : %count%'
+        detail_vcard: 'Les %count% champs lus directement. Rien n’a été deviné.'
+        done_parts: 'Terminé'
+        existing: '%name% a déjà %email%.'
+        fix_parts: 'Corriger'
+        ignore: 'Laisser de côté'
+        keep: 'Garder'
+        no_name: 'Il faut un nom'
+        open_existing: 'Ouvrir ce contact'
+        skipped: 'Laissé de côté comme formule de politesse : %lines%'
+        source_ai: 'Amélioré par l’IA'
+        source_rules: 'Lu par règles'
+        source_vcard: 'vCard'
+        summary_many: '%name% avec %count% informations'
+        summary_name: '%name%, nom seulement'
+        summary_none: 'Saisissez ou collez quelque chose à son sujet pour commencer.'
+        summary_one: '%name% avec 1 information'
+        unsure_many: 'Où vont ces lignes ?'
+        unsure_one: 'Où va cette ligne ?'
+        use_as: 'Utiliser comme…'
+        you_placed: 'Placée par vous'

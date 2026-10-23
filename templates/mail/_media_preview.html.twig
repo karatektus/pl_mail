@@ -1,0 +1,74 @@
+{#
+mail/_media_preview.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Looking at a picture or watching a video attachment without downloading it
+(#295). The PDF reader's sibling; see _attachment_preview for that one.
+
+Rendered into the app's modal frame, and like the reader it does not carry the
+bytes: an image loads from `app_mail_attachment`, which already serves the
+raster types MediaAttachment offers inline, and a video from
+`app_mail_attachment_video`, which exists for that. Both stay same-origin, which
+is what the page's CSP (`img-src 'self'`, and `default-src 'self'` for media)
+allows without a word changed.
+
+The panel has a ceiling (max-h-[92vh]) and no height of its own, so a
+percentage height inside it resolves to nothing. The media carries its own
+ceiling instead: the viewport less the dialog's title bar and this toolbar.
+
+A part can still fail to decode — an octet-stream whose name promised a
+picture, a .mov in a codec this browser lacks. mail--media-preview swaps the
+element for a line saying so; the download link in the toolbar is the way out
+either way.
+#}
+<turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
+    <div class="flex-1 min-h-0 flex flex-col" data-controller="mail--media-preview">
+
+        {# ── Toolbar ─────────────────────────────────────────────────────── #}
+        <div class="shrink-0 flex items-center gap-3 border-b border-line px-4 py-2">
+            <i class="fa-solid {{ 'video' == kind ? 'fa-file-video' : 'fa-file-image' }} text-ink-muted shrink-0" aria-hidden="true"></i>
+
+            <span class="truncate text-sm font-medium text-ink" title="{{ part.filename }}">
+                {{ part.filename ?: 'attachment.preview.untitled'|trans }}
+            </span>
+
+            <div class="ml-auto flex items-center gap-1 shrink-0">
+                {# Both the query parameter and the attribute — see
+                   _attachment_preview's download link for why it takes two. #}
+                <a href="{{ path('app_mail_attachment', { id: part.id, download: 1 }) }}"
+                   download="{{ part.filename ?: 'attachment' }}"
+                   data-turbo="false"
+                   aria-label="{{ 'attachment.preview.download'|trans }}"
+                   class="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted
+                          hover:bg-hover hover:text-ink transition-colors">
+                    <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+
+        {# ── The picture or the video ────────────────────────────────────── #}
+        <div class="flex-1 min-h-0 overflow-auto bg-sunken/40 p-4 flex items-center justify-center">
+            {% if 'video' == kind %}
+                {# preload=metadata: the first frame and the length, not the
+                   file. The rest arrives in ranges as it plays. #}
+                <video src="{{ path('app_mail_attachment_video', { id: part.id }) }}"
+                       controls
+                       preload="metadata"
+                       data-mail--media-preview-target="media"
+                       data-action="error->mail--media-preview#failed"
+                       class="block max-w-full max-h-[calc(92vh-7rem)] rounded bg-black"></video>
+            {% else %}
+                <img src="{{ path('app_mail_attachment', { id: part.id }) }}"
+                     alt="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
+                     decoding="async"
+                     data-mail--media-preview-target="media"
+                     data-action="error->mail--media-preview#failed"
+                     class="block max-w-full max-h-[calc(92vh-7rem)] object-contain rounded">
+            {% endif %}
+
+            <p data-mail--media-preview-target="status" hidden
+               class="py-12 text-sm text-ink-faint" aria-live="polite">
+                {{ 'attachment.preview.media_failed'|trans }}
+            </p>
+        </div>
+    </div>
+</turbo-frame>

@@ -238,6 +238,51 @@ final class GmailApiSyncerHistoryTest extends TestCase
     }
 
     /**
+     * Gmail destroying its own copy says nothing about the copy on a Gmailify
+     * sibling's IMAP server, which the merged row is. Erased, the mail was
+     * gone from plMail for good: IMAP sync never fetches a UID below the
+     * highest it has (#203). The row loses its Gmail identity and stays.
+     */
+    public function testASiblingsImapCopyIsDetachedNotErased(): void
+    {
+        $carrier = $this->account();
+        $sibling = new Account();
+
+        $imapCopy                      = new Message();
+        $imapCopy->account             = $sibling;
+        $imapCopy->mailbox             = new \App\Entity\Mail\Mailbox();
+        $imapCopy->gmailId             = 'gone-1';
+        $imapCopy->gmailCarrierAccount = $carrier;
+        $imapCopy->gmailLabelIds       = ['INBOX'];
+
+        // Built from the Gmail copy, with no IMAP folder: Gmail is its only
+        // source, and it goes with Gmail's copy as before.
+        $gmailOnly                      = new Message();
+        $gmailOnly->account             = $sibling;
+        $gmailOnly->gmailId             = 'gone-2';
+        $gmailOnly->gmailCarrierAccount = $carrier;
+
+        $erased = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history'   => [['messagesDeleted' => [
+                    ['message' => ['id' => 'gone-1']],
+                    ['message' => ['id' => 'gone-2']],
+                ]]],
+                'historyId' => '67890',
+            ]),
+            rows: [$imapCopy, $gmailOnly],
+            erased: $erased,
+        )->syncIncremental($carrier);
+
+        self::assertSame([$gmailOnly], $erased, 'only the row Gmail is the source of is erased');
+        self::assertNull($imapCopy->gmailId);
+        self::assertNull($imapCopy->gmailCarrierAccount);
+        self::assertNull($imapCopy->gmailLabelIds);
+    }
+
+    /**
      * The history feed is per account and plMail files a message against
      * whichever of the owner's accounts it was addressed to, so an id with no
      * row here is ordinary rather than a fault.
@@ -458,7 +503,9 @@ final class GmailApiSyncerHistoryTest extends TestCase
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
         $messageRepository = $this->createStub(MessageRepository::class);
-        $messageRepository->method('findSyncedGmailIdsForUser')->willReturn($synced);
+        $messageRepository->method('findStoredGmailIdsForUser')->willReturnCallback(
+            static fn (User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
+        );
         $messageRepository->method('findByGmailIdsForUser')->willReturn($rows);
 
         $erased     = [];
@@ -497,6 +544,16 @@ final class GmailApiSyncerHistoryTest extends TestCase
             $eraser,
             new \App\Service\Mail\SyncOrigin(),
             $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 

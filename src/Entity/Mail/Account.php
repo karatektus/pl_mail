@@ -503,6 +503,16 @@ class Account extends AccountModel
     public const string SETTING_GRAPH_REMOVALS = 'sync.graph_removals';
 
     /**
+     * Whether this Gmail account files mail addressed to another connected
+     * account under that account (Gmailify). See $gmailifyEnabled.
+     *
+     * The key predates the dotted names: it was read long before anything
+     * wrote it, and a hand-set value in an existing install must keep meaning
+     * what it meant.
+     */
+    public const string SETTING_GMAILIFY = 'gmailSyncGmailifyEnabled';
+
+    /**
      * What this account does when a sender asks for a read receipt, for any
      * address that has no answer of its own.
      *
@@ -1092,6 +1102,30 @@ class Account extends AccountModel
             }
 
             $this->setSetting(self::SETTING_CATCH_ALL_DOMAINS, $domains);
+        }
+    }
+
+    /**
+     * Whether this Gmail account hands mail addressed to another connected
+     * account over to that account. See SETTING_GMAILIFY.
+     *
+     * On unless switched off, which is what every install did before there
+     * was a switch: Gmail collecting another address's mail is the setup this
+     * exists for. Off is for an account that has stopped collecting, typically
+     * after a domain moved from Gmail to an IMAP provider of its own, where
+     * Gmail's old and late copies would otherwise go on being matched to it.
+     * Stored only when off, so the default stays the default.
+     */
+    public bool $gmailifyEnabled {
+        get => false !== $this->getSetting(self::SETTING_GMAILIFY, true);
+        set {
+            if (true === $value) {
+                $this->unsetSetting(self::SETTING_GMAILIFY);
+
+                return;
+            }
+
+            $this->setSetting(self::SETTING_GMAILIFY, false);
         }
     }
 

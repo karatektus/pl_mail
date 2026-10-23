@@ -18,6 +18,8 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraints\Url;
 
 /**
  * Admin setup for one integration provider.
@@ -39,19 +41,52 @@ final class IntegrationProviderConfigType extends AbstractType
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->assertRegistrationIsWhole(...));
 
-        $builder
-            ->add('isEnabled', CheckboxType::class, [
+        // Off for the calendar services in Admin → Integrations, which every
+        // user is offered whatever the config says. Without the field the
+        // stored isEnabled is left as it is.
+        if (true === $options['offer_toggle']) {
+            $builder->add('isEnabled', CheckboxType::class, [
                 'label'    => 'admin.integrations.field.enabled',
                 'required' => false,
                 'help'     => 'admin.integrations.field.enabled_help',
-            ])
+            ]);
+        }
+
+        // A feed has no server to pin: every subscription is its own address,
+        // and a stored one only exempts its host from the private-network
+        // check. Offering an empty field invited exactly that by accident, so
+        // it is shown only to see and clear an address that is already there.
+        $storedAddress = $config instanceof IntegrationProviderConfig
+            && null !== $config->baseUrl
+            && '' !== $config->baseUrl;
+
+        if (Provider::Ics === $provider && false === $storedAddress) {
+            return;
+        }
+
+        $builder
             ->add('baseUrl', UrlType::class, [
                 'label'    => 'admin.integrations.field.base_url',
                 'required' => false,
-                'help'     => $provider->needsBaseUrl()
-                    ? 'admin.integrations.field.base_url_help_selfhosted'
-                    : 'admin.integrations.field.base_url_help_saas',
+                'help'     => match (true) {
+                    // A feed is one address per subscription, so there is no
+                    // server to pin; the field is only honest about what a
+                    // stored address still does.
+                    Provider::Ics === $provider => 'admin.integrations.field.base_url_help_ics',
+                    $provider->needsBaseUrl()   => 'admin.integrations.field.base_url_help_selfhosted',
+                    default                     => 'admin.integrations.field.base_url_help_saas',
+                },
                 'attr' => ['placeholder' => 'https://cloud.example.com'] + PasswordManagerIgnore::ATTR,
+                // http and https only, and no TLD required: `http://nextcloud`
+                // on the compose network is the documented pin. Anything else
+                // would be refused at request time anyway, by
+                // IntegrationUrlValidator::assertAllowed(); saying so here
+                // keeps a host that can never be fetched out of isTrusted().
+                // The length is the column's, which would otherwise be a 500.
+                'constraints' => [
+                    new Url(protocols: ['http', 'https'], requireTld: false),
+                    new Length(max: 512),
+                ],
             ]);
 
         if (AuthKind::OAuth2 !== $provider->authKind()) {
@@ -117,8 +152,12 @@ final class IntegrationProviderConfigType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver
-            ->setDefaults(['data_class' => IntegrationProviderConfig::class])
+            ->setDefaults([
+                'data_class'   => IntegrationProviderConfig::class,
+                'offer_toggle' => true,
+            ])
             ->setRequired('integration_provider')
-            ->setAllowedTypes('integration_provider', Provider::class);
+            ->setAllowedTypes('integration_provider', Provider::class)
+            ->setAllowedTypes('offer_toggle', 'bool');
     }
 }

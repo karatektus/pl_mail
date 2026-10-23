@@ -20,6 +20,14 @@ FROM dunglas/frankenphp:1-php8.4 AS frankenphp_upstream
 # A static Go binary, so an Alpine build runs on this Debian image as it is.
 FROM docker.io/dunglas/mercure:v1 AS mercure_upstream
 
+# PIE, the PHP Installer for Extensions, for the two extensions that are not
+# part of PHP (APCu, and Xdebug in the dev image). install-php-extensions
+# fetches those from PECL, which is deprecated in PIE's favour and was down
+# for most of an evening on 2026-10-21, failing every build. PIE takes them
+# from the extensions' own releases. The binary image is only the PHAR; it is
+# mounted for the one RUN that needs it, so it is not in the final image.
+FROM ghcr.io/php/pie:1.5.2-bin AS pie_upstream
+
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
 # https://docs.docker.com/compose/compose-file/#target
@@ -72,7 +80,6 @@ RUN set -eux; \
 RUN set -eux; \
 	install-php-extensions \
 		@composer \
-		apcu \
 		intl \
 		opcache \
 		zip \
@@ -84,6 +91,15 @@ RUN set -eux; \
         # to the paperclip icon where this is missing.
         gd \
 	;
+
+# APCu backs Symfony's system cache (Doctrine's query cache, the serializer
+# and validator metadata), in front of the PHP-file cache. After the line
+# above, because PIE unpacks the release with the zip extension installed
+# there. The compilers it builds with are in the FrankenPHP image already.
+RUN --mount=type=bind,from=pie_upstream,source=/pie,target=/usr/local/bin/pie \
+	set -eux; \
+	pie install --no-cache apcu/apcu:^5.1; \
+	php -r 'exit(extension_loaded("apcu") ? 0 : 1);'
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
 ENV COMPOSER_ALLOW_SUPERUSER=1
@@ -144,10 +160,10 @@ ENV FRANKENPHP_WORKER_CONFIG=watch
 
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
 
-RUN set -eux; \
-	install-php-extensions \
-		xdebug \
-	;
+RUN --mount=type=bind,from=pie_upstream,source=/pie,target=/usr/local/bin/pie \
+	set -eux; \
+	pie install --no-cache xdebug/xdebug; \
+	php -r 'exit(extension_loaded("xdebug") ? 0 : 1);'
 
 COPY --link frankenphp/conf.d/20-app.dev.ini $PHP_INI_DIR/conf.d/
 

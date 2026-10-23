@@ -131,6 +131,13 @@ final readonly class CalendarSubscriber
         foreach ($this->discoverer->discover($source) as $subscription) {
             $isWanted = true === array_key_exists($subscription->remote->remoteId, $wanted);
 
+            // Already mirrored through another source: a second row would
+            // sync every event twice. The subscribe screen draws this box
+            // locked; this is the server half, as for the default calendar.
+            if (true === $subscription->isMirroredElsewhere()) {
+                continue;
+            }
+
             if (true === $isWanted && false === $subscription->isSubscribed()) {
                 $fresh[] = $this->subscribe($source, $user, $subscription->remote);
                 ++$subscribed;
@@ -192,7 +199,7 @@ final readonly class CalendarSubscriber
         $fresh = [];
 
         foreach ($this->discoverer->discover($source) as $subscription) {
-            if (true === $subscription->isSubscribed()) {
+            if (true === $subscription->isSubscribed() || true === $subscription->isMirroredElsewhere()) {
                 continue;
             }
 

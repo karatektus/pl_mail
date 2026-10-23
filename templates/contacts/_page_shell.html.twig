@@ -1,0 +1,39 @@
+{#
+contacts/_page_shell.html.twig — a contacts page at full size: the mailbox,
+with the mail column put away and the address book's dock given the row.
+
+Chosen by contacts/_layout.html.twig for anything that is not a navigation
+inside the pane. `data-contacts-full` on the shell is the whole difference from
+a mailbox with the pane open (see app.css), so leaving it is one attribute and
+not a visit: contacts--pane#reveal takes it off when a message is opened from
+the contact, and the mail column slides in beside a contact that never left
+the page — same DOM, same scroll position.
+
+The mail side is the thread page's: no list behind it, said to be empty, so a
+list is fetched the first time one is wanted rather than rendered for a column
+nobody sees. Below lg, where the mail cannot sit beside the pane, a message
+opened here is still an ordinary visit (see mail--open-in-pane).
+#}
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% set contactsFull = true %}
+
+{% block message_list %}{% endblock %}
+{% block inbox_tabs %}{% endblock %}
+{% block list_rendered %}0{% endblock %}
+
+{# The page's own content, in the frame the dock would have fetched it into —
+   _pane_layout's, plus `advance`: while the pane has the row, a navigation
+   inside it is a navigation of the page, and the address says so. Taken off
+   with the full state, when the mail's address becomes the page's again. The
+   flashes go to the toast region the full layout already has. #}
+{% block contacts_dock %}
+    {% set contactsPaneBody %}
+        <turbo-frame id="contacts-pane-frame" data-turbo-action="advance" class="flex flex-col min-h-0 flex-1">
+            <div data-contacts-page class="@container relative flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
+                {{ block('contacts_content') }}
+            </div>
+        </turbo-frame>
+    {% endset %}
+    {% include '_partials/_contacts_pane.html.twig' with { contactsPaneBody: contactsPaneBody } %}
+{% endblock %}

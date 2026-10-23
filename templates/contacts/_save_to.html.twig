@@ -1,0 +1,56 @@
+{#
+contacts/_save_to.html.twig — where a new contact goes: plMail only, or one of
+the person's writable synced address books. Quick add and the full editor
+for a new contact both include it.
+
+Up to four books it is a segmented row — every choice visible, one click to
+change, which is what a choice between three or four places should be. Past
+four it is a dropdown: a row of six or seven buttons stops being a choice and
+becomes something to read, and it would not fit the docked pane. Radios or
+a select, it posts `addressBook` (the book's id, or '' for plMail only), the
+field ContactController::create() reads.
+
+The line under it says where the chosen place sends the contact; each choice
+carries its own sentence in `data-hint` and contacts--save-to swaps it in.
+
+Variables: books, book (the chosen id as a string, '' for none), fieldCls.
+#}
+{% set chosen = null %}
+{% for b in books %}{% if book == (b.id ~ '') %}{% set chosen = b %}{% endif %}{% endfor %}
+{% set localHint = 'contacts.save_to_local_hint'|trans %}
+<div class="flex flex-col gap-1.5" data-controller="contacts--save-to">
+    {% if books|length <= 4 %}
+        <span id="save-to-label" class="text-xs font-semibold text-ink-muted">{{ 'contacts.save_to'|trans }}</span>
+        {# The whole width, the segments sharing it equally, icons only where
+           there is room: five choices fit one line of the narrowest pane. #}
+        <div role="radiogroup" aria-labelledby="save-to-label" class="w-full flex gap-0.5 p-0.5 rounded-lg bg-sunken" data-save-to>
+            {{ _self.segment('', 'contacts.save_to_local'|trans, 'fa-address-book', localHint, '', chosen is null) }}
+            {% for b in books %}
+                {{ _self.segment(b.id, b.name, 'fa-cloud', 'contacts.save_to_book_hint'|trans({'%book%': b.name, '%server%': b.holderName}), b.holderName, chosen is not null and chosen.id == b.id) }}
+            {% endfor %}
+        </div>
+    {% else %}
+        <label for="f-addressBook" class="text-xs font-semibold text-ink-muted">{{ 'contacts.save_to'|trans }}</label>
+        <select id="f-addressBook" name="addressBook" class="{{ fieldCls }} max-w-sm" data-action="change->contacts--save-to#picked">
+            <option value="" data-hint="{{ localHint }}">{{ 'contacts.book_local'|trans }}</option>
+            {% for b in books %}
+                <option value="{{ b.id }}" {{ chosen is not null and chosen.id == b.id ? 'selected' }}
+                        data-hint="{{ 'contacts.save_to_book_hint'|trans({'%book%': b.name, '%server%': b.holderName}) }}">{{ b.name }} — {{ b.holderName }}</option>
+            {% endfor %}
+        </select>
+    {% endif %}
+    <p class="text-xs text-ink-faint" data-contacts--save-to-target="hint" aria-live="polite">
+        {{- chosen is null ? localHint : 'contacts.save_to_book_hint'|trans({'%book%': chosen.name, '%server%': chosen.holderName}) -}}
+    </p>
+</div>
+
+{% macro segment(value, label, icon, hint, title, checked) %}
+    <label class="relative flex-1 min-w-0" title="{{ title }}">
+        <input type="radio" name="addressBook" value="{{ value }}" class="peer sr-only" {{ checked ? 'checked' }}
+               data-hint="{{ hint }}" data-action="change->contacts--save-to#picked">
+        <span class="h-8 px-2 w-full rounded-md flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap cursor-pointer transition-colors text-ink-muted hover:text-ink peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+            {# A wrapper does the hiding: Font Awesome sets the icon's own display. #}
+            <span class="hidden @lg:inline-flex" aria-hidden="true"><i class="fa-solid {{ icon }} text-[11px] opacity-70"></i></span>{{ label }}
+        </span>
+    </label>
+{% endmacro %}

@@ -66,6 +66,13 @@ final class SeedTestAttachmentCommand extends Command
     /** The PDF the viewer specs open. See pdfBytes() for what is in it. */
     private const string PDF_FILENAME = 'e2e-document.pdf';
 
+    /** The picture and the video the media viewer specs open (#295). */
+    private const string IMAGE_FILENAME = 'e2e-photo.png';
+    private const string VIDEO_FILENAME = 'e2e-clip.webm';
+
+    /** 1×1 opaque PNG — enough for an <img> to report a natural size. */
+    private const string PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
@@ -205,11 +212,42 @@ final class SeedTestAttachmentCommand extends Command
         $message->addMessagePart($pdfPart);
         $this->entityManager->persist($pdfPart);
         $this->entityManager->persist($part);
+
+        $this->addPart($message, self::IMAGE_FILENAME, 'image/png', (string) base64_decode(self::PNG, true));
+
+        // Not a playable WebM, and on purpose: the spec for it is about what
+        // the viewer does when the browser will not play a file — which is
+        // also all a codec-less test Chromium could check of a real one. The
+        // route's headers and Range answers are AttachmentVideoRouteTest's.
+        $this->addPart($message, self::VIDEO_FILENAME, 'video/webm', 'not really a video');
+
         $this->entityManager->flush();
 
         $io->success(sprintf('Seeded 1 thread with attachment "%s".', self::FILENAME));
 
         return Command::SUCCESS;
+    }
+
+    /** One more stored attachment on the seeded message; flushed by the caller. */
+    private function addPart(Message $message, string $filename, string $contentType, string $bytes): void
+    {
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = $contentType;
+        $part->filename    = $filename;
+        $part->disposition = 'attachment';
+        $part->size        = strlen($bytes);
+        $part->storagePath = $this->attachmentStorage->store(
+            (int) $message->account->id,
+            0,
+            (int) $message->id,
+            $filename,
+            $bytes,
+        );
+        $part->isInline    = false;
+
+        $message->addMessagePart($part);
+        $this->entityManager->persist($part);
     }
 
     private function account(object $user): Account

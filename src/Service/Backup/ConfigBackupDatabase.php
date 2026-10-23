@@ -287,6 +287,7 @@ final readonly class ConfigBackupDatabase
             'holdMaxSeconds'        => $settings->holdMaxSeconds,
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
+            'contactHelpEnabled'    => $settings->contactHelpEnabled,
             'prompts'               => $prompts,
         ];
     }
@@ -375,6 +376,7 @@ final readonly class ConfigBackupDatabase
         $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
+        $settings->contactHelpEnabled    = true === ($values['contactHelpEnabled'] ?? false);
 
         $prompts = $values['prompts'] ?? [];
 

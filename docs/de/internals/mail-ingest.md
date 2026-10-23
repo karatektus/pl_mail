@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:b6f9af84349aeff829bc8e6e82f7108d258f7ab6 -->
+<!-- translated-from: internals/mail-ingest.md sha1:a58cbc774876056b0dd1036a91fed0d4d107f5a5 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -521,6 +521,31 @@ sie an zwei Stellen zugleich.
 tatsächlich verloren. Das ist ein bewusster Handel: Eine Konversation, die in dem Zustand
 zurückkommt, in dem du sie verlassen hast, ist eine, an der du bereits gelernt hast
 vorbeizuscrollen.
+
+### „Im Papierkorb“ ist gespeichert, und die Datenbank pflegt es
+
+Eine Konversation ist im Papierkorb, wenn sie Trash trägt und keine ihrer Nachrichten außerhalb
+von Trash liegt (#268). Jede Liste, jedes Badge und die Suche lassen eine solche Konversation
+weg. Sie lesen dafür `message_thread.binned`, statt die Regel aus den Nachrichten abzuleiten; bei
+einem Postfach mit 67k Konversationen kostete das Ableiten etwa 170 ms pro Abfrage.
+
+Die Spalte pflegen Trigger, nicht PHP (`Version20261022160000`). Die Schreibvorgänge, die die
+Antwort ändern, sind verstreut: Labels über das ORM, rohes SQL, das Konversationen neu aufbaut
+oder ein Label entfernt, `ON DELETE CASCADE`, eine Nachricht, die in eine andere Konversation
+wandert, eine Antwort, die in einer Konversation im Papierkorb ankommt. Ein Flag, das PHP setzt,
+wäre nur auf den Wegen richtig, an die jemand gedacht hat.
+
+- `message_label` und `thread_label` feuern einmal pro Anweisung und berechnen nur die
+  Konversationen neu, deren Trash-Zeilen sich geändert haben. Ablegen, Lesen und Labeln kosten
+  nichts.
+- `message` feuert pro Zeile: beim Einfügen nur, wenn die Konversation im Papierkorb ist (eine
+  neue Nachricht kann sie dort nur herausholen), beim Löschen und bei geändertem `thread_id` für
+  die Konversation, die die Nachricht verlassen hat.
+- Jede Neuberechnung leitet die Antwort von Grund auf ab (`plmail_refresh_thread_binned()`),
+  deshalb spielt die Reihenfolge der Anweisungen in einem Flush keine Rolle.
+
+Die Entity bildet die Spalte nur lesend ab. Im Speicher kann sie einer noch nicht geflushten
+Änderung hinterherhinken, deshalb sollte PHP nicht darauf verzweigen; die Abfragen lesen sie.
 
 ## Das Änderungsprotokoll, das JMAP liest
 

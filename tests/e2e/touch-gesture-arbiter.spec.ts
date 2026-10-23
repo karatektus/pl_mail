@@ -6,6 +6,7 @@ import {
     Intent,
     claimSequence,
     createSequence,
+    openSurface,
     registerSurface,
     releaseSequence,
     unregisterSurface,
@@ -117,7 +118,10 @@ test.describe("touch gesture arbiter: claims and open surfaces", () => {
     test.afterEach(() => {
         releaseSequence("pull");
         releaseSequence("swipe");
+        releaseSequence("dismiss");
         unregisterSurface("test-surface");
+        unregisterSurface("row");
+        unregisterSurface("drawer");
     });
 
     test("a claimed sequence rejects a second claimant; releasing it lets the next one claim", () => {
@@ -154,5 +158,54 @@ test.describe("touch gesture arbiter: claims and open surfaces", () => {
         open = false;
 
         expect(claimSequence("pull")).toBe(true);
+    });
+
+    test("an open row blocks a claim, but not the swipe that starts on that same row", () => {
+        registerSurface("row", () => true);
+
+        // A pull over an open row is refused: the row is a surface, and it is open.
+        expect(claimSequence("pull")).toBe(false);
+
+        // The row's own swipe names it as the exception, so it may claim.
+        expect(claimSequence("swipe", { except: "row" })).toBe(true);
+        expect(releaseSequence("swipe")).toBe(true);
+
+        // Presence companion: the same swipe without the exception is still refused.
+        expect(claimSequence("swipe")).toBe(false);
+    });
+
+    test("the exception exempts only the surface it names: an open drawer still refuses", () => {
+        registerSurface("row", () => true);
+        registerSurface("drawer", () => true);
+
+        expect(claimSequence("swipe", { except: "row" })).toBe(false);
+
+        // Presence companion: with the drawer closed, the same claim goes through.
+        unregisterSurface("drawer");
+        registerSurface("drawer", () => false);
+
+        expect(claimSequence("swipe", { except: "row" })).toBe(true);
+    });
+
+    test("a touch outside an open row claims as a dismissal, which then blocks the pull", () => {
+        registerSurface("row", () => true);
+
+        // The dismissal is the row's own exception: it closes the row and consumes the touch.
+        expect(claimSequence("dismiss", { except: "row" })).toBe(true);
+
+        // Presence companion: the row is now closed (in the real controller), and the
+        // pull still cannot take this sequence, because the dismissal holds it.
+        registerSurface("row", () => false);
+
+        expect(claimSequence("pull")).toBe(false);
+        expect(releaseSequence("dismiss")).toBe(true);
+        expect(claimSequence("pull")).toBe(true);
+    });
+
+    test("openSurface reports the open surface, and nothing when only the excepted one is open", () => {
+        registerSurface("row", () => true);
+
+        expect(openSurface()).toBe("row");
+        expect(openSurface("row")).toBeNull();
     });
 });

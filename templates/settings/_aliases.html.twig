@@ -51,6 +51,38 @@
                     </button>
                 {{ form_end(aliasForm) }}
 
+                {# Gmailify (#205): whether mail this Gmail account collects for
+                   another connected address is filed under that account. Off
+                   also detaches that account's IMAP copies — see
+                   AliasController::gmailify(). #}
+                {% if account.isGmail %}
+                    <form method="post" action="{{ path('app_alias_gmailify', { id: account.id }) }}"
+                          data-turbo-stream data-controller="ui--auto-submit" data-gmailify="{{ account.id }}"
+                          class="mt-4 flex flex-wrap items-start justify-between gap-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('alias-gmailify' ~ account.id) }}">
+
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm text-ink">{{ 'settings.aliases.gmailify.label'|trans }}</span>
+                            <span class="block text-xs text-ink-faint">{{ 'settings.aliases.gmailify.hint'|trans }}</span>
+                        </span>
+
+                        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                             role="radiogroup" aria-label="{{ 'settings.aliases.gmailify.label'|trans }}">
+                            {% for value, key in { '1': 'on', '0': 'off' } %}
+                                <label>
+                                    <input type="radio" name="enabled" class="peer sr-only" value="{{ value }}"
+                                           data-action="change->ui--auto-submit#submit"
+                                           {{ (key == 'on') == account.gmailifyEnabled ? 'checked' : '' }}>
+                                    <span class="flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                                                 peer-checked:bg-accent peer-checked:text-accent-ink
+                                                 peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                                                 transition-colors cursor-pointer">{{ ('settings.aliases.gmailify.' ~ key)|trans }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </form>
+                {% endif %}
+
                 {# Catch-all domains. Not drawn for Gmail and Microsoft, which
                    send only as addresses the provider knows — see
                    AliasController::addCatchAll(). #}

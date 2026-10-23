@@ -1,0 +1,38 @@
+{#
+contacts/_pane_actions.html.twig — the end of a contacts page's header, when the
+page is in the pane docked beside the mail: the way out to the same page full
+size, and the way to close the pane. Rendered on the full page as well, which
+is the same pane (contacts/_page_shell.html.twig), and hidden there by app.css
+until a message opened from it docks the pane beside the mail.
+
+Included, so it reads `inPane` and `iconBtn` from contacts/_layout.html.twig.
+
+The way out is the full-width position (contacts--pane#expand, #311): the
+same pane given the row, the mail behind it, the contact as it is. The href
+is for a middle click and a modified one, which are a new tab: the address
+this page was asked for, so a contact open here is the one open there. A page
+rendered WITH the mailbox has no address of its own (it is a sub-request) and
+goes to the list.
+#}
+{% if inPane %}
+    {% set pageUrl = true == app.request.attributes.get('_contacts_pane')
+        ? path('app_contacts_list')
+        : app.request.requestUri %}
+    <span class="flex items-center gap-0.5 -mr-2" data-contacts-pane-actions>
+        <a href="{{ pageUrl }}"
+           data-turbo-frame="_top"
+           data-action="contacts--pane#expand"
+           class="{{ iconBtn }}"
+           aria-label="{{ 'contacts.pane.mode.contacts'|trans }}"
+           title="{{ 'contacts.pane.mode.contacts'|trans }}">
+            <i class="fa-solid fa-up-right-and-down-left-from-center text-xs" aria-hidden="true"></i>
+        </a>
+        <button type="button"
+                data-action="contacts--pane#close"
+                class="{{ iconBtn }}"
+                aria-label="{{ 'contacts.pane.close'|trans }}"
+                title="{{ 'contacts.pane.close'|trans }}">
+            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+        </button>
+    </span>
+{% endif %}

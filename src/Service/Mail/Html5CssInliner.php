@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use Dom\HTMLDocument;
 use DOMDocument;
 use Throwable;
+use TijsVerkoyen\CssToInlineStyles\Css\Property\Property;
 use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
 
 /**
@@ -27,8 +28,9 @@ use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
  * XML, which the old class loads exactly as written. The HTML 4 parser never
  * sees the markup and has nothing to re-nest.
  *
- * A subclass rather than a fork: the parse is the one thing that changes, and
- * the library keeps it in a method of its own.
+ * A subclass rather than a fork: the library keeps the parse in a method of
+ * its own, and the one other thing that changes — how a stylesheet
+ * `!important` meets an inline style — in another.
  */
 final class Html5CssInliner extends CssToInlineStyles
 {
@@ -50,6 +52,7 @@ final class Html5CssInliner extends CssToInlineStyles
         try {
             $modern = HTMLDocument::createFromString((string) $html, LIBXML_NOERROR, 'UTF-8');
             self::removeComments($modern);
+            self::renameForms($modern);
 
             $xml = (string) preg_replace(self::XHTML_NAMESPACE, '$1', (string) $modern->saveXml(), 1);
 
@@ -80,6 +83,105 @@ final class Html5CssInliner extends CssToInlineStyles
         // gone, so the HTML 4 parser never meets a conditional-comment marker
         // it would turn into text.
         return parent::createDomDocumentFromHtml(null !== $modern ? $modern->saveHtml() : $html);
+    }
+
+    /**
+     * Inline styles outrank the stylesheet, except where the stylesheet says
+     * `!important` and the inline style does not. That is the cascade, and the
+     * library implements only the first half: it keeps an existing inline
+     * property whatever the rule says.
+     *
+     * Mail leans on the second half to choose between variants. A Bazaarvoice
+     * review request marks every product card `class="d" style="display:none"`
+     * and switches it on with `.d {display:block !important}`, so a client that
+     * cannot read the stylesheet shows nothing and every other client shows
+     * the card. Inlined the library's way, the card stayed hidden next to its
+     * Outlook twin, which `.c {display:none !important}` hides on purpose: no
+     * product photo at all, though the proxy fetched it fine (#271).
+     *
+     * @param \DOMElement $element
+     * @param Property[]  $properties
+     *
+     * @return \DOMElement
+     */
+    public function inlineCssOnElement(\DOMElement $element, array $properties)
+    {
+        if ([] === $properties) {
+            return $element;
+        }
+
+        $inline = [];
+
+        foreach ($this->getInlineStyles($element) as $property) {
+            $inline[$property->getName()] = $property;
+        }
+
+        $fromSheet = [];
+
+        foreach ($properties as $property) {
+            $existing = $inline[$property->getName()] ?? null;
+
+            if (null === $existing) {
+                $fromSheet[$property->getName()] = $property;
+
+                continue;
+            }
+
+            // Replaced in place, so the declaration keeps its position.
+            if (true === $property->isImportant() && false === $existing->isImportant()) {
+                $inline[$property->getName()] = $property;
+            }
+        }
+
+        $element->setAttribute('style', implode(' ', array_map(
+            static fn (Property $property): string => $property->toString(),
+            array_values(array_merge($fromSheet, $inline)),
+        )));
+
+        return $element;
+    }
+
+    /**
+     * Every `<form>` becomes a `<div>` before a selector is matched.
+     *
+     * The sanitizer unwraps forms, so the reader sees the content of one and
+     * never the form itself — and the stylesheet has to be applied to the
+     * document the reader will see. Mail written with forms in it says what a
+     * client like that should show: `form .a {display:none}` and its kin only
+     * apply where the form survives, and the sender's fallback is what is left
+     * standing when they do not match. Gmail, Thunderbird and Outlook.com all
+     * take that fallback; inlined with the form still in place, plMail took
+     * the variant meant for clients that can submit it, and lost it with the
+     * controls (#271).
+     *
+     * Over a snapshot, for the same reason as removeComments().
+     */
+    private static function renameForms(HTMLDocument $document): void
+    {
+        $forms = [];
+
+        foreach ($document->querySelectorAll('form') as $form) {
+            $forms[] = $form;
+        }
+
+        foreach ($forms as $form) {
+            $div = $document->createElement('div');
+
+            // What a selector or the cascade can use, and nothing a form needs:
+            // `action` and `method` are on the sanitizer's safe list for any
+            // element and would otherwise ride along on the div.
+            foreach (['id', 'class', 'style'] as $name) {
+                if (true === $form->hasAttribute($name)) {
+                    $div->setAttribute($name, (string) $form->getAttribute($name));
+                }
+            }
+
+            while (null !== $form->firstChild) {
+                $div->appendChild($form->firstChild);
+            }
+
+            $form->replaceWith($div);
+        }
     }
 
     /**

@@ -68,6 +68,7 @@ final class GmailApiSyncer
         private readonly MessageEraser          $eraser,
         private readonly SyncOrigin             $origin,
         private readonly GmailSkippedMessageRepository $skipped,
+        private readonly GmailifyLinks          $links,
     ) {}
 
     /**
@@ -568,6 +569,16 @@ final class GmailApiSyncer
      * recounted, the JMAP destroy is announced to clients holding the id, and
      * the stored bytes and attachments go with it.
      *
+     * ── Except a Gmailify sibling's own IMAP copy, which is only detached ──────
+     * Proof that GMAIL's copy is gone is not proof about the IMAP server's.
+     * Mail Gmail collected from another address and then emptied out of its
+     * Trash is still on that address's server, and the row the merge gave
+     * this Gmail id to is that server's copy. Erasing it took the mail out of
+     * plMail for good: the erase is local, and the IMAP sync, which asks only
+     * for UIDs above the highest it has, never fetched it again (#203). The
+     * row loses its Gmail identity and stays; whether it is deleted is the
+     * IMAP sync's to say. See GmailifyLinks.
+     *
      * @param list<string> $gmailIds
      */
     private function eraseDeleted(Account $account, array $gmailIds): void
@@ -582,19 +593,30 @@ final class GmailApiSyncer
             return;
         }
 
-        $erased = $this->eraser->eraseAll($rows);
+        $owned    = [];
+        $detached = 0;
+
+        foreach ($rows as $row) {
+            if (true === GmailifyLinks::isImapCopy($row)) {
+                $this->links->detach($row);
+                ++$detached;
+
+                continue;
+            }
+
+            $owned[] = $row;
+        }
+
+        $erased = [] === $owned ? 0 : $this->eraser->eraseAll($owned);
 
         $this->logger->info('GmailApiSyncer: messages deleted on the server were removed here', [
             'accountId' => $account->id,
             'reported'  => count($gmailIds),
             'erased'    => $erased,
+            'detached'  => $detached,
         ]);
     }
 
-    /**
-     * @param list<array{id?: string}> $refs
-     * @return list<string>
-     */
     /**
      * Whether everything in the mailbox is here, by count: stored on this
      * account, stored on the account it was addressed to, or looked at and
@@ -623,32 +645,54 @@ final class GmailApiSyncer
         return $done >= $account->importTotal;
     }
 
+    /**
+     * The listed ids plMail has neither stored nor declined.
+     *
+     * @param list<array{id?: string}> $refs
+     * @return list<string>
+     */
     private function newGmailIds(Account $account, array $refs): array
     {
+        $listed = [];
+
+        foreach ($refs as $ref) {
+            $gmailId = (string) ($ref['id'] ?? '');
+
+            if ('' !== $gmailId) {
+                $listed[$gmailId] = true;
+            }
+        }
+
+        // Nothing listed, nothing to ask: the incremental sync calls this
+        // after every history window, and most windows add nothing.
+        if ([] === $listed) {
+            return [];
+        }
+
+        $ids = array_map(strval(...), array_keys($listed));
+
+        // Only the ids in hand, not every id the owner has (#223). This read
+        // every stored gmail_id of the user and every one the account had
+        // declined, on every history window and every listing page, to look
+        // up at most a page's worth: thousands of rows per sync on a large
+        // mailbox, growing with it, for an answer about five hundred.
+        //
         // "Not here yet" means neither stored nor already looked at and
         // declined. Without the second half a declined message is missing for
         // ever: named by every listing, fetched in full each time, and the
         // import waits out its whole attempt ceiling on mail that is not
         // coming. See GmailSkippedMessage.
-        $syncedGmailIds = array_flip([
-            ...$this->messageRepository->findSyncedGmailIdsForUser($account->usr),
-            ...$this->skipped->findGmailIdsForAccount($account),
+        $known = array_flip([
+            ...$this->messageRepository->findStoredGmailIdsForUser($account->usr, $ids),
+            ...$this->skipped->findGmailIdsAmong($account, $ids),
         ]);
 
         $pending = [];
 
-        foreach ($refs as $ref) {
-            $gmailId = (string) ($ref['id'] ?? '');
-
-            if ('' === $gmailId) {
-                continue;
+        foreach ($ids as $gmailId) {
+            if (false === isset($known[$gmailId])) {
+                $pending[] = $gmailId;
             }
-
-            if (true === isset($syncedGmailIds[$gmailId])) {
-                continue;
-            }
-
-            $pending[] = $gmailId;
         }
 
         return $pending;

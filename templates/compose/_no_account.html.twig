@@ -7,18 +7,35 @@ to give it. A dead end with a way out beats a stack trace.
 #}
 {# Arrives in the dock, in the slot the compose window would have filled, so it
    arrives the same way the window does. Anything else and pressing Compose
-   animates on the days it works and blinks on the days it does not. #}
-<div data-enter="fade" class="p-8 text-center">
+   animates on the days it works and blinks on the days it does not.
+
+   Wrapped in the frame the click asked for, as _window.html.twig is. Without
+   it Turbo finds no matching frame in the answer and raises
+   turbo:frame-missing, and compose--dock takes that for a failed request: the
+   card never showed, and a fresh install got "The compose window could not be
+   opened. Please try again." — a retry that can never work. #}
+<turbo-frame id="{{ app.request.headers.get('Turbo-Frame') ?: 'compose_dock' }}">
+<div data-enter="fade" role="dialog" aria-labelledby="compose-no-account-heading"
+     class="relative w-80 rounded-xl border border-line bg-surface shadow-lg p-6 text-center">
+    {# The dock's own card has a dismiss; so does this one. compose--dock
+       clears the frame, as it does for its error card. #}
+    <button type="button" data-action="compose--dock#dismiss"
+            class="absolute top-2.5 right-3 text-ink-faint hover:text-ink transition-colors"
+            aria-label="{{ 'compose.open_failed.dismiss'|trans }}">&times;</button>
+
     <div class="mx-auto w-11 h-11 rounded-full bg-sunken flex items-center justify-center">
         <i class="fa-solid fa-envelope text-ink-faint" aria-hidden="true"></i>
     </div>
 
-    <h2 class="mt-4 text-base font-semibold text-ink">{{ 'compose.no_account.heading'|trans }}</h2>
+    <h2 id="compose-no-account-heading" class="mt-4 text-base font-semibold text-ink">{{ 'compose.no_account.heading'|trans }}</h2>
     <p class="mt-1.5 text-sm text-ink-muted">{{ 'compose.no_account.body'|trans }}</p>
 
-    <a href="{{ path('app_settings_index', { section: 'accounts' }) }}"
+    {# _top: inside the frame, a plain link would load Settings into the
+       compose slot and fail the same way the card used to. #}
+    <a href="{{ path('app_settings_index', { section: 'accounts' }) }}" data-turbo-frame="_top"
        class="mt-5 inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium text-accent-ink
               bg-accent hover:bg-accent-strong transition-colors">
         {{ 'compose.no_account.cta'|trans }}
     </a>
 </div>
+</turbo-frame>

@@ -237,6 +237,53 @@ final class GmailSkippedMessageTest extends KernelTestCase
         self::assertSame(1, self::getContainer()->get(ImportProgress::class)->forUser($this->user)[0]->done);
     }
 
+    // ── Gmailify switched off (#205) ────────────────────────────────────────
+
+    /**
+     * Gmail still collects the other address's mail and stamps its own address
+     * into Delivered-To as it does. To names the other account, so the mail is
+     * that account's, and its own IMAP sync brings it in; stored here as well,
+     * it was listed twice.
+     */
+    public function testWithGmailifyOffCollectedMailForAnotherAccountIsDeclined(): void
+    {
+        $this->seedImapSibling();
+        $this->account->gmailifyEnabled = false;
+        $this->em->flush();
+
+        $this->handle(['INBOX'], to: 'me@work.test', deliveredTo: 'gmail@example.test');
+
+        self::assertSame(0, $this->storedCount());
+        self::assertSame(1, $this->skipped->countForAccount($this->account));
+    }
+
+    /** Addressed to both: the Gmail address is named, so it is this account's too. */
+    public function testWithGmailifyOffMailNamingThisAccountIsKept(): void
+    {
+        $this->seedImapSibling();
+        $this->account->gmailifyEnabled = false;
+        $this->em->flush();
+
+        $this->handle(['INBOX'], to: 'me@work.test, gmail@example.test', deliveredTo: 'gmail@example.test');
+
+        self::assertSame(1, $this->storedCount());
+    }
+
+    /**
+     * The limit the handbook states: mail Bcc'd to the other address names
+     * nobody, and Gmail's own stamp is all there is, so it is kept here.
+     */
+    public function testWithGmailifyOffBccdCollectedMailIsStillKept(): void
+    {
+        $this->seedImapSibling();
+        $this->account->gmailifyEnabled = false;
+        $this->em->flush();
+
+        $this->handle(['INBOX'], to: 'list-members@list.test', deliveredTo: 'gmail@example.test');
+
+        self::assertSame(1, $this->storedCount());
+    }
+
     // ── another Gmail account's own copy (discussion #168) ───────────────────
 
     /**
@@ -455,6 +502,23 @@ final class GmailSkippedMessageTest extends KernelTestCase
         $this->em->flush();
 
         return $account;
+    }
+
+    /** An IMAP account of the same user, the address Gmail collects for. */
+    private function seedImapSibling(): Account
+    {
+        $sibling           = new Account();
+        $sibling->usr      = $this->user;
+        $sibling->name     = 'Work';
+        $sibling->email    = 'me@work.test';
+        $sibling->username = uniqid('work-', true);
+        $sibling->authType = AuthType::Password->value;
+        $sibling->imapHost = 'imap.work.test';
+        $sibling->isActive = true;
+        $this->em->persist($sibling);
+        $this->em->flush();
+
+        return $sibling;
     }
 
     /** A second Gmail account of the same user, synced through the API itself. */

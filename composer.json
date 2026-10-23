@@ -13,6 +13,7 @@
         "doctrine/orm": "^3.6",
         "dragonmantank/cron-expression": "^3.6",
         "endroid/qr-code": "^6.1",
+        "giggsey/libphonenumber-for-php-lite": "^9",
         "knplabs/knp-paginator-bundle": "*",
         "league/oauth2-client": "^2.9",
         "league/oauth2-google": "^5.0",

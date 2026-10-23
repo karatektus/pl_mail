@@ -118,6 +118,14 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
         User::SETTING_CALENDAR_PANE_MODE,
+        // The address book docked beside the mail, for the calendar pane's
+        // reason: a layout somebody chose, a bool and a number — and since
+        // #311 its position (what the bool grew into) and which position its
+        // button skips, one enum value each, like the calendar's.
+        User::SETTING_CONTACTS_PANE_OPEN,
+        User::SETTING_CONTACTS_PANE_MODE,
+        User::SETTING_CONTACTS_PANE_WIDTH,
+        User::SETTING_CONTACTS_SWITCH_SKIP,
         // Which view each shape opens on. In the backup for the same reason the
         // pane's width and mode are: it is a preference somebody set, it costs
         // one short string, and a restore that put the calendar back on Week
@@ -157,6 +165,14 @@ final readonly class ConfigBackupUsers
         // Neither holds an id, and a percentage means the same on any install.
         User::SETTING_READING_PANE_MODE,
         User::SETTING_READING_PANE_WIDTH,
+        // What a dragged row does, one key per direction. In the backup for the
+        // reason the reading pane's keys are: a choice about one's own screen,
+        // a short string with no id, and the same meaning on any install. A
+        // restore that left them out would put each direction back to its
+        // default, so somebody who had chosen star would find the left swipe
+        // archiving again.
+        User::SETTING_SWIPE_RIGHT_ACTION,
+        User::SETTING_SWIPE_LEFT_ACTION,
         User::SETTING_INSIGHTS_DISABLED,
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
@@ -214,6 +230,10 @@ final readonly class ConfigBackupUsers
         // host: the mailbox is a catch-all for the same domains wherever
         // plMail reads it from.
         Account::SETTING_CATCH_ALL_DOMAINS,
+        // A choice about which account mail is filed under, not a record of
+        // anything the other host did: restored, the target files the mail it
+        // imports the way the user asked for.
+        Account::SETTING_GMAILIFY,
     ];
 
     /**

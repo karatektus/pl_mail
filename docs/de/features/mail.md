@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:3ce077e532ee6d78f8b007edb8ab2e563af0413d -->
+<!-- translated-from: features/mail.md sha1:df37980670901d8064e9a02c3c0316ebd5549b93 -->
 
 # Mail
 
@@ -333,6 +333,12 @@ Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **A
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
 
+Mail im Spam ergibt keine Karten, auch nicht Mail, die du später dorthin verschiebst: Ihre Karten
+verschwinden aus dem Panel und aus der Leiste über der Mailliste, und eine Spam-Konversation zeigt
+keine über ihren Nachrichten — eine gefälschte Versandbenachrichtigung ist genau das, was Spam
+nachahmt. **Kein Spam** (oder das Verschieben in den Posteingang) holt sie zurück. Der Papierkorb ist
+etwas anderes: Wer eine Versandbestätigung löscht, hält das Paket nicht auf, also bleiben ihre Karten.
+
 Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt eine Bestellnummer und
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
@@ -443,8 +449,10 @@ die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
 HTML-Texte werden direkt eingebettet dargestellt und nicht in einem iframe. Vorher läuft der
 Text genau einmal, beim Import, durch einen Sanitizer: `cid:`-Verweise werden auf plMails
 eigene Anhang-Route umgeschrieben, `<style>`-Blöcke werden auf die Elemente heruntergezogen,
-für die sie galten, und Skripte, Formulare, iframes und Klassen fallen weg. Links werden
-gezwungen, außerhalb der App zu öffnen.
+für die sie galten, und Skripte, iframes und Klassen fallen weg. Ein Formular wird aufgelöst statt
+entfernt: Sein Inhalt bleibt, seine Textfelder und Auswahllisten fallen weg, und die Mail sieht so
+aus, wie ihr Absender sie für ein Mailprogramm ohne Formulare gedacht hat. Links werden gezwungen,
+außerhalb der App zu öffnen.
 
 ### Ein langes Gespräch zusammenfassen
 
@@ -604,6 +612,9 @@ deren Text nur `help.wirhub.de` steht.
 `junk` (oder `spam`), `archive` (oder `archived`) und `snoozed`. Werte in Anführungszeichen
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
+Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
+
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
 und nicht die Antwort: Es laufen nur die Durchgänge, die schnell genug für jeden Tastendruck sind.
@@ -715,6 +726,37 @@ Knopf oben auf dem Bildschirm dreht sich, solange er läuft, und der Hinweis dre
 Berührung ist der Knopf der Ersatz: ein benannter Knopf für Tastatur und Bildschirmleser, und die
 Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
 
+Auf dem Telefon lässt sich eine Zeile auch wischen. Zieh sie nach rechts, und geschieht, was die
+Richtung rechts eingestellt hat; standardmäßig wird sie als gelesen markiert, oder als ungelesen,
+wenn sie schon gelesen ist. Zieh sie nach links, und standardmäßig wird sie archiviert. Was jede Richtung
+tut, stellst du unter **Einstellungen → E-Mail → Wischgesten** ein (siehe unten). Über ein Drittel der Zeilenbreite wartet die Aktion hinter der Zeile, und Drücken führt
+sie aus. Über zwei Drittel, oder ein schneller Wisch über das erste Drittel, geschieht sie beim
+Loslassen. Ein Tippen irgendwo anders schließt eine offene Zeile, und dieses Tippen tut sonst nichts.
+Gelesen / ungelesen und Archivieren gibt es nur bei normalen Mails: nie bei einem Entwurf und nie im
+Archiv, im Papierkorb oder bei Spam. Stern gibt es bei jeder Zeile, auch bei Entwürfen. Ohne Berührung erledigen das
+Kontrollkästchen der Zeile (ihr Avatar) und die Leiste dieselbe Arbeit, **Archivieren** und **Mehr**
+für eine Auswahl eingeschlossen.
+
+Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
+Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern und Nichts.
+Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*). Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
+ungelesen; Archivieren bietet sein **Rückgängig** an.
+
+Auf dem Telefon öffnet auch ein längeres Drücken einer Zeile ihre Aktionen. Halte eine Zeile etwa eine
+halbe Sekunde still, und von unten erscheint ein Aktionsblatt mit allem, was die Zeile anbietet:
+auswählen, als gelesen oder ungelesen markieren, archivieren, markieren, verschieben (nur eine
+Unterhaltung, nicht eine einzelne Nachricht), mit Labels versehen, auf später legen, als Spam markieren, löschen und, im Papierkorb oder im Spam, in den
+Posteingang zurückholen und, wenn du unter **Einstellungen → E-Mail → Entsorgen → Knöpfe zum sofortigen
+Löschen** eingeschaltet hast, endgültig löschen. Die Einträge sind die, die auch die eigenen Knöpfe der
+Zeile anbieten, an denselben Stellen, und jeder tut, was sein Knopf tut. **Verschieben**, **Labels** und
+**Später** öffnen ihre Auswahl über dem Blatt, wie in der Leiste. Das Blatt schließt sich bei einem
+Tippen auf die abgedunkelte Seite, mit Escape oder nach einer Aktion; die Seite dahinter reagiert,
+solange es offen ist, nicht. Eine Aktualisierung im Hintergrund lässt es in Ruhe, und eine Aktualisierung,
+die die Zeile aus der Liste nimmt, schließt es. Wo der Browser vibrieren kann (Android Chrome), gibt es
+beim Öffnen einen kurzen Impuls; iOS kennt für Webseiten keine Vibration, dort gibt es keinen. Bei
+reduzierter Bewegung erscheint das Blatt ohne Gleiten. Ohne Berührung erledigen die Knöpfe der Zeile und
+die Leiste dieselbe Arbeit.
+
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
@@ -777,6 +819,9 @@ holt die Konversation zurück und nimmt einen Filter wieder weg, den derselbe Kl
 Über einer Auswahl verschiebt der Knopf alles Ausgewählte in den Spam und bietet keinen Filter
 an: Eine Auswahl hat nicht den einen Absender. Für Mail, die schon im Spam oder im Papierkorb
 liegt, wird der Knopf nicht gezeigt.
+
+Eine geöffnete Konversation im Spam hat stattdessen einen Knopf **Kein Spam** in ihrer
+Werkzeugleiste. Er verschiebt sie zurück in den Posteingang, wie **Verschieben nach → Posteingang**.
 
 Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
@@ -881,6 +926,10 @@ hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an 
 nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
 Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
 zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte Verbindung: Ein Bild,
+das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht
+antwortet, hinterlässt ein leeres Feld.
 
 **Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
 alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail
@@ -1372,6 +1421,30 @@ Code noch geht — das kann nur die Mail, aus der er stammt.
 
 **Ziehen zum Aktualisieren gibt es nur mit dem Finger, und nur ganz oben in der Liste.** Maus,
 Trackpad und jedes Fenster ab der Tablet-Breite ziehen nie. Ein Ziehen beginnt nur, wenn die Liste
-ganz oben steht, und nicht bei offener Seitenleiste; von weiter unten scrollt dieselbe Bewegung nur.
+ganz oben steht, und nicht bei offener Seitenleiste, offener Zeile oder offenem Aktionsblatt; von weiter
+unten scrollt dieselbe Bewegung nur.
 Reduzierte Bewegung nimmt dem Hinweis das Gleiten und sonst nichts, der Auslösepunkt bleibt gleich.
+
+**Ein Wisch ist eine Fingergeste auf dem Telefon, und seine Richtungen sind echte Richtungen.** Eine
+Maus wischt nie, in keiner Breite, und ab der Tablet-Breite wischt nichts. Rechts heißt zum rechten
+Bildschirmrand, unabhängig von der Sprache, denn eine Sprache von rechts nach links wird nicht
+mitgeliefert. Wer eine ergänzt, muss entscheiden, wie sich die beiden Seiten spiegeln.
+
+**Eine Aktualisierung lässt eine Zeile, die du wischst oder offen hast, wo sie ist.** Eine solche Zeile
+behält ihren Zustand, während eine Synchronisierung oder eine Aktualisierung die Liste neu zeichnet.
+Die Änderung an dieser Zeile kommt, wenn du sie schließt. Eine Zeile, die nur gedrückt wird, oder die
+ein langes Drücken in das Aktionsblatt geöffnet hat, wird wie gewohnt neu gezeichnet. Eine
+Aktualisierung, die die Zeile entfernt, nimmt sie von der Liste und schließt das Blatt mit ihr.
+
+**Löschen ist kein Wisch.** Ein voller Zug hat kein Tippen davor, und eine Zeile im Papierkorb hat
+kein eigenes Rückgängig. Das Löschen bleibt daher bei den Knöpfen der Zeile und im Papierkorb, wo
+zuerst getippt werden muss. Auch unter **Einstellungen → E-Mail → Wischgesten** ist Löschen keine
+Wahl: Ein dafür gespeicherter Wert gilt als Standard der Richtung, sodass auch ein wiederhergestelltes
+Backup es nicht zurückbringt.
+
+**Ein längeres Drücken öffnet das Blatt, und Zeilen werden auf dem Telefon nicht gezogen.** Unterhalb des
+Tablet-Breakpunkts ist eine Unterhaltung kein natives Ziehen: Ziehen per HTML5 hat mit dem Finger nie
+funktioniert, und das Abschalten verhindert, dass iOS eine Zeile während der halben Sekunde anhebt. Mit der
+Maus lässt sich eine Zeile wie bisher ziehen. Das Blatt bietet Löschen an einer Zeile im Posteingang an, wie
+es der eigene Knopf der Zeile tut, und hat kein Rückgängig, so wie dieser Knopf.
 

@@ -1,7 +1,8 @@
 {#
 CalDAV needs no application-side registration — each user authenticates against
-their own server with their own app password — so the admin's only decisions are
-whether to offer it and whether to pin everyone to one server.
+their own server with their own app password — so the admin's only decision is
+whether to pin everyone to one server. It is offered to every user whatever the
+provider config says, which is why there is no "turn it on" step (#212).
 
 The one thing worth saying that the file providers' tutorials do not: this
 panel is for CalDAV servers only. Google and Microsoft calendars arrive on the
@@ -12,7 +13,6 @@ configuring a connection nobody needs.
 <p>{{ 'admin.integrations.tutorial.caldav.intro'|trans }}</p>
 
 <ol class="list-decimal list-outside ml-4 space-y-1">
-    <li>{{ 'admin.integrations.tutorial.caldav.step_enable'|trans }}</li>
     <li>{{ 'admin.integrations.tutorial.caldav.step_base_url'|trans }}</li>
     <li>{{ 'admin.integrations.tutorial.caldav.step_url'|trans }}</li>
     <li>{{ 'admin.integrations.tutorial.caldav.step_app_password'|trans }}</li>

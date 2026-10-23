@@ -1,0 +1,48 @@
+{#
+settings/contacts/_books.html.twig — the books mirrored through one connection
+or one account, each with its last sync and a sync-now button.
+
+Variables:
+  books  AddressBook[]
+#}
+{% if books is empty %}
+    <p class="pl-6 text-xs text-ink-faint italic">{{ 'settings.contacts.no_books'|trans }}</p>
+{% else %}
+    <ul class="pl-6 space-y-1">
+        {% for book in books %}
+            <li class="flex items-center gap-2.5" data-address-book="{{ book.id }}">
+                <span class="flex-1 min-w-0 truncate text-xs text-ink">
+                    {{ book.name }}
+                    {% if book.isReadOnly %}
+                        <i class="fa-solid fa-lock ml-1 text-[9px] text-ink-faint"
+                           title="{{ 'settings.contacts.read_only'|trans }}"
+                           aria-label="{{ 'settings.contacts.read_only'|trans }}"></i>
+                    {% endif %}
+                </span>
+
+                {% if not book.isHealthy %}
+                    <span class="shrink-0 text-[11px] text-danger truncate max-w-[16rem]"
+                          title="{{ book.lastSyncError }}">{{ book.lastSyncError }}</span>
+                {% elseif book.lastSyncedAt %}
+                    <span class="shrink-0 text-[11px] text-ink-faint">
+                        {{ 'settings.contacts.synced'|trans({ '%date%': book.lastSyncedAt|date('Y-m-d H:i') }) }}
+                    </span>
+                {% else %}
+                    <span class="shrink-0 text-[11px] text-ink-faint">{{ 'settings.contacts.never_synced'|trans }}</span>
+                {% endif %}
+
+                <form method="post" action="{{ path('app_settings_contacts_sync', { id: book.id }) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('contacts-sync' ~ book.id) }}">
+                    <button
+                        type="submit"
+                        class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        aria-label="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
+                        title="{{ 'settings.contacts.sync_now'|trans({ '%name%': book.name }) }}"
+                    >
+                        <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

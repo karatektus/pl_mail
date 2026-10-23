@@ -156,14 +156,19 @@ final class ChangelogReaderTest extends TestCase
     /**
      * Every screenshot a highlight names is in public/whats-new, and no two
      * highlights claim the same name — the files are named by feature, not by
-     * release. Read off the raw file, so Unreleased is checked too: that is
-     * where a new highlight is added, by the pull request that adds the feature.
+     * release. Read off the raw file and the fragments in changelog.d/, so
+     * unreleased highlights are checked too: a new one is added by the pull
+     * request that adds the feature, in a fragment of its own.
      */
     public function testEveryScreenshotAHighlightNamesExists(): void
     {
         $root = dirname(__DIR__, 4);
 
-        preg_match_all('/<!--\s*highlight\s+screenshot=([a-z0-9-]+)\s*-->/', (string) file_get_contents($root . '/CHANGELOG.md'), $m);
+        preg_match_all(
+            '/<!--\s*highlight\s+screenshot=([a-z0-9-]+)\s*-->/',
+            (string) file_get_contents($root . '/CHANGELOG.md') . "\n" . implode("\n", self::fragments()),
+            $m,
+        );
 
         self::assertSame(array_unique($m[1]), $m[1], 'two highlights name the same screenshot');
 
@@ -183,13 +188,16 @@ final class ChangelogReaderTest extends TestCase
     public function testNoPictureIsLeftThatNothingNames(): void
     {
         $root  = dirname(__DIR__, 4);
-        $named = array_keys(self::screenshotsByRelease((string) file_get_contents($root . '/CHANGELOG.md')));
+        $named = array_merge(
+            array_keys(self::screenshotsByRelease((string) file_get_contents($root . '/CHANGELOG.md'))),
+            array_keys(self::screenshotsByRelease(implode("\n", self::fragments()))),
+        );
 
         foreach (glob($root . '/public/whats-new/*') ?: [] as $file) {
             self::assertContains(
                 basename($file, '.png'),
                 $named,
-                sprintf('public/whats-new/%s is named by no highlight in CHANGELOG.md: delete it.', basename($file)),
+                sprintf('public/whats-new/%s is named by no highlight in CHANGELOG.md or changelog.d/: delete it.', basename($file)),
             );
         }
     }
@@ -221,6 +229,49 @@ final class ChangelogReaderTest extends TestCase
                 ),
             );
         }
+    }
+
+    /**
+     * A fragment in changelog.d/ is entries and nothing else (changelog.d/README.md).
+     *
+     * bin/changelog-release.sh puts the fragments one after the other, so a
+     * heading in one would claim every entry after it — `### Before you
+     * upgrade` would hide them from everybody but administrators. And text
+     * before the first bold paragraph would read as the release's
+     * introduction, which is the release's to write, not a pull request's.
+     */
+    public function testEveryFragmentIsEntriesOnly(): void
+    {
+        // Right after a release there are no fragments, and the directory
+        // still has to be there for the next pull request to write into.
+        self::assertFileExists(dirname(__DIR__, 4) . '/changelog.d/README.md');
+
+        foreach (self::fragments() as $name => $markdown) {
+            self::assertDoesNotMatchRegularExpression('/^#/m', $markdown, sprintf('changelog.d/%s has a heading; fragments are entries only.', $name));
+
+            $release = ChangelogReader::parse("## v0.0.0\n\n" . $markdown)[0];
+
+            self::assertNotEmpty($release->entries, sprintf('changelog.d/%s reads as no entry: open it with a **bold sentence**.', $name));
+            self::assertSame('', $release->intro, sprintf('changelog.d/%s has text before its first **bold sentence**.', $name));
+        }
+    }
+
+    /**
+     * The entries waiting in changelog.d/, by file name, without its README.
+     *
+     * @return array<string, string>
+     */
+    private static function fragments(): array
+    {
+        $fragments = [];
+
+        foreach (glob(dirname(__DIR__, 4) . '/changelog.d/*.md') ?: [] as $file) {
+            if ('README.md' !== basename($file)) {
+                $fragments[basename($file)] = (string) file_get_contents($file);
+            }
+        }
+
+        return $fragments;
     }
 
     /**

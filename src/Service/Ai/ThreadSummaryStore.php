@@ -55,7 +55,7 @@ use Throwable;
  *
  * A thread that is deleted takes its row with it by ON DELETE CASCADE. That is
  * the whole of the deletion story: per-thread data here is removed purely by
- * database cascade, there is no cleanup subscriber, and MessagePurger removing
+ * database cascade, there is no cleanup subscriber, and MessageEraser removing
  * an emptied thread is covered by the same constraint.
  */
 final readonly class ThreadSummaryStore

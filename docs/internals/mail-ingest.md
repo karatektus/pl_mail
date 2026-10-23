@@ -461,6 +461,28 @@ carrying it would look like it is in two places at once to anything counting loc
 deliberate trade: a thread that returns in the state you left it in is one you have already
 learned to scroll past.
 
+### "In the bin" is stored, and the database keeps it
+
+A conversation is in the bin when it carries Trash and none of its messages is outside Trash
+(#268). Every list, every badge and search leave such a conversation out. They read
+`message_thread.binned` instead of working the rule out from the messages; on a mailbox of 67k
+conversations, working it out took about 170 ms per query.
+
+Triggers maintain the column, not PHP (`Version20261022160000`). The writes that change the
+answer are spread out: labels through the ORM, raw SQL that rebuilds threads or unlinks a label,
+`ON DELETE CASCADE`, a message moving to another thread, a reply arriving in a conversation in
+the bin. A flag set from PHP would be right only on the paths someone remembered.
+
+- `message_label` and `thread_label` fire once per statement and recompute only the threads
+  whose Trash rows changed. Filing, reading and labelling mail cost nothing.
+- `message` fires per row: on insert only when the thread is in the bin (a new message can only
+  take it out), on delete and on a change of `thread_id` for the thread the message left.
+- Each recompute derives the answer from scratch (`plmail_refresh_thread_binned()`), so the
+  order of the statements in a flush does not matter.
+
+The entity maps the column read-only. In memory it can lag behind a change that has not been
+flushed, so nothing in PHP should branch on it; the queries read it.
+
 ## The change log JMAP reads
 
 Every mail mutation writes a row to `jmap_change_log` (`App\Jmap\State\ChangeLog`). The

@@ -31,21 +31,24 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 {% set targets = integrations.forUploadOf(part.contentType) %}
 {% set hasPreview = attachment_has_preview(part) %}
 {% set downloadName = part.filename ?: 'attachment' %}
-{% set isPdf = attachment_is_pdf(part) %}
+{% set previewKind = attachment_preview_kind(part) %}
 
 {#
-    A PDF opens a reader instead of downloading.
+    A PDF, picture or video opens a viewer instead of downloading (#295 added
+    the last two; PDF was first).
 
-    This is the ONE case where the chip's face is not an `<a download>`, and the
+    These are the cases where the chip's face is not an `<a download>`, and the
     note above about `download` being load-bearing still holds everywhere else:
     it is there so Turbo Drive leaves a non-HTML response alone. A button that
     opens a dialog is not a navigation, so Turbo has nothing to swallow and the
     attribute has nothing to do.
 
-    Nothing is lost by it. The reader carries its own download link, and the
-    "Save to…" half beside it is untouched.
+    Nothing is lost by it. A previewable chip grows a download half on its
+    right, so saving the file is still one click and needs no detour through
+    the dialog; the viewer carries its own download link as well, and the
+    "Save to…" half beside them is untouched.
 #}
-{% macro pdfFace(part, hasPreview, radius) %}
+{% macro previewFace(part, hasPreview, radius) %}
     {# A macro gets no caller scope, so the sibling macro is imported here rather
        than passed in: an imported name lives in Twig's macro table, not in the
        context, so it cannot travel as an argument. #}
@@ -96,37 +99,44 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 
 {% import _self as chip %}
 
-{% if targets is empty %}
+{% if previewKind is null and targets is empty %}
 
-    {% if isPdf %}
-        <span class="inline-flex rounded-lg bg-sunken border border-line overflow-hidden">
-            {{ chip.pdfFace(part, hasPreview, 'rounded-lg') }}
-        </span>
-    {% else %}
-        <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-           download="{{ downloadName }}"
-           class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
-                  bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-            {{ chip.face(part, hasPreview) }}
-        </a>
-    {% endif %}
+    <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+       download="{{ downloadName }}"
+       class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
+              bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+        {{ chip.face(part, hasPreview) }}
+    </a>
 
 {% else %}
 
     {# Two boxes, not one. The rounded corners need `overflow-hidden` to clip
-       the two halves inside the border — but the menu below is positioned
+       the halves inside the border — but the menu below is positioned
        past the bottom of that same box, so while the two were one element the
        menu was clipped away entirely: `hidden` came off, the element had a
        rect, and it was painted nowhere and hit-tested to whatever was behind
        it. Clicking "Save to…" opened a menu nobody could see or press, which
        is what "saving to a provider does nothing" was. Clipping now belongs to
        the inner box, positioning to the outer one. #}
-    <div class="relative inline-flex" data-controller="ui--dropdown">
+    <div class="relative inline-flex" {% if targets is not empty %}data-controller="ui--dropdown"{% endif %}>
 
         <div class="inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden">
-            {% if isPdf %}
-                {{ chip.pdfFace(part, hasPreview, 'rounded-l-lg') }}
+            {% if previewKind is not null %}
+                {{ chip.previewFace(part, hasPreview, 'rounded-l-lg') }}
+
+                {# The download half. Same href and `download` as the plain
+                   chip, for the reason the docblock above gives; the last
+                   half rounds the group's right corner, for the focus-ring
+                   reason previewFace gives. #}
+                <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                   download="{{ downloadName }}"
+                   aria-label="{{ 'attachment.download_named'|trans({ '%name%': downloadName }) }}"
+                   title="{{ 'attachment.preview.download'|trans }}"
+                   class="flex items-center px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors
+                          {{ targets is empty ? 'rounded-r-lg' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                    <i class="fa-solid fa-download text-[11px]" aria-hidden="true"></i>
+                </a>
             {% else %}
                 <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
                    download="{{ downloadName }}"
@@ -136,44 +146,48 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
                 </a>
             {% endif %}
 
-            <button type="button"
-                    data-action="click->ui--dropdown#toggle"
-                    aria-label="{{ 'message.save_to'|trans }}"
-                    class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors
-                           rounded-r-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
-                <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
-            </button>
+            {% if targets is not empty %}
+                <button type="button"
+                        data-action="click->ui--dropdown#toggle"
+                        aria-label="{{ 'message.save_to'|trans }}"
+                        class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors
+                               rounded-r-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                    <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
+                </button>
+            {% endif %}
         </div>
 
-        <div data-ui--dropdown-target="menu" hidden
-             class="absolute top-full mt-1 right-0 z-20 min-w-52 popover py-1">
-            <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-                {{ 'message.save_to'|trans }}
-            </p>
-            {# Each opens the destination picker rather than saving on the spot:
-               a folder chooser for a file store, an album chooser for a photo
-               library. The old one-click save to a fixed folder is now the
-               "Save here" the picker lands on. A file store reopens where the
-               last save landed; an album list is flat, so there is nowhere to
-               reopen and it starts at the full list. #}
-            {% for integration in targets %}
-                {% set lastDest = integration.provider.isMediaLibrary ? null : integration.getSetting('save.last_destination') %}
-                {% set browseArgs = { id: integration.id, mode: 'destination', part: part.id } %}
-                {% if lastDest %}{% set browseArgs = browseArgs|merge({ folder: lastDest }) %}{% endif %}
-                <button type="button"
-                        data-controller="ui--modal"
-                        data-ui--modal-title-value="{{ integration.name }}"
-                        data-ui--modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
-                        data-ui--modal-src-value="{{ path('app_integration_browse', browseArgs) }}"
-                        data-action="click->ui--modal#open click->ui--dropdown#close"
-                        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
-                               hover:bg-hover hover:text-ink transition-colors text-left">
-                    <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
-                    <span class="truncate">{{ integration.name }}</span>
-                    <i class="fa-solid fa-chevron-right ml-auto text-[9px] text-ink-faint" aria-hidden="true"></i>
-                </button>
-            {% endfor %}
-        </div>
+        {% if targets is not empty %}
+            <div data-ui--dropdown-target="menu" hidden
+                 class="absolute top-full mt-1 right-0 z-20 min-w-52 popover py-1">
+                <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {{ 'message.save_to'|trans }}
+                </p>
+                {# Each opens the destination picker rather than saving on the spot:
+                   a folder chooser for a file store, an album chooser for a photo
+                   library. The old one-click save to a fixed folder is now the
+                   "Save here" the picker lands on. A file store reopens where the
+                   last save landed; an album list is flat, so there is nowhere to
+                   reopen and it starts at the full list. #}
+                {% for integration in targets %}
+                    {% set lastDest = integration.provider.isMediaLibrary ? null : integration.getSetting('save.last_destination') %}
+                    {% set browseArgs = { id: integration.id, mode: 'destination', part: part.id } %}
+                    {% if lastDest %}{% set browseArgs = browseArgs|merge({ folder: lastDest }) %}{% endif %}
+                    <button type="button"
+                            data-controller="ui--modal"
+                            data-ui--modal-title-value="{{ integration.name }}"
+                            data-ui--modal-size-value="{{ integration.provider.isMediaLibrary ? 'full' : 'wide' }}"
+                            data-ui--modal-src-value="{{ path('app_integration_browse', browseArgs) }}"
+                            data-action="click->ui--modal#open click->ui--dropdown#close"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                   hover:bg-hover hover:text-ink transition-colors text-left">
+                        <i class="{{ integration.provider.icon }} w-4 text-center" aria-hidden="true"></i>
+                        <span class="truncate">{{ integration.name }}</span>
+                        <i class="fa-solid fa-chevron-right ml-auto text-[9px] text-ink-faint" aria-hidden="true"></i>
+                    </button>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
 
 {% endif %}

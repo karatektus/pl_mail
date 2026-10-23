@@ -24,7 +24,10 @@ in the meantime. An issue costs a paragraph; a rejected pull request costs the w
 plMail wants it, where it lives, and whether it is a setting. A setting that changes how plMail
 behaves for everybody starts off. **A bug fix may come straight as a pull request** if its
 description says what the bug was; an issue is still welcome. A large feature — a new provider, a
-new section of the app — gets a short design in its issue before any code.
+new section of the app — gets a short design in its issue before any code. **One issue per
+feature, not per change:** what comes up while a feature is being built on its branch or a
+milestone branch — a follow-up, a small addition asked for along the way — goes into the same pull
+request without an issue of its own, and the pull request says what else it brings.
 
 **Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
 an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue
@@ -220,11 +223,13 @@ Changing the shard count means changing two numbers in the same `matrix` block, 
 `shardTotal`. They are kept together for that reason: a fifth index without a matching total asks
 Playwright for shard 5 of 4, which it refuses.
 
-The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
-regression pushed there is found when a version is tagged, which may be several commits later, and
-the tag is then what fails. So run the suites locally before pushing anything you are unsure of —
-`npm run test:unit:docker && npm run test:e2e:docker` — which is faster than waiting for a runner
-anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
+Every commit on `main` is still verified, because nothing reaches `main` except through a pull
+request, and branch protection requires the jobs above to be green on it before it merges. What
+is not required is that the pull request is up to date with `main`, so its checks ran against the
+`main` it was opened on, or last updated against. Two pull requests that pass apart can still break
+together. `workflow_dispatch` on the Actions tab runs the whole workflow on any branch, and the
+suites run locally with `npm run test:unit:docker && npm run test:e2e:docker`, which is faster than
+waiting for a runner when you are unsure of a change before pushing it.
 
 A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
 the image being published. Tag from a tree you have already run the suites against — see
@@ -318,21 +323,31 @@ unpublish a catalogue version. A bad release is repaired by tagging the next one
 
 That makes the tag the only gate there is, and two things have to be true before it is pushed:
 
-- **The suites are green on the exact commit being tagged.** Either locally —
-  `npm run test:unit:docker && npm run test:e2e:docker` — or by starting the E2E workflow on `main`
-  with `workflow_dispatch` and waiting for it. The run the tag itself starts does not count: the
-  image is published beside it, not after it.
+- **The suites are green on the exact commit being tagged.** The `Release vX.Y.Z` pull request
+  described below is that run: it cannot merge until the E2E workflow is green on it, and the
+  commit it makes on `main` is the one that is tagged. There is no need to start the workflow by
+  hand before it. If anything else merged into `main` after its checks ran, press **Update branch**
+  and let them run again, because the protection does not ask for that by itself. The run the tag
+  starts does not count: the image is published beside it, not after it.
 - **That commit has been installed and used on a real installation.** A push to `main` publishes
   `main` and `sha-<commit>` without touching `latest` or the catalogue, which is what those tags are
   for: pull one onto the production install, let the migrations run against real data, and read
   mail with it. The suites start from an empty database every time; an upgrade never does.
 
-Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date` in a pull
-request titled `Release vX.Y.Z` — `main` is protected, so the release commit goes through one like
-everything else — merge it, tag the commit it made on `main` and push the tag. The release commit
-changes the changelog and nothing else, so what was tested is what is tagged — except for the
-highlight pictures that release pushes past their ten releases, which it deletes (see
-[Release notes](#release-notes)). Then close the
+Then, and in this order: write the release's section in a pull request titled `Release vX.Y.Z`
+— `main` is protected, so the release commit goes through one like everything else — merge it, tag
+the commit it made on `main` and push the tag. The section is written by
+
+```bash
+bin/changelog-release.sh vX.Y.Z
+```
+
+which puts the entries waiting in `changelog.d/` (highlights first) and whatever is still under
+`## Unreleased` under a new `## vX.Y.Z — date` heading, dated today unless a second argument says
+otherwise, and deletes the fragments. It refuses a version that already has a section, and a
+release with nothing in it. The release commit changes the changelog and `changelog.d/` and nothing
+else, so what was tested is what is tagged — except for the highlight pictures that release pushes
+past their ten releases, which it deletes (see [Release notes](#release-notes)). Then close the
 milestone of that name, moving anything still open in it to the next one (see
 [How work gets in](#how-work-gets-in)).
 
@@ -376,7 +391,19 @@ Never point it at a stack holding real mail.
 `CHANGELOG.md` is not only for people reading GitHub: every installation reads it from its own image
 and shows it in **What's new** after an update (see
 [What everyone sees after an update](docs/install/upgrading.md#what-everyone-sees-after-an-update)).
-So an entry is written for the person using plMail, and three conventions decide how it is shown:
+So an entry is written for the person using plMail.
+
+**A pull request adds its entry as a file of its own in `changelog.d/`**, named after the issue
+(`266-jmap-read-state.md`), not as a paragraph in `CHANGELOG.md`. Every pull request used to add
+its paragraph under `## Unreleased`, at the same place in the same file, so the second of any two
+conflicted with the first as soon as that one merged — and fixing the conflict is a push that
+re-runs the whole suite, once per pull request in a batch. The release pull request collects the
+files (see [Releasing](#releasing)). [`changelog.d/README.md`](changelog.d/README.md) has the
+details; the one rule that differs from writing in `CHANGELOG.md` is that a fragment has no
+headings, since the files are put one after the other. `### Before you upgrade` is still written
+under `## Unreleased` in `CHANGELOG.md`, and so are entries from pull requests that predate this.
+
+Three conventions decide how an entry is shown:
 
 - **An entry is a paragraph that opens with a bold sentence.** The bold part is its headline in the
   dialog; the rest, until the next bold paragraph, is what opens under it.
@@ -927,12 +954,13 @@ php bin/mirror-wiki.php --check
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
+| `app:contacts:sync [address-book-id] [--stale]` | Dispatch a two-way sync for mirrored CardDAV address books; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |

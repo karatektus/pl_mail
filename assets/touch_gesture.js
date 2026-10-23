@@ -22,7 +22,10 @@
  *   3. The open surface. A surface (the sidebar drawer, and later an open row or
  *      the action sheet) registers a predicate that reads its own state, so
  *      nothing here mirrors a DOM flag and goes stale. While any surface reports
- *      open, claimSequence() refuses: no gesture starts over an open surface.
+ *      open, claimSequence() refuses: no gesture starts over an open surface,
+ *      except the one a caller names in `except`, which is how a touch on an open
+ *      row reaches that row. A touch outside it claims "dismiss" instead, which
+ *      closes the row and holds the sequence, so no pull can take it afterwards.
  *
  * What it does NOT do: read the DOM, time anything, or see a touch event. The
  * caller passes in displacement and elapsed milliseconds, which keeps every rule
@@ -46,6 +49,14 @@ export const HOLD_MS = 450;
  * the hold for the rest of the sequence. Exactly this much does not.
  */
 export const HOLD_SLOP_PX = 8;
+
+/**
+ * How long, in milliseconds, after a hold's finger lifts a click is still that finger's.
+ * A finger released from a hold can leave a click behind it, which lands on whatever is
+ * under it: the backdrop of the sheet the hold opened, most often. The browser's own
+ * double-tap delay is 300ms, and a click follows its touchend within it.
+ */
+export const CLICK_WINDOW_MS = 300;
 
 /** What a sequence has been decided to be, or that it is still undecided. */
 export const Intent = Object.freeze({
@@ -121,10 +132,20 @@ export function unregisterSurface(name) {
     surfaces.delete(name);
 }
 
-/** The name of the first registered surface that is open, or null. */
-export function openSurface() {
+/**
+ * The name of the first registered surface that is open, or null.
+ *
+ * `except` names one surface to leave out of the answer. It exists for the open
+ * row: a touch on that row is the row's own business (its button, or a swipe
+ * back), so the row must not refuse the claim that lets it happen. Only the
+ * surface named is exempt; every other open surface still answers.
+ *
+ * @param {string|null} [except]
+ * @returns {string|null}
+ */
+export function openSurface(except = null) {
     for (const [name, isOpen] of surfaces) {
-        if (isOpen()) {
+        if (name !== except && isOpen()) {
             return name;
         }
     }
@@ -134,14 +155,16 @@ export function openSurface() {
 
 /**
  * Claim the current sequence for `kind`. Refused while another consumer holds it
- * and while any surface is open. The refusal is silent: the caller does nothing,
- * and the touch stays with whatever the browser would do with it.
+ * and while any surface is open, other than the one named in `except`. The
+ * refusal is silent: the caller does nothing, and the touch stays with whatever
+ * the browser would do with it.
  *
- * @param {string} kind  "pull", later "swipe" or "hold"
+ * @param {string} kind  "pull", "swipe", "dismiss" (a touch that only closes an open row), or "hold"
+ * @param {{ except?: string|null }} [options]  a surface the claim may ignore
  * @returns {boolean} true when the caller now owns the sequence
  */
-export function claimSequence(kind) {
-    if (claimedBy !== null || openSurface() !== null) {
+export function claimSequence(kind, { except = null } = {}) {
+    if (claimedBy !== null || openSurface(except) !== null) {
         return false;
     }
 

@@ -20,9 +20,9 @@ use App\Entity\Mail\Account;
  *
  * Entry points:
  *
- *   resolveReceivedAccount() — attribution for received mail on a Gmailify
- *                              carrier (carrier vs sibling accounts).
- *   isAddressedToAccount()   — received mail without Gmailify attribution.
+ *   resolveReceivedAccount() — attribution for received mail, Gmailify on or
+ *                              off (carrier vs sibling accounts).
+ *   isAddressedToAccount()   — whether the headers name this account at all.
  *   isSentByAccount()        — sent mail (SENT label): checks From.
  */
 final class GmailAddressFilter
@@ -91,8 +91,9 @@ final class GmailAddressFilter
     /**
      * Returns true when at least one Delivered-To (or, as a fallback, To)
      * address in the headers normalises to the same canonical form as
-     * $account. Used for received mail when Gmailify attribution is off —
-     * only the carrier's own mail is considered then.
+     * $account. Not attribution: with Gmailify off, received mail is still
+     * attributed by resolveReceivedAccount(), because Gmail's own
+     * Delivered-To stamp on collected mail would pass this test.
      *
      * @param array<string,string> $headers  lower-cased header name → value
      */

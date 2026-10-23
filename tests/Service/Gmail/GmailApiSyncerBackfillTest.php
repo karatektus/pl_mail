@@ -220,7 +220,9 @@ final class GmailApiSyncerBackfillTest extends TestCase
     {
         $account = $this->account();
         $this->synced('a');
-        $this->skipped->method('findGmailIdsForAccount')->willReturn(['declined']);
+        $this->skipped->method('findGmailIdsAmong')->willReturnCallback(
+            static fn (Account $account, array $ids): array => array_values(array_intersect(['declined'], $ids)),
+        );
 
         $this->expectDispatch(self::never());
 
@@ -228,6 +230,30 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
         self::assertSame(0, $account->backfillTarget, 'everything listed has an answer, so the import is finished');
         self::assertSame(0, $account->backfillAttempts);
+    }
+
+    /**
+     * The listing asks the database about the ids on its page and nothing
+     * else (#223). It used to read every gmail_id the owner had stored, on
+     * every page and every history window: thousands of rows per sync on a
+     * large mailbox, to answer a question about a few hundred.
+     */
+    public function testTheListingAsksOnlyAboutTheIdsItListed(): void
+    {
+        $account = $this->account();
+        $asked   = [];
+
+        $this->messageRepository
+            ->method('findStoredGmailIdsForUser')
+            ->willReturnCallback(static function (User $user, array $ids) use (&$asked): array {
+                $asked[] = $ids;
+
+                return [];
+            });
+
+        $this->syncer(['a', 'b'])->backfill($account);
+
+        self::assertSame([['a', 'b']], $asked);
     }
 
     public function testDispatchedBatchesCarryOnlyUnsyncedIds(): void
@@ -306,6 +332,16 @@ final class GmailApiSyncerBackfillTest extends TestCase
             $this->createStub(MessageEraser::class),
             new \App\Service\Mail\SyncOrigin(),
             $this->skipped,
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 
@@ -328,9 +364,11 @@ final class GmailApiSyncerBackfillTest extends TestCase
 
     private function synced(string ...$gmailIds): void
     {
+        // Answers for the ids asked about, as the query does: the listing
+        // asks only about the page in hand (#223).
         $this->messageRepository
-            ->method('findSyncedGmailIdsForUser')
-            ->willReturn($gmailIds);
+            ->method('findStoredGmailIdsForUser')
+            ->willReturnCallback(static fn (User $user, array $ids): array => array_values(array_intersect($gmailIds, $ids)));
     }
 
     private function envelope(): Envelope

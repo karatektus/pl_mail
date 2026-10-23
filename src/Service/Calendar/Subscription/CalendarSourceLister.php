@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Subscription;
 
 use App\Domain\DTO\Calendar\CalendarSource;
-use App\Domain\Enum\Integration\ServiceKind;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
@@ -52,9 +51,13 @@ final readonly class CalendarSourceLister
     }
 
     /**
-     * Connections made for calendars — today that means CalDAV, and the filter
-     * is on ServiceKind rather than on the CalDav case so a second calendar
-     * protocol appears here by declaring its kind and nothing else.
+     * Connections that carry calendars: the ones made for calendars alone —
+     * CalDAV, an ICS address — and a Nextcloud connection made for files,
+     * whose app password reaches its calendars too (#158).
+     *
+     * The filter is Provider::offersCalendars() rather than a list of cases,
+     * so a provider appears here by saying it carries calendars and nothing
+     * else; ServiceKind alone would leave Nextcloud out.
      *
      * @return list<Integration>
      */
@@ -62,7 +65,7 @@ final readonly class CalendarSourceLister
     {
         return array_values(array_filter(
             $this->integrations->findForUserOrdered($user),
-            static fn (Integration $integration): bool => ServiceKind::Calendar === $integration->provider->kind(),
+            static fn (Integration $integration): bool => $integration->provider->offersCalendars(),
         ));
     }
 }

@@ -50,6 +50,31 @@ export default class extends Controller {
     }
 
     /**
+     * submit(), once typing pauses: for a search that answers as it is
+     * typed. On `input`, not `change`, which a text field only fires when it
+     * loses focus. One timer per controller, so each key restarts it and a word
+     * typed quickly is one request, not one per letter.
+     */
+    submitSoon(event) {
+        clearTimeout(this._soon);
+        this._soon = setTimeout(() => this.submit(event), 250);
+    }
+
+    /**
+     * Drops a submitSoon() still waiting. For a container holding the search
+     * and other forms (the add-to-contacts dialog): a pick submitted while a
+     * search is pending must not be followed by that search, whose answer
+     * would land in a dialog already closing.
+     */
+    cancel() {
+        clearTimeout(this._soon);
+    }
+
+    disconnect() {
+        clearTimeout(this._soon);
+    }
+
+    /**
      * Select the whole value, for a read-only field somebody is about to copy.
      *
      * Here rather than in a controller of its own because it is the same

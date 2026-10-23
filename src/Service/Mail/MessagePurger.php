@@ -4,15 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\RawMessageStorage;
-use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Deleting mail for good — the only operation in plMail that destroys
@@ -57,17 +52,16 @@ use Psr\Log\LoggerInterface;
  * The row, its parts, the attachment files, and the raw source. Leaving the
  * files behind would make the deletion a lie in the way that matters most —
  * the bytes of the mail would still be on the disk, which for a mail client is
- * the thing a person deleting a message is usually trying to prevent.
+ * the thing a person deleting a message is usually trying to prevent. All of
+ * that is MessageEraser's, which takes a row out the same way whoever decided
+ * it should go.
  */
 final readonly class MessagePurger
 {
     public function __construct(
-        private EntityManagerInterface  $entityManager,
-        private MessageBusInterface     $bus,
-        private MailChangeRecorder      $changes,
-        private AttachmentStorageHelper $attachments,
-        private RawMessageStorage       $raw,
-        private LoggerInterface         $logger,
+        private EntityManagerInterface $entityManager,
+        private MessageBusInterface    $bus,
+        private MessageEraser          $eraser,
     ) {
     }
 
@@ -92,54 +86,13 @@ final readonly class MessagePurger
         // be there when the worker runs. See PurgeRemoteMessagesMessage.
         $this->dispatchRemotePurge($messages);
 
-        $threads = [];
-        $purged  = 0;
-
-        foreach ($messages as $message) {
-            // Through the thread when the message has no account of its own,
-            // which is the same two-association ownership path
-            // MessageRepository::findOneForAccountByMessageId spells out.
-            $account = $message->account ?? $message->thread?->account;
-
-            if (null !== $message->thread) {
-                $threads[spl_object_id($message->thread)] = $message->thread;
-            }
-
-            // Recorded while the id is still readable, and before the flush
-            // that invalidates it. A JMAP client that never learns a message
-            // was destroyed keeps showing it.
-            if ($account instanceof Account && null !== $message->id) {
-                $this->changes->emailDestroyed(
-                    (int) $account->id,
-                    (string) $message->id,
-                    $message->thread,
-                );
-            }
-
-            $this->removeFiles($message);
-
-            // The parts explicitly: Message::$messageParts is a plain
-            // OneToMany with neither cascade nor orphanRemoval, so removing the
-            // message alone leaves rows pointing at one that no longer exists.
-            // Doctrine notices before the database does — "a new entity was
-            // found through the relationship" — which is a confusing way to be
-            // told about a foreign key.
-            //
-            // Deliberately not fixed by adding cascade to the mapping. That
-            // would change what happens on every other path that touches a
-            // message, including the syncers that detach and re-attach parts,
-            // and this is the only place that wants a part destroyed.
-            foreach ($message->messageParts as $part) {
-                $this->entityManager->remove($part);
-            }
-
-            $this->entityManager->remove($message);
-            ++$purged;
-        }
-
-        $this->entityManager->flush();
-
-        $this->reconcileThreads($threads);
+        // The local half is MessageEraser's, the same path a deletion on the
+        // server takes (#299). This class used to do it itself, and the two
+        // had drifted: the parts were removed here and not there, the thread's
+        // labels re-derived there and not here, and only one of them removed
+        // an emptied thread. What is left here is the one thing a purge does
+        // that a server-side deletion does not: telling the provider.
+        $purged = $this->eraser->eraseAll($messages);
 
         $this->entityManager->flush();
 
@@ -199,69 +152,6 @@ final readonly class MessagePurger
             if (false === $job->isEmpty()) {
                 $this->bus->dispatch($job);
             }
-        }
-    }
-
-    /**
-     * The bytes on disk, which the database rows do not take with them.
-     *
-     * Failures are logged and swallowed rather than aborting the delete. A file
-     * that has already gone, or one on a volume that is momentarily unwritable,
-     * must not leave the user with a message they asked to destroy still in
-     * their mailbox — the row going is the part they can see, and a leftover
-     * file is a cleanup problem rather than a correctness one.
-     */
-    private function removeFiles(Message $message): void
-    {
-        foreach ($message->messageParts as $part) {
-            try {
-                $this->attachments->delete($part->storagePath);
-            } catch (\Throwable $e) {
-                $this->logger->warning('MessagePurger: could not delete an attachment', [
-                    'part'      => $part->id,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
-            }
-        }
-
-        try {
-            $this->raw->delete($message->rawPath);
-        } catch (\Throwable $e) {
-            $this->logger->warning('MessagePurger: could not delete a raw source', [
-                'message'   => $message->id,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
-            ]);
-        }
-    }
-
-    /**
-     * A conversation that has lost messages, and one that has lost all of them.
-     *
-     * messageCount is recounted from the association rather than decremented,
-     * which is the rule DraftPersister and ComposeController::discard() already
-     * state: the stored counter is what the thread header renders, and anything
-     * that adjusts it by arithmetic drifts.
-     *
-     * An empty thread is removed outright. Leaving it would put a conversation
-     * with no messages in the list — a row with a subject, no participants and
-     * a count of zero, which nothing else in the app knows how to render.
-     *
-     * @param array<int, MessageThread> $threads
-     */
-    private function reconcileThreads(array $threads): void
-    {
-        foreach ($threads as $thread) {
-            $remaining = $thread->messages->count();
-
-            if (0 === $remaining) {
-                $this->entityManager->remove($thread);
-
-                continue;
-            }
-
-            $thread->messageCount = $remaining;
         }
     }
 }
