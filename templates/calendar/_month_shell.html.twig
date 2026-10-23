@@ -81,8 +81,13 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
             {% set isOutside = days[dayKey] is not defined %}
             {% set dayEntries = days[dayKey]|default([]) %}
             {% set isToday = dayKey == today %}
-            {% set isWeekend = dayKey|date('N') >= 6 %}
-            {% set isOtherMonth = dayKey|date('n') != anchorMonth %}
+            {# `false` on every |date of a day key: without it a wall date is
+               read as midnight UTC and moved into the reader's zone, which
+               west of UTC is the day before — weekends shaded on Friday and
+               Saturday, the 1st dimmed as last month's (#325). See the day
+               headings in _time_grid_shell. #}
+            {% set isWeekend = dayKey|date('N', false) >= 6 %}
+            {% set isOtherMonth = dayKey|date('n', false) != anchorMonth %}
 
             {# The spill-in days are dimmed as a whole cell, not just by their
                date number: a neighbouring month's events rendered at full
@@ -198,11 +203,11 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
                         {% if isToday %}
                             <span class="w-5 h-5 flex items-center justify-center rounded-full
                                          bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                                {{ dayKey|date('j') }}
+                                {{ dayKey|date('j', false) }}
                             </span>
                         {% else %}
                             <span class="text-xs tabular-nums {{ isOtherMonth or isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
-                                {{ dayKey|date('j') }}
+                                {{ dayKey|date('j', false) }}
                             </span>
                         {% endif %}
                     {% endblock %}
