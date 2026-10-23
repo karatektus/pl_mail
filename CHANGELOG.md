@@ -7,6 +7,11 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Expanding the compose window no longer cuts off a longer message.** The editor fell back to a
+170px box and hid every line below it until the window was restored.
+
 ## v0.3.8 — 2026-10-21
 
 **The image runs PHP 8.4.27, which fixes CVE-2026-109618 and CVE-2026-109619.** Every earlier

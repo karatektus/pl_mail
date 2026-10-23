@@ -1407,9 +1407,15 @@ export default class extends Controller {
             `;
 
             if (this.hasBodyTarget) {
-                this.bodyTarget.closest('div').style.flex = '1';
-                this.bodyTarget.style.flex = '1';
-                this.bodyTarget.style.height = '0';
+                // The wrapper is a plain block, so a `flex`/`height: 0` on the
+                // editor alone did nothing but drop it to its 170px min-height,
+                // and its [contain:paint] clipped the rest of a longer mail.
+                // Make the wrapper a column so the editor fills it when short
+                // and grows with its content (the scroller scrolls) when long.
+                const wrap = this.bodyTarget.closest('div');
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                this.bodyTarget.style.flex = '1 0 auto';
             }
 
             document.body.style.overflow = 'hidden';
@@ -1430,9 +1436,10 @@ export default class extends Controller {
             return;
         }
 
-        this.bodyTarget.closest('div').style.flex = '';
-        this.bodyTarget.style.flex   = '';
-        this.bodyTarget.style.height = '';
+        const wrap = this.bodyTarget.closest('div');
+        wrap.style.display       = '';
+        wrap.style.flexDirection = '';
+        this.bodyTarget.style.flex = '';
     }
 
     _syncExpandIcon(expanded) {
