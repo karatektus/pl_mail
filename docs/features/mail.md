@@ -397,6 +397,12 @@ Replies collapse into one conversation, ordered oldest to newest with the latest
 expanded. Each message has its own menu: **Star**, **Archive**, **Mark as unread**,
 **Delete this message**, **Print**, and **Show original**.
 
+Deleting one message of a conversation leaves the conversation where it is: it stays in the inbox
+and under its labels until every message of it is in the bin. Opened, it shows the deleted message
+among the others with an **In Trash** chip and a dimmed header, and without **Archive** and
+**Delete this message**, which mean nothing for mail that is already in the bin. In Trash itself
+every message is deleted, so nothing is marked there.
+
 **Show original** reconstructs the message from the stored header map and the decoded body — no
 raw RFC 822 blob is kept — and prints the SPF, DKIM and DMARC verdicts alongside it where the
 provider recorded an `Authentication-Results` header. Both it and **Print** open in their own tab.

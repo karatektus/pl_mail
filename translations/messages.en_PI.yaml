@@ -2324,6 +2324,7 @@ message:
         show_once: Show the pictures
         stop_trusting: Hold them back again
         trusted: 'Pictures from %sender% are always shown'
+    in_trash: "In Davy Jones' locker"
     original:
         copied: Copied
         copy: Copy to the slate
