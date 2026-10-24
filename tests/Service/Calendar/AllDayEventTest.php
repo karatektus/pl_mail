@@ -265,17 +265,17 @@ final class AllDayEventTest extends KernelTestCase
         $user->nameLast  = 'Day';
         $user->roles     = ['ROLE_USER'];
         $user->password  = 'x';
+        // The page is drawn on the user's own clock — see
+        // CalendarTimeResolver::zoneFor() — so it is the one that has to be far
+        // from UTC for this fixture to mean anything.
+        $user->timezone  = 'Pacific/Auckland';
         $this->em->persist($user);
 
-        // The display zone comes off the DEFAULT calendar — see
-        // CalendarRangeReader::zoneOf() — so it is the one that has to be far
-        // from UTC for this fixture to mean anything.
         $calendar            = new Calendar();
         $calendar->usr       = $user;
         $calendar->name      = 'Auckland';
         $calendar->role      = CalendarRole::Default;
         $calendar->isDefault = true;
-        $calendar->timeZone  = 'Pacific/Auckland';
         $this->em->persist($calendar);
 
         $this->em->flush();

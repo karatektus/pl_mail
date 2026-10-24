@@ -23,7 +23,7 @@ use ReflectionProperty;
  * that day is local to is the same decision the calendar grid makes — so the
  * dot has to ask the same resolver, not read the default calendar's column
  * itself. It did, and a mirrored default calendar stamped UTC put the dot's
- * "today" two hours off the grid it sits above.
+ * "today" two hours off the grid it sits above. Both are the user's own zone.
  *
  * Observed through the upper bound handed to the occurrence query, because that
  * bound is the whole of what the zone decides here.
@@ -45,13 +45,12 @@ final class UpcomingEventIndicatorZoneTest extends TestCase
     }
 
     /**
-     * Presence companion: a calendar this install owns still decides. UTC here
-     * is a deliberate choice, so the same instant ends "today" at 00:00 UTC —
-     * which a resolver that ignored the calendar entirely could not produce.
+     * Nor does a local one, even with a zone picked (#343): the dot's "today"
+     * is the reader's, the same as the grid's and the header clock's.
      */
-    public function testALocalDefaultCalendarStillDecidesTodaysEnd(): void
+    public function testALocalDefaultCalendarDoesNotMoveTodaysEnd(): void
     {
-        self::assertSame('2026-10-15 00:00:00', $this->windowEnd($this->calendar(1, 'UTC'), 'Europe/Paris'));
+        self::assertSame('2026-10-15 22:00:00', $this->windowEnd($this->calendar(1, 'UTC'), 'Europe/Paris'));
     }
 
     /** The upper bound the occurrence query was asked for, as a UTC wall string. */

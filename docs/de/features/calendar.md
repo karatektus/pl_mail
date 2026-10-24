@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:d781321a4c7533e5b2770a4250b64e69f3cfee39 -->
+<!-- translated-from: features/calendar.md sha1:b293d951b77d4bb00035776790dd9e8bf7517a7e -->
 
 # Kalender
 
@@ -166,14 +166,13 @@ stimmt.
 **Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
 Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
 auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
-dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird. Trägt ein Kalender eine
-eigene Zeitzone, gilt sie für seine Termine, wie eh und je; geändert hat sich der Rückfall, der
-früher die Vorstellung des Containers von der Zeit war — UTC —, sodass die Linie der aktuellen Zeit
-ein bis zwei Stunden neben ihren eigenen Beschriftungen sitzen konnte und ein neuer Termin für einen
-bereits vergangenen Zeitpunkt vorgeschlagen wurde. Ein Kalender, den du von Google oder einem
-CalDAV-Server abonnierst, ist die Ausnahme: Seine Zone ist die, die das entfernte Konto für ihn
-führt, bei einem geteilten Kalender oft UTC; ist so ein Kalender dein Standardkalender, folgt das
-Raster trotzdem deiner eigenen Zone.
+dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird, und die der Uhr oben,
+also sind sich beide immer einig. Jeder Termin steht zu dem Zeitpunkt da, zu dem er bei dir
+tatsächlich stattfindet: Ein Termin um 15:00 in einem Tokioter Kalender liegt, in Berlin gelesen,
+auf der Linie von 07:00. Änderst du deine Zeitzone, zieht der Kalender mit. Bis plMail 0.4.0 folgte
+das Raster stattdessen der eigenen Zone deines Standardkalenders, und die war eine Kopie deiner Zone
+vom Tag, an dem der Kalender angelegt wurde — nach einem Wechsel der Zeitzone waren sich Kalender und
+Uhr deshalb uneinig ([#343](https://github.com/karatektus/pl_mail/issues/343)).
 
 Drei Dinge über das Raster sind es wert, gewusst zu werden:
 
@@ -331,8 +330,13 @@ deshalb das, was der Editor voreingestellt meint: Jede beschreibbare Kopie zieht
 
 Unter **Einstellungen → Kalender** werden Kalender angelegt, umbenannt, umgefärbt, mit einer Zeitzone
 versehen, aus den Ansichten ausgeblendet und zu dem ernannt, in dem neue Termine landen. Die Zeitzone
-eines Kalenders ist die, in der er gelesen wird, und die, in der ein Termin ohne eigene Zone
-angezeigt wird.
+eines Kalenders ist die, in der ein neuer Termin darin angelegt wird; wo Termine angezeigt werden,
+ändert sie nicht, das ist immer deine eigene Uhr. Sie steht zuerst auf **plMail folgen**, also auf
+deiner eigenen Zeitzone, wie sie gerade ist, und die Liste schreibt bei so einem Kalender *Folgt
+plMail*. Wähl stattdessen eine Zone für einen Kalender, der woanders hingehört, etwa einen für ein
+Büro in einem anderen Land: Ein Zeitfenster, auf das du doppelklickst, öffnet sich dann zum selben
+Zeitpunkt, geschrieben in dieser Zone. Ein Kalender, den du von Google oder einem CalDAV-Server
+abonnierst, behält die Zone, die das entfernte Konto für ihn führt.
 
 plMail legt zwei Arten von Kalender für dich an: einen Standardkalender je Benutzer und einen je
 E-Mail-Konto, in den die Termine einsortiert werden, die in der Mail dieses Kontos gefunden wurden.

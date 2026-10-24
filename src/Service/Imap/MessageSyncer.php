@@ -17,6 +17,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
@@ -61,6 +62,7 @@ class MessageSyncer
         private readonly ImapPagedFetch $pagedFetch,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
+        private readonly MessageCryptoDetector $cryptoDetector,
     ) {}
 
     /**
@@ -1035,8 +1037,26 @@ class MessageSyncer
         $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
         $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
 
-        // Attachments
-        $attachments = $imapMessage->getAttachments();
+        // OpenPGP or S/MIME, decided from the top-level Content-Type and the
+        // body — before anything is written, because an encrypted message's
+        // body must never reach the row: search_vector is generated from it
+        // on insert. No part list: IMAP always has the header, and a plain
+        // message that merely carries somebody's signature.asc is not signed.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers, 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        // Attachments — without the parts that are only the wrapping: the
+        // signature, the ciphertext. The raw source keeps them for whoever
+        // checks or decrypts.
+        $attachments = array_values(array_filter(
+            iterator_to_array($imapMessage->getAttachments()),
+            fn (mixed $attachment): bool => null === $crypto
+                || false === $this->cryptoDetector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename()),
+        ));
         $message->syncedAt = new DateTimeImmutable();
 
         $hasAttachments = false;

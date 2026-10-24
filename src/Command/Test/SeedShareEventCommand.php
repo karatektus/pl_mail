@@ -11,6 +11,7 @@ use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Calendar\CalendarEventWriter;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
@@ -67,6 +68,7 @@ final class SeedShareEventCommand extends Command
         private readonly CalendarRepository      $calendarRepository,
         private readonly CalendarEventRepository $events,
         private readonly CalendarEventWriter     $writer,
+        private readonly UserTimezoneResolver    $timezones,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
     ) {
@@ -120,7 +122,7 @@ final class SeedShareEventCommand extends Command
             return Command::SUCCESS;
         }
 
-        // The CALENDAR's wall clock, not UTC — the share page draws against the
+        // The owner's wall clock, not UTC — the share page draws against the
         // owner's zone, so a UTC instant would land at the hour the spec expects
         // only on an install running in UTC.
         $zone     = $this->zoneOf($calendar);
@@ -162,12 +164,12 @@ final class SeedShareEventCommand extends Command
         $this->entityManager->flush();
     }
 
+    /**
+     * The owner's zone: the clock every calendar page is drawn on (#343),
+     * whatever zone the calendar itself carries.
+     */
     private function zoneOf(Calendar $calendar): DateTimeZone
     {
-        try {
-            return new DateTimeZone($calendar->timeZone);
-        } catch (\Exception) {
-            return new DateTimeZone('UTC');
-        }
+        return $this->timezones->resolve($calendar->usr);
     }
 }

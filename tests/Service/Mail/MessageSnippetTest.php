@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Service\Mail\MessageSnippet;
@@ -361,5 +362,30 @@ final class MessageSnippetTest extends TestCase
 
         self::assertSame('Bereinigt', $snippet);
         self::assertStringNotContainsString('alert', $snippet);
+    }
+
+    /**
+     * An encrypted message has no body here to preview, and the row says so
+     * with a lock in front of the subject now (reported from the milestone
+     * build): the placeholder this used to put in the preview, "Encrypted
+     * message", is gone, and the preview is simply empty.
+     */
+    public function testAnEncryptedMessageWithNoBodyHasNoPlaceholderPreview(): void
+    {
+        $message         = new Message();
+        $message->crypto = MessageCrypto::PgpEncrypted;
+
+        self::assertSame('', $this->snippet->of($message));
+        self::assertSame('', $this->snippet->fromBodies(null, null));
+    }
+
+    /** One whose decrypted copy is kept on the server previews what it says. */
+    public function testAnEncryptedMessageKeptReadableShowsItsRealPreview(): void
+    {
+        $message           = new Message();
+        $message->crypto   = MessageCrypto::PgpEncrypted;
+        $message->bodyText = 'The pumpkins arrive on Tuesday.';
+
+        self::assertSame('The pumpkins arrive on Tuesday.', $this->snippet->of($message));
     }
 }

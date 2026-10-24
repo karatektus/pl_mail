@@ -108,6 +108,13 @@ final readonly class MessageSnippet
      */
     public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText, ?MessageCategory $category = null): string
     {
+        // An encrypted message has no body here to preview — the server keeps
+        // none, unless the account keeps decrypted mail and a browser has
+        // handed it over (DecryptedMail) — so its preview is empty. It used to
+        // be "Encrypted message", appended after the subject; the row now says
+        // that with a lock in front of the subject (ThreadRow::$encrypted), in
+        // the place a reader looks first, and the preview line is left to
+        // what the message says when the server has it.
         $skip     = self::skipsChrome($category);
         $fromHtml = $this->flatten($this->quotes->withoutQuote((string) $bodyHtmlSafe), $skip);
 

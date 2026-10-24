@@ -42,6 +42,62 @@ framework:
             limit: 20
             interval: '15 minutes'
 
+        # The prelogin, in App\Controller\Auth\PreloginController: the salt
+        # and iteration count a browser needs before it can stretch a password.
+        # Every sign-in asks once, so this sits above login_ip — a household
+        # behind one address mistyping its way through the password limit must
+        # hit that limit first, with its message, rather than this one. What it
+        # bounds is somebody walking a list of addresses to see which answer
+        # `migrate: true`, the one thing the endpoint tells apart.
+        login_prelogin:
+            policy: 'fixed_window'
+            limit: 60
+            interval: '15 minutes'
+
+        # Opening the keyring with the password while already signed in, in
+        # App\Controller\Crypto\UnlockController. Per user, like the code form
+        # and for its reason: what is being guessed is one account's password,
+        # by somebody at that account's unlocked screen. As tight as the login
+        # form's per-account-and-address limit.
+        keyring_unlock:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '15 minutes'
+
+        # Key lookups that actually leave the server, in
+        # App\Service\Crypto\KeyFetcher — WKD and the public key servers
+        # alike, one budget for both, and answers from its cache are not
+        # counted. Per user: the server makes these requests on a person's
+        # behalf, and without a bound one signed-in account could use it to
+        # make the server knock on doors as fast as it can type.
+        #
+        # Each place asked counts once: the domain's WKD, then each key server
+        # in turn, so an address nobody has a key for costs three with the
+        # default two servers. Sixty in ten minutes — twice the thirty it was
+        # with WKD alone — keeps that at twenty new addresses, still far above
+        # a person working through their contacts by hand or typing the
+        # recipients of one mail. Keeps its name from the WKD-only days, so
+        # no stored limiter state is orphaned.
+        wkd_lookup:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '10 minutes'
+
+        # The public Web Key Directory, in App\Controller\Crypto\WkdController.
+        # Anybody may ask it, and every answer says whether an address on this
+        # installation has a published key — which, asked about a list of
+        # likely names, is a list of the addresses that exist. A limit does not
+        # stop that, it slows it: three hundred an hour per IP is far above
+        # what a mail program asks (two or four requests per address it
+        # writes to, and it remembers the answer) and far below what a script
+        # walking a dictionary of names would like. Keyed per IP for
+        # booking_attempt's reason: there is no account on the caller's side.
+        # Fixed window for the same reason as there, too.
+        wkd_serve:
+            policy: 'fixed_window'
+            limit: 300
+            interval: '1 hour'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

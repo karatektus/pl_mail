@@ -135,7 +135,12 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         );
     }
 
-    public function testTheEncryptButtonIsDisabledAndSaysWhy(): void
+    /**
+     * The lock is a switch now (compose--encryption), and it must never start
+     * out saying a message is encrypted: it is drawn not pressed, and the
+     * browser presses it once the recipients' keys say so.
+     */
+    public function testTheEncryptSwitchIsLiveNamedAndStartsUnpressed(): void
     {
         $client = static::createClient();
         $user   = $this->boot($client);
@@ -144,17 +149,13 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $this->em->flush();
 
         $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
-        $button  = $crawler->filter('button[disabled] .fa-lock')->closest('button');
+        $button  = $crawler->filter('button[data-compose--encryption-target="encryptButton"]');
 
-        self::assertNotNull($button, 'the encrypt button is present and disabled');
-        self::assertNotSame('', (string) $button->attr('aria-label'), 'and still named');
-
-        self::assertStringContainsString(
-            'not available yet',
-            $crawler->filter('[title]')->reduce(
-                static fn ($node): bool => str_contains((string) $node->attr('title'), 'not available'),
-            )->attr('title'),
-        );
+        self::assertCount(1, $button, 'the encrypt switch is present');
+        self::assertNull($button->attr('disabled'), 'and can be pressed');
+        self::assertSame('false', $button->attr('aria-pressed'));
+        self::assertNotSame('', (string) $button->attr('aria-label'), 'and is named');
+        self::assertStringContainsString('compose--encryption#toggleEncrypt', (string) $button->attr('data-action'));
     }
 
     public function testTheMoreOptionsMenuRendersBothMappedFields(): void

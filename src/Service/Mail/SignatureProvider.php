@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
+use Dom\HTMLDocument;
 
 /**
  * Which signature an address signs with, and what that looks like in a body.
@@ -106,8 +107,58 @@ final readonly class SignatureProvider
         return sprintf(
             '<div class="pl-signature" data-pl-signature%s>%s</div>',
             true === $pinned ? ' data-pl-signature-pinned' : '',
-            $html,
+            self::flushBlockquotes($html),
         );
+    }
+
+    /**
+     * Every blockquote in a signature gets the margin it has in the editor,
+     * written on it.
+     *
+     * The editor's stylesheet (Tailwind's preflight) zeroes a blockquote's
+     * margin, so a signature that wraps its name in one — pasted from another
+     * program, as people do — sits flush left while it is written. Nothing
+     * styles the mail that goes out: the reading frame and every program a
+     * recipient uses fall back to the browser default of 40px either side, and
+     * the signature arrived indented in a way the sender had never seen. An
+     * inline style is the only thing that travels with the mail.
+     *
+     * A margin the signature states for itself wins: that one shows in the
+     * editor too, so the two already agree. Here rather than at
+     * storage, so every signature already saved is put right as well.
+     */
+    private static function flushBlockquotes(string $html): string
+    {
+        if (false === stripos($html, '<blockquote')) {
+            return $html;
+        }
+
+        try {
+            $document = HTMLDocument::createFromString('<!DOCTYPE html><html><body>' . $html . '</body></html>', LIBXML_NOERROR, 'UTF-8');
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        $body = $document->body;
+
+        if (null === $body) {
+            return $html;
+        }
+
+        foreach ($body->querySelectorAll('blockquote') as $quote) {
+            $style = trim((string) $quote->getAttribute('style'));
+
+            // Only the shorthand settles it. One side stated on its own still
+            // leaves the others to the browser's default, and margin:0 put in
+            // front of it is overridden by it for that side alone.
+            if (1 === preg_match('/(^|;)\s*margin\s*:/i', $style)) {
+                continue;
+            }
+
+            $quote->setAttribute('style', '' === $style ? 'margin:0' : 'margin:0;' . $style);
+        }
+
+        return $body->innerHTML;
     }
 
     /**

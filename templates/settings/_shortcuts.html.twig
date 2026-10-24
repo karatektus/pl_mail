@@ -21,7 +21,7 @@ Accepts:
 
 <div class="px-4 py-3">
 
-<form method="post" action="{{ path('app_settings_shortcuts_update') }}" data-turbo="false" data-controller="ui--auto-submit">
+<form method="post" action="{{ path('app_settings_shortcuts_update') }}" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-shortcuts') }}">
 
     <div class="flex items-start justify-between gap-3">

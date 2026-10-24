@@ -1,6 +1,7 @@
 import { test, expect } from "./support/test";
 import type { Page } from "@playwright/test";
 import { acceptConfirm } from "./support/confirm";
+import { saveSetting } from "./support/settings";
 
 /**
  * Settings → Categories, in a browser.
@@ -42,7 +43,7 @@ test.afterEach(async ({ page }) => {
     const forumsOn = page.locator("[data-tab-key='forums'] input[name='on'][value='1']");
 
     if (false === (await forumsOn.isChecked())) {
-        await Promise.all([page.waitForURL(/section=categories/), page.locator("[data-tab-key='forums']").getByText("On", { exact: true }).click()]);
+        await saveSetting(page, () => page.locator("[data-tab-key='forums']").getByText("On", { exact: true }).click());
     }
 });
 
@@ -50,7 +51,7 @@ test("a tab made here can be moved, and the order is kept", async ({ page }) => 
     await open(page);
 
     await page.getByPlaceholder("e.g. Shipping").fill(NAME);
-    await Promise.all([page.waitForURL(/section=categories/), page.getByRole("button", { name: "Add", exact: true }).click()]);
+    await saveSetting(page, () => page.getByRole("button", { name: "Add", exact: true }).click());
 
     const row = rowNamed(page, NAME);
     await expect(row).toBeVisible();
@@ -80,7 +81,7 @@ test("a built-in tab is switched off and back on", async ({ page }) => {
 
     const forums = page.locator("[data-tab-key='forums']");
 
-    await Promise.all([page.waitForURL(/section=categories/), forums.getByText("Off", { exact: true }).click()]);
+    await saveSetting(page, () => forums.getByText("Off", { exact: true }).click());
 
     await expect(page.locator("[data-tab-key='forums'] input[name='on'][value='0']")).toBeChecked();
     await expect(page.locator("[data-tab-key='forums']")).toContainText("switched off");

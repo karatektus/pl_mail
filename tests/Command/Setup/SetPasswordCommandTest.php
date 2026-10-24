@@ -8,6 +8,9 @@ use App\Entity\User\User;
 use App\Tests\Command\MailFixtures;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Crypto\UserKeyStatus;
+use App\Entity\Crypto\UserKey;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -64,6 +67,56 @@ final class SetPasswordCommandTest extends KernelTestCase
 
         self::assertSame(Command::SUCCESS, $exit);
         self::assertTrue($this->hasher()->isPasswordValid($user, 'a-long-enough-password'));
+    }
+
+    /**
+     * The keys hang off the password being replaced, which nobody here knows —
+     * so they are locked, not deleted, and the operator is told, because it is
+     * the one effect of the command that reaches past the sign-in.
+     */
+    public function testItLocksTheKeysTheOldPasswordOpenedAndSaysSo(): void
+    {
+        $user    = MailFixtures::user($this->em, 'pwd-keys');
+        $userKey = new UserKey($user, 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(48)));
+
+        $this->em->persist($userKey);
+        $this->em->flush();
+
+        $this->command->execute(['email' => (string) $user->email, '--password' => 'a-long-enough-password']);
+
+        $this->em->refresh($userKey);
+
+        self::assertSame(UserKeyStatus::Locked, $userKey->status);
+        self::assertStringContainsString('encryption keys are locked', $this->command->getDisplay());
+    }
+
+    /**
+     * An account single sign-on made, whose keyring hangs off an encryption
+     * passphrase, given a password as well: nothing was wrapped under the
+     * password being set, so nothing is locked, nothing is said about keys,
+     * and the passphrase stays the root (phase 6e).
+     */
+    public function testGivingAPassphraseAccountAPasswordLocksNothing(): void
+    {
+        $user = MailFixtures::user($this->em, 'pwd-passphrase');
+        $user->password = '';
+        $user->usePassphraseRoot(base64_encode(random_bytes(16)), 600000);
+
+        $userKey = new UserKey($user, 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(48)));
+
+        $this->em->persist($userKey);
+        $this->em->flush();
+
+        $exit = $this->command->execute(['email' => (string) $user->email, '--password' => 'a-long-enough-password']);
+
+        $this->em->refresh($userKey);
+        $this->em->refresh($user);
+
+        self::assertSame(Command::SUCCESS, $exit);
+        self::assertSame(UserKeyStatus::Active, $userKey->status, 'a password locked keys the passphrase opens');
+        self::assertSame(KeyringRoot::Passphrase, $user->keyringRoot);
+        self::assertSame(KeyringRoot::Passphrase, $user->keyringRootInEffect);
+        self::assertStringNotContainsString('encryption keys are locked', $this->command->getDisplay());
     }
 
     /** Typed rather than passed, which is the way an operator actually runs it. */

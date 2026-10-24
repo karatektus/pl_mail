@@ -220,7 +220,7 @@ in before, with logs and orphaned blobs growing without bound.
 | `50 3 * * *` | `app:calendar:materialise` | Rolls the occurrence horizon forward, so a repeating event does not quietly run out of dates |
 | `30 4 * * *` | `app:monitoring:prune` | Log entries, push deliveries, dead heartbeats, finished background jobs (30 days) and expired trusted devices |
 | `37 * * * *` | `app:updates:check` | Hourly, at an odd minute: the registry and GitHub's anonymous API are shared with everybody else's installations. Each new build is announced once, however often it is found |
-| `0 5 * * 0` | `app:prune:blobs` | Weekly; it walks the per-account trees of three stores under `APP_STORAGE_DIR`, and the attachment thumbnails, and a week of orphans is a rounding error. Only those: avatars, signature images, backgrounds and anything else kept under the same volumes are left alone |
+| `0 5 * * 0` | `app:prune:blobs` | Weekly; it walks the per-account trees of three stores under `APP_STORAGE_DIR`, and the attachment thumbnails, and a week of orphans is a rounding error. Only those: avatars, signature images, backgrounds, sealed messages and anything else kept under the same volumes are left alone |
 
 The schedule is `stateful()` against the cache and `processOnlyLastMissedRun(true)`, so a
 worker that was down over a scheduled run catches up rather than silently skipping the day —

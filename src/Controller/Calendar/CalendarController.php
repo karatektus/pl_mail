@@ -210,9 +210,15 @@ final class CalendarController extends AbstractController
     public function eventNew(Request $request): Response
     {
         $user = $this->currentUser();
-        $zone = $this->time->zoneFor($user);
+        $zone = $this->time->newEventZone($user);
 
-        $startsAt = $this->startFor($request->query->getString('start'), $zone);
+        // The slot was clicked on a grid drawn on the user's own clock, so it
+        // is read on that clock and only then moved into the zone the event
+        // is written in. They are the same zone unless the default calendar
+        // has one picked; when it does, 14:00 clicked in Berlin opens as 21:00
+        // in Tokyo, which is the same moment.
+        $startsAt = $this->startFor($request->query->getString('start'), $this->time->zoneFor($user))
+            ->setTimezone($zone);
 
         $this->ensureCalendars($user);
 
@@ -346,7 +352,7 @@ final class CalendarController extends AbstractController
         $eventId = $request->request->getInt('eventId');
         $event   = 0 === $eventId ? null : $this->ownedEvent($eventId);
 
-        $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
+        $zoneName = $request->request->getString('timeZone') ?: $this->time->newEventZone($user)->getName();
         $isAllDay = $request->request->getBoolean('isAllDay');
 
         // An all-day event is FLOATING: the same wall-clock day everywhere, no
@@ -1156,7 +1162,7 @@ final class CalendarController extends AbstractController
      */
     private function refused(Request $request, ?CalendarEvent $event, User $user, array $errors): Response
     {
-        $zoneName = $request->request->getString('timeZone') ?: $this->time->zoneFor($user)->getName();
+        $zoneName = $request->request->getString('timeZone') ?: $this->time->newEventZone($user)->getName();
         $zone     = $this->time->safeZone($zoneName);
 
         // Each falls back to something a datetime-local can render, because

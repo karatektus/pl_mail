@@ -1094,7 +1094,7 @@ admin:
             name_first: Given name
             name_last: Family name
             password: First secret word
-            password_help: 'Set once, when th'' hand signs on. No changin'' it from here after: a forgotten word be reset at th'' console with `app:user:password`.'
+            password_help: 'A one-time word: th'' hand chooses their own th'' first time they come aboard. A forgotten word be reset at th'' console with `app:user:password`.'
         flash:
             deactivated: 'Clapped in irons. No boardin'' until ye strike them.'
             demote_last_refused: 'That be th'' last quartermaster, so th'' mark stayed as it were — raise another first.'
@@ -1113,6 +1113,7 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
+        copy: Copy the build %version% to yer clipboard
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -1371,9 +1372,11 @@ calendar:
         edit: Amend the almanac
         name: What it be called
         time_zone: Which bell
+        time_zone_follow: 'Follow plMail''s bell'
         time_zone_help: >-
-            The bell this almanac be read by — and the one a reckonin' with no
-            bell of its own be shown in.
+            The bell a new reckonin' on this almanac be written by. Followin'
+            plMail takes yer own, now %zone%. Reckonin's always show at the hour
+            they happen by yer own bell.
     grid:
         all_day: All the day long
         continues_after: Sails on into the next day
@@ -1780,6 +1783,7 @@ compose:
         save_failed: Could not stow the scroll
         saved: Scroll stowed
         saving: "Stowin'…"
+        sealing: "Lockin' it in cipher…"
         uploading: "Haulin' aboard…"
     upload:
         failed: The haulin' aboard went awry
@@ -1801,7 +1805,29 @@ compose:
     discard: Burn this scroll
     empty_draft: (blank scroll)
     encrypt: Seal it in cipher
-    encrypt_unavailable: "No cipher aboard yet — this seal be locked."
+    crypto:
+        encrypt: Cipher it
+        sign: Put yer mark on it
+        encrypted: Under lock
+        encrypted_hint: "This letter sails locked in cipher: none but ye and its crew can read it."
+        has_key: "plMail holds a key fer this port, so letters to it can be ciphered."
+        has_certificate: "plMail holds an S/MIME certificate fer this port, so letters to it can be ciphered."
+        key_changed: "A new key fer this port awaits yer nod in Settings → Encryption. Till then the old one serves."
+        partial: "%emails% can't be reached in cipher, so this letter sails open to all hands."
+        partial_blocked: "%emails% can't be reached in cipher. Strike 'em off, or sail this one without cipher."
+        missing: "No key aboard fer %emails%. Strike 'em off, or sail this one without cipher."
+        locked: "Yer keys be chained up in this browser. Free 'em in Settings → Encryption, or sail this one without cipher."
+        locked_not_saved: "Not stowed: this draft be ciphered, and yer keys be chained up in this browser."
+        locked_draft: "This draft be ciphered, and yer keys be chained up in this browser. Free 'em in Settings → Encryption to keep scribblin'."
+        failed_draft: "This ciphered draft wouldn't open."
+        no_own_key: "Ye hold no key fer this From port, so nothin' can be marked or ciphered from it."
+        no_own_certificate: "Ye hold no S/MIME certificate fer this From port, so this letter can't be marked or ciphered the S/MIME way."
+        failed: "The letter couldn't be ciphered. Nothin' set sail."
+        sealed_attachment: "Ciphered: till the letter sails, only ye can open it."
+    seal:
+        refused: "The ciphered letter came aboard damaged. Nothin' set sail; try again."
+        keys_changed: "A shipmate's key changed while ye were scribblin'. Nothin' set sail; send it again."
+        unbuilt: "This draft be ciphered, so it sails only from a browser where yer keys be free."
     expand: Throw open the hatches
     formatting: Fancy lettering
     forward: Pass it along
@@ -1879,6 +1905,83 @@ compose:
         search: 'Find a form letter'
         untitled: 'Nameless form letter'
 
+contact_keys:
+    heading: "Yer mates' keys"
+    subheading: "Th' public keys plMail checks yer mates' signatures with — an' will seal to, once plMail sends sealed post."
+    loading: "Fetchin' yer mates' keys…"
+    empty: "No keys yet. plMail picks 'em up from signed post; ye can also seek one or bring one aboard above."
+    verified: "Verified"
+    first_seen: "first sighted %date%"
+    last_seen: "last sighted %date%"
+    expires: "runs out %date%"
+    origin:
+        attached: "Lashed to a letter"
+        autocrypt: "From a letter's Autocrypt header"
+        keyserver: "From th' key server %host%"
+        manual: "Brought aboard by ye"
+        wkd: "From th' domain's key directory (WKD)"
+    pin: "Mark as verified"
+    unpin: "Strike th' checkmark"
+    accept: "Use this key instead"
+    remove: "Throw overboard"
+    confirm_remove: "Throw this key overboard? Signatures made with it can't be checked till plMail finds it again."
+    changed_warning: "A different key turned up fer this address. It may be yer mate's new key — or some scallywag posin' as 'em. plMail keeps usin' th' known key till ye compare this fingerprint with yer mate an' accept it."
+    pinned: "Marked as verified."
+    accepted: "This key be th' one used fer th' address now."
+    removed: "Key thrown overboard."
+    preferences_saved: "Stowed."
+    not_found: "That key be gone."
+    signer_unknown: "plMail don't have th' key that made this signature. Seek it or bring it aboard first."
+    certificates:
+        heading: "Yer shipmates' S/MIME certificates"
+        hint: "Fished from yer shipmates' signed letters. Letters to 'em sail ciphered with S/MIME when every hand has one an' ye carry a certificate o' yer own."
+        empty: "None aboard yet. plMail keeps th' certificate o' every S/MIME-signed letter whose mark holds true."
+        verified: "Vouched fer by %issuer%"
+        unverified: "No certificate authority vouches fer it"
+        confirm_remove: "Throw this certificate overboard? Letters to this port can't be S/MIME-ciphered till plMail spies a new one."
+        changed_warning: "A different certificate washed up fer this port, an' no certificate authority vouches fer th' change. plMail keeps usin' th' known one till ye compare this fingerprint with yer shipmate an' accept it."
+        removed: "Certificate thrown overboard."
+    import:
+        heading: "Bring a key aboard"
+        hint: "Paste a public key block or pick a file. Th' key be kept fer every address it names."
+        file: "Key file"
+        paste: "Public key"
+        submit: "Stow th' key"
+        done: "Brought aboard. Addresses with this key: %count%."
+        changed: "Brought aboard — but %count% o' th' addresses already had a different key. Compare th' fingerprints below afore ye accept th' new one."
+        unusable: "Naught usable in that key: revoked, run out, or namin' no address."
+        not_a_key: "That be no OpenPGP public key."
+        private_key: "That be a private key. Only bring yer mates' public keys aboard here — yer own keys belong in th' keyring above."
+    lookup:
+        heading: "Seek a key"
+        hint: "Asks th' address's own domain fer its key (Web Key Directory). Th' request sails through this server."
+        hint_keyservers: "Asks th' address's own domain fer its key (Web Key Directory), then th' key servers %servers%. Th' request sails through this server."
+        email: "Email address"
+        submit: "Seek"
+        found: "Found a key in th' domain's key directory (WKD), an' kept it."
+        found_keyserver: "Found a key on th' key server %host%, an' kept it. Th' server only checked that someone reads letters at this address — compare th' fingerprint with yer contact afore ye mark it verified."
+        changed: "Found a key in th' domain's key directory — but it differs from th' one plMail knows fer this address. Compare th' fingerprints afore ye accept it."
+        changed_keyserver: "Found a key on th' key server %host% — but it differs from th' one plMail knows fer this address. Compare th' fingerprints afore ye accept it."
+        nothing: "Th' domain posts no usable key fer this address."
+        nothing_keyservers: "Neither th' domain nor th' key servers hold a usable key fer this address."
+        invalid_address: "That address can't be sought."
+        rate_limited: "Too many seekin's in a row. Try again in a few minutes."
+    key_servers:
+        label: "Also search th' public key servers"
+        hint: "When th' address's own domain has no key, plMail also asks %servers%. A seekin' tells them which address ye be lookin' fer."
+    preferences:
+        heading: "Orders fer this recipient"
+        hint: "Used when plMail sends sealed post."
+        encrypt: "Seal"
+        sign: "Sign"
+        scheme: "Format"
+        save: "Stow"
+        policy:
+            always: "Always"
+            auto: "As th' wind blows"
+            never: "Never"
+        scheme_pgp-inline: "Inline PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Sea trial
@@ -1976,6 +2079,236 @@ dnd:
 drafts:
     empty: No scrolls in the works.
     heading: Scrolls in the works
+
+encryption:
+    decrypted:
+        heading: Deciphered letters aboard this ship
+        subheading: "Off unless ye choose it, fer each account. Yer post office still can't read yer ciphered letters either way."
+        forbidden: "This ship keeps no deciphered letters. Yer ciphered letters stay ciphered aboard."
+        state_on: "Ciphered letters get deciphered in yer browser an' kept readable here, so searchin', parcels, dates an' rules work on 'em."
+        state_off: "Ciphered letters stay ciphered here: only sender an' subject can be searched."
+        confirm: "Ciphered letters of this account get stowed on this plMail ship once deciphered. Searchin', parcels an' dates then work on 'em. Any hand with access to the ship can read 'em. Yer post office still can't."
+        confirm_needed: "Tick the box to say ye want deciphered letters kept aboard."
+        turn_on: Keep deciphered letters aboard
+        turn_off: Stop, an' scuttle the deciphered copies
+        ai:
+            label: Let the oracles read 'em too
+            local: "Sortin', searchin' by meanin' an' summaries, with the oracle %host%, which sails in this ship's own waters."
+            external: "The oracle %host% sails outside this ship's waters: deciphered letters would be sent to it."
+            no_model: "No oracle be set up aboard this ship."
+            consent: "I agree that deciphered letters of this account be sent to %host%."
+            consent_needed: "Tick the box to agree that deciphered letters go to the oracle."
+            turn_on: Let the oracles read 'em
+            turn_off: Stop, an' scuttle what they made of 'em
+    sending:
+        heading: Settin' sail
+        subheading: "How letters sail now that plMail can cipher 'em. Letters to hands whose keys plMail holds get ciphered on their own."
+        on: "Aye"
+        off: "Nay"
+        autocrypt:
+            label: Share yer key with every letter
+            hint: "A hidden Autocrypt flag carries yer public key, so Thunderbird, Delta Chat an' the like can answer in cipher."
+        attach_key:
+            label: Lash yer public key to the letter
+            hint: "As a scroll on every letter, fer crews whose post office can't read Autocrypt. Landlubbers without PGP get a scroll they don't need."
+        sign_plain:
+            label: Put yer mark on open letters
+            hint: "Landlubbers without PGP see a signature.asc scroll. Letters to hands whose key plMail holds get yer mark either way."
+        block_partial:
+            label: Hold the letter when not all hands can be reached in cipher
+            hint: "Nay: such a letter sails open to all, with a note in the writin' window. Aye: it stays in port till ye strike those hands or sail it without cipher."
+        protect_subject:
+            label: Cipher the subject line too
+            hint: "The subject of a ciphered letter sails inside the cipher, an' the outside says only “...”. Thunderbird an' the like show the real one; others show “...”."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Yer public key, hoisted under this ship's own harbours, so Thunderbird, Proton an' GnuPG find it by yer address."
+        disabled: "This ship hoists no keys. The captain can change that."
+        no_addresses: "None o' yer addresses lies in a harbour this ship hoists keys fer (%domains%)."
+        publish: "Hoist the key fer %email%"
+        url_advanced: "Advanced way (openpgpkey subdomain)"
+        url_direct: "Direct way"
+        state:
+            published: "Hoisted. Any hand who knows the address can fetch yer public key."
+            switched_off: "Not hoisted — ye struck it yerself."
+            no_key: "Nothin' to hoist yet: this address has no active key."
+            not_sign_in_address: "Not hoisted: plMail hoists only the address ye board with, the one the captain gave ye."
+        check:
+            button: "Check from outside"
+            heading: "Checked %email% from outside, each way on its own:"
+            method:
+                advanced: "Advanced (openpgpkey.%domain%)"
+                direct: "Direct (%domain%)"
+            result:
+                current: "found yer current key"
+                outdated: "found a key, but not yer current one — another ship may be answerin' fer the harbour, or a cache still holds the old key"
+                missing: "answered, but holds no key fer this address"
+                unreachable: "can't be reached — the name leads nowhere, or the connection or its papers failed"
+            one_good: "Mail programs that try the other way first still find yer key, but mend this way too — some only ever try one."
+            none_good: "Neither way hands out yer current key. The harbour may not point to plMail yet — see the setup notes, or ask the captain."
+        setup:
+            heading: "Rigging the harbour (captains)"
+            enable: "Name the harbours in the APP_WKD_DOMAINS environment variable an' restart plMail:"
+            domains: "Keys be hoisted fer: %domains%. Each harbour needs one o' these two ways to reach plMail."
+            advanced: "Advanced way, preferred: a DNS record fer openpgpkey.%domain% pointin' to %host%, an' a TLS certificate fer that name on plMail's ship."
+            direct: "Direct way: the website at %domain% forwards everythin' under /.well-known/openpgpkey/ to plMail, passin' the Host header on."
+            check: "Then use “Check from outside” on yer own address. The check sails from this ship, so a harbour that resolves to a private address here be reported missin' even if it works from outside."
+    devices:
+        empty: "No spyglasses yet."
+        heading: "Known spyglasses"
+        last_used: "used"
+        remember: "Remember this spyglass"
+        remove: "Cast off"
+        subheading: "Spyglasses that can open yer keys on their own after a secret word be reset, without th' treasure words."
+        this_device: "This spyglass"
+        unavailable: "This spyglass cannot keep a key here — it needs HTTPS an' site storage."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Take yer keys ashore"
+        hint: "Every private key, old ones too, as one file GnuPG, Thunderbird an' Proton can read."
+        passphrase: "Passphrase fer th' file"
+        submit: "Take ashore"
+    failed: "That did not work, matey. Reload th' page an' try again."
+    import:
+        done: "%count% keys brought aboard."
+        hardware_key: "Th' secret parts o' this key live on a smartcard or security key, which a spyglass cannot use."
+        heading: "Bring a key aboard"
+        hint: "An OpenPGP private key ye already use, from GnuPG, Thunderbird or Proton. It becomes th' key o' th' addresses it names."
+        no_match: "None o' these keys names one o' yer addresses."
+        not_a_key: "That be no OpenPGP private key."
+        passphrase: "Passphrase o' th' key"
+        submit: "Bring aboard"
+        wrong_passphrase: "That passphrase opens not th' key."
+    publish:
+        button: "Hoist it on %host%"
+        again: "Send the confirmin' link again"
+        refresh: "Look again"
+        saved: "The key harbour answered; below be what it said."
+        confirm: "Hoist this key on %host%? Any sailor will then find it by %addresses%. That ties these addresses to the key fer all the seas to see, and a key harbour don't truly forget. %host% sends each address a link, and the key be found by address only once ye click it."
+        renewed: "Yer old key was hoisted on %host%. Hoist the new key fer %addresses% there too? %host% sends each address a link to confirm it again."
+        state:
+            none: "%email% — not hoisted on %host%"
+            unpublished: "%email% — on %host%, but no sailor can find it by this address yet"
+            pending: "%email% — waitin' on ye: %host% sent this address a link to confirm"
+            published: "%email% — hoisted: any sailor can find it on %host%"
+            revoked: "%email% — struck down on %host%: the harbour hands out the revoked key"
+        unavailable: "Hoistin' on that key harbour be not possible — this ship don't use it, or key harbours be switched off under Contacts' keys."
+        not_active: "Only a key in use can be hoisted."
+        not_found: "That key be gone."
+        not_published: "That key ain't hoisted there."
+        failed: "The key harbour couldn't be reached, or wouldn't take the key. Try again later."
+        not_a_revocation: "That ain't this key's revocation."
+    keys:
+        advanced: "Show th' keys"
+        compromised: "Mark as plundered"
+        confirm_compromised: "Mark this key as plundered? It'll not be used again, an' its addresses get a new one."
+        confirm_renew: "Forge a new key fer these addresses? Th' old one stays, to open letters sent to it."
+        created: "forged"
+        expires: "expires"
+        heading: "Keys"
+        locked: "locked — open it with yer treasure words"
+        make_primary: "Make primary"
+        origin:
+            generated: "forged by plMail"
+            imported: "brought aboard"
+        primary: "primary"
+        renew: "Forge anew"
+        status:
+            active: "Active"
+            compromised: "Plundered"
+            obsolete: "Replaced"
+        subheading: "Th' OpenPGP keys o' yer addresses. Bring one ye already use, or take yers elsewhere."
+    smime:
+        heading: "S/MIME certificates"
+        subheading: "Certificates from a certificate authority or yer crew, which Outlook, Apple Mail an' Thunderbird understand. Used when every hand has one an' not every hand has an OpenPGP key."
+        empty: "No S/MIME certificate aboard yet."
+        import_heading: "Bring a certificate aboard"
+        import_hint: "A .p12 or .pfx file with yer certificate an' its private key. Th' file be opened in this spyglass; th' server only keeps th' key ciphered."
+        file: "Certificate file"
+        password: "Password o' th' file"
+        import_submit: "Bring th' certificate aboard"
+        imported: "Aboard. It now marks an' opens letters fer %addresses%."
+        export_heading: "Take a certificate ashore"
+        export_hint: "Type a password fer th' file here, then pick Take ashore next to a certificate above."
+        export_password: "Password fer th' file taken ashore"
+        export_password_missing: "First type a password o' at least 8 letters fer th' file."
+        export: "Take ashore as .p12"
+        remove: "Throw overboard"
+        confirm_remove: "Throw this certificate an' its private key overboard? Letters ciphered to it can't be read here no more."
+        valid_until: "good till"
+        expired: "expired"
+        issued_by: "issued by"
+        retired: "replaced by a newer certificate"
+        wrong_password: "That password opens not th' file."
+        not_pkcs12: "That be no .p12 or .pfx file."
+        legacy: "This file be locked with old cipher (RC2 or 3DES) plMail can't open. Take it ashore again with AES — OpenSSL 3 does so by default, Windows with th' AES-256 option."
+        not_rsa: "Only certificates with an RSA key serve here."
+        no_key: "Th' file holds no private key belongin' to one o' its certificates."
+        no_match: "Th' certificate be fer none o' yer ports."
+    nag:
+        action: "Open th' settings"
+        locked_keys: "Some o' yer older keys be locked since yer secret word was reset."
+        recovered: "Yer older keys were opened again from this spyglass."
+    phrase:
+        create: "Make treasure words"
+        download: "Haul it off"
+        file_intro: "plMail treasure words. Bury this file somewhere safe an' offline. Th' blocks below be th' revocation certificates o' yer keys."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Treasure words"
+        invalid: "These be not twelve proper treasure words. Check fer slips o' th' quill."
+        missing: "Ye have no treasure words yet."
+        opens_nothing: "These words open none o' yer locked keys."
+        recover_heading: "Open older keys"
+        recover_hint: "Some o' yer keys were locked when yer secret word was reset. Say yer treasure words to open 'em again."
+        recover_submit: "Open with treasure words"
+        recovered: "%count% keys opened again."
+        recreate: "Make new treasure words"
+        saved: "Yer treasure words be set. Make new ones if th' old may have been spied."
+        shown_once: "Write these words down or haul 'em off now — they be shown but once. Whoever holds 'em can open yer keys."
+        subheading: "Twelve words that open yer keys should ye forget yer secret word. Without 'em, sealed letters sink with th' word."
+    passphrase:
+        heading: "Cipher phrase"
+        subheading: "What opens yer keys. Changin' it leaves how ye come aboard alone."
+        current: "Current cipher phrase"
+        new: "New cipher phrase"
+        repeat: "Say th' new one again"
+        submit: "Change cipher phrase"
+        done: "Cipher phrase changed. Use th' new one from now on."
+    setup:
+        heading: "Rig yer sealed letters"
+        intro: "Pick a cipher phrase. It guards yer keys an' be asked for once a voyage, when somethin' first needs 'em. It ain't th' password o' yer fleet's seal, an' it never leaves this spyglass."
+        warning: "plMail can't reset this cipher phrase. Forget it, an' only yer treasure words — make 'em right after — or a spyglass ye used before opens yer sealed letters again. Without either, them letters be lost to Davy Jones."
+        passphrase: "Cipher phrase"
+        repeat: "Say it again"
+        submit: "Rig sealed letters"
+        too_short: "At least %min% characters, matey."
+        mismatch: "Them two cipher phrases don't match."
+        done: "Sealed letters be rigged. Make yer treasure words next."
+    status:
+        broken: "Yer keys would not open. Go ashore an' come aboard again; if that fails, th' quartermaster finds th' reason in th' log."
+        disabled: "Not to be had on this ship."
+        insecure: "Needs HTTPS. This page came aboard over plain http://, where th' spyglass offers no cryptography o' its own — come aboard through th' https:// address."
+        heading: "Sealed letters"
+        key_count: "Active keys: %keys% · Addresses: %addresses%"
+        loading: "Openin' yer keys…"
+        locked: "Locked in this spyglass. Say yer secret word to unlock it."
+        locked_passphrase: "Locked in this spyglass. Say yer cipher phrase to unlock it."
+        open: "Rigged, an' unlocked in this spyglass."
+        subheading: "Letters only ye an' yer correspondents can read — not this ship, not yer mail harbour."
+        unset: "Not rigged yet. Ye come aboard with yer fleet's seal, so yer keys need a cipher phrase o' their own — pick one below."
+    unlock:
+        rate_limited: "Too many tries. Wait a few minutes an' try again."
+        submit: "Unlock"
+        wrong_password: "That be not yer secret word."
+    unlock_dialog:
+        heading: "Unlock yer keys"
+        password_intro: "This needs yer keys. Say yer secret word to open 'em — once, for th' rest o' this voyage."
+        passphrase_intro: "This needs yer keys. Say yer cipher phrase to open 'em — once, for th' rest o' this voyage. It ain't th' password o' yer fleet's seal."
+        password_label: "Secret word"
+        passphrase_label: "Cipher phrase"
+        wrong_passphrase: "That cipher phrase opens nothin'."
+        cancel: "Not now"
+        submit: "Unlock"
 
 errors:
     page:
@@ -2237,9 +2570,13 @@ login:
         email: Parrot address
         forgot_password: Forgot yer secret word?
         forgot_password_hint: 'Only th'' quartermaster can mint ye a new one, from th'' ship''s console.'
+        needs_script: 'Comin'' aboard needs JavaScript: yer secret word be guarded in th'' browser afore aught be sent.'
         password: Secret word
+        prelogin_failed: 'Could not hail th'' ship to bring ye aboard. Check yer line an'' try again.'
+        prelogin_rate_limited: 'Too many tries at th'' gangplank from here. Wait a few minutes an'' try again.'
         remember_me: Keep me aboard
         submit: Come aboard
+        submitting: Comin' aboard…
     oidc:
         button: Board with yer fleet's seal
         button_named: Board with %provider%
@@ -2271,6 +2608,53 @@ message:
         failed: "This message ne'er made port."
         failed_for: "Ne'er made port at %recipient%."
         reported_at: "Word came back %datetime%"
+    crypto:
+        attached_key:
+            heading: "The sender's key be attached"
+            own: "Yer public key be attached"
+            keep: "Keep this key"
+            accept: "Use this key instead"
+            none_hint: "plMail don't hold this key yet. Keep it to check the sender's seals and to lock yer letters to them — compare the fingerprint with the sender to be sure it be theirs."
+            changed_hint: "It differs from the key plMail knows fer this sender. It may be their new key, or a scallywag posin' as them — compare the fingerprint with the sender before ye use it."
+            kept: "Kept the sender's key."
+            kept_changed: "Kept — but it differs from the key plMail knows fer this sender. Compare the fingerprints before ye use it."
+            unusable: "This key can't be kept: it be revoked, expired, or names no user ID fer the sender's address."
+        subject: "Subject: %subject%"
+        encrypted_kept: "Came aboard in cipher · kept readable on this ship"
+        sealed_draft: "Ciphered draft. Open it to keep scribblin'; only a browser with yer keys can read it."
+        sending: "Ciphered, an' under sail. It opens here once she's away."
+        action:
+            accept: "Use th' new key"
+            lookup: "Seek th' key"
+            manage: "Yer mates' keys"
+            trust: "Trust this key"
+        compare_hint: "Compare th' fingerprint with th' sender — by horn, face to face — afore ye trust it."
+        key_changed_hint: "It may be th' sender's new key, or a scallywag posin' as 'em. Compare th' fingerprint with th' sender afore ye use it."
+        decrypting: "Breakin' th' seal…"
+        encrypted: "Sealed end to end"
+        encrypted_smime: "Sealed with S/MIME"
+        failed: "This letter could not be unsealed."
+        inner:
+            invalid: "Th' signature inside don't match"
+            key_changed: "Signed with key %signer% — not th' key plMail knows fer this sender"
+            unchecked: "Signed inside th' seal; th' signature were not checked"
+            unknown_key: "Signed with key %signer%, which plMail don't know yet"
+            untrusted: "Signed inside th' seal — whole, but nobody has vouched fer th' key %signer%"
+            valid: "Signed inside th' seal, with yer own key or one ye verified"
+        locked: "Yer keys be locked in this spyglass."
+        no_key: "This letter were sealed to a key ye don't have here."
+        no_source: "Th' original o' this letter be not to hand, so it can't be unsealed."
+        open_settings: "Unlock 'em"
+        signed:
+            invalid: "Th' signature don't match — this letter were changed or be not from th' sender"
+            key_changed: "Signed with a different key than th' one plMail knows fer this sender"
+            pending: "Signed — checkin' th' signature…"
+            unknown_key: "Signed with a key plMail don't know yet"
+            untrusted: "Signed — th' letter be whole, but naught confirms who signed it"
+            valid: "Signed, an' th' signature holds"
+        signer: "Signed by %signer%"
+        smime_unreadable: "This letter be S/MIME-sealed fer a certificate plMail don't hold. Bring it aboard in Settings → Encryption, or open th' letter in a mail program that holds it."
+        smime_unsupported: "This letter be sealed with a cipher plMail can't open; only AES serves."
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "
@@ -2348,6 +2732,8 @@ message:
         read_at: 'Unfurled at %datetime%'
         requested: '%sender% begs word when ye unfurl this bottle.'
         send: 'Send word back'
+    reply_to:
+        elsewhere: 'Replies sail to %address%'
     save_to: 'Stow to'
     security:
         mismatch:
@@ -2495,6 +2881,14 @@ onboarding:
             lead: The one prize worth lockin' proper. Takes about a minute.
             title: Guard yer berth
     title: Rig up plMail
+
+password_required:
+    explanation: 'Another hand chose th'' secret word ye just boarded with. Pick one only ye know — plMail will not let ye further till ye have.'
+    page_title: Choose yer secret word
+    sign_out: Go ashore instead
+    submit: Stow it an' carry on
+    submitting: Stowin'…
+    tagline: One more step
 
 profile:
     avatar_current: Yer likeness at present
@@ -2821,6 +3215,7 @@ settings:
         scan_title: "Point th' plMail app at this"
         scan_hint: "Th' mark works once and fades in two minutes. It carries no spare key — th' app trades it for a fresh one."
         qr_alt: "Pairing mark"
+        with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
     app_passwords:
@@ -2909,6 +3304,15 @@ settings:
             unreadEmphasis: Unread rows
         logo:
             colour: 'Colours'
+            custom:
+                error_missing: 'No cargo came aboard. Pick an SVG an'' try again.'
+                error_size: 'That SVG be heavier than 256 KB. A flag needs far less; try exportin'' it without pictures stowed inside.'
+                error_type: 'That cargo be no SVG plMail can fly as a flag. It needs an <svg> with a viewBox, or a width an'' height.'
+                help: 'An SVG o'' yer own, flown on the top bar, yer tab an'' the installed app. It keeps its own colours, an'' plMail paints the app icons from it.'
+                name: 'Yer own'
+                remove: 'Strike yer flag'
+                replace: 'Swap yer flag'
+                upload: 'Hoist yer own…'
             heading: 'Ship''s mark'
             icon: 'Figurehead'
             independent: 'Chart yer own'
@@ -3711,6 +4115,7 @@ settings:
                 yer own almanac first.
         sync_now: Haul "%name%" now
         sync_now_title: Haul now
+        zone_follows: 'Follows plMail''s bell'
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"
@@ -3776,6 +4181,7 @@ settings:
         categories: "Holds"
         contacts: Rolls o' hands
         disposal: Disposal
+        encryption: "Sealed letters"
         filters: Sieves
         general: General
         group:
@@ -3860,6 +4266,7 @@ settings:
         remember_me_note: 'Changing yer secret word puts every remembered deck ashore but this one. That be why it be worth doing when a spyglass goes missing.'
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
+        submitting: Stowin'…
     reading_pane:
         heading: Spyglass deck
         hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
@@ -3940,6 +4347,13 @@ settings:
         'on': "Aye"
         show: "Show the shortcuts"
         subheading: "Single keys fer the things ye do all day."
+    sidebar:
+        heading: Sidebar
+        hide_note: To hide a folder altogether, switch it off under Labels.
+        hint: Ticked folders wait behind More. The rest stay on deck, in the sidebar itself.
+        label: Behind More
+        pinned: The Inbox always stays where it be.
+        subheading: Which folders be stowed behind More.
     signature:
         for_alias: 'Yer mark fer %alias%'
         heading: Yer marks

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Helper\AddressHelper;
+use App\Domain\Helper\DomainHelper;
 use App\Domain\Helper\RecipientHeaderHelper;
 use App\Entity\Mail\Message;
 use Twig\Extension\AbstractExtension;
@@ -25,6 +26,10 @@ use Twig\TwigFunction;
  * at a glance: the first few names, a count for the rest, and — when there
  * genuinely is nobody — an emptiness the template can state out loud rather
  * than silently omit.
+ *
+ * `message_reply_to_elsewhere()` is the one that is about the sender rather than
+ * the recipients: where an answer would go when that is not the organisation
+ * the mail says it is from.
  */
 final class MessageRecipientsExtension extends AbstractExtension
 {
@@ -36,7 +41,66 @@ final class MessageRecipientsExtension extends AbstractExtension
         return [
             new TwigFunction('message_addresses', $this->addresses(...)),
             new TwigFunction('message_recipient_summary', $this->summary(...)),
+            new TwigFunction('message_reply_to_elsewhere', $this->replyToElsewhere(...)),
         ];
+    }
+
+    /**
+     * The Reply-To addresses that are NOT on the From address's organisation.
+     *
+     * "Reply" is the one button that sends mail to an address the sender chose
+     * rather than the one on the From line, and a phishing mail that cannot
+     * get its answer through a forged From can still get it through here.
+     *
+     * Reported as a fact for the header to print, never as a warning, and that
+     * is deliberate. A different Reply-To domain is how newsletters, ticket
+     * systems and mailing lists are set up, so a banner here would fire on
+     * ordinary mail and teach exactly the click-through it exists to stop —
+     * the same reasoning SenderIdentityChecker is built around. A line that
+     * says where the answer goes lets the reader judge it, and costs nothing
+     * on the mail where it does not apply.
+     *
+     * Compared by registrable domain, so `help@support.paypal.com` answering
+     * for `noreply@paypal.com` is the same organisation and silent. A host
+     * that cannot be reduced (an IP literal) is compared whole. With no usable
+     * From address there is nothing to compare against and nothing is said.
+     *
+     * @return list<array{name: string, address: string}>
+     */
+    public function replyToElsewhere(Message $message): array
+    {
+        $from = $this->organisationOf($message->fromAddress);
+
+        if (null === $from) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $this->addresses($message, 'reply-to'),
+            fn (array $entry): bool => $from !== $this->organisationOf($entry['address']),
+        ));
+    }
+
+    /**
+     * The registrable domain of an address, or its whole host when that cannot
+     * be reduced; null when there is no host at all.
+     */
+    private function organisationOf(?string $address): ?string
+    {
+        $address = (string) $address;
+        $at      = strrpos($address, '@');
+
+        if (false === $at) {
+            return null;
+        }
+
+        $host = trim(substr($address, $at + 1));
+
+        if ('' === $host) {
+            return null;
+        }
+
+        return DomainHelper::registrable($host) ?? $host;
     }
 
     /**

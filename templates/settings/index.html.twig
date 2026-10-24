@@ -1,6 +1,33 @@
 {% extends '_layout/app.html.twig' %}
 
 {% block title %}{{ 'settings.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{#
+A saved setting redraws the page in place instead of reloading it.
+
+Every control here posts and is redirected back to its own section, and Turbo
+treats a redirect to the page you are on as a refresh. With these two tags that
+refresh is a MORPH that keeps the scroll position: the card you changed, the
+flash and the sidebar beside it all update where they are, and the page neither
+blanks nor jumps to the top. Before this every form opted out of Turbo with
+data-turbo="false", so one click on a checkbox reloaded the whole document and
+dropped the reader back at the top of a long section.
+
+Morph rather than a Turbo Stream per control: one rule for all thirty-odd
+forms, and a form added later gets it for nothing. A control whose effect is
+somewhere the server renders — the sidebar for Settings → General → Sidebar,
+the times for the clock — is right after the redirect because the whole page
+was rendered again; a stream would have to know every place it shows.
+
+A few still reload on purpose and keep data-turbo="false": the language,
+because every string on the page and <html lang> change with it; the 12/24-hour
+clock, because it is published on <html> and a morph only reaches <body>; and
+the links that leave the app (a provider's consent screen, an .ics download).
+#}
+{% block turbo_refresh %}
+    <meta name="turbo-refresh-method" content="morph">
+    <meta name="turbo-refresh-scroll" content="preserve">
+{% endblock %}
 {# No override any more. This one existed to drop mail--mail-pane, and named
    `mercure` — an identifier that stopped existing when the controllers were
    grouped into directories, so settings pages have had no live updates since.
@@ -178,6 +205,7 @@
                                         { section: 'integrations',  icon: 'fa-solid fa-plug' },
                                         { section: 'app-passwords', icon: 'fa-solid fa-key',   label: 'settings.nav.app_passwords' },
                                         { section: 'security',      icon: 'fa-solid fa-shield-halved' },
+                                        { section: 'encryption',    icon: 'fa-solid fa-lock' },
                                     ] },
                                 ] %}
 
@@ -402,6 +430,15 @@
                                                 {% endblock %}
                                             {% endembed %}
 
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.sidebar.heading'|trans,
+                                                subheading: 'settings.sidebar.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sidebar_more.html.twig' %}
+                                                {% endblock %}
+                                            {% endembed %}
+
                                             {# Last on the page: the way back from "Don't show
                                                this after updates" in the dialog itself (#165). #}
                                             {% embed 'settings/_card.html.twig' with {
@@ -461,6 +498,9 @@
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}
+                                    {% elseif section == 'encryption' %}
+                                        {# Its own cards, like security: four subjects, not one. #}
+                                        {% include 'settings/_encryption.html.twig' %}
                                     {% elseif section == 'calendar-behaviour' %}
                                         {% embed 'settings/_card.html.twig' with {
                                             heading:    'settings.calendar_behaviour.heading'|trans,

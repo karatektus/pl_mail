@@ -544,6 +544,40 @@ test.describe("compose localization", () => {
         await useLocale(page, "en");
     });
 
+    // Symfony writes zh_CN, BCP 47 writes zh-CN, and the emoji picker's data
+    // is filed under plain `zh` — three spellings of one language, so each is
+    // asserted where it is used.
+    // The reload is the point of it: the choice has to come back from the
+    // stored preference, not from the response that just saved it.
+    test("the compose window is Chinese after reloading a Chinese UI", async ({ page }) => {
+        await useLocale(page, "zh_CN");
+        await page.reload();
+        await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+        await expect(page.getByRole("button", { name: /简体中文/ })).toBeDisabled();
+
+        await page.goto("/mail/inbox");
+        await expect(page.getByRole("link", { name: /收件箱/ }).first()).toBeVisible();
+        await page.getByRole("link", { name: "写邮件", exact: true }).first().click();
+
+        const dock = page.locator(DOCK);
+        await expect(dock.locator(".ts-control").first()).toBeVisible();
+        const text = await dock.innerText();
+        for (const chinese of ["新邮件", "发件人", "收件人", "主题", "发送"]) {
+            expect(text).toContain(chinese);
+        }
+        for (const english of ["New Message", "Subj", "Write your message"]) {
+            expect(text).not.toContain(english);
+        }
+        for (const name of ["最小化", "增加缩进"]) {
+            await expect(dock.getByRole("button", { name, exact: true })).toBeAttached();
+        }
+
+        // Emoji search in Chinese: the English data would find nothing for 笑脸.
+        await expect(
+            dock.locator("[data-compose--emoji-picker-data-source-value]").first(),
+        ).toHaveAttribute("data-compose--emoji-picker-data-source-value", /\/emoji\/zh\/data/);
+    });
+
     test("the compose window is German in a German UI", async ({ page }) => {
         await useLocale(page, "de");
 

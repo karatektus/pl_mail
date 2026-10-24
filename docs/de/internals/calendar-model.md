@@ -1,4 +1,4 @@
-<!-- translated-from: internals/calendar-model.md sha1:28f6c0c193efafdb492b2b38d8d0882acf3798e1 -->
+<!-- translated-from: internals/calendar-model.md sha1:6aa31c45c745b646677a21691573dc9931f7699d -->
 # Das Kalendermodell
 
 JSCalendar in jsonb, mit den abfragbaren Teilen in Spalten herausgezogen; die Tabelle der
@@ -262,11 +262,14 @@ sich in UTC aus, was floating gerade bedeutet — überall dieselbe Uhr an der W
 
 `App\Service\Calendar\CalendarTimeResolver` besitzt die andere Hälfte: in welcher Uhrzeit an der
 Wand ein Kalender *gelesen* wird, und wie die Ziffern, die ein Browser abschickt, wieder zu
-Zeitpunkten werden. Die Zone kommt vom **Kalender**, nicht aus dem Profil der Nutzerin —
-`UserTimezoneResolver` beantwortet „auf welche Uhr schaut diese Person?", was für einen
-gerenderten Zeitstempel richtig ist, während die eigene Zone eines Kalenders die ist, in der ein
-Termin ohne eigene Zone gespeichert und gezeigt wird. Die beiden dürfen ehrlich auseinandergehen:
-ein geteilter Arbeitskalender, festgenagelt auf die Zeit im Büro. Jedes Parsen dort ist total —
+Zeitpunkten werden. Zwei Uhren, auseinandergehalten (#343). Eine Seite wird auf der Uhr der
+Leserin **gezeichnet** — `zoneFor()`, also die Antwort von `UserTimezoneResolver` und dieselbe Uhr,
+die oben und in jedem `|date` gilt. Die eigene Zone eines Kalenders (`Calendar::$timeZone`, gelesen
+über `calendarZone()`) entscheidet nur, wie eine Zeit ohne Zone **geschrieben** wird:
+`newEventZone()` liefert die des Standardkalenders, für einen neuen Termin. Null in dieser Spalte
+heißt „plMail folgen", die Zone der Besitzerin im Moment der Frage; so beginnt jeder Kalender, den
+plMail anlegt, und ein entfernter Kalender behält die Zone, die sein Gegenüber gemeldet hat. Jedes
+Parsen dort ist total —
 eine unbrauchbare Zone oder ein nicht parsbares Datum liefert einen Rückfallwert oder null,
 statt zu werfen, denn all das kommt aus einem Request.
 

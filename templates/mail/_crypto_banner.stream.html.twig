@@ -1,0 +1,14 @@
+{#
+mail/_crypto_banner.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The answer to a banner action (ContactKeyController::fromBanner()): the
+banner again, with the signature checked once more against the keys as they
+now stand, and a line saying what the action did.
+
+Variables: message, notice, parameters (the notice's), tone
+#}
+<turbo-stream action="replace" target="crypto-banner-{{ message.id }}">
+    <template>
+        {% include 'mail/_crypto_banner.html.twig' with { message: message, notice: notice, notice_parameters: parameters|default({}), notice_tone: tone } only %}
+    </template>
+</turbo-stream>

@@ -342,6 +342,7 @@ final readonly class ContactAssistant
         return match (substr($locale, 0, 2)) {
             'de'    => 'German',
             'fr'    => 'French',
+            'zh'    => 'Simplified Chinese',
             default => 'English',
         };
     }

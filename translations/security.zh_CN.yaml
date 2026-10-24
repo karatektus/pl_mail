@@ -1,0 +1,13 @@
+# Application sign-in failures in Symfony's security domain.
+account.deactivated: '管理员已停用你的账户。请联系管理员重新启用，你的数据未被删除。'
+account.removed: '此账户已被删除，无法再用于登录。'
+oidc.unavailable: '单点登录暂时不可用。请使用密码登录，或联系管理员检查日志。'
+oidc.denied: '身份提供商未允许你登录 plMail。'
+oidc.failed: '无法通过身份提供商完成登录，请重试。'
+oidc.no_email: '身份提供商未向 plMail 提供你的电子邮件地址，因此无法确定要登录的账户。'
+oidc.email_unverified: '身份提供商尚未验证你的电子邮件地址，因此 plMail 不会将其关联到账户。请联系管理员。'
+oidc.ambiguous: '这里有多个账户使用你的电子邮件地址，请联系管理员处理。'
+oidc.no_account: '你还没有 plMail 账户，请联系管理员使用你的电子邮件地址创建一个账户。'
+oidc.linked_elsewhere: '使用你电子邮件地址的账户已关联到身份提供商中的其他用户。请联系管理员。'
+oidc.unavailable_sso_only: '单点登录暂时不可用。请稍后重试，或联系管理员检查日志。'
+login.password_disabled: '此站点已关闭密码登录，请使用单点登录。'

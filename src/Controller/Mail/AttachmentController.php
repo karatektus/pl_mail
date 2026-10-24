@@ -56,6 +56,11 @@ final class AttachmentController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
+        // Ciphertext: there is nothing in it a viewer could show. See MessagePart::$sealed.
+        if (true === $part->sealed) {
+            throw $this->createNotFoundException();
+        }
+
         if (true === PdfAttachment::matches($part->contentType, $part->filename)) {
             return $this->render('mail/_attachment_preview.html.twig', ['part' => $part]);
         }
@@ -88,7 +93,7 @@ final class AttachmentController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
-        $type = MediaAttachment::videoType($part->contentType, $part->filename);
+        $type = true === $part->sealed ? null : MediaAttachment::videoType($part->contentType, $part->filename);
 
         if (null === $type) {
             throw $this->createNotFoundException();
@@ -143,12 +148,14 @@ final class AttachmentController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
-        // A part labelled `application/octet-stream` or `image/octet-stream` is
+        // A sealed part is an OpenPGP message, whatever the browser said the
+        // file was: served as what it is, and only to be downloaded. Otherwise
+        // a part labelled `application/octet-stream` or `image/octet-stream` is
         // very often an inline image whose sender did not say so; the resolver
         // lets the bytes decide for those labels only. See inlineTypeFor().
-        $contentType  = $this->attachmentResolver->inlineTypeFor($part, $absolutePath)
-            ?? $part->contentType
-            ?? 'application/octet-stream';
+        $contentType  = true === $part->sealed
+            ? 'application/octet-stream'
+            : ($this->attachmentResolver->inlineTypeFor($part, $absolutePath) ?? $part->contentType ?? 'application/octet-stream');
 
         // An allow-list, not a prefix test. `image/svg+xml` starts with
         // "image/" and executes script when loaded as a document, and the type

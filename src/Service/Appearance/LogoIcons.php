@@ -8,6 +8,7 @@ use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\ColourHelper;
 use App\Domain\Theme\Colourway;
+use App\Entity\Embeddable\Appearance;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -138,6 +139,39 @@ final class LogoIcons
         return $this->generate('app_branding_logo', $motif, $paint, $dark ? ['dark' => 1] : []);
     }
 
+    /**
+     * The user's uploaded logo (#48) in one of the forms the motifs have:
+     * `icon` (its tile), `favicon`, `logo` (the top bar's) or `bleed` (the
+     * ground to every edge, for the installed app's maskable and iOS icons).
+     *
+     * Shaped like a motif's URL with `custom` for the motif and the logo's
+     * hash for the paint, so the appearance pane builds its forms the way it
+     * builds every other icon's. The key says whose logo it is, as it does
+     * for the manifest.
+     */
+    public function customUrl(string $form, string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom', $hash, ['form' => $form, 'u' => $key]);
+    }
+
+    /** The install manifest whose icons are the user's uploaded logo. */
+    public function customManifestUrl(string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom_manifest', $hash, ['u' => $key]);
+    }
+
+    /** One of the installed app's PNGs, drawn from the uploaded logo. */
+    public function customAppIconUrl(string $name, string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom_app_icon', $hash, ['key' => $key, 'name' => $name]);
+    }
+
+    /** `custom.<hash>` — the uploaded logo as a choice, the way choice() spells a motif's. */
+    public static function customChoice(string $hash): string
+    {
+        return Appearance::CUSTOM_LOGO . '.' . $hash;
+    }
+
     /** `<motif>.<paint>` — a choice as the ETags spell it. */
     public static function choice(LogoMotif $motif, ?LogoStyle $paint): string
     {
@@ -171,6 +205,18 @@ final class LogoIcons
             ...$query,
             'v'     => $this->version(),
         ]);
+    }
+
+    /**
+     * Versioned like every other icon, though the logo itself never changes
+     * under its hash: the bleed form and the manifest around it are drawn
+     * here, and a change to those has to reach caches too.
+     *
+     * @param array<string, string> $query
+     */
+    private function generateCustom(string $route, string $hash, array $query): string
+    {
+        return $this->urls->generate($route, ['hash' => $hash, ...$query, 'v' => $this->version()]);
     }
 
     private function fingerprint(): string

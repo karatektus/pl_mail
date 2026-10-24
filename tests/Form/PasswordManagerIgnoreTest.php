@@ -148,7 +148,7 @@ final class PasswordManagerIgnoreTest extends KernelTestCase
      */
     public function testOnlyLoginPasswordsArePasswordInputs(): void
     {
-        $logins = ['FirstAdminType.php', 'UserFormType.php', 'ChangePasswordType.php'];
+        $logins = ['FirstAdminType.php', 'UserFormType.php', 'ChangePasswordType.php', 'NewPasswordType.php'];
         $others = [];
 
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(\dirname(__DIR__, 2) . '/src/Form')) as $file) {

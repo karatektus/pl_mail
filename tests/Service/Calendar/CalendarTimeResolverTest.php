@@ -18,15 +18,51 @@ use PHPUnit\Framework\TestCase;
 /**
  * Getting a calendar's zone wrong does not look like an error — it moves every
  * event by the local UTC offset and leaves a page that reads as if it worked.
- * These pin the three places that decision is made.
+ * These pin the places that decision is made.
  */
 final class CalendarTimeResolverTest extends TestCase
 {
-    public function testTheCalendarsOwnZoneIsWhatItIsReadIn(): void
+    /**
+     * A calendar with a zone picked writes new events in it. Differs from the
+     * install default and the user's, so nothing but the calendar can have
+     * produced it.
+     */
+    public function testANewEventStartsInTheDefaultCalendarsPickedZone(): void
     {
-        $resolver = $this->resolver('Europe/Berlin');
+        $user           = new User();
+        $user->timezone = 'Europe/Paris';
 
-        self::assertSame('Europe/Berlin', $resolver->zoneFor(new User())->getName());
+        self::assertSame('America/New_York', $this->resolver('America/New_York')->newEventZone($user)->getName());
+    }
+
+    /** And one that follows plMail writes them in its owner's. */
+    public function testANewEventOnAFollowingCalendarStartsInTheOwnersZone(): void
+    {
+        $user           = new User();
+        $user->timezone = 'Europe/Paris';
+        $calendar       = new Calendar();
+        $calendar->usr  = $user;
+
+        self::assertSame('Europe/Paris', $this->resolverFor($calendar)->newEventZone($user)->getName());
+    }
+
+    /**
+     * "Follow plMail" is resolved when it is asked, not when the calendar was
+     * made — the copy taken at creation is what #343 was.
+     */
+    public function testAFollowingCalendarTracksAChangeToTheOwnersZone(): void
+    {
+        $user           = new User();
+        $user->timezone = 'Europe/Paris';
+        $calendar       = new Calendar();
+        $calendar->usr  = $user;
+        $resolver       = $this->resolverFor($calendar);
+
+        self::assertSame('Europe/Paris', $resolver->calendarZone($calendar)->getName());
+
+        $user->timezone = 'Asia/Tokyo';
+
+        self::assertSame('Asia/Tokyo', $resolver->calendarZone($calendar)->getName());
     }
 
     /**
@@ -91,12 +127,14 @@ final class CalendarTimeResolverTest extends TestCase
     }
 
     /**
-     * Presence companion to the two above: a calendar this install owns is still
-     * read in its own zone, because there the zone is somebody's decision — a
-     * calendar pinned to an office clock. Differs from both the install default
-     * and the user's, so nothing but the calendar can have produced it.
+     * **Nor does a local calendar's zone move the page (#343).** It used to:
+     * every local calendar carried a copy of its owner's zone from the day it
+     * was made, the page was drawn in that copy, and a user who later changed
+     * theirs had a header clock and a calendar grid that disagreed. A picked
+     * zone decides how new events are written — see the tests above — and the
+     * page stays on the reader's clock.
      */
-    public function testALocalDefaultCalendarStillWinsOverTheUsersZone(): void
+    public function testALocalDefaultCalendarsZoneDoesNotMoveThePage(): void
     {
         $local           = new Calendar();
         $local->timeZone = 'America/New_York';
@@ -105,7 +143,7 @@ final class CalendarTimeResolverTest extends TestCase
         $user->timezone = 'Europe/Paris';
 
         self::assertSame(
-            'America/New_York',
+            'Europe/Paris',
             $this->resolverFor($local, 'Europe/Berlin')->zoneFor($user)->getName(),
         );
     }
@@ -126,7 +164,10 @@ final class CalendarTimeResolverTest extends TestCase
      */
     public function testAnUnknownZoneNameFallsBackToUtcRatherThanThrowing(): void
     {
-        self::assertSame('UTC', $this->resolver('Mars/Olympus_Mons')->zoneFor(new User())->getName());
+        $calendar           = new Calendar();
+        $calendar->timeZone = 'Mars/Olympus_Mons';
+
+        self::assertSame('UTC', $this->resolverFor($calendar)->calendarZone($calendar)->getName());
         self::assertSame('UTC', $this->resolver(null)->safeZone('')->getName());
     }
 
@@ -145,7 +186,7 @@ final class CalendarTimeResolverTest extends TestCase
     }
 
     /** Rows written before the column existed, and imports that omitted it. */
-    public function testAnEventWithNoZoneFallsBackToTheCalendars(): void
+    public function testAnEventWithNoZoneFallsBackToTheUsers(): void
     {
         $resolver = $this->resolver('Europe/Berlin');
 
@@ -242,9 +283,9 @@ final class CalendarTimeResolverTest extends TestCase
     }
 
     /**
-     * @param string|null $calendarZone null leaves the property unset, which is
-     *                                  how a calendar seeded before the column
-     *                                  existed reaches the resolver
+     * @param string|null $calendarZone null leaves the calendar following
+     *                                  plMail, with no owner set — so it
+     *                                  answers the install default
      */
     private function resolver(?string $calendarZone): CalendarTimeResolver
     {

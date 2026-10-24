@@ -60,17 +60,20 @@
            knowing how to draw any of them. An image is given no src while
            hidden: an empty src is a request for the page itself. Hidden by the
            attribute, not the class — the attribute wins over `flex` whatever
-           order the stylesheet was built in. #}
+           order the stylesheet was built in.
+
+           A logo the user uploaded (#48) is one of the images, the same file
+           for light chrome and dark: it has no parts this app could repaint. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
-        {% set _logoMotif = appearance().effectiveLogoMotif %}
-        {% set _logoClassic = _logoMotif.value == 'pl' %}
+        {% set _logoCurrent = logo_current() %}
+        {% set _logoClassic = _logoCurrent.custom is null and appearance().effectiveLogoMotif.value == 'pl' %}
         <span class="flex flex-shrink-0" data-logo-live-mark {{ _logoClassic ? '' : 'hidden' }}>
             {{- logo.mark(appearance().effectiveLogoStyle, 36, appearance().theme.isDark, true) -}}
         </span>
         {% for _chrome in ['light', 'dark'] %}
             <img data-logo-live-icon="{{ _chrome }}" alt="" width="36" height="36" decoding="async"
                  class="size-9 flex-shrink-0 {{ _chrome == 'dark' ? 'hidden dark:block' : 'dark:hidden' }}"
-                 {% if _logoClassic %}hidden{% else %}src="{{ logo_url(_logoMotif, appearance().effectiveLogoPaint, _chrome == 'dark') }}"{% endif %}>
+                 {% if _logoClassic %}hidden{% else %}src="{{ _chrome == 'dark' ? _logoCurrent.barDark : _logoCurrent.bar }}"{% endif %}>
         {% endfor %}
         {# ClockPlacement::Brand: a second line under the wordmark, in width
            the brand already has (`md:w-52`), so nothing else in the topbar

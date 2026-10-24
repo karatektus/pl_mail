@@ -22,6 +22,11 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * Measured on the LIST's width, not the viewport's: the row is a container
  * query on #message-list. The viewports below are chosen so the list lands on
  * each side of the line (sidebar and gutters take ~250px).
+ *
+ * All of that is for no preview and for two preview lines. With ONE preview
+ * line the row goes to one line from 48rem, Gmail-style, with the preview
+ * after the subject and a tighter row (`row-line:` / `row-snug:` in app.css).
+ * Every test names the setting it is about, because one line is the default.
  */
 
 const SUBJECT = INBOX_SUBJECTS.star;
@@ -46,10 +51,28 @@ const geometry = async (page: Page) => {
     };
 };
 
-const openInbox = async (page: Page, width: number) => {
+/**
+ * What the layout writes on <html> for a preview-lines setting — the count and
+ * AppearanceRenderer's variables — set directly so the spec does not depend
+ * on what the seed user last saved.
+ */
+const setPreviewLines = async (page: Page, lines: 0 | 1 | 2) => {
+    await page.evaluate((lines) => {
+        const root = document.documentElement;
+
+        root.dataset.listPreviewLines = String(lines);
+        root.style.setProperty("--list-preview-display", ["none", "block", "-webkit-box"][lines]);
+        root.style.setProperty("--list-preview-display-wide", 0 === lines ? "none" : "block");
+        root.style.setProperty("--list-preview-lines", String(Math.max(1, lines)));
+        root.style.setProperty("--list-preview-wrap", lines > 1 ? "normal" : "nowrap");
+    }, lines);
+};
+
+const openInbox = async (page: Page, width: number, lines: 0 | 1 | 2 = 2) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/mail/inbox");
     await expect(mailRow(page, SUBJECT)).toBeVisible();
+    await setPreviewLines(page, lines);
 };
 
 test.describe("list row layout around the one-line breakpoint", () => {
@@ -140,16 +163,9 @@ test.describe("list row layout around the one-line breakpoint", () => {
     });
 
     test("the two-line preview setting stays out of the one-line layout", async ({ page }) => {
-        await openInbox(page, 1600);
+        await openInbox(page, 1600, 1);
 
-        // What AppearanceRenderer writes on <html> for previewLines = 2, set
-        // directly so the spec does not depend on the saved setting.
-        await page.evaluate(() => {
-            const root = document.documentElement.style;
-            root.setProperty("--list-preview-display", "-webkit-box");
-            root.setProperty("--list-preview-lines", "2");
-            root.setProperty("--list-preview-wrap", "normal");
-        });
+        await setPreviewLines(page, 2);
 
         const snippet = mailRow(page, SUBJECT).locator("[data-row-snippet]");
         await expect(snippet).toHaveCSS("white-space", "nowrap");
@@ -161,5 +177,49 @@ test.describe("list row layout around the one-line breakpoint", () => {
         await page.setViewportSize({ width: 1100, height: 900 });
         await expect(snippet).toHaveCSS("white-space", "normal");
         await expect(snippet).toHaveCSS("-webkit-line-clamp", "2");
+    });
+
+    test("with one preview line, a list from 48rem is one line with the preview after the subject", async ({ page }) => {
+        // List ≈ 850px: inside the band the other two settings keep.
+        await openInbox(page, 1100, 1);
+        const g = await geometry(page);
+
+        expect(g.list.width).toBeGreaterThan(48 * 16);
+        expect(g.list.width).toBeLessThan(75 * 16);
+
+        // Sender, subject and preview on one line, in that order.
+        expect(Math.abs(g.sender.y - g.subject.y)).toBeLessThan(4);
+        expect(g.subject.x).toBeGreaterThanOrEqual(g.sender.x + g.sender.width - 2);
+        expect(g.snippet.x).toBeGreaterThanOrEqual(g.subject.x + g.subject.width - 2);
+        expect(Math.abs(g.snippet.y - g.subject.y)).toBeLessThan(8);
+    });
+
+    test("with one preview line, the one-line row sits closer than the two-line one", async ({ page }) => {
+        // Presence companion: the same list with two preview lines is the
+        // two-line row, so the height compared is the setting's doing.
+        await openInbox(page, 1100, 2);
+        const twoLines = (await geometry(page)).row.height;
+
+        await setPreviewLines(page, 1);
+        const row = mailRow(page, SUBJECT);
+        const padding = await row.locator("[data-swipe-content]").evaluate((element) => getComputedStyle(element).paddingTop);
+        const oneLine = (await geometry(page)).row.height;
+
+        expect(oneLine).toBeLessThan(twoLines);
+        // 60% of Comfortable's 0.625rem.
+        expect(padding).toBe("6px");
+    });
+
+    test("with one preview line, a list under 48rem keeps the two-line row", async ({ page }) => {
+        // List ≈ 750px. At 36rem one line left the subject and the preview
+        // about 80px each, so this setting keeps the band until 48rem.
+        await openInbox(page, 1000, 1);
+        const g = await geometry(page);
+
+        expect(g.list.width).toBeGreaterThan(36 * 16);
+        expect(g.list.width).toBeLessThan(48 * 16);
+
+        expect(Math.abs(g.sender.y - g.subject.y)).toBeLessThan(4);
+        expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
     });
 });

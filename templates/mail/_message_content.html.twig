@@ -41,9 +41,12 @@
                 <p class="text-sm font-medium text-ink">
                     {{ message.fromName ?: message.fromAddress }}
                 </p>
-                <p class="text-xs text-ink-faint">
+                {# As readable as the name above it, and allowed to wrap rather
+                   than truncate: see _thread_message for why. #}
+                <p class="text-sm text-ink break-all">
                     {{ message.fromAddress }}
                 </p>
+                {% include 'mail/_reply_to_elsewhere.html.twig' with { message: message } only %}
                 {# The same header the thread view shows, for the same reason:
                    this view named the sender and nobody else, so who the mail
                    was addressed to was not on the page at all. #}
@@ -60,11 +63,18 @@
         {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}
 
         {# Attachments above the body (H-13) — see _thread_message for why. #}
+        {# Asked before the list, not only in the banner below it: for a message
+           that arrived before phase 6g this is where its key-looking
+           attachment is first looked at, and the answer decides both what is
+           listed and whether there is a list at all. #}
+        {% do attached_sender_key(message) %}
         {% if message.hasAttachments %}
             <div class="flex flex-wrap items-center gap-2 mb-4">
                 <span class="text-xs font-medium text-ink-faint">{{ 'message.attachments'|trans }}</span>
+                {# isListed: not inline, and not the sender's own public key,
+                   which the crypto banner says instead (phase 6g of #28). #}
                 {% for part in message.messageParts %}
-                    {% if not part.isInline %}
+                    {% if part.isListed %}
                         {% include 'mail/_attachment_chip.html.twig' with { part: part } %}
                     {% endif %}
                 {% endfor %}

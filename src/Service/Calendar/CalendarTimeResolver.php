@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
@@ -20,13 +21,17 @@ use DateTimeZone;
  * it, and choosing the wrong one moves the event by the offset without ever
  * looking like an error.
  *
- * The zone comes from the calendar rather than from the user's profile, and
- * falls back to the profile when no calendar answers. UserTimezoneResolver
- * answers "what clock is this person reading?", which is the right question for
- * a rendered timestamp; a calendar's own zone is what an event with none of its
- * own is stored and shown in, and the two can honestly differ — a shared work
- * calendar pinned to the office. What is never right is falling back past both
- * of them to the process's zone; see zoneFor().
+ * Two clocks, kept apart on purpose (#343). A page is DRAWN on the reader's
+ * own clock — UserTimezoneResolver's answer, the one the header clock and every
+ * `|date` use — so an event shows at the hour it actually happens for them,
+ * whatever zone it or its calendar is in. A calendar's own zone only decides
+ * how a time with no zone attached is WRITTEN: a new event's, and the fallback
+ * for an event stored without one. That zone is null, "follow plMail", unless
+ * somebody picked one, which makes it the user's zone for every calendar
+ * nobody set.
+ *
+ * What is never right is falling back past both to the process's zone, which
+ * frankenphp/conf.d/10-app.ini pins to UTC.
  *
  * Every parse is total: an unusable zone or an unparseable date returns a
  * fallback or null rather than throwing, because all of it arrives from a
@@ -41,42 +46,41 @@ final readonly class CalendarTimeResolver
     }
 
     /**
-     * The zone a user's calendar pages and new events are read in.
+     * The clock a user's calendar pages are drawn on: their own.
      *
-     * The default calendar's zone when there is one, and the user's OWN
-     * configured zone when there is not — never `date_default_timezone_get()`.
-     * That fallback is the defect this method used to carry, and it is the exact
-     * one UserTimezoneResolver's header warns about: frankenphp/conf.d/10-app.ini
-     * pins PHP's default to UTC, which is right for arithmetic and catastrophic
-     * as a display default.
-     *
-     * A user with no default calendar is not exotic — the flag is per-user and
-     * nothing re-asserts it, so a calendar deleted or provisioned before the
-     * flag existed leaves the account without one. Every such account had its
-     * whole calendar drawn in UTC: the current-time line two hours off the
-     * gutter it is read against, and a new event proposed at the next full UTC
-     * hour, which for a Berlin user in summer is a slot already an hour past.
-     * Neither looks like an error; both are just wrong by the offset.
-     *
-     * **A mirrored calendar does not get to pick the clock.** Its zone was copied
-     * from the remote account when it was subscribed, and for a shared Google
-     * calendar that is routinely UTC — a choice somebody made for a different
-     * purpose, not this reader's. Letting it win drew the whole page in UTC the
-     * moment such a calendar became the default: an 11:30 Europe/Paris
-     * appointment, stored correctly as 09:30 UTC, was printed as 09:30. Only a
-     * calendar this install owns (isSynced() false) carries a zone somebody chose
-     * for reading it. The guard does NOT cover a mirrored calendar whose owner
-     * wants it read in its remote zone — there is no setting for that yet.
+     * It used to be the default calendar's zone when that calendar was local.
+     * Every local calendar's zone was a copy of the user's, taken the day the
+     * calendar was made, and nothing ever updated it — so changing the zone in
+     * settings moved the header clock and every timestamp in the app but left
+     * the calendar grid, its now-line and "today" on the old one (#343). A
+     * calendar's zone is about writing times down, not reading them; see the
+     * class docblock.
      */
     public function zoneFor(User $user): DateTimeZone
     {
+        return $this->timezones->resolve($user);
+    }
+
+    /**
+     * The zone a calendar writes zone-less times in: its own when one was
+     * picked, its owner's when it follows plMail.
+     */
+    public function calendarZone(Calendar $calendar): DateTimeZone
+    {
+        return null === $calendar->timeZone
+            ? $this->timezones->resolve($calendar->usr)
+            : $this->safeZone($calendar->timeZone);
+    }
+
+    /**
+     * The zone a new event starts in when nothing names one: the default
+     * calendar's, which is where it lands unless the editor is told otherwise.
+     */
+    public function newEventZone(User $user): DateTimeZone
+    {
         $calendar = $this->calendars->findDefaultForUser($user);
 
-        if (null === $calendar || true === $calendar->isSynced()) {
-            return $this->safeZone($this->timezones->nameFor($user));
-        }
-
-        return $this->safeZone($calendar->timeZone);
+        return null === $calendar ? $this->zoneFor($user) : $this->calendarZone($calendar);
     }
 
     /**

@@ -1,0 +1,84 @@
+{#
+settings/_decrypted_mail.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Encryption → Decrypted mail on this server. Per account: keep the
+decrypted text of encrypted mail on the server, and let the models read it.
+Plain forms posting to DecryptedMailSettingsController, which says what each
+switch needs before it turns on.
+
+Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
+#}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% set state = decrypted_mail_settings() %}
+{% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
+
+{% for flash in app.flashes('encryption') %}
+    <p class="mb-3 rounded-lg px-3 py-2 text-xs bg-danger/10 text-danger" role="status"
+       data-testid="decrypted-mail-notice">{{ flash }}</p>
+{% endfor %}
+
+{% if not state.allowed %}
+    <p class="text-xs text-ink-muted" data-testid="decrypted-mail-forbidden">{{ 'encryption.decrypted.forbidden'|trans }}</p>
+{% else %}
+    <div class="divide-y divide-line">
+        {% for account in state.accounts %}
+            <div class="py-3 first:pt-0 last:pb-0" data-testid="decrypted-mail-account">
+                <div class="flex items-start justify-between gap-3">
+                    <span class="min-w-0">
+                        <span class="block text-xs font-medium text-ink">{{ account.displayAddress ?? account.name }}</span>
+                        <span class="block text-[11px] text-ink-faint mt-0.5">
+                            {{ (account.keepDecrypted ? 'encryption.decrypted.state_on' : 'encryption.decrypted.state_off')|trans }}
+                        </span>
+                    </span>
+
+                    {% if account.keepDecrypted %}
+                        <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
+                            <input type="hidden" name="keep" value="0">
+                            <button type="submit" class="{{ button }}">{{ 'encryption.decrypted.turn_off'|trans }}</button>
+                        </form>
+                    {% endif %}
+                </div>
+
+                {% if not account.keepDecrypted %}
+                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
+                        <input type="hidden" name="keep" value="1">
+                        <label class="flex items-start gap-2 text-[11px] text-ink-muted">
+                            <input type="checkbox" name="confirm" value="1" required class="{{ fields.checkbox() }} mt-0.5">
+                            <span>{{ 'encryption.decrypted.confirm'|trans }}</span>
+                        </label>
+                        <button type="submit" class="{{ button }} mt-2">{{ 'encryption.decrypted.turn_on'|trans }}</button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}"
+                          class="mt-3 rounded-lg border border-line px-3 py-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
+                        <input type="hidden" name="ai" value="{{ account.keepDecryptedAi ? '0' : '1' }}">
+                        <span class="block text-xs font-medium text-ink-muted">{{ 'encryption.decrypted.ai.label'|trans }}</span>
+                        <span class="block text-[11px] text-ink-faint mt-0.5">
+                            {% if state.model.host is null %}
+                                {{ 'encryption.decrypted.ai.no_model'|trans }}
+                            {% elseif state.model.local %}
+                                {{ 'encryption.decrypted.ai.local'|trans({ '%host%': state.model.host }) }}
+                            {% else %}
+                                {{ 'encryption.decrypted.ai.external'|trans({ '%host%': state.model.host }) }}
+                            {% endif %}
+                        </span>
+                        {% if not account.keepDecryptedAi and state.model.host is not null and not state.model.local %}
+                            <label class="mt-2 flex items-start gap-2 text-[11px] text-ink-muted">
+                                <input type="checkbox" name="consent_external" value="1" required class="{{ fields.checkbox() }} mt-0.5">
+                                <span>{{ 'encryption.decrypted.ai.consent'|trans({ '%host%': state.model.host }) }}</span>
+                            </label>
+                        {% endif %}
+                        {% if state.model.host is not null or account.keepDecryptedAi %}
+                            <button type="submit" class="{{ button }} mt-2">
+                                {{ (account.keepDecryptedAi ? 'encryption.decrypted.ai.turn_off' : 'encryption.decrypted.ai.turn_on')|trans }}
+                            </button>
+                        {% endif %}
+                    </form>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
