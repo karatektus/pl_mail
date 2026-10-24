@@ -1475,9 +1475,11 @@ calendar:
         edit: Kalender bearbeiten
         name: Name
         time_zone: Zeitzone
+        time_zone_follow: plMail folgen
         time_zone_help: >-
-            Die Zone, in der dieser Kalender gelesen wird — und in der ein
-            Termin ohne eigene Zone angezeigt wird.
+            Die Zone, in der ein neuer Termin in diesem Kalender angelegt wird.
+            „plMail folgen“ nimmt deine eigene, gerade %zone%. Termine stehen
+            immer zu der Uhrzeit da, zu der sie bei dir stattfinden.
     grid:
         all_day: Ganztägig
         continues_after: Geht in den nächsten Tag hinein
@@ -4306,6 +4308,7 @@ settings:
                 deinen Standardkalender um.
         sync_now: '"%name%" jetzt abgleichen'
         sync_now_title: Jetzt abgleichen
+        zone_follows: Folgt plMail
     labels:
         count: '%count% Labels'
         delete: Label "%name%" löschen

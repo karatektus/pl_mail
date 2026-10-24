@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Calendar;
 
 use App\Domain\Enum\Calendar\CalendarRole;
+use App\Domain\Enum\User\ClockFormat;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
@@ -145,7 +146,10 @@ final class CalendarTimeGridTest extends WebTestCase
     {
         $client = $this->signIn();
 
-        $this->calendar->timeZone = 'Europe/Berlin';
+        // Pinned somewhere else on purpose: the grid is the reader's clock,
+        // not the calendar's (#343).
+        $this->calendar->timeZone = 'America/New_York';
+        $this->user->timezone     = 'Europe/Berlin';
         $this->em->flush();
 
         $event = $this->oneOff();
@@ -162,26 +166,24 @@ final class CalendarTimeGridTest extends WebTestCase
 
     /**
      * And so does the time PRINTED in it, which is a different code path and
-     * was on a different clock.
+     * was once on a different clock: a block sat on the 15:00 line with
+     * "17:30" written inside it.
      *
-     * The block is positioned against the calendar's zone; the chip inside it
-     * printed through Twig's `|date`, which converts to whatever
-     * TwigTimezoneSubscriber last set — the reader's own. Where the two differ,
-     * and they do for every calendar provisioned before its zone was seeded from
-     * its owner, a block sat on the 15:00 line with "17:30" written inside it.
-     * The grid was right; the label was on another clock.
-     *
-     * The fixture makes them differ deliberately: the calendar reads Berlin and
-     * the user reads UTC, which is the shape of the report — a legacy UTC
-     * calendar under a Berlin reader — with the two swapped so the assertion
-     * can name one and not the other.
+     * Both are the reader's clock now, whatever zone the calendar has (#343).
+     * It used to be the default calendar's zone, a copy of the owner's taken
+     * the day the calendar was made, so a user who later changed theirs had a
+     * header clock and a grid that disagreed. The fixture pins the calendar to
+     * Berlin and the reader to Tokyo, so the assertion can name one and not
+     * the other.
      */
-    public function testTheTimeDrawnInABlockIsOnTheSameClockAsItsPosition(): void
+    public function testTheTimeDrawnInABlockIsOnTheReadersClock(): void
     {
         $client = $this->signIn();
 
         $this->calendar->timeZone = 'Europe/Berlin';
-        $this->user->timezone     = 'UTC';
+        $this->user->timezone     = 'Asia/Tokyo';
+        // A 24-hour chip, so "18:00" cannot be read as "6:00" by either side.
+        $this->user->setSetting(User::SETTING_CLOCK, ClockFormat::TwentyFour->value);
         $this->em->flush();
 
         $event = $this->oneOff();
@@ -191,17 +193,18 @@ final class CalendarTimeGridTest extends WebTestCase
 
         self::assertCount(1, $block, 'the event is on the grid');
 
-        $berlin = $this->start()->setTimezone(new DateTimeZone('Europe/Berlin'));
+        $tokyo = $this->start()->setTimezone(new DateTimeZone('Asia/Tokyo'));
 
+        self::assertSame($tokyo->format('Y-m-d\TH:i:s'), $block->attr('data-starts-at'), 'the block sits on the reader\'s clock');
         self::assertStringContainsString(
-            $berlin->format('H:i'),
+            $tokyo->format('H:i'),
             $block->text(),
             'the chip prints the hour the block is drawn against',
         );
         self::assertStringNotContainsString(
-            $this->start()->format('H:i'),
+            $this->start()->setTimezone(new DateTimeZone('Europe/Berlin'))->format('H:i'),
             $block->text(),
-            'and not the reader\'s, which is where the two hours came from',
+            'and not the calendar\'s',
         );
     }
 

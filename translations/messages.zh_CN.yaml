@@ -1284,7 +1284,8 @@ calendar:
         edit: 编辑日历
         name: 名称
         time_zone: 时区
-        time_zone_help: 显示此日历时使用的时区，也用于显示未指定时区的日程。
+        time_zone_follow: 跟随 plMail
+        time_zone_help: 此日历中新日程使用的时区。“跟随 plMail”即使用你自己的时区（当前为 %zone%）。日程始终按你所在时区的实际时间显示。
     grid:
         all_day: 全天
         continues_after: 延续到次日
@@ -3645,6 +3646,7 @@ settings:
             unsubscribe_note: '取消勾选会删除此处保存的日历副本。其中来自邮件而非日历本身的日程，会先移到默认日历。'
         sync_now: '立即同步“%name%”'
         sync_now_title: '立即同步'
+        zone_follows: 跟随 plMail
     labels:
         count: '%count% 个标签'
         delete: '删除标签“%name%”'

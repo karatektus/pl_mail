@@ -1454,9 +1454,11 @@ calendar:
         edit: Edit calendar
         name: Name
         time_zone: Time zone
+        time_zone_follow: Follow plMail
         time_zone_help: >-
-            The zone this calendar is read in, and the one an event that carries
-            no zone of its own is shown in.
+            The zone a new event on this calendar is written in. Follow plMail uses
+            your own, currently %zone%. Events always show at the time they
+            happen on your clock.
     grid:
         all_day: All day
         continues_after: Carries on into the next day
@@ -4285,6 +4287,7 @@ settings:
                 to your default calendar first.
         sync_now: Sync "%name%" now
         sync_now_title: Sync now
+        zone_follows: Follows plMail
     labels:
         count: '%count% labels'
         delete: Delete label "%name%"

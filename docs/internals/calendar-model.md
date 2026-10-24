@@ -232,13 +232,15 @@ UTC, which is what floating means — the same wall clock everywhere.
 `isAllDay` is true, so the two cannot be set inconsistently by a caller.
 
 `App\Service\Calendar\CalendarTimeResolver` owns the other half: which wall clock a calendar
-is *read* in, and how the digits a browser posts turn back into instants. The zone comes from
-the **calendar**, not from the user's profile — `UserTimezoneResolver` answers "what clock is
-this person reading?", which is right for a rendered timestamp, while a calendar's own zone
-is what an event with none of its own is stored and shown in. The two can honestly differ: a
-shared work calendar pinned to the office. Every parse there is total — an unusable zone or
-an unparseable date returns a fallback or null rather than throwing, because all of it
-arrives from a request.
+is *read* in, and how the digits a browser posts turn back into instants. Two clocks, kept
+apart (#343). A page is **drawn** on the reader's — `zoneFor()`, which is
+`UserTimezoneResolver`'s answer and the same clock the header and every `|date` use. A
+calendar's own zone (`Calendar::$timeZone`, read through `calendarZone()`) only decides how a
+time with no zone attached is **written**: `newEventZone()` gives the default calendar's, for a
+new event. Null in that column means "follow plMail", the owner's zone at the moment it is
+asked; it is what every calendar plMail makes starts as, and a remote calendar keeps the zone
+its remote reported. Every parse there is total — an unusable zone or an unparseable date
+returns a fallback or null rather than throwing, because all of it arrives from a request.
 
 ## One meeting, two rows
 

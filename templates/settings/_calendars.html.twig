@@ -127,7 +127,10 @@ Variables:
                             </span>
                         {% endif %}
 
-                        <span class="text-[10px] text-ink-faint">{{ calendar.timeZone }}</span>
+                        {# Null is "follow plMail" (#343): said in words rather
+                           than resolved to a zone name, because the name would
+                           read as one this calendar is pinned to. #}
+                        <span class="text-[10px] text-ink-faint">{{ calendar.timeZone ?? 'settings.calendars.zone_follows'|trans }}</span>
                     </span>
 
                     {# Only for a calendar that mirrors something. A local list

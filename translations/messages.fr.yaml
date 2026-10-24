@@ -1463,9 +1463,11 @@ calendar:
         edit: Modifier l’agenda
         name: Nom
         time_zone: Fuseau horaire
+        time_zone_follow: Suivre plMail
         time_zone_help: >-
-            Le fuseau dans lequel cet agenda est lu, et celui dans lequel s’affiche
-            un événement qui n’a pas de fuseau propre.
+            Le fuseau dans lequel un nouvel événement de cet agenda est créé.
+            « Suivre plMail » prend le vôtre, actuellement %zone%. Les événements
+            s’affichent toujours à l’heure où ils ont lieu pour vous.
     grid:
         all_day: Toute la journée
         continues_after: Se poursuit le jour suivant
@@ -4342,6 +4344,7 @@ settings:
                 agenda par défaut.
         sync_now: Synchroniser « %name% » maintenant
         sync_now_title: Synchroniser maintenant
+        zone_follows: Suit plMail
     labels:
         count: '%count% libellés'
         delete: Supprimer le libellé « %name% »

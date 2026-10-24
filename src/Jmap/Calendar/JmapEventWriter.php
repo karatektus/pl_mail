@@ -11,6 +11,7 @@ use App\Entity\User\User;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarEventWriter;
+use App\Service\Calendar\CalendarTimeResolver;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -90,6 +91,7 @@ final class JmapEventWriter
         private readonly CalendarRepository $calendars,
         private readonly CalendarEventWriter $writer,
         private readonly EntityManagerInterface $entityManager,
+        private readonly CalendarTimeResolver $time,
     ) {
     }
 
@@ -331,7 +333,7 @@ final class JmapEventWriter
     private function zoneName(array $values, Calendar $calendar): ?string
     {
         if (false === array_key_exists('timeZone', $values)) {
-            return $calendar->timeZone;
+            return $this->time->calendarZone($calendar)->getName();
         }
 
         if (null === $values['timeZone']) {

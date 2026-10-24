@@ -570,7 +570,7 @@ final readonly class ConfigBackupUserRestorer
             $calendar->integration = $integrations[$this->number($row, 'integrationId') ?? 0] ?? null;
             $calendar->name        = (string) ($this->text($row, 'name') ?? '');
             $calendar->color       = (string) ($this->text($row, 'color') ?? Calendar::DEFAULT_COLOR);
-            $calendar->timeZone    = (string) ($this->text($row, 'timeZone') ?? 'UTC');
+            $calendar->timeZone    = $this->text($row, 'timeZone');
             $calendar->role        = CalendarRole::tryFrom((string) $this->text($row, 'role')) ?? CalendarRole::Custom;
             $calendar->isVisible   = true === ($row['isVisible'] ?? true);
             $calendar->isDefault   = true === ($row['isDefault'] ?? false);

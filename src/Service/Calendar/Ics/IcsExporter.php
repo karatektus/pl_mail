@@ -6,6 +6,7 @@ namespace App\Service\Calendar\Ics;
 
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
+use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use DateTimeImmutable;
 use Sabre\VObject\Component\VCalendar;
@@ -83,6 +84,7 @@ final readonly class IcsExporter
     public function __construct(
         private CalDavEventConverter $converter,
         private VTimeZoneBuilder     $timeZones,
+        private CalendarTimeResolver $time,
     ) {
     }
 
@@ -172,7 +174,7 @@ final readonly class IcsExporter
         $envelope = new VCalendar(['PRODID' => CalDavEventConverter::PRODUCT_ID]);
 
         $envelope->add(IcsDocumentReader::NAME_PROPERTY, $calendar->name);
-        $envelope->add(IcsDocumentReader::TIME_ZONE_PROPERTY, $calendar->timeZone);
+        $envelope->add(IcsDocumentReader::TIME_ZONE_PROPERTY, $this->time->calendarZone($calendar)->getName());
 
         return $envelope;
     }

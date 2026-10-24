@@ -1372,9 +1372,11 @@ calendar:
         edit: Amend the almanac
         name: What it be called
         time_zone: Which bell
+        time_zone_follow: 'Follow plMail''s bell'
         time_zone_help: >-
-            The bell this almanac be read by — and the one a reckonin' with no
-            bell of its own be shown in.
+            The bell a new reckonin' on this almanac be written by. Followin'
+            plMail takes yer own, now %zone%. Reckonin's always show at the hour
+            they happen by yer own bell.
     grid:
         all_day: All the day long
         continues_after: Sails on into the next day
@@ -4104,6 +4106,7 @@ settings:
                 yer own almanac first.
         sync_now: Haul "%name%" now
         sync_now_title: Haul now
+        zone_follows: 'Follows plMail''s bell'
     labels:
         count: '%count% flags'
         delete: Strike the flag "%name%"
