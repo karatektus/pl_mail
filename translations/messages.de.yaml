@@ -3448,6 +3448,15 @@ settings:
             unreadEmphasis: Ungelesene Zeilen
         logo:
             colour: 'Farbe'
+            custom:
+                error_missing: 'Es ist keine Datei angekommen. Wähl eine SVG-Datei und versuch es noch einmal.'
+                error_size: 'Diese SVG-Datei ist größer als 256 KB. Ein Logo braucht viel weniger; exportier es am besten ohne eingebettete Bilder.'
+                error_type: 'Diese Datei ist keine SVG, die plMail als Logo verwenden kann. Sie braucht ein <svg> mit viewBox oder mit Breite und Höhe.'
+                help: 'Eine eigene SVG-Datei, für die obere Leiste, das Tab-Symbol und die installierte App. Sie erscheint in ihren eigenen Farben, und plMail zeichnet die App-Symbole daraus.'
+                name: 'Eigenes'
+                remove: 'Eigenes Logo entfernen'
+                replace: 'Eigenes Logo ersetzen'
+                upload: 'Eigenes hochladen…'
             heading: Logo
             icon: 'Symbol'
             independent: 'Selbst wählen'

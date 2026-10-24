@@ -37,4 +37,4 @@
    reload, so a new choice has to be a new URL, and the appearance page swaps
    it live on every pick (see repaintLogo) — before the save has landed, which
    is why the drawing cannot come from the session. See BrandingController. #}
-<link rel="icon" type="image/svg+xml" href="{{ logo_favicon_url(appearance().effectiveLogoMotif, appearance().effectiveLogoPaint) }}">
+<link rel="icon" type="image/svg+xml" href="{{ logo_current().favicon }}">

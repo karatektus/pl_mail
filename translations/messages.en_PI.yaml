@@ -3302,6 +3302,15 @@ settings:
             unreadEmphasis: Unread rows
         logo:
             colour: 'Colours'
+            custom:
+                error_missing: 'No cargo came aboard. Pick an SVG an'' try again.'
+                error_size: 'That SVG be heavier than 256 KB. A flag needs far less; try exportin'' it without pictures stowed inside.'
+                error_type: 'That cargo be no SVG plMail can fly as a flag. It needs an <svg> with a viewBox, or a width an'' height.'
+                help: 'An SVG o'' yer own, flown on the top bar, yer tab an'' the installed app. It keeps its own colours, an'' plMail paints the app icons from it.'
+                name: 'Yer own'
+                remove: 'Strike yer flag'
+                replace: 'Swap yer flag'
+                upload: 'Hoist yer own…'
             heading: 'Ship''s mark'
             icon: 'Figurehead'
             independent: 'Chart yer own'

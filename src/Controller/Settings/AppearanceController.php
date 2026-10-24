@@ -10,6 +10,8 @@ use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\AppIconStorage;
+use App\Domain\Helper\CustomLogoStorage;
+use App\Domain\Helper\SvgSanitizer;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
 use App\Service\Appearance\LogoIcons;
@@ -25,6 +27,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[Route('/settings/appearance', name: 'app_appearance_')]
 #[IsGranted('ROLE_USER')]
@@ -170,10 +173,9 @@ final class AppearanceController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        $motif = LogoMotif::tryFrom($request->request->getString('motif'));
-        $paint = $request->request->getString('paint');
+        $choice = $this->appIconChoice($user, $request->request->getString('motif'), $request->request->getString('paint'));
 
-        if (null === $motif || false === in_array($paint, LogoMotif::paintWires(), true)) {
+        if (null === $choice) {
             return new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -194,13 +196,77 @@ final class AppearanceController extends AbstractController
             $pngs[$name] = $bytes;
         }
 
-        $choice = LogoIcons::choice($motif, LogoStyle::tryFrom($paint));
-
         $storage->store((string) $user->id, $choice, $icons->version(), $pngs);
 
         // Which choice was kept: several uploads can be in flight (a pick, and
         // the layout drawing a missing one), and the answer says which is which.
         return $this->json(['choice' => $choice]);
+    }
+
+    /**
+     * The user's own logo, as an SVG (#48).
+     *
+     * Kept only after SvgSanitizer has cut it down to a drawing, and worn at
+     * once: uploading a logo is choosing it. The previous upload goes, since
+     * only one is ever offered. The page reloads the pane afterwards, and the
+     * layout then draws the installed app's PNGs from it the way it does for
+     * any choice whose PNGs are missing.
+     *
+     * A refusal says why in a sentence (`message`) rather than a key: the pane
+     * shows it as it is, and the three reasons ask for three different fixes.
+     */
+    #[Route('/logo', name: 'logo_upload', methods: ['POST'])]
+    public function uploadLogo(Request $request, SvgSanitizer $sanitizer, CustomLogoStorage $logos, TranslatorInterface $translator): JsonResponse
+    {
+        $this->assertCsrf($request, 'ajax');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $file = $request->files->get('logo');
+
+        if (false === $file instanceof UploadedFile || false === $file->isValid()) {
+            return $this->json(['ok' => false, 'message' => $translator->trans('settings.appearance.logo.custom.error_missing')], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($file->getSize() > SvgSanitizer::MAX_BYTES) {
+            return $this->json(['ok' => false, 'message' => $translator->trans('settings.appearance.logo.custom.error_size')], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
+        }
+
+        $svg = $sanitizer->sanitize((string) file_get_contents($file->getPathname()));
+
+        if (null === $svg) {
+            return $this->json(['ok' => false, 'message' => $translator->trans('settings.appearance.logo.custom.error_type')], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $user->appearance->logoCustom       = $logos->store((string) $user->id, $svg);
+        $user->appearance->logoCustomActive = true;
+
+        $this->entityManager->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    /**
+     * Forget the uploaded logo, and go back to the motif it was worn over,
+     * which was kept underneath all along (Appearance::$logoCustom).
+     */
+    #[Route('/logo/remove', name: 'logo_remove', methods: ['POST'])]
+    public function removeLogo(Request $request, CustomLogoStorage $logos): JsonResponse
+    {
+        $this->assertCsrf($request, 'ajax');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $logos->deleteAllFor((string) $user->id);
+
+        $user->appearance->logoCustom       = null;
+        $user->appearance->logoCustomActive = false;
+
+        $this->entityManager->flush();
+
+        return $this->json(['ok' => true]);
     }
 
     #[Route('/background', name: 'background_upload', methods: ['POST'])]
@@ -326,5 +392,27 @@ final class AppearanceController extends AbstractController
     private function userDirectory(int $userId): string
     {
         return sprintf('%s/%d', $this->backgroundDirectory, $userId);
+    }
+
+    /**
+     * The choice a PNG upload is for, as AppIconStorage keeps it, or null for
+     * one the routes cannot name: a motif and a paint, or `custom` and the
+     * hash of this user's own uploaded logo, and no other hash.
+     */
+    private function appIconChoice(User $user, string $motif, string $paint): ?string
+    {
+        if (Appearance::CUSTOM_LOGO === $motif) {
+            return null !== $user->appearance->logoCustom && $paint === $user->appearance->logoCustom
+                ? LogoIcons::customChoice($paint)
+                : null;
+        }
+
+        $logoMotif = LogoMotif::tryFrom($motif);
+
+        if (null === $logoMotif || false === in_array($paint, LogoMotif::paintWires(), true)) {
+            return null;
+        }
+
+        return LogoIcons::choice($logoMotif, LogoStyle::tryFrom($paint));
     }
 }

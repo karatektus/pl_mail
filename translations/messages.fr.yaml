@@ -3504,6 +3504,15 @@ settings:
             unreadEmphasis: Lignes non lues
         logo:
             colour: 'Couleur'
+            custom:
+                error_missing: 'Aucun fichier n’est arrivé. Choisissez un SVG et réessayez.'
+                error_size: 'Ce SVG dépasse 256 Ko. Un logo en demande bien moins ; essayez de l’exporter sans images intégrées.'
+                error_type: 'Ce fichier n’est pas un SVG que plMail peut utiliser comme logo. Il lui faut un <svg> avec un viewBox, ou une largeur et une hauteur.'
+                help: 'Un SVG à vous, utilisé pour la barre du haut, l’icône d’onglet et l’application installée. Il garde ses propres couleurs, et plMail en dessine les icônes de l’application.'
+                name: 'Le vôtre'
+                remove: 'Retirer votre logo'
+                replace: 'Remplacer votre logo'
+                upload: 'Importer le vôtre…'
             heading: Logo
             icon: 'Icône'
             independent: 'Choisir séparément'

@@ -3028,6 +3028,15 @@ settings:
             unreadEmphasis: '未读行样式'
         logo:
             colour: '颜色'
+            custom:
+                error_missing: '没有收到文件。请选择一个 SVG 文件后重试。'
+                error_size: '这个 SVG 文件超过 256 KB。徽标远用不了这么大，请尝试在导出时不嵌入图片。'
+                error_type: 'plMail 无法将此文件用作徽标。它需要一个带 viewBox 或宽度和高度的 <svg>。'
+                help: '使用你自己的 SVG，用于顶栏、标签页图标和已安装的应用。它保留自己的颜色，plMail 会据此绘制应用图标。'
+                name: '自定义'
+                remove: '移除自定义徽标'
+                replace: '更换自定义徽标'
+                upload: '上传自定义…'
             heading: '标志'
             icon: '图标'
             independent: '单独选择'

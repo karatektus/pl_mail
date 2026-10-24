@@ -3454,6 +3454,15 @@ settings:
             unreadEmphasis: Unread rows
         logo:
             colour: 'Colour'
+            custom:
+                error_missing: 'No file arrived. Pick an SVG and try again.'
+                error_size: 'That SVG is larger than 256 KB. A logo needs far less; try exporting it without embedded pictures.'
+                error_type: 'That file is not an SVG plMail can use as a logo. It needs an <svg> with a viewBox, or a width and height.'
+                help: 'An SVG of your own, used for the top bar, your tab icon and the installed app. It is shown in its own colours, and plMail draws the app icons from it.'
+                name: 'Your own'
+                remove: 'Remove your logo'
+                replace: 'Replace your logo'
+                upload: 'Upload your own…'
             heading: Logo
             icon: 'Icon'
             independent: 'Choose independently'

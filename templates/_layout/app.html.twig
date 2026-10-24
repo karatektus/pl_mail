@@ -112,12 +112,13 @@
        manifest is a route with the choice and the user's key in its URL, like
        the tab icon: it is fetched without credentials. The apple-touch-icon is
        the form that fills its square, because iOS rounds the corners itself
-       and paints a transparent one black. Nobody signed in: the wax seal. #}
+       and paints a transparent one black. Nobody signed in: the wax seal.
+       A logo the user uploaded (#48) is drawn into the same PNGs the same way;
+       logo_current() says which logo is worn. #}
     {% set _app_icons = app_icons() %}
-    {% set _logo_motif = appearance().effectiveLogoMotif %}
-    {% set _logo_paint = appearance().effectiveLogoPaint %}
-    <link rel="manifest" href="{{ logo_manifest_url(_logo_motif, _logo_paint, _app_icons ? _app_icons.key : null) }}">
-    <link rel="apple-touch-icon" href="{{ _app_icons ? logo_app_icon_url('bleed-180', _app_icons.key, _logo_motif, _logo_paint) : '/icons/apple-touch-icon.png' }}">
+    {% set _logo = logo_current() %}
+    <link rel="manifest" href="{{ _logo.manifest }}">
+    <link rel="apple-touch-icon" href="{{ _logo.appleTouch }}">
     {# The token the fetch-based endpoints check. Stimulus controllers that
        build their own request body cannot carry a form field, so they read this
        and send it as X-CSRF-Token. Every such endpoint validates against the
@@ -452,8 +453,8 @@
     {% if _app_icons and _app_icons.missing %}
         <div hidden
              data-controller="core--app-icons"
-             data-core--app-icons-tile-url-value="{{ logo_icon_url(_logo_motif, _logo_paint) }}"
-             data-core--app-icons-bleed-url-value="{{ logo_bleed_url(_logo_motif, _logo_paint) }}"
+             data-core--app-icons-tile-url-value="{{ _logo.icon }}"
+             data-core--app-icons-bleed-url-value="{{ _logo.bleed }}"
              data-core--app-icons-upload-url-value="{{ path('app_appearance_app_icons') }}"></div>
     {% endif %}
 </body>

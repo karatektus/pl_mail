@@ -209,6 +209,10 @@ services:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
             $secret: '%kernel.secret%'
+    App\Domain\Helper\CustomLogoStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'

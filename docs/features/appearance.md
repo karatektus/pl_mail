@@ -61,6 +61,26 @@ browser draws that icon when you pick a logo, and it is kept for your account. A
 changes the drawing, the first page you open draws it again in the background. An app that is
 already installed keeps its old icon until the browser refreshes it or you install it again.
 
+### A logo of your own
+
+**Upload your own…** under the icons takes an SVG file and wears it at once: in the top bar, as the
+tab icon, and as the icon of the installed app and the iPhone Home Screen. It appears as one more
+tile, **Your own**, so you can go to a motif and back without uploading it again; **Replace your
+logo** swaps the file and **Remove your logo** forgets it and puts back the motif you had.
+
+An uploaded logo is shown in its own colours. **Colour** is hidden while it is chosen, because
+plMail cannot know which parts of somebody else's drawing are its livery. It appears as drawn in
+the top bar on light and dark themes alike, so a logo with a transparent background should read on
+both. For the installed app's icon your browser draws it into the same pictures it draws for a
+motif: as it is, and centred on a white square for the shapes that cut their own corners, such as
+iOS's.
+
+The file is cleaned before it is kept: anything that could run or fetch something — scripts, links,
+embedded pictures or web pages, styles that load from the internet — is removed, and what remains
+is only the drawing. A file that is not an SVG, is larger than 256 KB, or has no size (no `viewBox`,
+and no width and height to make one from) is refused with a message saying which. The phone apps go
+on showing the motif you had before; only the web app and what it installs wear the upload.
+
 ## The live preview
 
 Beside the controls sits a second card showing a sample sidebar, message list and reading pane in
@@ -245,7 +265,8 @@ five glass numbers, the density and the three per-surface density overrides, the
 settings, the typeface and text scale, the background choice, the text colours and the main pane
 settings. It deliberately does
 **not** carry your uploaded background image: a filename on someone else's install means nothing, so
-a custom background exports as **Theme default**.
+a custom background exports as **Theme default**. The same goes for a logo of your own: the export
+names the motif underneath it.
 
 It does not carry the preview pane's width either. That is a preference about how this settings page
 is shaped rather than part of how the app looks, so importing somebody else's theme leaves your own

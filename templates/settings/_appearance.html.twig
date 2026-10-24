@@ -92,6 +92,8 @@
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}"
      data-settings--appearance-app-icons-url-value="{{ path('app_appearance_app_icons') }}"
+     data-settings--appearance-logo-upload-url-value="{{ path('app_appearance_logo_upload') }}"
+     data-settings--appearance-logo-remove-url-value="{{ path('app_appearance_logo_remove') }}"
      {# What a linked pl mark wears on a theme with no namesake colourway —
         LogoStyle::DEFAULT, read here rather than spelled in the script. #}
      data-settings--appearance-logo-default-value="{{ constant('App\\Domain\\Enum\\Theme\\LogoStyle::DEFAULT').value }}">
@@ -381,7 +383,12 @@
                Selection is a ring, exactly as on the theme tiles, and
                aria-pressed, so it is announced as well as drawn. #}
             {% set _motif = a.logoMotif %}
-            {% set _classic = _motif.value == 'pl' %}
+            {# The uploaded logo (#48): `_custom` is its hash while the file is
+               there, `_customWorn` whether it is the icon worn. Worn, it is the
+               selected tile, and step two has nothing to offer it. #}
+            {% set _custom = logo_custom(false) %}
+            {% set _customWorn = logo_custom() is not null %}
+            {% set _classic = _motif.value == 'pl' and not _customWorn %}
             {% set _logoMode = not _classic and a.logoOriginal ? 'original' : (a.logoLinked ? 'linked' : 'independent') %}
             {% set _iconTile = 'group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors' %}
             {# `rounded-[22%]` is the tile's own corner (16 of 72 units, see
@@ -422,15 +429,61 @@
                                     data-logo-bar="{{ logo_url(motif) }}"
                                     data-logo-bar-dark="{{ logo_url(motif, null, true) }}"
                                     data-action="click->settings--appearance#pickMotif"
-                                    aria-pressed="{{ motif == _motif ? 'true' : 'false' }}"
-                                    class="{{ _iconTile }} {{ motif == _motif ? 'ring-2 ring-accent' : '' }}">
+                                    aria-pressed="{{ motif == _motif and not _customWorn ? 'true' : 'false' }}"
+                                    class="{{ _iconTile }} {{ motif == _motif and not _customWorn ? 'ring-2 ring-accent' : '' }}">
                                 <img src="{{ _url }}" alt="" width="48" height="48" class="{{ _iconImage }}" decoding="async">
                                 <span class="text-xs text-ink-soft text-center leading-tight">{{ ('settings.appearance.logo.motif.' ~ motif.value)|trans }}</span>
                             </button>
                         {% endfor %}
+
+                        {# The uploaded logo, as one more tile. Its "paint" is
+                           its hash — the last segment of each of its URLs —
+                           so iconUrl() builds its forms the way it builds any
+                           motif's, and logoPaint() answers the hash for it. #}
+                        {% if _custom is not null %}
+                            {% set _url = logo_custom_url('icon', _app_icon_key, _custom) %}
+                            <button type="button"
+                                    data-logo-motif="custom"
+                                    data-logo-custom="{{ _custom }}"
+                                    data-logo-icon="{{ _url }}"
+                                    data-logo-favicon="{{ logo_custom_url('favicon', _app_icon_key, _custom) }}"
+                                    data-logo-bleed="{{ logo_custom_url('bleed', _app_icon_key, _custom) }}"
+                                    data-logo-manifest="{{ logo_custom_manifest_url(_app_icon_key, _custom) }}"
+                                    data-logo-apple-touch="{{ logo_custom_app_icon_url('bleed-180', _app_icon_key, _custom) }}"
+                                    data-logo-bar="{{ logo_custom_url('logo', _app_icon_key, _custom) }}"
+                                    data-logo-bar-dark="{{ logo_custom_url('logo', _app_icon_key, _custom) }}"
+                                    data-action="click->settings--appearance#pickMotif"
+                                    aria-pressed="{{ _customWorn ? 'true' : 'false' }}"
+                                    class="{{ _iconTile }} {{ _customWorn ? 'ring-2 ring-accent' : '' }}">
+                                <img src="{{ _url }}" alt="" width="48" height="48" class="size-12 object-contain" decoding="async">
+                                <span class="text-xs text-ink-soft text-center leading-tight">{{ 'settings.appearance.logo.custom.name'|trans }}</span>
+                            </button>
+                        {% endif %}
                     </div>
                     <input type="hidden" data-settings--appearance-field="logoMotif"
-                           data-settings--appearance-target="logoMotif" value="{{ _motif.value }}">
+                           data-settings--appearance-target="logoMotif" value="{{ _customWorn ? 'custom' : _motif.value }}">
+
+                    {# An SVG of your own. Uploading it is choosing it; the pane
+                       reloads so every form of it is linked from the server,
+                       and the layout draws the installed app's PNGs from it. #}
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                        <label class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+                            <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
+                            {{ (_custom is null ? 'settings.appearance.logo.custom.upload' : 'settings.appearance.logo.custom.replace')|trans }}
+                            <input type="file" accept="image/svg+xml,.svg" class="sr-only"
+                                   data-settings--appearance-target="logoUploadInput"
+                                   data-action="change->settings--appearance#uploadLogo">
+                        </label>
+                        {% if _custom is not null %}
+                            <button type="button"
+                                    class="inline-flex items-center gap-2 px-3 h-9 rounded-pane text-sm text-ink-muted hover:bg-hover cursor-pointer transition-colors"
+                                    data-action="click->settings--appearance#removeLogo">
+                                <i class="fa-regular fa-trash-can text-xs" aria-hidden="true"></i>
+                                {{ 'settings.appearance.logo.custom.remove'|trans }}
+                            </button>
+                        {% endif %}
+                    </div>
+                    <p class="mt-1.5 text-xs text-ink-faint">{{ 'settings.appearance.logo.custom.help'|trans }}</p>
                 </div>
 
                 {# Step two. Original is `hidden` — the attribute — while the
@@ -441,7 +494,7 @@
                    hidden rather than removed outside Independent: repaintLogo
                    still reads the strokes off its tiles, and choosing
                    Independent reveals it exactly as it was left. #}
-                <div class="mb-4">
+                <div class="mb-4" data-settings--appearance-target="logoPaintStep" {{ _customWorn ? 'hidden' : '' }}>
                     <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-paint-label">
                         {{ 'settings.appearance.logo.colour'|trans }}
                     </span>
@@ -480,7 +533,7 @@
                    somebody opens them. #}
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3"
                      role="group" aria-labelledby="logo-paint-label"
-                     data-settings--appearance-target="logoGrid" {{ _logoMode != 'independent' ? 'hidden' : '' }}>
+                     data-settings--appearance-target="logoGrid" {{ _logoMode != 'independent' or _customWorn ? 'hidden' : '' }}>
                     {% for style in enum('App\\Domain\\Enum\\Theme\\LogoStyle').cases %}
                         <button type="button"
                                 data-logo-name="{{ style.value }}"

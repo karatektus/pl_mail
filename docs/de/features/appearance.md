@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:3c11f57d064a77c33257f4a98531938d0fa22590 -->
+<!-- translated-from: features/appearance.md sha1:c3dae4655eb02b9e560eb412c9f40ff795c8effc -->
 
 # Darstellung
 
@@ -69,6 +69,28 @@ ebenfalls. Dieses Symbol zeichnet dein Browser, wenn du ein Logo wählst, und es
 aufbewahrt. Nach einem Update, das die Zeichnung ändert, zeichnet die erste Seite, die du öffnest,
 es im Hintergrund neu. Eine schon installierte App behält ihr altes Symbol, bis der Browser es
 auffrischt oder du sie neu installierst.
+
+### Ein eigenes Logo
+
+**Eigenes hochladen…** unter den Symbolen nimmt eine SVG-Datei und trägt sie sofort: in der
+Kopfleiste, als Tab-Symbol und als Symbol der installierten App und auf dem Home-Bildschirm des
+iPhones. Sie erscheint als weitere Kachel, **Eigenes**, sodass du zu einem Motiv und zurück wechseln
+kannst, ohne sie neu hochzuladen; **Eigenes Logo ersetzen** tauscht die Datei aus, und **Eigenes
+Logo entfernen** vergisst sie und bringt das Motiv zurück, das du vorher hattest.
+
+Ein hochgeladenes Logo erscheint in seinen eigenen Farben. **Farbe** ist ausgeblendet, solange es
+gewählt ist, denn plMail kann nicht wissen, welche Teile einer fremden Zeichnung ihre Lackierung
+sind. In der Kopfleiste steht es auf hellen und dunklen Themes gleich da, ein Logo mit
+durchsichtigem Hintergrund sollte also auf beiden lesbar sein. Für das Symbol der installierten App
+zeichnet dein Browser es in dieselben Bilder wie ein Motiv: so, wie es ist, und mittig auf einem
+weißen Quadrat für die Formen, die ihre Ecken selbst abschneiden, etwa die von iOS.
+
+Die Datei wird gesäubert, bevor sie aufbewahrt wird: Alles, was etwas ausführen oder laden könnte —
+Skripte, Links, eingebettete Bilder oder Webseiten, Stile, die aus dem Internet laden —, wird
+entfernt, und übrig bleibt nur die Zeichnung. Eine Datei, die keine SVG ist, größer als 256 KB ist
+oder keine Größe hat (keine `viewBox` und weder Breite noch Höhe, aus denen sich eine machen ließe),
+wird mit einer Meldung abgelehnt, die sagt, woran es liegt. Die Handy-Apps zeigen weiter das Motiv,
+das du vorher hattest; nur die Web-App und was sie installiert tragen das hochgeladene Logo.
 
 ## Die Live-Vorschau
 
@@ -270,7 +292,7 @@ Nachrichtenliste, Schriftart und Textgröße, die Hintergrundwahl, die Textfarbe
 Einstellungen des Hauptbereichs. Er trägt
 bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf der
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
-exportiert.
+exportiert. Dasselbe gilt für ein eigenes Logo: Der Export nennt das Motiv, das darunter liegt.
 
 Die Breite der Vorschau trägt er ebenfalls nicht. Sie ist eine Vorliebe dazu, wie diese
 Einstellungsseite geformt ist, und kein Teil davon, wie die App aussieht — das Theme von jemand
