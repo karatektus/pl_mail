@@ -6,12 +6,13 @@ namespace App\Controller\Settings;
 
 use App\Entity\User\User;
 use App\Form\Factory\ChangePasswordFormFactory;
+use App\Domain\Exception\KeyringRefused;
+use App\Service\User\PasswordChanger;
+use Symfony\Component\Form\FormError;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -33,19 +34,18 @@ use Symfony\UX\Turbo\TurboBundle;
  * already-signed-in session is not enough on its own.
  *
  * Every session but this one is ended, and that is the point of a password
- * change rather than a side effect of it: the firewall's remember-me tokens are
- * signature-based over the password hash, so the sixty-day cookies stop
- * verifying the moment the hash changes. Somebody changing their password
- * because a laptop went missing has actually withdrawn it.
+ * change rather than a side effect of it: the firewall's remember-me tokens
+ * carry a digest of the password hash they were issued under, so the sixty-day
+ * cookies stop verifying the moment the hash changes. Somebody changing their
+ * password because a laptop went missing has actually withdrawn it.
  */
 #[Route('/settings/password', name: 'app_settings_password_')]
 #[IsGranted('ROLE_USER')]
 final class PasswordController extends AbstractController
 {
     public function __construct(
-        private readonly ChangePasswordFormFactory   $forms,
-        private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly EntityManagerInterface      $entityManager,
+        private readonly ChangePasswordFormFactory $forms,
+        private readonly PasswordChanger           $passwords,
     ) {}
 
     #[Route('', name: 'change', methods: ['POST'])]
@@ -54,19 +54,28 @@ final class PasswordController extends AbstractController
         $form = $this->forms->create();
         $form->handleRequest($request);
 
-        // Covers a wrong current password, a mismatch, a password under the
-        // floor and a stale CSRF token alike: all four mean "do not write",
-        // and the form carries the message for whichever it was.
+        // Covers a wrong current password, a browser that sent no auth hash and
+        // a stale CSRF token alike: all three mean "do not write", and the form
+        // carries the message for whichever it was. A mismatch and a password
+        // under the floor never get here — the browser refuses those before it
+        // stretches anything, because it is the only side that sees them.
         if (false === $form->isSubmitted() || false === $form->isValid()) {
             return $this->streamResponse($request, $form->createView(), 'settings.password.flash.refused', 'error');
         }
 
-        $user->password = $this->passwordHasher->hashPassword(
-            $user,
-            (string) $form->get('plainPassword')->getData(),
-        );
+        $rewrapped = json_decode((string) $form->get('rewrappedKeys')->getData(), true);
 
-        $this->entityManager->flush();
+        try {
+            $this->passwords->applyFromForm($user, $form->get('new'), is_array($rewrapped) ? $rewrapped : []);
+        } catch (KeyringRefused) {
+            // The browser could not re-wrap a key the person can open — a tab
+            // that loaded before the key was made, say. Changing the password
+            // anyway would lock that key, so nothing changes and the form says
+            // to reload and try again.
+            $form->addError(new FormError('settings.password.keys_not_rewrapped'));
+
+            return $this->streamResponse($request, $form->createView(), 'settings.password.flash.refused', 'error');
+        }
 
         // A fresh, unsubmitted form: the stream replaces the card, and three
         // filled-in password boxes left sitting on screen after a successful
@@ -89,11 +98,16 @@ final class PasswordController extends AbstractController
         if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
+            // A refusal answers 422, not 200: Turbo renders the stream either
+            // way, and the status is how the page's script tells a change
+            // that went through from one that did not — it swaps the wrap key
+            // the keyring is opened with only on success. See
+            // assets/controllers/auth/password_form_controller.js.
             return $this->render('settings/_password.stream.html.twig', [
                 'passwordForm' => $formView,
                 'toastMessage' => $toastMessage,
                 'toastType'    => $toastType,
-            ]);
+            ], new Response(status: 'error' === $toastType ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
         }
 
         return $this->redirectToRoute('app_settings_index', ['section' => 'security']);

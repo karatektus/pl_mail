@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\InlineDisposition;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\MessagePart;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,9 @@ final readonly class AttachmentResolver
 {
     private const string GMAIL_SCHEME = 'gmail://';
     private const string GRAPH_SCHEME = 'msgraph://';
+
+    /** Enough of a file for its magic bytes; libmagic reads no further for raster formats. */
+    private const int SNIFF_BYTES = 4096;
 
     public function __construct(
         private AttachmentStorageHelper $attachmentStorage,
@@ -55,6 +59,34 @@ final readonly class AttachmentResolver
         }
 
         return $this->attachmentStorage->getAbsolutePath($storagePath);
+    }
+
+    /**
+     * The raster type this part may be shown inline as, or null when it may not.
+     *
+     * A stated type on the {@see InlineDisposition} list is taken at its word.
+     * A part labelled `application/octet-stream` or `image/octet-stream` is
+     * very often an inline image whose sender did not say so: for those labels
+     * only, the bytes decide, and only a type on the list can come out of
+     * {@see InlineDisposition::sniff()}. Any other stated type is never
+     * second-guessed, so a declared `text/html` cannot be re-read as an image.
+     *
+     * Shared by the attachment route and the signed inline route, so the two
+     * cannot disagree about which parts are pictures.
+     */
+    public function inlineTypeFor(MessagePart $part, string $absolutePath): ?string
+    {
+        if (true === InlineDisposition::allows($part->contentType)) {
+            return InlineDisposition::normalise($part->contentType);
+        }
+
+        if (false === InlineDisposition::isUnlabelled($part->contentType)) {
+            return null;
+        }
+
+        $head = @file_get_contents($absolutePath, false, null, 0, self::SNIFF_BYTES);
+
+        return false === $head ? null : InlineDisposition::sniff($head);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

@@ -1,4 +1,11 @@
-<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 pane shell-chrome relative z-20">
+{# **Below 640px the bar tightens instead of overlapping (#253).** Every
+   control here is a fixed width except the middle group, which is allowed to
+   shrink, so on a 320–375px phone the middle group's icons ran out to the left
+   across the logo and the burger. There the padding and the gaps close up and
+   the 36px buttons become 32px, and Sync now and the help menu move into the
+   user menu, where they are entries rather than icons. That is 408px of bar
+   brought under 320. #}
+<header class="flex items-center gap-2 px-4 h-14 flex-shrink-0 pane shell-chrome relative z-20 max-sm:gap-1 max-sm:px-2">
 
     {# Burger — opens the drawer on mobile, collapses to the icon rail on md+.
        aria-expanded is kept in step by ui--sidebar-drawer: the drawer's state
@@ -8,7 +15,7 @@
         data-ui--sidebar-drawer-target="burger"
         aria-controls="sidebar-drawer"
         aria-expanded="false"
-        class="flex items-center justify-center w-9 h-9 rounded-lg
+        class="flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                text-ink-muted
                hover:bg-hover
                transition-colors flex-shrink-0"
@@ -104,7 +111,7 @@
        `.search-shell` in app.css), so what is left in this group is two icons
        that belong beside the account controls rather than adrift in the
        middle of an empty row. #}
-    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0 max-md:justify-end xl:relative"
+    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 max-sm:gap-1 min-w-0 max-md:justify-end xl:relative"
          data-controller="ui--mobile-search"
          {# On the controller element, where Stimulus reads values from — not on
             the button, which is only a target. Both labels are rendered here
@@ -120,7 +127,7 @@
            announces identically in both. #}
         <button
             type="button"
-            class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg
+            class="md:hidden flex items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                    text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
             aria-expanded="false"
             aria-controls="search-shell"
@@ -331,12 +338,13 @@
             data-action="click->ui--modal#open"
             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
-            class="flex cursor-pointer items-center h-9 rounded-lg
+            data-ui--modal-size-value="wide"
+            class="flex cursor-pointer items-center h-9 max-sm:h-8 rounded-lg
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
                    {{ clockOnSoon
-                       ? 'gap-1.5 justify-center min-w-9 sm:px-2.5 sm:bg-sunken' ~ (soonest ? '' : ' max-sm:hidden')
-                       : 'justify-center w-9' }}"
+                       ? 'gap-1.5 justify-center min-w-9 max-sm:min-w-8 sm:px-2.5 sm:bg-sunken' ~ (soonest ? '' : ' max-sm:hidden')
+                       : 'justify-center w-9 max-sm:w-8' }}"
             aria-label="{{ 'calendar.soon.open'|trans }}"
             title="{{ soonest
                 ? soonest.event.title ~ ' · ' ~ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null)
@@ -455,7 +463,7 @@
         href="{{ path('app_calendar_index') }}"
         data-calendar-toggle
         data-action="click->ui--split#toggle"
-        class="relative flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+        class="relative flex cursor-pointer items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                transition-colors flex-shrink-0
                text-ink-muted hover:bg-hover{{ firstPaint ? ' lg:bg-accent-soft lg:text-accent' }}"
         aria-label="{{ 'sidebar.nav.calendar'|trans }}"
@@ -498,13 +506,126 @@
             </span>
         {% endif %}
     </a>
+
+    {# ── Contacts ──────────────────────────────────────────────────────
+       The address book, beside the calendar switch: both are the
+       non-mail half of the "all in one" system. Hidden on a phone, where
+       the bar has no room (it is in the drawer there).
+
+       On the mailbox it steps the address book through its positions —
+       closed, beside the mail, full width (contacts--pane, on the shell);
+       everywhere else, below lg, and on a middle click it is the link to
+       /contacts it looks like.
+       Accented for its first paint from lg up only, as the calendar
+       switch is, because below lg there is no dock to be open; the
+       controller takes those classes off once it has drawn its own. #}
+    {% set contactsDocked = calendarRestored is defined and app.user and app.user.contactsPaneOpen %}
+    {% set contactsMode = contactsDocked ? app.user.contactsPaneMode : enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').Mail %}
+    {% set contactsSkip = app.user ? app.user.contactsSwitchSkip : enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').None %}
+    {# Three positions since #311, the calendar switch's way: one icon per
+       position, the one for where it is shown (from lg, on first paint; the
+       controller draws it from then on), and the names of all three for the
+       label, which says what the next press does. #}
+    {% set contactsIcons = contactsDocked
+        ? { mail: 'flex lg:hidden', (contactsMode.value): 'hidden lg:flex' }
+        : { mail: 'flex' } %}
+    <a
+        href="{{ path('app_contacts_list') }}"
+        data-contacts--pane-target="toggle"
+        data-action="click->contacts--pane#toggle"
+        class="max-md:hidden flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+               transition-colors flex-shrink-0
+               text-ink-muted hover:bg-hover
+               {{ contactsDocked ? 'lg:bg-accent-soft lg:text-accent' : '' }}"
+        aria-label="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
+        title="{{ contactsMode.nextTransKey(contactsSkip)|trans }}"
+    >
+        {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
+            {% set shown = contactsIcons[candidate.value] ?? null %}
+            <span data-contacts-mode-icon="{{ candidate.value }}"
+                  class="{{ shown ?? 'flex' }}"
+                  {{ shown is null ? 'hidden' }}>
+                <i class="{{ candidate.icon }} text-base" aria-hidden="true"></i>
+            </span>
+        {% endfor %}
+        <span hidden>
+            {% for candidate in enum('App\\Domain\\Enum\\Contacts\\ContactsPaneMode').cases() %}
+                <span data-contacts-mode-name="{{ candidate.value }}">{{ ('contacts.pane.mode.' ~ candidate.value)|trans }}</span>
+            {% endfor %}
+        </span>
+    </a>
     </div>
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
+        {# Help and feedback: What's new and Send feedback (#165). The dot is
+           releases this person has not been shown, and it is off for somebody
+           who asked for quiet — the same answer that keeps the dialog from
+           opening by itself. Each item is a trigger for the shared dialog, like
+           "Run setup again" in the user menu. #}
+        {% set whatsNewDot = whatsNew.hasDot %}
+        {# Not on a phone: there its two entries are at the foot of the user
+           menu instead (#253), and the row keeps one button fewer. #}
+        <div class="relative max-sm:hidden" data-controller="ui--user-menu" data-whats-new-menu>
+            <button type="button"
+                    data-action="click->ui--user-menu#toggle"
+                    aria-haspopup="true"
+                    aria-label="{{ 'whats_new.menu.label'|trans }}"
+                    title="{{ 'whats_new.menu.label'|trans }}"
+                    class="relative flex cursor-pointer items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
+                           text-ink-muted hover:bg-hover transition-colors flex-shrink-0">
+                <i class="fa-regular fa-circle-question text-base" aria-hidden="true"></i>
+                {% if whatsNewDot %}
+                    <span class="absolute top-1.5 right-1.5 size-2 rounded-full bg-accent"
+                          data-whats-new-dot aria-hidden="true"></span>
+                    <span class="sr-only">{{ 'whats_new.menu.unseen'|trans }}</span>
+                {% endif %}
+            </button>
+
+            {# In the top layer, through the user menu's controller, for the reason
+               spelt out on #user-menu below: the header is a z-20 stacking
+               context, and the calendar's day headings painted over this menu
+               while it was an ordinary dropdown inside it. #}
+            <div popover="manual" data-enter="slide-down" data-ui--user-menu-target="menu"
+                 role="menu"
+                 aria-label="{{ 'whats_new.menu.label'|trans }}"
+                 class="hidden absolute right-0 mt-2 w-56 popover py-1 z-[200]">
+                <button type="button" role="menuitem"
+                        data-controller="ui--modal"
+                        data-ui--modal-src-value="{{ path('app_whats_new') }}"
+                        data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
+                        data-ui--modal-size-value="split"
+                        data-action="click->ui--modal#open click->ui--user-menu#toggle"
+                        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                    <i class="fa-regular fa-star w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1">{{ 'whats_new.title'|trans }}</span>
+                    {% if whatsNewDot %}
+                        <span class="size-2 rounded-full bg-accent" aria-hidden="true"></span>
+                    {% endif %}
+                </button>
+                {% if accounts|length > 0 %}
+                    <button type="button" role="menuitem"
+                            data-controller="ui--modal"
+                            data-ui--modal-src-value="{{ path('app_whats_new', { pane: 'feedback' }) }}"
+                            data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
+                            data-ui--modal-size-value="split"
+                            data-action="click->ui--modal#open click->ui--user-menu#toggle"
+                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                        <i class="fa-regular fa-comment w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                        {{ 'whats_new.feedback.title'|trans }}
+                    </button>
+                {% endif %}
+                <div class="my-1 border-t border-line"></div>
+                <p class="px-3 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
+            </div>
+        </div>
+
         {# Sync now: the same account syncs as app:mail:sync, for this user (SyncController). #}
+        {# `data-sync-now-bar`: the user menu has a second Sync now for a phone,
+           so a spec needs to say which one it means. #}
         <button
             type="button"
+            data-sync-now-bar
             data-controller="mail--sync-now"
             data-mail--sync-now-url-value="{{ path('app_mail_sync_run') }}"
             data-mail--sync-now-status-url-value="{{ path('app_mail_sync_status') }}"
@@ -516,9 +637,9 @@
                 sessionExpired: 'sync_now.session_expired'|trans,
             }|json_encode }}"
             data-action="click->mail--sync-now#run"
-            class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+            class="flex cursor-pointer items-center justify-center w-9 h-9 max-sm:w-8 max-sm:h-8 rounded-lg
                    text-ink-muted hover:bg-hover transition-colors flex-shrink-0
-                   disabled:cursor-default disabled:opacity-60"
+                   disabled:cursor-default disabled:opacity-60 max-sm:hidden"
             aria-label="{{ 'sync_now.label'|trans }}"
             title="{{ 'sync_now.label'|trans }}"
         >
@@ -716,6 +837,58 @@
                         {{ 'header.user_menu.sign_out'|trans }}
                     </button>
                 </form>
+                {# What the bar leaves out on a phone: Sync now, and what the
+                   help button holds — the same two triggers and the version —
+                   under a divider of their own. Sync now is its own controller
+                   instance, so it spins and is disabled here exactly as the
+                   bar's button does. #}
+                <div class="sm:hidden" data-whats-new-user-menu>
+                    <div class="my-1 border-t border-line"></div>
+                    <button type="button"
+                            data-controller="mail--sync-now"
+                            data-mail--sync-now-url-value="{{ path('app_mail_sync_run') }}"
+                            data-mail--sync-now-status-url-value="{{ path('app_mail_sync_status') }}"
+                            data-mail--sync-now-i18n-value="{{ {
+                                syncingOne:     'sync_now.syncing_one'|trans,
+                                syncingOther:   'sync_now.syncing_other'|trans,
+                                stillRunning:   'sync_now.still_running'|trans,
+                                complete:       'sync_now.complete'|trans,
+                                sessionExpired: 'sync_now.session_expired'|trans,
+                            }|json_encode }}"
+                            data-action="click->mail--sync-now#run"
+                            class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left cursor-pointer
+                                   disabled:cursor-default disabled:opacity-60">
+                        <i class="fa-solid fa-rotate w-4 text-gray-400" data-mail--sync-now-target="icon" aria-hidden="true"></i>
+                        {{ 'sync_now.label'|trans }}
+                    </button>
+                    <button type="button"
+                            data-controller="ui--modal"
+                            data-ui--modal-src-value="{{ path('app_whats_new') }}"
+                            data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
+                            data-ui--modal-size-value="split"
+                            data-action="click->ui--modal#open click->ui--user-menu#toggle"
+                            class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left cursor-pointer">
+                        <i class="fa-regular fa-star w-4 text-gray-400" aria-hidden="true"></i>
+                        <span class="flex-1">{{ 'whats_new.title'|trans }}</span>
+                        {% if whatsNewDot %}
+                            <span class="size-2 rounded-full bg-accent" aria-hidden="true"></span>
+                            <span class="sr-only">{{ 'whats_new.menu.unseen'|trans }}</span>
+                        {% endif %}
+                    </button>
+                    {% if accounts|length > 0 %}
+                        <button type="button"
+                                data-controller="ui--modal"
+                                data-ui--modal-src-value="{{ path('app_whats_new', { pane: 'feedback' }) }}"
+                                data-ui--modal-title-value="{{ 'whats_new.title'|trans }}"
+                                data-ui--modal-size-value="split"
+                                data-action="click->ui--modal#open click->ui--user-menu#toggle"
+                                class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left cursor-pointer">
+                            <i class="fa-regular fa-comment w-4 text-gray-400" aria-hidden="true"></i>
+                            {{ 'whats_new.feedback.title'|trans }}
+                        </button>
+                    {% endif %}
+                    <p class="px-4 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
+                </div>
             </div>
         </div>
 

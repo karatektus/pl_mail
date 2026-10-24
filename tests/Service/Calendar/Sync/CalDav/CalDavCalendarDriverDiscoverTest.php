@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
 use App\Domain\DTO\Calendar\CalendarSource;
+use App\Domain\Enum\Integration\Provider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -198,6 +199,28 @@ final class CalDavCalendarDriverDiscoverTest extends TestCase
         // Depth 1 on a single collection would list its events as if they were
         // calendars.
         self::assertSame('0', $fixture->header(1, 'Depth'));
+    }
+
+    /**
+     * A Nextcloud connection is a calendar source here and nothing more (#158).
+     *
+     * As a bare Provider it is NextcloudDriver's to connect and verify: saying
+     * yes to that question would offer Nextcloud in the "connect a CalDAV
+     * server" form, the second place to type its address that #158 rules out.
+     */
+    public function testNextcloudIsACalendarSourceWithoutBecomingACalDavConnection(): void
+    {
+        $fixture   = $this->fixture($this->home());
+        $nextcloud = CalDavFixture::integration('https://cloud.example.com', Provider::Nextcloud);
+
+        self::assertTrue($fixture->driver->supports(CalendarSource::ofIntegration($nextcloud)));
+        self::assertFalse($fixture->driver->supports(Provider::Nextcloud));
+        self::assertTrue($fixture->driver->supports(Provider::CalDav));
+
+        $calendars = $fixture->driver->discover(CalendarSource::ofIntegration($nextcloud));
+
+        self::assertCount(2, $calendars);
+        self::assertSame('https://cloud.example.com/remote.php/dav', $fixture->url(0));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────

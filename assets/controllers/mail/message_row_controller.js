@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { listView } from "../../list_view.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
@@ -129,6 +130,19 @@ export default class extends Controller {
         await this.#post(readUrl, { read });
     }
 
+    /**
+     * Post to a status route on this row, for a caller that is not a click on
+     * one of this row's own buttons: the row swipe, which commits on a drag as
+     * well as on a tap. The same fetch, stream and announcement as every action
+     * above, so there is one write path for a row, not a copy of it.
+     *
+     * @param {string} url   the status route, as the server rendered it
+     * @param {object} body  the JSON body the route reads; empty for most routes
+     */
+    async perform(url, body = {}) {
+        await this.#post(url, body);
+    }
+
     // ── Private ───────────────────────────────────────────────────────────
 
     async #post(url, body = {}) {
@@ -138,7 +152,7 @@ export default class extends Controller {
             response = await fetch(url, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
-                body: JSON.stringify(body),
+                body: JSON.stringify({ ...listView(), ...body }),
             });
         } catch {
             requestFailed(null);

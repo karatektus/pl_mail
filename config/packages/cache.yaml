@@ -47,6 +47,16 @@ framework:
                 provider: doctrine.dbal.default_connection
                 default_lifetime: 3600
 
+            # What each Gmail account has spent of its quota this minute, when
+            # Google last refused it, and the limit a refusal named. Shared for
+            # the reason the signal above is: worker-backlog, worker-ingest and
+            # the web container all call Gmail for the same account, and a
+            # refusal one of them met has to hold the others back. No default
+            # lifetime: GmailQuotaPacer sets each entry's own.
+            app.gmail_quota:
+                adapter: cache.adapter.doctrine_dbal
+                provider: doctrine.dbal.default_connection
+
             # A Stop pressed on the summary card (see ThreadSummaryStop).
             #
             # Shared for the same reason again: the Stop is a request of its

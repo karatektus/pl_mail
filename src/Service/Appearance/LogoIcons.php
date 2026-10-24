@@ -62,6 +62,9 @@ final class LogoIcons
         'templates/branding/*.svg.twig',
         'templates/branding/motif/*.svg.twig',
         'templates/_partials/_logo_mark.html.twig',
+        // Not a drawing, but the manifest route serves it and promises its URL
+        // is immutable, so an edit to it must move the URL like one.
+        'public/manifest.webmanifest',
     ];
 
     /** @var list<class-string> */
@@ -95,6 +98,38 @@ final class LogoIcons
     }
 
     /**
+     * One tile with its ground out to every edge: what the installed app's
+     * maskable and iOS icons are drawn from (see icon.svg.twig). The browser
+     * draws it into PNGs; nothing shows it as it is.
+     */
+    public function bleedUrl(LogoMotif $motif, ?LogoStyle $paint = null): string
+    {
+        return $this->generate('app_branding_bleed', $motif, $paint);
+    }
+
+    /**
+     * The install manifest for one choice, with the icons of the user whose
+     * key it carries, or the wax seal's static PNGs without one (a page nobody
+     * is signed in to).
+     *
+     * Same rule as the tab icon: a manifest is fetched without credentials, so
+     * the URL has to carry everything it depends on.
+     */
+    public function manifestUrl(LogoMotif $motif, ?LogoStyle $paint = null, ?string $key = null): string
+    {
+        return $this->generate('app_branding_manifest', $motif, $paint, null === $key ? [] : ['u' => $key]);
+    }
+
+    /**
+     * One of a user's installed-app PNGs for one choice; $name is a key of
+     * AppIconStorage::ICONS (`tile-192`, `tile-512`, `bleed-512`, `bleed-180`).
+     */
+    public function appIconUrl(string $name, string $key, LogoMotif $motif, ?LogoStyle $paint = null): string
+    {
+        return $this->generate('app_branding_app_icon', $motif, $paint, ['key' => $key, 'name' => $name]);
+    }
+
+    /**
      * The top bar's logo for one choice: the glyph bare, for light chrome or
      * for dark.
      */
@@ -122,11 +157,11 @@ final class LogoIcons
     }
 
     /**
-     * The paint is the path's last segment, before `.svg`, and every query
+     * The paint is the path's last segment, before its extension, and every query
      * parameter comes after it: the appearance pane builds each colourway's
      * URL by swapping that one segment in the motif's own URL.
      *
-     * @param array<string, int> $query
+     * @param array<string, int|string> $query
      */
     private function generate(string $route, LogoMotif $motif, ?LogoStyle $paint, array $query = []): string
     {

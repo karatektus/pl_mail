@@ -19,6 +19,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_message_thread_provider_key_account', columns: ['provider_thread_key', 'account_id'])]
 // Serves the subject fallback lookup, which is always account-scoped.
 #[ORM\Index(name: 'idx_message_thread_account_normalized_subject', columns: ['account_id', 'normalized_subject'])]
+// Partial for the reason Message's idx_message_rule_category is, and declared so
+// the mapping and the migration agree.
+#[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => 'user_category_id IS NOT NULL'])]
 #[ORM\Entity(repositoryClass: MessageThreadRepository::class)]
 class MessageThread
 {
@@ -43,8 +46,41 @@ class MessageThread
     #[ORM\Column]
     public ?int $unreadCount = 0;
 
+    /**
+     * Whether the conversation is in the bin: it carries Trash and none of its
+     * messages is outside Trash (#268). Lists, badges and search leave it out.
+     *
+     * Postgres writes it and PHP never does, so it is neither inserted nor
+     * updated from here: triggers recompute it whenever a Trash label goes on
+     * or off a message or the thread, or a message arrives, leaves or moves
+     * (Version20261022160000). In memory it can lag behind a change that has
+     * not been flushed; the queries that use it read the column (#223).
+     */
+    #[ORM\Column(insertable: false, updatable: false, options: ['default' => false])]
+    public private(set) bool $binned = false;
+
     #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
     public ?MessageCategory $category = null;
+
+    /**
+     * The conversation's tab when it is one the reader made themselves.
+     *
+     * Beside $category rather than instead of it: that column stays one of the
+     * five built-ins, so its enum mapping, every recompute that writes it and
+     * the JMAP vocabulary built on it are untouched. The tab a thread is SHOWN
+     * in is this when set, else $category.
+     *
+     * Resolved like $category — most-recent-wins over the thread's messages'
+     * Message::$ruleCategory — and pinned by the same $categoryPinnedAt, so a
+     * conversation dragged onto one of the reader's own tabs stays there.
+     *
+     * ON DELETE SET NULL: the thread falls back to its built-in tab when the
+     * category is removed. A pin cannot be cleared by a foreign key, nor a
+     * built-in category re-resolved; see InboxCategoryManager::remove().
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'user_category_id', nullable: true, onDelete: 'SET NULL')]
+    public ?InboxCategory $userCategory = null;
 
     /**
      * When somebody put this conversation in its category by hand.

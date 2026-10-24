@@ -39,6 +39,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
         private ContactRepository       $contactRepository,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
+        private \App\Jmap\State\StateManager $stateManager,
     ) {}
 
     public function getName(): string
@@ -119,8 +120,12 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
 
         // Resolve each thread most-recent-wins from its messages, in one
         // statement. Runs after clear(), so it is pure DBAL.
-        $threads = $this->threadRepository->recomputeCategoriesForAccount($account);
+        $moved = $this->threadRepository->recomputeCategoriesForAccount($account);
 
-        $io->success(sprintf('Categorised %d message(s), resolved %d thread(s).', $processed, $threads));
+        // So a JMAP client hears about the conversations that changed tab.
+        $this->stateManager->recordThreadsTouched((int) $account->id, $moved);
+        $this->em->flush();
+
+        $io->success(sprintf('Categorised %d message(s), moved %d thread(s).', $processed, count($moved)));
     }
 }

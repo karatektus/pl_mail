@@ -82,6 +82,33 @@ The two are separate now. A sync arranges for new mail to be seen and stops; the
   rule.
 - **Gmail asks for the Inbox by name first,** then pages the whole-mailbox listing one request
   at a time, with the page token kept on the account between jobs.
+- **Gmail's quota is learnt, not configured.** Google allows one user a number of quota units
+  a minute and does not say how many until it refuses a request. `GmailQuotaPacer` starts from
+  15,000, reads the limit out of the first refusal (a project created since May 2026 has
+  6,000) and paces every account to 85% of it from then on, five messages to a request — Google
+  refuses a minute's worth spent in one second — and more slowly for a while after any refusal
+  at a limit it already knows. A message is counted at 60 units: Google's table says 20, which
+  is what a fetch without the body costs; `app:gmail:quota-probe` measured 60 for the `full`
+  and `raw` formats. A learnt limit is forgotten after a day so a raised one is found again. What an account has spent and when it was last
+  refused are in a database-backed cache pool, so every worker draws on one allowance. A
+  refusal is not an error anywhere on this path: a batch, an import page or a sync that meets
+  one is put back to run when the account's minute is over.
+- **A Gmail message belongs to the mailbox it is in.** The batch handler gives a message to
+  another connected account only when that account has the better claim (Gmailify: a sibling
+  named in its headers); everything else in the mailbox is the Gmail account's, including mail
+  sent from a "send mail as" address, mail forwarded in from an address not connected here and
+  Gmail drafts, which arrive as drafts. The listing asks for Spam and Trash as well
+  (`includeSpamTrash`), which `messages.list` otherwise leaves out and `messagesTotal` counts.
+- **A Gmail message that is looked at and not stored is written down.** The batch handler
+  declines a chat — the one kind left with nowhere to go — and cannot store a message Gmail
+  lists and answers 404 for. Each gets a row
+  in `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) with the reason, its labels
+  and its address headers. The listing treats a recorded id like a stored one, so the message
+  is not fetched again every hour and an import whose every outstanding message has an answer
+  finishes on that pass instead of at its attempt ceiling; the progress line counts it as done,
+  since Google's total includes it. `app:gmail:skipped` prints the record grouped by kind, and
+  `--forget` clears it for an account so the next listing asks again. A row is removed when its
+  message is stored after all.
 - **Microsoft reads each folder's first delta round a page at a time.** A folder without a
   delta link is planned on the account (`Account::$graphImport`) instead of being enumerated
   by the sync, and `GraphApiSyncer::importPage()` walks that round fifty messages at a call,
@@ -135,6 +162,25 @@ Then, once for the whole batch: `MailRuleEngine::applyToBatch()` (one query per 
 threading, so archive and trash actions can reach each message's thread), a flush, a second
 pass collecting thread ids per account for `MailChangeRecorder::threadsTouched()`, and a
 second flush for the change-log rows.
+
+A filter's **File in category** action runs in that same pass and is the one action that writes
+a category. It does not write `Message::$category`: five things recompute that column from stored
+data (arrival, `app:backfill category`, the re-sort a settings change queues, the assistant's
+release, Gmail enrichment), and every one would erase a verdict kept there. The verdict goes in
+`Message::$ruleCategory` instead, which nothing recomputes, and `RuleCategoryFiler` then has the
+thread re-resolve through `MessageThreader::refreshCategory()` — most-recent-wins, pin-aware, hold-aware,
+like the built-in category. `MessageThread::$userCategory` is the thread's side, resolved by the same
+two recompute statements as `category`. A message is filed only when `SenderAuthentication` says
+`Pass`; see its docblock for whose verdict is believed. The filter files Gmail-labelled mail too:
+the provider's categories outrank plMail's own sorting, not an instruction the reader wrote.
+
+A built-in category the reader switched off (`CategorySorting::$disabled`) takes no mail.
+`MessageCategorizer::explain()` maps whatever the cascade decided — header rule, Gmail label or
+the assistant — to Primary with the reason `switched_off`, rather than consulting the next rule, so
+"Forums is off" never turns a mailing list into Promotions. Switching a category off or on queues
+the same re-sort as the other sorting choices. Both recompute statements write only the
+conversations whose tab changes and return them, and every caller records those as JMAP Thread
+changes, so a phone hears about a re-sort.
 
 `PostIngestResult` is what comes back — messages in ingest order, owning accounts by id, and
 thread ids by owning account — because the three callers do not finish the same way: IMAP
@@ -243,7 +289,7 @@ before the model had answered.
 ## Threading
 
 `App\Service\Imap\MessageThreader::assignThread()` is a three-step cascade, and each step
-exists because the one below it is not good enough.
+exists because the one below it is not good enough. A fourth step then looks the other way.
 
 **1. The provider's own conversation id**, from `Message::$providerThreadKey`. Gmail and
 Graph have already grouped the conversation the way the user sees it in their web client, and
@@ -271,6 +317,24 @@ languages plMail is translated into plus the ones common European clients emit),
 candidate thread must also share a participant. A message that is not itself a reply always
 starts its own thread — otherwise every "Your order has shipped" notification ever received
 collapses into one endless conversation.
+
+**4. The other direction: mail that already answers this message.** Steps 2 and 3 look from a
+reply to what it answers, so on their own the result depends on sync order. Folders are synced
+one after the other, and replies in INBOX routinely arrive before the Sent Items message they
+answer; they found nothing, opened threads of their own, and stayed there (#172). After steps 2
+and 3, `adoptReplies()` asks `MessageRepository::findRepliesToForAccount()` for every message of
+the account whose `in_reply_to` or `thread_references` names this Message-ID, and
+`ThreadMerger` folds each of their threads into this one. A GIN expression index,
+`idx_message_referenced_ids`, keeps that lookup from scanning the mailbox per message. Step 1
+skips it: a provider conversation id has already grouped the replies.
+
+The thread kept is the one with the lower id, and one not flushed yet counts as the newest, so
+the conversation a JMAP client, an AI summary or an insight card already points at survives; a
+provider-keyed thread is never absorbed. Counters add up, labels are the union, the newest mail
+decides `lastMessageAt` and the category unless one is pinned, starring and snoozing carry over,
+and the subject comes from the side holding the answered message. The absorbed thread is
+announced to JMAP as destroyed and its messages as updated. The merge never flushes: messages are
+moved by walking the unit of work, because in a batch a reply's thread may exist only in memory.
 
 Gmail-native `threadId` threading is on the roadmap and not done: the id is carried on
 `Message`, but step 2 is still RFC Message-ID based for accounts where step 1 does not apply.
@@ -353,6 +417,11 @@ step only by each controller action remembering to call both.
 label. That derived union is why `EmailMapper` reads `Message::$labels` and never
 `thread_label`: reading the union would report a mailbox for every message in a thread.
 
+"Its messages" are the ones pointing at the thread in memory, not what `$thread->messages`
+holds: the rules label new mail after threading and before the batch's flush, when that
+collection does not contain the new message yet, and a union over it took a rule's label
+straight off the conversation again.
+
 The provider mapping `LabelChangePropagator` performs is where the three providers stop being
 interchangeable:
 
@@ -391,6 +460,28 @@ carrying it would look like it is in two places at once to anything counting loc
 `wake()` marks the thread unread, and the read state it had is genuinely lost. That is a
 deliberate trade: a thread that returns in the state you left it in is one you have already
 learned to scroll past.
+
+### "In the bin" is stored, and the database keeps it
+
+A conversation is in the bin when it carries Trash and none of its messages is outside Trash
+(#268). Every list, every badge and search leave such a conversation out. They read
+`message_thread.binned` instead of working the rule out from the messages; on a mailbox of 67k
+conversations, working it out took about 170 ms per query.
+
+Triggers maintain the column, not PHP (`Version20261022160000`). The writes that change the
+answer are spread out: labels through the ORM, raw SQL that rebuilds threads or unlinks a label,
+`ON DELETE CASCADE`, a message moving to another thread, a reply arriving in a conversation in
+the bin. A flag set from PHP would be right only on the paths someone remembered.
+
+- `message_label` and `thread_label` fire once per statement and recompute only the threads
+  whose Trash rows changed. Filing, reading and labelling mail cost nothing.
+- `message` fires per row: on insert only when the thread is in the bin (a new message can only
+  take it out), on delete and on a change of `thread_id` for the thread the message left.
+- Each recompute derives the answer from scratch (`plmail_refresh_thread_binned()`), so the
+  order of the statements in a flush does not matter.
+
+The entity maps the column read-only. In memory it can lag behind a change that has not been
+flushed, so nothing in PHP should branch on it; the queries read it.
 
 ## The change log JMAP reads
 

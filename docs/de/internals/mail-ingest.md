@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:dcb2b781f03c1702974cc382857086d18024e21c -->
+<!-- translated-from: internals/mail-ingest.md sha1:a58cbc774876056b0dd1036a91fed0d4d107f5a5 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -93,6 +93,38 @@ die Vorgeschichte gehört `App\Service\Mail\MailImporter`, auf der Warteschlange
 - **Gmail fragt zuerst namentlich nach dem Posteingang,** dann blättert es die Auflistung des
   ganzen Postfachs Anfrage für Anfrage durch; das Seiten-Token liegt zwischen den Jobs auf dem
   Konto.
+- **Gmails Kontingent wird gelernt, nicht eingestellt.** Google erlaubt einem Nutzer eine Zahl
+  von Kontingent-Einheiten pro Minute und sagt erst, wie viele, wenn es eine Anfrage ablehnt.
+  `GmailQuotaPacer` beginnt bei 15.000, liest das Limit aus der ersten Ablehnung (ein seit Mai
+  2026 angelegtes Projekt hat 6.000) und taktet von da an jedes Konto auf 85 % davon, fünf
+  Nachrichten pro Anfrage — Google lehnt ab, was den Vorrat einer Minute in einer Sekunde
+  verbraucht — und nach jeder Ablehnung bei einem schon bekannten Limit eine Weile langsamer.
+  Eine Nachricht zählt 60 Einheiten: Googles Tabelle nennt 20, und das kostet ein Abruf ohne
+  Inhalt; `app:gmail:quota-probe` hat für die Formate `full` und `raw` 60 gemessen. Ein
+  gelerntes Limit wird nach einem Tag vergessen, damit ein angehobenes wiedergefunden wird.
+  Was ein Konto verbraucht hat und wann es zuletzt abgelehnt wurde, liegt in einem Cache-Pool
+  in der Datenbank, sodass alle Worker aus einem Kontingent schöpfen. Eine Ablehnung ist auf
+  diesem Weg nirgends ein Fehler: Ein Stapel, eine Import-Seite oder ein Sync, der auf eine
+  trifft, wird zurückgestellt und läuft, wenn die Minute des Kontos vorbei ist.
+- **Eine Gmail-Nachricht gehört zu dem Postfach, in dem sie liegt.** Der Stapel-Handler gibt
+  eine Nachricht nur dann einem anderen verbundenen Konto, wenn dieses den besseren Anspruch
+  hat (Gmailify: ein Geschwisterkonto, das in ihren Headern genannt ist); alles andere im
+  Postfach gehört dem Gmail-Konto, auch von einer „Senden als“-Adresse verschickte Mail, von
+  einer hier nicht verbundenen Adresse weitergeleitete Mail und Gmail-Entwürfe, die als
+  Entwürfe ankommen. Die Auflistung fragt auch nach Spam und Papierkorb (`includeSpamTrash`),
+  die `messages.list` sonst auslässt und `messagesTotal` mitzählt.
+- **Eine Gmail-Nachricht, die angesehen und nicht gespeichert wird, wird notiert.** Der
+  Stapel-Handler lehnt einen Chat ab — die einzige Art, für die es keinen Platz gibt — und
+  kann eine Nachricht nicht speichern, die Gmail auflistet und mit 404 beantwortet. Jede
+  bekommt eine Zeile in
+  `gmail_skipped_message` (`App\Entity\Mail\GmailSkippedMessage`) mit dem Grund, ihren Labels
+  und ihren Adress-Headern. Die Auflistung behandelt eine notierte id wie eine gespeicherte, die
+  Nachricht wird also nicht jede Stunde erneut abgerufen, und ein Import, bei dem jede
+  ausstehende Nachricht eine Antwort hat, endet in diesem Durchlauf statt an seiner
+  Versuchsgrenze; die Fortschrittszeile zählt sie als erledigt, denn Googles Gesamtzahl enthält
+  sie. `app:gmail:skipped` gibt die Notizen nach Art gruppiert aus, und `--forget` löscht sie
+  für ein Konto, sodass die nächste Auflistung erneut fragt. Eine Zeile verschwindet, wenn ihre
+  Nachricht doch gespeichert wird.
 - **Microsoft liest die erste Delta-Runde jedes Ordners seitenweise.** Ein Ordner ohne
   Delta-Link wird auf dem Konto eingeplant (`Account::$graphImport`), statt vom Abgleich
   aufgezählt zu werden, und `GraphApiSyncer::importPage()` geht diese Runde in Schritten von
@@ -154,6 +186,28 @@ nach der Konversationsbildung, damit Archivier- und Papierkorb-Aktionen die Konv
 Nachricht erreichen), ein Flush, ein zweiter Durchgang, der Konversations-Ids pro Konto für
 `MailChangeRecorder::threadsTouched()` einsammelt, und ein zweiter Flush für die Zeilen des
 Änderungsprotokolls.
+
+Die Filter-Aktion **In Kategorie ablegen** läuft im selben Durchgang und ist die einzige Aktion,
+die eine Kategorie schreibt. Sie schreibt nicht `Message::$category`: Fünf Dinge berechnen diese
+Spalte aus gespeicherten Daten neu (Ankunft, `app:backfill category`, die Neusortierung, die eine
+Einstellungsänderung einreiht, die Freigabe durch den Assistenten, die Gmail-Anreicherung), und jedes
+davon würde ein dort abgelegtes Urteil löschen. Das Urteil steht stattdessen in
+`Message::$ruleCategory`, das nichts neu berechnet, und `RuleCategoryFiler` lässt dann die
+Konversation über `MessageThreader::refreshCategory()` neu auflösen — neueste gewinnt, pin-bewusst,
+Hold-bewusst, wie bei der eingebauten Kategorie. `MessageThread::$userCategory` ist die Seite der
+Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Eine Nachricht
+wird nur abgelegt, wenn `SenderAuthentication` `Pass` sagt; wessen Urteil geglaubt wird, steht in
+dessen Docblock. Der Filter legt auch Mail mit Gmail-Labels ab: Die Kategorien des Anbieters haben
+Vorrang vor plMails eigener Sortierung, nicht vor einer Anweisung, die die Nutzerin geschrieben hat.
+
+Eine eingebaute Kategorie, die die Nutzerin ausgeschaltet hat (`CategorySorting::$disabled`),
+bekommt keine Mail. `MessageCategorizer::explain()` macht aus dem, was die Kaskade entschieden hat —
+Header-Regel, Gmail-Label oder Assistent —, Allgemein mit dem Grund `switched_off`, statt die nächste
+Regel zu fragen; „Foren ist aus“ macht eine Mailingliste also nie zu Werbung. Eine Kategorie aus- oder
+einzuschalten reiht dieselbe Neusortierung ein wie die anderen Sortier-Einstellungen. Beide
+Neuberechnungs-Statements schreiben nur die Konversationen, deren Tab sich ändert, und geben sie
+zurück, und jeder Aufrufer trägt sie als JMAP-Thread-Änderungen ein — so erfährt ein Handy von einer
+Neusortierung.
 
 Zurück kommt `PostIngestResult` — Nachrichten in Ingest-Reihenfolge, besitzende Konten nach Id
 und Konversations-Ids nach besitzendem Konto —, weil die drei Aufrufer nicht gleich zu Ende
@@ -275,7 +329,8 @@ Nachrichten angezeigt wurden, bevor das Modell geantwortet hatte.
 ## Konversationsbildung
 
 `App\Service\Imap\MessageThreader::assignThread()` ist eine Kaskade aus drei Stufen, und jede
-existiert, weil die darunter nicht gut genug ist.
+existiert, weil die darunter nicht gut genug ist. Eine vierte Stufe schaut danach in die andere
+Richtung.
 
 **1. Die Konversations-Id des Anbieters selbst**, aus `Message::$providerThreadKey`. Gmail und
 Graph haben die Konversation bereits so gruppiert, wie die Nutzerin sie in ihrem Web-Client
@@ -305,6 +360,27 @@ ist, plus denen, die verbreitete europäische Clients ausgeben), und die Kandida
 eine beteiligte Person teilen. Eine Nachricht, die selbst keine Antwort ist, beginnt immer ihre
 eigene Konversation — sonst fällt jede „Ihre Bestellung ist unterwegs"-Benachrichtigung, die je
 eintraf, in eine einzige endlose Konversation zusammen.
+
+**4. Die andere Richtung: Mail, die diese Nachricht schon beantwortet.** Stufe 2 und 3 schauen von
+einer Antwort auf das, was sie beantwortet, also hing das Ergebnis allein von der Reihenfolge der
+Synchronisation ab. Ordner werden nacheinander synchronisiert, und Antworten im INBOX kommen
+regelmäßig vor der Nachricht aus Sent Items an, auf die sie antworten; sie fanden nichts, legten
+eigene Konversationen an und blieben dort (#172). Nach Stufe 2 und 3 fragt `adoptReplies()`
+`MessageRepository::findRepliesToForAccount()` nach jeder Nachricht des Kontos, deren
+`in_reply_to` oder `thread_references` diese Message-ID nennt, und `ThreadMerger` faltet jede
+ihrer Konversationen in diese hier. Ein GIN-Ausdrucksindex, `idx_message_referenced_ids`, hält
+diese Abfrage davon ab, pro Nachricht das ganze Postfach zu durchsuchen. Stufe 1 überspringt das:
+Eine Konversations-Id des Anbieters hat die Antworten schon zusammengefasst.
+
+Erhalten bleibt die Konversation mit der kleineren Id, und eine noch nicht geflushte gilt als die
+neueste. So überlebt die Konversation, auf die ein JMAP-Client, eine KI-Zusammenfassung oder eine
+Insight-Karte schon zeigt; eine Konversation mit Anbieter-Schlüssel wird nie aufgelöst. Zähler
+werden addiert, Labels vereinigt, die neueste Mail bestimmt `lastMessageAt` und die Kategorie,
+außer eine ist festgepinnt, Stern und Zurückstellen werden übernommen, und der Betreff kommt von
+der Seite, die die beantwortete Nachricht hält. Die aufgelöste Konversation wird JMAP als
+gelöscht gemeldet, ihre Nachrichten als geändert. Die Zusammenführung flusht nie: Nachrichten
+werden über die Unit of Work verschoben, weil die Konversation einer Antwort innerhalb eines
+Batches womöglich nur im Speicher existiert.
 
 Konversationsbildung über Gmails eigene `threadId` steht auf der Roadmap und ist nicht erledigt:
 Die Id wird auf `Message` mitgeführt, aber Stufe 2 arbeitet für Konten, auf die Stufe 1 nicht
@@ -398,6 +474,11 @@ erscheint, sobald irgendeine Nachricht darin dieses Label trägt. Wegen dieser h
 Vereinigung liest `EmailMapper` `Message::$labels` und nie `thread_label`: Die Vereinigung zu
 lesen würde für jede Nachricht einer Konversation jedes Postfach melden.
 
+„Ihre Nachrichten" sind die, die im Speicher auf die Konversation zeigen, nicht der Inhalt von
+`$thread->messages`: Die Regeln setzen Labels auf neue Mail nach der Konversationsbildung und
+vor dem Flush des Batches, wenn diese Collection die neue Nachricht noch nicht enthält, und eine
+Vereinigung darüber nahm der Konversation das Label einer Regel gleich wieder weg.
+
 Die Abbildung auf den Anbieter, die `LabelChangePropagator` vornimmt, ist die Stelle, an der die
 drei Anbieter aufhören, austauschbar zu sein:
 
@@ -440,6 +521,31 @@ sie an zwei Stellen zugleich.
 tatsächlich verloren. Das ist ein bewusster Handel: Eine Konversation, die in dem Zustand
 zurückkommt, in dem du sie verlassen hast, ist eine, an der du bereits gelernt hast
 vorbeizuscrollen.
+
+### „Im Papierkorb“ ist gespeichert, und die Datenbank pflegt es
+
+Eine Konversation ist im Papierkorb, wenn sie Trash trägt und keine ihrer Nachrichten außerhalb
+von Trash liegt (#268). Jede Liste, jedes Badge und die Suche lassen eine solche Konversation
+weg. Sie lesen dafür `message_thread.binned`, statt die Regel aus den Nachrichten abzuleiten; bei
+einem Postfach mit 67k Konversationen kostete das Ableiten etwa 170 ms pro Abfrage.
+
+Die Spalte pflegen Trigger, nicht PHP (`Version20261022160000`). Die Schreibvorgänge, die die
+Antwort ändern, sind verstreut: Labels über das ORM, rohes SQL, das Konversationen neu aufbaut
+oder ein Label entfernt, `ON DELETE CASCADE`, eine Nachricht, die in eine andere Konversation
+wandert, eine Antwort, die in einer Konversation im Papierkorb ankommt. Ein Flag, das PHP setzt,
+wäre nur auf den Wegen richtig, an die jemand gedacht hat.
+
+- `message_label` und `thread_label` feuern einmal pro Anweisung und berechnen nur die
+  Konversationen neu, deren Trash-Zeilen sich geändert haben. Ablegen, Lesen und Labeln kosten
+  nichts.
+- `message` feuert pro Zeile: beim Einfügen nur, wenn die Konversation im Papierkorb ist (eine
+  neue Nachricht kann sie dort nur herausholen), beim Löschen und bei geändertem `thread_id` für
+  die Konversation, die die Nachricht verlassen hat.
+- Jede Neuberechnung leitet die Antwort von Grund auf ab (`plmail_refresh_thread_binned()`),
+  deshalb spielt die Reihenfolge der Anweisungen in einem Flush keine Rolle.
+
+Die Entity bildet die Spalte nur lesend ab. Im Speicher kann sie einer noch nicht geflushten
+Änderung hinterherhinken, deshalb sollte PHP nicht darauf verzweigen; die Abfragen lesen sie.
 
 ## Das Änderungsprotokoll, das JMAP liest
 

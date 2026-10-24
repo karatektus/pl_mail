@@ -40,7 +40,12 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final readonly class NextcloudDriver implements IntegrationDriverInterface, SearchableDriverInterface, DestinationDriverInterface
 {
-    private const string DAV_ROOT = '/remote.php/dav';
+    /**
+     * Where Nextcloud serves WebDAV, CalDAV and CardDAV alike, under the base
+     * address. Public because CalDavDiscovery starts a Nextcloud connection's
+     * calendar lookup here (#158).
+     */
+    public const string DAV_ROOT = '/remote.php/dav';
     private const string DAV_PATH = self::DAV_ROOT.'/files';
 
     /**

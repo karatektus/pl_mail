@@ -3,6 +3,52 @@
 Development setup, test suites and console reference. For installing and running plMail, see the
 [README](README.md).
 
+## How work gets in
+
+**Issue first, then code.** Every change starts as an issue somebody agreed to, and every pull
+request says which one it finishes. Pull requests used to arrive as code with no agreed problem
+behind them, and some had to be redone or closed because the problem had been solved another way
+in the meantime. An issue costs a paragraph; a rejected pull request costs the work in it.
+
+1. **Open an issue** with the Bug or Feature form. Questions about running plMail go to
+   [Discussions](https://github.com/karatektus/pl_mail/discussions). A new issue is labelled
+   `needs-triage`.
+2. **A maintainer triages it**: `accepted` means it may be worked on, `needs-info` means a question
+   is waiting for you, `wontfix` means no, with the reason. Accepted work gets a milestone, or stays
+   in the backlog, which is having none.
+3. **Say you are taking it**, in a comment, so two people do not build the same thing.
+4. **Open a pull request** against `main` that says `Closes #N`. The template lists what review
+   checks; CONTRIBUTING's sections below say how to run each.
+
+**A feature needs an `accepted` issue before it is built.** That is where it is agreed whether
+plMail wants it, where it lives, and whether it is a setting. A setting that changes how plMail
+behaves for everybody starts off. **A bug fix may come straight as a pull request** if its
+description says what the bug was; an issue is still welcome. A large feature — a new provider, a
+new section of the app — gets a short design in its issue before any code. **One issue per
+feature, not per change:** what comes up while a feature is being built on its branch or a
+milestone branch — a follow-up, a small addition asked for along the way — goes into the same pull
+request without an issue of its own, and the pull request says what else it brings.
+
+**Milestones are releases.** `v0.3.6` is the next patch release and `v0.4.0` the next minor one;
+an issue with no milestone is in the backlog. A pull request belongs to the milestone of the issue
+it closes. A release is a milestone with nothing left open, closed when it is tagged (see
+[Releasing](#releasing)). An issue closes when the pull request that names it is merged, whether
+into `main` or into a milestone branch (`milestone/v0.4.0`); GitHub only does the first itself, so
+`.github/workflows/close-milestone-issues.yml` does the second.
+
+**Labels**: one type — `bug`, `enhancement`, `documentation`, `chore` — a status from triage, and
+one or more `area: …` (mail, calendar, gmail, outlook, imap, mobile, settings, install).
+Pull requests get their area labels from the files they touch
+(`.github/labeler.yml`), and a required check refuses a pull request that closes no issue —
+unless it is labelled `bug`, `chore`, `dependencies` or `deployment`. `deployment` is for a milestone
+or release branch going to `main` (`milestone/v0.4.0`), whose pieces each closed their own issue on
+the way in. Contributors cannot label their own pull requests, so a bug fix without an issue waits
+for a maintainer to label it `bug`.
+
+**`main` is protected.** Everything reaches it through a pull request with green checks, the
+maintainers' own changes included, and is squash-merged. The production image follows `main`, so
+this is what keeps an unreviewed commit off running installs.
+
 ## Stack
 
 | Layer | Technology |
@@ -24,30 +70,15 @@ Development setup, test suites and console reference. For installing and running
 
 ## Development setup
 
-Create your local compose override first — this is the step that switches you from the published
-image to a dev stack built from source:
+The dev stack is `compose.yaml` plus `compose.dev.yaml`, which builds the dev image and mounts the
+source:
 
 ```bash
-cp compose.override.yaml.dist compose.override.yaml
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
-Then:
-
-```bash
-docker compose up --build
-```
-
-`compose.override.yaml` is deliberately **not** tracked, and `.gitignore` keeps it that way. Compose
-auto-loads it whenever it exists, so a committed one would silently opt every *user* into building
-from source instead of pulling the release image — which is exactly the thing they should never have
-to do. Its `.dist` is the tracked template.
-
-> **Changing the override? Change the `.dist` too.** They are meant to stay identical, and
-> `diff compose.override.yaml.dist compose.override.yaml` should come back empty. The two drifted
-> apart once before and it cost real data: the `.dist` was missing the `app_attachments`, `app_raw`
-> and `app_uploads` mounts, so anyone starting from a fresh clone got attachment downloads that
-> 404'd and blob data that vanished on container recreate. The `Dockerfile` comment about the
-> removed `VOLUME /app/var/` explains why those mounts have to be declared per service.
+To skip the `-f` flags, `export COMPOSE_FILE=compose.yaml:compose.dev.yaml` in your shell. Do not put
+it in `.env`: compose reads that file for every install, not only yours.
 
 There is nothing else to fill in: dependencies install themselves on first boot, the secrets are
 generated on first start (see below), and the one setting with no sensible default — the address
@@ -192,11 +223,13 @@ Changing the shard count means changing two numbers in the same `matrix` block, 
 `shardTotal`. They are kept together for that reason: a fifth index without a matching total asks
 Playwright for shard 5 of 4, which it refuses.
 
-The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
-regression pushed there is found when a version is tagged, which may be several commits later, and
-the tag is then what fails. So run the suites locally before pushing anything you are unsure of —
-`npm run test:unit:docker && npm run test:e2e:docker` — which is faster than waiting for a runner
-anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
+Every commit on `main` is still verified, because nothing reaches `main` except through a pull
+request, and branch protection requires the jobs above to be green on it before it merges. What
+is not required is that the pull request is up to date with `main`, so its checks ran against the
+`main` it was opened on, or last updated against. Two pull requests that pass apart can still break
+together. `workflow_dispatch` on the Actions tab runs the whole workflow on any branch, and the
+suites run locally with `npm run test:unit:docker && npm run test:e2e:docker`, which is faster than
+waiting for a runner when you are unsure of a change before pushing it.
 
 A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
 the image being published. Tag from a tree you have already run the suites against — see
@@ -272,24 +305,51 @@ as `X.Y.Z`, `X.Y` and `latest`, and from there it travels without anybody here d
 4. The merge publishes the catalogue, and TrueNAS offers the update to everyone who installed plMail
    from **Apps → Discover**.
 
+The tag also publishes a GitHub Release, once the image is up: the `release` job in `docker.yml`
+cuts the version's section out of `CHANGELOG.md` with `bin/release-notes.sh` and makes it the
+release's notes. Nothing is attached; it is the page `releases.atom` and **Watch → Releases**
+follow. The job reads the CHANGELOG of the tagged commit, so the `## vX.Y.Z — date` heading has to
+be in that commit and spelled as the tag is, or the job fails with the image already out.
+Re-running it reads the same commit and fails again; fix the heading on `main` and publish the
+release from there by hand:
+
+```bash
+bin/release-notes.sh vX.Y.Z > notes.md && gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file notes.md
+```
+
 So a tag reaches other people's NAS boxes within about a day, with migrations that run on boot, and
 **it cannot be taken back**: there is no cool-down in that Renovate configuration and no way to
 unpublish a catalogue version. A bad release is repaired by tagging the next one.
 
 That makes the tag the only gate there is, and two things have to be true before it is pushed:
 
-- **The suites are green on the exact commit being tagged.** Either locally —
-  `npm run test:unit:docker && npm run test:e2e:docker` — or by starting the E2E workflow on `main`
-  with `workflow_dispatch` and waiting for it. The run the tag itself starts does not count: the
-  image is published beside it, not after it.
+- **The suites are green on the exact commit being tagged.** The `Release vX.Y.Z` pull request
+  described below is that run: it cannot merge until the E2E workflow is green on it, and the
+  commit it makes on `main` is the one that is tagged. There is no need to start the workflow by
+  hand before it. If anything else merged into `main` after its checks ran, press **Update branch**
+  and let them run again, because the protection does not ask for that by itself. The run the tag
+  starts does not count: the image is published beside it, not after it.
 - **That commit has been installed and used on a real installation.** A push to `main` publishes
   `main` and `sha-<commit>` without touching `latest` or the catalogue, which is what those tags are
   for: pull one onto the production install, let the migrations run against real data, and read
   mail with it. The suites start from an empty database every time; an upgrade never does.
 
-Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date`, commit it as
-`Release vX.Y.Z`, tag that commit and push both. The release commit changes the changelog and
-nothing else, so what was tested is what is tagged.
+Then, and in this order: write the release's section in a pull request titled `Release vX.Y.Z`
+— `main` is protected, so the release commit goes through one like everything else — merge it, tag
+the commit it made on `main` and push the tag. The section is written by
+
+```bash
+bin/changelog-release.sh vX.Y.Z
+```
+
+which puts the entries waiting in `changelog.d/` (highlights first) and whatever is still under
+`## Unreleased` under a new `## vX.Y.Z — date` heading, dated today unless a second argument says
+otherwise, and deletes the fragments. It refuses a version that already has a section, and a
+release with nothing in it. The release commit changes the changelog and `changelog.d/` and nothing
+else, so what was tested is what is tagged — except for the highlight pictures that release pushes
+past their ten releases, which it deletes (see [Release notes](#release-notes)). Then close the
+milestone of that name, moving anything still open in it to the next one (see
+[How work gets in](#how-work-gets-in)).
 
 Things that steer what the catalogue receives:
 
@@ -326,6 +386,54 @@ already owns a mailbox.
 
 Never point it at a stack holding real mail.
 
+## Release notes
+
+`CHANGELOG.md` is not only for people reading GitHub: every installation reads it from its own image
+and shows it in **What's new** after an update (see
+[What everyone sees after an update](docs/install/upgrading.md#what-everyone-sees-after-an-update)).
+So an entry is written for the person using plMail.
+
+**A pull request adds its entry as a file of its own in `changelog.d/`**, named after the issue
+(`266-jmap-read-state.md`), not as a paragraph in `CHANGELOG.md`. Every pull request used to add
+its paragraph under `## Unreleased`, at the same place in the same file, so the second of any two
+conflicted with the first as soon as that one merged — and fixing the conflict is a push that
+re-runs the whole suite, once per pull request in a batch. The release pull request collects the
+files (see [Releasing](#releasing)). [`changelog.d/README.md`](changelog.d/README.md) has the
+details; the one rule that differs from writing in `CHANGELOG.md` is that a fragment has no
+headings, since the files are put one after the other. `### Before you upgrade` is still written
+under `## Unreleased` in `CHANGELOG.md`, and so are entries from pull requests that predate this.
+
+Three conventions decide how an entry is shown:
+
+- **An entry is a paragraph that opens with a bold sentence.** The bold part is its headline in the
+  dialog; the rest, until the next bold paragraph, is what opens under it.
+- **`**Migration:**` and `### Before you upgrade` are for administrators.** They are shown in a box
+  only administrators see, so say there what the server needs and leave it out of the rest.
+- **A highlight is marked by a comment on the line above the entry**, which GitHub does not render:
+
+  ```markdown
+  <!-- highlight screenshot=pull-to-sync -->
+  **Pull the mail list down to sync it, on a phone.** …
+  ```
+
+  `<!-- highlight -->` alone makes a highlight without a picture. With `screenshot=`, the dialog
+  shows `public/whats-new/pull-to-sync.png` beside it, and `ChangelogReaderTest` fails until that
+  file exists. Take it with a test of the same name in `tests/e2e/whats-new-screenshots.spec.ts`,
+  run like the README's pictures:
+
+  ```bash
+  npm run test:e2e:screenshots -- --project=chromium --workers=1
+  ```
+
+  Named by feature, not by release, because the pull request that adds a feature does not know which
+  release it will ship in. Mark a handful per release; a dialog where everything is a highlight has
+  none.
+- **A picture is kept for its release and the ten after it.** Every file in `public/whats-new/` ships
+  in every image, so they do not stay for good: the `Release vX.Y.Z` pull request that pushes a
+  release more than ten back deletes its pictures and turns their markers into plain
+  `<!-- highlight -->`, so the entries stay highlights without the picture. `ChangelogReaderTest`
+  fails until that is done, and also fails on a file in `public/whats-new/` that no highlight names.
+
 ## Secrets and the encryption key
 
 plMail generates its own secrets on first start rather than shipping working ones, and one of them
@@ -347,8 +455,8 @@ and takes a `flock`, so four containers starting at once mint each value once be
 
 `APP_STORAGE_DIR` decides where blobs live relative to the project root — attachments, raw messages,
 uploads and avatars all sit under it, and `var` by default. It exists so a deployment can put the
-whole lot on one mount: `truenas.compose.yaml` sets it to `var/data` and binds a single host
-directory there, which is why that file has one path to fill in rather than five. Attachment paths
+whole lot on one mount: the TrueNAS app sets it to one data directory and binds a single host path
+there, which is why it has one path to fill in rather than five. Attachment paths
 are stored relative to the project root, so changing it on an install with mail in it orphans what
 is already there.
 
@@ -846,12 +954,13 @@ php bin/mirror-wiki.php --check
 | `app:mail:test-connection` | Probe an account's IMAP/SMTP settings |
 | `app:contacts:harvest [account-id]` | Harvest contact addresses from synced messages |
 | `app:calendar:sync [calendar-id] [--stale]` | Dispatch a two-way sync for connected calendars; `--stale` is the sweep the scheduler runs |
+| `app:contacts:sync [address-book-id] [--stale]` | Dispatch a two-way sync for mirrored CardDAV address books; `--stale` is the sweep the scheduler runs |
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
@@ -859,11 +968,15 @@ php bin/mirror-wiki.php --check
 | `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |
 | `app:graph:diagnose` | Probe Microsoft Graph access for one account and report what works |
+| `app:gmail:quota-probe [account] [--mode=all] [--count=30]` | Without an account, list the Gmail accounts and ask which. Fetch a fixed number of stored Gmail messages one way per minute (batched as an import does, or singly in each format), holding the account's import meanwhile, so the cost Google charges for each can be read off the Cloud console's quota chart. Stores and changes nothing |
+| `app:gmail:skipped [account] [--list=N] [--forget]` | Show the Gmail messages an import looked at and did not store. Without an account, one line per Gmail account: stored, skipped, Gmail's own total. With one, the skipped messages grouped by kind (chat, draft, sent from another address, delivered to another address, unfetchable), by Gmail label and by address, and with `--list` the messages themselves. Reads only what was recorded when each message was looked at; asks Gmail nothing. `--forget` deletes the record for the account so the next listing asks for those messages again |
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
-| `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
+| `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads, delete files orphaned by deleted rows and the thumbnails of attachments that no longer exist. Only looks in the per-account directories of `uploads`, `attachments` and `raw` under `APP_STORAGE_DIR`, and in `attachments/thumbs`; everything else on those volumes belongs to someone else |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
-| `app:user:password <email> [--password=…]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
+| `app:user:password <email> [--password=…] [--no-change-required]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. A one-time password unless `--no-change-required`: the person chooses their own straight after signing in, because the operator knows this one. Locks the person's encryption keys, which hang off the old password; their recovery phrase or a known device opens them again. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
+| `app:sso:allow-password-login` | Show the password form again after an administrator made single sign-on the only way in (Admin → SSO, **Single sign-on only**). The way back when the identity provider is down: with the setting on, the login page shows no form and the server refuses a password, so nothing in a browser can undo it. Console-only for that reason. Clears what Admin → SSO saved; an `OIDC_DISABLE_PASSWORD_LOGIN` in the environment has to be changed there |
+| `app:user:oidc-unlink <email>` | Forget the single sign-on identity an account is linked to, so its next sign-in through the provider links it again by address. For somebody deleted and re-added at the provider, who comes back with a new subject and is refused as a second person claiming the account. Console-only like the two above: an unlinked account is one the next identity with its address can claim |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
 | `app:jmap:prune-changes [--days=N]` | Prune JMAP change-log rows older than the retention window (60 days by default), keeping the newest row per account and object type so no state token goes backwards. Runs nightly at 05:20. A client away longer than the window gets `cannotCalculateChanges` and resyncs |
 | `app:jobs:reap [--stale-seconds=N] [--dry-run]` | Fail background jobs that have stopped reporting progress, so the topbar indicator stops showing work whose worker died. Runs every 5 minutes; a job counts as abandoned after 15 minutes without a chunk |
@@ -894,21 +1007,7 @@ each.
 
 ## Roadmap
 
-- [x] Complete the label-based architecture refactor (Label as the user-facing concept; Mailbox demoted to IMAP sync infrastructure)
-- [x] Sanitize rendered HTML bodies
-- [x] Full-text search
-- [x] Microsoft OAuth2 / Graph send support
-- [x] Nested label UI — `Label::$parent`, `LabelRepository::findVisibleTreeForUser()`, and the recursive tree in `_partials/_sidebar.html.twig`
-- [x] Snooze — `ThreadSnoozeService`, `app:mail:wake-snoozed`, and the `Thread/set` JMAP extension
-- [x] Calendar alerts — RFC 8984 `alerts` on the event, `app:calendar:alerts` every minute, delivered over the existing Web Push stack or as mail; see "Calendar alerts"
-- [ ] Gmail-native `threadId` threading (the id is carried on `Message`, but threading is still RFC Message-ID based)
-- [ ] Incoming IMAP flag sync over the IDLE stream — flags currently travel outward only, so marking a message read in another client does not reflect back
-- [ ] Avatar fetching (partially done: `Service/User/AvatarFromIntegration.php`; still needs OAuth avatar scopes)
-- [ ] Per-identity signatures — no `signature` field exists on `User`, `Account` or `EmailAlias`
-- [ ] Password reset for somebody who cannot sign in (still console-only, `app:user:password`, which is why
-      the login form offers no link). Changing your own password from Settings → Security is done — that is a
-      different problem, and finishing it does not tick this one
-
-> Keep this honest. Three items above were finished long before anyone ticked
-> them, and a roadmap that under-reports is worse than none — it is the document
-> a contributor reads to decide what to pick up.
+The roadmap is the issue tracker: open issues labelled `accepted`, by
+[milestone](https://github.com/karatektus/pl_mail/milestones), and the backlog with none. It used
+to be a checklist here, which three finished items sat unticked in for months; the items still open
+moved to issues #126–#130.

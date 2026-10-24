@@ -46,12 +46,14 @@ export default class extends Controller {
             // ("mail--message-row"), which has no faithful camelCase form and
             // so cannot be round-tripped through the dataset API.
             //
-            // Both are set unconditionally. Only one has a controller listening
+            // All are set unconditionally. Only one has a controller listening
             // on any given surface, and the unused attribute is inert — cheaper
-            // than teaching this controller which surface it is on.
+            // than teaching this controller which surface it is on. The last one
+            // is the long-press sheet's, which posts its own captured URL.
             element.setAttribute("data-mail--message-row-until-param", at.toISOString());
             element.setAttribute("data-mail--list-toolbar-until-param", at.toISOString());
             element.setAttribute("data-mail--message-actions-until-param", at.toISOString());
+            element.setAttribute("data-mail--action-sheet-until-param", at.toISOString());
 
             const when = element.querySelector("[data-snooze-when]");
 

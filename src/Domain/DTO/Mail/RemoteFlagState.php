@@ -47,6 +47,11 @@ final readonly class RemoteFlagState
      * GraphMessageBuilder both synthesise one at ingest — so a refresh that
      * left it alone would leave the mirror saying what was true months ago.
      *
+     * A draft stays a draft through that rebuild. Those providers do not say
+     * whether a message is one in a refresh, and \Draft is not read or starred,
+     * so rebuilding from those two alone made the first re-read of a stored
+     * draft end it. When one is sent, Message::settleAsSent() says so.
+     *
      * @return list<string>
      */
     public function storedFlags(): array
@@ -56,6 +61,10 @@ final readonly class RemoteFlagState
         }
 
         $flags = [];
+
+        if (true === $this->message->isDraft()) {
+            $flags[] = MessageFlag::DRAFT->value;
+        }
 
         if (true === $this->seen) {
             $flags[] = MessageFlag::SEEN->value;

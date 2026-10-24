@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:ad52dfe87905d09cdd1f0545fabb06f413d402fa -->
+<!-- translated-from: install/troubleshooting.md sha1:81f5c6d505546c5bab2723acf94c75233a8d970e -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -111,6 +111,7 @@ von ihnen ausgelöst.**
 | jede Minute | `app:calendar:alerts` |
 | `*/15` | `app:mail:sync` |
 | `7-59/15` | `app:calendar:sync --stale` |
+| `11-59/15` | `app:contacts:sync --stale` |
 | stündlich um :20 | `app:calendar:push` |
 | täglich 03:50 | `app:calendar:materialise` |
 | täglich 04:00 | `app:push:renew --repair` |

@@ -13,6 +13,7 @@ use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Dom\HTMLDocument;
 
 /**
  * What it takes to make a draft real: which account it belongs to, the flags
@@ -146,7 +147,10 @@ final readonly class DraftPersister
         // account's own address one line later. Every mail sent from an alias
         // went out as the primary address, and nothing reported it.
         $message->fromAddress = $sender ?? $account->email;
-        $message->fromName    = $account->name;
+        // The name that address sends under — an alias's own when it has one.
+        // Same lookup MessageSendService builds the From header with, so the
+        // local copy and the mail on the wire name the same sender.
+        $message->fromName    = $account->senderNameFor($message->fromAddress);
         $message->addFlag(MessageFlag::DRAFT);
         $message->seenAt ??= new DateTimeImmutable();
 
@@ -243,7 +247,7 @@ final readonly class DraftPersister
         // before it existed (attribution div / bare blockquote).
         $ownPart = preg_split(
             '/<div[^>]*data-quote|<div[^>]*font-size:0\.85em|<blockquote/i',
-            $html,
+            self::withoutSignatureQuotes($html),
             2,
         )[0];
 
@@ -256,5 +260,46 @@ final readonly class DraftPersister
         $text = trim(preg_replace('/[ \t]*\R\s*/u', "\n", $text) ?? $text);
 
         return '' === $text ? null : $text;
+    }
+
+    /**
+     * A blockquote inside the signature is the signature's, not a quote.
+     *
+     * The bare-blockquote cut above is for drafts written before data-quoted
+     * existed, and it took every blockquote for the start of the quoted
+     * original — including one a signature wraps its name in. The text part
+     * then ended there: no signature, and nothing after it. So the signature's
+     * blockquotes become plain blocks before the cut, which keeps their lines
+     * and leaves the cut for the quote it was meant for.
+     */
+    private static function withoutSignatureQuotes(string $html): string
+    {
+        if (false === stripos($html, 'data-pl-signature') || false === stripos($html, '<blockquote')) {
+            return $html;
+        }
+
+        try {
+            $document = HTMLDocument::createFromString('<!DOCTYPE html><html><body>' . $html . '</body></html>', LIBXML_NOERROR, 'UTF-8');
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        $body = $document->body;
+
+        if (null === $body) {
+            return $html;
+        }
+
+        foreach ($body->querySelectorAll('[data-pl-signature] blockquote') as $quote) {
+            $block = $document->createElement('div');
+
+            while (null !== $quote->firstChild) {
+                $block->appendChild($quote->firstChild);
+            }
+
+            $quote->replaceWith($block);
+        }
+
+        return $body->innerHTML;
     }
 }

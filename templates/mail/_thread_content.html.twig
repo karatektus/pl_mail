@@ -153,7 +153,9 @@ self-contained: no {% extends %}, no block dependencies.
     <div class="w-full px-4 md:px-6 py-5"{{ thread_summary.root(thread) }}>
 
         <div class="flex items-baseline gap-3 mb-6">
-            <h1 class="text-xl font-semibold text-ink min-w-0 break-words">
+            {# data-thread-subject: mail--encrypted-message puts a subject it
+               decrypted here when the outside only said "..." (RFC 9788). #}
+            <h1 class="text-xl font-semibold text-ink min-w-0 break-words" data-thread-subject>
                 {{ thread.subject ?: ('thread.no_subject'|trans) }}
             </h1>
             {% if thread.messageCount > 1 %}
@@ -188,7 +190,22 @@ self-contained: no {% extends %}, no block dependencies.
            the stagger turns "a conversation opened" into a conversation being
            laid out. It costs nothing on the common single-message thread, and
            motion.css caps it at eight so a long one still finishes at once. #}
-        <div id="thread_messages_{{ thread.id }}" data-enter-stagger>
+        {# `.thread-messages` is the container the message headers query: how
+           much room a header has is the width of THIS block, which in the
+           reading pane is the pane's, not the window's. See app.css. #}
+        {# Every address the messages below show a contact badge for, looked
+           up in one query rather than one per address (see
+           AddressBookExtension::prime()). #}
+        {% set badgeAddresses = [] %}
+        {% for message in messages %}
+            {% set badgeAddresses = badgeAddresses|merge([message.fromAddress]) %}
+            {% for kind in ['to', 'cc', 'bcc', 'reply-to'] %}
+                {% set badgeAddresses = badgeAddresses|merge(message_addresses(message, kind)|map(entry => entry.address)) %}
+            {% endfor %}
+        {% endfor %}
+        {% do address_book_prime(badgeAddresses) %}
+
+        <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,

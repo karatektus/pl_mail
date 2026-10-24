@@ -10,6 +10,7 @@ use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\SwipeAction;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
 use App\Service\User\ClockFormatResolver;
@@ -22,12 +23,14 @@ use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Mail\InboxTabs;
 use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\Label\LabelRepository;
 use App\Service\Label\LabelResolver;
 use App\Repository\Rule\MailRuleRepository;
+use App\Service\AddressBook\AddressBookLister;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
 use App\Service\Ai\AiAssistant;
@@ -62,7 +65,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general', 'reading-pane', 'shortcuts', 'disposal', 'calendar-behaviour'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'encryption', 'notifications', 'general', 'categories', 'reading-pane', 'shortcuts', 'disposal', 'images', 'swipe-actions', 'calendar-behaviour', 'contacts'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -78,6 +81,7 @@ final class SettingsController extends AbstractController
         'categorise'   => 'fa-solid fa-inbox',
         'writing_help' => 'fa-solid fa-wand-magic-sparkles',
         'summary'      => 'fa-solid fa-align-left',
+        'contact_help' => 'fa-solid fa-address-card',
     ];
 
     public function __construct(
@@ -87,6 +91,7 @@ final class SettingsController extends AbstractController
         private readonly CalendarShareLinkRepository $shareLinkRepository,
         private readonly BookingPageRepository $bookingPageRepository,
         private readonly MailRuleRepository $mailRuleRepository,
+        private readonly InboxTabs $inboxTabs,
         private readonly PushSubscriptionRegistry $pushSubscriptionRegistry,
         private readonly PushSubscriptionRepository $pushSubscriptions,
         private readonly PushDeliveryRepository $pushDeliveries,
@@ -98,6 +103,7 @@ final class SettingsController extends AbstractController
         #[Autowire('%kernel.default_locale%')]
         private readonly string $defaultLocale,
         private readonly CalendarSourceLister $calendarSources,
+        private readonly AddressBookLister $addressBooks,
         private readonly ProfileSectionViewData $profileSection,
         private readonly SecuritySectionViewData $securitySection,
         private readonly UserTimezoneResolver $timezones,
@@ -128,14 +134,15 @@ final class SettingsController extends AbstractController
             $section = self::DEFAULT_SECTION;
         }
 
-        // Unread is opt-in: its label is created hidden and switched on in
-        // this list, which it can only be if it exists. No sync and no mail
-        // action has a reason to create it, so it is created the first time
-        // the list is opened.
+        // Unread and All Mail are opt-in: their labels are created hidden and
+        // switched on in this list, which they can only be if they exist. No
+        // sync and no mail action has a reason to create them, so they are
+        // created the first time the list is opened.
         $user = $this->getUser();
 
         if ('labels' === $section && $user instanceof User) {
             $this->labelResolver->userSystemLabel(LabelRole::Unread, $user);
+            $this->labelResolver->userSystemLabel(LabelRole::AllMail, $user);
         }
 
         // The user's own arrangement, not the alphabet.
@@ -155,19 +162,25 @@ final class SettingsController extends AbstractController
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'calendars'          => $this->calendarRepository->findForUser($this->getUser()),
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
+            // Only the Categories section draws them, and every other settings
+            // page would otherwise pay a read for a list it never shows. Every
+            // tab, switched off or not, in the reader's order.
+            'categoryTabs'       => 'categories' === $section && $user instanceof User
+                ? $this->inboxTabs->managedFor($user)
+                : [],
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             // A refused profile save forwards here with its form, so the page
             // comes back whole with the errors on it — see ProfileController.
             ...$this->profileSection->build(
                 $this->getUser(),
-                $request,
                 $request->attributes->get('profileForm') instanceof FormInterface
                     ? $request->attributes->get('profileForm')
                     : null,
             ),
             ...$this->securitySectionData($section, $request),
             ...$this->calendarSectionData($section),
+            ...$this->contactsSectionData($section),
             ...$this->sharingSectionData($section),
             ...$this->notificationsSectionData($section),
             'aliasForms'         => $this->aliasAddForms->forAccounts($manageableAccounts),
@@ -181,7 +194,24 @@ final class SettingsController extends AbstractController
             ...$this->insightsSectionData($section),
             ...$this->aiSectionData($section),
             ...$this->templatesSectionData($section),
+            ...$this->swipeActionsSectionData($section),
         ]);
+    }
+
+    /**
+     * The choices the swipe selects offer, for their own section only. Every case
+     * the enum has and nothing else: trash is not a case, so it is not offered
+     * (see SwipeAction).
+     *
+     * @return array<string, mixed>
+     */
+    private function swipeActionsSectionData(string $section): array
+    {
+        if ('swipe-actions' !== $section) {
+            return [];
+        }
+
+        return ['swipeChoices' => SwipeAction::cases()];
     }
 
     /**
@@ -254,6 +284,24 @@ final class SettingsController extends AbstractController
             'calendarAccounts'    => $this->calendarSources->accountsFor($user),
             'calendarConnections' => $this->calendarSources->connectionsFor($user),
         ];
+    }
+
+    /**
+     * The contacts connections and their address books, for their own section
+     * only — built by AddressBookLister so the first render and every stream
+     * after it agree.
+     *
+     * @return array<string, mixed>
+     */
+    private function contactsSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('contacts' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return $this->addressBooks->sectionFor($user);
     }
 
     /**

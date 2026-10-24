@@ -10,9 +10,11 @@ use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Mail\InboxCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
@@ -172,12 +174,12 @@ final readonly class ThreadStatusUpdater
 
         $inboxLabel = $this->labels->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
 
-        // Propagate BEFORE re-pointing mailboxes so the IMAP job captures
-        // the correct source folders.
-        $this->propagator->archive($messages);
-
         $archiveLabel   = $this->labelResolver->systemLabel(LabelRole::Archive, $account);
         $archiveMailbox = $archiveLabel->bindingFor($account)?->mailbox;
+
+        // Propagate BEFORE re-pointing mailboxes so the IMAP job captures
+        // the correct source folders.
+        $this->propagator->archive($this->notAlreadyIn($messages, $archiveMailbox));
 
         foreach ($messages as $message) {
             // Archiving used to be "remove Inbox" and nothing else, which read
@@ -199,7 +201,7 @@ final readonly class ThreadStatusUpdater
             // and gets a new UID there that only the mover can report. Until
             // then the row names the destination and no address inside it —
             // see Message::relocateTo().
-            if (null !== $message->imapUid && null !== $archiveMailbox) {
+            if (null !== $message->imapUid && null !== $archiveMailbox && $message->mailbox !== $archiveMailbox) {
                 $message->relocateTo($archiveMailbox);
             }
         }
@@ -217,9 +219,9 @@ final readonly class ThreadStatusUpdater
         $inboxLabel = $this->labels->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
 
-        $this->propagator->trash($messages);
-
         $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
+
+        $this->propagator->trash($this->notAlreadyIn($messages, $trashMailbox));
 
         foreach ($messages as $message) {
             $message->addLabel($trashLabel);
@@ -228,7 +230,7 @@ final readonly class ThreadStatusUpdater
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->imapUid && null !== $trashMailbox) {
+            if (null !== $message->imapUid && null !== $trashMailbox && $message->mailbox !== $trashMailbox) {
                 $message->relocateTo($trashMailbox);
             }
         }
@@ -262,12 +264,12 @@ final readonly class ThreadStatusUpdater
         $spamLabel    = $this->labels->findOneByRoleForUser(LabelRole::Spam, $account->usr);
         $archiveLabel = $this->labels->findOneByRoleForUser(LabelRole::Archive, $account->usr);
 
+        $inboxMailbox = $inboxLabel->bindingFor($account)?->mailbox;
+
         // Before the mailbox is re-pointed, so the IMAP job still knows which
         // folder to move the message out of — the same ordering archive() and
         // trash() rely on, and for the same reason.
-        $this->propagator->restore($messages);
-
-        $inboxMailbox = $inboxLabel->bindingFor($account)?->mailbox;
+        $this->propagator->restore($this->notAlreadyIn($messages, $inboxMailbox));
 
         // Mail in Spam or the bin is not read for calendar events
         // (ExtractEventsHandler), so a message coming back out has never been
@@ -301,7 +303,7 @@ final readonly class ThreadStatusUpdater
                 }
             }
 
-            if (null !== $message->imapUid && null !== $inboxMailbox) {
+            if (null !== $message->imapUid && null !== $inboxMailbox && $message->mailbox !== $inboxMailbox) {
                 $message->relocateTo($inboxMailbox);
             }
         }
@@ -370,13 +372,33 @@ final readonly class ThreadStatusUpdater
      *
      * @return bool whether anything changed
      */
-    public function setCategory(MessageThread $thread, MessageCategory $category): bool
+    public function setCategory(MessageThread $thread, MessageCategory|InboxCategory $category): bool
     {
-        if ($category === $thread->category && null !== $thread->categoryPinnedAt) {
-            return false;
+        // TWO COLUMNS, AND A DROP WRITES THE RIGHT ONE. The reader's own tab is
+        // MessageThread::$userCategory and a built-in one is $category, and a
+        // conversation is in exactly one tab, so moving between the two kinds has
+        // to clear the other: a drop onto Primary from "Shipping" that left
+        // $userCategory set would leave it in Shipping, and a drop onto Shipping
+        // leaves the built-in column alone because that one is what JMAP serves.
+        //
+        // "Already there" is therefore a statement about BOTH columns. A
+        // conversation whose built-in category matches the drop but which is
+        // still in one of the reader's tabs is not already there.
+        if ($category instanceof InboxCategory) {
+            if ($category === $thread->userCategory && null !== $thread->categoryPinnedAt) {
+                return false;
+            }
+
+            $thread->userCategory = $category;
+        } else {
+            if ($category === $thread->category && null === $thread->userCategory && null !== $thread->categoryPinnedAt) {
+                return false;
+            }
+
+            $thread->category     = $category;
+            $thread->userCategory = null;
         }
 
-        $thread->category         = $category;
         $thread->categoryPinnedAt = new DateTimeImmutable();
 
         // The thread's own row moved between two tabs; no message changed, so
@@ -469,26 +491,47 @@ final readonly class ThreadStatusUpdater
      */
     public function markRead(array $messages, bool $read): void
     {
-        $unread = 0;
-
         // Collected before the loop writes seenAt, because "was unread until
         // just now" is the whole condition a receipt fires on and one line
         // later it is unrecoverable.
         $firstReads = [];
 
+        // Only the messages this call actually changes. Opening a conversation
+        // marks it read every time, and most conversations a person opens are
+        // ones they have read before — so most calls here change nothing. They
+        // used to be written anyway: seenAt was replaced with the time of the
+        // latest look, the provider was told to mark read what it already had
+        // as read, and a JMAP change was recorded for every message, which
+        // woke every phone and every open tab to re-read numbers that could
+        // not have moved.
+        $changed = [];
+
         foreach ($messages as $message) {
             if (true === $read) {
+                if (null !== $message->seenAt && true === $message->hasFlag(MessageFlag::SEEN)) {
+                    continue;
+                }
+
                 if (null === $message->seenAt) {
                     $firstReads[] = $message;
                 }
 
                 $message->addFlag(MessageFlag::SEEN);
-                $message->seenAt = new DateTimeImmutable();
-            } else {
-                $message->removeFlag(MessageFlag::SEEN);
-                $message->seenAt = null;
-                $unread++;
+                // The first time it was seen, kept: a message read on Monday
+                // and looked at again on Friday was read on Monday.
+                $message->seenAt ??= new DateTimeImmutable();
+                $changed[]         = $message;
+
+                continue;
             }
+
+            if (null === $message->seenAt && false === $message->hasFlag(MessageFlag::SEEN)) {
+                continue;
+            }
+
+            $message->removeFlag(MessageFlag::SEEN);
+            $message->seenAt = null;
+            $changed[]       = $message;
         }
 
         // Per thread, counted from that thread's own messages.
@@ -500,28 +543,51 @@ final readonly class ThreadStatusUpdater
         // left the others untouched — so four conversations were marked read in
         // the database and three rows went on rendering as unread, because
         // `data-unread` reads the thread's counter rather than its messages.
-        $counts = [];
+        //
+        // Counted over ALL of the thread's messages, not only the ones passed
+        // in. Counting the set was the same mistake one level down: a single
+        // message marked unread from the thread view, or over JMAP by a phone,
+        // set its conversation's counter to 1 or 0 whatever the other messages
+        // in it said.
+        $threads = [];
 
         foreach ($messages as $message) {
             $thread = $message->thread;
 
-            if (null === $thread) {
-                continue;
-            }
-
-            $counts[spl_object_id($thread)] ??= ['thread' => $thread, 'unread' => 0];
-
-            if (null === $message->seenAt) {
-                ++$counts[spl_object_id($thread)]['unread'];
+            if (null !== $thread) {
+                $threads[spl_object_id($thread)] = $thread;
             }
         }
 
-        foreach ($counts as ['thread' => $thread, 'unread' => $threadUnread]) {
-            $thread->unreadCount = $threadUnread;
+        // A counter that disagrees with its messages is put right even when no
+        // message changed, and that counts as a change: the list and the
+        // badges are drawn from the counter.
+        $counterMoved = false;
+
+        foreach ($threads as $thread) {
+            $threadUnread = 0;
+
+            foreach ($thread->messages as $message) {
+                if (null === $message->seenAt) {
+                    ++$threadUnread;
+                }
+            }
+
+            if ($thread->unreadCount !== $threadUnread) {
+                $thread->unreadCount = $threadUnread;
+                $counterMoved        = true;
+            }
         }
 
-        $this->propagator->markRead($messages, $read);
-        $this->recordJmapUpdates($messages);
+        if ([] === $changed && false === $counterMoved) {
+            return;
+        }
+
+        if ([] !== $changed) {
+            $this->propagator->markRead($changed, $read);
+        }
+
+        $this->recordJmapUpdates([] !== $changed ? $changed : $messages);
         $this->em->flush();
 
         // After the flush: the handler re-reads these rows from the database,
@@ -537,16 +603,17 @@ final readonly class ThreadStatusUpdater
      * THIS METHOD IS THE ONE THAT MUST NOT BE MOVED. It hangs off markRead(),
      * which is the user-initiated path and nothing else: the thread view's
      * auto-mark on open, the row's mark-read button, the toolbar's bulk
-     * action. Its inbound twin — applyRemoteFlags(), thirty lines down — takes
-     * the provider's word for a flag and deliberately does not call this, so a
-     * sync that discovers a message was already \Seen on another device sends
-     * nothing. That distinction is the entire correctness question in read
-     * receipts: a receipt claims a person displayed the message, and a sync
-     * pass learning about a read that happened elsewhere, possibly weeks ago,
-     * cannot make that claim. Two other writers of seenAt exist and are
-     * likewise silent — the rule engine's markRead action, which is software
-     * filing mail rather than a person reading it, and ThreadSnoozeService,
-     * which only ever un-reads.
+     * action, and a JMAP client setting $seen, which is the app on a phone
+     * doing the same three things. Its inbound twin — applyRemoteFlags(),
+     * thirty lines down — takes the provider's word for a flag and
+     * deliberately does not call this, so a sync that discovers a message was
+     * already \Seen on another device sends nothing. That distinction is the
+     * entire correctness question in read receipts: a receipt claims a
+     * person displayed the message, and a sync pass learning about a read
+     * that happened elsewhere, possibly weeks ago, cannot make that claim.
+     * Two other writers of seenAt exist and are likewise silent — the rule
+     * engine's markRead action, which is software filing mail rather than a
+     * person reading it, and ThreadSnoozeService, which only ever un-reads.
      *
      * Only genuine transitions, so re-marking an already-read message read —
      * which the bulk toolbar does routinely over a mixed selection — cannot
@@ -632,8 +699,9 @@ final readonly class ThreadStatusUpdater
      *
      * Counters are recounted from the thread's own messages rather than
      * adjusted, because a flag pass can change several messages of one thread
-     * at once and in both directions; markRead()'s cheaper arithmetic works
-     * because the user's action covers the whole selection.
+     * at once and in both directions. markRead() counts the same way, for the
+     * same reason: a single message of a longer conversation is a selection
+     * too.
      *
      * @param list<RemoteFlagState> $states
      * @param DateTimeImmutable|null $readAt  when the provider was asked. The
@@ -875,6 +943,34 @@ final readonly class ThreadStatusUpdater
         }
 
         return $locations;
+    }
+
+    /**
+     * The messages a move into $mailbox has to send to the server: all of them
+     * but the ones already in it.
+     *
+     * A conversation spans folders — a reply arrives in the Inbox while the
+     * rest of the thread sits in the bin — so trashing, archiving or restoring
+     * the whole thread reaches messages that are already where it is going.
+     * Queueing those as well asked the server to move a message into its own
+     * folder, which IMAP refuses (#269, see ApplyImapFlagsHandler::stayInPlace()),
+     * and the relocateTo() that follows cleared a UID that was still correct.
+     * Their labels change all the same; only the move is left out.
+     *
+     * @param list<Message> $messages
+     *
+     * @return list<Message>
+     */
+    private function notAlreadyIn(array $messages, ?Mailbox $mailbox): array
+    {
+        if (null === $mailbox) {
+            return $messages;
+        }
+
+        return array_values(array_filter(
+            $messages,
+            static fn (Message $message): bool => null === $message->imapUid || $message->mailbox !== $mailbox,
+        ));
     }
 
     /**

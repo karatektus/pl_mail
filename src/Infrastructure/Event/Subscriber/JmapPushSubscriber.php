@@ -6,6 +6,7 @@ namespace App\Infrastructure\Event\Subscriber;
 
 use App\Jmap\Push\PushDispatcher;
 use App\Jmap\State\StateManager;
+use App\Service\Mail\MailChangeNotifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
@@ -32,6 +33,7 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
     public function __construct(
         private StateManager $stateManager,
         private PushDispatcher $dispatcher,
+        private MailChangeNotifier $browsers,
         private LoggerInterface $logger,
     ) {
     }
@@ -59,12 +61,21 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
     {
         $changed = $this->stateManager->drainDirty();
 
+        // Drained even when nothing changed. The arrivals buffer is separate
+        // from the dirty set, and if it were left behind on an early return it
+        // would be announced as new mail by whichever unit of work came next.
+        $arrived = $this->stateManager->drainArrivals();
+
         if (0 === count($changed)) {
             return;
         }
 
+        // The open tabs first, and on their own: it catches what it throws,
+        // so a hub that is down cannot keep the phones from hearing.
+        $this->browsers->publish($changed);
+
         try {
-            $this->dispatcher->dispatch($changed);
+            $this->dispatcher->dispatch($changed, $arrived);
         } catch (\Throwable $exception) {
             // Never let a push failure surface as a request or handler error:
             // the data change already succeeded and is what matters.

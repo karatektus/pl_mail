@@ -2,8 +2,8 @@
 {% set isInactive = alias.status.value == 'inactive' %}
 {% set isSystem   = alias.source.value == 'system' %}
 
-<li class="flex items-center gap-3 py-1">
-    <span class="w-2 h-2 rounded-full shrink-0 {{ isInactive ? 'bg-ink-faint' : 'bg-green-400' }}"
+<li class="flex items-start gap-3 py-1">
+    <span class="mt-1.5 w-2 h-2 rounded-full shrink-0 {{ isInactive ? 'bg-ink-faint' : 'bg-green-400' }}"
           aria-hidden="true"></span>
 
     <div class="flex-1 min-w-0">
@@ -13,6 +13,26 @@
                 <span class="ml-1 text-[11px] text-ink-faint">({{ 'settings.aliases.system'|trans }})</span>
             {% endif %}
         </span>
+
+        {# The name this address sends under. Empty means the account's own,
+           which is why that is the placeholder: it is what the recipient sees
+           until something is typed here. Not offered on a disabled address —
+           it sends nothing, so it has no name to send under. #}
+        {% if not isInactive %}
+            <form method="post" action="{{ path('app_alias_name', { id: account.id, aliasId: alias.id }) }}"
+                  data-turbo-stream class="mt-0.5 flex items-center gap-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('alias-name' ~ alias.id) }}">
+                <input type="text" name="name" value="{{ alias.displayName }}" maxlength="255"
+                       autocomplete="off" data-1p-ignore data-lpignore="true"
+                       placeholder="{{ account.name ?: 'settings.aliases.name_placeholder'|trans }}"
+                       aria-label="{{ 'settings.aliases.name_for'|trans({'%alias%': alias.address}) }}"
+                       class="min-w-0 flex-1 max-w-xs h-7 rounded-md border border-line bg-surface px-2 text-xs text-ink
+                              placeholder:text-ink-faint focus:border-accent focus:outline-none">
+                <button type="submit" class="shrink-0 text-[11px] text-ink-faint hover:text-accent transition-colors cursor-pointer">
+                    {{ 'settings.aliases.name_save'|trans }}
+                </button>
+            </form>
+        {% endif %}
     </div>
 
     {% if isPrimary %}

@@ -379,6 +379,11 @@ controller instead — the scroll position and which trees are open.
 <aside id="{{ _drawerMode is defined and _drawerMode ? 'sidebar-drawer-inner' : 'sidebar' }}"
        data-controller="ui--sidebar"
        data-ui--sidebar-counts-url-value="{{ path('app_mail_sidebar_counts') }}"
+       {# The change sequence the badges below were counted at. The controller
+          ignores a `mail.changed` nudge that is not newer than it, so a page
+          that has just been rendered does not re-read numbers it was sent a
+          moment ago. See SidebarCounts::changeSequence(). #}
+       data-ui--sidebar-sequence-value="{{ sidebarCounts.changeSequence }}"
        data-ui--sidebar-collapse-url-value="{{ path('app_mail_sidebar_section_collapsed') }}"
        {# The badge names are patched on every sync alongside the numbers, so
           the strings have to reach the controller rather than being written in
@@ -547,8 +552,37 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-file-lines w-4" aria-hidden="true"></i>
                 <span class="rail-hide">{{ 'sidebar.nav.drafts'|trans }}</span>
                 {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) }}
+                {% import '_partials/_unsent_mark.html.twig' as unsent %}
+                {{ unsent.sidebar(sidebarCounts.unsentDrafts()) }}
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
+        </a>
+        {% endif %}
+
+        {# Every conversation outside Spam and the bin, in one list. Opt-in like
+           Unread: its label is created hidden and switched on in label
+           settings (LabelRole::AllMail), and the rows under each account follow
+           the same switch (mail/_account_folder_rows.html.twig).
+
+           Up here rather than under More, beside the lists people read, because
+           finding archived mail in one click is what it is for. No badge: a
+           count of everything is not news, and its unread share is the Unread
+           row's job. Takes no drops — there is nothing to move into a list that
+           already holds everything. #}
+        {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').AllMail) %}
+        {% set _href = path('app_mail_all') %}
+        <a href="{{ _href }}"
+           {{ macros.list_frame() }}
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'sidebar.nav.all_mail'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-layer-group w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'sidebar.nav.all_mail'|trans }}</span>
+            </span>
         </a>
         {% endif %}
 
@@ -721,6 +755,30 @@ controller instead — the scroll position and which trees are open.
         </a>
         {% endif %}
         </details>
+        {% endif %}
+
+        {# Contacts: the address book. Above the labels and accounts, with
+           the mail views: under the accounts heading it read as one more
+           account.
+
+           Drawer only, as the calendar's row is and for its reason (#311): on
+           a wide screen the address book is a pane beside the mail, and the
+           topbar button that moves it is the way in. A row that went to the
+           page beside it read as a second, different contacts. #}
+        {% if _drawerMode is defined and _drawerMode %}
+        {% set _contactsHref = path('app_contacts_list') %}
+        <a href="{{ _contactsHref }}"
+           class="nav-item mb-2 flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_contactsHref) }}"
+           data-nav-tier="row"
+           data-ui--sidebar-target="link"
+           data-action="{{ _drawerClose }}"
+           title="{{ 'contacts.nav'|trans }}"
+        >
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-address-book w-4" aria-hidden="true"></i>
+                <span class="rail-hide">{{ 'contacts.nav'|trans }}</span>
+            </span>
+        </a>
         {% endif %}
 
         {# ── Labels section ────────────────────────────────────────────────
@@ -899,6 +957,7 @@ controller instead — the scroll position and which trees are open.
                             data-action="click->ui--modal#open {{ _drawerClose }}"
                             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
                             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
+                            data-ui--modal-size-value="wide"
                             class="flex min-w-0 items-start gap-2 rounded-lg bg-sunken px-2.5 py-1.5 text-left
                                    hover:bg-hover transition-colors cursor-pointer
                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

@@ -1,0 +1,30 @@
+{#
+contacts/_pane_layout.html.twig — a contacts page inside the pane docked beside
+the mail. Chosen by contacts/_layout.html.twig; see there for when.
+
+Only the frame: Turbo takes the matching <turbo-frame> out of the response and
+swaps it into the pane, so a topbar and a sidebar would be built for nothing.
+
+Its way out to the full page and its close button are in each page's own
+header — _pane_actions.html.twig — rather than a bar above it, which would
+only have said "Contacts" over a header that already says it.
+#}
+
+<turbo-frame id="contacts-pane-frame" class="flex flex-col min-h-0 flex-1">
+    {# The flashes a save leaves ("Contact created."). The full layout renders
+       them into the toast region; this one has no toast region of its own, so
+       it sends them there as streams, which Turbo runs as they land in the
+       page. Read here, so the bag is cleared and they do not turn up again on
+       the next full page. #}
+    {% for type, messages in app.flashes(['success', 'error', 'info']) %}
+        {% for message in messages %}
+            {% include '_partials/_toast.stream.html.twig' with { message: message, type: type } only %}
+        {% endfor %}
+    {% endfor %}
+
+    {# data-contacts-page: content, so contacts--pane knows this frame needs
+       no src to fill it. #}
+    <div data-contacts-page class="@container relative flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
+        {% block contacts_content %}{% endblock %}
+    </div>
+</turbo-frame>

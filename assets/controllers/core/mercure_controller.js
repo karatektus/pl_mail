@@ -394,6 +394,13 @@ export default class extends Controller {
             this.dispatch("mailbox-synced", {detail: data});
         } else if (data.type === "account.synced") {
             this.dispatch("account-synced", {detail: data});
+        } else if (data.type === "mail.changed") {
+            // The user's mail changed, by any route: this tab, another one, a
+            // phone, or a worker finishing a send. Published from the same
+            // drain that tells the phone apps (MailChangeNotifier), so it is
+            // not a feature's job to remember it. Carries the change sequence;
+            // the sidebar ignores one it has already counted.
+            this.dispatch("mail-changed", {detail: data});
         } else if (data.type === "calendar.sync-finished") {
             // Published by App\Service\Calendar\CalendarNotifier on both the
             // success and the failure path. The account-health card is the
@@ -428,6 +435,12 @@ export default class extends Controller {
             if ("string" === typeof data.stream && "" !== data.stream) {
                 Turbo.renderStreamMessage(data.stream);
             }
+
+            // A failure also marks the draft, and a success clears any mark
+            // it had (#125): the sidebar's warning on Drafts is a count, read
+            // again on the same nudge every other change sends. No sequence,
+            // so it is taken at its word rather than compared.
+            this.dispatch("mail-changed", {detail: {}});
         } else if (data.type === "labels.changed") {
             // The second branch that renders rather than dispatches, and the
             // second one where the payload is a turbo-stream the SERVER built.
@@ -448,6 +461,26 @@ export default class extends Controller {
             // already on screen.
             if ("string" === typeof data.stream && "" !== data.stream) {
                 Turbo.renderStreamMessage(data.stream);
+            } else if ("string" === typeof data.refetch && /^\/(?![\/\\])/.test(data.refetch)) {
+                // The same stream, fetched rather than carried: a label deleted
+                // by a background job (DeleteLabelHandler) has no signed-in user
+                // to render a sidebar for, so the hub sends where to get one.
+                // Same-origin paths only — "//host" and "/\host" are other
+                // origins to a browser — because this is a URL out of a message.
+                fetch(data.refetch, {
+                    credentials: "same-origin",
+                    headers: {Accept: "text/vnd.turbo-stream.html"},
+                })
+                    .then((response) => (response.ok ? response.text() : ""))
+                    .then((stream) => {
+                        if ("" !== stream) {
+                            Turbo.renderStreamMessage(stream);
+                        }
+                    })
+                    .catch(() => {
+                        // A missed refresh is a stale sidebar until the next
+                        // load, as with every other nudge here.
+                    });
             }
         } else if (data.type === "summary.finished") {
             // Published by App\Service\Ai\ThreadSummaryNotifier when the

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:db4d4e0dc67011afa4300ba033154448d882dc2b -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:4c6bea77806bd3b90d156e6048faaa668611971f -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -236,6 +236,33 @@ Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund wei
 wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
 wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
 daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
+
+### Posteingangs-Tabs (`urn:plmail:params:jmap:inboxtabs`)
+
+Die Tabs so, wie die Nutzerin sie eingerichtet hat: welche eingebauten Kategorien an sind, die Tabs,
+die sie selbst angelegt hat, und die Reihenfolge aller. Angekündigt oben in der Session und an jedem
+Konto; jedes Konto antwortet mit derselben Liste.
+
+- **`InboxTab/get`** (`accountId` nötig) listet jeden Tab, ausgeschaltet oder nicht. Ein InboxTab ist
+  `{ id, name, builtIn, isEnabled, sortOrder }`. `id` ist der Tab-Schlüssel — eine eingebaute
+  Kategorie (`primary`, `social`, `promotions`, `updates`, `forums`) oder `c` und eine Zahl für einen
+  eigenen. `name` ist bei eingebauten null; die benennst du in deiner eigenen Sprache.
+  `isEnabled: false` ist ein ausgeschalteter eingebauter Tab: Lass ihn aus der Leiste weg.
+  `sortOrder` ist die Reihenfolge der Leiste; Allgemein ist immer 0.
+- **`InboxTab/changes`** ist das übliche /changes, und ein Push-`StateChange` trägt einen
+  `InboxTab`-State. Ein Umsortieren meldet jeden Tab als geändert.
+- **`Thread.inboxTab`** ist der Tab, in dem das Web die Konversation zeigt: ein eigener, die
+  eingebaute Kategorie oder `primary`, wenn diese Kategorie ausgeschaltet ist. Zeichne daraus und
+  nicht aus `Thread.category`, wenn du die Capability kennst.
+- **`Email/query` `threadInboxTab: "<key>"`** listet genau, was das Web in diesem Tab listet. Ein
+  ausgeschalteter Tab trifft nichts; ein ungültiger Schlüssel ist `invalidArguments`.
+- **`Thread/set` `{ "inboxTab": "<key>" }`** legt die Konversation in einen Tab, angeheftet, wie ein
+  Drag im Web. Ein Tab, den die Nutzerin nicht hat, kommt in `notUpdated` mit `invalidProperties`
+  zurück.
+
+Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
+`threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
+werden.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
@@ -724,8 +751,9 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | `/get` trägt drei plMail-Erweiterungen: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
+| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
+| `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
@@ -733,6 +761,8 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Identity/get` / `Identity/set` | |
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. Kein `accountId`-Argument bei get und set; pro Benutzer. Siehe [Vorlagen](#vorlagen). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Dieselbe Capability. Die Ordner, die ein Benutzer angelegt hat; die Konto-Ordner des Web-Baums sind keine Objekte. |
+| `Email/import` | RFC 8621 §4.8, plus das plMail-Argument `fingerprints` für einen verschlüsselten Entwurf. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
 
 **Heute nicht implementiert.** Nichts davon ist ein bewusster Ausschluss — es wurde bisher nur
 nicht gebraucht. Wenn dein Client etwas davon will, **frag danach, statt darum herum zu
@@ -751,8 +781,10 @@ konstruieren** (siehe [§0](#0-lies-das-zuerst-der-server-wird-aktiv-weiterentwi
   fehlend, während `SearchSnippetGetMethod` bereits im Baum lag.
 - **Kontakte sind nur Autovervollständigung.** `Contact/autocomplete`, unter
   `urn:plmail:params:jmap:contacts`, liefert gereihte Empfängervorschläge; es gibt kein
-  `Contact/get`, `/query` oder `/set` — das Adressbuch wird aus Mail-Headern geerntet und ist nicht
-  beschreibbar. Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
+  `Contact/get`, `/query` oder `/set`. Die Vorschläge kommen aus Adressen, die aus Mail-Headern
+  geerntet werden, und aus den CardDAV-Adressbüchern des Nutzers (`inAddressBook: true`); diese
+  Bücher werden in der Web-App bearbeitet und mit ihrem Server synchronisiert, nicht über JMAP.
+  Kalender werden bedient, unter `urn:plmail:params:jmap:calendars`; es
   gibt kein `Calendar/set` und kein `/changes` auf beiden Typen, weil Kalender keine Änderungen
   berechnen können — siehe [JMAP](internals/jmap.md).
 
@@ -1106,6 +1138,63 @@ Absenderadresse, mit der die Nachricht tatsächlich hinausgeht, und eine, die ke
 dieses Kontos ist, wird mit `forbiddenFrom` abgelehnt, statt auf die Kontoadresse
 zurückzufallen.
 
+**Welche Identität eine Nachricht beantwortet**, sagt der Server, und zwar in `replyFrom` — einer
+plMail-Eigenschaft von `Email/get`. Frag sie namentlich an, wenn du die Nachricht holst, aus der
+eine Antwort oder eine Weiterleitung gebaut wird; bei einem Get ohne `properties` fehlt sie, weil
+sie eine Signatur mitbringt:
+
+```json
+["Email/get", {"accountId": "1", "ids": ["42"], "properties": ["subject", "from", "to", "replyFrom"]}, "g"]
+```
+
+```json
+"replyFrom": {
+  "id": "addr-eW9Ac2hvcC5leGFtcGxl", "name": "John Smith", "email": "yo@shop.example",
+  "replyTo": null, "bcc": null, "textSignature": "", "htmlSignature": "", "mayDelete": false
+}
+```
+
+Es ist eine vollständige Identität oder `null`. Öffne die Antwort damit — Absender, Name und
+Signatur — und gib ihre `id` als `identityId` der Submission mit; bei `null`, oder gegenüber einem
+Server, der die Eigenschaft nicht kennt und sie weglässt, bleibst du bei der primären Identität.
+Es ist die Adresse, an die die Nachricht ging: dieselbe Antwort, mit der auch der Web-Editor eine
+Antwort öffnet — leite sie also nicht selbst aus An und Cc ab.
+
+- Bei einer Nachricht, die für einen Alias ankam, ist es die Identität dieses Alias, mit der `id`,
+  die sie in `Identity/get` hat.
+- Bei einer Nachricht, die für eine Adresse an einer der **Catch-all-Domains** des Kontos ankam,
+  ist es eine Identität, die `Identity/get` nicht auflistet — es gibt eine pro Adresse, an die je
+  jemand schreibt. Ihre `id` gilt in `EmailSubmission/set` wie jede andere, solange das Konto die
+  Domain noch hat; danach gibt es `forbiddenFrom`. Zeig sie für diese eine Nachricht in deinem
+  Von-Auswahlfeld neben den aufgelisteten, und speichere sie nicht als etwas, das du bei der
+  nächsten wieder anbietest.
+- Bei einem Entwurf ist es die Adresse, von der der Entwurf bereits geschrieben ist — damit
+  öffnest du ihn wieder.
+
+**Sag beim Speichern, von welcher Identität ein Entwurf geschrieben ist.** RFC 8621 nennt die
+Identität nur an der Submission; ein Entwurf hätte sonst bis zum Senden keinen Absender, und einer,
+der von einem Alias geschrieben wurde, käme aus den Entwürfen mit der primären Adresse zurück.
+plMail nimmt `identityId` auch in `Email/set` an, beim Anlegen und im Patch eines Updates:
+
+```json
+["Email/set", {"accountId": "1", "update": {"87": {"identityId": "addr-eW9Ac2hvcC5leGFtcGxl", "subject": "Re: Order"}}}, "s"]
+```
+
+Der Entwurf wird dann von dieser Adresse gespeichert, `from` und `replyFrom` melden sie, und mit
+ihr öffnet sich der Entwurf wieder, auf jedem Gerät. Schick die id bei jedem Speichern mit, und
+nimm sie in das auf, was entscheidet, ob ein Entwurf ungespeicherte Änderungen hat — ein
+Von-Auswahlfeld, das sonst nichts ändert, muss trotzdem speichern.
+
+- Die ids sind die, die `EmailSubmission/set` annimmt, eine Adress-Identität eingeschlossen.
+- Eine id, unter der das Konto nicht senden darf, wird **ignoriert**, und der Rest des Speicherns
+  geht durch: Das hier ist ein automatisches Speichern, und den Text wegen des Absenders zu
+  verlieren, wäre der schlimmere Fehler. Die Submission nennt ihre Identität weiterhin selbst, und
+  dort wird mit `forbiddenFrom` geantwortet.
+- **Prüf zuerst die Session.** Ein Server, der die Eigenschaft kennt, sagt das mit
+  `"draftIdentity": true` in der `urn:ietf:params:jmap:mail`-Capability des Kontos. Einer, der sie
+  nicht kennt, lehnt den ganzen Update-Patch als `invalidPatch` ab, weil er eine Eigenschaft nennt,
+  die er nicht ändern kann — lass den Schlüssel dort also weg.
+
 ### Vorlagen
 
 Wiederverwendbare Nachrichten: Der Benutzer schreibt eine unter **Einstellungen → Vorlagen** (oder
@@ -1248,6 +1337,138 @@ Was du mit der Antwort machst:
 
 Daten werden in der Zeitzone des Benutzers berechnet und in der Sprache geschrieben, die er in
 plMail eingestellt hat, ebenso die Beschriftungen in offenen Markierungen.
+
+### Ende-zu-Ende-Verschlüsselung: `urn:plmail:params:jmap:keys`
+
+plMail verschlüsselt mit OpenPGP und S/MIME Ende zu Ende. **Der Server hat nie einen lesbaren Schlüssel und nie
+den Text einer verschlüsselten Nachricht**; deine App macht die Kryptografie selbst, wie die Web-App
+im Browser (Konzept: [Issue #28](https://github.com/karatektus/pl_mail/issues/28), Abschnitt 13).
+Diese Capability liefert, was du dafür brauchst. Das Capability-Objekt trägt die Konstanten;
+`accountCapabilities` trägt pro Konto `keepsDecryptedMail`.
+
+**Jede Verpackung** ist `v1.<iv>.<chiffrat>`, beides Base64 (Standardalphabet), AES-256-GCM, mit dem
+**Zweck-String als Associated Data**: `purposes.userKey` für einen User-Key,
+`purposes.addressKeyToken` für das Token eines Adress-Keys, `purposes.smimeKey` für einen privaten
+S/MIME-Schlüssel, `purposes.pairingTransfer` für das Kopplungspaket.
+
+**Die Schlüssel aufs Gerät bringen — Kopplung.** Hat der Browser, der den Kopplungs-QR-Code zeigt,
+den Schlüsselbund offen, trägt die URI den Übertragungsschlüssel im Fragment:
+`plmail://pair?host=…&code=…#k=<base64url, 32 Bytes>`. Das Fragment erreicht den Server nie. Die
+Antwort beim Einlösen (`POST /device/pair`) hat dann neben `secret` und `username` ein Feld `keys`;
+öffne es mit dem Übertragungsschlüssel (`purposes.pairingTransfer`) und du bekommst JSON
+`{"v": 1, "userKeys": [{"id": 3, "key": "<base64, 32 Bytes>"}]}`. Leg die User-Keys unter einem
+eigenen Keystore-Schlüssel ab. Ein QR-Code ohne `#k=` koppelt ohne Schlüssel.
+
+**Notlösung — einmal das Geheimnis des Schlüsselbunds.** `Keyring/get` (ohne `accountId`, ein
+Objekt mit der id `singleton`) liefert `root`, `rootKdf: {salt, iterations}` und
+`userKeys: [{id, wrapped, status}]`. `root` sagt, an welchem Geheimnis der Schlüsselbund hängt, und
+damit, wonach du die Person fragst:
+
+- `password` — ihr plMail-Passwort. `rootKdf` ist dasselbe wie `kdf`, die Parameter der Anmeldung.
+  Es ist null, solange der gespeicherte Hash des Kontos noch vom Passwort selbst stammt; ein solches
+  Konto hat noch keinen Schlüsselbund.
+- `passphrase` — ihre **Verschlüsselungs-Passphrase**, bei einem Konto, das sich nur über Single
+  Sign-on anmeldet und kein plMail-Passwort hat. Frag nach der Passphrase, nie nach einem Passwort,
+  und sag dazu, dass es nicht das Passwort des Anmeldedienstes ist. Ein `rootKdf.salt` von null
+  heißt, die Verschlüsselung ist noch nicht eingerichtet: Es gibt nichts zu öffnen, und eingerichtet
+  wird sie in der Web-App (Einstellungen → Verschlüsselung), nicht über JMAP.
+
+In beiden Fällen leite `masterKey = PBKDF2-SHA256(geheimnis, rootKdf.salt, rootKdf.iterations,
+32 Bytes)` (das Geheimnis NFC-normalisiert, UTF-8) und
+`wrapKey = HKDF-SHA256(masterKey, salt = leer, info = kdf.wrapKeyInfo, 32 Bytes)` ab und öffne damit
+jedes aktive `wrapped` mit `purposes.userKey`. Ein Geheimnis, das keinen öffnet, ist falsch — bei
+einer Passphrase ist das die einzige Prüfung, die es gibt; der Server hat nichts, womit er sie
+vergleichen könnte. Die Passphrase kann sich in der Web-App ändern; öffnet ein zwischengespeicherter
+`wrapKey` die User-Keys nicht mehr, frag erneut.
+
+**Adress-Keys.** `Keyring/get` liefert außerdem `addressKeys: [{id, userKeyId, fingerprint,
+publicKey, privateKey, token, status, addresses: [{email, primary}]}]`. Öffne `token` mit dem
+User-Key `userKeyId` (`purposes.addressKeyToken`); es ist die Passphrase des gepanzerten
+`privateKey`. Neue Adressen, erneuerte Schlüssel und Passwortwechsel in der Web-App brauchen keine
+neue Kopplung: Sie hängen am User-Key, den du schon hast. Signiere mit dem `active`-Schlüssel, in
+dessen `addresses` die From-Adresse `primary` ist; entschlüsseln geht mit jedem.
+
+Jeder Adress-Key trägt außerdem `publications: [{host, email, state, checkedAt}]` — wo die Person
+ihn auf einem Schlüsselserver veröffentlicht hat und was der Server zuletzt sagte (`unpublished`,
+`pending`, `published`, `revoked`) —, und der Schlüsselbund `publishTo: [host]`, die Server, auf
+denen sie veröffentlichen kann. Veröffentlicht wird in der Web-App (Einstellungen → Verschlüsselung);
+eine JMAP-Methode dafür gibt es nicht.
+
+**Lesen.** Email hat fünf plMail-Properties: `cryptoType` (`pgp_encrypted`, `pgp_signed`,
+`pgp_inline_encrypted`, `pgp_inline_signed`, `smime_encrypted`, `smime_signed` oder null),
+`encrypted`, `signatureState` (`valid`, `untrusted`, `invalid`, `unknown_key`, `key_changed` oder
+null — für signierte Mails, vom Server geprüft), `signer` und `decryptedOnServer`. Für eine
+verschlüsselte Nachricht sind die `bodyValues` leer, außer bei `decryptedOnServer`; lade ihre
+`blobId` (das Chiffrat, wie es ankam), entschlüssele und zerlege die innere MIME-Nachricht selbst.
+Eine Signatur innerhalb der Verschlüsselung prüfst du gegen `ContactKey/get`.
+
+**Kontaktschlüssel und Schreiben.** `ContactKey/get` listet die Schlüssel, die plMail kennt
+(`status: current` ist der verwendete; `changed` wartet darauf, in der Web-App angenommen zu
+werden), mit `encrypt`, `sign` und `scheme` pro Empfänger, und woher der Schlüssel kam: `origin`
+(`wkd`, `keyserver`, `attached`, `autocrypt`, `manual`) und `originHost`, der Hostname des
+Schlüsselservers bei `keyserver` (sonst null). `ContactKey/lookup` mit `{emails, lookup: true,
+accountId, from}` sagt, was das Web-Schreibfenster gesagt bekommt: den Schlüssel jedes Empfängers —
+über den Server nachgeschlagen, falls plMail keinen hat, in der WKD seiner Domain und danach auf den
+öffentlichen Schlüsselservern, die Installation und Person erlauben — und den eigenen Schlüssel des
+Absenders. Auch der `key` jedes Empfängers trägt `origin` und `originHost` (beide null beim eigenen
+Schlüssel der Person, was `own: true` schon sagt); zeig an, woher ein Schlüssel kam, wie die Web-App,
+denn ein Schlüssel von einem Schlüsselserver heißt nur, dass jemand dem Server die Adresse bestätigt
+hat. Verschlüssele, wenn alle Empfänger einen Schlüssel haben, wie die Web-App.
+
+**Senden.** Bau die MIME-Nachricht selbst, verschlüssele sie an alle Empfänger **und den Absender**
+(oder signiere sie), lade sie hoch und importiere sie mit `Email/import` und
+`keywords: {"$draft": true}`. Für eine verschlüsselte Nachricht gib `fingerprints` mit — die
+primären Fingerprints der Empfänger-Schlüssel (und deines eigenen), an die du verschlüsselt hast —
+und `signer`; der Import wird mit `forbidden` abgelehnt, wenn das nicht für jeden Empfänger der
+aktuelle Schlüssel ist. Dann sendet `EmailSubmission/set`: Der Server schreibt die äußeren Header aus
+der Nachricht und legt deine Content-*-Header und den Body **Byte für Byte** auf die Leitung, damit
+eine Signatur darüber hält. Dieselbe Prüfung läuft beim Versand noch einmal; änderst du die
+Empfänger, wird nicht gesendet. Rückgängig und geplanter Versand funktionieren wie bei jeder
+Submission.
+
+**S/MIME.** `Keyring/get` liefert außerdem `smimeCertificates: [{id, userKeyId, fingerprint,
+certificate, chain, privateKey, addresses, subject, issuer, notBefore, notAfter, status}]`: die
+eigenen Zertifikate der Person (PEM) mit ihren privaten PKCS#8-Schlüsseln, jeweils direkt unter dem
+User-Key `userKeyId` verpackt, mit `purposes.smimeKey`. `status` ist `active` oder `retired` (durch ein
+neueres Zertifikat ersetzt; damit entschlüsseln, nie damit signieren oder verschlüsseln).
+`ContactKey/lookup` antwortet für jeden Empfänger mit `smime: {fingerprint, certificate, verified,
+notAfter}` oder null — dem aktuellen, nicht abgelaufenen Zertifikat des Kontakts oder dem eigenen für
+die eigenen Adressen — und für den Absender mit `smime`, dem Fingerabdruck des Zertifikats für die
+Absenderadresse. Die Web-App verschlüsselt mit OpenPGP, wenn jeder Empfänger einen `key` hat, sonst mit
+S/MIME, wenn jeder Empfänger `smime` hat, der Absender eines hat und es kein Bcc gibt; mach es genauso.
+Ein S/MIME-`Email/import` wird an seinem Content-Type erkannt (`application/pkcs7-mime;
+smime-type=enveloped-data` oder `multipart/signed` mit `application/pkcs7-signature`): Gib in
+`fingerprints` die SHA-256-Fingerabdrücke der Zertifikate an, an die du verschlüsselt hast, und in
+`signer` den Fingerabdruck des Absender-Zertifikats — ein signierter oder verschlüsselter
+S/MIME-Import wird mit `forbidden` abgelehnt, wenn das nicht das aktive, nicht abgelaufene Zertifikat
+der Person für die Absenderadresse ist. Verschlüssele mit AES-256-CBC und RSA-Schlüsseltransport mit
+PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer, und signiere mit SHA-256 — so lesen es
+Outlook und Thunderbird.
+
+**Web Key Directory.** `Keyring/get` liefert außerdem `wkd: [{email, state, published, fingerprint,
+urls: {advanced, direct}}]` — die Adressen der Person auf den Domains, für die die Installation
+Schlüssel veröffentlicht, und was ihr Web Key Directory für jede tut. `state` ist `published`,
+`switched_off`, `no_key` oder `not_sign_in_address` (veröffentlicht wird immer nur die
+Anmeldeadresse); `fingerprint` ist der Schlüssel, der ausgeliefert wird oder würde. Leer, wenn die
+Installation keine Schlüssel veröffentlicht. Das Veröffentlichen schaltet die Web-App um
+(Einstellungen → Verschlüsselung); eine JMAP-Methode dafür gibt es nicht.
+
+**Verschlüsselte Betreffs (RFC 9788). Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
+verschlüsselte Entität, markiert mit `protected-headers="v1"`, und schickt außen `...` als Betreff.
+Lies nach dem Entschlüsseln den inneren `Subject` und zeig ihn statt eines äußeren `...` (oder
+`[...]`); fülle damit den Betreff einer Antwort. Beim Senden genauso: die inneren Header in deiner
+Entität, `Subject: ...` auf der Nachricht, die du importierst.
+
+**Konten, die entschlüsselte Mails behalten.** Ist `keepsDecryptedMail` true, arbeite
+`DecryptedMail/pending` ab (`{accountId, limit}` → `ids`): Lade den Blob jeder Email, entschlüssele,
+lade die **innere MIME-Nachricht als Ganzes** hoch und übergib sie mit `DecryptedMail/store`
+(`{accountId, emails: {emailId: blobId}}` → `stored`, `notStored`). Der Server zerlegt und bereinigt
+sie selbst; Suche, Pakete, Termine und Regeln funktionieren dann mit ihr.
+
+**Nicht** entschlüsselten Text anderswohin schicken, unverschlüsselt auf der Platte zwischenspeichern
+oder den Text einer verschlüsselten Nachricht in einer Benachrichtigung zeigen („Verschlüsselte
+Nachricht“ ist alles, außer bei `decryptedOnServer`). Antwortet das App-Passwort mit 401, lösch die
+Schlüssel mit.
 
 ### Blobs: hochladen und herunterladen
 
@@ -1507,10 +1728,12 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Schreiben**
 - Verfassen, antworten, allen antworten, weiterleiten. Formatierter Text.
-- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet; frag
-  `Contact/autocomplete` unter `urn:plmail:params:jmap:contacts` — der Server reiht über das ganze
-  Adressbuch und schlägt damit jeden lokalen Cache. Das Adressbuch des Betriebssystems bleibt eine
-  sinnvolle *Ergänzung* für Menschen, denen der Nutzer noch nie geschrieben hat).
+- Autovervollständigung von Kontakten (serverseitig aus synchronisierter Mail geerntet, dazu jedes
+  CardDAV-Adressbuch, das der Nutzer spiegelt; frag `Contact/autocomplete` unter
+  `urn:plmail:params:jmap:contacts` — der Server reiht über das ganze Adressbuch und schlägt damit
+  jeden lokalen Cache. Das Adressbuch des Betriebssystems bleibt eine sinnvolle *Ergänzung* für
+  Menschen, denen der Nutzer noch nie geschrieben und die er in kein gespiegeltes Buch eingetragen
+  hat).
 - Senden aus jedem Konto **und jedem sendefähigen Alias** — zeig immer die Von-Auswahl.
 - Automatisches Speichern von Entwürfen.
 - Senden rückgängig machen (bei JMAP clientseitig; siehe oben).

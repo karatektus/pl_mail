@@ -182,6 +182,54 @@ final class ThreadMoveTest extends KernelTestCase
     }
 
     /**
+     * Trashing a conversation that is partly in the bin already moves only the
+     * part that is not.
+     *
+     * The shape is common: a message is deleted, a reply arrives in the Inbox,
+     * and the whole conversation is trashed. The binned message used to be
+     * queued too, as a move from Trash into Trash, which the server refuses
+     * (#269) — and its UID was cleared on the way, though the message never
+     * left the folder that issued it.
+     */
+    public function testTrashingAThreadLeavesTheMessageAlreadyInTheBinWhereItIs(): void
+    {
+        $inbox        = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
+        $trash        = $this->labelResolver->systemLabel(LabelRole::Trash, $this->account);
+        $trashMailbox = $this->seedMailbox('Trash');
+
+        $this->labelResolver->bindMailbox($inbox, $this->inboxMailbox);
+        $this->labelResolver->bindMailbox($trash, $trashMailbox);
+
+        $thread = $this->thread();
+        $reply  = $thread->messages->first();
+        $reply->addLabel($inbox);
+
+        $binned = $this->message('Already deleted');
+        $binned->relocateTo($trashMailbox, 4242);
+        $binned->addLabel($trash);
+        $thread->addMessage($binned);
+        $this->em->persist($binned);
+        $this->em->flush();
+
+        $this->status->trash([$reply, $binned]);
+
+        $queued = [];
+
+        foreach ($this->dispatched() as $job) {
+            if ('trash' === $job->action) {
+                array_push($queued, ...array_keys($job->messageIds));
+            }
+        }
+
+        self::assertContains((int) $reply->id, $queued, 'the Inbox message was not sent to the bin');
+        self::assertNotContains((int) $binned->id, $queued, 'a message already in the bin was queued to move into it');
+        self::assertSame($trashMailbox, $binned->mailbox);
+        self::assertSame(4242, $binned->imapUid, 'the binned message lost a UID that was still its address');
+        self::assertTrue($binned->labels->contains($trash), 'the binned message lost its Trash label');
+        self::assertSame($trashMailbox, $reply->mailbox, 'the Inbox message was not re-pointed at the bin');
+    }
+
+    /**
      * The reason MessageThread::$categoryPinnedAt exists.
      *
      * recordActivity() is the arrival path — it is what adopts a new message's

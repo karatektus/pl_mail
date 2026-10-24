@@ -23,14 +23,14 @@ use Webklex\PHPIMAP\Query\WhereQuery;
  */
 final class FakeImportClient extends Client
 {
-    /** @var array<int, Message|\Throwable> UID => the message, or what building it throws */
+    /** @var array<int, Message|\Throwable|string> UID => the message, what building it throws, or FakeQuery::NEVER_RETURNED */
     public array $script = [];
 
     /** @var list<list<int>> the UIDs asked for by name, one entry per page fetched */
     public array $fetched = [];
 
     /**
-     * @param array<int, Message|\Throwable> $script
+     * @param array<int, Message|\Throwable|string> $script
      */
     public static function holding(array $script): self
     {
@@ -71,10 +71,17 @@ final class FakeImportClient extends Client
         };
     }
 
+    /** What every page fetch throws, when set. See FakeQuery::$pageFailure. */
+    public ?\Throwable $pageFailure = null;
+
     public function query(): WhereQuery
     {
-        return FakeQuery::finding($this->script, function (array $uids): void {
+        $query = FakeQuery::finding($this->script, function (array $uids): void {
             $this->fetched[] = $uids;
         });
+
+        $query->pageFailure = $this->pageFailure;
+
+        return $query;
     }
 }

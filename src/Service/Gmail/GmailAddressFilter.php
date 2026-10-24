@@ -13,15 +13,16 @@ use App\Entity\Mail\Account;
  *   1. Lowercase the entire address.
  *   2. Strip the +tag suffix from the local part  (foo+bar@gmail.com → foo).
  *   3. Remove all dots from the local part        (f.o.o@gmail.com  → foo).
+ *   4. Read googlemail.com as gmail.com           (foo@googlemail.com → foo@gmail.com).
  *
  * After normalisation karatektus@gmail.com, kara.te.ktus@gmail.com and
  * karatektus+newsletter@gmail.com all reduce to the same canonical form.
  *
  * Entry points:
  *
- *   resolveReceivedAccount() — attribution for received mail on a Gmailify
- *                              carrier (carrier vs sibling accounts).
- *   isAddressedToAccount()   — received mail without Gmailify attribution.
+ *   resolveReceivedAccount() — attribution for received mail, Gmailify on or
+ *                              off (carrier vs sibling accounts).
+ *   isAddressedToAccount()   — whether the headers name this account at all.
  *   isSentByAccount()        — sent mail (SENT label): checks From.
  */
 final class GmailAddressFilter
@@ -90,8 +91,9 @@ final class GmailAddressFilter
     /**
      * Returns true when at least one Delivered-To (or, as a fallback, To)
      * address in the headers normalises to the same canonical form as
-     * $account. Used for received mail when Gmailify attribution is off —
-     * only the carrier's own mail is considered then.
+     * $account. Not attribution: with Gmailify off, received mail is still
+     * attributed by resolveReceivedAccount(), because Gmail's own
+     * Delivered-To stamp on collected mail would pass this test.
      *
      * @param array<string,string> $headers  lower-cased header name → value
      */
@@ -170,6 +172,14 @@ final class GmailAddressFilter
 
         $local  = substr($raw, 0, $atPos);
         $domain = substr($raw, $atPos + 1);
+
+        // One mailbox, two spellings: Gmail delivers to name@googlemail.com
+        // and name@gmail.com alike, and accounts from where the googlemail
+        // domain was the only one still receive on it. Compared as different
+        // addresses, mail to the old spelling belonged to nobody (#90).
+        if ('googlemail.com' === $domain) {
+            $domain = 'gmail.com';
+        }
 
         // Strip +tag
         $plusPos = strpos($local, '+');

@@ -21,8 +21,8 @@ services:
 
 `SERVER_NAME` defaults to `localhost, :443, php:80`, and Caddy inside the container decides from that name
 whether to terminate TLS itself. `:80` tells it not to. Publish only the HTTP port then — `HTTP_PORT`
-maps the host port to container port 80 — and let the proxy reach it. `truenas.compose.yaml` does
-exactly this and publishes `30080`.
+maps the host port to container port 80 — and let the proxy reach it. The TrueNAS app does exactly
+this.
 
 The other half is telling the app who it is:
 

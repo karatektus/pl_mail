@@ -230,7 +230,10 @@ final class TypeAheadSearch
     }
 
     /**
-     * Rows to conversations: one row per thread, deleted ones dropped.
+     * Rows to conversations: one row per thread, deleted ones and spam
+     * dropped. Spam joined the bin here for the reason full search gives
+     * (MessageThreadRepository, "Spam stays in Spam", #304); the type-ahead
+     * has no `in:` to ask for either, and the search page behind it does.
      *
      * The trash filter is a second query over the forty candidates rather than
      * a NOT EXISTS inside the search, because inside it the label lookup runs
@@ -253,7 +256,7 @@ final class TypeAheadSearch
             $rows,
         )));
 
-        $trashed = array_flip($this->trashedAmong($threadIds));
+        $trashed = array_flip($this->setAsideAmong($threadIds));
 
         $hits = [];
         $seen = [];
@@ -290,7 +293,7 @@ final class TypeAheadSearch
      *
      * @return list<int>
      */
-    private function trashedAmong(array $threadIds): array
+    private function setAsideAmong(array $threadIds): array
     {
         /** @var list<int|string> $ids */
         $ids = $this->connection->fetchFirstColumn(
@@ -298,10 +301,10 @@ final class TypeAheadSearch
                 SELECT DISTINCT tl.message_thread_id
                 FROM thread_label tl
                 JOIN label l ON l.id = tl.label_id
-                WHERE tl.message_thread_id IN (:threads) AND l.role = :trash
+                WHERE tl.message_thread_id IN (:threads) AND l.role IN (:roles)
             SQL,
-            ['threads' => $threadIds, 'trash' => LabelRole::Trash->value],
-            ['threads' => ArrayParameterType::INTEGER],
+            ['threads' => $threadIds, 'roles' => [LabelRole::Trash->value, LabelRole::Spam->value]],
+            ['threads' => ArrayParameterType::INTEGER, 'roles' => ArrayParameterType::STRING],
         );
 
         return array_map(intval(...), $ids);

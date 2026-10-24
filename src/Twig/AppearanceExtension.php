@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Domain\Helper\AppIconStorage;
 use App\Entity\Embeddable\Appearance;
 use Symfony\Component\HttpFoundation\RequestStack;
 use App\Infrastructure\Event\Subscriber\AppearanceCookieSubscriber;
@@ -34,6 +35,8 @@ final class AppearanceExtension extends AbstractExtension
         // The icon URLs, spelled in one place with the drawing's version in
         // them — see LogoIcons for why every one of them carries it.
         private readonly LogoIcons          $logoIcons,
+        // The installed app's PNGs, which the user's own browser draws (#141).
+        private readonly AppIconStorage     $appIcons,
     ) {
     }
 
@@ -50,6 +53,10 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('logo_icon_url', $this->logoIcons->url(...)),
             new TwigFunction('logo_favicon_url', $this->logoIcons->faviconUrl(...)),
             new TwigFunction('logo_url', $this->logoIcons->logoUrl(...)),
+            new TwigFunction('logo_bleed_url', $this->logoIcons->bleedUrl(...)),
+            new TwigFunction('logo_manifest_url', $this->logoIcons->manifestUrl(...)),
+            new TwigFunction('logo_app_icon_url', $this->logoIcons->appIconUrl(...)),
+            new TwigFunction('app_icons', $this->appIcons(...)),
         ];
     }
 
@@ -107,5 +114,33 @@ final class AppearanceExtension extends AbstractExtension
             $this->appearance(),
             true === $user instanceof User ? $user->id : null,
         );
+    }
+
+    /**
+     * The signed-in user's installed-app icons: the key their URLs carry, and
+     * whether the PNGs for the current choice still have to be drawn (a choice
+     * made before this existed, or a deploy that changed the drawing). Null
+     * for nobody: a page without a user links the static wax seal.
+     *
+     * @return array{key: string, missing: bool}|null
+     */
+    public function appIcons(): ?array
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return null;
+        }
+
+        $appearance = $user->appearance;
+
+        return [
+            'key'     => $this->appIcons->keyFor((string) $user->id),
+            'missing' => false === $this->appIcons->has(
+                (string) $user->id,
+                LogoIcons::choice($appearance->effectiveLogoMotif(), $appearance->effectiveLogoPaint()),
+                $this->logoIcons->version(),
+            ),
+        ];
     }
 }

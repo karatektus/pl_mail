@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\DTO\Calendar\InviteParticipant;
 use App\Domain\DTO\Calendar\MessageInvite;
 use App\Domain\Enum\Calendar\EventStatus;
@@ -129,7 +130,7 @@ final class InviteReader implements ResetInterface
         }
 
         $method       = mb_strtoupper(trim((string) ($link->payload['method'] ?? '')));
-        $participants = $this->participantsOf($event, $message->account->ownedAddresses);
+        $participants = $this->participantsOf($event, OwnAddressHelper::forMessage($message));
 
         $organiser = null;
         $me        = null;

@@ -9,9 +9,11 @@ use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\OAuth\OAuthTokenManager;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Exception\RecoverableExceptionInterface;
@@ -112,7 +114,9 @@ final class GmailApiClientFailureTest extends TestCase
             $client->listLabels($this->account());
             self::fail('a 403 must not be swallowed');
         } catch (GmailThrottledException $e) {
-            self::assertNull($e->getRetryAfterSeconds());
+            // The minute the account is left alone for when Google names no
+            // time of its own — not the date read as a number.
+            self::assertSame(60, $e->getRetryAfterSeconds());
             self::assertSame(60000, $e->getRetryDelay());
         }
     }
@@ -377,7 +381,150 @@ final class GmailApiClientFailureTest extends TestCase
         $this->expectNotToPerformAssertions();
     }
 
+    // ── What a refusal teaches (#90) ─────────────────────────────────────────
+
+    /**
+     * The limit is not configured anywhere: the refusal names it, and that is
+     * where the pacer has it from.
+     */
+    public function testARefusalTellsThePacerTheLimitItWasRefusedUnder(): void
+    {
+        $pacer  = new GmailQuotaPacer(new MockClock());
+        $client = $this->clientWith($pacer, new MockResponse(json_encode($this->perUserQuotaBody(6000), JSON_THROW_ON_ERROR), ['http_code' => 403]));
+
+        self::assertSame(GmailQuotaPacer::HIGHEST_LIMIT, $pacer->limit());
+
+        try {
+            $client->listLabels($this->account());
+            self::fail('a 403 must not be swallowed');
+        } catch (GmailThrottledException) {
+        }
+
+        self::assertSame(6000, $pacer->limit());
+        self::assertSame(60, $pacer->waitSeconds($this->account()));
+    }
+
+    /**
+     * Google refusing some of a batch is the ordinary way an import meets its
+     * quota. Those ids are handed back to be asked for again and the pacer is
+     * told; nothing is thrown.
+     */
+    public function testARefusedPartOfABatchIsHandedBackAndReportedToThePacer(): void
+    {
+        $refusal = json_encode($this->perUserQuotaBody(6000), JSON_THROW_ON_ERROR);
+
+        $body = implode("\r\n", [
+            '--batch_x',
+            'Content-Type: application/http',
+            'Content-ID: <response-m1>',
+            '',
+            'HTTP/1.1 200 OK',
+            'Content-Type: application/json',
+            '',
+            '{"id": "m1", "labelIds": ["INBOX"]}',
+            '--batch_x',
+            'Content-Type: application/http',
+            'Content-ID: <response-m2>',
+            '',
+            'HTTP/1.1 403 Forbidden',
+            'Content-Type: application/json',
+            '',
+            $refusal,
+            '--batch_x--',
+        ]);
+
+        $pacer  = new GmailQuotaPacer(new MockClock());
+        $client = $this->clientWith($pacer, new MockResponse($body, ['http_code' => 200]));
+
+        $fetched = $client->getMessages($this->account(), ['m1', 'm2']);
+
+        self::assertSame(['m1'], array_keys($fetched['payloads']));
+        self::assertSame(['m2'], $fetched['retryable']);
+        self::assertSame([], $fetched['gone']);
+        self::assertSame(6000, $pacer->limit());
+        self::assertGreaterThan(0, $pacer->waitSeconds($this->account()));
+    }
+
+    /**
+     * Fifty messages in one request are a thousand units in one second, which
+     * Google refuses on a project allowed 6,000 a minute. They go out ten to
+     * a request, and when one request is refused the rest are not sent.
+     */
+    public function testABatchGoesOutAFewMessagesAtATimeAndStopsAtARefusal(): void
+    {
+        $requests = 0;
+        $refusal  = json_encode($this->perUserQuotaBody(6000), JSON_THROW_ON_ERROR);
+
+        $http = new MockHttpClient(function () use (&$requests, $refusal): MockResponse {
+            ++$requests;
+
+            return 2 === $requests
+                ? new MockResponse($refusal, ['http_code' => 403])
+                : new MockResponse("--batch_x\r\n--batch_x--", ['http_code' => 200]);
+        });
+
+        $tokenManager = $this->createStub(OAuthTokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturn('test-token');
+
+        $ids     = array_map(static fn (int $n): string => 'm' . $n, range(1, 35));
+        $fetched = new GmailApiClient($http, $tokenManager, new GmailQuotaPacer(new MockClock()))
+            ->getMessages($this->account(), $ids);
+
+        self::assertSame(2, $requests, 'the third and fourth requests are never made');
+        self::assertSame($ids, $fetched['retryable'], 'every id is handed back: none fetched, none lost');
+    }
+
+    /** The whole request refused is the same answer as every part refused. */
+    public function testAWhollyRefusedBatchIsHandedBackRatherThanThrown(): void
+    {
+        $pacer  = new GmailQuotaPacer(new MockClock());
+        $client = $this->clientWith($pacer, new MockResponse(json_encode($this->quotaBody('rateLimitExceeded'), JSON_THROW_ON_ERROR), ['http_code' => 403]));
+
+        $fetched = $client->getMessages($this->account(), ['m1', 'm2']);
+
+        self::assertSame([], $fetched['payloads']);
+        self::assertSame(['m1', 'm2'], $fetched['retryable']);
+        self::assertGreaterThan(0, $pacer->waitSeconds($this->account()));
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
+
+    private function clientWith(GmailQuotaPacer $pacer, MockResponse $response): GmailApiClient
+    {
+        $tokenManager = $this->createStub(OAuthTokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturn('test-token');
+
+        return new GmailApiClient(new MockHttpClient($response), $tokenManager, $pacer);
+    }
+
+    /**
+     * A per-user quota refusal as Google sends it, with the ErrorInfo detail
+     * that names the limit and its value.
+     *
+     * @return array<string,mixed>
+     */
+    private function perUserQuotaBody(int $limit): array
+    {
+        return [
+            'error' => [
+                'code'    => 403,
+                'errors'  => [['reason' => 'rateLimitExceeded', 'message' => 'Quota exceeded']],
+                'message' => "Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user' of service 'gmail.googleapis.com'.",
+                'status'  => 'RESOURCE_EXHAUSTED',
+                'details' => [[
+                    '@type'    => 'type.googleapis.com/google.rpc.ErrorInfo',
+                    'reason'   => 'RATE_LIMIT_EXCEEDED',
+                    'domain'   => 'googleapis.com',
+                    'metadata' => [
+                        'quota_limit'       => 'defaultPerMinutePerUser',
+                        'quota_limit_value' => (string) $limit,
+                        'quota_metric'      => 'gmail.googleapis.com/default',
+                        'service'           => 'gmail.googleapis.com',
+                    ],
+                ]],
+            ],
+        ];
+    }
 
     /**
      * @param array<string,mixed>|null $json     decoded body, or null to send $raw verbatim

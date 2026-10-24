@@ -9,7 +9,6 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
@@ -63,14 +62,12 @@ class AccountType extends AbstractType
                 'label'       => 'Email address',
                 'constraints' => [new NotBlank()],
             ])
-            ->add('password', PasswordType::class, [
+            ->add('password', SecretType::class, [
                 'attr' => [
                     'placeholder' => '••••••••',
                     'class' => 'form-input',
-                    'autocomplete' => 'new-password',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
                 'label' => 'Password',
-                'always_empty' => true,
                 'required' => $options['require_password'],
             ])
             ->add('imapHost', TextType::class, [
@@ -145,14 +142,12 @@ class AccountType extends AbstractType
                 'required' => false,
                 'label'    => 'account.form.smtp.separate',
             ])
-            ->add('smtpPassword', PasswordType::class, [
+            ->add('smtpPassword', SecretType::class, [
                 'attr' => [
                     'placeholder'  => '••••••••',
                     'class'        => 'form-input',
-                    'autocomplete' => 'new-password',
-                ] + PasswordManagerIgnore::SECRET,
+                ],
                 'label'        => 'account.form.smtp.password',
-                'always_empty' => true,
                 'required'     => false,
             ]);
 

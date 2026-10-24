@@ -14,7 +14,7 @@ import { ajaxPost, seed } from "./support/config";
 const STRIP = 'nav a[href*="tab="]';
 
 async function setTabs(page: Page, option: "Tabs" | "One list"): Promise<void> {
-    await page.goto("/settings?section=general");
+    await page.goto("/settings?section=categories");
 
     const group = page.getByRole("radiogroup", { name: "Inbox tabs" });
 
@@ -22,7 +22,7 @@ async function setTabs(page: Page, option: "Tabs" | "One list"): Promise<void> {
     // The control submits on change and comes back to this page.
     if (false === (await group.getByRole("radio", { name: option, exact: true }).isChecked())) {
         await Promise.all([
-            page.waitForURL(/section=general/),
+            page.waitForURL(/section=categories/),
             group.getByText(option, { exact: true }).click(),
         ]);
     }

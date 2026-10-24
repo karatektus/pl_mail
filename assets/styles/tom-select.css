@@ -291,6 +291,16 @@
     max-width: none;
 }
 
+/* The chip's text gives way, not its ×. Overflow on the chip itself cut
+ * from the right, and the × is the rightmost thing in it. The label is
+ * compose_controller's (see _renderAddressFields); a chip without one keeps
+ * the old behaviour. */
+.ts-control .item .ts-item-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* × remove button — per chip (remove_button plugin) */
 .ts-control .item .remove {
     display: inline-flex;
@@ -549,11 +559,27 @@
 }
 
 /* ── No results ──────────────────────────────────────────────────────── */
+/* .no-results is the autocomplete bundle's own row, and the one actually
+ * drawn: it replaces the renderers a field passes (see compose_controller's
+ * _renderAddressFields). */
+.ts-dropdown .no-results,
 .ts-no-results {
     padding: 10px 14px;
     font-size: 0.8125rem;
     color: rgb(var(--rgb-ink-faint));
     text-align: center;
+}
+
+/* The bundle's paging rows. A suggestion list is eight rows at most, so
+ * "No more results" under every one of them said nothing. */
+.ts-dropdown .no-more-results {
+    display: none;
+}
+
+.ts-dropdown .loading-more-results {
+    padding: 7px 14px;
+    font-size: 0.8125rem;
+    color: rgb(var(--rgb-ink-faint));
 }
 
 /* ── Thin scrollbar ──────────────────────────────────────────────────── */

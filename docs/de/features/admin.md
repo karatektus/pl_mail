@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:bdcf84527dd58c67dc64ef2545d3631a9fce5354 -->
+<!-- translated-from: features/admin.md sha1:4865212012d4cf6a29e0240502f77ebd35946462 -->
 
 # Administration
 
@@ -26,6 +26,11 @@ describe` zurück, und wo niemand die Antwort kennt, fehlt der Chip ganz, statt 
 
 Zwei Images können sich beide `main` nennen, und darum steht der Commit neben dem Namen und
 nicht an seiner Stelle.
+
+Ein Klick auf den Chip kopiert beides, Namen und Commit mit einem Leerzeichen dazwischen
+(`milestone-v0.4.0 0805208`), bereit für einen Fehlerbericht oder einen Deploy-Befehl; sein
+Zwischenablage-Symbol wird dabei zu einem Haken. Das geht auch auf dem Handy und auf einer
+Instanz, die nur über HTTP erreichbar ist.
 
 ## System
 
@@ -333,8 +338,8 @@ den erledigten Stapel ab; der Knopf erscheint nur, wenn etwas darin liegt, und n
 
 ## Integrationen
 
-Zwei Dinge wohnen hier: welche Dateidienste diese Installation anbietet, und die
-OAuth-Anwendungen, über die Menschen sich bei ihrer Mail anmelden.
+Drei Dinge wohnen hier: welche Dateidienste diese Installation anbietet, die Serveradresse für
+ihre Kalenderdienste, und die OAuth-Anwendungen, über die Menschen sich bei ihrer Mail anmelden.
 
 **Mail-Anmeldung** hält Client-ID und Client-Secret von Google und Microsoft, den
 Microsoft-Tenant und für Gmail das Pub/Sub-Topic und das Push-Verifizierungstoken. Lässt du
@@ -356,6 +361,26 @@ hat:
   Einfügen in die Konsole des Anbieters.
 - **Serveradresse**, bei den selbst gehosteten. Lass sie leer, und jede Person trägt ihre eigene
   ein; setze sie, und alle sind an diesen Server gebunden.
+
+**Kalender** listet CalDAV und Kalender-Feeds unter den Dateidiensten auf, mit derselben Zeile und
+demselben Formular hinter **Konfigurieren**. Beide stehen allen zur Verfügung, gleich was hier
+eingestellt ist, darum steht in der Zeile **Für alle verfügbar**, und das Formular hat keinen
+Schalter. Nextcloud steht dort nicht ein zweites Mal: Es wird einmal bei den Dateidiensten
+eingerichtet, und seine Kalender nutzen diese Adresse.
+
+- **CalDAV** hat die eine Einstellung, die der Einrichtungsassistent womöglich schon geschrieben
+  hat: **Serveradresse**. Setze sie, und jede CalDAV-Verbindung findet ihre Kalender auf diesem
+  Server; leere sie, und es gilt wieder die eigene Adresse jeder Person. Eine Änderung greift, wenn
+  auf einer Verbindung das nächste Mal Kalender gesucht werden. Bereits gespiegelte Kalender
+  behalten die Adresse, unter der sie gefunden wurden, und wer eine Adresse in einem privaten Netz
+  leert, beendet auch ihre Ausnahme von der Regel für private Netze — diese Kalender
+  synchronisieren dann nicht mehr, bis der Host in `INTEGRATIONS_ALLOWED_HOSTS` steht. Sobald sich
+  jemand verbunden hat, sagt das Formular, wie viele Verbindungen eine Änderung erreicht. Siehe
+  [CalDAV](../providers/caldav.md).
+- **Calendar feed**, der Kalender-Feed, hat keinen Server zum Festlegen, denn jeder Feed ist seine
+  eigene Adresse; seine Zeile hat darum nichts einzurichten. Nur eine Adresse, die der
+  Einrichtungsassistent früher gespeichert hat, wird angezeigt, mit **Konfigurieren**, um sie zu
+  leeren: Eine solche Adresse lässt nur Feeds auf ihrem Host an der Regel für private Netze vorbei.
 
 **Zugangsdaten von … übernehmen** kopiert für Google wie für Microsoft eine Client-ID und ein
 Secret serverseitig hinüber, ohne das Secret je anzuzeigen. Ein Google-Cloud-Projekt deckt auch
@@ -457,6 +482,23 @@ Benachrichtigungen**: jedes registrierte Gerät mit Transportweg, ob der Verifik
 abgeschlossen ist, und seiner letzten Zustellung.
 
 Aufbewahrt wird 30 Tage, nächtlich weggeräumt von `app:monitoring:prune`; `--push-days=N` ändert das.
+
+## SSO
+
+Single Sign-on: der OpenID-Connect-Anbieter, über den sich Menschen bei plMail anmelden — Authentik,
+Keycloak, Authelia und ähnliche. Ein Formular: der Issuer, die Client-ID und das Client-Secret aus
+der Konsole des Anbieters, der Name, den der Login-Button trägt, und zwei Schalter dafür, wie Konten
+zugeordnet werden. Die Seite zeigt die Redirect-URI, die du beim Anbieter einträgst, und einen Chip,
+der sagt, ob die Anmeldung **An**, **An, aus der Umgebung** oder **Aus** ist.
+
+Speichern gilt sofort. Das Client-Secret ist nur schreibbar, wie alle Zugangsdaten in diesem
+Bereich: Das Feld zeigt ein gespeichertes nie an, und ein leeres Feld behält es. Die Einrichtung
+Schritt für Schritt, was jeder Schalter tut, und die `OIDC_*`-Variablen, die einspringen, wenn hier
+nichts gespeichert ist, stehen unter [Single Sign-on](../providers/oidc.md).
+
+**Das ist die eine Admin-Seite, die entscheidet, wer sich anmelden kann.** Wer sie speichern kann,
+kann plMail auf einen eigenen Anbieter zeigen lassen und sich als jedes Konto anmelden, das keinen
+zweiten Faktor hat — lies die Seite oben, bevor du Admin-Konten vergibst.
 
 ## KI
 
@@ -621,7 +663,7 @@ Speicher und der Klick hat nichts gebracht. Praktisch nach einem Neustart — un
 was ein kalter Ladevorgang auf deiner Hardware wirklich kostet, bevor du entscheidest, wie lange du
 das Modell hältst.
 
-### Die vier Funktionen sind einzeln schaltbar
+### Die fünf Funktionen sind einzeln schaltbar
 
 Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn das Modell danebenliegt.
 
@@ -631,6 +673,7 @@ Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn
 | **Mail in Tabs einsortieren** | Setzt eine Kategorie, wenn keine Regel gegriffen hat | Bei jeder eingehenden Nachricht |
 | **Beim Schreiben helfen** | Bietet Entwürfe und Umformulierungen im Editor an | Nur wenn du fragst |
 | **Konversationen zusammenfassen** | Schreibt einen kurzen Abriss eines langen Gesprächs | Nur wenn jemand darum bittet |
+| **Kontakthilfe** | Liest einen Kontakt aus eingefügtem Text und schlägt Änderungen an einem Kontakt anhand der Signatur seiner letzten Mail vor | Nur wenn jemand auf **Mit KI verbessern** klickt |
 
 Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsichtigt. Es kann immer nur
 den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
@@ -657,13 +700,20 @@ Zwei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg st
 
 Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
 
-Zusammenfassungen sind die teuerste der vier. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
+Zusammenfassungen sind die teuerste der fünf. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
 Gespräch ist eine deutlich größere Eingabe als ein Entwurf: Auf einem 30B-Modell mit einer GPU
 rechne mit rund einer Minute für die erste Zusammenfassung nach einer ruhigen Phase und etwa der
 Hälfte, solange das Modell warm ist. Die GPU ist die ganze Zeit belegt, auf einer geteilten Maschine
 merken das also alle. Von allein wird nie etwas zusammengefasst — keine eingehende Nachricht, kein
 nächtlicher Durchlauf — und eine geschriebene Zusammenfassung wird aufbewahrt und wieder angezeigt,
 das zweite Öffnen derselben Konversation kostet also nichts.
+
+Die Kontakthilfe schickt Text über andere Menschen: was jemand in einen neuen Kontakt eingefügt hat,
+oder einen gespeicherten Kontakt zusammen mit dem Signaturblock der neuesten Mail, die dieser Kontakt
+geschickt hat — der Teil unter `-- ` oder unter der Grußformel („Viele Grüße“), nie der Text der Mail.
+Eine Mail mit keinem von beiden schickt nichts aus dieser Mail. Nichts, was sie vorschlägt, wird
+gespeichert, bevor die Person es anhakt und den Kontakt speichert. Ohne sie funktioniert das Einfügen
+trotzdem: plMail liest den Text nach Regeln, nur der Knopf, der das Modell fragt, fällt weg.
 
 ### Suchen nach Bedeutung braucht einmal einen Durchlauf
 
@@ -738,8 +788,10 @@ Admin-Sitzung darf kein zweiter Weg in jedes Postfach dieser Installation werden
 
 - **Das Passwort eines bestehenden Benutzers ändern.** Das Feld gibt es beim Anlegen und nicht
   beim Bearbeiten. Wer sich noch nie angemeldet hat, hat keine Mail, sein erstes Passwort zu
-  setzen gibt also nichts preis; es danach zu ändern schon. Ein vergessenes Passwort setzt du
-  mit `app:user:password` auf der Konsole zurück.
+  setzen gibt also nichts preis; es danach zu ändern schon. Und selbst das erste gilt nur
+  einmal: Bei der ersten Anmeldung muss die Person ein eigenes wählen, das von dir getippte ist
+  danach kein Weg mehr hinein. Ein vergessenes Passwort setzt du mit `app:user:password` auf der
+  Konsole zurück; auch das ergibt ein solches Einmal-Passwort.
 - **Jemandem den zweiten Faktor abnehmen.** Das ist `app:user:2fa-disable` auf der Konsole, und
   nur dort.
 - **Die Mail von irgendjemandem lesen.** Nichts in diesem Bereich fasst ein Konto oder eine

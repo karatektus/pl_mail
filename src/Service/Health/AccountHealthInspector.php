@@ -463,6 +463,41 @@ final readonly class AccountHealthInspector
     }
 
     /**
+     * An account whose grant predates contact sync: everything else works,
+     * and one reconnect brings its contacts. The same repair as the scope
+     * card, which asks for everything scopes() lists — contacts included.
+     */
+    private function contactsPermission(Account $account): HealthIssue
+    {
+        $providerLabel = $this->providerLabel($account);
+
+        return new HealthIssue(
+            id: 'account-contacts-scope-' . $account->id,
+            kind: HealthIssueKind::AccountContactsScopeMissing,
+            severity: HealthSeverity::Notice,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: ['%account%' => $account->email],
+            repairs: [
+                new HealthRepair(
+                    route: 'app_health_reconnect',
+                    routeParams: ['id' => $account->id],
+                    labelKey: 'settings.health.repair.grant_contacts.label',
+                    promiseKey: 'settings.health.repair.grant_contacts.promise',
+                    promiseParams: ['%account%' => $account->email],
+                    pendingKey: null !== $providerLabel
+                        ? 'settings.health.pending.reconnect'
+                        : 'settings.health.pending.reconnect_generic',
+                    pendingParams: null !== $providerLabel
+                        ? ['%provider%' => $providerLabel]
+                        : [],
+                ),
+            ],
+            detail: $account->oauthGrantedScopes,
+        );
+    }
+
+    /**
      * The account connected, and without the calendar permission it asked for.
      *
      * Ranked BELOW accountGrant() and that order matters: a dead refresh token
@@ -511,6 +546,14 @@ final readonly class AccountHealthInspector
         // if something tries to write. Somebody looking at three broken
         // calendars right now had the evidence on screen and nothing read it.
         $missing = $provider->missingScopes($account->oauthGrantedScopes);
+
+        // Contacts were added to the grant after these accounts existed (see
+        // MailProvider::contactScopes()). A grant missing only those has not
+        // refused anything — it predates the question — and gets its own,
+        // quieter card instead of this one.
+        if (null !== $missing && [] !== $missing && [] === array_diff($missing, $provider->contactScopes())) {
+            return $this->contactsPermission($account);
+        }
 
         // A KNOWN-GOOD GRANT ENDS THE QUESTION.
         //

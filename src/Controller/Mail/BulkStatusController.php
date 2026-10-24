@@ -8,13 +8,15 @@ use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\AllMailView;
+use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
@@ -91,6 +93,8 @@ final class BulkStatusController extends AbstractController
         private readonly StatusUndoService       $undo,
         private readonly MessagePurger           $purger,
         private readonly MailPlacement           $placement,
+        private readonly InboxTabs               $inboxTabs,
+        private readonly InboxCategoryRepository $inboxCategories,
     ) {
     }
 
@@ -129,6 +133,14 @@ final class BulkStatusController extends AbstractController
 
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
+
+        // Started from All Mail (LabelRole::AllMail): archived or snoozed, a
+        // conversation is still in that list, so its row is redrawn rather
+        // than taken away — and drawn with the account dot only in the list
+        // across every account. Presentation only; every thread below is
+        // authorised on its own.
+        $fromAllMail = AllMailView::names((string) ($body['scope'] ?? ''));
+        $unifiedRows = false === $fromAllMail || AllMailView::isUnified((string) ($body['value'] ?? ''));
 
         // Only a drag posts move, label, category or star, and a drag carries
         // the rows it picked up. There is no "select every conversation in this view and
@@ -211,10 +223,13 @@ final class BulkStatusController extends AbstractController
         $destination = null;
 
         if ('category' === $action) {
-            $category = MessageCategory::tryFrom((string) ($body['category'] ?? ''));
+            // Resolved against THIS reader's own tabs as well as the five, and
+            // a key that is somebody else's category is refused exactly like a
+            // made-up one: see InboxTabs::resolve().
+            $category = $this->inboxTabs->resolve($user, (string) ($body['category'] ?? ''));
 
-            // tryFrom and a refusal, where MailController falls back to Primary
-            // on the same input. The difference is what the two are: `?tab=` is
+            // A refusal, where MailController falls back to Primary on the same
+            // input. The difference is what the two are: `?tab=` is
             // a URL somebody may have mistyped, and showing them the inbox is
             // the kind answer. This is a write, and "filed it under Primary
             // because I did not recognise what you asked for" is not something
@@ -368,7 +383,8 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
-                'leaves'  => true,
+                'unified' => $unifiedRows,
+                'leaves'  => false === $fromAllMail,
             ]);
         }
 
@@ -385,6 +401,7 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
+                'unified' => $unifiedRows,
                 'leaves'  => false,
             ]);
         }
@@ -397,8 +414,18 @@ final class BulkStatusController extends AbstractController
         // strip counts — so this one is applied to the threads directly and
         // returns before the grouping it has no use for.
         if ('category' === $action) {
+            // The entity for one of the reader's own tabs, the enum for a
+            // built-in one: setCategory() writes whichever column it names.
+            $target = true === $category->isCustom()
+                ? $this->inboxCategories->find((int) $category->categoryId)
+                : $category->builtIn;
+
+            if (null === $target) {
+                throw $this->createAccessDeniedException('Unknown inbox category.');
+            }
+
             foreach ($threads as $thread) {
-                $this->status->setCategory($thread, $category);
+                $this->status->setCategory($thread, $target);
             }
 
             return $this->renderTurboStream('thread/status/_category.stream.html.twig', [
@@ -516,11 +543,13 @@ final class BulkStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
             'count'   => count($threads),
             'threads' => $threads,
+            'unified' => $unifiedRows,
             // Whether the conversation is still in the list it was acted on
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
-            // it draws.
-            'leaves'    => 'read' !== $action,
+            // it draws. All Mail holds archived mail too, so archiving there
+            // leaves it in place.
+            'leaves'    => 'read' !== $action && false === ('archive' === $action && $fromAllMail),
             'undoToken' => $undoToken,
             'undoToast' => 'toast.archived',
         ]);

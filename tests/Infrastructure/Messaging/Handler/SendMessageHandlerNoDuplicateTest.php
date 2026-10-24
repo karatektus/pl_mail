@@ -16,13 +16,19 @@ use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SendingKey;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
+use App\Service\Mail\RawMessageResolver;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -123,6 +129,12 @@ final class SendMessageHandlerNoDuplicateTest extends KernelTestCase
             $container->get(MailChangeRecorder::class),
             $container->get(MessageThreader::class),
             $container->get(ThreadLabelSynchronizer::class),
+            $container->get(SealGuard::class),
+            $container->get(SealedDrafts::class),
+            $container->get(AutocryptHeader::class),
+            $container->get(SendingKey::class),
+            $container->get(RawMessageResolver::class),
+            $container->get(DraftAttachmentService::class),
         );
 
         return new SendMessageHandler(

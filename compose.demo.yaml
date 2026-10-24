@@ -1,80 +1,21 @@
-# A public demo, on top of the published image.
-#
-#   SERVER_NAME=demo.example.com \
-#   docker compose -f compose.yaml -f compose.demo.yaml up -d --wait
-#
-# Layers over compose.yaml, not over compose.prod.yaml: that one builds the
-# image from source, and a demo has no reason to. Everything here is either the
-# demo switch or a consequence of it.
-#
-# APP_DEMO_MODE is hardcoded rather than interpolated, and that is the whole
-# reason this file exists instead of a line in a README. `docker compose` reads
-# the `.env` beside it — Symfony's, committed — and that file says
-# APP_DEMO_MODE=0. A `${APP_DEMO_MODE:-1}` here would therefore resolve to 0 for
-# every operator who cloned the repo, and the stack would come up looking
-# perfectly healthy and not be a demo at all: no /demo route, no button, and
-# real IMAP sync attempts against accounts pointing at example.com. That is the
-# same trap APP_ENV fell into once — see ComposeEnvironmentTest, which holds
-# this file to the rule too.
-#
-# Before putting one on the internet: give it its own APP_SECRET and
-# APP_ENCRYPTION_KEY and never reuse them from an install holding real mail.
-# The encryption key is what reads mailbox passwords, and a box where anyone can
-# log in is the last place a real one should exist. Left unset, secrets-init
-# mints fresh ones into the demo's own volume, which is what you want.
-#
-# See docs/install/demo-mode.md.
+# Public demo overlay; see docs/install/demo-mode.md.
+# docker compose -f compose.yaml -f compose.demo.yaml up -d --wait
 
-# APP_ENV is spelled out beside the demo switch rather than inherited, for the
-# reason ComposeEnvironmentTest gives: a file that configures the app services
-# should say which environment it is configuring them for, so that it cannot be
-# read as "whatever the base happened to say".
 x-demo-env: &demo-env
   APP_ENV: prod
   APP_DEMO_MODE: "1"
-  # Safe to interpolate: `.env` sets exactly this value, so an operator who
-  # never heard of the variable gets the documented default either way.
   APP_DEMO_TTL: ${APP_DEMO_TTL:-PT2H}
 
-  # The legal notice. Passed through explicitly, because compose hands a
-  # container only what a service declares — putting these in an .env file
-  # makes them available for ${…} interpolation and nothing else. Without these
-  # three lines the operator sets them, restarts, and the page still says they
-  # are unset, with nothing anywhere explaining why.
-  #
-  # Empty defaults, matching the shipped .env, so the page keeps saying loudly
-  # that it has no operator until somebody gives it one.
   APP_DEMO_IMPRESSUM_NAME: ${APP_DEMO_IMPRESSUM_NAME:-}
   APP_DEMO_IMPRESSUM_ADDRESS: ${APP_DEMO_IMPRESSUM_ADDRESS:-}
   APP_DEMO_IMPRESSUM_EMAIL: ${APP_DEMO_IMPRESSUM_EMAIL:-}
   APP_DEMO_PRIVACY_HOST: ${APP_DEMO_PRIVACY_HOST:-}
 
 services:
-  # Serves /demo, provisions visitors and renders the demo bar.
   php:
     environment:
       <<: *demo-env
 
-  # Every background process but one, and each is needed:
-  #
-  #   - worker-ingest delivers the scripted mail the Receive button asks for,
-  #     and the auto-reply to anything a visitor sends. Without it the button
-  #     appears to do nothing: the job is queued and never handled.
-  #   - worker-export: nothing outbound leaves a demo (DemoMailSender swallows
-  #     it), but a send still travels through this queue, so without it Send
-  #     sits pending.
-  #   - worker-bulk: a demo's mailboxes are small, so a bulk action is quick,
-  #     but without the consumer its indicator would sit at nothing for ever.
-  #   - the scheduler runs app:demo:reap every ten minutes. Without it expired
-  #     visitors are never deleted, and the database grows by a user, an
-  #     account, ten threads and ten contacts for everybody who followed the
-  #     link, with nothing anywhere saying so.
-  #   - the Mercure hub is what refreshes a visitor's inbox when mail arrives.
-  #
-  # The IMAP supervisor is the one left out. It holds an IDLE connection per
-  # mailbox, and a demo has no mailbox to hold one to: its accounts point at
-  # documentation domains that resolve nowhere, so it would spend the whole
-  # time failing to connect and backing off.
   worker:
     command: php bin/console app:work --without=imap-supervisor
     environment:

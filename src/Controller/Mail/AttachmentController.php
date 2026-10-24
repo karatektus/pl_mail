@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Domain\Helper\InlineDisposition;
+use App\Domain\Helper\MediaAttachment;
 use App\Domain\Helper\PdfAttachment;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
@@ -27,21 +28,24 @@ final class AttachmentController extends AbstractController
     ) {}
 
     /**
-     * The reader for a PDF attachment, rendered into the modal frame.
+     * The viewer for a PDF, image or video attachment, rendered into the modal
+     * frame.
      *
      * Returns the viewer's HTML, not the document — the bytes are fetched by
-     * the browser from serve(), which is unchanged. That is the whole reason
-     * this feature needs no change to how attachments are served: `fetch()`
-     * ignores Content-Disposition, so a PDF can stay `attachment` (as
-     * InlineDisposition insists) and still be read. Widening the inline
-     * allow-list to admit application/pdf would hand mail-controlled bytes to
-     * the browser's own PDF plugin, which is precisely the "future widening is
-     * a bug" that helper's docblock warns about.
+     * the browser from serve() (PDF, image) or video(). For a PDF that is the
+     * whole reason the feature needed no change to how attachments are
+     * served: `fetch()` ignores Content-Disposition, so a PDF can stay
+     * `attachment` (as InlineDisposition insists) and still be read. Widening
+     * the inline allow-list to admit application/pdf would hand mail-controlled
+     * bytes to the browser's own PDF plugin, which is precisely the "future
+     * widening is a bug" that helper's docblock warns about. An image needs
+     * nothing new either: the types MediaAttachment offers are ones serve()
+     * already sends inline.
      *
-     * 404 rather than a refusal for a non-PDF: there is no viewer for it, so
-     * the route does not exist for that part. The chip only renders this link
-     * where attachment_is_pdf() agrees, so reaching it otherwise means somebody
-     * typed the URL.
+     * 404 rather than a refusal for anything else: there is no viewer for it,
+     * so the route does not exist for that part. The chip only renders this
+     * link where attachment_preview_kind() agrees, so reaching it otherwise
+     * means somebody typed the URL.
      *
      * Rendering PDFs in the browser rather than on the server is a standing
      * decision, not a shortcut — see AttachmentThumbnailer's docblock and the
@@ -52,11 +56,59 @@ final class AttachmentController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
-        if (false === PdfAttachment::matches($part->contentType, $part->filename)) {
+        // Ciphertext: there is nothing in it a viewer could show. See MessagePart::$sealed.
+        if (true === $part->sealed) {
             throw $this->createNotFoundException();
         }
 
-        return $this->render('mail/_attachment_preview.html.twig', ['part' => $part]);
+        if (true === PdfAttachment::matches($part->contentType, $part->filename)) {
+            return $this->render('mail/_attachment_preview.html.twig', ['part' => $part]);
+        }
+
+        $kind = MediaAttachment::kindOf($part->contentType, $part->filename);
+
+        if (null === $kind) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->render('mail/_media_preview.html.twig', ['part' => $part, 'kind' => $kind]);
+    }
+
+    /**
+     * A video attachment, served so a `<video>` can play it (#295).
+     *
+     * Its own route rather than a wider serve(): serve() labels everything off
+     * the InlineDisposition list `application/octet-stream`, and a `<video>`
+     * cannot be relied on to play bytes under that label — with nosniff the
+     * browser has every right to believe it. Widening the list instead would widen
+     * the signed `cid:` route and the sniffer with it. Here the type served is
+     * always one of MediaAttachment's four, never the sender's string, and the
+     * response carries the same nosniff and sandbox CSP serve() sends.
+     *
+     * BinaryFileResponse answers Range requests, which is what lets the player
+     * seek without fetching the whole file first.
+     */
+    #[Route('/mail/attachment/{id}/video', name: 'app_mail_attachment_video', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function video(MessagePart $part): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
+
+        $type = true === $part->sealed ? null : MediaAttachment::videoType($part->contentType, $part->filename);
+
+        if (null === $type) {
+            throw $this->createNotFoundException();
+        }
+
+        $response = new BinaryFileResponse($this->attachmentResolver->absolutePathFor($part));
+        $response->headers->set('Content-Type', $type);
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Content-Security-Policy', InlineDisposition::SANDBOX_CSP);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            InlineDisposition::headerFilename($part->filename, 'video'),
+        );
+
+        return $response;
     }
 
     /**
@@ -96,7 +148,14 @@ final class AttachmentController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
-        $contentType  = $part->contentType ?? 'application/octet-stream';
+        // A sealed part is an OpenPGP message, whatever the browser said the
+        // file was: served as what it is, and only to be downloaded. Otherwise
+        // a part labelled `application/octet-stream` or `image/octet-stream` is
+        // very often an inline image whose sender did not say so; the resolver
+        // lets the bytes decide for those labels only. See inlineTypeFor().
+        $contentType  = true === $part->sealed
+            ? 'application/octet-stream'
+            : ($this->attachmentResolver->inlineTypeFor($part, $absolutePath) ?? $part->contentType ?? 'application/octet-stream');
 
         // An allow-list, not a prefix test. `image/svg+xml` starts with
         // "image/" and executes script when loaded as a document, and the type

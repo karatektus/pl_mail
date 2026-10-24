@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\SyncTrigger;
+use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
@@ -12,6 +13,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailBackfillStep;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Graph\GraphImportStep;
 use App\Service\Imap\ImapImportOutcome;
@@ -101,6 +103,7 @@ final readonly class MailImporter
         private MessageBusInterface     $bus,
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
+        private GmailQuotaPacer         $pacer,
     ) {}
 
     /** Whether this account still has history that this class would fetch. */
@@ -162,17 +165,40 @@ final readonly class MailImporter
         $this->beat($account);
         $this->heartbeats->beatWhileBusy();
 
+        // Google is refusing this account just now — this page was, or a
+        // batch on another worker. The page is asked for again when that has
+        // cleared, which keeps the chain: it used to be retried five times a
+        // minute apart and then given up on at CRITICAL, and an import whose
+        // chain had gone that way waited for a sync to notice (#90).
+        if (true === $account->isGmail() && $this->pacer->waitSeconds($account) > 0) {
+            $this->askAgainAfterQuota($account);
+
+            return;
+        }
+
         // Imported mail is marked as such, like mail a poll brought in: it is
         // not something a person was just sent.
         $wait = false;
 
-        $this->origin->during(SyncTrigger::Poll, function () use ($account, &$wait): void {
-            $wait = match (true) {
-                $account->isGmail()     => $this->gmailPage($account),
-                $account->isMicrosoft() => GraphImportStep::Waiting === $this->graph->importPage($account),
-                default                 => $this->imapPage($account),
-            };
-        });
+        try {
+            $this->origin->during(SyncTrigger::Poll, function () use ($account, &$wait): void {
+                $wait = match (true) {
+                    $account->isGmail()     => $this->gmailPage($account),
+                    $account->isMicrosoft() => GraphImportStep::Waiting === $this->graph->importPage($account),
+                    default                 => $this->imapPage($account),
+                };
+            });
+        } catch (GmailThrottledException) {
+            // Where the listing has got to is on the account and only moves
+            // when a page goes through, so the same page is asked for again.
+            $account = $this->accounts->find($accountId);
+
+            if (null !== $account) {
+                $this->askAgainAfterQuota($account);
+            }
+
+            return;
+        }
 
         // A page clears the entity manager; this is the account as it is now.
         $account = $this->accounts->find($accountId);
@@ -201,6 +227,26 @@ final readonly class MailImporter
             new ImportMailMessage($accountId),
             true === $wait ? [new DelayStamp(self::WAIT_MS)] : [],
         );
+    }
+
+    /**
+     * The next page, delayed until Google will answer for this account again.
+     */
+    private function askAgainAfterQuota(Account $account): void
+    {
+        $seconds = max(1, $this->pacer->waitSeconds($account));
+
+        $this->bus->dispatch(
+            new ImportMailMessage((int) $account->id),
+            [new DelayStamp(1000 * $seconds)],
+        );
+
+        $this->logger->info('Import: waiting for Gmail quota', [
+            'accountId'    => $account->id,
+            'delaySeconds' => $seconds,
+            'limit'        => $this->pacer->limit(),
+            'countedWhenRefused' => $this->pacer->usedWhenRefused($account),
+        ]);
     }
 
     /** @return bool whether asking again at once would only repeat this */

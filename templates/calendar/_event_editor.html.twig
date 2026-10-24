@@ -86,7 +86,7 @@ on an empty string, and clearing the location is a thing a user may mean.
         <input type="hidden" name="date" value="{{ startsAt|date('Y-m-d', displayZone) }}">
     {% endif %}
 
-    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4 max-md:px-4">
 
         {# ── What went wrong, said once, out loud ──────────────────────────
            role="alert" is an assertive live region, so filling it announces
@@ -499,7 +499,7 @@ on an empty string, and clearing the location is a thing a user may mean.
         {% endif %}
     </div>
 
-    <div class="flex items-center gap-2 px-6 py-4 border-t border-line shrink-0">
+    <div class="flex items-center gap-2 px-6 py-4 border-t border-line shrink-0 max-md:px-4 max-md:py-3">
         {% if event %}
             {# Inside the edit form, not a form of its own, so the one
                `scope` radio group above governs the delete too — a radio

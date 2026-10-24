@@ -69,7 +69,7 @@ test.describe("returning from a thread", () => {
         });
 
         await page.waitForTimeout(1000);
-        await page.getByRole("button", { name: BACK_BUTTON }).first().click();
+        await page.getByRole("button", { name: BACK_BUTTON, exact: true }).first().click();
 
         // No polling interval is anywhere near this short, so a list that is
         // here now is here because going back rendered it.
@@ -102,7 +102,7 @@ test.describe("returning from a thread", () => {
         });
         await page.waitForTimeout(1000);
 
-        await page.getByRole("button", { name: BACK_BUTTON }).first().click();
+        await page.getByRole("button", { name: BACK_BUTTON, exact: true }).first().click();
 
         await expect(page.locator(ROWS).first()).toBeVisible({ timeout: 3000 });
 
@@ -173,7 +173,7 @@ test.describe("returning from a thread", () => {
             });
         }, id);
 
-        await page.getByRole("button", { name: BACK_BUTTON }).first().click();
+        await page.getByRole("button", { name: BACK_BUTTON, exact: true }).first().click();
 
         // Immediate: the rows are there straight away, exactly as the tests
         // above require. This is the assertion the revalidation must not cost.

@@ -29,9 +29,7 @@
 .idea/
 .vscode/
 
-# Docker override. Local by design: compose auto-loads it, so a committed one
-# would silently switch every user off the published image and onto a
-# build-from-source dev stack. Copy compose.override.yaml.dist to create it.
+# Personal compose overrides; compose auto-loads them, so they never get committed.
 compose.override.yaml
 docker-compose.override.yml
 
@@ -44,7 +42,6 @@ docker-compose.override.yml
 # would override those limits for everyone, from a file nothing points at.
 /php.ini
 
-truenas.compose.yaml.local
 
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem

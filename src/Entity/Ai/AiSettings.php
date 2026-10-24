@@ -352,6 +352,15 @@ class AiSettings
     public bool $summaryEnabled = false;
 
     /**
+     * Contact help: reading a contact out of pasted text, and suggesting fixes
+     * from the signature of somebody's latest mail. The writing model again,
+     * and its own flag because it sends text ABOUT another person to the host
+     * — see AiFeature::ContactHelp.
+     */
+    #[ORM\Column(name: 'contact_help_enabled', options: ['default' => false])]
+    public bool $contactHelpEnabled = false;
+
+    /**
      * What an administrator has typed in place of the prompts we ship.
      *
      * An embeddable rather than seven properties here, for the reason
@@ -450,7 +459,8 @@ class AiSettings
             AiFeature::Search       => $this->embeddingModel,
             AiFeature::Categorise,
             AiFeature::WritingHelp,
-            AiFeature::Summary      => $this->chatModel,
+            AiFeature::Summary,
+            AiFeature::ContactHelp  => $this->chatModel,
         };
 
         if (null === $model || '' === trim($model)) {
@@ -462,6 +472,7 @@ class AiSettings
             AiFeature::Categorise  => $this->categorisationEnabled,
             AiFeature::WritingHelp => $this->writingHelpEnabled,
             AiFeature::Summary     => $this->summaryEnabled,
+            AiFeature::ContactHelp => $this->contactHelpEnabled,
         };
     }
 
@@ -530,7 +541,8 @@ class AiSettings
             AiFeature::Search      => $this->embeddingKeepAlive,
             AiFeature::Categorise,
             AiFeature::WritingHelp,
-            AiFeature::Summary     => $this->chatKeepAlive,
+            AiFeature::Summary,
+            AiFeature::ContactHelp => $this->chatKeepAlive,
         };
     }
 }

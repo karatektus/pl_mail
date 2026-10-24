@@ -87,7 +87,9 @@ enum ClockFormat: string
     public static function forLocale(?AppLocale $locale): self
     {
         return match ($locale) {
-            AppLocale::German => self::TwentyFour,
+            AppLocale::German,
+            AppLocale::French,
+            AppLocale::SimplifiedChinese => self::TwentyFour,
             default           => self::Twelve,
         };
     }

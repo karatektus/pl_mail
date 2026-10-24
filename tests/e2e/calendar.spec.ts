@@ -457,6 +457,52 @@ test.describe("a meeting on two calendars", () => {
         await expect(meetingChips(page)).toHaveCount(1);
     });
 
+    /**
+     * The mark of a merged chip is split between its calendars' colours, and
+     * the split runs ALONG the mark. In a month cell wide enough for the title
+     * the mark stands upright and is split top to bottom; in one too narrow
+     * for words the chip is the mark alone, lying flat — and split top to
+     * bottom there it was two hairlines stacked in a bar a few pixels tall,
+     * where the two colours belong side by side. Reported from a phone-width
+     * month.
+     */
+    test("splits a flat month bar's colours side by side, an upright one's top to bottom", async ({ page }) => {
+        seed("seed-duplicate-event");
+
+        const mark = () => meetingChips(page).first().locator("span[aria-hidden='true'][style*='gradient']");
+        const split = async () =>
+            mark().evaluate((el) => {
+                const box = el.getBoundingClientRect();
+
+                return {
+                    flat: box.width > box.height,
+                    image: getComputedStyle(el).backgroundImage,
+                };
+            });
+
+        await page.setViewportSize({ width: 1400, height: 900 });
+        await page.goto("/calendar/month");
+        await expect(meetingChips(page).first()).toBeVisible();
+
+        const upright = await split();
+
+        expect(upright.flat, "beside a title the mark stands upright").toBe(false);
+        // Top to bottom is a gradient's default, and a browser reports the
+        // computed value without it — so upright is "a gradient, not to the
+        // right" rather than a literal `to bottom`.
+        expect(upright.image).toContain("linear-gradient(");
+        expect(upright.image).not.toContain("to right");
+
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto("/calendar/month");
+        await expect(mark()).toBeVisible();
+
+        const flat = await split();
+
+        expect(flat.flat, "in a cell too narrow for words the mark lies flat").toBe(true);
+        expect(flat.image).toContain("to right");
+    });
+
     test("ticks every calendar it is on, and disables the one that takes no changes", async ({ page }) => {
         seed("seed-duplicate-event --read-only");
 

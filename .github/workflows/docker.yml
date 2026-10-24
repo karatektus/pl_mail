@@ -8,15 +8,23 @@ on:
     #    deployment follows. This builds amd64 ONLY — one job — because that
     #    deployment is amd64 and the arm64 image is a release artifact nobody
     #    pulls from `main`.
+    #  - A push to a milestone branch does the same under that branch's name:
+    #    `milestone/v0.3.8` publishes `milestone-v0.3.8` (the metadata action
+    #    turns the slash into a dash) and `sha-…`, so an install can follow a
+    #    release before it reaches `main`. Never `latest` and never the
+    #    catalogue, which move on a `v*` tag alone. A push runs the workflow
+    #    file of the commit pushed, so a milestone branch publishes once `main`
+    #    with this line has been merged into it.
     #  - A `v*` tag builds the published release: amd64 + arm64, merged into one
-    #    manifest, tagged with the version, `0.0`, and `latest`.
+    #    manifest, tagged with the version, `0.0`, and `latest` — and then
+    #    publishes the GitHub Release that announces it (the `release` job).
     #
     # Pull requests are deliberately absent: e2e.yml already builds this exact
     # image to run the browser suite against, so a second build here would only
     # prove the Dockerfile compiles twice and push nothing. Use
     # workflow_dispatch to build an untagged commit by hand.
     push:
-        branches: [main]
+        branches: [main, 'milestone/**']
         tags: ['v*']
     workflow_dispatch:
 
@@ -183,3 +191,35 @@ jobs:
             - name: Inspect image
               run: |
                   docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+    # The GitHub Release of a `v*` tag, its notes cut out of CHANGELOG.md by
+    # bin/release-notes.sh. Nothing is built or attached: the image above is the
+    # release, and this is the page that announces it — releases.atom and
+    # "Watch → Releases" follow these, not tags (#226).
+    #
+    # After `merge` and not beside it, so a feed never announces a version whose
+    # image cannot be pulled yet. A failure here leaves the image published and
+    # the release missing; re-running the job creates it, and re-running it
+    # after that rewrites the notes rather than failing on an existing release.
+    release:
+        runs-on: ubuntu-latest
+        needs: merge
+        if: startsWith(github.ref, 'refs/tags/v')
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Publish the release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TAG: ${{ github.ref_name }}
+              run: |
+                  bin/release-notes.sh "$TAG" > "$RUNNER_TEMP/notes.md"
+                  if gh release view "$TAG" > /dev/null 2>&1; then
+                      gh release edit "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+                  else
+                      gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+                  fi

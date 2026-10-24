@@ -41,9 +41,33 @@ final class DefaultEventStartTest extends TestCase
         // this one, or the default would be a meeting starting now.
         yield 'exactly on the hour' => ['2026-08-25 15:00', '2026-08-25', '2026-08-25 16:00'];
 
-        // A day already past is a deliberate choice by the user; the clamp
-        // pulls it to the next real hour rather than offering a dead time.
-        yield 'a day that has gone' => ['2026-08-25 14:10', '2026-08-20', '2026-08-25 15:00'];
+    }
+
+    /**
+     * A day that has gone keeps its date (#253). It used to be pulled to the
+     * next hour today, so a + on last Thursday in the month's day list opened a
+     * form on today.
+     *
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function pastDays(): iterable
+    {
+        yield 'a day that has gone' => ['2026-08-25 14:10', '2026-08-20', '2026-08-20 15:00'];
+
+        // The last hour: the next full hour is tomorrow's 00:00, and its time
+        // of day is what the past day gets — it is still that day.
+        yield 'a day that has gone, in the last hour of today' => ['2026-08-25 23:10', '2026-08-24', '2026-08-24 00:00'];
+    }
+
+    #[DataProvider('pastDays')]
+    public function testADayThatHasGoneKeepsItsDate(string $now, string $day, string $expected): void
+    {
+        $start = DefaultEventStart::onDay(
+            new DateTimeImmutable($day . ' 00:00'),
+            new DateTimeImmutable($now),
+        );
+
+        self::assertSame($expected, $start->format('Y-m-d H:i'));
     }
 
     #[DataProvider('days')]
@@ -58,8 +82,8 @@ final class DefaultEventStartTest extends TestCase
     }
 
     /**
-     * And whatever it answers, it is never in the past — the property the
-     * cases above are examples of.
+     * And for today or a day ahead, whatever it answers is never in the past —
+     * the property the cases above are examples of.
      */
     #[DataProvider('days')]
     public function testTheAnswerIsAlwaysInTheFuture(string $now, string $day, string $expected): void

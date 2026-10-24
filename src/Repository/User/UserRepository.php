@@ -328,6 +328,49 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * The undeleted account an OpenID Connect identity is linked to.
+     *
+     * Undeleted even though the delete action clears the link: a row
+     * tombstoned before the columns existed, or restored by hand, must not
+     * become reachable through the provider.
+     */
+    public function findOneByOidcIdentity(string $issuer, string $subject): ?User
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('user.oidcIssuer = :issuer')
+            ->andWhere('user.oidcSubject = :subject')
+            ->setParameter('issuer', $issuer)
+            ->setParameter('subject', $subject)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Every undeleted account whose address matches, ignoring case.
+     *
+     * A list rather than one row, because the unique index on `email` is case
+     * sensitive and so `Jo@example.com` and `jo@example.com` can both exist.
+     * The caller links an identity to an account by address only when exactly
+     * one matches; guessing between two would hand one person's mail to
+     * whoever the provider says owns the other spelling.
+     *
+     * Case-insensitive at all because the identity provider and plMail were
+     * filled in by different people at different times, and an address that
+     * differs only in case is the same mailbox everywhere that matters.
+     *
+     * @return list<User>
+     */
+    public function findUndeletedByEmailIgnoringCase(string $email): array
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('LOWER(user.email) = LOWER(:email)')
+            ->setParameter('email', $email)
+            ->setMaxResults(2)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Hand-written for the exclusion: "every undeleted user with this address
      * except this one" needs `id != :id`, which findOneBy() cannot say.
      *
@@ -349,6 +392,31 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $result = $qb->getQuery()->getOneOrNullResult();
 
         return $result;
+    }
+
+    /**
+     * The people whose sign-in address is on $domain, for plMail's Web Key
+     * Directory (WkdDirectory): undeleted and not suspended, because a key is
+     * published for a person who can still use it, and a removed person's
+     * address is a tombstone anyway.
+     *
+     * By sign-in address alone, and case-folded, since the directory matches
+     * on a hash of the lower-cased local part. Hand-written for the LOWER()
+     * and the suffix match, neither of which findBy() can say. $domain is a
+     * DNS name WkdLookup::domain() has already shaped, so it holds no `%` or
+     * `_` for LIKE to misread.
+     *
+     * @return list<User>
+     */
+    public function findForWkdDomain(string $domain): array
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('user.deactivatedAt IS NULL')
+            ->andWhere('LOWER(user.email) LIKE :suffix')
+            ->setParameter('suffix', '%@' . strtolower($domain))
+            ->orderBy('user.id', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

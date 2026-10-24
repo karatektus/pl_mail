@@ -67,7 +67,7 @@ final class EmailMapperTest extends KernelTestCase
         $this->connection = $container->get(Connection::class);
         $this->bindings = $container->get(LabelBindingRepository::class);
         $this->messages = $container->get(MessageRepository::class);
-        $this->mapper = new EmailMapper();
+        $this->mapper = $container->get(EmailMapper::class);
 
         // Never committed, so the suite leaves nothing behind and can be run
         // repeatedly against the same database.
@@ -194,6 +194,22 @@ final class EmailMapperTest extends KernelTestCase
 
         self::assertInstanceOf(\stdClass::class, $mapped['mailboxIds']);
         self::assertSame('{}', json_encode($mapped['mailboxIds']));
+    }
+
+    /**
+     * The apps' preview is the web list's preview (#257). It used to be the
+     * text part with its whitespace collapsed, so a one-line reply previewed
+     * as the mail it quoted.
+     */
+    public function testThePreviewIsTheReplyNotTheQuote(): void
+    {
+        $reply = new Message();
+        $reply->account = $this->account;
+        $reply->bodyText = "Passt!\n\nAm 19.10.2026 um 15:25 schrieb Sven <sven@example.test>:\n> Hier ist der lange Text der ersten Mail, den niemand in der Vorschau sehen will.";
+
+        $mapped = $this->mapper->toJmap($reply, ['preview']);
+
+        self::assertSame('Passt!', $mapped['preview']);
     }
 
     /**

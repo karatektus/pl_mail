@@ -14,6 +14,8 @@ enum AppLocale: string
 {
     case English = 'en';
     case German = 'de';
+    case French = 'fr';
+    case SimplifiedChinese = 'zh_CN';
     case Pirate = 'en_PI';
 
     /**
@@ -24,6 +26,8 @@ enum AppLocale: string
         return match ($this) {
             self::English => 'English',
             self::German => 'Deutsch',
+            self::French => 'Français',
+            self::SimplifiedChinese => '简体中文',
             self::Pirate => 'Pirate English',
         };
     }
@@ -36,6 +40,8 @@ enum AppLocale: string
         return match ($this) {
             self::English => '🇬🇧',
             self::German => '🇩🇪',
+            self::French => '🇫🇷',
+            self::SimplifiedChinese => '🇨🇳',
             self::Pirate => '🏴‍☠️',
         };
     }

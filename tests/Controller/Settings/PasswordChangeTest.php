@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Entity\User\User;
+use App\Security\PasswordKdf;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -25,6 +26,13 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  * hash strings. "The column changed" is what hashing the WRONG string also
  * satisfies, and what this feature promises is that a specific new password
  * signs in — which the hasher is the only authority on.
+ *
+ * Since passwords are stretched in the browser, neither password is posted:
+ * the form carries the proof of the current one and the auth hash of the new
+ * one, and this test computes both with PasswordKdf::derive(), which is pinned
+ * to the browser's arithmetic by PasswordKdfTest. What the browser alone can
+ * check — the floor, and that the two boxes agree — is asserted here only as
+ * far as the server's part goes: that it tells the browser what to check.
  */
 final class PasswordChangeTest extends WebTestCase
 {
@@ -62,7 +70,7 @@ final class PasswordChangeTest extends WebTestCase
         );
         self::assertGreaterThan(
             0,
-            $crawler->filter('#settings-password input[name="change_password[plainPassword][second]"]')->count(),
+            $crawler->filter('#settings-password input[name="change_password[new][password][second]"]')->count(),
             'the new password is not asked for twice',
         );
 
@@ -83,11 +91,54 @@ final class PasswordChangeTest extends WebTestCase
     {
         $client = $this->signIn();
 
-        $this->submit($client, self::CURRENT, self::CHOSEN, self::CHOSEN);
+        $this->submit($client, self::CURRENT, $this->stretched(self::CHOSEN, $salt = $this->salt()), $salt);
 
         self::assertResponseIsSuccessful();
-        self::assertTrue($this->passwordIs(self::CHOSEN), 'the new password does not sign in');
+        self::assertTrue($this->passwordIs(PasswordKdf::derive(self::CHOSEN, $salt, $this->iterations())), 'the new password does not sign in');
         self::assertFalse($this->passwordIs(self::CURRENT), 'the old password still signs in');
+    }
+
+    /**
+     * The new password is stored as the browser will next present it: with
+     * the salt it was stretched with, so the prelogin can hand that salt out.
+     * Changing it is also what moves an account still on a hash of the
+     * password itself over to a stretched one.
+     */
+    public function testTheSaltItWasStretchedWithIsKeptBesideIt(): void
+    {
+        $client = $this->signIn();
+        $salt   = $this->salt();
+
+        $this->submit($client, self::CURRENT, $this->stretched(self::CHOSEN, $salt), $salt);
+
+        $reloaded = $this->reloaded();
+
+        self::assertTrue($reloaded->hasClientDerivedPassword(), 'the account is still on a hash of the password itself');
+        self::assertSame($salt, $reloaded->kdfSalt);
+        self::assertSame($this->iterations(), $reloaded->kdfIterations);
+    }
+
+    /**
+     * An account already on a stretched password proves the current one with
+     * the auth hash, stretched with its own salt — the plain password is no
+     * longer something its stored hash can be checked against.
+     */
+    public function testAStretchedAccountProvesTheCurrentPasswordWithItsAuthHash(): void
+    {
+        $client = $this->signIn(stretched: true);
+        $proof  = PasswordKdf::derive(self::CURRENT, (string) $this->user->kdfSalt, (int) $this->user->kdfIterations);
+        $salt   = $this->salt();
+
+        $this->submit($client, self::CURRENT, $this->stretched(self::CHOSEN, $salt), $salt, proof: $proof);
+
+        self::assertTrue($this->passwordIs(PasswordKdf::derive(self::CHOSEN, $salt, $this->iterations())));
+
+        // And the plain password is not accepted as proof in its place.
+        $other = $this->salt();
+
+        $this->submit($client, self::CHOSEN, $this->stretched('yet-another-new-password', $other), $other);
+
+        self::assertTrue($this->passwordIs(PasswordKdf::derive(self::CHOSEN, $salt, $this->iterations())), 'a plain password was taken as proof for a stretched account');
     }
 
     /**
@@ -101,8 +152,9 @@ final class PasswordChangeTest extends WebTestCase
     public function testTheReplyIsAStreamThatSaysItHappened(): void
     {
         $client = $this->signIn();
+        $salt   = $this->salt();
 
-        $this->submit($client, self::CURRENT, self::CHOSEN, self::CHOSEN);
+        $this->submit($client, self::CURRENT, $this->stretched(self::CHOSEN, $salt), $salt);
 
         $body = (string) $client->getResponse()->getContent();
 
@@ -127,53 +179,61 @@ final class PasswordChangeTest extends WebTestCase
     public function testAWrongCurrentPasswordChangesNothing(): void
     {
         $client = $this->signIn();
+        $salt   = $this->salt();
 
-        $this->submit($client, 'not-their-password', self::CHOSEN, self::CHOSEN);
+        $this->submit($client, 'not-their-password', $this->stretched(self::CHOSEN, $salt), $salt);
 
         self::assertTrue($this->passwordIs(self::CURRENT), 'the password changed without proof of the old one');
-        self::assertFalse($this->passwordIs(self::CHOSEN));
+        self::assertFalse($this->reloaded()->hasClientDerivedPassword());
     }
 
     /**
-     * A typo does not fail loudly on its own — it sets a password nobody knows,
-     * to somebody who is then locked out the moment their session ends. Hence
-     * the repeat, and hence this.
+     * A browser without JavaScript posts no auth hash, and is told why in a
+     * sentence rather than with a row of blank-field errors.
      */
-    public function testTheTwoNewPasswordsHaveToMatch(): void
+    public function testABrowserThatStretchedNothingIsToldItNeedsScript(): void
     {
         $client = $this->signIn();
 
-        $this->submit($client, self::CURRENT, self::CHOSEN, self::CHOSEN . '-typo');
-
-        self::assertTrue($this->passwordIs(self::CURRENT), 'a mismatched repeat still changed the password');
-    }
-
-    /**
-     * The floor, and that it says so in a sentence.
-     *
-     * The assertion on the wording is the second half of the claim and not
-     * decoration: validators.*.yaml carries a comment about a constraint
-     * message put in the wrong domain rendering as its own key, and
-     * AdminUserManagementTest holds the same line for the admin form. This is
-     * the third message that could have gone in `messages` and the third test
-     * that will not let it.
-     */
-    public function testAPasswordUnderTheFloorIsRefusedInWords(): void
-    {
-        $client = $this->signIn();
-
-        $this->submit($client, self::CURRENT, 'short', 'short');
+        $this->submit($client, self::CURRENT, '', '');
 
         self::assertTrue($this->passwordIs(self::CURRENT));
+        self::assertStringContainsString('needs JavaScript', (string) $client->getResponse()->getContent());
+    }
 
-        $body = (string) $client->getResponse()->getContent();
+    /**
+     * Fewer iterations is a weaker hash for whoever steals the table, and the
+     * person choosing it is not the one at risk — so it is the server's number,
+     * checked, and not the browser's.
+     */
+    public function testAnIterationCountOtherThanTheConfiguredOneIsRefused(): void
+    {
+        $client = $this->signIn();
+        $salt   = $this->salt();
 
-        self::assertStringNotContainsString(
-            'settings.password.too_short',
-            $body,
-            'the constraint message rendered as its translation key',
-        );
-        self::assertStringContainsString('at least 12 characters', $body);
+        $this->submit($client, self::CURRENT, PasswordKdf::derive(self::CHOSEN, $salt, 1), $salt, iterations: 1);
+
+        self::assertTrue($this->passwordIs(self::CURRENT), 'a password stretched once was accepted');
+    }
+
+    /**
+     * The floor, and that the browser is told it in a sentence.
+     *
+     * The server no longer sees the password, so the browser enforces the
+     * floor — with a message it gets from the page. The assertion on the
+     * wording is the half that can still fail here: validators.*.yaml carries
+     * a comment about a constraint message put in the wrong domain rendering as
+     * its own key, and this one is now read from that domain by a template.
+     */
+    public function testTheBrowserIsToldTheFloorInWords(): void
+    {
+        $client  = $this->signIn();
+        $crawler = $client->request('GET', '/settings?section=security');
+        $form    = $crawler->filter('#settings-password form');
+
+        self::assertSame('12', $form->attr('data-auth--password-form-min-length-value'));
+        self::assertSame('Use at least 12 characters.', $form->attr('data-auth--password-form-too-short-message-value'));
+        self::assertStringNotContainsString('settings.password', (string) $form->attr('data-auth--password-form-mismatch-message-value'));
     }
 
     /**
@@ -190,12 +250,17 @@ final class PasswordChangeTest extends WebTestCase
     public function testAPostWithoutTheFormsTokenChangesNothing(): void
     {
         $client = $this->signIn();
+        $salt   = $this->salt();
 
         $client->request('POST', '/settings/password', [
             'change_password' => [
-                '_token'          => 'forged',
-                'currentPassword' => self::CURRENT,
-                'plainPassword'   => ['first' => self::CHOSEN, 'second' => self::CHOSEN],
+                '_token'       => 'forged',
+                'currentProof' => self::CURRENT,
+                'new'          => [
+                    'authHash'   => $this->stretched(self::CHOSEN, $salt),
+                    'salt'       => $salt,
+                    'iterations' => (string) $this->iterations(),
+                ],
             ],
         ]);
 
@@ -222,25 +287,58 @@ final class PasswordChangeTest extends WebTestCase
      * field name come from the markup rather than from this test's idea of
      * them. A hand-built POST would keep passing after a field was renamed.
      *
+     * What it fills is what password_form_controller.js fills: the proof of
+     * the current password — the password itself for an account still on a
+     * hash of it, unless a proof is given — and the stretched new one. The
+     * boxes a person types into are left out, as the browser leaves them out.
+     *
      * The Accept header is what Turbo sends for a `data-turbo-stream` form, and
      * it is load-bearing here: without it the endpoint takes its no-JavaScript
      * fallback and answers with a redirect, so the reply carries neither the
      * toast nor the field errors and every assertion about what the user is
      * TOLD would be asserting against a redirect page.
      */
-    private function submit(KernelBrowser $client, string $current, string $first, string $second): void
-    {
+    private function submit(
+        KernelBrowser $client,
+        string $current,
+        string $authHash,
+        string $salt,
+        ?string $proof = null,
+        ?int $iterations = null,
+    ): void {
         $crawler = $client->request('GET', '/settings?section=security');
+        $form    = $crawler->filter('#settings-password form')->form();
 
-        $client->submit(
-            $crawler->filter('#settings-password form')->form([
-                'change_password[currentPassword]'        => $current,
-                'change_password[plainPassword][first]'   => $first,
-                'change_password[plainPassword][second]'  => $second,
-            ]),
+        $client->request(
+            'POST',
+            (string) $form->getUri(),
+            ['change_password' => [
+                '_token'       => $form->get('change_password[_token]')->getValue(),
+                'currentProof' => $proof ?? $current,
+                'new'          => [
+                    'authHash'   => $authHash,
+                    'salt'       => $salt,
+                    'iterations' => (string) ($iterations ?? $form->get('change_password[new][iterations]')->getValue()),
+                ],
+            ]],
             [],
             ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html, application/xhtml+xml'],
         );
+    }
+
+    private function stretched(string $password, string $salt): string
+    {
+        return PasswordKdf::derive($password, $salt, $this->iterations());
+    }
+
+    private function salt(): string
+    {
+        return base64_encode(random_bytes(PasswordKdf::SALT_BYTES));
+    }
+
+    private function iterations(): int
+    {
+        return static::getContainer()->get(PasswordKdf::class)->iterations;
     }
 
     /**
@@ -250,6 +348,13 @@ final class PasswordChangeTest extends WebTestCase
      */
     private function passwordIs(string $candidate): bool
     {
+        return static::getContainer()
+            ->get(UserPasswordHasherInterface::class)
+            ->isPasswordValid($this->reloaded(), $candidate);
+    }
+
+    private function reloaded(): User
+    {
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $em->clear();
 
@@ -257,19 +362,17 @@ final class PasswordChangeTest extends WebTestCase
 
         self::assertNotNull($reloaded, 'the fixture user vanished');
 
-        return static::getContainer()
-            ->get(UserPasswordHasherInterface::class)
-            ->isPasswordValid($reloaded, $candidate);
+        return $reloaded;
     }
 
-    private function signIn(): KernelBrowser
+    private function signIn(bool $stretched = false): KernelBrowser
     {
         $client = static::createClient();
         $client->disableReboot();
 
         $this->wire();
 
-        $this->user = $this->seedUser();
+        $this->user = $this->seedUser($stretched);
 
         $client->loginUser($this->user);
 
@@ -286,16 +389,27 @@ final class PasswordChangeTest extends WebTestCase
         $this->connection->beginTransaction();
     }
 
-    private function seedUser(): User
+    private function seedUser(bool $stretched): User
     {
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+
         $user = new User();
         $user->email = 'own-password-' . uniqid('', true) . '@example.test';
         $user->nameFirst = 'Own';
         $user->nameLast = 'Password';
         $user->roles = [User::ROLE_USER];
-        $user->password = static::getContainer()
-            ->get(UserPasswordHasherInterface::class)
-            ->hashPassword($user, self::CURRENT);
+
+        if (true === $stretched) {
+            $salt = $this->salt();
+
+            $user->useClientDerivedPassword(
+                $hasher->hashPassword($user, PasswordKdf::derive(self::CURRENT, $salt, $this->iterations())),
+                $salt,
+                $this->iterations(),
+            );
+        } else {
+            $user->useServerHashedPassword($hasher->hashPassword($user, self::CURRENT));
+        }
 
         $this->em->persist($user);
         $this->em->flush();

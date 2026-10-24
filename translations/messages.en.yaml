@@ -155,6 +155,8 @@ admin:
             chat_keep_alive_help: '5m, 30m, 4h, or a plain number of seconds. -1 keeps it loaded for good, 0 unloads it after every request. Longer means the first reply comes back sooner; the host keeps the memory reserved for the whole time either way. Leave empty to use whatever the host itself is set to.'
             chat_model: 'Writing model'
             chat_model_help: 'Used for replies, summaries and sorting. Something instruction-tuned.'
+            contact_help: 'Contact help'
+            contact_help_help: 'Reads a contact out of pasted text, and suggests fixes to a contact from the signature of their latest mail. Uses the writing model, and sends that text to it.'
             embedding_keep_alive: 'Keep the search model loaded for'
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
             embedding_base_url: 'Search host'
@@ -562,8 +564,13 @@ admin:
             not_asked: 'not asked'
             rules: 'The rules said'
     integrations:
+        base_url_exempt: 'only lets feeds on this host past the private-network check'
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
+        calendar:
+            connected_warning: 'Connections already made: %count%. A changed or cleared address applies to each of them the next time its calendars are found, so someone connected to another server, iCloud say, is then asked about this one with their own password. Calendars already mirrored keep the address they were found at; if a cleared address was in a private range, they stop syncing until its host is in INTEGRATIONS_ALLOWED_HOSTS.'
+            heading: 'Calendars'
+            intro: 'Servers and feeds users mirror calendars from, under Settings → Calendars. Both are offered to everyone; what can be set here is a server address for everybody. Nextcloud is set up with the file services above, and its calendars come with it.'
         clear_secret: 'Remove the stored client secret'
         configure: 'Configure'
         connected_users: '%count% connected'
@@ -572,6 +579,7 @@ admin:
         inherit_toggle_help: 'One Google project also covers Drive and Photos; one Microsoft app also covers OneDrive. Leave this on and there is nothing more to set up for them.'
         field:
             base_url: 'Server address'
+            base_url_help_ics: 'Leave empty. Every feed has its own address, so nothing here changes which feeds people subscribe to. An address stored here only lets feeds on its host past the private-network check.'
             base_url_help_saas: 'Leave empty. This service has one fixed address.'
             base_url_help_selfhosted: 'Optional. Set this to pin every user to one server; leave it empty to let each user enter their own.'
             client_id: 'Client ID'
@@ -603,6 +611,22 @@ admin:
                 calendars with the same sign-in they already use for mail.
                 Without it, mail keeps working and calendars simply do not
                 appear.
+            consent_heading: 'If your organisation approves apps for its users'
+            consent_microsoft: 'Some Microsoft 365 organisations do not let users approve apps themselves: an administrator approved plMail once, for the permissions it asked for then. plMail now also asks for Contacts.ReadWrite, which that approval does not cover, so Microsoft refuses every sign-in to plMail, mail included, until it is approved again. Before anyone signs in again, open the Microsoft Entra admin centre → Enterprise applications → plMail → Permissions and choose Grant admin consent. Personal Microsoft accounts, and organisations where users approve apps themselves, are not affected.'
+            contacts_google: >-
+                Enable the Google People API for this project and add the
+                .../auth/contacts scope to the consent screen — users then get
+                their contacts with the same sign-in. Accounts connected before
+                are asked once, in their settings, to sign in again. Without it,
+                mail and calendars keep working and contacts simply do not
+                appear.
+            contacts_heading: 'Contact sync uses this same app'
+            contacts_microsoft: >-
+                Add the Contacts.ReadWrite delegated permission to this app
+                registration — users then get their Outlook contacts with the
+                same sign-in. Accounts connected before are asked once, in
+                their settings, to sign in again. Without it, mail and calendars
+                keep working and contacts simply do not appear.
             env_note: 'Leaving these empty falls back to GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* in the environment, so an installation already configured that way keeps working.'
             from_env: 'From environment'
             google: 'Gmail sign-in'
@@ -617,6 +641,7 @@ admin:
         secret_stored: 'Stored'
         secret_unchanged: 'Leave blank to keep the stored secret'
         status:
+            always_offered: 'Offered to everyone'
             disabled: 'Disabled'
             enabled: 'Enabled'
             incomplete: 'Needs credentials'
@@ -628,7 +653,6 @@ admin:
                 security: 'Users should create an app-specific password rather than use their login password: app passwords are individually revocable and work with two-factor authentication. iCloud and Fastmail accept nothing else.'
                 step_app_password: 'Each user creates an app password on their own server — Nextcloud under Settings → Security, iCloud at appleid.apple.com, Fastmail under Settings → Password & Security — and pastes it into their own calendar settings.'
                 step_base_url: 'Optionally pin the server address, for example https://cloud.example.com, if everyone here uses the same server.'
-                step_enable: 'Turn on "Offer this service to users" above.'
                 step_url: 'The address to enter is the CalDAV one, not the web interface: Nextcloud shows it under Calendar → Settings → "Copy primary CalDAV address", and it usually ends in /remote.php/dav. A bare domain works too — plMail asks it where its calendars live.'
             dropbox:
                 intro: 'Dropbox needs an app registered in the Dropbox developer console.'
@@ -652,6 +676,9 @@ admin:
                 intro: 'Google Photos uses OAuth and its own API, separate from Drive.'
                 scope_warning: 'Google restricted the Photos read scopes in March 2025. A newly registered app is generally granted only appcreateddata, which sees nothing but media plMail itself uploaded — browsing an existing library needs the photoslibrary.readonly scope, which Google grants case by case. Saving attachments to Photos works either way; browsing may show an empty library until that scope is approved.'
                 step_api: 'Enable the Photos Library API for the project.'
+            ics:
+                intro: 'A calendar feed needs nothing set up here. Each user pastes the address a calendar is published at, usually ending in .ics, under Settings → Calendars → Subscribe to an address.'
+                security: 'For a published calendar the address works like a password: anyone who has it can read the calendar.'
             immich:
                 intro: 'Immich authenticates with a per-user API key, so there is nothing to register here.'
                 no_share_links: 'Immich cannot create a public link for a single photo — sharing is album-level. Photos above the attachment size limit therefore cannot be attached at all.'
@@ -738,6 +765,7 @@ admin:
         performance: Performance
         push: Push
         reset: Reset
+        sso: 'SSO'
         system: System
         updates: Updates
         users: Users
@@ -923,6 +951,34 @@ admin:
     refresh_hint: 'Live panels refresh every 10s'
     # Shown in a card's header while it is collapsed — short enough to read at
     # a glance, specific enough to be worth expanding for.
+    sso:
+        clear_secret: 'Forget the stored client secret'
+        clear_secret_help: 'Empty the issuer and the client ID as well. Sign-in then falls back to the OIDC_* variables in the environment, or switches off if there are none.'
+        env_note: 'Leave issuer, client ID and secret all empty and sign-in falls back to OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET in the environment, so an installation configured that way keeps working. What is saved here wins over them.'
+        field:
+            auto_create: 'Create an account for people plMail has not seen'
+            auto_create_help: 'On, everybody the provider lets through gets an ordinary account here, so limit who that is at the provider. Off, an administrator creates each account first, with the same address.'
+            button_label: 'Name on the button'
+            button_label_help: 'The login button reads "Sign in with …" and this name. Empty says "single sign-on".'
+            client_id: 'Client ID'
+            client_secret: 'Client secret'
+            issuer: 'Issuer'
+            issuer_help: 'The provider''s issuer URL, exactly as its discovery document states it. In Authentik it is the "OpenID Configuration Issuer" on the provider''s page.'
+            password_login_disabled: 'Single sign-on only'
+            password_login_disabled_help: 'Hides the password form and refuses password sign-ins, so everybody comes in through the provider. Only in force while a provider is set up here. You can tick it only after you have signed in through the provider yourself, and if the provider is ever down, run bin/console app:sso:allow-password-login to bring the form back. Passwords for mail clients (app passwords) are not affected.'
+            require_verified_email: 'Only link an address the provider has verified'
+            require_verified_email_help: 'A first sign-in finds its account by email address. Switch this off only where people cannot edit their own address at the provider: with it off, anybody who can is able to claim any account that has not signed in through the provider yet.'
+            scopes: 'Scopes'
+            scopes_help: 'Separated by spaces. "openid" is always added, and without "email" a first sign-in cannot find its account. Empty asks for openid, email and profile.'
+        heading: 'Single sign-on'
+        intro: 'Let people sign in through an OpenID Connect provider you already run: Authentik, Keycloak, Authelia and the like. The login page then shows a button above the password form, which stays.'
+        redirect_uri_help: 'Register this at the provider as the redirect URI, exactly as shown.'
+        save: 'Save'
+        saved: 'Single sign-on saved.'
+        status:
+            environment: 'On, from the environment'
+            'off': 'Off'
+            'on': 'On'
     summary:
         accounts: '%count% accounts'
         active: '%count% active'
@@ -1117,7 +1173,7 @@ admin:
             name_first: First name
             name_last: Last name
             password: Initial password
-            password_help: 'Set once, when the account is created. There is no way to change it from here afterwards: a forgotten password is reset from the server console with `app:user:password`.'
+            password_help: 'A one-time password: they choose their own the first time they sign in. A forgotten password is reset from the server console with `app:user:password`.'
         flash:
             deactivated: 'Switched off. They cannot sign in until you switch them back on.'
             demote_last_refused: 'That is the last administrator, so the checkbox was left as it was — promote somebody else first.'
@@ -1136,11 +1192,27 @@ admin:
         two_factor_short: 2FA
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
+        copy: Copy the build %version%
+# The All Mail lists — every conversation outside Spam and the bin
+# (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
+all_mail:
+    empty: "No mail outside Spam and the bin."
+
 alias:
     added: 'Address added.'
+    catch_all_added: 'Catch-all domain added.'
+    catch_all_duplicate: 'That domain is already a catch-all on this account.'
+    catch_all_invalid: "That doesn't look like a domain. Enter it like example.com."
+    catch_all_removed: 'Catch-all domain removed.'
+    catch_all_unsupported: 'Gmail and Outlook only send as addresses the provider knows, so a catch-all domain cannot be used on this account.'
     deleted: 'Address removed.'
     duplicate: 'That address is already on this account.'
+    gmailify_off: 'Gmailify is off. This Gmail account keeps only mail addressed to it, and the other accounts’ own copies no longer follow Gmail.'
+    gmailify_on: 'Gmailify is on. Mail this Gmail account collects for your other accounts is filed under them.'
+    gmailify_unsupported: 'Gmailify is a setting of Gmail accounts.'
     invalid: "That doesn't look like a valid email address."
+    name_cleared: 'Sender name removed. This address sends under the account name again.'
+    name_set: 'Sender name saved.'
     primary_set: 'Primary address updated.'
     refreshed: 'Refreshed from provider.'
     status_blocked: "The primary address can't be disabled — make another primary first."
@@ -1150,6 +1222,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Download %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1170,6 +1243,7 @@ attachment:
         download: Download
         failed: This PDF could not be opened. You can still download it.
         loading: Opening…
+        media_failed: This file could not be shown here. You can still download it.
         untitled: Attachment
         zoom_in: Zoom in
         zoom_out: Zoom out
@@ -1284,6 +1358,7 @@ calendar:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
+    empty_day: Nothing on this day
     details:
         description: Description
         edit: Edit
@@ -1642,6 +1717,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%month% %start%–%end%'
     upcoming:
         imminent: Starting within the hour
         later: Coming up today
@@ -1806,6 +1883,7 @@ compose:
         save_failed: Could not save the draft
         saved: Draft saved
         saving: "Saving…"
+        sealing: "Encrypting…"
         uploading: "Uploading…"
     # Why an upload was refused. The compose window prints these as-is on its
     # status line, so they are the whole of the explanation the user gets.
@@ -1829,9 +1907,29 @@ compose:
     discard: Delete draft
     empty_draft: (empty draft)
     encrypt: Encrypt message
-    # The whole of what the disabled encrypt button says for itself. It has to
-    # be a complete sentence: it is the only explanation anyone gets.
-    encrypt_unavailable: Encryption is not available yet.
+    crypto:
+        encrypt: Encrypt
+        sign: Sign
+        encrypted: Encrypted
+        encrypted_hint: "This message will be end-to-end encrypted: only you and the people it goes to can read it."
+        has_key: "plMail has a key for this address, so mail to it can be encrypted."
+        has_certificate: "plMail has an S/MIME certificate for this address, so mail to it can be encrypted."
+        key_changed: "A new key for this address is waiting to be accepted in Settings → Encryption. The known key is used until then."
+        partial: "%emails% cannot be reached encrypted, so this message goes out unencrypted to everybody."
+        partial_blocked: "%emails% cannot be reached encrypted. Remove them, or switch encryption off for this message."
+        missing: "There is no key for %emails%. Remove them, or switch encryption off for this message."
+        locked: "Your keys are locked in this browser. Open them in Settings → Encryption, or switch encryption off for this message."
+        locked_not_saved: "Not saved: this draft is encrypted, and your keys are locked in this browser."
+        locked_draft: "This draft is encrypted, and your keys are locked in this browser. Open them in Settings → Encryption to keep writing."
+        failed_draft: "This encrypted draft could not be opened."
+        no_own_key: "You have no key for this From address, so nothing can be signed or encrypted from it."
+        no_own_certificate: "You have no S/MIME certificate for this From address, so this message cannot be signed or encrypted with S/MIME."
+        failed: "The message could not be encrypted. Nothing was sent."
+        sealed_attachment: "Encrypted: until the message is sent, only you can open it."
+    seal:
+        refused: "The encrypted message did not arrive intact. Nothing was sent; try again."
+        keys_changed: "A recipient's key changed while you were writing. Nothing was sent; send it again."
+        unbuilt: "This draft is encrypted, so it can only be sent from a browser where your keys are open."
     expand: Expand
     formatting: Formatting options
     forward: Forward
@@ -1914,6 +2012,83 @@ compose:
         search: 'Find a template'
         untitled: 'Untitled template'
 
+contact_keys:
+    heading: "Contacts' keys"
+    subheading: "The public keys plMail checks your contacts' signatures with — and will encrypt to once plMail sends encrypted mail."
+    loading: "Loading contacts' keys…"
+    empty: "No keys yet. plMail picks them up from signed mail; you can also look one up or import it above."
+    verified: "Verified"
+    first_seen: "first seen %date%"
+    last_seen: "last seen %date%"
+    expires: "expires %date%"
+    origin:
+        attached: "Attached to a message"
+        autocrypt: "From a message's Autocrypt header"
+        keyserver: "From the key server %host%"
+        manual: "Imported by you"
+        wkd: "From the domain's key directory (WKD)"
+    pin: "Mark as verified"
+    unpin: "Remove the checkmark"
+    accept: "Use this key instead"
+    remove: "Remove"
+    confirm_remove: "Remove this key? Signatures made with it cannot be checked until plMail finds it again."
+    changed_warning: "A different key turned up for this address. It may be your contact's new key — or somebody posing as them. plMail keeps using the known key until you compare this fingerprint with your contact and accept it."
+    pinned: "Marked as verified."
+    accepted: "This key is now the one used for the address."
+    removed: "Key removed."
+    preferences_saved: "Saved."
+    not_found: "That key is no longer there."
+    signer_unknown: "plMail does not have the key that made this signature. Look it up or import it first."
+    certificates:
+        heading: "Contacts' S/MIME certificates"
+        hint: "Picked up from your contacts' signed mail. Mail to them is encrypted with S/MIME when every recipient has one and you have a certificate of your own."
+        empty: "None yet. plMail keeps the certificate of every S/MIME-signed message whose signature checks out."
+        verified: "Confirmed by %issuer%"
+        unverified: "Not confirmed by a certificate authority"
+        confirm_remove: "Remove this certificate? Mail to this address cannot be encrypted with S/MIME until plMail sees a new one."
+        changed_warning: "A different certificate turned up for this address, and no certificate authority vouches for the change. plMail keeps using the known one until you compare this fingerprint with your contact and accept it."
+        removed: "Certificate removed."
+    import:
+        heading: "Import a key"
+        hint: "Paste a public key block or choose a file. The key is kept for every address it names."
+        file: "Key file"
+        paste: "Public key"
+        submit: "Add key"
+        done: "Imported. Addresses with this key: %count%."
+        changed: "Imported — but %count% of the addresses already had a different key. Compare the fingerprints below before you accept the new one."
+        unusable: "Nothing usable in that key: it is revoked, expired, or names no address."
+        not_a_key: "That is not an OpenPGP public key."
+        private_key: "That is a private key. Only import your contacts' public keys here — your own keys belong in the keyring above."
+    lookup:
+        heading: "Look up a key"
+        hint: "Asks the address's own domain for its key (Web Key Directory). The request goes through this server."
+        hint_keyservers: "Asks the address's own domain for its key (Web Key Directory), then the key servers %servers%. The request goes through this server."
+        email: "Email address"
+        submit: "Look up"
+        found: "Found a key in the domain's key directory (WKD), and kept it."
+        found_keyserver: "Found a key on the key server %host%, and kept it. The server only checked that somebody reads mail at this address — compare the fingerprint with your contact before you mark it verified."
+        changed: "Found a key in the domain's key directory — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        changed_keyserver: "Found a key on the key server %host% — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        nothing: "The domain publishes no usable key for this address."
+        nothing_keyservers: "Neither the domain nor the key servers have a usable key for this address."
+        invalid_address: "That address cannot be looked up."
+        rate_limited: "Too many lookups in a row. Try again in a few minutes."
+    key_servers:
+        label: "Also look on public key servers"
+        hint: "When the address's own domain has no key, plMail also asks %servers%. A lookup tells them which address you are looking for."
+    preferences:
+        heading: "Preferences for this recipient"
+        hint: "Used when plMail sends encrypted mail."
+        encrypt: "Encrypt"
+        sign: "Sign"
+        scheme: "Format"
+        save: "Save"
+        policy:
+            always: "Always"
+            auto: "Automatically"
+            never: "Never"
+        scheme_pgp-inline: "Inline PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Demo
@@ -2018,6 +2193,236 @@ dnd:
 drafts:
     empty: No drafts.
     heading: Drafts
+
+encryption:
+    decrypted:
+        heading: Decrypted mail on this server
+        subheading: "Off unless you choose it, per account. Your mail provider still cannot read your encrypted mail either way."
+        forbidden: "This installation does not keep decrypted mail. Your encrypted mail stays encrypted on the server."
+        state_on: "Encrypted mail is decrypted in your browser and kept readable here, so search, parcels, dates and rules work on it."
+        state_off: "Encrypted mail stays encrypted here: only sender and subject are searchable."
+        confirm: "Encrypted mail of this account will be stored on this plMail server after it is decrypted. Search, parcels and dates then work on it. Anybody with access to the server can read it. Your mail provider still cannot."
+        confirm_needed: "Tick the box to say you want decrypted mail kept on this server."
+        turn_on: Keep decrypted mail here
+        turn_off: Stop, and delete the decrypted copies
+        ai:
+            label: Let the models read it too
+            local: "Classification, search by meaning and summaries, with the model host %host%, which is on this installation's own network."
+            external: "The model host %host% is outside this installation's network: decrypted mail would be sent to it."
+            no_model: "No model host is set up on this installation."
+            consent: "I agree that decrypted mail of this account is sent to %host%."
+            consent_needed: "Tick the box to agree that decrypted mail is sent to the model host."
+            turn_on: Let the models read it
+            turn_off: Stop, and delete what they made of it
+    sending:
+        heading: Sending
+        subheading: "How mail goes out now that plMail can encrypt it. Mail to people whose keys plMail knows is encrypted by itself."
+        on: "On"
+        off: "Off"
+        autocrypt:
+            label: Share your key with every message
+            hint: "An invisible Autocrypt header carries your public key, so Thunderbird, Delta Chat and others can answer encrypted."
+        attach_key:
+            label: Attach your public key
+            hint: "As a file on every message, for recipients whose mail program does not read Autocrypt. People without PGP see an attachment they do not need."
+        sign_plain:
+            label: Sign unencrypted mail
+            hint: "People without PGP see a signature.asc attachment. Mail to somebody whose key plMail knows is signed either way."
+        block_partial:
+            label: Refuse to send when not everybody can be reached encrypted
+            hint: "Off: such a message goes out unencrypted to everybody, with a note in the compose window. On: it is not sent until you remove those recipients or switch encryption off for it."
+        protect_subject:
+            label: Encrypt the subject
+            hint: "The subject of an encrypted message travels inside the encryption, and the outside says only “...”. Thunderbird and others show the real subject; a program that cannot shows “...”."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Your public key, published under this installation's own domains, so Thunderbird, Proton and GnuPG find it by your address."
+        disabled: "This installation does not publish keys. An administrator can switch it on."
+        no_addresses: "None of your addresses is on a domain this installation publishes keys for (%domains%)."
+        publish: "Publish the key for %email%"
+        url_advanced: "Advanced method (openpgpkey subdomain)"
+        url_direct: "Direct method"
+        state:
+            published: "Published. Anybody who knows the address can fetch your public key."
+            switched_off: "Not published — you switched it off."
+            no_key: "Nothing to publish yet: this address has no active key."
+            not_sign_in_address: "Not published: plMail publishes only the address you sign in with, which an administrator gave you."
+        check:
+            button: "Check from outside"
+            heading: "Checked %email% from outside, by each method on its own:"
+            method:
+                advanced: "Advanced (openpgpkey.%domain%)"
+                direct: "Direct (%domain%)"
+            result:
+                current: "found your current key"
+                outdated: "found a key, but not your current one — another server may answer for the domain, or a cache still holds the old key"
+                missing: "answered, but has no key for this address"
+                unreachable: "not reachable — the name does not resolve, or the connection or its certificate failed"
+            one_good: "Mail programs that try the other method first still find your key, but fix that method too — some try only one."
+            none_good: "Neither method hands out your current key. The domain may not point to plMail yet — see the setup notes, or ask your administrator."
+        setup:
+            heading: "Setting up the domain (administrators)"
+            enable: "Name the domains in the APP_WKD_DOMAINS environment variable and restart plMail:"
+            domains: "Keys are published for: %domains%. Each domain needs one of these two ways to reach plMail."
+            advanced: "Advanced method, preferred: a DNS record for openpgpkey.%domain% pointing to %host%, and a TLS certificate for that name on plMail's server."
+            direct: "Direct method: the website at %domain% forwards everything under /.well-known/openpgpkey/ to plMail, passing the Host header on."
+            check: "Then use “Check from outside” on your own address. The check runs from this server, so a domain that resolves to a private address here is reported as missing even if it works from outside."
+    devices:
+        empty: "No devices yet."
+        heading: "Known devices"
+        last_used: "used"
+        remember: "Remember this device"
+        remove: "Remove"
+        subheading: "Browsers that can open your keys on their own after a password reset, without the recovery phrase."
+        this_device: "This device"
+        unavailable: "This browser cannot keep a device key here — it needs HTTPS and site storage."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Export your keys"
+        hint: "Every private key, old ones included, as one file GnuPG, Thunderbird and Proton can read."
+        passphrase: "Passphrase for the file"
+        submit: "Export"
+    failed: "That did not work. Reload the page and try again."
+    import:
+        done: "%count% keys imported."
+        hardware_key: "The secret parts of this key live on a smartcard or security key, which a browser cannot use."
+        heading: "Import a key"
+        hint: "An OpenPGP private key you already use, exported from GnuPG, Thunderbird or Proton. It becomes the key of the addresses it names."
+        no_match: "None of these keys names one of your addresses."
+        not_a_key: "That is not an OpenPGP private key."
+        passphrase: "Passphrase of the key"
+        submit: "Import"
+        wrong_passphrase: "That passphrase does not open the key."
+    publish:
+        button: "Publish to %host%"
+        again: "Send the confirmation link again"
+        refresh: "Check again"
+        saved: "The key server answered; the state below is what it said."
+        confirm: "Publish this key to %host%? Anybody will then find it by %addresses%. That ties these addresses to the key in public, and a key server does not really forget it. %host% mails each address a link, and the key is found by address only once you click it."
+        renewed: "Your previous key was published to %host%. Publish the new key for %addresses% there too? %host% mails each address a link to confirm it again."
+        state:
+            none: "%email% — not published on %host%"
+            unpublished: "%email% — on %host%, but nobody can find it by this address yet"
+            pending: "%email% — waiting for you: %host% mailed this address a link to confirm"
+            published: "%email% — published: anybody can find it on %host%"
+            revoked: "%email% — revoked on %host%: the server hands out the revoked key"
+        unavailable: "Publishing to that key server is not available — the installation does not use it, or key servers are switched off under Contacts' keys."
+        not_active: "Only a key in use can be published."
+        not_found: "That key is no longer there."
+        not_published: "That key is not published there."
+        failed: "The key server could not be reached, or did not take the key. Try again later."
+        not_a_revocation: "That is not this key's revocation."
+    keys:
+        advanced: "Show keys"
+        compromised: "Mark as compromised"
+        confirm_compromised: "Mark this key as compromised? It will not be used again, and its addresses get a new one."
+        confirm_renew: "Make a new key for these addresses? The old one stays, to open mail sent to it."
+        created: "created"
+        expires: "expires"
+        heading: "Keys"
+        locked: "locked — open it with your recovery phrase"
+        make_primary: "Make primary"
+        origin:
+            generated: "made by plMail"
+            imported: "imported"
+        primary: "primary"
+        renew: "Renew"
+        status:
+            active: "Active"
+            compromised: "Compromised"
+            obsolete: "Replaced"
+        subheading: "The OpenPGP keys of your addresses. Bring one you already use, or take yours elsewhere."
+    smime:
+        heading: "S/MIME certificates"
+        subheading: "Certificates from a certificate authority or your organisation, which Outlook, Apple Mail and Thunderbird understand. Used when every recipient has one and not every recipient has an OpenPGP key."
+        empty: "No S/MIME certificate yet."
+        import_heading: "Import a certificate"
+        import_hint: "A .p12 or .pfx file with your certificate and its private key. The file is opened in this browser; the server only keeps the key encrypted."
+        file: "Certificate file"
+        password: "Password of the file"
+        import_submit: "Import certificate"
+        imported: "Imported. It now signs and decrypts mail for %addresses%."
+        export_heading: "Export a certificate"
+        export_hint: "Type a password for the file here, then choose Export next to a certificate above."
+        export_password: "Password for the exported file"
+        export_password_missing: "First type a password of at least 8 characters for the exported file."
+        export: "Export as .p12"
+        remove: "Remove"
+        confirm_remove: "Remove this certificate and its private key? Mail encrypted to it can no longer be read here."
+        valid_until: "valid until"
+        expired: "expired"
+        issued_by: "issued by"
+        retired: "replaced by a newer certificate"
+        wrong_password: "That password does not open the file."
+        not_pkcs12: "That is not a .p12 or .pfx file."
+        legacy: "This file uses an old encryption (RC2 or 3DES) that plMail cannot open. Export it again with AES — OpenSSL 3 does by default, Windows with the AES-256 option."
+        not_rsa: "Only certificates with an RSA key can be used here."
+        no_key: "The file holds no private key that belongs to one of its certificates."
+        no_match: "The certificate is not for any of your addresses."
+    nag:
+        action: "Open settings"
+        locked_keys: "Some of your older keys are locked since your password was reset."
+        recovered: "Your older keys were opened again from this device."
+    phrase:
+        create: "Create recovery phrase"
+        download: "Download"
+        file_intro: "plMail recovery phrase. Keep this file somewhere safe and offline. The blocks below it are the revocation certificates of your keys."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Recovery phrase"
+        invalid: "These are not twelve valid recovery words. Check for typos."
+        missing: "You have no recovery phrase yet."
+        opens_nothing: "This phrase does not open any of your locked keys."
+        recover_heading: "Open older keys"
+        recover_hint: "Some of your keys were locked when your password was reset. Enter your recovery phrase to open them again."
+        recover_submit: "Open with recovery phrase"
+        recovered: "%count% keys opened again."
+        recreate: "Create a new recovery phrase"
+        saved: "Your recovery phrase is set up. Make a new one if the old one may have been seen."
+        shown_once: "Write these words down or download them now — they are shown only once. Anyone who has them can open your keys."
+        subheading: "Twelve words that open your keys if you ever forget your password. Without them, encrypted mail is lost with the password."
+    passphrase:
+        heading: "Encryption passphrase"
+        subheading: "What opens your keys. Changing it does not change how you sign in."
+        current: "Current passphrase"
+        new: "New passphrase"
+        repeat: "Repeat the new passphrase"
+        submit: "Change passphrase"
+        done: "Passphrase changed. Use the new one from now on."
+    setup:
+        heading: "Set up encryption"
+        intro: "Choose an encryption passphrase. It protects your keys and is asked for once per session, when something first needs them. It is not the password of your sign-in provider, and it never leaves this browser."
+        warning: "plMail cannot reset this passphrase. If you forget it, only your recovery phrase — create one right after this — or a browser you used before opens your encrypted mail again. Without either, that mail is lost."
+        passphrase: "Encryption passphrase"
+        repeat: "Repeat the passphrase"
+        submit: "Set up encryption"
+        too_short: "At least %min% characters."
+        mismatch: "The two passphrases do not match."
+        done: "Encryption is set up. Create a recovery phrase next."
+    status:
+        broken: "Your keys could not be opened. Sign out and in again; if that does not help, an administrator finds the reason in the log."
+        disabled: "Not available on this installation."
+        insecure: "Needs HTTPS. This page was opened over plain http://, where the browser offers no cryptography of its own — open plMail through its https:// address."
+        heading: "End-to-end encryption"
+        key_count: "Active keys: %keys% · Addresses: %addresses%"
+        loading: "Opening your keys…"
+        locked: "Locked in this browser. Enter your password to unlock it."
+        locked_passphrase: "Locked in this browser. Enter your encryption passphrase to unlock it."
+        open: "Set up, and unlocked in this browser."
+        subheading: "Mail only you and the people you write to can read — not this server, not your mail provider."
+        unset: "Not set up yet. You sign in through single sign-on, so your keys need a passphrase of their own — choose one below."
+    unlock:
+        rate_limited: "Too many attempts. Wait a few minutes and try again."
+        submit: "Unlock"
+        wrong_password: "That is not your password."
+    unlock_dialog:
+        heading: "Unlock your encryption keys"
+        password_intro: "This needs your encryption keys. Enter your password to open them — once, for the rest of this session."
+        passphrase_intro: "This needs your encryption keys. Enter your encryption passphrase to open them — once, for the rest of this session. It is not the password of your sign-in provider."
+        password_label: "Password"
+        passphrase_label: "Encryption passphrase"
+        wrong_passphrase: "That passphrase does not open your keys."
+        cancel: "Not now"
+        submit: "Unlock"
 
 errors:
     page:
@@ -2137,16 +2542,21 @@ integration:
         # folder it will save to, for mail that has not arrived yet.
         choose_for_filter: 'Choose where this filter saves attachments.'
         choose_here: 'Choose this folder'
+        choose_tag: 'Choose a tag for %file%'
         choose_this: Choose
         create: Create
         folder_name: 'Folder name'
         library: 'Library (no album)'
         new_album: 'New album'
         new_folder: 'New folder'
+        new_tag: 'New tag'
         no_albums: 'No albums yet.'
         no_subfolders: 'No folders here.'
+        no_tag: 'No tag'
+        no_tags: 'No tags yet.'
         save_here: 'Save here'
         start_over: 'Start over'
+        tag_name: 'Tag name'
     picker:
         attach: Attach
         attach_from: 'Attach from %name%'
@@ -2155,6 +2565,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Nothing found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2174,6 +2585,7 @@ integration:
             skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
+        use_as_avatar: 'Use as profile picture'
 
 jobs:
     button:
@@ -2186,6 +2598,13 @@ jobs:
         folder: "Now: %folder%"
         heading: "Importing %account%"
         newest_first: "Newest mail first"
+        quota: "Gmail quota: about %used% of %limit% units this minute"
+        quota_assumed: "Gmail quota: about %used% of %limit% units this minute (limit assumed until Google names it)"
+        quota_paused: "Paused by Gmail's quota · continues in %seconds% s"
+        quota_refused: "Gmail said no at about %used% of %limit% units a minute"
+        rate: "About %count% messages a minute"
+        remaining_hours: "About %hours% h %minutes% min left"
+        remaining_minutes: "About %minutes% min left"
         waiting: "Waiting to continue"
     started: 'Started %action% — this runs in the background.'
     failure:
@@ -2201,6 +2620,7 @@ jobs:
         move_to: Moving
         purge: Deleting for good
         reclassify: Sorting recent mail again
+        delete_label: Deleting a label
     state:
         done: '%count% done'
         failed: failed
@@ -2219,6 +2639,21 @@ label:
         violet: Violet
     empty: No conversations with this label.
     created: Label created.
+    delete:
+        already_running: '"%name%" is already being deleted.'
+        destination: Move its mail to
+        destination_placeholder: '— choose where it goes —'
+        destination_required: 'Choose where the mail goes. The folder is not deleted while there is mail in it.'
+        failed_destination_create: 'The mail server would not create the %name% folder the mail was to go to. Nothing was moved or deleted.'
+        failed_destination_gone: 'The place you chose for the mail no longer exists. Delete the label again and choose another.'
+        failed_new_mail: 'New mail arrived in the folder after you pressed Delete. Delete the label again to choose where it goes.'
+        failed_not_empty: 'The folder "%name%" still holds mail on the server, so it was not deleted. Move that mail in your mail client, then delete the label again.'
+        failed_server: 'The mail server would not delete "%name%": %error%'
+        mail_count: '%count% message(s) are in it. They are moved to the place you choose below before the folder is deleted.'
+        on_server: 'It is a folder on your mail server, so the folder is deleted there too.'
+        still_importing: 'plMail is still importing the mail in "%name%" from the server. Delete it once the import has finished, so none of that mail is left behind.'
+        title: 'Delete "%name%"'
+        waiting: 'Waiting for the mail server to empty "%name%" before deleting it.'
     delete_confirm: 'Delete the label "%name%"? It goes from every account. Messages keep their other labels and are not deleted.'
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
@@ -2251,9 +2686,17 @@ login:
         email: Email address
         forgot_password: Forgot password?
         forgot_password_hint: 'Password recovery runs from the server console: bin/console app:user:2fa-disable and a fresh password set by an administrator.'
+        needs_script: 'Signing in needs JavaScript: your password is protected in the browser before anything is sent.'
         password: Password
+        prelogin_failed: 'Could not reach the server to sign you in. Check your connection and try again.'
+        prelogin_rate_limited: 'Too many sign-in attempts from here. Wait a few minutes and try again.'
         remember_me: Keep me logged in
         submit: Sign in
+        submitting: Signing in…
+    oidc:
+        button: Sign in with single sign-on
+        button_named: Sign in with %provider%
+        or: or
     page_title: Sign in
     register:
         coming_soon: Registration coming soon.
@@ -2281,6 +2724,53 @@ message:
         failed: 'This message was not delivered.'
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
+    crypto:
+        attached_key:
+            heading: "The sender's key is attached"
+            own: "Your public key is attached"
+            keep: "Keep this key"
+            accept: "Use this key instead"
+            none_hint: "plMail does not hold this key yet. Keep it to check the sender's signatures and to encrypt to them — compare the fingerprint with the sender to be sure it is theirs."
+            changed_hint: "It differs from the key plMail knows for this sender. It may be their new key, or somebody posing as them — compare the fingerprint with the sender before you use it."
+            kept: "Kept the sender's key."
+            kept_changed: "Kept — but it differs from the key plMail knows for this sender. Compare the fingerprints before you use it."
+            unusable: "This key cannot be kept: it is revoked, expired, or names no user ID for the sender's address."
+        subject: "Subject: %subject%"
+        encrypted_kept: "Encrypted on arrival · stored readable on this server"
+        sealed_draft: "Encrypted draft. Open it to keep writing; only a browser with your keys can read it."
+        sending: "Encrypted, and being sent. It opens here once it has gone."
+        action:
+            accept: "Use the new key"
+            lookup: "Look up the key"
+            manage: "Contacts' keys"
+            trust: "Trust this key"
+        compare_hint: "Compare the fingerprint with the sender — by phone, in person — before you trust it."
+        key_changed_hint: "It may be the sender's new key, or somebody posing as them. Compare the fingerprint with the sender before you use it."
+        decrypting: "Decrypting…"
+        encrypted: "End-to-end encrypted"
+        encrypted_smime: "Encrypted with S/MIME"
+        failed: "This message could not be decrypted."
+        inner:
+            invalid: "The signature inside does not match"
+            key_changed: "Signed with key %signer% — not the key plMail knows for this sender"
+            unchecked: "Signed inside the encryption; the signature has not been checked"
+            unknown_key: "Signed with key %signer%, which plMail does not know yet"
+            untrusted: "Signed inside the encryption — intact, but nobody has confirmed the key %signer%"
+            valid: "Signed inside the encryption, with your own key or one you verified"
+        locked: "Your keys are locked in this browser."
+        no_key: "This message was encrypted to a key you do not have here."
+        no_source: "The original of this message is not available, so it cannot be decrypted."
+        open_settings: "Unlock them"
+        signed:
+            invalid: "The signature does not match — this message was changed or is not from the sender"
+            key_changed: "Signed with a different key than the one plMail knows for this sender"
+            pending: "Signed — checking the signature…"
+            unknown_key: "Signed with a key plMail does not know yet"
+            untrusted: "Signed — the message is intact, but nothing confirms who signed it"
+            valid: "Signed, and the signature checks out"
+        signer: "Signed by %signer%"
+        smime_unreadable: "This message is encrypted with S/MIME for a certificate plMail does not have. Import it in Settings → Encryption, or open the message in a mail program that holds it."
+        smime_unsupported: "This message is encrypted with a cipher plMail cannot open; only AES is supported."
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '
@@ -2289,6 +2779,7 @@ message:
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
             awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            own_filter: 'filed there by one of your filters'
             gmail_overruled: 'not used — you asked plMail to sort this itself'
             in_force: 'this one decides'
             # Asked, and what came back was not one of the five categories. Kept
@@ -2305,6 +2796,7 @@ message:
             pinned: 'you moved it here'
             promotion: 'a bulk-mail header: '
             social: 'the sender domain '
+            switched_off: "it would be %category%, which you switched off"
             # A conversation takes ONE category, from its newest message, so a
             # reply can carry the whole thread out of the tab this message
             # belongs in. Said outright, because without it the panel reads as
@@ -2400,10 +2892,7 @@ oauth:
     error:
         generic: We couldn't connect that account. Please try again.
         microsoft:
-            admin_consent_required: >-
-                Your organisation requires an administrator to approve plMail
-                before you can connect this account. Please ask your Microsoft
-                 administrator to grant access.
+            admin_consent_required: 'Your organisation requires an administrator to approve plMail before you can connect this account. If it worked before, plMail now also asks for access to your contacts, and that needs their approval too. Please ask your Microsoft administrator to grant access.'
             app_not_found: >-
                 plMail isn't registered in your Microsoft organisation.
             bad_credentials: >-
@@ -2528,6 +3017,14 @@ onboarding:
             title: Protect your account
     title: Set up plMail
 
+password_required:
+    explanation: 'Somebody else chose the password you just signed in with. Pick one only you know — plMail will not let you in until you have.'
+    page_title: Choose your password
+    sign_out: Sign out instead
+    submit: Save and continue
+    submitting: Saving…
+    tagline: One more step
+
 profile:
     avatar_current: Current picture
     avatar_from:
@@ -2566,6 +3063,9 @@ sync_now:
     still_running: 'Sync is still running in the background.'
     complete: 'Sync complete.'
     session_expired: 'Your session has expired — reload the page to sign in again.'
+pull_to_refresh:
+    pull: 'Pull down to sync'
+    release: 'Release to sync'
 search:
     empty:
         or_keyword: or just type a keyword.
@@ -2693,6 +3193,8 @@ settings:
             admin_off: 'Not switched on for this installation'
             categorise: 'Sort mail into tabs'
             categorise_hint: 'Lets the model break the tie when the ordinary rules cannot place a message. Off leaves those messages where the rules put them.'
+            contact_help: 'Contact help'
+            contact_help_hint: 'Fills in a contact from a pasted signature or card, and suggests updates from the signature of their latest mail, when you ask for it.'
             search: 'Search by meaning'
             search_hint: 'Finds mail that means what you asked for, not only mail that spells it the same way. Off stops your mail being indexed as well as searched.'
             summary: 'Thread summaries'
@@ -2715,6 +3217,7 @@ settings:
             system_prompt_placeholder: 'Short sentences. No exclamation marks. Sign off with just my first name.'
         reads:
             categorise: 'Sorting: the sender, the subject and the start of the message.'
+            contact_help: 'Contacts: the text you paste, or a contact and the signature of their latest mail, when you ask.'
             heading: 'What the assistant is given'
             search: 'Indexing: the subject, the sender and the start of each message.'
             summary: 'The messages in a conversation you ask to have summarised'
@@ -2816,14 +3319,28 @@ settings:
     aliases:
         add: 'Add'
         add_placeholder: 'Add another address…'
+        catch_all:
+            add: 'Set as catch-all'
+            hint: 'If every address at a domain reaches this mailbox, add the domain here. A reply then goes out from the address the mail was sent to, without adding each one above.'
+            label: 'Catch-all domains'
+            placeholder: 'example.com'
+            remove: 'Remove %domain%'
         delete: 'Remove'
         disable: 'Disable'
         empty: 'No addresses yet.'
         enable: 'Enable'
+        gmailify:
+            hint: 'For a Gmail account that collects mail from another address you have connected here. On, that mail is filed under the other account, and its copy there follows what you do in Gmail. Off, this account keeps only mail addressed to itself, and the other account’s copies stop following Gmail. Best switched off once Gmail no longer collects that mail: while it still does, mail Bcc’d to the other address names nobody, so it is kept here as well as there.'
+            label: 'File mail for my other accounts under them (Gmailify)'
+            'off': 'Off'
+            'on': 'On'
         heading: 'Email addresses'
         make_primary: 'Make primary'
         ms_sender_hint: 'Outlook sends as your account’s primary alias regardless of the address chosen here — change it in your'
         ms_sender_hint_link: 'Microsoft account settings'
+        name_for: 'Sender name for %alias%'
+        name_placeholder: 'Sender name'
+        name_save: 'Save name'
         primary: 'Primary'
         refresh: 'Refresh from provider'
         subheading: 'Addresses this account sends and receives as.'
@@ -2848,6 +3365,7 @@ settings:
         scan_title: "Scan this with the plMail app"
         scan_hint: "The code works once and expires in two minutes. It doesn't contain your app password — the app exchanges it for a new one."
         qr_alt: "Pairing code"
+        with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
     app_passwords:
@@ -3083,6 +3601,7 @@ settings:
         action:
             applyLabel: Apply label
             archive: Skip inbox
+            fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
             removeLabel: Remove label
@@ -3153,6 +3672,7 @@ settings:
             draft: a draft
             flagged: starred
             seen: read
+        category_missing: '(deleted category)'
         integration_missing: '(disconnected service)'
         label_missing: '(deleted label)'
         move_down: Move "%name%" later
@@ -3162,6 +3682,7 @@ settings:
         new_title: New filter
         no: No
         no_actions: No actions yet
+        no_categories: 'No categories yet — create one first.'
         no_integrations: 'No services connected — set one up in Integrations first.'
         of_the_following: of the following
         op:
@@ -3302,6 +3823,13 @@ settings:
                     not the same as verification; an unverified app still works,
                     it just shows a warning screen the first time.
                 title: '%account% needs you to sign in again — and will again in a week'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail can now sync this account's contacts, but %account%
+                    was connected before it asked for them. Mail and calendars
+                    are not affected. Sign in once more and allow contacts, and
+                    its address book appears under Contacts.
+                title: 'Connect %account% again to sync its contacts'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -3436,6 +3964,12 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_contacts:
+                label: 'Allow contacts'
+                promise: >-
+                    Takes you back to the provider to sign in as %account% and
+                    allow contacts. Nothing about your mail changes, and no
+                    mail is re-downloaded.
             grant_calendar:
                 label: 'Grant full access'
                 promise: >-
@@ -3526,6 +4060,7 @@ settings:
         disabled: 'Connection paused'
         disconnect: Disconnect
         disconnect_confirm: 'Disconnect %name%? Files already attached to mail are unaffected.'
+        disconnect_confirm_mirrored: 'Disconnect %name%? %calendars% calendar(s) and %books% address book(s) mirrored from it are removed here too; events that came from your mail are moved to your default calendar first. Files already attached to mail are unaffected.'
         disconnected: 'Service disconnected'
         edit: Edit
         empty: 'No services connected yet.'
@@ -3581,6 +4116,80 @@ settings:
         option_none: All three
         option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
+    contacts_behaviour:
+        button: 'Contacts button'
+        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
+        heading: 'Behaviour'
+        option_contacts: 'Beside mail only'
+        option_none: 'All three'
+        option_split: 'Full width only'
+        subheading: 'How the contacts button in the top bar moves between views.'
+    contacts:
+        allow_contacts: 'Allow contacts'
+        allow_contacts_hint: 'Connected before plMail asked for contacts. Sign in once more and allow them, and this account''s address book appears here.'
+        allow_contacts_microsoft: 'If your organisation approves apps for its users, ask your administrator to approve plMail''s contacts permission first. Until they do, Microsoft refuses this sign-in.'
+        carddav:
+            connect: Connect a CardDAV server
+            disconnect: Disconnect "%name%"
+            disconnect_confirm: >-
+                Disconnect "%name%"? Every address book mirrored from it is
+                removed here, with any change not yet sent to the server. The
+                contacts on the server are not touched.
+            field:
+                address: Server address
+                address_help: >-
+                    The CardDAV address your server shows you, or just its
+                    domain — plMail asks the domain where its address books live
+                    before giving up.
+                name: Name
+                name_help: What to call this connection in your settings.
+                reuse: Use the password from one of my mail accounts
+                reuse_account: Which account's password
+                reuse_account_none: Choose an account…
+                reuse_help: >-
+                    Off by default, and worth leaving off: most servers want an
+                    app-specific password, and ticking this sends a password you
+                    gave plMail for your mailbox to the address above.
+                secret: App password
+                secret_help: >-
+                    Create one on your server rather than using your login
+                    password — iCloud and Fastmail accept nothing else.
+                username: Username
+                username_help: The account name your server knows you by.
+            intro: >-
+                Any CardDAV server: Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. Usually the same address and app password as your
+                calendars.
+            submit: Connect and find address books
+            title: Connect a CardDAV server
+        empty: No contacts server connected yet.
+        find: Choose address books
+        heading: Contacts
+        intro: >-
+            Address books mirrored from a CardDAV server. Contacts in them are
+            suggested when you write, and changes you make here are sent back.
+        never_synced: Not synced yet
+        no_books: No address book chosen from this server yet.
+        open: Open contacts
+        read_only: Read-only
+        subheading: Where your address books come from.
+        subscribe:
+            empty: '"%name%" offers no address books.'
+            intro: Choose which address books from "%name%" to mirror in plMail.
+            mirrored: Mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
+            save: Save
+            title: Choose address books
+            unsubscribe_note: >-
+                Unticking an address book removes its copy here, including any
+                change not yet sent. The server keeps its own.
+        sync_now: Sync "%name%" now
+        synced: Synced %date%
+        toast:
+            disconnected: Contacts server disconnected
+            saved: Address books saved
+            sync_queued: Sync queued
+            unchanged: Nothing changed
     calendars:
         account_hint: Where events found in mail from %address% are filed.
         caldav:
@@ -3642,6 +4251,8 @@ settings:
                 Outlook accounts do; connect a CalDAV server for anything else.
             find: Find calendars on %name%
             heading: Where calendars come from
+            managed: 'Set up in Integrations'
+            managed_hint: '%name% also holds your files. Disconnect it in Settings → Integrations.'
             why_admin: >-
                 Your administrator may not have added calendar permissions to
                 the app registration plMail signs in with. Mail keeps working
@@ -3664,6 +4275,7 @@ settings:
                 Tick the calendars on %name% to keep in step with plMail. Events
                 appear within a minute of ticking one.
             mirrored: Already mirrored
+            mirrored_elsewhere: 'Already mirrored through %name%'
             primary: Main
             save: Save subscriptions
             title: Find my calendars
@@ -3700,6 +4312,40 @@ settings:
         'off': 'Off'
         'on': 'On'
         subheading: How mail is thrown away for good.
+    images:
+        always_show: Always show remote images
+        always_show_hint: >-
+            Loads the pictures in every message without asking first. Senders
+            can then tell that and when you opened their mail, though not your
+            address: images still come to you through plMail. Mail in Spam stays
+            blocked either way. Off until you turn it on.
+        heading: Images
+        'off': 'Off'
+        'on': 'On'
+        subheading: Whether pictures that mail loads from elsewhere wait to be asked for.
+    swipe_actions:
+        heading: Swipe actions
+        hint: >-
+            A swipe acts once you drag far enough or flick quickly. Read and star
+            can be undone by swiping again, and archive offers Undo. Trash is not a
+            choice: a swipe that deleted mail would have nothing to undo it.
+        left:
+            label: Swipe left
+        option:
+            archive: Archive
+            none: Nothing
+            read_unread: Read / unread
+            star: Star
+        right:
+            label: Swipe right
+        subheading: What a swipe across a row does on a phone.
+    whats_new:
+        heading: 'What''s new'
+        'off': 'Off'
+        'on': 'On'
+        show: 'Show what''s new after an update'
+        show_hint: 'Off: nothing opens after an update, and the ? in the top bar shows no dot. The notes are still under ? → What''s new.'
+        subheading: 'What plMail shows you after it has been updated.'
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -3708,7 +4354,10 @@ settings:
         appearance: Appearance
         calendar_behaviour: Behaviour
         calendars: Calendars
+        categories: "Categories"
+        contacts: Contacts
         disposal: Disposal
+        encryption: "Encryption"
         filters: Filters
         general: General
         group:
@@ -3718,6 +4367,7 @@ settings:
             mail: Mail
             personal: Personal
         health: 'Account health'
+        images: Images
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -3729,6 +4379,7 @@ settings:
         sharing: Sharing
         shortcuts: Keyboard shortcuts
         signature: Signatures
+        swipe_actions: Swipe actions
         templates: 'Templates'
     notifications:
         devices:
@@ -3756,6 +4407,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Not verified'
             verified: 'Verified'
+        error_server: 'The server turned this device down (%error%). Try again, and if it keeps happening, tell your administrator.'
+        error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
+        error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to
@@ -3795,6 +4449,7 @@ settings:
         remember_me_note: 'Changing your password signs out every remembered browser except this one. That is what makes it worth doing when a device goes missing.'
         subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
         submit: Change password
+        submitting: Saving…
     reading_pane:
         heading: Reading pane
         hint: 'Off shows the list and the message one at a time. Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.'
@@ -3898,14 +4553,57 @@ settings:
         reverted: 'Back to the account signature.'
         save: 'Save signature'
         saved: 'Saved.'
+        source:
+            clean: 'Nothing was removed.'
+            embedded: 'Images stored in the signature: %count%.'
+            failed: 'The signature could not be rendered. Your HTML is unchanged. Try again.'
+            html: 'HTML'
+            label: '%label% as HTML'
+            placeholder: 'Paste or write the HTML of your signature…'
+            remote: 'Images that could not be stored and stay linked: %count%. They do not show here and some recipients have to allow them first.'
+            removed: 'Removed, because mail clients would not show it or it is not safe to send: %items%.'
+            rendered: 'Rendered'
+            toggle: 'Signature view'
         subheading: 'What is added to the bottom of the messages you write.'
+    categories:
+        add: Add
+        built_in: "Built in"
+        built_in_off: "Built in · switched off — its mail is in Primary"
+        created: 'Created "%name%".'
+        delete: Delete category
+        delete_confirm: 'Delete "%name%"? Mail filed there goes back to the tab it would otherwise be in. No mail is deleted.'
+        deleted: 'Deleted "%name%".'
+        error:
+            empty: 'A category needs a name.'
+            reserved: 'That name belongs to one of the built-in tabs.'
+            taken: 'You already have a category with that name.'
+            too_long: 'That name is too long (40 characters at most).'
+        filters_link: 'Settings → Filters.'
+        heading: "Tabs"
+        hint: "A tab of your own shows in the inbox while it holds mail. Mail goes into it through a filter whose action is \"File in category\" — set one up under"
+        move_down: "Move %tab% down"
+        move_up: "Move %tab% up"
+        name_label: Name
+        off: "Off"
+        on: "On"
+        placeholder: 'e.g. Shipping'
+        primary_fixed: "Always first and always on — mail from a tab you switch off lands here."
+        rename: Rename
+        renamed: 'Renamed to "%name%".'
+        reorder: "Drag to reorder"
+        subheading: "Switch the built-in tabs on or off, add your own, and drag them into the order you want."
     sorting:
+        account_tabs:
+            hint: Shows the tabs on an account's own inbox too, when you click the account in the sidebar. Off shows that account's whole inbox as one list.
+            label: Tabs on each account
+            'off': 'Off'
+            'on': 'On'
         again:
             button: Ask again
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
             label: Sort recent mail again
         applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
-        heading: Categories
+        heading: "Sorting"
         override:
             hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.
             label: On Gmail accounts
@@ -4069,6 +4767,7 @@ sidebar:
     badge:
         total: '%count% in total'
         unread: '%count% unread'
+        unsent: A draft could not be sent
     compose: Compose
     labels:
         add: Create label
@@ -4077,6 +4776,7 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
+        all_mail: All Mail
         archive: Archive
         calendar: Calendar
         drafts: Drafts
@@ -4166,8 +4866,18 @@ thread_row:
     new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
+    send_failed:
+        failed: Not sent
+        may_have_sent: 'May have been sent: check Sent before sending it again'
+        rate_limited: 'Not sent: your mail provider was limiting sends'
+        refused: 'Not sent: the mail server refused it'
+        unavailable: 'Not sent: your mail provider could not be reached'
     scheduled: 'Scheduled %when%'
     select: Select
+    # The long-press sheet's own names: its dialog label, and the entry that ticks the row.
+    sheet:
+        label: Actions for this conversation
+        select: Select
     star: Star this message
     to: 'To: %recipients%'
     unread: Unread
@@ -4198,6 +4908,10 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
+    send_failed_may_have_sent: '%subject% may have been sent, but the answer was lost. Check Sent before sending it again.'
+    send_failed_rate_limited: 'That message could not be sent: %subject%. Your mail provider is limiting sends right now; try again in a few minutes.'
+    send_failed_refused: 'That message could not be sent: %subject%. The mail server refused it.'
+    send_failed_unavailable: 'That message could not be sent: %subject%. Your mail provider could not be reached.'
     sent: Message sent.
     spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
     undo: Undo
@@ -4224,6 +4938,7 @@ toolbar:
         mark_unread: Mark as unread
         more: More
         move_to: Move to
+        not_spam: 'Not spam'
         purge: Delete forever
         snooze: Snooze
         spam: 'Mark as spam'
@@ -4311,3 +5026,359 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+whats_new:
+    admin: 'For administrators'
+    also: 'Also in this release'
+    changes: '{0}No changes|{1}1 change|]1,Inf[ %count% changes'
+    changes_heading: 'Changes'
+    done: 'Done'
+    feedback:
+        back: 'Back to the changes'
+        error:
+            account: 'Choose the account to send from.'
+            empty: 'Write a message, or say how plMail is doing.'
+            screenshot: 'The screenshot could not be attached. Untick it and send again.'
+            send: 'The mail could not be sent. Your text is still here; try again in a moment.'
+            transport: 'Not sent: the server answered %status% instead of plMail. Try again without the screenshot, or ask whoever runs this install.'
+        from: 'Send from'
+        message:
+            label: 'Your message'
+            placeholder: 'What you like, what you miss, what broke.'
+        nudge: 'Something you like, miss, or that broke?'
+        rating:
+            better: 'Better'
+            label: 'Since the update, plMail is (optional)'
+            same: 'Same as before'
+            worse: 'Worse'
+        screenshot:
+            failed: 'The page could not be captured, so nothing will be attached.'
+            label: 'Attach a screenshot of the page you were on'
+            preview: 'The screenshot that will be attached'
+            taking: 'Taking the screenshot…'
+        send: 'Send feedback'
+        sent:
+            body: 'A copy is in your Sent folder, and a reply arrives like any other mail.'
+            title: 'Feedback sent.'
+        title: 'Send feedback'
+        where: 'Goes by mail to %address%, with your plMail version. A copy stays in your Sent folder.'
+    highlights: 'Highlights'
+    menu:
+        label: 'Help and feedback'
+        unseen: 'There are release notes you have not seen'
+        version: 'plMail %version%'
+    missing: 'The release notes are not part of this installation.'
+    nav:
+        current: 'Installed'
+        history: 'Full changelog'
+        label: 'Releases'
+        new: 'New to you'
+    quiet: 'Don''t show this after updates'
+    screenshot: 'Screenshot'
+    screenshot_close: 'Close the screenshot'
+    screenshot_open: 'Open the screenshot full size'
+    title: 'What''s new'
+contacts:
+    add_address: 'Add address'
+    add_custom: 'Add field'
+    add_date: 'Add date'
+    add_email: 'Add email'
+    add_im: 'Add chat address'
+    add_phone: 'Add phone'
+    add_relation: 'Add person'
+    add_to_address_book: 'Add to contacts'
+    add_url: 'Add website'
+    back: Back
+    book_all: 'All books'
+    book_local: 'Not synced'
+    cancel: Cancel
+    check_carefully: 'Check carefully'
+    city: City
+    company: Company
+    confidence: '%pct%% match'
+    count: '{0}No contacts|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Country
+    created: 'Contact created.'
+    custom_label_placeholder: 'Field name'
+    custom_value_placeholder: 'Value'
+    date_full: '%month% %day%, %year%'
+    date_no_year: '%month% %day%'
+    day: 'Day'
+    delete: Delete
+    delete_confirm: 'Delete %name%? The contact goes to the trash and is permanently removed after 90 days.'
+    deleted_contact: '(deleted contact)'
+    display_name: 'Full name'
+    duplicates: Duplicates
+    duplicates_count: '{1}1 candidate pair|]1,Inf[ %count% candidate pairs'
+    duplicates_none: 'No duplicates found. New imports are checked automatically.'
+    edit: 'Edit contact'
+    email_placeholder: name@example.com
+    empty: 'No contacts yet. Add your first one, or import from a vCard or CSV file.'
+    empty_search: 'No contacts match this search.'
+    export_vcf: 'Export as vCard'
+    field:
+        birthday: 'Birthday'
+        company: 'Company'
+        department: 'Department'
+        familyName: 'Last name'
+        givenName: 'First name'
+        jobTitle: 'Job title'
+        middleName: 'Middle name'
+        namePrefix: 'Prefix'
+        nameSuffix: 'Suffix'
+        nickname: 'Nickname'
+        officeLocation: 'Office'
+        phoneticCompany: 'Company (phonetic)'
+        phoneticFamilyName: 'Last name (phonetic)'
+        phoneticGivenName: 'First name (phonetic)'
+        phoneticMiddleName: 'Middle name (phonetic)'
+    im_placeholder: 'Handle or address'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Other'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
+    import: Import
+    import_bad_format: 'Only .vcf/.vcard and .csv files can be imported.'
+    import_choose: 'Choose file'
+    import_confirm: 'Import %count% contacts'
+    import_dedupe_note: 'After importing you land on the duplicates page to merge anything imported twice.'
+    import_expired: 'The staged import expired. Please upload the file again.'
+    import_formats: '.vcf, .vcard or .csv'
+    import_hint: 'A .vcf/.vcard address-book export or a .csv file. Duplicates are checked after import.'
+    import_no_file: 'No file was uploaded.'
+    import_preview_count: '%count% contacts found in the %format% file. Showing the first few:'
+    import_step1: 'Step 1 — choose a file'
+    import_step2: 'Step 2 — preview'
+    import_upload: 'Upload & preview'
+    import_uploading: Uploading…
+    imported: 'Imported %count% contacts.'
+    in_address_book: 'In your contacts'
+    keep_this: 'Keep this one'
+    label: Label
+    label_home: Home
+    label_mobile: Mobile
+    label_other: Other
+    label_work: Work
+    labels:
+        anniversary: 'Anniversary'
+        assistant: 'Assistant'
+        blog: 'Blog'
+        brother: 'Brother'
+        child: 'Child'
+        father: 'Father'
+        friend: 'Friend'
+        home: 'Home'
+        manager: 'Manager'
+        mobile: 'Mobile'
+        mother: 'Mother'
+        other: 'Other'
+        parent: 'Parent'
+        partner: 'Partner'
+        profile: 'Profile'
+        relative: 'Relative'
+        sibling: 'Sibling'
+        sister: 'Sister'
+        spouse: 'Spouse'
+        work: 'Work'
+    merge: Merge
+    merge_pick_keep: 'Pick which contact to keep first.'
+    merge_read_only: 'A contact from a read-only address book cannot be merged.'
+    merge_undo: Undo
+    merge_undo_expired: 'The 90-day undo window for this merge has expired.'
+    merge_undone: 'Merge undone.'
+    merged: 'Contacts merged. You can undo it from the list below.'
+    merged_into: 'Merged %count% into %name%'
+    month: 'Month'
+    months:
+        1: 'January'
+        2: 'February'
+        3: 'March'
+        4: 'April'
+        5: 'May'
+        6: 'June'
+        7: 'July'
+        8: 'August'
+        9: 'September'
+        10: 'October'
+        11: 'November'
+        12: 'December'
+    nav: Contacts
+    new: 'New contact'
+    next: Next
+    no_details: 'No contact details yet.'
+    no_subject: '(no subject)'
+    notes: Notes
+    page: 'Page %page%'
+    pane:
+        close: 'Close contacts'
+        mode:
+            contacts: 'Show contacts full width'
+            mail: 'Hide contacts'
+            split: 'Show contacts beside the mail'
+        resize: 'Resize contacts'
+    pending: 'Waiting to be sent to the server'
+    phone_placeholder: '+1 555 010 2030'
+    phonetic: 'Phonetic spelling'
+    photo_hint: 'JPG, PNG or WebP, up to 5 MB.'
+    photo_invalid: 'That photo could not be used. JPG, PNG or WebP up to 5 MB.'
+    photo_remove: 'Remove photo'
+    photo_removed: 'Photo removed.'
+    photo_upload: 'Upload photo'
+    photo_uploaded: 'Photo updated.'
+    postcode: Postcode
+    prev: Previous
+    primary: Primary
+    primary_short: Primary
+    recent_merges: 'Recent merges'
+    reference_emails: 'Reference emails'
+    reference_emails_empty: 'No emails with this contact yet.'
+    reference_emails_hint: 'Every email to or from this contact that has not been deleted — inbox, sent, drafts, trash and labels.'
+    region: Region
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partner
+    rel_related: Related
+    related: 'Related contacts'
+    relation_placeholder: 'Name'
+    remove: Remove
+    save: Save
+    save_to: 'Save to'
+    save_to_book_hint: 'Goes to %book% on %server%, and from there to every device that syncs it.'
+    save_to_hint: 'A contact in a synced address book goes to its server, and from there to every device that syncs it.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Kept in plMail only.'
+    search: 'Search contacts'
+    search_placeholder: 'Search name, company or email…'
+    section_addresses: Addresses
+    section_custom: 'Custom fields'
+    section_dates: 'Dates'
+    section_details: Details
+    section_emails: Emails
+    section_ims: 'Chat'
+    section_name: Name
+    section_notes: Notes
+    section_phones: Phones
+    section_relations: 'People'
+    section_urls: 'Websites'
+    section_work: 'Work'
+    street: Street
+    synced_read_only: 'Read-only, from %book% on %server%'
+    synced_with: 'Synced with %book% on %server%'
+    tag_all: All
+    tags: Tags
+    tags_placeholder: 'Comma-separated, e.g. family, vendors'
+    title: Contacts
+    trashed: 'Contact moved to trash.'
+    updated: 'Contact saved.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Give the contact a name.'
+    year_optional: 'Year (optional)'
+    editor:
+        add: 'Add'
+        add_email: 'Add an email address'
+        add_phone: 'Add a phone number'
+        address: 'Address'
+        adds: 'New'
+        ai_failed: 'The AI did not answer. Try again in a moment.'
+        ai_nothing: 'The AI has nothing to suggest.'
+        ai_running: 'Asking the AI… It gets this contact and the signature of their latest mail.'
+        ai_sent: 'Sent this contact and the signature of their mail of %date% to the AI service your administrator set up. Nothing changes until you apply it.'
+        ai_sent_no_mail: 'Sent this contact to the AI service your administrator set up. There is no mail from them with a signature. Nothing changes until you apply it.'
+        ai_title: 'Suggestions from AI'
+        applied: 'Added to the form and highlighted: %count%. Nothing is saved until you click Save.'
+        apply_many: 'Apply %count% details'
+        apply_none: 'Nothing to apply'
+        apply_one: 'Apply 1 detail'
+        auto_label: 'Type guessed from what you typed. Pick one to set it.'
+        close_panel: 'Close'
+        dates: 'Dates'
+        dirty_many: '%count% unsaved changes'
+        dirty_one: '1 unsaved change'
+        discard: 'Discard'
+        edit_parts: 'Edit parts'
+        email: 'Email'
+        email_invalid: 'That doesn''t look like an email address yet.'
+        fills: 'Fills an empty field'
+        fix_emails: 'Fix the email address marked in red to save.'
+        hide_parts: 'Hide parts'
+        improve: 'Improve with AI'
+        more_work: 'Department, office, phonetic name'
+        name_placeholder: 'First and last name'
+        new_hint: 'A new contact. Save when it has what you need.'
+        note: 'Note'
+        nothing_found: 'Nothing in this text looks like a contact detail yet.'
+        parts_stale: 'The name and its parts no longer match.'
+        paste: 'Paste details'
+        paste_placeholder: 'Paste a signature, an address or a vCard. Nothing changes until you apply it.'
+        paste_title: 'Paste a signature, vCard or address'
+        person: 'Person'
+        phone: 'Phone'
+        preferred: 'Preferred'
+        reading: 'Reading…'
+        relabels: 'Changes the type from %from% to %to%'
+        remove_what: 'Remove %what%'
+        replaces: 'Replaces “%value%”'
+        same: 'Already there'
+        split_again: 'Split the name again'
+        summary_conflict: '%count% different from what is there'
+        summary_new: '%count% new'
+        summary_same: '%count% already there'
+        website: 'Website'
+    from_mail:
+        add_to: 'Add to %name%'
+        existing: 'Add to an existing contact'
+        more_details: 'More details'
+        name: 'Name'
+        new: 'New contact'
+        no_matches: 'No contact matches.'
+        save: 'Save'
+        search: 'Search your contacts'
+        title: 'Add to contacts'
+    quick:
+        ai_ask: 'Some of this was not clear. The AI can usually sort signatures like this out.'
+        ai_ask_complete: 'Looks complete. You can still have the AI check it.'
+        ai_disclosure: 'Sends only this text to the AI service your administrator set up. Nothing is saved until you create the contact.'
+        ai_running: 'Asking the AI…'
+        ai_undo: 'Undo AI changes'
+        ai_undo_ask: 'Not what you wanted? Go back to what the rules found.'
+        all_fields: 'All fields'
+        box_hint: 'Read as you type. Every row below can be unticked, retyped or given another type.'
+        box_label: 'Type or paste anything about them'
+        box_placeholder: 'A name, an email signature, a line like  Mia Hoffmann <mia@example.net>, or a vCard'
+        change_type: 'Change what this is'
+        create: 'Create contact'
+        detail_ai: 'Changes are marked. Untick or fix anything before you create the contact.'
+        detail_ai_same: 'The AI found nothing to change.'
+        detail_rules: 'Every line was placed.'
+        detail_unsure: 'Not placed yet: %count%'
+        detail_vcard: 'All %count% fields read directly. Nothing was guessed.'
+        done_parts: 'Done'
+        existing: '%name% already has %email%.'
+        fix_parts: 'Fix'
+        ignore: 'Leave out'
+        keep: 'Keep'
+        no_name: 'Needs a name'
+        open_existing: 'Open that contact'
+        skipped: 'Left out as a greeting: %lines%'
+        source_ai: 'Improved by AI'
+        source_rules: 'Read by rules'
+        source_vcard: 'vCard'
+        summary_many: '%name% with %count% details'
+        summary_name: '%name%, name only'
+        summary_none: 'Type or paste something about them to start.'
+        summary_one: '%name% with 1 detail'
+        unsure_many: 'Where do these lines go?'
+        unsure_one: 'Where does this line go?'
+        use_as: 'Use as…'
+        you_placed: 'You placed this line'

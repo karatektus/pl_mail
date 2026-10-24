@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\MessageThread;
@@ -60,12 +61,15 @@ final readonly class ListViewResolver
     public function __construct(
         private MessageThreadRepository $threads,
         private LabelRepository         $labels,
+        private InboxTabs               $tabs,
+        private AllMailView             $allMail,
     ) {
     }
 
     /**
      * @param string $scope one of `inbox`, `archive`, `trash`, `spam`, `sent`,
-     *                      `drafts`, `snoozed`, `starred`, `unread`, `label`
+     *                      `drafts`, `snoozed`, `starred`, `unread`, `all_mail`,
+     *                      `label`
      * @param string $value the category for `inbox`, the label id for `label`,
      *                      ignored otherwise
      *
@@ -98,6 +102,19 @@ final readonly class ListViewResolver
      */
     private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
+        // All Mail is not a label either: nothing wears it, the list is a
+        // query. The value narrows it to one account, or to none for the list
+        // across every account; one that is not the reader's selects nothing.
+        if (true === AllMailView::names($scope)) {
+            $account = $this->allMail->account($user, $value);
+
+            return match (true) {
+                false === $account => [],
+                null === $account  => $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly),
+                default            => $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly),
+            };
+        }
+
         if ('inbox' === $scope) {
             // The inbox is per category tab, and the tab IS the view: selecting
             // everything while looking at Notifications must not reach into
@@ -109,9 +126,27 @@ final readonly class ListViewResolver
             // all, delete" has to mean the list the server would have drawn —
             // all of it for somebody without tabs, never Primary alone because
             // the page sent an empty string (#29).
-            $category = true === $user->categorySorting->tabs
-                ? MessageCategory::tryFrom($value) ?? MessageCategory::Primary
-                : null;
+            //
+            // The reader's own tabs count: the value is a tab key, and one of
+            // theirs resolves to their category's conversations.
+            //
+            // A key that LOOKS like one of theirs and does not resolve — the
+            // category was deleted since the page was drawn, or never was theirs
+            // — selects nothing. Falling back to Primary, as a mistyped built-in
+            // name does, would point a whole-view archive or trash at up to ten
+            // thousand conversations that were never on screen, because the job
+            // resolves the view when it RUNS, not when the button was pressed.
+            $category = null;
+
+            if (true === $user->categorySorting->tabs) {
+                $category = $this->tabs->resolve($user, $value);
+
+                if (null === $category && true === InboxTab::looksCustom($value)) {
+                    return [];
+                }
+
+                $category ??= InboxTab::builtIn(MessageCategory::Primary);
+            }
 
             return $this->threads->findForUnifiedInbox($user, $category, $page, self::CHUNK, unreadOnly: $unreadOnly);
         }

@@ -368,6 +368,43 @@ final class ImageProxyFetcherTest extends TestCase
         // that into class, file, line and trace. A string cannot be expanded.
         self::assertInstanceOf(\Throwable::class, $line['context']['exception']);
     }
+
+    /**
+     * The rules were the one refusal that left no trace: every http image in
+     * every mail became a placeholder, and the only line anywhere was the
+     * controller's "no image to serve", with no reason in it (#271).
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function refusalsAndTheirReasons(): iterable
+    {
+        yield 'plain http' => ['http://example.com/logo.png', 'not https on port 443'];
+        yield 'an unusual port' => ['https://example.com:8080/logo.png', 'not https on port 443'];
+        yield 'a private literal' => ['https://10.0.0.5/logo.png', 'not a public address'];
+        yield 'a container hostname' => ['https://database/logo.png', 'not a public host name'];
+    }
+
+    #[DataProvider('refusalsAndTheirReasons')]
+    public function testARefusalSaysWhichRuleRefusedIt(string $url, string $reason): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static function (): never {
+                self::fail('The proxy attempted a request to a target it should have refused.');
+            }),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch($url));
+
+        $line = $logger->firstContaining('refused the target');
+
+        self::assertNotNull($line, 'a refusal by the rules has to leave a trace');
+        self::assertSame($url, $line['context']['url']);
+        self::assertSame($reason, $line['context']['reason']);
+    }
 }
 
 /**

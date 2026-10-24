@@ -22,6 +22,10 @@ answer the chip is absent entirely rather than reading "development" beside ever
 Two images can both call themselves `main`, which is why the commit is shown next to the label and
 not instead of it.
 
+A click on the chip copies both, label and commit with one space between them
+(`milestone-v0.4.0 0805208`), ready for a bug report or a deploy command; its clipboard icon turns
+into a tick to say so. It also works on a phone and on an instance served over plain HTTP.
+
 ## System
 
 Live panels, refreshed every ten seconds. Each can be collapsed, and a collapsed card shows a
@@ -302,8 +306,8 @@ appears only when there is something in it, and names how many.
 
 ## Integrations
 
-Two things live here: which file services this installation offers, and the OAuth applications users
-sign into their mail with.
+Three things live here: which file services this installation offers, the server address for its
+calendar services, and the OAuth applications users sign into their mail with.
 
 **Mail sign-in** holds the Google and Microsoft client id and secret, the Microsoft tenant, and for
 Gmail the Pub/Sub topic and push verification token. Leaving any of them empty falls back to the
@@ -323,6 +327,23 @@ appear.
   provider's console.
 - **Server address**, for the self-hosted ones. Leave it empty and each user enters their own; set
   it and every user is pinned to that server.
+
+**Calendars** lists CalDAV and calendar feeds below the file services, with the same row and the same
+**Configure** form. Both are offered to every user whatever is set here, so the row says **Offered
+to everyone** and the form has no switch. Nextcloud is not repeated there: it is configured once
+among the file services, and its calendars use that address.
+
+- **CalDAV** has the one setting the setup wizard may already have written: **Server address**. Set
+  it and every CalDAV connection finds its calendars on that server; clear it and each user's own
+  address counts again. A change applies the next time calendars are found on a connection.
+  Calendars already mirrored keep the address they were found at, and clearing an address in a
+  private range also ends its exemption from the private-network rule, so those calendars stop
+  syncing until the host is in `INTEGRATIONS_ALLOWED_HOSTS`. Once people have connected, the form
+  says how many connections a change reaches. See [CalDAV](../providers/caldav.md).
+- **Calendar feed** has no server to pin, because every feed is its own address, so its row has
+  nothing to configure. Only an address the setup wizard stored before is shown, with a
+  **Configure** button to clear it: such an address only lets feeds on its host past the
+  private-network rule.
 
 **Reuse Gmail credentials** and its Microsoft equivalent copy a client id and secret across
 server-side, without ever showing the secret. One Google Cloud project also covers Drive and Photos;
@@ -412,6 +433,23 @@ registered device with its transport, whether the verification handshake complet
 delivery.
 
 Retention is 30 days, swept nightly by `app:monitoring:prune`; `--push-days=N` changes it.
+
+## SSO
+
+Single sign-on: the OpenID Connect provider people sign in to plMail through — Authentik, Keycloak,
+Authelia and the like. One form: the issuer, the client ID and the client secret out of the
+provider's console, the name the login button carries, and two switches for how accounts are
+matched. The page shows the redirect URI to register at the provider, and a chip that says whether
+sign-in is **On**, **On, from the environment** or **Off**.
+
+Saving takes effect at once. The client secret is write-only, like every credential in this area:
+the field never shows a stored one, and leaving it empty keeps it. Setup step by step, what each
+switch does and the `OIDC_*` variables that stand in when nothing is saved here are in
+[Single sign-on](../providers/oidc.md).
+
+**This is the one admin page that decides who can sign in.** Whoever can save it can point plMail at
+a provider of their own and sign in as any account that has no second factor — see the page above
+before handing out administrator accounts.
 
 ## AI
 
@@ -564,7 +602,7 @@ on the host itself applies. plMail cannot read that variable, so an empty box is
 nothing. Useful after a restart, and useful for finding out what a cold load actually costs on your
 hardware before you decide how long to hold it.
 
-### The four features are separate switches
+### The five features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.
 
@@ -574,6 +612,7 @@ They have very different costs, and very different consequences when the model i
 | **Sort mail into tabs** | Fills in a category when no rule recognised the message | On every message that arrives |
 | **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
 | **Thread summaries** | Writes a short account of a long conversation | Only when somebody asks for one |
+| **Contact help** | Reads a contact out of pasted text, and suggests updates to a contact from the signature of their latest mail | Only when somebody presses **Improve with AI** |
 
 Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker —
 if a header, a Gmail label or the fact that you have written to somebody already decided the
@@ -597,13 +636,20 @@ Two things keep sorting from getting in the way of mail arriving:
 
 Writing help never replaces what you wrote. It appends, so the original is always still there.
 
-Summaries are the most expensive of the four. They use the same writing model, but a whole
+Summaries are the most expensive of the five. They use the same writing model, but a whole
 conversation is a much larger prompt than a draft: on a 30B model and one GPU, expect around a
 minute for the first summary after a quiet spell and around half that once the model is warm. The
 GPU is held for the whole of it, so on a shared machine a summary is felt by everybody. Nothing is
 ever summarised on its own — no arriving message, no nightly pass — and a summary that has been
 written is kept and shown again, so opening the same conversation twice costs nothing the second
 time.
+
+Contact help sends text about somebody else: what a person pasted into a new contact, or a saved
+contact together with the signature block of the newest mail that contact sent — the part under
+`-- ` or under the closing ("Best regards"), never the body of the mail. A mail with neither sends
+nothing from that mail. Nothing it suggests is saved until the person ticks it and saves the
+contact. Without it, pasting still works: plMail reads the text by rules, and only the button that
+asks the model goes away.
 
 ### Searching by meaning needs one pass first
 
@@ -675,7 +721,9 @@ become a second way into every mailbox on the install:
 
 - **Change an existing user's password.** The field exists on create and not on edit. Someone who
   has not signed in yet has no mail, so setting their initial password discloses nothing; changing
-  it afterwards would. A forgotten password is reset with `app:user:password` on the console.
+  it afterwards would. And even the initial one works only once: the person has to choose their own
+  the first time they sign in, so the one you typed stops being a way in. A forgotten password is
+  reset with `app:user:password` on the console, which makes the same one-time password.
 - **Remove anyone's second factor.** That is `app:user:2fa-disable` on the console, and only there.
 - **Read anyone's mail.** Nothing in this area touches an account or a message.
 

@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { listView } from "../../list_view.js";
 import { announceWrite } from "../../mail_writes.js";
 import { requestFailed } from "../../request_errors.js";
 
@@ -154,7 +155,7 @@ export default class extends Controller {
             response = await fetch(url, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
-                body: JSON.stringify(body ?? {}),
+                body: JSON.stringify({ ...listView(), ...(body ?? {}) }),
             });
         } catch {
             requestFailed(null);

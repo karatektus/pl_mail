@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\InboxTab;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
@@ -115,7 +116,10 @@ class NewMailMarkers implements ResetInterface
         return $this->now ??= new \DateTimeImmutable();
     }
 
-    public function forCategory(MessageCategory $category): int
+    /**
+     * New conversations in one tab — a built-in one, or one the reader made.
+     */
+    public function forTab(InboxTab $tab): int
     {
         if (null === $this->byCategory) {
             $user = $this->security->getUser();
@@ -125,20 +129,20 @@ class NewMailMarkers implements ResetInterface
                 : $this->threadRepository->countNewByCategoryForUnifiedInbox($user, $this->now());
         }
 
-        return $this->byCategory[$category->value] ?? 0;
+        return $this->byCategory[$tab->value] ?? 0;
     }
 
     /**
-     * Who the new mail in a category is from — the sender hint on its tab.
+     * Who the new mail in a tab is from — the sender hint under it.
      *
-     * Reads the same clock as forCategory() so the names and the number they
-     * sit beside describe the same instant; a thread that ages out of the
-     * window between two reads would otherwise be counted by one and named by
-     * the other.
+     * Reads the same clock as forTab() so the names and the number they sit
+     * beside describe the same instant; a thread that ages out of the window
+     * between two reads would otherwise be counted by one and named by the
+     * other.
      *
      * @return list<string> newest arrival first, at most three
      */
-    public function sendersForCategory(MessageCategory $category): array
+    public function sendersForTab(InboxTab $tab): array
     {
         if (null === $this->sendersByCategory) {
             $user = $this->security->getUser();
@@ -148,7 +152,7 @@ class NewMailMarkers implements ResetInterface
                 : $this->threadRepository->newSendersByCategoryForUnifiedInbox($user, $this->now());
         }
 
-        return $this->sendersByCategory[$category->value] ?? [];
+        return $this->sendersByCategory[$tab->value] ?? [];
     }
 
     /**
@@ -216,7 +220,7 @@ class NewMailMarkers implements ResetInterface
      * the string is built here rather than in both places, which is how
      * "node:" keys once outlived the markup that read them.
      */
-    public static function categoryKey(MessageCategory $category): string
+    public static function categoryKey(MessageCategory|InboxTab $category): string
     {
         return 'new:category:' . $category->value;
     }
@@ -226,7 +230,7 @@ class NewMailMarkers implements ResetInterface
      * the unread badge keys: their values are STRINGS — joined sender names —
      * and a patcher expecting a number must never be able to reach one.
      */
-    public static function categorySendersKey(MessageCategory $category): string
+    public static function categorySendersKey(MessageCategory|InboxTab $category): string
     {
         return 'senders:category:' . $category->value;
     }

@@ -56,6 +56,11 @@ dark-chrome colours, so an ink-dark icon never disappears into a dark top bar. T
 the tile for every icon but the pl mark, because a drawing with nothing behind it is hard to make
 out at the size of a tab.
 
+An app installed from the browser, or plMail added to an iPhone's Home Screen, wears it too. Your
+browser draws that icon when you pick a logo, and it is kept for your account. After an update that
+changes the drawing, the first page you open draws it again in the background. An app that is
+already installed keeps its old icon until the browser refreshes it or you install it again.
+
 ## The live preview
 
 Beside the controls sits a second card showing a sample sidebar, message list and reading pane in
@@ -256,8 +261,9 @@ sensible.
 **Settings → General → Language** sets the language the interface is shown in. Your mail is left
 exactly as it was written — nothing is translated, and nothing is rewritten.
 
-plMail ships **English**, **Deutsch** and **Pirate English**. Changing it reloads the page rather
-than patching it, because every string on screen has to be re-rendered.
+plMail ships **English**, **Deutsch**, **Français**, **简体中文** (Simplified Chinese) and **Pirate English**.
+Changing it reloads the page rather than patching it, because every string on screen has to be
+re-rendered.
 
 The same section carries **Time zone**, which decides the clock times and dates you are shown. It
 too rewrites nothing — the same instant is simply read on your own clock — and it can be left on the
@@ -269,8 +275,8 @@ calendar chip, the agenda, the day grid's hour axis — because a setting honour
 not in one reads as a bug rather than as an option.
 
 Its default is **Follow your language**, which is what everyone is on until they change it: German
-reads 14:30, English reads 2:30 pm. That is a real state and not a value in disguise — leave it
-there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
+and Simplified Chinese read 14:30, English reads 2:30 pm. That is a real state and not a value in
+disguise — leave it there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
 whatever the language later becomes.
 
 Below that, **Show the time** puts the current time somewhere you can see it while reading mail:

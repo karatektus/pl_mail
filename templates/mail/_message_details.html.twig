@@ -22,9 +22,10 @@ mailed-by and signed-by were silently missing from every IMAP message.
 #}
 {% import _self as details %}
 
-{# One address, with a copy button for the addr-spec itself. The clipboard
-   source is the address text as it is rendered, so the insecure-context
-   fallback (which selects the source) highlights exactly what it copied. #}
+{# One address, with a copy button for the addr-spec itself and its contact
+   badge. The clipboard source is the address text as it is rendered, so the
+   insecure-context fallback (which selects the source) highlights exactly
+   what it copied. #}
 {% macro address(entry, separator = '') %}
     <span data-controller="ui--clipboard"
           data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
@@ -51,6 +52,15 @@ mailed-by and signed-by were silently missing from every IMAP message.
                and this is the same news for a screen reader. #}
             <span data-ui--clipboard-target="label" class="sr-only" role="status"></span>
         </button>
+        {# The sender's badge, on every address here too: somebody on Cc is as
+           likely a person to keep as the one who wrote. #}
+        <span class="shrink-0 self-center">
+            {%- include 'contacts/_sender_badge.html.twig' with {
+                address: entry.address,
+                name: entry.name ?? '',
+                contactId: address_book_contact_id(entry.address),
+            } only -%}
+        </span>
         {{- separator -}}
     </span>
 {% endmacro %}
@@ -257,10 +267,20 @@ mailed-by and signed-by were silently missing from every IMAP message.
                        the problem: a conversation sitting in Primary, described
                        here as Updates, because a sibling message carried the
                        thread and this panel was reading a column no tab shows. #}
-                    {{ ('tabs.' ~ (category.filed ?? category.effective.category))|trans }}
+                    {# A tab the reader made wins the row: it is where the
+                       conversation is shown, while `filed` is only the built-in
+                       category underneath it. Both are true; this is the one
+                       the reader is looking at. #}
+                    {% if category.own %}{{ category.own }}{% else %}{{ ('tabs.' ~ (category.filed ?? category.effective.category))|trans }}{% endif %}
                     <span class="text-ink-faint">
                         {%- if category.pinnedAt %}
                             — {{ 'message.details.categorised.pinned'|trans }}
+                        {%- elseif category.own %}
+                            — {{ 'message.details.categorised.own_filter'|trans }}
+                        {%- elseif category.effective.reason == 'switched_off' %}
+                            {#- The signal is the category it would have been, named
+                                the way its tab was. #}
+                            — {{ 'message.details.categorised.switched_off'|trans({'%category%': ('tabs.' ~ category.effective.signal)|trans}) }}
                         {%- else %}
                             — {{ ('message.details.categorised.' ~ category.effective.reason)|trans }}
                             {%- if category.effective.signal %}
@@ -275,7 +295,7 @@ mailed-by and signed-by were silently missing from every IMAP message.
                        is the difference between "give it a moment" and a bug
                        report. Never shown for a pinned thread, where the two
                        are SUPPOSED to differ. #}
-                    {% if not category.pinnedAt and category.filed and category.filed != category.effective.category %}
+                    {% if not category.pinnedAt and not category.own and category.filed and category.filed != category.effective.category %}
                         <span class="block text-ink-faint">{{ 'message.details.categorised.awaiting_resort'|trans }}</span>
                     {% endif %}
 
@@ -386,8 +406,16 @@ mailed-by and signed-by were silently missing from every IMAP message.
 
            It posts and stays put: this is pressed inside a popover on a thread
            the reader is in the middle of, and navigating them away to
-           acknowledge a button would cost more than the button is worth. #}
-        {% if category %}
+           acknowledge a button would cost more than the button is worth.
+
+           NOT FOR A CONVERSATION IN A TAB THE READER MADE. The report is
+           evidence about plMail's own rules, and that conversation is where it
+           is because of the reader's own filter or their own drag — nothing of
+           the rules' to fix. Offered anyway it was also wrong in a way the
+           reader could not get out of: the built-in category underneath may be
+           the very answer they want to give, and "should be where it is" is
+           refused as no report. #}
+        {% if category and not category.own %}
             <div class="border-t border-line px-4 py-2"
                  data-controller="mail--category-report"
                  data-mail--category-report-url-value="{{ path('app_mail_category_report', {'id': message.id}) }}"

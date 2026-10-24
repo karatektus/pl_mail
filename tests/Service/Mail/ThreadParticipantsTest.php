@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\SenderLabel;
+use App\Entity\Label\Label;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -276,6 +279,111 @@ final class ThreadParticipantsTest extends TestCase
     public function testAnEmptyThreadHasNoLabels(): void
     {
         self::assertSame([], $this->participants->labelsForThread($this->thread()));
+    }
+
+    // ── a catch-all domain ───────────────────────────────────────────────────
+
+    /**
+     * A reply sent from yo@shop.test is in no list of the reader's addresses,
+     * and used to show the account's name in the column as though somebody
+     * else had joined. Filed under Sent, it is the reader.
+     */
+    public function testAReplySentFromACatchAllAddressIsTheReader(): void
+    {
+        $account                  = $this->account();
+        $account->catchAllDomains = ['shop.test'];
+
+        $names = $this->participants->forMessages(
+            [
+                $this->row('joerg@example.test', 'Jörg Müller'),
+                $this->row('yo@shop.test', 'John Smith', filedAsSent: true),
+            ],
+            $account,
+        );
+
+        self::assertSame(['Jörg Müller', 'me'], $names);
+    }
+
+    /** Anna has a mailbox of her own at that domain. Her mail is hers. */
+    public function testMailFromSomebodyElseAtTheCatchAllDomainKeepsTheirName(): void
+    {
+        $account                  = $this->account();
+        $account->catchAllDomains = ['shop.test'];
+
+        $names = $this->participants->forMessages(
+            [
+                $this->row('anna@shop.test', 'Anna'),
+                $this->row('me@example.test', 'Me Myself'),
+            ],
+            $account,
+        );
+
+        self::assertSame(['Anna', 'me'], $names);
+    }
+
+    /** The same two answers when the messages are entities rather than row fields. */
+    public function testTheSameRuleHoldsForLoadedMessages(): void
+    {
+        $account                  = $this->account();
+        $account->catchAllDomains = ['shop.test'];
+
+        $sent       = new Label();
+        $sent->role = LabelRole::Sent;
+
+        $mine          = $this->message('yo@shop.test', 'John Smith', '2026-07-28 10:00:00');
+        $mine->account = $account;
+        $mine->addLabel($sent);
+
+        $annas          = $this->message('anna@shop.test', 'Anna', '2026-07-28 09:00:00');
+        $annas->account = $account;
+
+        self::assertSame(['Anna', 'me'], $this->participants->forMessages([$annas, $mine], $account));
+    }
+
+    /**
+     * The labelled answer agrees: the catch-all reply is "me", with no domain
+     * beside it, because it is the reader's own address and not a claim to
+     * check. Written when the two features met in one merge, where the domain
+     * branch still compared against the owned list alone.
+     */
+    public function testACatchAllReplyIsTheReaderWithNoDomainInTheLabels(): void
+    {
+        $account                  = $this->account();
+        $account->catchAllDomains = ['shop.test'];
+
+        $labels = $this->participants->labelsForMessages(
+            [
+                $this->row('joerg@example.test', 'Jörg Müller'),
+                $this->row('yo@shop.test', 'John Smith', filedAsSent: true),
+            ],
+            $account,
+        );
+
+        self::assertEquals([new SenderLabel('Jörg Müller', 'example.test'), new SenderLabel('me')], $labels);
+    }
+
+    private function row(string $from, string $name, bool $filedAsSent = false): ThreadRowMessage
+    {
+        return new ThreadRowMessage(
+            null,
+            $from,
+            $name,
+            [],
+            false,
+            new \DateTimeImmutable('2026-07-28 09:00:00'),
+            null,
+            new \DateTimeImmutable('2026-07-28 09:00:00'),
+            null,
+            $filedAsSent,
+        );
+    }
+
+    private function account(): Account
+    {
+        $account        = new Account();
+        $account->email = 'me@example.test';
+
+        return $account;
     }
 
     private function thread(Message ...$messages): MessageThread

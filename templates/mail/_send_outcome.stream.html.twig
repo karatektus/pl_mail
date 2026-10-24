@@ -16,15 +16,43 @@ ten. So the confirmation preceded the attempt by two seconds, every time, for
 everybody, and a send that then failed was never mentioned again.
 
 Variables: message, sent (bool)
+
+A failure is worded by its reason (#125), read off the row the handler has just
+marked: "may have been sent" and "the server refused it" ask different things of
+the reader. Failed — the reason with nothing more to say — keeps the old words.
 #}
+{% set failure = sent ? null : message.sendFailure %}
+{% set failedKey = failure and failure.value != 'failed' ? 'toast.send_failed_' ~ failure.value : 'toast.send_failed' %}
 <turbo-stream action="append" target="toast-region">
     <template>
         {% include '_partials/_toast.html.twig' with {
             type:    sent ? 'success' : 'error',
             message: sent
                 ? 'toast.sent'|trans
-                : 'toast.send_failed'|trans({ '%subject%': message.subject|default('')|slice(0, 60) }),
+                : failedKey|trans({ '%subject%': message.subject|default('')|slice(0, 60) }),
             extra:   sent ? {} : { hide_after: 12000 },
         } only %}
+    </template>
+</turbo-stream>
+
+{# The message itself, where the conversation showed it as being sent.
+
+   A message built in the browser has nothing to show while the send job holds
+   it — the body was sealed or blanked, and the raw source is the bytes that
+   go out — so mail/_message_body.html.twig says it is being sent instead
+   (`data-sending-sealed`). Nothing else ever revisited that: the
+   conversation is not re-rendered in the background, so a reply to encrypted
+   mail sat there "being sent" until the page was reloaded, long after it had
+   gone. This is the moment the page can be told.
+
+   `targets` with :has(), so only a message that is on screen AND still says
+   it is being sent is swapped: a plain reply, already showing its body, is
+   left alone, and a page without the conversation matches nothing. The frame
+   loads the message in the person's own request (ComposeController::
+   settledRow()), because opening it needs the keyring and the session this
+   worker does not have. A refused send comes back as the draft it is again. #}
+<turbo-stream action="replace" targets="#thread_message_{{ message.id }}:has([data-sending-sealed])">
+    <template>
+        <turbo-frame id="settled_message_{{ message.id }}" src="{{ path('app_compose_settled_row', { id: message.id }) }}"></turbo-frame>
     </template>
 </turbo-stream>

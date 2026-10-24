@@ -15,4 +15,7 @@ enum JmapObjectType: string
     case Thread = 'Thread';
     case EmailSubmission = 'EmailSubmission';
     case Identity = 'Identity';
+    // The reader's inbox tabs — per user, recorded once for each of their
+    // accounts, the way a label is (MailChangeRecorder::labelChanged()).
+    case InboxTab = 'InboxTab';
 }

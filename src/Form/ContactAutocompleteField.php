@@ -13,6 +13,7 @@ use Symfony\Component\Form\Event\PreSubmitEvent;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\UX\Autocomplete\Form\AsEntityAutocompleteField;
 use Symfony\UX\Autocomplete\Form\BaseEntityAutocompleteType;
 
@@ -22,6 +23,7 @@ class ContactAutocompleteField extends AbstractType
     public function __construct(
         private readonly ContactRepository $contactRepository,
         private readonly Security          $security,
+        private readonly UrlGeneratorInterface $urls,
     ) {
     }
 
@@ -144,6 +146,18 @@ class ContactAutocompleteField extends AbstractType
                     ->setParameter('usr', $user);
             },
 
+            // Suggestions from ContactSuggester — the harvest and the address
+            // book together — rather than the bundle's endpoint for this
+            // entity, which searched the harvest alone and so never offered a
+            // contact nobody had mailed yet. The query_builder above still
+            // scopes what a submission may name. See
+            // ContactController::recipients().
+            'autocomplete_url'     => $this->urls->generate('app_contacts_autocomplete_recipients'),
+            // From the first letter, as the search box suggests. The bundle's
+            // default waits for three and says "No results found" before
+            // then, which reads as an empty address book.
+            'min_characters'       => 1,
+
             'placeholder'          => '',
             'multiple'             => true,
             'autocomplete'         => true,
@@ -175,45 +189,9 @@ class ContactAutocompleteField extends AbstractType
                 'create'           => true,
                 'createFilter'     => '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
 
-                'render' => [
-                    // Dropdown suggestion row: avatar initial + name + email
-                    'option' => "function(data, escape) {
-                        var raw   = data.text ? data.text.replace(/<[^>]+>/g, '') : (data.value || '');
-                        var match = raw.match(/^(.+?) <([^>]+)>$/);
-                        var displayName  = match ? escape(match[1]) : '';
-                        var displayEmail = match ? escape(match[2]) : escape(raw);
-                        var initial = displayName
-                            ? displayName.replace(/<[^>]*>/g, '').trim().split(/\\s+/).map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase()
-                            : (displayEmail[0] || '?').toUpperCase();
-                        return '<div class=\"ts-option-row\">'
-                            + '<span class=\"ts-option-avatar\">' + initial + '</span>'
-                            + '<span class=\"ts-option-text\">'
-                            + (displayName ? '<span class=\"ts-option-name\">' + displayName + '</span>' : '')
-                            + '<span class=\"ts-option-email\">' + displayEmail + '</span>'
-                            + '</span></div>';
-                    }",
-
-                    // Selected chip: name (or email) + × remove button
-                    'item' => "function(data, escape) {
-            var raw   = data.text ? data.text.replace(/<[^>]+>/g, '') : (data.value || '');
-            var match = raw.match(/^(.+?) <[^>]+>$/);
-            var label = match ? escape(match[1]) : escape(raw);
-            return '<div>' + label + '</div>';
-        }",
-
-                    // "Add <typed>" create row
-                    'option_create' => "function(data, escape) {
-                        return '<div class=\"ts-option-create\">'
-                            + '<span class=\"ts-option-create-icon\">+</span>'
-                            + 'Add <strong>' + escape(data.input) + '</strong>'
-                            + '</div>';
-                    }",
-
-                    // No results
-                    'no_results' => "function(data, escape) {
-                        return '<div class=\"ts-no-results\">No contacts found</div>';
-                    }",
-                ],
+                // Rows and chips are drawn by compose_controller
+                // (_renderAddressFields): a renderer passed from here arrives as
+                // a string, and Tom Select never runs it.
             ],
         ]);
     }

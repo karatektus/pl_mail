@@ -77,6 +77,7 @@ final readonly class MoveToService
         private ThreadStatusUpdater    $status,
         private GraphLabelPolicy       $graphLabels,
         private LabelResolver          $labelResolver,
+        private AllMailView            $allMail,
     ) {
     }
 
@@ -198,6 +199,13 @@ final readonly class MoveToService
      */
     public function staysInView(MessageThread $thread, User $user, string $scope, string $value): bool
     {
+        // All Mail is a query, not a label, so whether the row stays is
+        // AllMailView's answer: anything outside Spam and the bin, in the
+        // account the list is narrowed to.
+        if (true === AllMailView::names($scope)) {
+            return $this->allMail->holds($thread, $user, $value);
+        }
+
         $role = LabelRole::tryFrom($scope);
         $view = match (true) {
             'label' === $scope => $this->labels->find((int) $value),
@@ -324,8 +332,9 @@ final readonly class MoveToService
         }
 
         // Leaving the Inbox for a label that is only a tag IS archiving, and
-        // has to be done as one: plMail has no All Mail, so mail that is
-        // neither in the Inbox nor filed in a folder lives in Archive, and
+        // has to be done as one: mail that is neither in the Inbox nor filed in
+        // a folder lives in Archive — plMail's All Mail is a view over every
+        // place, not a place of its own (LabelRole::AllMail) — and
         // archive() is the one place that knows what that means per provider.
         // Detaching Inbox by hand would tell a plain IMAP server to archive
         // the message and leave the row still pointing at the inbox folder.

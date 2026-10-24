@@ -10,6 +10,7 @@ use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\MailImporter;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
@@ -17,6 +18,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
@@ -72,6 +74,34 @@ final class MailImporterTest extends KernelTestCase
         self::assertInstanceOf(ImportMailMessage::class, $sent[0]->getMessage());
         self::assertSame($this->account->id, $sent[0]->getMessage()->accountId);
         self::assertSame([], $this->queue('ingest')->getSent(), 'history is never put on the queue new mail arrives on');
+    }
+
+    /**
+     * Google refusing a Gmail account is not the end of its import. The page
+     * is asked for again when the refusal has cleared, and nothing is thrown:
+     * it used to be retried, given up on at CRITICAL, and left for a later
+     * sync to restart (#90).
+     */
+    public function testAnImportGoogleIsRefusingAsksAgainLaterInsteadOfFailing(): void
+    {
+        $this->account->authType      = AuthType::OAuth2->value;
+        $this->account->oauthProvider = 'google';
+        $this->em->flush();
+
+        static::getContainer()->get(GmailQuotaPacer::class)->refused($this->account, 'defaultPerMinutePerUser', 6000);
+
+        $this->importer->runPage((int) $this->account->id);
+
+        $sent = $this->queue('ingest_backlog')->getSent();
+
+        self::assertCount(1, $sent);
+        self::assertInstanceOf(ImportMailMessage::class, $sent[0]->getMessage());
+
+        $delay = $sent[0]->last(DelayStamp::class);
+
+        self::assertNotNull($delay);
+        self::assertGreaterThan(0, $delay->getDelay());
+        self::assertLessThanOrEqual(60_000, $delay->getDelay());
     }
 
     /**

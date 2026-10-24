@@ -24,9 +24,18 @@ use App\Entity\Calendar\Calendar;
  */
 final readonly class CalendarSubscription
 {
+    /**
+     * @param Calendar|null $elsewhere the same remote calendar, mirrored
+     *                                 through another of the user's accounts
+     *                                 or connections — a separate CalDAV
+     *                                 connection to the same Nextcloud (#158).
+     *                                 Ticking it here would sync every event
+     *                                 twice, so the row is offered locked.
+     */
     public function __construct(
         public RemoteCalendar $remote,
         public ?Calendar      $local = null,
+        public ?Calendar      $elsewhere = null,
     ) {
     }
 
@@ -39,5 +48,24 @@ final readonly class CalendarSubscription
     public function isSubscribed(): bool
     {
         return null !== $this->local;
+    }
+
+    /**
+     * Whether ticking this would make a second copy. Never true for a row
+     * this source already mirrors: that one stays untickable as usual.
+     */
+    public function isMirroredElsewhere(): bool
+    {
+        return null === $this->local && null !== $this->elsewhere;
+    }
+
+    /** What to call the account or connection already mirroring it. */
+    public function elsewhereLabel(): ?string
+    {
+        if (null === $this->elsewhere) {
+            return null;
+        }
+
+        return $this->elsewhere->integration->name ?? $this->elsewhere->account?->displayAddress;
     }
 }

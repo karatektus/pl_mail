@@ -30,7 +30,10 @@ final readonly class FirstAdminInstaller
      */
     public function install(User $user, #[SensitiveParameter] string $plainPassword): bool
     {
-        $user->password = $this->passwordHasher->hashPassword($user, $plainPassword);
+        // Hashed here, from the password itself: the install form has no
+        // prelogin to stretch against. The first sign-in through the login
+        // form moves the account over — see App\Security\PasswordKdf.
+        $user->useServerHashedPassword($this->passwordHasher->hashPassword($user, $plainPassword));
 
         return $this->users->createFirstAdmin($user);
     }

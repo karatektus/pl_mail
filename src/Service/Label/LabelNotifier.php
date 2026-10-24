@@ -117,4 +117,42 @@ final readonly class LabelNotifier
             );
         }
     }
+
+    /**
+     * Tell this user's tabs their label lists are out of date, and where to
+     * fetch new ones — for a change made where no sidebar can be rendered.
+     *
+     * publishLabelsChanged() carries the markup, and that is only possible
+     * inside a request: the sidebar is built for the signed-in user, and a
+     * worker has none. DeleteLabelHandler removes a label from a worker, so it
+     * sends this instead, and each tab asks for its own lists — one request per
+     * open tab, on an action that happens about as often as somebody tidies up
+     * their folders.
+     *
+     * @param string $url a route that answers with the same turbo-stream
+     *                    publishLabelsChanged() would have carried
+     */
+    public function publishLabelsStale(User $user, string $url): void
+    {
+        if (null === $user->id) {
+            return;
+        }
+
+        try {
+            $this->hub->publish(UserUpdate::create(
+                topics: [sprintf('mail/user/%d', $user->id)],
+                data: json_encode([
+                    'type'    => 'labels.changed',
+                    'refetch' => $url,
+                ], JSON_THROW_ON_ERROR),
+            ));
+        } catch (\Throwable $e) {
+            // The doorbell, not the delivery — as for publishLabelsChanged().
+            $this->logger->log(
+                ThrowableSeverity::level($e, LogLevel::WARNING),
+                'LabelNotifier: publish failed',
+                ['error' => $e->getMessage(), 'exception' => $e],
+            );
+        }
+    }
 }

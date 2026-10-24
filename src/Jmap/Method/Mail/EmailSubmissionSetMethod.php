@@ -54,6 +54,10 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  *   IdentityResolver against the account's sendable aliases. Unresolvable ids
  *   are refused (forbiddenFrom) rather than quietly sent as the account's own
  *   address, which is what this method did before it read the property at all.
+ *   The one id that is not in Identity/get's list is the address identity
+ *   Email/get's `replyFrom` hands out for an address at a catch-all domain;
+ *   the resolver checks that against Account::maySendAs() each time, so it is
+ *   refused the same way once the domain is gone.
  * - **When it leaves** — FUTURERELEASE parameters on the envelope, parsed by
  *   SubmissionEnvelope and honoured as a DelayStamp on the bus.
  * - **Whether it still leaves** — an update of `undoStatus` to "canceled",
@@ -262,11 +266,9 @@ final class EmailSubmissionSetMethod implements JmapMethod
      * composer, which already resolved an alias of its own — exactly as it
      * was.
      *
-     * Only fromAddress is written. fromName stays the account's name because
-     * MessageSendService builds the From display name from the account and
-     * never reads the column, so setting it here would change what the local
-     * copy shows and nothing that goes out — a difference between the two that
-     * is worse than the alias display name being unused.
+     * fromName follows the address: MessageSendService builds the From display
+     * name with Account::senderNameFor(), and the local copy carries the same
+     * one, so an alias with a name of its own shows it here and on the wire.
      */
     private function applyIdentity(Account $account, Message $message, mixed $identityId): string
     {
@@ -292,6 +294,7 @@ final class EmailSubmissionSetMethod implements JmapMethod
         }
 
         $message->fromAddress = $address;
+        $message->fromName    = $account->senderNameFor($address);
 
         return $address;
     }

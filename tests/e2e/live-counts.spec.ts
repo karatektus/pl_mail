@@ -308,3 +308,89 @@ test.describe("counters after reading one mail", () => {
         expect(countsRequests, "one write, one counts request").toBe(1);
     });
 });
+
+/**
+ * The writes nobody announced.
+ *
+ * Every test above is a button whose controller called announceWrite() after
+ * its fetch — and for a long time that list of buttons WAS the mechanism. The
+ * composer was never on it: a draft is saved by a Turbo form on a timer,
+ * discarded by another, and sent by a worker ten seconds after the click, so
+ * there was no controller of the right kind to make the call from. Reported as
+ * the Drafts number not going up when a draft is saved and not coming down
+ * when it is sent or deleted.
+ *
+ * The server now says so itself, on the response to any request that changed
+ * mail (X-Mail-Changed) and over the hub for a change this tab did not make
+ * (`mail.changed`). These two tests are one of each.
+ */
+test.describe("counters after a change nobody announced", () => {
+    const DRAFTS_BADGE = '[data-count-key="role:drafts"]';
+
+    async function writeDraft(page: import("@playwright/test").Page, subject: string) {
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const window_ = page.locator("#compose_dock .compose-window");
+        await expect(window_).toBeVisible();
+
+        await window_.locator('input[type="text"], input[type="email"]').first()
+            .fill("counts@example.test");
+        await window_.locator('input[name*="[subject]"]').first().fill(subject);
+        await window_.locator('[data-compose--compose-toolbar-target="editor"]').first()
+            .fill("A draft the sidebar has to hear about.");
+    }
+
+    test.beforeEach(() => {
+        seed("seed-mail", "clear-drafts");
+    });
+
+    test("an autosaved draft raises Drafts, and asks for the counts once", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator(DRAFTS_BADGE).first()).toHaveClass(/(^|\s)hidden(\s|$)/);
+
+        let countsRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/sidebar/counts")) {
+                countsRequests++;
+            }
+        });
+
+        const saved = page.waitForResponse((response) =>
+            response.url().includes("/compose/draft") && "1" === response.headers()["x-mail-changed"],
+        );
+
+        await writeDraft(page, "E2E Unannounced draft");
+        await saved;
+
+        await expect(page.locator(DRAFTS_BADGE).first()).toHaveText("1", { timeout: 5000 });
+        await expect(page.locator(DRAFTS_BADGE).first()).not.toHaveClass(/(^|\s)hidden(\s|$)/);
+
+        // Past the point where the hub's nudge for the same save would have
+        // asked again. It arrives BEFORE the tab's own request goes out, which
+        // is how the first version of this counted every write twice.
+        await page.waitForTimeout(2500);
+
+        expect(countsRequests, "one save, one counts request").toBe(1);
+    });
+
+    /**
+     * The half no browser code can do for itself: the change was made
+     * somewhere else. A second tab stands in for the phone and for the worker
+     * that finishes a send — all three reach this tab the same way, as a
+     * `mail.changed` on the hub.
+     */
+    test("a draft saved in another tab raises Drafts in this one", async ({ page, context }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator(DRAFTS_BADGE).first()).toHaveClass(/(^|\s)hidden(\s|$)/);
+
+        const other = await context.newPage();
+        await other.goto("/mail/inbox");
+        await writeDraft(other, "E2E Draft from elsewhere");
+
+        // This tab does nothing at all. It is not navigated, not clicked and
+        // not focused; only the hub can have told it.
+        await expect(page.locator(DRAFTS_BADGE).first()).toHaveText("1", { timeout: 15000 });
+
+        await other.close();
+    });
+});

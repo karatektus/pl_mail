@@ -12,9 +12,12 @@ use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\User\User;
 use App\Form\Integration\IntegrationConnectType;
+use App\Repository\AddressBook\AddressBookRepository;
+use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Calendar\Subscription\CalendarSubscriber;
 use App\Service\Integration\IntegrationConnector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,6 +50,9 @@ final class IntegrationController extends AbstractController
         private readonly IntegrationProviderConfigRepository $configRepository,
         private readonly IntegrationConnector                $connector,
         private readonly EntityManagerInterface              $em,
+        private readonly CalendarSubscriber                  $calendarSubscriber,
+        private readonly CalendarRepository                  $calendarRepository,
+        private readonly AddressBookRepository               $addressBookRepository,
     ) {
     }
 
@@ -132,6 +138,15 @@ final class IntegrationController extends AbstractController
 
         $this->assertCsrf($request, 'settings-integration-'.$integration->id);
 
+        // A Nextcloud connection also carries the user's calendars (#158).
+        // The cascade on calendar.integration_id would delete them on its own,
+        // and with them the events that came from mail rather than from the
+        // server; unsubscribeAll() moves those first and hands back any push
+        // registration, exactly as disconnecting from Settings → Calendars does.
+        if (true === $integration->provider->offersCalendars()) {
+            $this->calendarSubscriber->unsubscribeAll($integration);
+        }
+
         $this->em->remove($integration);
         $this->em->flush();
 
@@ -203,6 +218,10 @@ final class IntegrationController extends AbstractController
             'available'    => $this->configRepository->findConnectable(),
             'providers'    => Provider::of(ServiceKind::Files),
             'configs'      => $this->configRepository->findAllIndexedByProvider(),
+            // For the disconnect confirmation, which says how many calendars
+            // and address books go with a Nextcloud connection.
+            'calendarCounts' => $this->calendarRepository->countMirroredByIntegration($this->user()),
+            'bookCounts'     => $this->addressBookRepository->countByIntegration($this->user()),
         ];
     }
 

@@ -88,23 +88,49 @@ whatever the address: twenty failures in fifteen minutes, so guessing from many 
 still stops. That one can be spent by somebody else, which is why it is set well above anything a
 person mistyping reaches.
 
-**Keep me logged in** issues a cookie lasting 60 days. It is signature-based rather than stored,
-which means changing your password invalidates every one that was issued. It does **not** walk past
-the second factor: a remembered session is still challenged for a code.
+**Keep me logged in** issues a cookie lasting 60 days. What it names is kept on the server, one
+entry per device: signing out ends this device's, and changing your password ends every one that
+was issued. It does **not** walk past the second factor: a remembered session is still challenged
+for a code.
 
 There is no session list and no "sign out everywhere" button. What plMail can withdraw is a
 remembered device, an app password, or — by changing the password — every remember-me cookie at
 once.
 
+**Your password never leaves the browser.** Before anything is sent, the login form stretches it
+(PBKDF2-SHA256, 600 000 rounds) and sends only the result; the server checks that and never sees the
+password itself. End-to-end encryption hangs off it: your keys are unlocked by the same password —
+a server that never sees it cannot unlock them either. It needs JavaScript, and
+the login form says so when it is missing. On an install reached over plain `http://`, where the
+browser's own cryptography is switched off, the stretching takes a second or two instead of a blink.
+
+The first time you sign in after this arrived, the form sends your password one last time so the
+stored hash can be swapped over. That sign-in ends your other sessions once — see *Things that
+bite*.
+
+**Signing in is not unlocking.** Only a sign-in through this form unlocks your encryption keys on
+the way in. A session opened by **Keep me logged in** or through single sign-on asks nothing at
+sign-in; the first thing that needs the keys asks for your password once — or, on an account that
+signs in only through single sign-on, for your encryption passphrase. See
+[Encryption](encryption.md#you-unlock-once).
+
 **There is no password reset flow.** The login form says so rather than offering a link that goes
 nowhere: recovery runs from the server console, and an administrator can set a new password there.
 That is the path for somebody who *cannot get in*. Somebody who can is covered by the next section.
+
+### A password somebody else chose
+
+When an administrator creates your account, or sets a password for you with `app:user:password`,
+they know it. So it works once: straight after signing in you are asked to choose your own, and
+plMail shows nothing else until you have. Your mail clients and the phone app keep syncing in the
+meantime — app passwords are separate credentials.
 
 ## Changing your password
 
 **Settings → Security → Password**. It asks for your current password, then the new one twice, and
 the new one has to be at least twelve characters — the same floor an administrator's create form
-applies, because it is the same question.
+applies, because it is the same question. Neither password is sent: the browser checks the length
+and that the two boxes agree, stretches both, and sends the results.
 
 Asking for the current password is not ceremony. Being signed in is not proof that the person at the
 keyboard is you: an unlocked screen is the whole threat, and without the check a passer-by could
@@ -112,7 +138,7 @@ take the account rather than merely read it. It is the same reason turning two-f
 off asks for a code even though you are already signed in.
 
 Changing your password ends every **Keep me logged in** cookie you were issued, everywhere, because
-those are signed with the password hash rather than stored. The browser you are sitting at keeps its
+each one is bound to the password it was issued under. The browser you are sitting at keeps its
 session. That makes a password change the closest thing plMail has to "sign out everywhere", and it
 is the right move when a device goes missing.
 
@@ -192,6 +218,15 @@ password is a browser operation and always has been available to you alone.
 **Changing your password signs out your other browsers but not your mail clients.** App passwords
 are separate credentials and survive it — revoke them in **Settings → App passwords** if that is
 what you meant to do.
+
+**The first sign-in after the update signs your other browsers out, once.** Moving your password
+over changes the stored hash, and every session and **Keep me logged in** cookie is tied to that
+hash. Sign in again on each; it does not happen a second time.
+
+**A password manager saves the password, not what is sent.** The boxes keep what you typed and only
+the stretched result is posted, so nothing changes for your password manager. If one ever offers to
+save a long string of letters and digits instead, decline it — that is the stretched value, and it
+does not sign in.
 
 **An administrator can switch your account off, and it is not the same as removing it.** You keep
 everything; you simply cannot sign in, and the login form tells you so once you have typed the right

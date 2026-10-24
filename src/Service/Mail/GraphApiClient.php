@@ -66,6 +66,25 @@ final class GraphApiClient
     . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders';
 
     /**
+     * What is listed about each attachment.
+     *
+     * contentId is declared on microsoft.graph.fileAttachment, not on the base
+     * attachment the collection is typed as, so it has to be asked for with
+     * the cast. Named unqualified the whole $select is rejected:
+     *
+     *   BadRequest: Could not find a property named 'contentId' on type
+     *   'microsoft.graph.attachment'.
+     *
+     * In a $batch that is a 400 on the sub-request, and an attachment listing
+     * that answers 400 is indistinguishable from "no attachments" to the
+     * caller. Every Outlook message with a file on it was stored as having
+     * none until this was cast. contentId is what tells a cid: image from a
+     * file the user attached, so it cannot simply be dropped.
+     */
+    private const string ATTACHMENT_SELECT = 'id,name,contentType,size,isInline,'
+        . 'microsoft.graph.fileAttachment/contentId';
+
+    /**
      * The invite flag, selected through the type it actually belongs to.
      *
      * meetingMessageType is declared on microsoft.graph.eventMessage, not on
@@ -95,8 +114,20 @@ final class GraphApiClient
      */
     private array $inviteSelectUnsupported = [];
 
-    /** Light projection used while planning — ids only, no bodies. */
-    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';
+    /**
+     * Light projection a folder's delta is followed with — no bodies.
+     *
+     * isRead and flag are in it because a message delta reports a change only
+     * in the properties it was asked for. Without them Exchange sends no entry
+     * at all for a message that was merely read, unread, flagged or unflagged,
+     * so mail handled in Outlook or on a phone never reached plMail.
+     *
+     * The $select is sent once, on the call that begins the chain, and is the
+     * chain's from then on: the delta link carries it. Widening this therefore
+     * changes nothing for a link already stored — see the migration that
+     * hands every folder back to the import, and keep the two in step.
+     */
+    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId,isRead,flag';
 
     public function __construct(
         // The scoped client from framework.yaml, not the default one: it
@@ -548,7 +579,7 @@ final class GraphApiClient
             $account,
             'GET',
             self::ME . '/messages/' . rawurlencode($messageId) . '/attachments',
-            ['query' => ['$select' => 'id,name,contentType,size,isInline,contentId']],
+            ['query' => ['$select' => self::ATTACHMENT_SELECT]],
         )->toArray();
 
         return array_values($response['value'] ?? []);
@@ -582,7 +613,7 @@ final class GraphApiClient
                     'id'      => (string) $index,
                     'method'  => 'GET',
                     'url'     => '/me/messages/' . rawurlencode($id)
-                        . '/attachments?$select=id,name,contentType,size,isInline,contentId',
+                        . '/attachments?$select=' . self::ATTACHMENT_SELECT,
                     'headers' => ['Prefer' => 'IdType="ImmutableId"'],
                 ];
             }
@@ -643,6 +674,30 @@ final class GraphApiClient
         ]);
 
         $this->assertSuccess($response);
+    }
+
+    /**
+     * Whether Sent Items holds a message with this Message-ID — how a send
+     * whose answer was lost is settled before it is tried again (#125).
+     *
+     * A GET, so the scoped client retries a 5xx on it (see
+     * GraphRetryStrategy), which is right here: asking twice is harmless.
+     */
+    public function hasSentMessage(Account $account, string $messageId): bool
+    {
+        // Graph keeps the angle brackets; plMail stores the id without them.
+        // An apostrophe is doubled, OData's escape inside a quoted literal.
+        $literal = str_replace("'", "''", '<' . $messageId . '>');
+
+        $response = $this->request($account, 'GET', self::ME . '/mailFolders/sentitems/messages', [
+            'query' => [
+                '$filter' => sprintf("internetMessageId eq '%s'", $literal),
+                '$select' => 'id',
+                '$top'    => 1,
+            ],
+        ]);
+
+        return [] !== ($response->toArray(false)['value'] ?? []);
     }
 
     // ── Batched writes ───────────────────────────────────────────────────────
@@ -802,6 +857,36 @@ final class GraphApiClient
     {
         $this->request($account, 'DELETE', self::ME . '/mailFolders/' . rawurlencode($folderId))
             ->getContent();
+    }
+
+    /**
+     * How many things a mail folder holds — messages and folders inside it —
+     * or null when it no longer exists.
+     *
+     * The check deleteFolder() needs before it is called: Graph removes a
+     * folder's mail along with it, and its child folders with all of theirs.
+     * totalItemCount alone does not see those, so a subfolder plMail never
+     * synced would go with its parent; childFolderCount is counted beside it.
+     * Null rather than an exception for a folder already gone, because for a
+     * caller about to delete it that is the outcome it wanted.
+     */
+    public function folderContentCount(Account $account, string $folderId): ?int
+    {
+        try {
+            $folder = $this->request(
+                $account,
+                'GET',
+                self::ME . '/mailFolders/' . rawurlencode($folderId) . '?$select=totalItemCount,childFolderCount',
+            )->toArray();
+        } catch (GraphApiException $e) {
+            if (404 === $e->getStatus()) {
+                return null;
+            }
+
+            throw $e;
+        }
+
+        return (int) ($folder['totalItemCount'] ?? 0) + (int) ($folder['childFolderCount'] ?? 0);
     }
 
     // ── Subscriptions (push) ─────────────────────────────────────────────────

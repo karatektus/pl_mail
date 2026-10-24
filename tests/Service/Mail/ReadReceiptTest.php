@@ -26,14 +26,20 @@ use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SendingKey;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\BounceCorrelator;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
+use App\Service\Mail\RawMessageResolver;
 use App\Service\Mail\ReadReceiptCorrelator;
 use App\Service\Mail\ReadReceiptPolicy;
 use App\Service\Mail\ReadReceiptSender;
@@ -232,6 +238,31 @@ final class ReadReceiptTest extends KernelTestCase
             $this->queuedReceipts(),
             'a read discovered by sync is not a read a receipt may be claimed for',
         );
+    }
+
+    /**
+     * A draft that asks for a receipt is our own mail on its way out, not a
+     * request to answer. The policy used to rely on sentAt for this, which a
+     * synced draft now lacks (it has not been sent), so the draft flag has to
+     * say it.
+     *
+     * The same row without the flag is the presence companion: under "always"
+     * it is a sendable request, so the silence is the flag's doing.
+     */
+    public function testADraftAsksForAReceiptButIsNeverAnswered(): void
+    {
+        $this->setMode(ReadReceiptMode::Always);
+
+        $message        = $this->receiptRequestedMessage();
+        $message->flags = [MessageFlag::DRAFT->value];
+        $this->em->flush();
+
+        self::assertFalse($this->policy->decide($message)->isSendable(), 'a draft is not answered');
+
+        $message->flags = [];
+        $this->em->flush();
+
+        self::assertTrue($this->policy->decide($message)->isSendable(), 'the same row, not a draft, is');
     }
 
     /**
@@ -742,6 +773,12 @@ final class ReadReceiptTest extends KernelTestCase
             $container->get(MailChangeRecorder::class),
             $container->get(MessageThreader::class),
             $container->get(ThreadLabelSynchronizer::class),
+            $container->get(SealGuard::class),
+            $container->get(SealedDrafts::class),
+            $container->get(AutocryptHeader::class),
+            $container->get(SendingKey::class),
+            $container->get(RawMessageResolver::class),
+            $container->get(DraftAttachmentService::class),
         );
     }
 

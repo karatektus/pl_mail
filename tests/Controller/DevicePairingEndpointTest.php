@@ -171,6 +171,52 @@ final class DevicePairingEndpointTest extends WebTestCase
     }
 
     /**
+     * With the keyring (issue #28, phase 6): the browser sealed the user keys
+     * under a transfer key only the QR code's fragment will carry, so the
+     * server does not draw the code — it could not, without the key — and
+     * hands the sealed copy to the app with its app password.
+     */
+    public function testWithSealedKeysTheBrowserDrawsTheCodeAndTheAppGetsTheKeys(): void
+    {
+        $client = $this->boot();
+        $client->loginUser($this->seedUser());
+        $sealed = 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(80));
+
+        $client->request(
+            'POST',
+            '/settings/pair',
+            ['_token' => $this->token($client), 'keys' => $sealed],
+            server: ['HTTP_ACCEPT' => TurboBundle::STREAM_MEDIA_TYPE],
+        );
+
+        $html = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('settings--pairing-qr', $html);
+        self::assertStringNotContainsString('data:image/', $html, 'the server draws no code it cannot complete');
+        self::assertStringNotContainsString($sealed, $html, 'the sealed keys go to the app, not onto the screen');
+        self::assertSame(1, preg_match('/code=([A-Za-z0-9_-]+)/', $html, $match));
+
+        $client->request(
+            'POST',
+            '/device/pair',
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['code' => $match[1], 'deviceName' => 'Pixel 9']),
+        );
+
+        self::assertSame($sealed, json_decode((string) $client->getResponse()->getContent(), true)['keys'] ?? null);
+    }
+
+    public function testSomethingThatIsNotASealedKeyringIsNotPassedOn(): void
+    {
+        $this->boot();
+        $service = static::getContainer()->get(DevicePairingService::class);
+
+        ['code' => $code] = $service->issue($this->seedUser(), '<script>not keys</script>');
+
+        self::assertArrayNotHasKey('keys', $service->redeem($code, 'Pixel 9') ?? []);
+    }
+
+    /**
      * Unknown, expired and already-used deliberately give one answer. Telling
      * them apart would confirm which codes had once been real.
      */

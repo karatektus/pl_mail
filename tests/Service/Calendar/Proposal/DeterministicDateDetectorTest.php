@@ -122,6 +122,25 @@ final class DeterministicDateDetectorTest extends TestCase
             'the stated hour is local to the user' => [
                 '04.08.2026 um 14 Uhr', 'de', '2026-07-31 09:00', '2026-08-04 12:00', null, 'Europe/Berlin',
             ],
+            'French month spelled out' => [
+                'Rendez-vous le 4 août 2026 à 14h30.', 'fr', '2026-07-31 09:00', '2026-08-04 14:30',
+            ],
+            'French first of the month, accents left off' => [
+                'On se voit le 1er aout a 10h ?', 'fr', '2026-07-31 09:00', '2026-08-01 10:00',
+            ],
+            'French spaced hour and minutes' => [
+                'Réunion le 12 février 2027 à 9 h 15', 'fr', '2026-07-31 09:00', '2027-02-12 09:15',
+            ],
+            'French hour in words' => [
+                'Le 04.08.2026 vers 15 heures, au bureau.', 'fr', '2026-07-31 09:00', '2026-08-04 15:00',
+            ],
+            'French noon' => [
+                'Déjeuner le 4 août à midi ?', 'fr', '2026-07-31 09:00', '2026-08-04 12:00',
+            ],
+            // A French reader puts the day first, as a German one does.
+            'slashed, read by a French reader' => [
+                'Rendez-vous le 04/08/2026 à 14h', 'fr', '2026-01-01 09:00', '2026-08-04 14:00',
+            ],
         ];
     }
 
@@ -170,6 +189,26 @@ final class DeterministicDateDetectorTest extends TestCase
             'and again for a stated weekday in German' => [
                 'Samstag um 15 Uhr', 'de', '2025-03-07 09:00', '2025-03-08 15:00',
             ],
+            'a French weekday' => [
+                'Samedi à 15h chez moi ?', 'fr', '2026-07-31 09:00', '2026-08-01 15:00',
+            ],
+            'demain' => [
+                'Demain à 9h, ça vous va ?', 'fr', '2026-07-31 09:00', '2026-08-01 09:00',
+            ],
+            // "demain" sits behind a hyphen in "après-demain", the French
+            // version of the übermorgen trap.
+            'après-demain is not tomorrow' => [
+                'Après-demain à 9h ?', 'fr', '2026-07-31 09:00', '2026-08-02 09:00',
+            ],
+            'aujourd’hui' => [
+                'Aujourd’hui à 18h30, comme prévu.', 'fr', '2026-07-31 09:00', '2026-07-31 18:30',
+            ],
+            'mardi prochain' => [
+                'Mardi prochain à 10h30 ?', 'fr', '2026-07-31 09:00', '2026-08-04 10:30',
+            ],
+            'prochain mardi' => [
+                'Le prochain mardi, 10h30 ?', 'fr', '2026-07-31 09:00', '2026-08-04 10:30',
+            ],
         ];
     }
 
@@ -207,6 +246,14 @@ final class DeterministicDateDetectorTest extends TestCase
                 'en', '2026-07-31 09:00', '2026-08-01 15:00', '2026-08-01 16:00',
             ],
             // "48 Stunden" is a deadline, not the length of a meeting.
+            'French hours' => [
+                "Rendez-vous le 4 août 2026 à 14h\nDurée : 2 heures",
+                'fr', '2026-07-31 09:00', '2026-08-04 14:00', '2026-08-04 16:00',
+            ],
+            'une heure' => [
+                'Le 4 août 2026 à 14h, une heure environ.',
+                'fr', '2026-07-31 09:00', '2026-08-04 14:00', '2026-08-04 15:00',
+            ],
             'a length nobody could sit through is ignored' => [
                 "04.08.2026 um 14 Uhr\nAntwort innerhalb von 48 Stunden",
                 'de', '2026-07-31 09:00', '2026-08-04 14:00', '2026-08-04 15:00',
@@ -276,6 +323,26 @@ final class DeterministicDateDetectorTest extends TestCase
             'quoted text' => [
                 "no idea\n> shall we say 04.09.2026 um 14 Uhr?",
                 'de', '2026-07-31 09:00', null,
+            ],
+            'a French quote attribution' => [
+                "Parfait.\nLe 6 août 2026 à 12:56, Paul <paul@example.org> a écrit :",
+                'fr', '2026-08-08 09:00', null,
+            ],
+            'a French forwarded header block' => [
+                "Pour info\n-------- Message transféré --------\nEnvoyé : vendredi 7 août 2026 15:58",
+                'fr', '2026-08-08 09:00', null,
+            ],
+            // "2h" beside a date is how long something takes, in every
+            // language that writes it; read as a time it is two in the morning.
+            'a short length is not a time' => [
+                'The workshop on 4 August 2026 takes 2h.', 'en', '2026-07-31 09:00', null,
+            ],
+            // An afternoon, not twelve o'clock.
+            'après-midi is not midi' => [
+                'Le 4 août dans l’après-midi.', 'fr', '2026-07-31 09:00', null,
+            ],
+            'a bare hour after à' => [
+                'Le 4 août, à 3 km du bureau.', 'fr', '2026-07-31 09:00', null,
             ],
             'prose with nothing date-shaped in it' => [
                 'Thanks very much, that all sounds good.', 'en', '2026-07-31 09:00', null,

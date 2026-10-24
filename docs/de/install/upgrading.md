@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:cd56ca54927898f35075d3948a2deb9257fc0a4a -->
+<!-- translated-from: install/upgrading.md sha1:8843e5bc0db3bd70577a5d29c566a6d5db35b950 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -51,6 +51,7 @@ Der Release-Workflow veröffentlicht ein Multi-Architektur-Manifest und richtet 
 |---|---|
 | `latest` | der jüngsten **Veröffentlichung** — er bewegt sich nur, wenn ein `v*`-Tag gepusht wird |
 | `main` | der Spitze des Standard-Branches, veröffentlicht oder nicht |
+| `milestone-v0.3.8` | der Arbeit, die für eine Veröffentlichung auf ihrem Milestone-Branch gesammelt wird, bevor sie `main` erreicht. Zum frühen Ausprobieren einer Veröffentlichung; er kann Migrationen enthalten, die `main` noch nicht hat, deshalb ist der Weg zurück zu `main` nicht immer möglich |
 | `0.0.16` | einer Veröffentlichung, festgenagelt. Ohne führendes `v`: Der Git-Tag heißt `v0.0.16`, der Image-Tag nicht |
 | `0.0` | dem neuesten Patch einer Minor-Linie |
 | `sha-1a2b3c` | einem Commit, exakt festgenagelt |
@@ -64,7 +65,7 @@ zu lassen, woran gerade gearbeitet wird, und das Changelog wird es noch nicht be
 festgenagelte Version ist richtig, wenn du Upgrades lieber planst als empfängst.
 
 **Der typische Fehlerfall ist `pull_policy: always` auf einem beweglichen Tag.**
-`truenas.compose.yaml` setzt das, ein Redeploy von der NAS-App-Seite holt sich also, worauf dieser
+Damit holt sich ein Redeploy von einer NAS-App-Seite, worauf dieser
 Tag inzwischen zeigt — bequem bei `latest` und überraschend bei `main`.
 
 ## Das Upgrade
@@ -152,11 +153,48 @@ Image veröffentlicht, prüft also sein eigenes. Ein gesetztes `APP_IMAGE` in de
 
 Die Seite installiert noch nichts; das erledigen die Befehle unter [Das Upgrade](#das-upgrade) oben.
 
+**Ohne Installation, die du fragen kannst**, folgst du den Veröffentlichungen auf GitHub. Jede
+getaggte Veröffentlichung ab v0.3.0 hat eine Seite unter
+[Releases](https://github.com/karatektus/pl_mail/releases), mit ihren Notizen aus `CHANGELOG.md` und
+dem Image, das du ziehst. Ein Feedreader kann `https://github.com/karatektus/pl_mail/releases.atom`
+abonnieren, und **Watch → Custom → Releases** im Repository schickt dir eine GitHub-Benachrichtigung.
+Die Seite erscheint erst, wenn das Image der Veröffentlichung veröffentlicht ist; was sie ankündigt,
+lässt sich also auch ziehen.
+
 **Der Fehlerfall ist eine Prüfung, die die Registry nicht erreicht.** Eine Installation hinter einer
 Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte beantwortete Prüfung
 gefunden hat, und der stündliche Befehl zählt es nicht als Fehler. GitHubs anonyme API erlaubt
 sechzig Anfragen pro Stunde und Adresse, was eine viel genutzte gemeinsame Adresse aufbrauchen kann;
 die Seite nennt diesen Fall, wenn er eintritt.
+
+## Was alle nach einem Update sehen
+
+Wenn jemand plMail nach einem Update zum ersten Mal öffnet, geht **Was ist neu** von selbst auf: die
+Versionen seit der, die die Person zuletzt gesehen hat, die neueste zuerst, jede mit ihren
+Highlights oben und dem Rest als Überschriften zum Aufklappen. Es sind die Hinweise aus
+`CHANGELOG.md`, gelesen aus dem Image selbst, also immer die des Builds, der gerade läuft. Ein
+**?** in der oberen Leiste öffnet denselben Dialog jederzeit, mit einem Punkt darauf, solange es
+etwas Ungesehenes gibt, und dem ganzen Änderungsprotokoll unter **Vollständiges
+Änderungsprotokoll**.
+
+- **Nur nach einem Update, nie bei einer Neuinstallation.** Wer auf einer frischen Installation
+  angelegt oder später hinzugefügt wird, beginnt bei der Version, die bei der ersten Anmeldung lief.
+  Alle, die es schon gab, als der Dialog kam, beginnen bei 0.3.1 und sehen beim ersten Mal jede
+  Version seitdem.
+- **Ein `main`-Image zählt als seine neueste Version.** Ein `main`- oder `sha-…`-Image oder ein
+  Checkout gilt als die neueste getaggte Version in seinem eigenen `CHANGELOG.md`, also sieht eine
+  Installation, die `main` folgt, den Dialog, sobald diese Version getaggt ist. Änderungen, die noch
+  in keiner Version sind, werden nie gezeigt.
+- **Migrationshinweise sind für Administratoren.** Zeilen mit `**Migration:**` und Abschnitte
+  *Before you upgrade* stehen in einem Kasten, den nur Administratoren sehen; alle anderen lesen, was
+  sich für sie geändert hat.
+- **Nach Updates nicht mehr anzeigen** im Fuß des Dialogs macht ihn für diese Person still: kein
+  Dialog und kein Punkt. **Einstellungen → Allgemein → Was ist neu** schaltet ihn wieder ein.
+- **Feedback senden**, im Dialog und unter dem **?**, ist eine Mail, die die Person von einem ihrer
+  eigenen Konten schickt, mit ihrer plMail-Version und, wenn sie es ankreuzt, einem Screenshot der
+  Seite, auf der sie war. Eine Kopie landet in ihrem Ordner „Gesendet“. Sie geht an
+  `feedback@pluetzner.de`, sofern `APP_FEEDBACK_TO` nichts anderes sagt — siehe die
+  [Konfigurationsreferenz](configuration.md).
 
 ## pgvector einschalten
 

@@ -31,6 +31,8 @@ final readonly class ImportLine
      * @param bool         $waiting nothing has moved for a while: between two
      *                              listings, or because something is wrong —
      *                              the account's own health says which
+     * @param GmailQuotaStatus|null $quota what Google's quota allows this
+     *                              import, for a Gmail account
      */
     public function __construct(
         public Account  $account,
@@ -39,6 +41,7 @@ final readonly class ImportLine
         public ?Mailbox $folder,
         public bool     $waiting,
         public ?Label   $label = null,
+        public ?GmailQuotaStatus $quota = null,
     ) {}
 
     /** Whole percent, floored and never past 100; 0 until there is a total. */

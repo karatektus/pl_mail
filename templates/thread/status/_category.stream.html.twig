@@ -13,7 +13,7 @@ Saying where it went is the whole of the feedback.
 Variables:
   count     how many conversations were re-filed
   threads   the conversations, so their rows can be removed
-  category  the destination tab, for the toast
+  category  the destination tab (an InboxTab), for the toast
 #}
 {% include 'thread/status/_bulk.stream.html.twig' with {
     count:   count,
@@ -21,4 +21,4 @@ Variables:
     leaves:  true,
 } only %}
 
-{% include '_partials/_toast.stream.html.twig' with { message: 'toast.categorised'|trans({ '%category%': ('tabs.' ~ category.value)|trans }) } only %}
+{% include '_partials/_toast.stream.html.twig' with { message: 'toast.categorised'|trans({ '%category%': category.isCustom ? category.name : ('tabs.' ~ category.value)|trans }) } only %}

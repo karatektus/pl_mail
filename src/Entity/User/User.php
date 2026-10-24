@@ -5,7 +5,12 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Contacts\ContactsPaneMode;
+use App\Domain\Enum\Contacts\ContactsSwitchSkip;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ReadingPaneMode;
+use App\Domain\Enum\Mail\SwipeAction;
+use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -48,6 +53,13 @@ use Symfony\Component\Validator\Constraints\DateTime;
 // for the one address that can still collide — `deleted-<id>@invalid`, which
 // the admin delete action writes and which nothing stops someone typing.
 #[UniqueEntity(fields: ['email'], message: 'user.email_taken')]
+// One account per provider identity. Two rows holding the same pair would make
+// a sign-in through the provider land on whichever Postgres returned first.
+// Both columns are null on every account that never used the provider, and
+// Postgres does not consider nulls equal, so those never collide. Issuer
+// first because that is how the one query that reads it asks — both columns,
+// by equality — and an install has one issuer and many subjects.
+#[ORM\UniqueConstraint(name: 'uniq_user_oidc_identity', columns: ['oidc_issuer', 'oidc_subject'])]
 class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
     use TimestampableTrait;
@@ -122,10 +134,109 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Embedded(class: CategorySorting::class, columnPrefix: 'category_')]
     public private(set) CategorySorting $categorySorting;
     /**
-     * The hashed password
+     * The hashed password — of the password itself, or of what the browser
+     * derived from it. $kdfSalt says which; see App\Security\PasswordKdf.
+     *
+     * Still publicly writable, because a rehash to a better algorithm keeps the
+     * scheme and is exactly that: one write. Anything that sets a NEW password
+     * goes through useServerHashedPassword() or useClientDerivedPassword(),
+     * which keep the salt and the iteration count in step with it.
      */
     #[ORM\Column]
     public ?string $password = null;
+
+    /**
+     * The salt the browser stretches this person's password with, base64. Null
+     * means $password is a hash of the password itself.
+     *
+     * Null for everybody whose password was set before the browser started
+     * stretching it, and for anyone whose password was last set by something
+     * with no browser to do that: the install wizard, an administrator
+     * creating them, `app:user:password`, a seed. Their next sign-in through
+     * the form moves them over — see App\Security\PasswordKdfUpgradeListener.
+     *
+     * private(set), with $kdfIterations, so that the pair cannot be changed
+     * without $password, and the three never disagree about which scheme the
+     * row is on. A salt left behind on a server-hashed row would have the
+     * browser stretch a password the stored hash was never made from, and the
+     * account would refuse its own owner.
+     */
+    #[ORM\Column(name: 'kdf_salt', length: 64, nullable: true)]
+    public private(set) ?string $kdfSalt = null;
+
+    /**
+     * PBKDF2 iterations for $kdfSalt — stored per user rather than read from
+     * configuration, so that raising the configured number later does not lock
+     * out everybody whose hash was made with the old one.
+     */
+    #[ORM\Column(name: 'kdf_iterations', nullable: true)]
+    public private(set) ?int $kdfIterations = null;
+
+    /**
+     * What the keyring of issue #28 hangs off — see KeyringRoot. The password
+     * for every account until one without a usable password sets encryption
+     * up with a passphrase of its own; read $keyringRootInEffect rather than
+     * this to know which applies before that.
+     *
+     * private(set), with the two passphrase columns below, for the reason
+     * $kdfSalt gives: the root, its salt and its iteration count change
+     * together through usePassphraseRoot() or not at all.
+     */
+    #[ORM\Column(name: 'keyring_root', length: 16, enumType: KeyringRoot::class, options: ['default' => 'password'])]
+    public private(set) KeyringRoot $keyringRoot = KeyringRoot::Password;
+
+    /**
+     * The salt the browser stretches the encryption passphrase with, base64.
+     * Null unless $keyringRoot is the passphrase. Its own salt, not $kdfSalt:
+     * an account that later gets a login password must not have the two
+     * secrets stretched alike, or a password equal to the passphrase would
+     * hand the server — which sees the password's auth hash — the very bytes
+     * the passphrase's auth hash would have been.
+     */
+    #[ORM\Column(name: 'passphrase_salt', length: 64, nullable: true)]
+    public private(set) ?string $passphraseSalt = null;
+
+    /**
+     * PBKDF2 iterations for $passphraseSalt, per user for the reason
+     * $kdfIterations gives.
+     */
+    #[ORM\Column(name: 'passphrase_iterations', nullable: true)]
+    public private(set) ?int $passphraseIterations = null;
+
+    /**
+     * Whether a password could sign this person in at all. Empty is the hash
+     * no password produces, which OidcUserResolver writes for an account it
+     * creates and the admin delete action writes for a removed one.
+     */
+    public bool $hasUsablePassword {
+        get => '' !== (string) $this->password;
+    }
+
+    /**
+     * The root that applies now: the passphrase once it is set up, and also
+     * before — for an account with no usable password, which has nothing else
+     * a keyring could hang off and is offered "Set up encryption" instead. An
+     * account that gets a password before it sets anything up is a password
+     * account like any other.
+     */
+    public KeyringRoot $keyringRootInEffect {
+        get => KeyringRoot::Passphrase === $this->keyringRoot || false === $this->hasUsablePassword
+            ? KeyringRoot::Passphrase
+            : KeyringRoot::Password;
+    }
+
+    /**
+     * The current password was chosen by somebody else, and this person has to
+     * pick their own before plMail lets them do anything.
+     *
+     * Set when an administrator creates the account, and by
+     * `app:user:password`: in both cases a second person knows the password,
+     * and once the keys of issue #28 hang off it, that person could open them.
+     * App\Security\PasswordChangeRequiredListener holds the line; the form is
+     * App\Controller\Auth\RequiredPasswordController.
+     */
+    #[ORM\Column(name: 'password_change_required', options: ['default' => false])]
+    public bool $passwordChangeRequired = false;
 
     /**
      * Nullable: removing a picture is a normal thing to do, and the column has
@@ -311,6 +422,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * The OpenID Connect identity this account signs in as, if it has one.
+     *
+     * Issuer and subject together, because that pair is the only thing OIDC
+     * promises is stable: `sub` is unique per issuer and nowhere else, and the
+     * address an identity provider reports can be edited there at any time.
+     * Matching on the address on every sign-in would let whoever can change
+     * their own address at the provider walk into any account here that holds
+     * the new one. The address is used once, to link an existing account the
+     * first time, and only when the provider vouches for it — see
+     * App\Service\Oidc\OidcUserResolver.
+     *
+     * The issuer is kept rather than assumed so that pointing the install at a
+     * different provider does not hand the new provider's `sub` values the
+     * old provider's accounts: a row linked to another issuer is relinked by
+     * address, never matched by subject.
+     *
+     * Cleared by the admin delete action, so a removed account cannot be
+     * signed into through the provider and does not hold the identity against
+     * a new account for the same person.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcIssuer = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $oidcSubject = null;
+
+    /**
      * @var Collection<int, Account>
      */
     #[ORM\OneToMany(targetEntity: Account::class, mappedBy: 'usr', orphanRemoval: true)]
@@ -354,6 +492,57 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function getPassword(): string
     {
         return $this->password;
+    }
+
+    /**
+     * A new password, hashed from the password itself — set by something that
+     * had the plaintext and no browser to stretch it first.
+     */
+    public function useServerHashedPassword(string $hash): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = null;
+        $this->kdfIterations = null;
+    }
+
+    /**
+     * A new password, hashed from the auth hash a browser derived from it with
+     * this salt and iteration count.
+     */
+    public function useClientDerivedPassword(string $hash, string $salt, int $iterations): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = $salt;
+        $this->kdfIterations = $iterations;
+    }
+
+    public function hasClientDerivedPassword(): bool
+    {
+        return null !== $this->kdfSalt;
+    }
+
+    /**
+     * The keyring hangs off an encryption passphrase from now on, stretched
+     * with this salt and iteration count — or with new ones, when the
+     * passphrase changes. The login, whatever it is, is not touched.
+     */
+    public function usePassphraseRoot(string $salt, int $iterations): void
+    {
+        $this->keyringRoot          = KeyringRoot::Passphrase;
+        $this->passphraseSalt       = $salt;
+        $this->passphraseIterations = $iterations;
+    }
+
+    /**
+     * The root a config backup recorded, as it was. Only the restore calls
+     * this: switching a keyring between roots is not something plMail does,
+     * and a passphrase salt left on a password row would be read by nothing.
+     */
+    public function restoreKeyringRoot(KeyringRoot $root, ?string $salt, ?int $iterations): void
+    {
+        $this->keyringRoot          = $root;
+        $this->passphraseSalt       = KeyringRoot::Passphrase === $root ? $salt : null;
+        $this->passphraseIterations = KeyringRoot::Passphrase === $root ? $iterations : null;
     }
 
     /**
@@ -640,6 +829,44 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * Whether the address book is docked beside the mail, and how wide.
+     *
+     * The settings bag for the calendar pane's reasons: rendered into the first
+     * paint, the same at every desk, no migration. Its own keys rather than a
+     * position of the calendar switch, because from a wide enough screen the
+     * two are docked side by side (see contacts--pane) — one setting cannot
+     * say "both".
+     *
+     * Three positions since #311, the calendar's: closed, beside the mail, and
+     * full width with the mail behind it (ContactsPaneMode). Kept as
+     * SETTING_CONTACTS_PANE_MODE; SETTING_CONTACTS_PANE_OPEN is what it grew
+     * out of, and is still read for somebody who has never moved the switch
+     * since, so their pane opens where they left it.
+     */
+    public const string SETTING_CONTACTS_PANE_OPEN = 'contacts.pane_open';
+    public const string SETTING_CONTACTS_PANE_MODE = 'contacts.pane_mode';
+    public const string SETTING_CONTACTS_PANE_WIDTH = 'contacts.pane_width';
+
+    /**
+     * Which position the contacts button skips — SETTING_CALENDAR_SWITCH_SKIP,
+     * for the address book. Absent for the default three-way cycle.
+     */
+    public const string SETTING_CONTACTS_SWITCH_SKIP = 'contacts.switch_skip';
+
+    /**
+     * Matches the clamp in ui--split; the server is what enforces it.
+     *
+     * 368 (23rem), not 320: the narrowest the list's header fits on one line
+     * — the title in full ("Shipmates", the longest of the four) and its five
+     * buttons. At 320 the title ran under the buttons, and both other ways out
+     * (truncating it, wrapping the buttons) read worse than a slightly wider
+     * pane. A width stored below this is raised on read (contactsPaneWidth).
+     */
+    public const int CONTACTS_PANE_MIN_WIDTH = 368;
+    public const int CONTACTS_PANE_MAX_WIDTH = 900;
+    public const int CONTACTS_PANE_DEFAULT_WIDTH = 420;
+
+    /**
      * How wide the live preview beside the appearance settings is.
      *
      * The settings bag for the same reason the calendar's width is: rendered
@@ -674,6 +901,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_READING_PANE_MODE = 'reading.pane_mode';
     public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
+
+    /**
+     * What a dragged row does, one key per direction — see SwipeAction and
+     * SwipeDirection. The bag, like the reading pane's keys beside them, for a
+     * choice about THIS screen that needs no column and no migration. Each
+     * stores one SwipeAction value; "trash" is not one of them, and a stored
+     * "trash" reads as the direction's default (SwipeAction::fromSetting).
+     */
+    public const string SETTING_SWIPE_RIGHT_ACTION = 'swipe.right_action';
+    public const string SETTING_SWIPE_LEFT_ACTION = 'swipe.left_action';
 
     /**
      * The range the divider can be dragged through, in percent of the mail card.
@@ -805,6 +1042,74 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. */
+    public int $contactsPaneWidth {
+        get {
+            $width = $this->getSetting(self::SETTING_CONTACTS_PANE_WIDTH, self::CONTACTS_PANE_DEFAULT_WIDTH);
+
+            if (false === is_int($width)) {
+                return self::CONTACTS_PANE_DEFAULT_WIDTH;
+            }
+
+            return max(self::CONTACTS_PANE_MIN_WIDTH, min(self::CONTACTS_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CONTACTS_PANE_OPEN. The
+     * old open flag is read when no mode was ever stored, and written null once
+     * one is, so the two cannot disagree later.
+     */
+    public ContactsPaneMode $contactsPaneMode {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_PANE_MODE);
+
+            if (true === is_string($stored) && null !== ContactsPaneMode::tryFrom($stored)) {
+                return ContactsPaneMode::from($stored);
+            }
+
+            return true === $this->getSetting(self::SETTING_CONTACTS_PANE_OPEN, false)
+                ? ContactsPaneMode::Split
+                : ContactsPaneMode::Mail;
+        }
+        set (ContactsPaneMode $mode) {
+            $this->setSetting(self::SETTING_CONTACTS_PANE_MODE, $mode->value);
+            $this->setSetting(self::SETTING_CONTACTS_PANE_OPEN, null);
+        }
+    }
+
+    /**
+     * Whether the address book is on screen, in either position. Opening one
+     * that is already open keeps its position; opening a closed one docks it.
+     */
+    public bool $contactsPaneOpen {
+        get => $this->contactsPaneMode->showsContacts();
+        set (bool $open) {
+            if (false === $open) {
+                $this->contactsPaneMode = ContactsPaneMode::Mail;
+            } elseif (false === $this->contactsPaneMode->showsContacts()) {
+                $this->contactsPaneMode = ContactsPaneMode::Split;
+            }
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CONTACTS_SWITCH_SKIP. */
+    public ContactsSwitchSkip $contactsSwitchSkip {
+        get {
+            $stored = $this->getSetting(self::SETTING_CONTACTS_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? ContactsSwitchSkip::tryFrom($stored) ?? ContactsSwitchSkip::None
+                : ContactsSwitchSkip::None;
+        }
+        set (ContactsSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CONTACTS_SWITCH_SKIP,
+                ContactsSwitchSkip::None === $skip ? null : $skip->value,
+            );
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_APPEARANCE_PREVIEW_WIDTH. */
     public int $appearancePreviewWidth {
         get {
@@ -852,6 +1157,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_SWIPE_RIGHT_ACTION.
+     *
+     * Read per direction: an unreadable value here falls back to Right's default
+     * and never touches the left choice.
+     */
+    public SwipeAction $swipeRightAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_RIGHT_ACTION),
+            SwipeDirection::Right->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_RIGHT_ACTION, $action->value);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_SWIPE_LEFT_ACTION. Falls back to Left's default. */
+    public SwipeAction $swipeLeftAction {
+        get => SwipeAction::fromSetting(
+            $this->getSetting(self::SETTING_SWIPE_LEFT_ACTION),
+            SwipeDirection::Left->defaultAction(),
+        );
+        set (SwipeAction $action) {
+            $this->setSetting(self::SETTING_SWIPE_LEFT_ACTION, $action->value);
         }
     }
 
@@ -1014,6 +1346,189 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * How mail goes out once plMail can encrypt it — Settings → Encryption →
+     * Sending. Four switches in the settings bag, each stored only when it
+     * differs from its default, like the two above.
+     *
+     *   autocrypt      ON:  every message carries an Autocrypt header with
+     *                       the sender's public key, so Thunderbird, Delta Chat
+     *                       and the like can answer encrypted. Invisible to the
+     *                       people who read the mail.
+     *   attach key     OFF: the public key as a file on every message, for
+     *                       recipients whose program does not read Autocrypt.
+     *   sign plain     OFF: sign mail that goes out unencrypted. A
+     *                       signature.asc confuses people without PGP, which is
+     *                       why it is off; mail to somebody whose key plMail
+     *                       knows is signed whatever this says.
+     *   block partial  OFF: when some recipients can be reached encrypted and
+     *                       others cannot, refuse to send rather than send the
+     *                       mail unencrypted to all of them, which is the
+     *                       default and what Proton does.
+     */
+    /**
+     * Whether any of this person's accounts keeps decrypted mail on the
+     * server (Account::SETTING_KEEP_DECRYPTED) — kept here, by the settings
+     * page that switches those, so the layout can decide whether to mount the
+     * background decrypter without a query of its own on every page.
+     */
+    public const string SETTING_KEEPS_DECRYPTED_ANY = 'crypto.keeps_decrypted_any';
+
+    public const string SETTING_CRYPTO_AUTOCRYPT     = 'crypto.autocrypt';
+    public const string SETTING_CRYPTO_ATTACH_KEY    = 'crypto.attach_key';
+    public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';
+    public const string SETTING_CRYPTO_BLOCK_PARTIAL = 'crypto.block_partial';
+
+    /**
+     * protect subject  ON:  an encrypted message carries its subject inside the
+     *                       encryption, and the outside says "..." (RFC 9788,
+     *                       what Thunderbird does by default). A recipient
+     *                       whose program cannot read it sees "...".
+     */
+    public const string SETTING_CRYPTO_PROTECT_SUBJECT = 'crypto.protect_subject';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_PROTECT_SUBJECT. */
+    public bool $protectSubject {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $autocryptHeader {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_AUTOCRYPT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_AUTOCRYPT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $attachPublicKey {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_ATTACH_KEY, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_ATTACH_KEY, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $signPlainMail {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_SIGN_PLAIN, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_SIGN_PLAIN, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $blockPartialEncryption {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, $on ? true : null);
+        }
+    }
+
+    /**
+     * The addresses whose key the person does not want in plMail's Web Key
+     * Directory (WkdDirectory). A list of the ones switched OFF rather than of
+     * the ones switched on, so that publishing is the default the day an
+     * administrator enables the domain, and so an address that becomes the
+     * person's later starts published like the rest. Absent when empty.
+     */
+    public const string SETTING_CRYPTO_WKD_UNPUBLISHED = 'crypto.wkd_unpublished';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_WKD_UNPUBLISHED.
+     * Lower-cased and de-duplicated on the way in, so a comparison against a
+     * binding's address never depends on how somebody typed it.
+     *
+     * @var list<string>
+     */
+    public array $wkdUnpublished {
+        get {
+            $addresses = $this->getSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, []);
+
+            return true === is_array($addresses) ? array_values(array_filter($addresses, 'is_string')) : [];
+        }
+        set(array $addresses) {
+            $addresses = array_values(array_unique(array_map(static fn (string $address): string => strtolower(trim($address)), $addresses)));
+            $this->setSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, [] === $addresses ? null : $addresses);
+        }
+    }
+
+    /**
+     * Whether a lookup of a contact's key goes on to the public key servers
+     * when the address's own domain has none (KeyServerLookup) — Settings →
+     * Encryption → Contacts' keys.
+     *
+     * ON unless switched off, as Thunderbird asks keys.openpgp.org by default:
+     * without it most people's keys are not found, and mail to them goes out
+     * unencrypted. The price is that the server's operator learns which
+     * address somebody here looked up, which is why the switch is there and
+     * its hint says so. Stored only as a false.
+     */
+    public const string SETTING_CRYPTO_KEY_SERVERS = 'crypto.key_servers';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_KEY_SERVERS. */
+    public bool $lookUpKeyServers {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_KEY_SERVERS, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_KEY_SERVERS, $on ? null : false);
+        }
+    }
+
+    /**
+     * Whether remote images load in every message without the "Show images"
+     * bar, as if every sender were on the allowlist (#124).
+     *
+     * OFF unless somebody switches it on. The block is what keeps a sender's
+     * tracking pixel from learning that, when and where a message was opened,
+     * and that protection is worth most to the people who never thought to ask
+     * for it. Somebody who has weighed it and would rather not click every time
+     * can say so once. Only a stored true is on, so the key is absent for
+     * nearly everybody.
+     *
+     * Spam is still blocked with this on — MessageRenderer reads a message in
+     * Spam as the provider disputing who sent it, and no standing permission
+     * outranks that. Images still come through the proxy, so a sender learns
+     * that the message was opened but not the reader's address. Per USER, like
+     * the allowlist it widens — Settings → Mail → Images.
+     */
+    public const string SETTING_IMAGES_ALWAYS_SHOW = 'images.always_show';
+
+    /** Virtual, out of the settings bag — see SETTING_IMAGES_ALWAYS_SHOW. */
+    public bool $alwaysShowImages {
+        get => true === $this->getSetting(self::SETTING_IMAGES_ALWAYS_SHOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_IMAGES_ALWAYS_SHOW, $on ? true : null);
+        }
+    }
+
+    /**
+     * Whether an account's own inbox (the account row in the sidebar) is shown
+     * in the category tabs as well as the unified Inbox (#55).
+     *
+     * OFF unless somebody switches it on. With it on, clicking an account opens
+     * its Primary tab, and its Social or Promotions mail is one more click
+     * away; off, the account page is the account's whole inbox, which is what
+     * it always was and what the account's own "Inbox" folder row still lists.
+     * Turning a familiar page into a narrower one is a change somebody should
+     * ask for, not one that arrives with an upgrade.
+     *
+     * Only read while the inbox tabs are on at all (CategorySorting::$tabs):
+     * somebody who chose One list gets one list everywhere, whatever this says.
+     * Only a stored true is on, so the key is absent for nearly everybody.
+     * Per USER — Settings → Mail → Categories.
+     */
+    public const string SETTING_ACCOUNT_INBOX_TABS = 'categories.account_tabs';
+
+    /** Virtual, out of the settings bag — see SETTING_ACCOUNT_INBOX_TABS. */
+    public bool $accountInboxTabs {
+        get => true === $this->getSetting(self::SETTING_ACCOUNT_INBOX_TABS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_ACCOUNT_INBOX_TABS, $on ? true : null);
+        }
+    }
+
+    /**
      * Which position the topbar's calendar button leaves out — Settings →
      * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
      * is what the button has always done, and a person who has learned it
@@ -1045,6 +1560,48 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
                 self::SETTING_CALENDAR_SWITCH_SKIP,
                 CalendarSwitchSkip::None === $skip ? null : $skip->value,
             );
+        }
+    }
+
+    /**
+     * The last plMail release this person was shown What's new for, as
+     * `0.3.6` (#165).
+     *
+     * State, not a choice: WhatsNew writes it when the dialog is drawn, and
+     * nobody sets it by hand. Everybody who existed when the dialog shipped
+     * was given 0.3.1 by Version20261016090000; anybody created since gets the
+     * running release on their first request (WhatsNewFirstSighting), which
+     * is what keeps the dialog off a fresh install.
+     */
+    public const string SETTING_WHATS_NEW_SEEN = 'whats_new.seen_version';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_SEEN. */
+    public ?string $whatsNewSeenVersion {
+        get {
+            $stored = $this->getSetting(self::SETTING_WHATS_NEW_SEEN);
+
+            return true === is_string($stored) && 1 === preg_match('/^\d+\.\d+\.\d+$/', $stored) ? $stored : null;
+        }
+        set (?string $version) {
+            $this->setSetting(self::SETTING_WHATS_NEW_SEEN, $version);
+        }
+    }
+
+    /**
+     * "Don't show this after updates", from the What's new dialog's footer, and
+     * its way back under Settings → General (#165).
+     *
+     * Quiet means quiet: the dialog does not open by itself and the ? in the
+     * top bar shows no dot. What's new is still in that menu for someone who
+     * goes looking. Off unless somebody asks, so only a stored true is on.
+     */
+    public const string SETTING_WHATS_NEW_QUIET = 'whats_new.quiet';
+
+    /** Virtual, out of the settings bag — see SETTING_WHATS_NEW_QUIET. */
+    public bool $whatsNewQuiet {
+        get => true === $this->getSetting(self::SETTING_WHATS_NEW_QUIET, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_WHATS_NEW_QUIET, $on ? true : null);
         }
     }
 

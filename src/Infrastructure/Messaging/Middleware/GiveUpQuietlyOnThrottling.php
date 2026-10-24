@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Infrastructure\Messaging\Stamp\ThrottleDeferralStamp;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Envelope;
@@ -59,6 +60,25 @@ use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
  * The sender is the ingest transport itself rather than the bus, which is
  * where both batch messages are routed: this class is PART of the bus, and
  * asking for the bus here would be asking for itself.
+ *
+ * ## Gmail's quota is not a failure at all
+ *
+ * Everything above is about the LAST attempt. A Gmail quota refusal is dealt
+ * with on the first, and for every kind of job alike: the same message goes
+ * back onto the queue it came from, to be handled when the account's minute
+ * is over, and one line is logged at `info`.
+ *
+ * Being refused is how plMail learns what its quota is (see GmailQuotaPacer),
+ * so on a project with a low limit it is certain to happen during an import
+ * — and to whatever else is using the same mailbox's quota at that moment. A
+ * label change pushed to Gmail while an import was running was refused, and
+ * Messenger's own retry did the right thing in the loudest way it has: a
+ * WARNING carrying two stack traces, per attempt (#90).
+ *
+ * The retry that replaces it is not counted against the job's own ladder,
+ * because nothing about the job went wrong. It is bounded all the same:
+ * after QUOTA_WAITS of them in a row the refusal is handed to the ladder like
+ * any other failure, and from there to everything above.
  */
 final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
 {
@@ -79,10 +99,23 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
     /** How many times, before it is allowed to fail in earnest. */
     public const int MAX_DEFERRALS = 10;
 
+    /**
+     * How many times in a row a job waits out Gmail's quota before the
+     * refusal counts as a failure. An hour of minutes: a quota that is still
+     * exhausted then is being spent by something this application cannot see.
+     */
+    public const int QUOTA_WAITS = 60;
+
+    /**
+     * @param ContainerInterface $transports every transport by name, to put a
+     *                                       job back where it came from
+     */
     public function __construct(
         #[Autowire(service: 'messenger.transport.ingest')]
         private SenderInterface $ingest,
         private LoggerInterface $logger,
+        #[Autowire(service: 'messenger.receiver_locator')]
+        private ContainerInterface $transports,
     ) {
     }
 
@@ -91,6 +124,10 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
         try {
             return $stack->next()->handle($envelope, $stack);
         } catch (HandlerFailedException $failure) {
+            if (true === $this->waitsOutGmailQuota($envelope, $failure)) {
+                return $envelope;
+            }
+
             if (false === $this->isLastAttempt($envelope) || false === $this->isThrottling($failure)) {
                 throw $failure;
             }
@@ -136,6 +173,72 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
 
             throw $failure;
         }
+    }
+
+    /**
+     * Put a job Gmail refused on quota back onto its own queue, to run when
+     * the refusal has cleared.
+     *
+     * @return bool whether that was done; false leaves the failure to
+     *              everything else this class and Messenger do with one
+     */
+    private function waitsOutGmailQuota(Envelope $envelope, HandlerFailedException $failure): bool
+    {
+        $received = $envelope->last(ReceivedStamp::class);
+        $wrapped  = $failure->getWrappedExceptions();
+
+        // One handled inline has no queue to go back to and fails to its
+        // caller, as before.
+        if (null === $received || [] === $wrapped) {
+            return false;
+        }
+
+        $delay = 0;
+
+        foreach ($wrapped as $exception) {
+            if (false === $exception instanceof GmailThrottledException) {
+                return false;
+            }
+
+            $delay = max($delay, $exception->getRetryDelay());
+        }
+
+        $stamp = $envelope->last(ThrottleDeferralStamp::class);
+        $waits = null === $stamp ? 0 : $stamp->count;
+
+        if ($waits >= self::QUOTA_WAITS || false === $this->transports->has($received->getTransportName())) {
+            return false;
+        }
+
+        $transport = $this->transports->get($received->getTransportName());
+
+        if (false === $transport instanceof SenderInterface) {
+            return false;
+        }
+
+        $message = $envelope->getMessage();
+
+        // A few seconds past the refusal's end, and not the same few for
+        // every job: the ones refused together would otherwise all come due
+        // in the same second and be refused together again.
+        $delay += 1000 * random_int(1, 10);
+
+        // A NEW envelope around the same message. The job's own retries are
+        // for its own failures and this was not one.
+        $transport->send(new Envelope($message, [
+            new DelayStamp($delay),
+            new ThrottleDeferralStamp($waits + 1),
+        ]));
+
+        $this->logger->info('Put back: waiting for Gmail quota', [
+            'class'        => $message::class,
+            'queue'        => $received->getTransportName(),
+            'delaySeconds' => intdiv($delay, 1000),
+            'wait'         => $waits + 1,
+            'of'           => self::QUOTA_WAITS,
+        ]);
+
+        return true;
     }
 
     /**

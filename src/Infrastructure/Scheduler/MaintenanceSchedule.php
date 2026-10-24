@@ -82,6 +82,11 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // should not hold up mail.
                 RecurringMessage::cron('7-59/15 * * * *', new RunCommandMessage('app:calendar:sync --stale')),
 
+                // The same polling for CardDAV address books, which have no
+                // push mechanism at all. Offset again, off both sweeps above,
+                // for the same shared-worker reason.
+                RecurringMessage::cron('11-59/15 * * * *', new RunCommandMessage('app:contacts:sync --stale')),
+
                 // What makes the two providers above actually push. Hourly
                 // rather than daily like app:push:renew, and not because
                 // anything expires that fast — a Google channel lasts a week

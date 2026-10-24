@@ -8,9 +8,11 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\Provider;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
+use App\Entity\Oidc\OidcConfig;
 use App\Entity\Push\FcmConfig;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\MailProviderConfigRepository;
+use App\Repository\Oidc\OidcConfigRepository;
 use App\Repository\Push\FcmConfigRepository;
 use App\Domain\Ai\ConnectionHeaders;
 use App\Domain\Ai\KeepAlive;
@@ -85,6 +87,15 @@ final readonly class ConfigBackupDatabase
     public const string UPDATE_SETTINGS = 'updateSettings';
 
     /**
+     * The sign-in provider — Admin → SSO. The provider only: which account is
+     * linked to which subject is not here, because a subject means something
+     * to one issuer and a restore that carried the links would be asserting
+     * them on an install whose provider it has not seen. Each account links
+     * again by address on its next sign-in.
+     */
+    public const string OIDC_CONFIG = 'oidcConfig';
+
+    /**
      * Every key the section carries.
      *
      * Exists so {@see \App\Tests\Service\Backup\ConfigBackupCompletenessTest}
@@ -100,6 +111,7 @@ final readonly class ConfigBackupDatabase
         self::AI_SETTINGS,
         self::LOG_SETTINGS,
         self::UPDATE_SETTINGS,
+        self::OIDC_CONFIG,
     ];
 
     public function __construct(
@@ -109,6 +121,7 @@ final readonly class ConfigBackupDatabase
         private AiSettingsRepository                $aiSettings,
         private LogSettingsRepository               $logSettings,
         private UpdateCheckRepository               $updateChecks,
+        private OidcConfigRepository                $oidcConfigs,
         private EntityManagerInterface              $entityManager,
     ) {
     }
@@ -125,6 +138,7 @@ final readonly class ConfigBackupDatabase
             self::AI_SETTINGS           => $this->exportAiSettings(),
             self::LOG_SETTINGS          => $this->exportLogSettings(),
             self::UPDATE_SETTINGS       => $this->exportUpdateSettings(),
+            self::OIDC_CONFIG           => $this->exportOidcConfig(),
         ];
     }
 
@@ -273,6 +287,7 @@ final readonly class ConfigBackupDatabase
             'holdMaxSeconds'        => $settings->holdMaxSeconds,
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
+            'contactHelpEnabled'    => $settings->contactHelpEnabled,
             'prompts'               => $prompts,
         ];
     }
@@ -361,6 +376,7 @@ final readonly class ConfigBackupDatabase
         $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
+        $settings->contactHelpEnabled    = true === ($values['contactHelpEnabled'] ?? false);
 
         $prompts = $values['prompts'] ?? [];
 
@@ -425,6 +441,57 @@ final readonly class ConfigBackupDatabase
 
         if (null === $settings->id) {
             $this->entityManager->persist($settings);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function exportOidcConfig(): ?array
+    {
+        $config = $this->oidcConfigs->current();
+
+        if (null === $config) {
+            return null;
+        }
+
+        return [
+            'issuer'               => $config->issuer,
+            'clientId'             => $config->clientId,
+            'clientSecret'         => $config->clientSecret,
+            'buttonLabel'          => $config->buttonLabel,
+            'scopes'               => $config->scopes,
+            'autoCreate'           => $config->autoCreate,
+            'requireVerifiedEmail' => $config->requireVerifiedEmail,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreOidcConfig(array $values): void
+    {
+        $config = $this->oidcConfigs->current() ?? new OidcConfig();
+
+        $config->issuer       = $this->string($values, 'issuer');
+        $config->clientId     = $this->string($values, 'clientId');
+        $config->clientSecret = $this->string($values, 'clientSecret');
+        $config->buttonLabel  = $this->string($values, 'buttonLabel');
+        $config->scopes       = $this->string($values, 'scopes');
+        $config->autoCreate   = true === ($values['autoCreate'] ?? false);
+        // Off only when the backup says so in as many words: a document that
+        // lost the key must not come back with the check switched off.
+        $config->requireVerifiedEmail = false !== ($values['requireVerifiedEmail'] ?? true);
+        // "Single sign-on only" is deliberately not in the backup, and is switched
+        // off here. The account links it depends on (who has signed in through
+        // the provider) are not restored, so bringing it back would shut a
+        // freshly restored install out of its own password form. An
+        // administrator ticks it again once they have signed in through the
+        // provider.
+        $config->passwordLoginDisabled = false;
+
+        if (null === $config->id) {
+            $this->entityManager->persist($config);
         }
     }
 

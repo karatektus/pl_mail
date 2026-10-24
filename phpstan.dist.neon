@@ -45,6 +45,12 @@ parameters:
         - tests
         - importmap.php
 
+    # Read for its classes, not analysed: migrations are generated and nobody
+    # edits them by hand, but a test that runs one (tests/Migrations) names its
+    # class, and without this that is a class PHPStan has never heard of.
+    scanDirectories:
+        - migrations
+
     excludePaths:
         analyseAndScan:
             # Not PHP.
@@ -70,9 +76,9 @@ parameters:
             - playwright (?)
             - playwright-report (?)
             - test-results (?)
-            # Generated: 54 migrations nobody edits by hand, and a ~1000-line
-            # dump of the framework config tree that exists to be read.
-            - migrations
+            # Generated: a ~1000-line dump of the framework config tree that
+            # exists to be read. (migrations/ is not analysed either, by not
+            # being in `paths`; see scanDirectories.)
             - config/reference.php (?)
             # Twig extensions lifted from upstream rather than written here.
             # NOTE: only Vendor/ — the rest of src/Twig is application code

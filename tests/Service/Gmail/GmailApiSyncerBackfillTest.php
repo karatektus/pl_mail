@@ -7,6 +7,7 @@ namespace App\Tests\Service\Gmail;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
+use App\Repository\Mail\GmailSkippedMessageRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Mail\GmailApiClient;
@@ -37,7 +38,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class GmailApiSyncerBackfillTest extends TestCase
 {
-    private MessageRepository $messageRepository;
+    private MessageRepository&\PHPUnit\Framework\MockObject\Stub $messageRepository;
 
     /** A stub by default; tests that assert on dispatching swap in a mock. */
     private MessageBusInterface $bus;
@@ -45,9 +46,12 @@ final class GmailApiSyncerBackfillTest extends TestCase
     /** @var list<string> requested URLs, so a skipped listing is provable */
     private array $requests = [];
 
+    private GmailSkippedMessageRepository&\PHPUnit\Framework\MockObject\Stub $skipped;
+
     protected function setUp(): void
     {
         $this->messageRepository = $this->createStub(MessageRepository::class);
+        $this->skipped           = $this->createStub(GmailSkippedMessageRepository::class);
         $this->bus               = $this->createStub(MessageBusInterface::class);
         $this->requests          = [];
 
@@ -65,6 +69,24 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $this->syncer(['a', 'b'])->backfill($account);
 
         self::assertCount(1, $this->requests);
+    }
+
+    /**
+     * messages.list leaves Spam and Trash out unless asked, and Gmail's
+     * messagesTotal — what the import line counts towards — includes them.
+     * The comment above this call said "inbox, sent, spam, trash" for a
+     * request that never asked for the last two.
+     */
+    public function testTheListingAsksForSpamAndTrashToo(): void
+    {
+        $this->synced();
+
+        $this->syncer(['a'])->backfill($this->account());
+
+        $listings = array_values(array_filter($this->requests, static fn (string $url): bool => str_contains($url, '/messages?')));
+
+        self::assertNotSame([], $listings);
+        self::assertStringContainsString('includeSpamTrash=true', $listings[0]);
     }
 
     public function testBackfillIsSkippedOnceTheWholeMailboxIsIn(): void
@@ -101,6 +123,36 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $this->syncer(['a'])->backfill($account);
 
         self::assertSame([], $this->requests, 'a draining backfill must not re-dispatch');
+    }
+
+    /**
+     * Everything Gmail counts is in, and the hour exists only for batches to
+     * drain. The confirming listing goes now rather than leaving the import
+     * line at 100% for the rest of the hour.
+     */
+    public function testAMailboxThatIsAllInIsConfirmedWithoutWaitingTheHour(): void
+    {
+        $account = $this->account();
+        $account->backfillRanAt = new \DateTimeImmutable('-15 minutes');
+        $this->synced('a', 'b');
+        $this->counted(stored: 1, carried: 1);
+
+        $this->syncer(['a', 'b'], profileTotal: 2)->backfill($account);
+
+        self::assertSame(0, $account->backfillTarget, 'listed, found nothing missing, finished');
+        self::assertSame(2, $account->importTotal, 'and the total is Gmail\'s current one');
+    }
+
+    public function testAMailboxStillShortWaitsOutTheHour(): void
+    {
+        $account = $this->account();
+        $account->backfillRanAt = new \DateTimeImmutable('-15 minutes');
+        $this->counted(stored: 1, carried: 0);
+
+        $this->syncer(['a', 'b'], profileTotal: 2)->backfill($account);
+
+        self::assertSame(1, count($this->requests), 'the profile, and no listing');
+        self::assertNull($account->backfillTarget);
     }
 
     public function testBackfillListsAgainOnceTheCooldownHasPassed(): void
@@ -157,6 +209,53 @@ final class GmailApiSyncerBackfillTest extends TestCase
         self::assertFalse($account->needsBackfill());
     }
 
+    /**
+     * #90. A message that was fetched and declined used to be missing for
+     * ever: every hourly listing named it, it was fetched in full again, and
+     * the import only ended at the attempt ceiling above — a day of "waiting"
+     * and 134,000 quota units an hour, on the mailbox this was reported from.
+     * Written down, it is neither asked for again nor waited for.
+     */
+    public function testAMessageAlreadyDeclinedIsNeitherFetchedAgainNorWaitedFor(): void
+    {
+        $account = $this->account();
+        $this->synced('a');
+        $this->skipped->method('findGmailIdsAmong')->willReturnCallback(
+            static fn (Account $account, array $ids): array => array_values(array_intersect(['declined'], $ids)),
+        );
+
+        $this->expectDispatch(self::never());
+
+        $this->syncer(['a', 'declined'])->backfill($account);
+
+        self::assertSame(0, $account->backfillTarget, 'everything listed has an answer, so the import is finished');
+        self::assertSame(0, $account->backfillAttempts);
+    }
+
+    /**
+     * The listing asks the database about the ids on its page and nothing
+     * else (#223). It used to read every gmail_id the owner had stored, on
+     * every page and every history window: thousands of rows per sync on a
+     * large mailbox, to answer a question about a few hundred.
+     */
+    public function testTheListingAsksOnlyAboutTheIdsItListed(): void
+    {
+        $account = $this->account();
+        $asked   = [];
+
+        $this->messageRepository
+            ->method('findStoredGmailIdsForUser')
+            ->willReturnCallback(static function (User $user, array $ids) use (&$asked): array {
+                $asked[] = $ids;
+
+                return [];
+            });
+
+        $this->syncer(['a', 'b'])->backfill($account);
+
+        self::assertSame([['a', 'b']], $asked);
+    }
+
     public function testDispatchedBatchesCarryOnlyUnsyncedIds(): void
     {
         $account = $this->account();
@@ -196,13 +295,17 @@ final class GmailApiSyncerBackfillTest extends TestCase
      *
      * @param list<string> $ids
      */
-    private function syncer(array $ids, int $pageSize = 500): GmailApiSyncer
+    private function syncer(array $ids, int $pageSize = 500, ?int $profileTotal = null): GmailApiSyncer
     {
         $pages = array_chunk($ids, $pageSize);
         $call  = 0;
 
-        $client = new MockHttpClient(function (string $method, string $url) use ($pages, &$call): ResponseInterface {
+        $client = new MockHttpClient(function (string $method, string $url) use ($pages, &$call, $profileTotal): ResponseInterface {
             $this->requests[] = $url;
+
+            if (str_ends_with($url, '/profile')) {
+                return new JsonMockResponse(['messagesTotal' => $profileTotal ?? 0, 'historyId' => '1']);
+            }
 
             $page = $pages[$call] ?? [];
             $last = $call >= count($pages) - 1;
@@ -228,6 +331,17 @@ final class GmailApiSyncerBackfillTest extends TestCase
             new NullLogger(),
             $this->createStub(MessageEraser::class),
             new \App\Service\Mail\SyncOrigin(),
+            $this->skipped,
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 
@@ -242,11 +356,19 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $this->bus = $bus;
     }
 
+    private function counted(int $stored, int $carried): void
+    {
+        $this->messageRepository->method('countForAccount')->willReturn($stored);
+        $this->messageRepository->method('countCarriedBy')->willReturn($carried);
+    }
+
     private function synced(string ...$gmailIds): void
     {
+        // Answers for the ids asked about, as the query does: the listing
+        // asks only about the page in hand (#223).
         $this->messageRepository
-            ->method('findSyncedGmailIdsForUser')
-            ->willReturn($gmailIds);
+            ->method('findStoredGmailIdsForUser')
+            ->willReturnCallback(static fn (User $user, array $ids): array => array_values(array_intersect($gmailIds, $ids)));
     }
 
     private function envelope(): Envelope

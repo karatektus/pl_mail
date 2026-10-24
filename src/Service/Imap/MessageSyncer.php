@@ -11,11 +11,13 @@ use App\Domain\Helper\CharsetHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
+use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
@@ -28,6 +30,7 @@ use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Attribute;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use Webklex\PHPIMAP\Support\AttachmentCollection;
 use App\Service\Mail\HeaderNormalizer;
 
 class MessageSyncer
@@ -59,6 +62,7 @@ class MessageSyncer
         private readonly ImapPagedFetch $pagedFetch,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
+        private readonly MessageCryptoDetector $cryptoDetector,
     ) {}
 
     /**
@@ -175,7 +179,9 @@ class MessageSyncer
         try {
             // Not the library's chunked(): one message it cannot parse ends
             // that loop for the whole folder, on every sync. See ImapPagedFetch.
-            $query = $folder->messages()->where(self::uidRangeCriteria($uidRange));
+            // A range that finds nothing moves nothing, so a server's "no such
+            // message" for it is read as the empty answer it means (#219).
+            $query = ImapQuery::of($folder)->emptyWhenNoSuchMessage()->where(self::uidRangeCriteria($uidRange));
 
             foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
                 $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
@@ -531,6 +537,10 @@ class MessageSyncer
             }
 
             try {
+                // Before anything reads the body, so the columns, the parts and
+                // the stored .eml all come from the same bytes.
+                $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
+
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
 
@@ -740,6 +750,47 @@ class MessageSyncer
     }
 
     /**
+     * Parse the body again without the header block a server repeated at the
+     * top of it.
+     *
+     * Some messages on a Stalwart server answer RFC822.TEXT with the whole
+     * message, headers included, while RFC822.HEADER is right (#173). webklex
+     * builds its parts from whatever the TEXT literal held, so a single-part
+     * HTML mail was stored with its own `Delivered-To: …` block as the first
+     * lines of body_html, and rawOf() wrote the headers into the .eml twice.
+     * See RepeatedHeaderHelper for how a repeat is recognised.
+     *
+     * Read from the structure, not getRawBody(): getRawBody() keeps the first
+     * answer it gives, so asking it here would pin the doubled bytes for
+     * rawOf() below. parseRawBody() appends to the bodies and attachments an
+     * earlier parse left behind, which is why both are emptied first.
+     */
+    private function dropRepeatedHeader(ImapMessage $imapMessage, int $uid, string $mailboxPath): void
+    {
+        $header    = $imapMessage->getHeader();
+        $structure = $imapMessage->getStructure();
+
+        if (null === $header || null === $structure) {
+            return;
+        }
+
+        $body = RepeatedHeaderHelper::strip($header->raw, $structure->raw);
+
+        if (null === $body) {
+            return;
+        }
+
+        $imapMessage->bodies = [];
+        $imapMessage->setAttachments(AttachmentCollection::make());
+        $imapMessage->parseRawBody($body);
+
+        $this->logger->info('Dropped a header block the server repeated at the top of the body', [
+            'uid'     => $uid,
+            'mailbox' => $mailboxPath,
+        ]);
+    }
+
+    /**
      * Reassemble the message as it arrived: raw headers, blank line, raw body.
      * webklex keeps both around after parsing, so nothing is re-fetched.
      */
@@ -933,14 +984,19 @@ class MessageSyncer
         $message->ccAddresses = self::addressesOf($imapMessage->getCc());
         $message->bccAddresses = self::addressesOf($imapMessage->getBcc());
 
-        // Dates
-        $receivedAt = $this->receivedAtOf($imapMessage);
-        $message->sentAt = $receivedAt;
-        $message->receivedAt = $receivedAt;
-
         // Flags
         $flagNames = array_values($imapMessage->getFlags()->toArray());
         $message->flags = $flagNames;
+
+        // Dates. A draft has not been sent, whatever its Date header says (see
+        // Message::$sentAt). Decided by the same test the rest of the app uses
+        // on the stored flags, so a row is never "not a draft, never sent":
+        // webklex strips the backslash, so a server's `\Draft` is stored as
+        // `Draft` here and is not a draft to the app yet.
+        $receivedAt = $this->receivedAtOf($imapMessage);
+
+        $message->sentAt = true === $message->isDraft() ? null : $receivedAt;
+        $message->receivedAt = $receivedAt;
 
         if (
             true === in_array('Seen', $flagNames, true)
@@ -981,8 +1037,26 @@ class MessageSyncer
         $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
         $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
 
-        // Attachments
-        $attachments = $imapMessage->getAttachments();
+        // OpenPGP or S/MIME, decided from the top-level Content-Type and the
+        // body — before anything is written, because an encrypted message's
+        // body must never reach the row: search_vector is generated from it
+        // on insert. No part list: IMAP always has the header, and a plain
+        // message that merely carries somebody's signature.asc is not signed.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers, 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        // Attachments — without the parts that are only the wrapping: the
+        // signature, the ciphertext. The raw source keeps them for whoever
+        // checks or decrypts.
+        $attachments = array_values(array_filter(
+            iterator_to_array($imapMessage->getAttachments()),
+            fn (mixed $attachment): bool => null === $crypto
+                || false === $this->cryptoDetector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename()),
+        ));
         $message->syncedAt = new DateTimeImmutable();
 
         $hasAttachments = false;

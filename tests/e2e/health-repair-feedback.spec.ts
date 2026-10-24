@@ -236,13 +236,27 @@ test.describe("health repair feedback", () => {
                 `WHERE email = '${ACCOUNT}' AND ${OWNED_BY_THIS_WORKER}"`,
         );
 
-        // 204, so the browser keeps the current document and the pending state
-        // stays on screen to be looked at. Leaving the request hanging instead
-        // tears the document down mid-navigation, and every assertion below
-        // then reads an empty string off a page that no longer exists — which
-        // is what this looked like before, and looked like a broken controller.
+        // Aborted, so the browser keeps the current document and the pending
+        // state stays on screen to be looked at. The navigation has to END,
+        // though, one way or the other: `link.click()` does not return until
+        // Playwright has seen the navigation it started either commit or fail.
+        //
+        // This used to be `route.fulfill({ status: 204 })`, which keeps the
+        // document just as well and, up to Chromium 155, was reported as a
+        // failed request (net::ERR_ABORTED) — the "fail" Playwright waits for.
+        // Chromium 156 (Playwright 1.64) reports the same 204 as a FINISHED
+        // request that commits nothing, so neither ending ever arrives, the
+        // click sits in "waiting for scheduled navigations to finish" until the
+        // test timeout closes the page, and the assertion below reads "" off
+        // a page that is shutting down. That looked like the document being
+        // torn down mid-navigation, and like a broken controller; it was
+        // neither, the controller had done its job 30ms after the press.
+        //
+        // An abort is reported as a failure by every Chromium, so the click
+        // returns straight away. Leaving the request hanging instead is no
+        // better than the 204: the click waits on it for the same reason.
         await page.route("**/settings/health/reconnect/*", (route) =>
-            route.fulfill({ status: 204 }),
+            route.abort("aborted"),
         );
 
         await page.goto("/settings?section=health");

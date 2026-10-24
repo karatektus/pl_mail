@@ -76,10 +76,20 @@
        compose_controller#_trackViewport. #}
     <meta name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
+    {#
+    The "(n)" in front of the title: by default the Inbox's unread count, so a
+    page that is not a mail folder (settings, the calendar, admin) still tells
+    the person that mail is waiting. Mail folders carry their own figure, or
+    none, and switch this off — see _layout/_mailbox.html.twig.
+
+    Nothing is printed for a count of zero, or when nobody is signed in:
+    SidebarCounts answers 0 without a user.
+    #}
+    <title>{% block title_prefix %}{% set _inboxUnread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}{{ _inboxUnread > 0 ? '(' ~ _inboxUnread ~ ') ' }}{% endblock %}{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
     {#
     Which counts key the "(n)" in the title above came from, or empty on a page
-    whose title carries no count.
+    whose title carries no count. Defaults to the key the prefix above is read
+    from, so the two cannot name different numbers.
 
     The title is rendered once, server-side, while the sidebar badges are
     patched in place after every sync — so the tab kept saying (4) long after
@@ -87,12 +97,22 @@
     rewrite the title from the same payload it patches the badges with, which
     makes "the same source" a fact rather than an intention.
     #}
-    <meta name="title-count-key" content="{% block title_count_key %}{% endblock %}">
+    <meta name="title-count-key" content="{% block title_count_key %}role:inbox{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
-       needs the apple-touch-icon specifically — it ignores the manifest icons. #}
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+       needs the apple-touch-icon specifically — it ignores the manifest icons.
+
+       Both follow the logo picked in Settings → Appearance (#141), as PNGs the
+       user's own browser drew (see AppIconStorage for why not the server). The
+       manifest is a route with the choice and the user's key in its URL, like
+       the tab icon: it is fetched without credentials. The apple-touch-icon is
+       the form that fills its square, because iOS rounds the corners itself
+       and paints a transparent one black. Nobody signed in: the wax seal. #}
+    {% set _app_icons = app_icons() %}
+    {% set _logo_motif = appearance().effectiveLogoMotif %}
+    {% set _logo_paint = appearance().effectiveLogoPaint %}
+    <link rel="manifest" href="{{ logo_manifest_url(_logo_motif, _logo_paint, _app_icons ? _app_icons.key : null) }}">
+    <link rel="apple-touch-icon" href="{{ _app_icons ? logo_app_icon_url('bleed-180', _app_icons.key, _logo_motif, _logo_paint) : '/icons/apple-touch-icon.png' }}">
     {# The token the fetch-based endpoints check. Stimulus controllers that
        build their own request body cannot carry a form field, so they read this
        and send it as X-CSRF-Token. Every such endpoint validates against the
@@ -283,6 +303,10 @@
        through setup: it drives the dialog above, so that has to exist first. #}
     {% if app.user %}
         {% include 'onboarding/_boot.html.twig' %}
+        {% include 'crypto/_keyring_boot.html.twig' %}
+        {# After an update, What's new — never on an install, and never on top
+           of the setup wizard above (WhatsNewGlobal::opensByItself). #}
+        {% include 'whats_new/_boot.html.twig' %}
     {% endif %}
     {# The demo strip, for a signed-in visitor on an install that is a demo.
        Inside the app.user check for the same reason the session-expired bar is:
@@ -411,5 +435,16 @@
             {% endfor %}
         {% endfor %}
     </div>
+    {# The installed app's PNGs for the current choice are not drawn yet: a logo
+       picked before #141, or a deploy that changed the drawing. This page draws
+       and uploads them once (core--app-icons); until then the icon route serves
+       the wax seal. #}
+    {% if _app_icons and _app_icons.missing %}
+        <div hidden
+             data-controller="core--app-icons"
+             data-core--app-icons-tile-url-value="{{ logo_icon_url(_logo_motif, _logo_paint) }}"
+             data-core--app-icons-bleed-url-value="{{ logo_bleed_url(_logo_motif, _logo_paint) }}"
+             data-core--app-icons-upload-url-value="{{ path('app_appearance_app_icons') }}"></div>
+    {% endif %}
 </body>
 </html>

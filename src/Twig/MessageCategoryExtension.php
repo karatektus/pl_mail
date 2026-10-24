@@ -73,6 +73,7 @@ final class MessageCategoryExtension extends AbstractExtension
      * @return array{
      *     filed: string|null,
      *     filedMessage: string|null,
+     *     own: string|null,
      *     effective: array{category: string, reason: string, signal: string|null},
      *     gmail: string|null,
      *     rules: array{category: string, reason: string, signal: string|null},
@@ -130,6 +131,13 @@ final class MessageCategoryExtension extends AbstractExtension
             // Falls back to the message for a message not yet threaded.
             'filed'     => ($message->thread->category ?? $message->category)?->value,
 
+            // The NAME of the tab the reader made that the conversation is in,
+            // or null. Beside `filed` rather than replacing it: `filed` is the
+            // built-in category the rules decided, which is also what JMAP
+            // serves, and the panel has to be able to say both — "Promotions by
+            // the rules, and in your Shipping tab because of a filter".
+            'own'       => $message->thread?->userCategory?->name,
+
             // The message's own row, and only when it disagrees with the
             // thread. Not decoration: a disagreement means the conversation is
             // being decided by a sibling message or a pin rather than by
@@ -148,6 +156,7 @@ final class MessageCategoryExtension extends AbstractExtension
                 $sorting->overrideProvider,
                 $sorting->ignoresAi(),
                 $sorting->assistantFirst(),
+                $sorting->switchedOff(),
             ),
 
             // Gmail's own answer, on its own line, because it is one of the
@@ -180,7 +189,8 @@ final class MessageCategoryExtension extends AbstractExtension
     }
 
     /**
-     * @param array<string,true> $correspondents
+     * @param array<string,true>         $correspondents
+     * @param list<MessageCategory>      $switchedOff
      *
      * @return array{category: string, reason: string, signal: string|null}
      */
@@ -190,6 +200,7 @@ final class MessageCategoryExtension extends AbstractExtension
         bool $ignoreProviderLabels,
         bool $ignoreAi,
         bool $aiFirst = false,
+        array $switchedOff = [],
     ): array {
         $explanation = $this->categorizer->explain(
             $message,
@@ -197,6 +208,7 @@ final class MessageCategoryExtension extends AbstractExtension
             $ignoreProviderLabels,
             $ignoreAi,
             $aiFirst,
+            $switchedOff,
         );
 
         return [

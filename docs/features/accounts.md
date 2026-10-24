@@ -209,9 +209,94 @@ Disabled addresses stay on the list and stop being offered in the compose window
 The **From** selector in the compose window lists accounts and aliases together, so sending as an
 alias is one choice rather than two.
 
+A **reply** opens on the address the mail was sent to. Mail that came in for an alias is answered
+from that alias, without you picking it; mail that names none of the account's addresses — a list, a
+Bcc the server left no trace of — is answered from the primary one. Answering mail you sent yourself
+keeps the address you sent it from. The selector is still there to change it.
+
+### The name an address sends under
+
+Under each address is a field for the **sender name**: what the recipient sees beside the address.
+Left empty, the address sends under the account's name, which is what the field shows greyed out. A
+family address on a personal account can be "Mr and Mrs Smith" while the account stays "John
+Smith". The From selector shows the same name the mail goes out with.
+
+### Catch-all domains
+
+If your provider delivers **every** address at a domain to this mailbox, add the domain under
+**Catch-all domains**. plMail then treats any address at that domain as yours for answering: a
+reply to mail sent to `anything@example.com` goes out from `anything@example.com`, with the
+account's name and signature, and you are left out of your own reply-all. A meeting invitation sent
+to such an address is yours to answer, and the answer goes back from it. No alias has to be added
+first, and nothing changes for mail that arrives.
+
+**Not every address at the domain is treated as you.** A catch-all catches what has no mailbox of
+its own, and on a family or company domain other people have one: `anna@example.com` is at your
+catch-all domain and is somebody else. So an address counts as yours only for a mail it reached you
+by — the address your server recorded delivering it to, or, where the server recorded none, the
+addresses at that domain in To and Cc. Anna stays in your reply-all, her mail is answered to her
+rather than as her, and an invitation naming her is not offered to you. Where a mail names both of
+you and carries no delivery record, plMail cannot tell which was yours and treats both as you.
+
+Three things it does not do. It is one domain exactly — `example.com` does not cover
+`mail.example.com`. It applies to replies and forwards; a new message is still sent from an address
+on the list above. And it is not offered for Gmail or Outlook accounts, which send only as addresses
+the provider itself knows about and rewrite or refuse any other. plMail does not check that the
+domain really is a catch-all, or that your provider lets you send from it: that is between you and
+the provider, and a wrong entry shows up as a refused or rewritten sender on the first reply.
+
 One caveat plMail states on the page itself: **Outlook sends as the account's primary alias
 regardless of what you choose here.** That is Microsoft's behaviour, changed in your Microsoft
 account settings, not here.
+
+### Gmail collecting mail for another account (Gmailify)
+
+Gmail can fetch the mail of another address into your Gmail inbox. When that other address is
+connected here as well, every message reaches plMail twice: once through Gmail and once through the
+other account's own IMAP sync. plMail files such mail under the other account and merges the two
+copies into one, so a message is listed once. The merged message is still the other account's: its
+IMAP folder decides whether it is in the Inbox, the bin or another folder, whatever Gmail did with
+its own copy. Labels you give it in Gmail show here, and archiving, starring or labelling it here
+is also sent to Gmail.
+
+Under each Gmail account on this page, **File mail for my other accounts under them** turns this
+on or off. It is on unless you turn it off. Turn it off once Gmail no longer collects that mail,
+typically after a domain has moved from Gmail to an IMAP provider of its own. Otherwise Gmail's old
+and late copies keep being matched to the other account. With it off:
+
+- The Gmail account keeps only mail addressed to itself. Mail it has for other addresses is not
+  stored again.
+- The other account's own copies stop following Gmail. They lose the labels Gmail put on them,
+  and a change you make to them is no longer sent to Gmail. The mail itself stays where its IMAP
+  folder has it. This runs in the background, so on a mailbox that has collected mail for years it
+  can take a few minutes after the switch is turned off.
+- Mail that Gmail filed under the other account, and that the other account's IMAP server never
+  had, stays as it is and keeps following Gmail. Gmail is the only place that mail exists.
+
+**Best turned off once Gmail has stopped collecting.** While Gmail still collects the other
+address's mail, plMail tells that mail apart by its recipients: a message whose To or Cc names the
+other address, and not the Gmail address, is left to the other account, even though Gmail stamps
+its own address on it as the place it was delivered. A message Bcc'd to the other address names
+nobody, so it looks like the Gmail account's own mail and is kept on both accounts. Mailing lists
+and newsletters often arrive that way. Stop the collecting in Gmail (Settings → Accounts → Check
+mail from other accounts) and those duplicates stop too.
+
+Turning it back on changes nothing that is already stored. Mail that arrives afterwards is matched
+again, and so is an older message once Gmail reports a change to it.
+
+**Mail moved by Gmail before v0.3.9.** Earlier versions moved the other account's copy wherever
+Gmail moved its own. Mail trashed or archived in Gmail showed in plMail's bin or archive, although
+the IMAP server still had it in its Inbox. To put that mail back where its IMAP folder has it, an
+administrator runs:
+
+```bash
+php bin/console app:backfill gmailify-placement
+```
+
+Run it while the workers are quiet. A move you make in plMail updates the labels first and the IMAP
+folder a moment later, and a message caught in between would briefly go back to its old folder.
+Mail that those earlier versions removed because Gmail had emptied it from its bin is not brought
+back by this. The IMAP sync only fetches mail newer than what it already has.
 
 ### What each address does by default
 

@@ -168,8 +168,8 @@ final class LabelResolver
      * The user's label for a role, created if missing — and bound to no
      * account, which is the difference from systemLabel().
      *
-     * For a role no account has anything to do with. Unread is a view over
-     * every account at once; a binding would make it a JMAP Mailbox on each of
+     * For a role no account has anything to do with. Unread and All Mail are
+     * views over every account at once; a binding would make it a JMAP Mailbox on each of
      * them, empty for ever, and give the provider pushes a label id to go
      * looking for.
      */

@@ -70,6 +70,8 @@ Variables:
                     token:     csrf_token('settings-signature' ~ account.id),
                     signature: account.getSetting('compose.signature')|default(''),
                     label:     'settings.signature.label'|trans,
+                    preview:      path('app_signature_preview', { id: account.id }),
+                    previewToken: csrf_token('signature-preview' ~ account.id),
                 } only %}
 
                 {# ── Per-address overrides, folded away ───────────────────── #}
@@ -157,6 +159,8 @@ Variables:
                                             token:     csrf_token('settings-signature-alias' ~ alias.id),
                                             signature: aliasSignature,
                                             label:     'settings.signature.for_alias'|trans({'%alias%': alias.address}),
+                                            preview:      path('app_signature_preview', { id: account.id }),
+                                            previewToken: csrf_token('signature-preview' ~ account.id),
                                         } only %}
 
                                         {% if aliasSignature is empty %}

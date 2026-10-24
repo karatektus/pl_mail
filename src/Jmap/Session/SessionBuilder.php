@@ -26,7 +26,11 @@ use App\Jmap\Protocol\Capability;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
+use App\Service\Crypto\DecryptedMail;
+use App\Service\Crypto\DecryptedMailPolicy;
+use App\Service\Crypto\RecipientKeys;
 use App\Service\Health\AccountHealthInspector;
+use App\Service\User\DevicePairingService;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -58,6 +62,7 @@ final class SessionBuilder
         private readonly FcmSettings $fcmSettings,
         private readonly AccountHealthInspector $health,
         private readonly string $vapidPublicKey,
+        private readonly ?DecryptedMailPolicy $decryptedMail = null,
     ) {
     }
 
@@ -93,6 +98,12 @@ final class SessionBuilder
                 // to draw once per account, and a client composing from the
                 // second account can ask the account it is composing from.
                 Capability::CONTACTS => new \stdClass(),
+                // Whether this account's encrypted mail is to be decrypted and
+                // handed over (DecryptedMail/pending, DecryptedMail/store).
+                Capability::KEYS => ['keepsDecryptedMail' => true === $this->decryptedMail?->keeps($account)],
+                // The user's tabs, answered by every account — see
+                // Capability::INBOX_TABS.
+                Capability::INBOX_TABS => new \stdClass(),
             ];
 
             if ($accountId === $calendarAccountId) {
@@ -112,6 +123,7 @@ final class SessionBuilder
         if (null !== $primaryId) {
             $primaryAccounts[Capability::MAIL] = $primaryId;
             $primaryAccounts[Capability::CONTACTS] = $primaryId;
+            $primaryAccounts[Capability::INBOX_TABS] = $primaryId;
         }
 
         if (null !== $calendarAccountId) {
@@ -143,8 +155,10 @@ final class SessionBuilder
                 // property of one account, and every value lives in that
                 // account's entry under the same URN.
                 Capability::SYNC => new \stdClass(),
-                Capability::CONTACTS => $this->contactsCapabilities(),
+                Capability::CONTACTS => $this->contactsCapabilities($base),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
+                Capability::KEYS => $this->keysCapabilities(),
+                Capability::INBOX_TABS => new \stdClass(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -190,6 +204,12 @@ final class SessionBuilder
             'maxSizeAttachmentsPerEmail' => 50_000_000,
             'emailQuerySortOptions' => ['receivedAt', 'from', 'to', 'subject', 'size'],
             'mayCreateTopLevelMailbox' => true,
+            // A plMail key in the standard object: Email/set stores an
+            // `identityId` named on a draft. A client has to know before it
+            // sends one, because a server from before this refuses the whole
+            // patch for naming a property it cannot update — and the patch is
+            // an autosave. Clients ignore keys they do not know.
+            'draftIdentity' => true,
         ];
     }
 
@@ -399,6 +419,30 @@ final class SessionBuilder
     }
 
     /**
+     * The constants a client needs to open what Keyring/get hands it, the
+     * same ones assets/crypto/aead.js and keyring.js use: every wrapping is
+     * `v1.<iv>.<ciphertext>` (base64), AES-256-GCM with the purpose string as
+     * associated data. See docs/CLIENT_DEVELOPMENT.md.
+     *
+     * @return array<string, mixed>
+     */
+    private function keysCapabilities(): array
+    {
+        return [
+            'kdf'                     => ['algorithm' => 'PBKDF2-SHA256', 'wrapKeyInfo' => 'plmail/user-key-wrap'],
+            'purposes'                => [
+                'userKey'         => 'plmail/user-key',
+                'addressKeyToken' => 'plmail/address-key-token',
+                'pairingTransfer' => DevicePairingService::TRANSFER_PURPOSE,
+                'smimeKey'        => 'plmail/smime-key',
+            ],
+            'decryptedMailAllowed'    => true === $this->decryptedMail?->allowedOnInstall(),
+            'maxDecryptedMailSize'    => DecryptedMail::MAX_BYTES,
+            'maxContactKeyLookups'    => RecipientKeys::MAX_RECIPIENTS,
+        ];
+    }
+
+    /**
      * The two numbers Contact/autocomplete would otherwise make a client
      * discover: what it gets when it asks for nothing, and the point past which
      * a larger "limit" stops making the list longer. Server-wide rather than
@@ -411,9 +455,10 @@ final class SessionBuilder
      *
      * @return array<string,mixed>
      */
-    private function contactsCapabilities(): array
+    private function contactsCapabilities(string $base): array
     {
         return [
+            'apiUrl' => $base.'/jmap/contacts',
             'maxSuggestions' => ContactAutocompleteMethod::MAX_LIMIT,
             'defaultSuggestions' => ContactAutocompleteMethod::DEFAULT_LIMIT,
         ];

@@ -1,4 +1,4 @@
-import { expect, type APIResponse, type Locator, type Page } from "@playwright/test";
+import { expect, type APIResponse, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { execSync } from "node:child_process";
 
 /**
@@ -170,9 +170,24 @@ export function seed(...tasks: string[]): void {
  * `--pending-onboarding` leaves the setup wizard unfinished; everything else
  * gets it marked complete, because the wizard opens over a backdrop that
  * swallows every click.
+ *
+ * `stretched` stores the password the way an account that has moved over to
+ * browser-side stretching holds it; without it the account is on a hash of the
+ * password itself and its first sign-in moves it. `changeRequired` makes the
+ * password a one-time one, as an administrator's is. `withoutPassword` leaves
+ * no usable password at all, as single sign-on creates an account; such a
+ * person is signed in with rememberedSession(), never through the form.
  */
 export function seedUser(
-    options: { email?: string; password?: string; admin?: boolean; pendingOnboarding?: boolean } = {},
+    options: {
+        email?: string;
+        password?: string;
+        admin?: boolean;
+        pendingOnboarding?: boolean;
+        stretched?: boolean;
+        changeRequired?: boolean;
+        withoutPassword?: boolean;
+    } = {},
 ): void {
     const email = options.email ?? TEST_USER.email;
     const password = options.password ?? TEST_USER.password;
@@ -182,6 +197,9 @@ export function seedUser(
             `app:test:seed-user --email=${email} --password=${password}`,
             options.admin ? "--admin" : "",
             options.pendingOnboarding ? "--pending-onboarding" : "",
+            options.stretched ? "--stretched" : "",
+            options.changeRequired ? "--change-required" : "",
+            options.withoutPassword ? "--without-password" : "",
         ]
             .filter(Boolean)
             .join(" "),
@@ -198,6 +216,14 @@ export function consoleCommand(command: string): void {
     execSync(`${CONSOLE} ${command}`, {
         stdio: "inherit",
         env: { ...process.env, APP_ENV: "test" },
+    });
+}
+
+/** A console command's output, for the few specs that read what the server holds. */
+export function consoleOutput(command: string): string {
+    return execSync(`${CONSOLE} ${command}`, {
+        env: { ...process.env, APP_ENV: "test" },
+        encoding: "utf8",
     });
 }
 
@@ -272,4 +298,16 @@ export async function login(
     await expect(
         page.getByRole("button", { name: `User menu for ${email}` }),
     ).toBeVisible();
+}
+
+/**
+ * Signs a browser context in the way a single sign-on sign-in or a returning
+ * "keep me signed in" visitor arrives: a REMEMBERME cookie and no session.
+ * Minted by the firewall's own handler (app:test:remember-me), so it works for
+ * an account that has no password the form could take.
+ */
+export async function rememberedSession(context: BrowserContext, email: string = TEST_USER.email): Promise<void> {
+    const value = consoleOutput(`app:test:remember-me --email=${email}`).trim();
+
+    await context.addCookies([{ name: "REMEMBERME", value, url: BASE_URL, httpOnly: true, sameSite: "Lax" }]);
 }

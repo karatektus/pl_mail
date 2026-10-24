@@ -1,0 +1,100 @@
+name: PR hygiene
+
+# Two small checks on every pull request, from CONTRIBUTING.md, "How work gets
+# in": label it by the areas it touches, and refuse it when it links no issue.
+#
+# pull_request_target rather than pull_request, because most pull requests
+# here come from forks, and a fork's run gets a read-only token that cannot
+# put a label on anything. That event runs with this repository's token, which
+# is safe ONLY because nothing below checks out or runs the pull request's
+# code: the labeler reads file names through the API, and the issue check reads
+# the pull request's metadata. Do not add a checkout of the head to this file.
+
+on:
+    pull_request_target:
+        # labeled/unlabeled too: labelling a pull request `bug` is what lets a
+        # bug fix through without an issue, and the check has to see it.
+        types: [opened, edited, reopened, synchronize, ready_for_review, labeled, unlabeled]
+
+permissions:
+    contents: read
+    pull-requests: write
+    issues: read
+
+jobs:
+    label-areas:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/labeler@v7
+              with:
+                  # Adds, never removes: an area somebody set by hand stays.
+                  sync-labels: false
+
+    linked-issue:
+        runs-on: ubuntu-latest
+        steps:
+            # REQUIRED, and a branch-protection check (Settings → Branches).
+            # A feature needs an accepted issue before it is built, so a pull
+            # request has to close one — `Closes #N` in its description. The
+            # exceptions are the kinds of change that need no agreement first:
+            # a bug fix that says what the bug was, upkeep, and Dependabot —
+            # and `deployment`, a milestone or release branch on its way to
+            # main: its work was agreed and reviewed piece by piece, each piece
+            # closing its own issue, so it has none of its own to name.
+            # Their labels let them through; a contributor cannot set labels on
+            # a fork's pull request, so a maintainer applies `bug` during
+            # triage, and the check runs again when they do.
+            #
+            # It was a warning for its first day (#131) and became required on
+            # 2026-10-15, once every open pull request had an issue.
+            - name: Look for an issue the pull request closes
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  NUMBER: ${{ github.event.pull_request.number }}
+                  LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+                  BASE: ${{ github.event.pull_request.base.ref }}
+                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+                  BODY: ${{ github.event.pull_request.body }}
+              run: |
+                  count=$(gh api graphql \
+                      -f query='query($owner: String!, $name: String!, $number: Int!) {
+                          repository(owner: $owner, name: $name) {
+                              pullRequest(number: $number) { closingIssuesReferences(first: 1) { totalCount } }
+                          }
+                      }' \
+                      -f owner="${REPO%/*}" -f name="${REPO#*/}" -F number="$NUMBER" \
+                      -q '.data.repository.pullRequest.closingIssuesReferences.totalCount')
+
+                  if [ "$count" != "0" ]; then
+                      echo "Links $count issue(s)." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+
+                  # GitHub reads "Closes #N" only in a pull request into the
+                  # default branch, so one into `milestone/v0.3.8` or a `wip/`
+                  # branch links nothing that way and its closing references
+                  # stay empty, whatever the description says. There the
+                  # description is read here instead, with the keywords GitHub
+                  # itself accepts. The issue closes when the pull request is
+                  # merged into a milestone branch (close-milestone-issues.yml).
+                  if [ "$BASE" != "$DEFAULT_BRANCH" ] \
+                      && printf '%s' "$BODY" | grep -Eiq '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+'; then
+                      echo "Into \`$BASE\`: names the issue it closes in its description." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+
+                  for exempt in bug chore dependencies deployment; do
+                      case ",$LABELS," in
+                          *",$exempt,"*)
+                              echo "No linked issue; labelled \`$exempt\`, which needs none." >> "$GITHUB_STEP_SUMMARY"
+                              exit 0
+                              ;;
+                      esac
+                  done
+
+                  message="This pull request links no issue. Write 'Closes #N' in its description for the issue it finishes. A feature needs an issue labelled 'accepted' first; a bug fix needs none once a maintainer has labelled the pull request 'bug'. See CONTRIBUTING.md, 'How work gets in'."
+                  echo "::error title=No linked issue::$message"
+                  echo "### No linked issue" >> "$GITHUB_STEP_SUMMARY"
+                  echo "$message" >> "$GITHUB_STEP_SUMMARY"
+                  exit 1

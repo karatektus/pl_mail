@@ -5,6 +5,12 @@ account.host_invalid: Enter a host name or IP address only — no slashes, quest
 admin.ai.keep_alive_invalid: Use a duration like 5m, 30m or 4h, a plain number of seconds, or -1 to keep the model loaded for good — leave it empty to use the host's own setting.
 admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
 admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
+admin.sso.error.client_id_missing: 'A client ID is needed with the issuer and the secret. All three, or none of them.'
+admin.sso.error.issuer_missing: 'An issuer is needed with the client ID and the secret. All three, or none of them.'
+admin.sso.error.issuer_not_https: 'The issuer has to start with https://. plMail trusts the provider because of the TLS connection to it.'
+admin.sso.error.password_login_needs_own_sso: 'Sign in through the provider yourself at least once before making it the only way in, or you would lock yourself out.'
+admin.sso.error.password_login_needs_provider: 'Save a whole provider first (issuer, client ID and secret) before making single sign-on the only way in.'
+admin.sso.error.secret_missing: 'A client secret is needed with the issuer and the client ID. All three, or none of them.'
 admin.users.password_too_short: Use at least {{ limit }} characters — this password is being chosen for someone else.
 alias.invalid: Enter a valid email address.
 app_password.name_required: Give the app password a name so you can recognise it later.
@@ -12,12 +18,20 @@ caldav.address_required: Enter the address of your CalDAV server — plMail has 
 caldav.credential_required: Enter an app password, or tick the box to use a mail account's stored one.
 caldav.reuse_account_required: Choose which mail account's password to use, or untick the box and type one.
 caldav.username_required: Enter the username your CalDAV server knows you by.
+carddav.address_required: Enter the address of your CardDAV server — plMail has nothing to ask without one.
+carddav.username_required: Enter the username your CardDAV server knows you by.
+contacts.invalid_email: '"%email%" is not a valid email address.'
+contacts.name_or_email_required: Give the contact a name or at least one email address.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
 compose.recipient_invalid: "“{{ address }}” is not a valid email address."
 compose.recipient_required: Add at least one recipient before sending.
+integration.name_taken: You already have a connection to this service called {{ value }}. Give this one another name — home and work, say.
 settings.password.current_required: Enter your current password — it is what stops somebody at your unlocked screen changing it.
 settings.password.current_wrong: That is not your current password.
+settings.password.keys_not_rewrapped: "Your encryption keys could not be carried over to the new password. Reload the page and try again."
+settings.password.malformed: Your browser sent something plMail did not expect. Reload the page and try again.
 settings.password.mismatch: The two new passwords don't match.
+settings.password.needs_script: Changing your password needs JavaScript — it is protected in the browser before anything is sent.
 settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.

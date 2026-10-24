@@ -279,6 +279,27 @@ final class PaperlessDriverTest extends TestCase
         self::assertStringEndsWith('/api/documents/91/download/', $this->requests[0]['url']);
     }
 
+    /**
+     * The listing says image/jpeg for a scanned photograph and the default
+     * download is the archived PDF, so something that has to be the picture asks
+     * for the original explicitly.
+     */
+    public function testDownloadOriginalAsksForTheFileAsItWasPutIn(): void
+    {
+        $driver = $this->driver([
+            new MockResponse('jpeg-bytes', ['response_headers' => [
+                'content-type'        => 'image/jpeg',
+                'content-disposition' => 'attachment; filename="holiday.jpg"',
+            ]]),
+        ]);
+
+        $file = $driver->downloadOriginal($this->integration(), '91');
+
+        self::assertSame('holiday.jpg', $file->filename);
+        self::assertSame('image/jpeg', $file->mime);
+        self::assertStringEndsWith('/api/documents/91/download/?original=true', $this->requests[0]['url']);
+    }
+
     public function testDownloadAsksForTheNameWhenTheHeaderWasStripped(): void
     {
         $driver = $this->driver([
@@ -340,6 +361,38 @@ final class PaperlessDriverTest extends TestCase
             self::assertStringContainsString('bill', $this->requests[0]['body']);
             // No tag chosen, so no tags field at all rather than an empty one.
             self::assertStringNotContainsString('name="tags"', $this->requests[0]['body']);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    /**
+     * A streamed multipart body leaves as `Transfer-Encoding: chunked` with no
+     * Content-Length, and Paperless's server then reads it as an empty form: it
+     * answers 400 "No file was submitted." to a perfectly good PDF that curl gets
+     * a 200 for. So the body must be a whole string, which the client sends with
+     * a Content-Length. Verified against a real paperless-ngx 2026-10-11.
+     */
+    public function testUploadSendsTheFileWithAContentLengthRatherThanChunked(): void
+    {
+        $path = $this->scratchFile('%PDF-1.4 scan-bytes');
+
+        try {
+            $driver = $this->driver([new MockResponse('"3f2a1b8c-0000-4000-8000-000000000003"')]);
+
+            $driver->upload($this->integration(), $path, 'bill.pdf', 'application/pdf');
+
+            $headers = $this->requests[0]['options']['normalized_headers'];
+
+            // Presence: the file really is in the body, so the two absences
+            // below are not an empty form passing for correct behaviour.
+            self::assertStringContainsString('%PDF-1.4 scan-bytes', $this->requests[0]['body']);
+            self::assertStringContainsString('filename="bill.pdf"', $this->requests[0]['body']);
+            self::assertSame(
+                ['Content-Length: '.strlen($this->requests[0]['body'])],
+                $headers['content-length'] ?? [],
+            );
+            self::assertArrayNotHasKey('transfer-encoding', $headers);
         } finally {
             unlink($path);
         }

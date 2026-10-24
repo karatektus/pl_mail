@@ -2,6 +2,7 @@
 
 namespace App\Domain\Helper;
 
+use App\Service\Imap\ImapDeadline;
 use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
@@ -57,6 +58,7 @@ class ImapConnectionFactory
 
     public function __construct(
         private readonly OAuthTokenManager $tokenManager,
+        private readonly ?ImapDeadline $deadline = null,
     ) {
     }
 
@@ -106,6 +108,10 @@ class ImapConnectionFactory
         }
 
         $client = new Client(self::config($accountConfig));
+
+        // Before connecting, not after: a server that accepts the socket and
+        // then says nothing is a stall too, and the greeting is read in here.
+        $this->deadline?->watch($client);
 
         $client->connect();
 

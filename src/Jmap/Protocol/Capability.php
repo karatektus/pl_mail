@@ -68,7 +68,9 @@ final class Capability
 
     /**
      * Vendor extension: the harvested address book, read-only, for recipient
-     * autocomplete.
+     * autocomplete — and now also the front door of the writable address
+     * book: Contact/query, Contact/get, Contact/set, Contact/referenceEmails,
+     * Contact/duplicates, Contact/merge and Contact/mergeUndo.
      *
      * Deliberately NOT "urn:ietf:params:jmap:contacts". RFC 8621 has no
      * Contacts section at all and the JMAP Contacts draft describes an
@@ -82,6 +84,11 @@ final class Capability
      * The same call PUSH and CALENDARS already made. Should plMail ever grow a
      * real address book, the standard URN can be advertised alongside this one
      * rather than in place of it.
+     *
+     * (It did grow one: Contact/set writes it. The URN stays, because the
+     * object shapes are plMail's own and the reasoning above still holds —
+     * renaming would break every client that reads it for no gain, the same
+     * reason SYNC kept its URN when its meaning widened.)
      */
     public const string CONTACTS = 'urn:plmail:params:jmap:contacts';
 
@@ -91,6 +98,31 @@ final class Capability
      * so it appears at the top level of the Session and under no account.
      */
     public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
+
+    /**
+     * End-to-end encryption for a native client (phase 6 of issue #28): the
+     * person's keyring as the browser keeps it — wrapped, never readable here
+     * — their contacts' keys, the key lookup the composer uses, and the queue
+     * of encrypted mail an account that keeps decrypted mail still waits on.
+     * Also the encryption fields on Email and the `fingerprints` argument of
+     * Email/import. See docs/CLIENT_DEVELOPMENT.md.
+     *
+     * A vendor URN like the others; the concept called it `urn:plmail:keys`.
+     */
+    public const string KEYS = 'urn:plmail:params:jmap:keys';
+
+    /**
+     * Vendor extension: the inbox tabs, as the reader arranged them — which
+     * built-in categories are switched on, the tabs they made themselves, and
+     * the order of all of them. InboxTab/get and InboxTab/changes, plus
+     * Thread.inboxTab and Email/query's threadInboxTab.
+     *
+     * On every account rather than at the top level like TEMPLATES, though the
+     * tabs are the user's: Thread.inboxTab is an account-scoped property, and
+     * the change log a phone is pushed from is per account. Every account of a
+     * user answers with the same tabs, the way a label is a Mailbox in each.
+     */
+    public const string INBOX_TABS = 'urn:plmail:params:jmap:inboxtabs';
 
     /**
      * Capabilities a client is currently allowed to declare in "using".
@@ -112,5 +144,7 @@ final class Capability
         self::SYNC,
         self::CONTACTS,
         self::TEMPLATES,
+        self::KEYS,
+        self::INBOX_TABS,
     ];
 }

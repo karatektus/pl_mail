@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:56eb1e2bea02c9c442a076466c6e8b19c5fe6ce9 -->
+<!-- translated-from: features/clients.md sha1:a74d79f0110b60eefe51388f2743ee644d27ec4f -->
 
 # Andere Clients
 
@@ -117,6 +117,20 @@ Gerät dieses Benutzers.
 Sich aus demselben Browser erneut anzumelden ersetzt dessen Registrierung, statt tote Endpunkte
 anzuhäufen — Browser rotieren die Endpunkt-URL, und plMail schlüsselt nach einer Id, die der
 Browser behält.
+
+**Worüber es benachrichtigt.** Ein hier registriertes Gerät erfährt, wenn Post **im Posteingang**
+eines Postfachs **eintrifft**, dessen Import abgeschlossen ist, und sonst von nichts: nicht vom
+Lesen, Markieren, Archivieren oder Verschieben, nicht von Spam, nicht von einem Entwurf oder einer
+Kopie von etwas, das du gesendet hast, und nicht von Post, die gerade importiert wird. Die
+Benachrichtigung sagt nur „New mail“; Absender und Betreff trägt sie nicht. Eine Nachricht, deren
+Ankunftszeit plMail aus ihren Headern nicht ermitteln kann, wird nicht gemeldet.
+
+Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
+den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn
+eine neuere plMail-Version verfügbar ist. Apps, die sich über JMAP registrieren
+(`PushSubscription/set`), und ein Android-Telefon über Firebase sind ebenfalls anders: Sie erfahren
+von jeder Änderung, weil sie nachfragen, was sich bewegt hat, und selbst entscheiden, was sie
+anzeigen.
 
 **Registrierte Geräte** listet unter dem Schalter jedes Gerät des Kontos auf, nicht nur dieses:
 die Handy-App, das Tablet, den anderen Laptop. Jede Zeile sagt, welchen Transportweg das Gerät

@@ -138,6 +138,44 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    /**
+     * An account connected before plMail asked for contacts has not refused
+     * anything. It gets the quiet card that says one reconnect brings its
+     * contacts, not the warning that permissions were withheld.
+     */
+    public function testAnAccountThatPredatesContactSyncGetsTheQuietCard(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'before-contacts@joder.dev');
+
+        $account->oauthGrantedScopes = implode(' ', array_diff(MailProvider::Google->scopes(), MailProvider::Google->contactScopes()));
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count(), 'the missing contacts permission is not mentioned');
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(), 'nothing was refused');
+        self::assertStringContainsString((string) $this->urlFor($account), $card->html(), 'and it offers the reconnect');
+    }
+
+    /** A grant missing calendars as well is still the full warning, which covers both. */
+    public function testAGrantMissingMoreThanContactsGetsTheScopeCard(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'mail-only@joder.dev');
+
+        $account->oauthGrantedScopes = 'https://mail.google.com/';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(1, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-contacts-scope-' . $account->id . '"]')->count());
+    }
+
     /** A full grant is not a problem, and must not put a card on the page. */
     public function testAnAccountWithCalendarAccessIsNotReported(): void
     {

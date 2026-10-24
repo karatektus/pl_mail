@@ -38,6 +38,7 @@ final class JmapDraftWriter
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly DraftPersister $drafts,
         private readonly DraftAttachmentService $draftAttachments,
+        private readonly IdentityResolver $identities,
     ) {
     }
 
@@ -65,7 +66,7 @@ final class JmapDraftWriter
             : null;
 
         $this->drafts->fileUnderAccount($message, $account);
-        $this->persistDraft($message, $account);
+        $this->persistDraft($message, $account, $this->senderFor($account, $create));
 
         // Written after the flush, not before: the storage path is bucketed by
         // message id, and a draft has none until it is persisted. This mirrors
@@ -118,6 +119,16 @@ final class JmapDraftWriter
             }
         }
 
+        // The sender, when the patch names one the account may send as. An
+        // absent key leaves the draft on the address it has, like every other
+        // property here.
+        $sender = $this->senderFor($account, $patch);
+
+        if (null !== $sender) {
+            $message->fromAddress = $sender;
+            $message->fromName    = $account->senderNameFor($sender);
+        }
+
         $this->applyReplyContext($message, $patch);
 
         // Body only when this patch carried one. `body()` reads bodyValues
@@ -151,13 +162,53 @@ final class JmapDraftWriter
      * resolving that changes what goes out in the text/plain part of mail sent
      * from an app, which is not a refactoring.
      */
-    private function persistDraft(Message $message, Account $account): void
+    private function persistDraft(Message $message, Account $account, ?string $sender = null): void
     {
-        $this->drafts->markAsDraft($message, $account);
+        $this->drafts->markAsDraft($message, $account, $sender);
 
         $message->bodyText = $this->plainText($message->bodyHtml);
 
         $this->drafts->storeAndThread($message, $account);
+    }
+
+    /**
+     * The address a draft is written from, when the client said which.
+     *
+     * `identityId` on a draft is a plMail extension — RFC 8621 keeps it on the
+     * EmailSubmission alone, so the sender a user picked existed only in the
+     * composer until the moment of sending. A reply autosaved from an alias
+     * and reopened from Drafts, on the same phone or another, came back on the
+     * primary address, and sending it from there went out as the wrong
+     * person. With the id on the draft, the draft carries its sender the way
+     * it carries its subject, and `replyFrom` on Email/get hands it back.
+     *
+     * The same ids EmailSubmission/set takes, resolved through the same
+     * IdentityResolver, so there is still one place that decides what an
+     * account may send as — an address identity for a catch-all address
+     * included.
+     *
+     * AN ID THAT DOES NOT RESOLVE IS IGNORED, NOT REFUSED. That is the opposite
+     * of what the submission does, and deliberately: this is an autosave. An
+     * alias disabled while a draft was open would otherwise make every save of
+     * it fail, and what the user would lose is the text. The draft stays on the
+     * address it had, and the submission — which names its identity again — is
+     * where sending as it is refused.
+     *
+     * @param array<string,mixed> $properties a create, or a patch
+     */
+    private function senderFor(Account $account, array $properties): ?string
+    {
+        $identityId = $properties['identityId'] ?? null;
+
+        if (null === $identityId) {
+            return null;
+        }
+
+        if (false === is_string($identityId) || '' === $identityId) {
+            throw new MethodException('invalidProperties', '"identityId" must be a non-empty string.');
+        }
+
+        return $this->identities->addressFor($account, $identityId);
     }
 
     /**

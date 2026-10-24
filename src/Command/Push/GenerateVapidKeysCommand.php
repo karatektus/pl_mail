@@ -51,8 +51,7 @@ final class GenerateVapidKeysCommand extends Command
         $io->writeln('There is no .env.local to edit in a container image. Pass these as env');
         $io->writeln('vars on the php and worker services; a real');
         $io->writeln('environment variable overrides the .env.local.php that "composer');
-        $io->writeln('dump-env prod" bakes into the image. On TrueNAS they live in the');
-        $io->writeln('x-config block of truenas.compose.yaml.');
+        $io->writeln('dump-env prod" bakes into the image.');
         $io->newLine();
 
         $io->note('VAPID_SUBJECT must be a mailto: or https: URL identifying you, per RFC 8292.');

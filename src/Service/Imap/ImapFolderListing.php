@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ImapEmptyAnswer;
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Mail\Mailbox;
 use Psr\Log\LoggerInterface;
@@ -204,8 +205,27 @@ final readonly class ImapFolderListing
             // int|null, a float being the one value that actually reaches the
             // `$to == INF` branch. The library is inconsistent with itself
             // here; the call is right.
-            // @phpstan-ignore argument.type
-            $found = $connection->fetch(['FLAGS'], 1, INF, IMAP::ST_UID)->validatedData();
+            try {
+                // @phpstan-ignore argument.type
+                $found = $connection->fetch(['FLAGS'], 1, INF, IMAP::ST_UID)->validatedData();
+            } catch (Throwable $e) {
+                // "OK, and here is nothing" is the listing of a folder with no
+                // messages in it — an answer, and the commonest one a Trash or
+                // a Junk folder ever gives. webklex raises it as a failure
+                // (see ImapEmptyAnswer), which this class then reported as the
+                // server not answering: the folder was never swept, so mail
+                // deleted from it elsewhere stayed here, and an unswept folder
+                // withholds reaping from the whole account.
+                //
+                // Returned as the empty listing it is. Whether to BELIEVE an
+                // empty listing is the sweep's decision and it has a rule for
+                // exactly this — VanishedMessageReconciler's bulk guard.
+                if (true === ImapEmptyAnswer::is($e)) {
+                    return [];
+                }
+
+                throw $e;
+            }
 
             return is_array($found) ? $found : false;
         }

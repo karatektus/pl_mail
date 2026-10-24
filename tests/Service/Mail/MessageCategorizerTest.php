@@ -428,6 +428,61 @@ final class MessageCategorizerTest extends TestCase
     }
 
     /**
+     * A switched-off category takes no mail, whoever would have put it there —
+     * the header rules, Google's label or the assistant — and what it would
+     * have taken is in Primary. Not the next rule down: a mailing list carries
+     * List-Unsubscribe too, and "Forums is off" does not mean "lists are
+     * adverts".
+     *
+     * @return iterable<string, array{Message, ?CategorySorting}>
+     */
+    public static function switchedOffDeciders(): iterable
+    {
+        $list = new Message();
+        $list->headers = ['List-Post' => '<mailto:dev@lists.test>', 'List-Unsubscribe' => '<https://lists.test/u>'];
+        $list->fromAddress = 'dev@lists.test';
+        yield 'the header rules' => [$list, null];
+
+        $gmail = new Message();
+        $gmail->fromAddress   = 'dev@lists.test';
+        $gmail->gmailLabelIds = ['INBOX', 'CATEGORY_FORUMS'];
+        yield "Google's label" => [$gmail, null];
+
+        $asked = new Message();
+        $asked->fromAddress = 'someone@example.test';
+        $asked->aiCategory  = MessageCategory::Forums;
+        $assistant         = new CategorySorting();
+        $assistant->source = 'assistant';
+        yield 'the assistant' => [$asked, $assistant];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('switchedOffDeciders')]
+    public function testASwitchedOffCategoryTakesNoMail(Message $message, ?CategorySorting $sorting): void
+    {
+        $sorting ??= new CategorySorting();
+
+        self::assertSame(MessageCategory::Forums, $this->categorizer->categorize($message, [], $sorting), 'the fixture must decide Forums while it is on');
+
+        $sorting->switchOff([MessageCategory::Forums]);
+
+        self::assertSame(MessageCategory::Primary, $this->categorizer->categorize($message, [], $sorting));
+
+        $explained = $this->categorizer->explain($message, [], $sorting->overrideProvider, $sorting->ignoresAi(), $sorting->assistantFirst(), $sorting->switchedOff());
+        self::assertSame('switched_off', $explained['reason']);
+        self::assertSame('forums', $explained['signal'], 'the panel names what it would have been');
+    }
+
+    public function testSwitchingOneCategoryOffLeavesTheOthersAlone(): void
+    {
+        $sorting = new CategorySorting();
+        $sorting->switchOff([MessageCategory::Forums]);
+
+        $newsletter = $this->message(['List-Unsubscribe' => '<https://shop.test/u>'], 'newsletter@shop.test');
+
+        self::assertSame(MessageCategory::Promotions, $this->categorizer->categorize($newsletter, [], $sorting));
+    }
+
+    /**
      * No preference is the shipped behaviour, unchanged.
      *
      * Every caller that has no user — the Gmail enrichment path re-deriving a

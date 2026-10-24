@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Insight;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Insight\MailInsight;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
@@ -92,6 +94,65 @@ final class RadarPanelTest extends WebTestCase
 
         // Dated and undated live under separate subheadings.
         self::assertCount(2, $crawler->filter('[data-insight-section]'));
+    }
+
+    /**
+     * "Also spotted" sits to the right of what is coming up, not under it.
+     *
+     * Both sections are direct flex children of the one radar scope, which is
+     * what lets the main column take the whole width when the last undated card
+     * is dismissed and the controller removes its section — an empty wrapper
+     * around it would leave a dead column behind. The dated section lives INSIDE
+     * the main column, so it must not be a direct child.
+     */
+    public function testAlsoSpottedSitsBesideTheMainColumn(): void
+    {
+        $client = $this->signIn();
+
+        $this->parcel();
+        $this->pullRequest();
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        self::assertResponseIsSuccessful();
+
+        $scope = '[data-controller="insight--radar"]';
+
+        self::assertCount(1, $crawler->filter($scope . '[class~="md:flex"]'));
+
+        $beside = $crawler->filter($scope . ' > [data-insight-section]');
+        self::assertCount(1, $beside, 'only "Also spotted" is a direct child of the scope');
+        self::assertCount(1, $beside->filter('[data-insight-kind="github-pr"]'));
+        self::assertCount(0, $beside->filter('[data-insight-kind="parcel"]'));
+        self::assertNotNull($beside->attr('class'));
+        self::assertStringContainsString('md:w-96', (string) $beside->attr('class'));
+
+        // The dated section is in the main column, which is the other child.
+        self::assertCount(1, $crawler->filter(
+            $scope . ' > .min-w-0 [data-insight-section] [data-insight-kind="parcel"]',
+        ));
+    }
+
+    /**
+     * With nothing in the main column there is nothing to sit beside: "Also
+     * spotted" then has the panel to itself, rather than a 24rem strip down the
+     * right with an empty left.
+     */
+    public function testAloneAlsoSpottedTakesTheWholePanel(): void
+    {
+        $client = $this->signIn();
+
+        $this->pullRequest();
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        self::assertResponseIsSuccessful();
+
+        $section = $crawler->filter('[data-controller="insight--radar"] > [data-insight-section]');
+        self::assertCount(1, $section);
+        self::assertCount(1, $section->filter('[data-insight-kind="github-pr"]'));
+        self::assertStringNotContainsString('md:w-96', (string) $section->attr('class'));
+        self::assertCount(0, $crawler->filter('[data-controller="insight--radar"] > .min-w-0'));
     }
 
     /**
@@ -280,7 +341,49 @@ final class RadarPanelTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-insight-strip]'));
     }
 
+    /**
+     * A card from mail in Spam is on neither the panel nor the conversation
+     * (#304): the strip would put a "track package" button from a likely
+     * phishing mail above it, in the app's own voice.
+     */
+    public function testACardFromSpamIsOnNeitherThePanelNorTheConversation(): void
+    {
+        $client = $this->signIn();
+
+        $thread = $this->inSpam($this->thread('Your parcel is held at customs'));
+        $this->parcel($thread);
+
+        $crawler = $client->request('GET', '/calendar/soon');
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-insight-card]'), 'the panel shows a card from spam');
+
+        $crawler = $client->request('GET', "/mail/thread/{$thread->id}");
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-insight-strip]'), 'a spam conversation shows its cards');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /** Spam the way marking it does: on the thread and on every message. */
+    private function inSpam(MessageThread $thread): MessageThread
+    {
+        $spam            = new Label();
+        $spam->usr       = $this->user;
+        $spam->name      = 'Spam';
+        $spam->role      = LabelRole::Spam;
+        $spam->isVisible = true;
+        $this->em->persist($spam);
+
+        $thread->addLabel($spam);
+
+        foreach ($thread->messages as $message) {
+            $message->addLabel($spam);
+        }
+
+        $this->em->flush();
+
+        return $thread;
+    }
 
     private function parcel(?MessageThread $thread = null): MailInsight
     {

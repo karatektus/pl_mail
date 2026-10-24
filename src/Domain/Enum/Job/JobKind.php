@@ -58,6 +58,18 @@ enum JobKind: string
      */
     case Reclassify = 'reclassify';
 
+    /**
+     * Deleting a label that is a real folder on a mail server: its mail moved
+     * to the place the person chose, then the folder removed on the server,
+     * then the label here. See DeleteLabelHandler.
+     *
+     * A second odd one out, for Reclassify's reason. It is a job because the
+     * move can be thousands of messages and the server half has to wait for
+     * the moves to land; it is THIS kind of job because a person who pressed
+     * Delete wants to see it running, finished or failed.
+     */
+    case DeleteLabel = 'delete_label';
+
     /** What the indicator calls it while it runs. */
     public function labelKey(): string
     {
@@ -86,8 +98,8 @@ enum JobKind: string
             // and only ever holds a kind it was dispatched for. Throwing beats
             // inventing a string, which would be silently accepted by a
             // switch somewhere and act on somebody's mail.
-            self::Reclassify => throw new \LogicException(
-                'Reclassify is not a bulk action; nothing should be asking it for one.',
+            self::Reclassify, self::DeleteLabel => throw new \LogicException(
+                sprintf('%s is not a bulk action; nothing should be asking it for one.', $this->name),
             ),
         };
     }

@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:781b856b21629be768f778e6c04d76360defb8ec -->
+<!-- translated-from: install/reverse-proxy.md sha1:e7259a3c63272e17ea0f24d184b27cee8f22a3f5 -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -24,7 +24,7 @@ services:
 `SERVER_NAME` steht standardmäßig auf `localhost, :443, php:80`, und Caddy entscheidet im Container anhand
 dieses Namens, ob es TLS selbst terminiert. `:80` sagt ihm, dass es das nicht tun soll. Veröffentliche
 dann nur den HTTP-Port — `HTTP_PORT` bildet den Host-Port auf den Container-Port 80 ab — und lass
-den Proxy ihn erreichen. `truenas.compose.yaml` macht genau das und veröffentlicht `30080`.
+den Proxy ihn erreichen. Die TrueNAS-App macht genau das.
 
 Die andere Hälfte besteht darin, der Anwendung mitzuteilen, wer sie ist:
 

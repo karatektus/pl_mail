@@ -17,7 +17,11 @@ Variables:
 #}
 {% set action = "inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer" %}
 
-<div class="flex items-center justify-end gap-2 px-3 py-3 border-b border-line bg-sunken">
+{# px-4, the card's own inset (_partials/_card_chrome.html.twig): at px-3 the
+   buttons started 4px left of the card's heading, which the settings sweep
+   (tests/e2e/settings-card-insets.spec.ts) reported once it measured this
+   section at all. #}
+<div class="flex items-center justify-end gap-2 px-4 py-3 border-b border-line bg-sunken">
     <a href="{{ path('app_settings_templates_folder_new') }}"
        data-turbo-frame="template-editor"
        class="{{ action }} bg-field border border-field text-ink-soft hover:bg-hover">

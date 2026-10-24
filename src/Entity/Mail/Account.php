@@ -503,6 +503,16 @@ class Account extends AccountModel
     public const string SETTING_GRAPH_REMOVALS = 'sync.graph_removals';
 
     /**
+     * Whether this Gmail account files mail addressed to another connected
+     * account under that account (Gmailify). See $gmailifyEnabled.
+     *
+     * The key predates the dotted names: it was read long before anything
+     * wrote it, and a hand-set value in an existing install must keep meaning
+     * what it meant.
+     */
+    public const string SETTING_GMAILIFY = 'gmailSyncGmailifyEnabled';
+
+    /**
      * What this account does when a sender asks for a read receipt, for any
      * address that has no answer of its own.
      *
@@ -564,6 +574,22 @@ class Account extends AccountModel
     }
 
     /**
+     * The domains whose every address reaches this mailbox: a catch-all.
+     *
+     * A list of lowercased domain names. Any address at one of them counts as
+     * this account's own for answering: a reply to mail that came in for
+     * `anything@example.com` goes out from `anything@example.com`, without
+     * that address ever having been added as an alias.
+     *
+     * A setting and not an EmailAlias row holding `*@example.com`, because an
+     * alias row is an address everywhere it is read — it gets a signature
+     * panel, a read-receipt mode, a JMAP identity, a line in the backup — and
+     * a pattern is none of those things. Twenty callers would each have had to
+     * learn to skip it.
+     */
+    public const string SETTING_CATCH_ALL_DOMAINS = 'mail.catch_all_domains';
+
+    /**
      * A sync that worked, recorded the same way a calendar records one.
      *
      * Mirrors Calendar::recordSyncSuccess() down to the name, and for the
@@ -596,6 +622,45 @@ class Account extends AccountModel
     {
         $this->lastSyncError = mb_substr($reason, 0, 500);
         ++$this->syncFailureCount;
+    }
+
+    /**
+     * Whether this account keeps the decrypted text of its end-to-end
+     * encrypted mail on the server, so that search, parcels, dates and rules
+     * work on it (Settings → Encryption → Decrypted mail on this server).
+     *
+     * OFF unless the person switches it on, and only honoured while the
+     * installation allows it (DecryptedMailPolicy). Per account because the
+     * reason to want it is per provider: somebody with a Gmail address may be
+     * encrypting against Google, and have no quarrel with their own server.
+     */
+    public const string SETTING_KEEP_DECRYPTED = 'crypto.keep_decrypted';
+
+    /**
+     * Whether the model features — classification, embeddings, summaries, the
+     * writing assistant's context — may read that decrypted text too. A
+     * separate switch, off by default, and for a model host outside the
+     * installation's own network only with a consent of its own, recorded for
+     * that host (SETTING_KEEP_DECRYPTED_AI_HOST): a host changed later is a
+     * host nobody agreed to.
+     */
+    public const string SETTING_KEEP_DECRYPTED_AI      = 'crypto.keep_decrypted_ai';
+    public const string SETTING_KEEP_DECRYPTED_AI_HOST = 'crypto.keep_decrypted_ai_host';
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED. */
+    public bool $keepDecrypted {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED_AI. */
+    public bool $keepDecryptedAi {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED_AI, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED_AI, $on ? true : null);
+        }
     }
 
     public function getSetting(string $key, mixed $default = null): mixed
@@ -1030,5 +1095,147 @@ class Account extends AccountModel
 
             return array_values(array_unique($fallback));
         }
+    }
+
+    /**
+     * The catch-all domains of this account, lowercased. See
+     * SETTING_CATCH_ALL_DOMAINS.
+     *
+     * Filtered on the way out as well as on the way in: the bag is jsonb, and
+     * a hand-edited or restored value that is not a list of strings must read
+     * as "none" rather than reach a comparison.
+     *
+     * @var list<string>
+     */
+    public array $catchAllDomains {
+        get {
+            $stored = $this->getSetting(self::SETTING_CATCH_ALL_DOMAINS, []);
+
+            if (false === is_array($stored)) {
+                return [];
+            }
+
+            $domains = [];
+
+            foreach ($stored as $domain) {
+                if (true === is_string($domain) && '' !== trim($domain)) {
+                    $domains[] = strtolower(trim($domain));
+                }
+            }
+
+            return array_values(array_unique($domains));
+        }
+        set {
+            $domains = [];
+
+            foreach ($value as $domain) {
+                $domains[] = strtolower(trim($domain));
+            }
+
+            $domains = array_values(array_unique(array_filter($domains, static fn (string $domain): bool => '' !== $domain)));
+
+            if ([] === $domains) {
+                $this->unsetSetting(self::SETTING_CATCH_ALL_DOMAINS);
+
+                return;
+            }
+
+            $this->setSetting(self::SETTING_CATCH_ALL_DOMAINS, $domains);
+        }
+    }
+
+    /**
+     * Whether this Gmail account hands mail addressed to another connected
+     * account over to that account. See SETTING_GMAILIFY.
+     *
+     * On unless switched off, which is what every install did before there
+     * was a switch: Gmail collecting another address's mail is the setup this
+     * exists for. Off is for an account that has stopped collecting, typically
+     * after a domain moved from Gmail to an IMAP provider of its own, where
+     * Gmail's old and late copies would otherwise go on being matched to it.
+     * Stored only when off, so the default stays the default.
+     */
+    public bool $gmailifyEnabled {
+        get => false !== $this->getSetting(self::SETTING_GMAILIFY, true);
+        set {
+            if (true === $value) {
+                $this->unsetSetting(self::SETTING_GMAILIFY);
+
+                return;
+            }
+
+            $this->setSetting(self::SETTING_GMAILIFY, false);
+        }
+    }
+
+    /**
+     * Whether an address is at one of this account's catch-all domains.
+     *
+     * The domain is compared whole: `example.com` does not cover
+     * `mail.example.com`, because a catch-all is configured per domain at the
+     * provider and a subdomain is a different one.
+     */
+    public function catchesAddress(?string $address): bool
+    {
+        $address = strtolower(trim((string) $address));
+        $at      = strrpos($address, '@');
+
+        if (false === $at || 0 === $at) {
+            return false;
+        }
+
+        return in_array(substr($address, $at + 1), $this->catchAllDomains, true);
+    }
+
+    /**
+     * Whether this account may put an address in From: a sendable alias, the
+     * display address of an account with no alias rows yet, or anything at a
+     * catch-all domain.
+     *
+     * The one answer the From selector, a reply's choice of sender and the
+     * token that comes back from the browser all have to share.
+     */
+    public function maySendAs(?string $address): bool
+    {
+        $address = strtolower(trim((string) $address));
+
+        if ('' === $address) {
+            return false;
+        }
+
+        $sendable = $this->sendableAliases;
+
+        foreach ($sendable as $alias) {
+            if ($alias->address === $address) {
+                return true;
+            }
+        }
+
+        if ([] === $sendable && strtolower((string) $this->displayAddress) === $address) {
+            return true;
+        }
+
+        return $this->catchesAddress($address);
+    }
+
+    /**
+     * The display name mail from one address goes out under.
+     *
+     * The alias's own name when it has one, the account's otherwise — the same
+     * rule the From selector labels its options by, so what the selector shows
+     * is what the recipient sees. An address with no alias row (a catch-all
+     * address, an account not yet seeded) has only the account's name to use.
+     */
+    public function senderNameFor(?string $address): ?string
+    {
+        $address = strtolower(trim((string) $address));
+
+        foreach ($this->aliases as $alias) {
+            if ($alias->address === $address && null !== $alias->displayName) {
+                return $alias->displayName;
+            }
+        }
+
+        return $this->name;
     }
 }

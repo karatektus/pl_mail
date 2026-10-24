@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Demo;
 
+use App\Domain\Helper\AppIconStorage;
 use App\Domain\Helper\AvatarStorage;
 use App\Domain\Helper\SignatureStorage;
 use App\Entity\User\User;
@@ -43,6 +44,7 @@ final readonly class DemoUserEraser
         private DemoMode               $demoMode,
         private AvatarStorage          $avatars,
         private SignatureStorage       $signatures,
+        private AppIconStorage         $appIcons,
     ) {
     }
 
@@ -86,6 +88,7 @@ final readonly class DemoUserEraser
         // leaves an orphan nothing will ever find again.
         $this->avatars->deleteAllFor((string) $user->id);
         $this->signatures->deleteAllFor((string) $user->id);
+        $this->appIcons->deleteAllFor((string) $user->id);
 
         $this->entityManager->remove($user);
         $this->entityManager->flush();

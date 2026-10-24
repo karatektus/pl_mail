@@ -27,7 +27,18 @@ a collection row — is one field to the reader and should stay tight.
 {% block form_row %}
     <div class="flex flex-col gap-2">
         {{ form_label(form) }}
-        {{ form_widget(form) }}
+        {# The widget in an element of its own, so that nothing follows the
+           input as a sibling. Bitwarden reads the text after a field as part of
+           its label, and the help text is exactly that: on Admin → SSO the
+           Scopes help says "email" twice, which made the field an identity's
+           email address to it and opened its menu there — with `off` and its
+           own opt-out attribute both set, and after the placeholder that also
+           said "email" had gone. `contents`, so the wrapper exists for whoever
+           walks the DOM and not for the layout: the input is still a flex
+           child of the row. #}
+        <div class="contents">
+            {{ form_widget(form) }}
+        </div>
         {{ form_errors(form) }}
         {{ form_help(form) }}
     </div>
@@ -35,11 +46,12 @@ a collection row — is one field to the reader and should stay tight.
 
 {# ── Label ───────────────────────────────────────────────────────────────── #}
 {% block form_label %}
+    {% import '_partials/_field_classes.html.twig' as fields %}
     {% if label is not same as(false) %}
         {% set label = label ?? (name|humanize) %}
         <label
             for="{{ id }}"
-            class="block text-[13px] font-medium leading-none text-ink-soft"
+            class="{{ fields.label() }}"
             {% if required %}{% endif %}
         >
             {{ label|trans({}, translation_domain) }}
@@ -74,19 +86,22 @@ a collection row — is one field to the reader and should stay tight.
             'data-lpignore':  'true',
             'data-form-type': 'other',
         }) %}
+
+        {# And `off` where the field said nothing. No browser takes it as an
+           order, but Bitwarden reads it when deciding where to open its menu:
+           on Admin → SSO it offered logins in "Name on the button" and
+           "Scopes", the two text fields with no `autocomplete`, and left the
+           two that said `off` alone. A field that wants suggestions — an
+           address, a name in a real profile form — says so and keeps it. #}
+        {% if attr.autocomplete is not defined %}
+            {% set attr = attr|merge({ autocomplete: 'off' }) %}
+        {% endif %}
     {% endif %}
 
-    {% set attr = attr|merge({
-        class: 'block w-full h-9 rounded-lg border border-field
-            bg-field
-            px-3 text-sm text-ink
-            placeholder:text-ink-faint
-            shadow-sm shadow-zinc-950/5
-            focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
-            transition-colors duration-100
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ' ~ (attr.class ?? '')
-    }) %}
+    {# The classes live in _partials/_field_classes.html.twig, shared with
+       the fields Settings → Encryption writes by hand. #}
+    {% import '_partials/_field_classes.html.twig' as fields %}
+    {% set attr = attr|merge({ class: fields.input() ~ ' ' ~ (attr.class ?? '') }) %}
     {{ block('form_widget_simple') }}
 {% endblock %}
 
@@ -117,16 +132,9 @@ a collection row — is one field to the reader and should stay tight.
 
 {# ── Textarea ────────────────────────────────────────────────────────────── #}
 {% block textarea_widget %}
+    {% import '_partials/_field_classes.html.twig' as fields %}
     {% set attr = attr|merge({
-        class: 'block w-full rounded-lg border border-field
-            bg-field
-            px-3 py-2 text-sm text-ink
-            placeholder:text-ink-faint
-            shadow-sm shadow-zinc-950/5
-            focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
-            resize-y transition-colors duration-100
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ' ~ (attr.class ?? ''),
+        class: fields.textarea() ~ ' ' ~ (attr.class ?? ''),
         rows: attr.rows ?? 3,
     }) %}
     <textarea {{ block('widget_attributes') }}>{{ value }}</textarea>
@@ -235,14 +243,8 @@ a collection row — is one field to the reader and should stay tight.
    own blue.
 #}
 {% block checkbox_widget %}
-    {% set attr = attr|merge({
-        class: 'size-4 rounded border-field
-            accent-accent
-            bg-field
-            focus:ring-2 focus:ring-accent focus:ring-offset-0
-            cursor-pointer
-            ' ~ (attr.class ?? '')
-    }) %}
+    {% import '_partials/_field_classes.html.twig' as fields %}
+    {% set attr = attr|merge({ class: fields.checkbox() ~ ' ' ~ (attr.class ?? '') }) %}
     <input type="checkbox" {{ block('widget_attributes') }}
            {%- if value is defined and value is not empty %} value="{{ value }}"{% endif %}
            {%- if checked %} checked="checked"{% endif %}>

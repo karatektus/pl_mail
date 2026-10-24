@@ -2,10 +2,15 @@
 
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Crypto\PlaintextSource;
+use App\Domain\Enum\Crypto\SignatureState;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
+use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
@@ -29,6 +34,15 @@ use Doctrine\ORM\Mapping as ORM;
 // for one mailbox), and no query looks up a bare UID.
 #[ORM\UniqueConstraint(name: 'uniq_message_mailbox_imap_uid', columns: ['mailbox_id', 'imap_uid'])]
 #[ORM\Index(name: 'idx_message_search_vector', columns: ['search_vector'])]
+// Partial, and declared here so the mapping and the migration agree: without an
+// index of its own on this foreign-key column Doctrine would go on wanting a
+// full one, on the largest table in the schema, for a column that is NULL on
+// nearly every row. Serves "which mail is in this category" and the SET NULL a
+// category's removal performs.
+#[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => 'rule_category_id IS NOT NULL'])]
+// The sidebar's unsent-draft warning counts these on every refresh; partial,
+// because nearly every row is null here and only the few marked ones matter.
+#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => 'send_failed_at IS NOT NULL'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -152,6 +166,14 @@ class Message extends MessageModel
 
 
 
+    /**
+     * When the message went out (for received mail, when it arrived).
+     *
+     * An unsent draft has none, however it came to be here: the editor, the
+     * send queue and the thread all read "has a sentAt" as "has gone out". So
+     * a sync builder must leave it null for a draft, or a draft written in
+     * another client is listed and then refused (404) by the editor.
+     */
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $sentAt = null;
 
@@ -225,6 +247,68 @@ class Message extends MessageModel
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $bodyHtmlSafe = null;
+
+    /**
+     * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
+     * mail. Set by each provider's builder before the row is first written —
+     * an encrypted message's body is blanked there, because search_vector is
+     * generated from body_text on insert and would otherwise index ciphertext.
+     * See App\Service\Crypto\MessageCryptoDetector.
+     */
+    #[ORM\Column(length: 32, nullable: true, enumType: MessageCrypto::class)]
+    public ?MessageCrypto $crypto = null;
+
+    /**
+     * What checking the signature found, once it has been checked; null for an
+     * unsigned message and for one whose check has not run yet. Checked in the
+     * background after ingest — see App\Service\Crypto\SignatureVerifier.
+     */
+    #[ORM\Column(name: 'signature_state', length: 16, nullable: true, enumType: SignatureState::class)]
+    public ?SignatureState $signatureState = null;
+
+    /**
+     * Who signed it, as the signature itself says: the address on an S/MIME
+     * certificate, the fingerprint (or key id, when that is all there is) of
+     * a PGP key. What the page shows next to the lock.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $signer = null;
+
+    /**
+     * A draft written to be encrypted keeps no body here: the browser seals
+     * what was typed to the person's own key, and the sealed copy is kept in
+     * SealedMessageStorage. bodyText and bodyHtml stay empty, so nothing the
+     * server indexes, summarises or hands a JMAP client ever held it. See
+     * App\Service\Crypto\SealedDrafts.
+     */
+    #[ORM\Column(name: 'sealed_draft', options: ['default' => false])]
+    public bool $sealedDraft = false;
+
+    /**
+     * Where the readable body of an encrypted message came from, if it has
+     * one: a browser that decrypted it, for an account that keeps decrypted
+     * mail on the server (App\Service\Crypto\DecryptedMail). None for every
+     * other message, encrypted or not.
+     */
+    #[ORM\Column(name: 'plaintext_source', length: 8, enumType: PlaintextSource::class, options: ['default' => 'none'])]
+    public PlaintextSource $plaintextSource = PlaintextSource::None;
+
+    /**
+     * The message the browser built to be sent, when it built one — encrypted,
+     * signed, or plain mail from a sealed draft — and what it was built for:
+     *
+     *   kind         encrypted | signed | plain
+     *   recipients   every To, Cc and Bcc address, lower-cased and sorted
+     *   fingerprints the recipients' keys it was encrypted to (encrypted only)
+     *
+     * The bytes themselves are in SealedMessageStorage. Null for mail the
+     * server builds itself, which is still most of it. Checked once more by
+     * App\Service\Crypto\SealGuard before anything goes out.
+     *
+     * @var array{kind: string, recipients: list<string>, fingerprints: list<string>}|null
+     */
+    #[ORM\Column(name: 'outgoing_seal', type: Types::JSON, nullable: true)]
+    public ?array $outgoingSeal = null;
 
     /**
      * @var Collection<int, MessagePart>
@@ -332,6 +416,46 @@ class Message extends MessageModel
      */
     #[ORM\Column(name: 'submission_cancelled_at', nullable: true)]
     public ?DateTimeImmutable $submissionCancelledAt = null;
+
+    /**
+     * When the last send of this draft finally failed, or null — the warning
+     * the Drafts list and the sidebar show (#125).
+     *
+     * Final means after the retries: a send that is still being retried has
+     * no warning yet, and a refusal or a lost answer that cannot be checked
+     * has one at once. Cleared when the draft is claimed for another send, so
+     * a second attempt starts clean, and when a send succeeds. Editing the
+     * draft leaves it: the mail has still not gone.
+     *
+     * Written by a bulk update in MessageRepository, never through the entity:
+     * it is written on the way out of a failed send, after the entity manager
+     * has been cleared of whatever the attempt left half-done.
+     */
+    #[ORM\Column(name: 'send_failed_at', nullable: true)]
+    public ?DateTimeImmutable $sendFailedAt = null;
+
+    /** Why it failed — see SendFailure. Set and cleared with sendFailedAt. */
+    #[ORM\Column(name: 'send_failure', length: 20, nullable: true, enumType: SendFailure::class)]
+    public ?SendFailure $sendFailure = null;
+
+    /**
+     * When this send began waiting out a passing failure — the start of the
+     * two minutes a send may spend being retried. See SendMessageHandler.
+     *
+     * Kept across attempts, which is the point: the claim is released between
+     * them, and the wait has to be measured from the first. Cleared when the
+     * send succeeds or finally fails, so the next send gets its own two minutes.
+     */
+    #[ORM\Column(name: 'send_retrying_since', nullable: true)]
+    public ?DateTimeImmutable $sendRetryingSince = null;
+
+    /**
+     * When an attempt lost its answer: the provider may have the mail. The
+     * next attempt looks for it in Sent before sending again, and clears this
+     * either way. See SendOutcomeUnknownException.
+     */
+    #[ORM\Column(name: 'send_unconfirmed_at', nullable: true)]
+    public ?DateTimeImmutable $sendUnconfirmedAt = null;
 
     /**
      * How urgent this message claims to be, or null if nobody said.
@@ -448,6 +572,31 @@ class Message extends MessageModel
     public ?MessageCategory $aiCategory = null;
 
     /**
+     * The category a FILTER filed this message under, when it is one the
+     * reader made themselves.
+     *
+     * A THIRD OPINION, AND THE REASON IT IS ITS OWN COLUMN
+     * ────────────────────────────────────────────────────
+     * Not written into $category, for the reason $aiCategory is not, and for a
+     * sharper one besides. $category is a pure function of persisted data that
+     * five writers recompute — arrival, the backfill, the re-sort a settings
+     * change triggers, the assistant's release, Gmail enrichment — and every one
+     * of them overwrites it. A filter's verdict written there would be erased by
+     * the next re-sort. Here nothing recomputes it: only a filter's action
+     * writes it, and only removing the category clears it.
+     *
+     * $category keeps the built-in the rules decided, which is also what a JMAP
+     * client is served: its tab vocabulary is closed, so a message filed in a
+     * tab of the reader's own still reads as the built-in it would have been in.
+     *
+     * ON DELETE SET NULL: removing the category un-files its mail in the
+     * database, with no sweep for the application to forget.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'rule_category_id', nullable: true, onDelete: 'SET NULL')]
+    public ?InboxCategory $ruleCategory = null;
+
+    /**
      * The Gmail account that can act on this message, when it is not this
      * message's own account.
      *
@@ -483,7 +632,10 @@ class Message extends MessageModel
      *
      * Set even when the answer was unusable, because "asked and got nothing"
      * and "never asked" need to be distinguishable or a backfill would retry
-     * the same unanswerable message on every pass forever.
+     * the same unanswerable message on every pass forever. Not set when the
+     * host could not be reached (timeout, refused connection, 401, 403, 408,
+     * 429 or a 5xx): nothing was asked, and the catch-up sweep offers the
+     * message again. See ClassifyMailHandler::hostUnreachable().
      */
     #[ORM\Column(name: 'ai_categorised_at', nullable: true)]
     public ?DateTimeImmutable $aiCategorisedAt = null;
@@ -651,6 +803,44 @@ class Message extends MessageModel
      * Stays a method: it takes an argument and asks the collection about it, so
      * there is no single piece of state here to expose as a property.
      */
+    /**
+     * Whether the message is in Spam or Trash.
+     *
+     * Mail there is kept, listed and searchable like any other, and is not
+     * WORKED ON: no language model categorises it, nothing reads parcels,
+     * invoices or meetings out of it, its senders do not become contacts and
+     * it is not held back from the inbox tabs it is not in. Spam is where a
+     * forged invitation or a fake delivery notice ends up, and Trash is mail
+     * the user has already finished with — paying a model to read either, or
+     * putting an event from it in the calendar, is the wrong way round. See
+     * PostIngestPipeline and the steps it runs.
+     *
+     * Read off the labels the builders file a message under before it is
+     * stored, the same labels the folder list draws.
+     */
+    public function isSetAside(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Spam === $label->role || LabelRole::Trash === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether the message is in Spam. See isSetAside(). */
+    public function isSpam(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Spam === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function hasLabel(Label $label): bool
     {
         return $this->labels->contains($label);
@@ -663,6 +853,43 @@ class Message extends MessageModel
     public function hasFlag(MessageFlag $flag): bool
     {
         return in_array($flag->value, $this->flags, true);
+    }
+
+    /**
+     * A stored draft that the provider says has been sent.
+     *
+     * Sync stores a draft once, as an unsent draft, and never rebuilds a stored
+     * row, so sending it from Outlook or Gmail left it flagged `\Draft` with no
+     * sentAt: the editor would open it, the send queue would send it again, and
+     * discarding it would delete the sent copy at the provider. This is the one
+     * place that says what "was sent" means for the row, for every provider.
+     *
+     * The thread is ranked by $at, as the local send does (ThreadOrderingOnSendTest),
+     * but never moved backwards. Its category is not re-adopted: that is the
+     * threader's, and a draft's reply context was settled when it was written.
+     *
+     * Anything that is not an unsent draft is left exactly as it is, since the
+     * sync asks about every stored message the provider says is not a draft.
+     */
+    public function settleAsSent(DateTimeImmutable $at): void
+    {
+        if (false === $this->isDraft()) {
+            return;
+        }
+
+        $this->removeFlag(MessageFlag::DRAFT);
+
+        // A draft stored before synced drafts were kept unsent already has a
+        // sentAt (its receivedAt). That is the time it keeps, and the one the
+        // thread is ranked by: $at is only when this was noticed, and a mass
+        // re-read of old drafts must not float every conversation to the top.
+        $this->sentAt ??= $at;
+
+        $thread = $this->thread;
+
+        if (null !== $thread && (null === $thread->lastMessageAt || $this->sentAt > $thread->lastMessageAt)) {
+            $thread->lastMessageAt = $this->sentAt;
+        }
     }
 
     /**
