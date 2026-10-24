@@ -18,6 +18,7 @@ use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -53,6 +54,11 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * own is not listed (phase 6g of #28). The parts carry no stored bytes: they
  * are for the list, not for downloading.
  *
+ * Announced to JMAP clients the way ingest announces a delivery
+ * (MailChangeRecorder): without it the state tokens never moved, so an open
+ * app was told nothing and its `Email/changes` found nothing either — which
+ * looked like a phone that does not notice new mail (pl_mail_android#43).
+ *
  * Needs `app:test:seed-mail` first, which creates the mailbox this delivers
  * into. Refuses to run in prod.
  */
@@ -72,6 +78,7 @@ final class SeedCryptoMailCommand extends Command
         private readonly RawMessageResolver     $raw,
         private readonly ContactKeyCollector    $collector,
         private readonly SignatureVerifier      $verifier,
+        private readonly MailChangeRecorder     $changes,
         private readonly EntityManagerInterface $entityManager,
         #[Autowire('%kernel.environment%')]
         private readonly string                 $environment,
@@ -160,6 +167,11 @@ final class SeedCryptoMailCommand extends Command
         $this->entityManager->persist($thread);
         $this->entityManager->persist($message);
         $this->entityManager->flush();
+
+        // After the flush that minted the ids, and riding out on the next one,
+        // as MailChangeRecorder asks.
+        $this->changes->emailChanged((int) $account->id, (string) $message->id, true, $thread);
+        $this->changes->mailArrived((int) $account->id);
 
         $this->raw->store($message, $raw);
         $this->entityManager->flush();
