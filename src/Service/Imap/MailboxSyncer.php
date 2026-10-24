@@ -148,7 +148,10 @@ readonly class MailboxSyncer
             'missing' => 0,
         ];
 
-        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
+        // A POP3 server has no folder tree to list, and LIST against one is
+        // not a command it knows. The one Mailbox row a POP3 account gets is
+        // created by its own syncer; nothing here ever touches it.
+        if (false === $account->isPlainImap()) {
             return $result;
         }
 

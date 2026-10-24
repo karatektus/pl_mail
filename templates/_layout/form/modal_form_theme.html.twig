@@ -319,6 +319,35 @@ navigable, and submitted like any other choice. The circle is its label.
 {% endblock %}
 
 {#
+The account form's IMAP / POP3 choice (#289).
+
+The two-segment control every either/or on the settings pages wears (see
+settings/_compose_behavior.html.twig): the radios are hidden peers, and the
+selected segment is filled with the accent. The default expanded rendering
+stacked each radio above its own label and starred both as required, as if
+there were two questions. The container keeps the field's attributes: its
+data-action is what tells the imap-preset controller the protocol changed.
+#}
+{% block _account_incomingProtocol_widget %}
+    <div {{ block('widget_container_attributes') }}>
+        <div class="inline-grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ label|trans }}">
+            {% for child in form %}
+                <label>
+                    {{ form_widget(child, { attr: { class: 'peer sr-only' } }) }}
+                    <span class="flex h-full items-center justify-center px-4 py-1.5 text-center text-xs leading-tight text-ink-muted
+                                 peer-checked:bg-accent peer-checked:text-accent-ink
+                                 peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                                 transition-colors cursor-pointer">
+                        {{ child.vars.label|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{#
 The calendar colour picker.
 
 The same control as the label one above and deliberately not shared with it,

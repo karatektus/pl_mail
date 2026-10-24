@@ -4,7 +4,9 @@ namespace App\Entity\Mail;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\EmailAliasStatus;
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Enum\Account\Pop3DeleteMode;
 use App\Domain\Model\AccountModel;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -81,6 +83,33 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $email = null;
 
+    /**
+     * How this account's incoming mail is read.
+     *
+     * A column of its own since POP3 was added, rather than a fourth value on
+     * $authType: authType answers "how are the credentials presented", and a
+     * POP3 account presents a password exactly as an IMAP one does. What
+     * changes is the protocol underneath, and everything downstream that
+     * reads this belongs to one protocol or the other.
+     *
+     * Defaults to IMAP at the database level so every row that existed before
+     * the column — all of them IMAP, Gmail or Graph — reads as what it is
+     * without a backfill. Gmail and Microsoft accounts are API-synced and
+     * never open this connection; they carry Imap because it predates the
+     * column and nothing reads it for them.
+     */
+    #[ORM\Column(length: 10, options: ['default' => IncomingProtocol::Imap->value], enumType: IncomingProtocol::class)]
+    public IncomingProtocol $incomingProtocol = IncomingProtocol::Imap;
+
+    /**
+     * The incoming server, whichever protocol it speaks.
+     *
+     * Still called imapHost because the column is, and because renaming it
+     * would touch every template, form field and export for a name that is
+     * only ever read after $incomingProtocol has said what is on the other
+     * end. The form labels it by protocol; nothing user-facing says "IMAP"
+     * for a POP3 account.
+     */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $imapHost = null;
 
@@ -490,6 +519,18 @@ class Account extends AccountModel
     /** Where a backfill listing that is under way has got to. See $backfillPageToken. */
     public const string SETTING_BACKFILL_PAGE_TOKEN = 'sync.backfill_page_token';
 
+    /**
+     * What a POP3 account does with a message once it is stored here. See
+     * $pop3DeleteMode.
+     */
+    public const string SETTING_POP3_DELETE_MODE = 'sync.pop3.delete_mode';
+
+    /**
+     * Set while a POP3 account's first pass after a protocol switch is still
+     * to finish. See $pop3Adopting.
+     */
+    public const string SETTING_POP3_ADOPTING = 'sync.pop3.adopting';
+
     /** Unfetched messages the listing under way has found so far. */
     public const string SETTING_BACKFILL_PENDING = 'sync.backfill_pending';
 
@@ -693,6 +734,34 @@ class Account extends AccountModel
         unset($this->settings[$key]);
 
         return $this;
+    }
+
+    /**
+     * Whether this account's mail is read from a POP3 server.
+     *
+     * The counterpart of isGmail()/isMicrosoft(), and deliberately shaped the
+     * same way: a question about stored state that every caller may ask
+     * without opening anything. Unlike those two it can be true at the same
+     * time as neither — a plain IMAP account answers false to all three.
+     */
+    public function isPop3(): bool
+    {
+        return $this->incomingProtocol->isPop3();
+    }
+
+    /**
+     * Whether this account speaks IMAP and no API — the road that has
+     * folders, flags and a folder tree to read.
+     *
+     * The one predicate that replaces "not Gmail and not Microsoft" wherever
+     * the code then goes on to open an IMAP connection. POP3 accounts are
+     * excluded here and handled by their own syncer; see Pop3AccountSyncer.
+     */
+    public function isPlainImap(): bool
+    {
+        return false === $this->isGmail()
+            && false === $this->isMicrosoft()
+            && false === $this->isPop3();
     }
 
     /**
@@ -945,6 +1014,44 @@ class Account extends AccountModel
         }
         set (array $ids) {
             $this->setSetting(self::SETTING_GRAPH_REMOVALS, array_values($ids));
+        }
+    }
+
+    /**
+     * What a POP3 sync does with a message it has just stored.
+     *
+     * Virtual on the jsonb bag, like $backfillTarget, and read through
+     * Pop3DeleteMode::fromSetting() so an unrecognised value — a restored
+     * backup, a hand edit, a value from a future version — reads as Keep
+     * rather than as Delete. That is the one direction this must fail in.
+     */
+    public Pop3DeleteMode $pop3DeleteMode {
+        get => Pop3DeleteMode::fromSetting($this->getSetting(self::SETTING_POP3_DELETE_MODE));
+        set (Pop3DeleteMode $mode) {
+            $this->setSetting(self::SETTING_POP3_DELETE_MODE, $mode->value);
+        }
+    }
+
+    /**
+     * Whether the next POP3 pass should recognise mail this account already
+     * holds, rather than store it again.
+     *
+     * Set by IncomingProtocolSwitch when an IMAP account becomes a POP3 one:
+     * the server's mailbox then is, message for message, mail the account
+     * already has — the IMAP sync fetched it. POP3 has nothing to match those
+     * rows on but the Message-ID, so while this is set a message whose
+     * Message-ID the account already holds is recorded as stored and not
+     * fetched. Cleared once a pass has walked the whole server listing.
+     *
+     * Only for that pass, and not as the rule: in normal running a repeated
+     * Message-ID is a second copy that arrived (a mail sent to two of the
+     * user's addresses), and it is stored like any other — see
+     * Pop3AccountSyncer on why recognition is by UIDL.
+     */
+    public bool $pop3Adopting {
+        get => true === $this->getSetting(self::SETTING_POP3_ADOPTING, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_POP3_ADOPTING, $on ? true : null);
         }
     }
 

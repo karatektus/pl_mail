@@ -274,6 +274,16 @@ final readonly class ConfigBackupUsers
         // anything the other host did: restored, the target files the mail it
         // imports the way the user asked for.
         Account::SETTING_GMAILIFY,
+        // Carried, unlike the ledger below: whether an account deletes from
+        // the server after fetching is a standing instruction its owner gave
+        // on purpose, and a restore that silently turned it back to Keep
+        // would leave a mailbox growing on a server that was being pruned.
+        // Getting it wrong the other way — carrying Delete to a host that
+        // has never fetched — is harmless: nothing is marked until a message
+        // has been stored on that host. The UIDL ledger itself is a table
+        // (pop3_uidl) and is not part of the backup, so the target fetches
+        // everything before it deletes anything.
+        Account::SETTING_POP3_DELETE_MODE,
     ];
 
     /**
@@ -312,6 +322,7 @@ final readonly class ConfigBackupUsers
         Account::SETTING_GRAPH_IMPORT => 'the folders the OTHER host had still to read, by ids and page links that mean nothing to a mailbox connected afresh; the target plans its own on its first sync',
         Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
         Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
+        Account::SETTING_POP3_ADOPTING => 'a pass over the OTHER host\'s POP3 mailbox that had still to finish; the target keeps no UIDLs from the file and fetches the mailbox afresh',
     ];
 
     public function __construct(

@@ -1,8 +1,8 @@
 # Accounts and aliases
 
-A plMail account is one mailbox you have somewhere else — an IMAP server, Gmail, or Outlook — that
-plMail signs into and syncs. You can connect as many as you like; they sync independently and read
-as one inbox.
+A plMail account is one mailbox you have somewhere else — an IMAP or POP3 server, Gmail, or
+Outlook — that plMail signs into and syncs. You can connect as many as you like; they sync
+independently and read as one inbox.
 
 Everything on this page lives under **Settings → Mail accounts**, except where it says otherwise.
 
@@ -37,6 +37,31 @@ mailbox and syncs the moment something changes, with a scheduled sweep every fif
 behind it.
 
 See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree about.
+
+## Adding a POP3 mailbox
+
+Some providers serve POP3 and SMTP and no IMAP at all. For those, choose **POP3** under **Incoming
+protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. The
+**Provider** list is IMAP settings, so picking an entry there switches the form back to IMAP.
+
+POP3 has one mailbox and nothing else: no folders, no flags, and no way to tell the server
+anything but "delete this". So in plMail a POP3 account is a single inbox. Reading, starring,
+labelling and moving mail all happen here and stay here, and the next sync does not undo them.
+Mail you send is labelled Sent in plMail; the server has nowhere to keep a copy. There is no IDLE
+either, so new mail arrives with the sweep every fifteen minutes, or straight away with the sync
+button.
+
+Each message is recognised by its UIDL, the server's own name for it, so mail is never fetched
+twice. The first sync of a large mailbox brings in a few hundred messages per sync, newest first.
+
+**After fetching** decides what happens to the server's copy. **Leave it on the server** is the
+default. Choose **Delete it from the server** and a message is deleted there once it is stored
+in plMail, and only then. A message plMail could not fetch or store stays on the server whatever
+this says. Deleting frees space at your provider, but plMail's copy is then the only one.
+
+You can switch an existing account between IMAP and POP3 on its edit form. Its mail stays: the
+next sync recognises what plMail already holds by its Message-ID and fetches only the rest. Folders
+other than the inbox keep their mail when an account becomes POP3, and stop syncing.
 
 ## Adding Gmail or Outlook
 

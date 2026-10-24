@@ -11,10 +11,21 @@ account:
             heading: Incoming — IMAP
             host: Host
         password: Password
+        pop3:
+            delete_help: 'Kept on the server, a message is recognised next time by its UIDL and never fetched twice. Deleting frees space on the server, but plMail''s copy is then the only one left.'
+            delete_label: 'After fetching'
+            delete_on_fetch: 'Delete it from the server'
+            heading: 'Incoming — POP3'
+            keep_on_server: 'Leave it on the server (recommended)'
         port: Port
         preset:
             label: Provider
             placeholder: Choose a provider…
+        protocol:
+            help: 'Changing this later keeps the mail you have: the next sync recognises what is already here.'
+            imap: IMAP
+            label: 'Incoming protocol'
+            pop3: POP3
         smtp:
             heading: Outgoing — SMTP
             host: Host
@@ -47,6 +58,7 @@ account:
             imap_ok: 'Connected — %count% folders visible.'
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
+            pop3_ok: 'Connected — %count% messages in the mailbox.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
             smtp_ok: 'Connected and signed in.'
             timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'

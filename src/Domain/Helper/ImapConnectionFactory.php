@@ -71,6 +71,20 @@ class ImapConnectionFactory
             default    => false,
         };
 
+        // The one place every IMAP conversation starts, so the one place a
+        // POP3 account is turned away: its incoming server lives in the same
+        // columns, and IMAP spoken at a POP3 port fails on the greeting with
+        // an error that names neither. The callers that run on their own —
+        // IDLE, the importer, the syncers — leave POP3 accounts out before
+        // they get here; this is for the one nobody thought of.
+        if (true === $account->isPop3()) {
+            throw new \LogicException(sprintf(
+                'Account %d (%s) reads its mail over POP3 and must not be opened over IMAP.',
+                $account->id,
+                $account->email,
+            ));
+        }
+
         $host = $account->imapHost;
 
         if (null === $host || '' === $host) {

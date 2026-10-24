@@ -11,10 +11,21 @@ account:
             heading: Incomin' — IMAP
             host: Port o' call
         password: Secret word
+        pop3:
+            delete_help: 'Left in port, a message be spotted next time by its UIDL and never hauled in twice. Scuttlin'' it frees the harbour''s space, but then plMail''s copy be the only one afloat.'
+            delete_label: 'After haulin'' it in'
+            delete_on_fetch: 'Scuttle it on the server'
+            heading: 'Incomin'' — POP3'
+            keep_on_server: 'Leave it in port (recommended)'
         port: Berth number
         preset:
             label: Harbourmaster
             placeholder: Pick yer harbour…
+        protocol:
+            help: 'Change this later and ye keep yer haul: the next voyage knows what be aboard already.'
+            imap: IMAP
+            label: 'Incomin'' protocol'
+            pop3: POP3
         smtp:
             heading: Outgoin' — SMTP
             host: Port o' call
@@ -47,6 +58,7 @@ account:
             imap_ok: 'Aboard — %count% holds in sight.'
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
+            pop3_ok: 'Aye, connected — %count% messages in the hold.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'

@@ -11,10 +11,21 @@ account:
             heading: '收件 — IMAP'
             host: 主机
         password: 密码
+        pop3:
+            delete_help: '留在服务器上的邮件会在下次同步时按 UIDL 识别，不会重复收取。从服务器删除可以释放空间，但之后只剩 plMail 中的这一份。'
+            delete_label: '收取之后'
+            delete_on_fetch: '从服务器删除'
+            heading: '收件 — POP3'
+            keep_on_server: '保留在服务器上（推荐）'
         port: 端口
         preset:
             label: 服务商
             placeholder: 选择服务商…
+        protocol:
+            help: '以后更改也会保留已有邮件：下次同步会识别已经存在的邮件。'
+            imap: IMAP
+            label: '收件协议'
+            pop3: POP3
         smtp:
             heading: '发件 — SMTP'
             host: 主机
@@ -47,6 +58,7 @@ account:
             imap_ok: '已连接，可见 %count% 个文件夹。'
             missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
+            pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
             smtp_ok: 已连接并登录。
             timeout: 服务器未及时响应，请检查主机、端口以及是否受到防火墙阻拦。

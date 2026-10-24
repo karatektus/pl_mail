@@ -11,10 +11,21 @@ account:
             heading: Eingehend — IMAP
             host: Server
         password: Passwort
+        pop3:
+            delete_help: 'Bleibt eine Nachricht auf dem Server, erkennt plMail sie beim nächsten Abruf an ihrer UIDL und lädt sie nie doppelt. Löschen schafft Platz auf dem Server, dann gibt es aber nur noch die Kopie in plMail.'
+            delete_label: 'Nach dem Abruf'
+            delete_on_fetch: 'Vom Server löschen'
+            heading: 'Eingehend — POP3'
+            keep_on_server: 'Auf dem Server lassen (empfohlen)'
         port: Port
         preset:
             label: Anbieter
             placeholder: Anbieter wählen…
+        protocol:
+            help: 'Wenn du das später änderst, bleibt deine Mail erhalten: Der nächste Abruf erkennt, was schon da ist.'
+            imap: IMAP
+            label: 'Protokoll für eingehende Mail'
+            pop3: POP3
         smtp:
             heading: Ausgehend — SMTP
             host: Server
@@ -47,6 +58,7 @@ account:
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
+            pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'

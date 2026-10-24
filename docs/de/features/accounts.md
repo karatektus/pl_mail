@@ -1,11 +1,11 @@
-<!-- translated-from: features/accounts.md sha1:a008e379503ce8b4292e95d3580ed2550552e214 -->
+<!-- translated-from: features/accounts.md sha1:d863f01e7afa9d49b02f72ebc8d8d48f0b00c2b6 -->
 
 # Konten und Aliase
 
-Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP-Server, bei Gmail oder
-bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst so viele
-verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als ein
-einziger Posteingang.
+Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP- oder POP3-Server,
+bei Gmail oder bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst
+so viele verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als
+ein einziger Posteingang.
 
 Alles auf dieser Seite liegt unter **Einstellungen → E-Mail-Konten**, sofern nicht anders
 angegeben.
@@ -45,6 +45,35 @@ Durchlauf alle fünfzehn Minuten dahinter.
 
 Siehe [IMAP und SMTP](../providers/imap-smtp.md) für die Einstellungen, über die sich die
 Server uneinig sind.
+
+## Ein POP3-Postfach hinzufügen
+
+Manche Anbieter bieten POP3 und SMTP an, aber gar kein IMAP. Für diese wählst du im selben
+Formular unter **Protokoll für eingehende Mail** die Option **POP3**; der Port für eingehende Mail
+startet dann bei 995, also POP3 über SSL. Die Liste **Anbieter** enthält IMAP-Einstellungen —
+wählst du dort einen Eintrag, stellt sich das Formular wieder auf IMAP.
+
+POP3 kennt ein Postfach und sonst nichts: keine Ordner, keine Markierungen und keinen Weg, dem
+Server etwas anderes mitzuteilen als „lösch das“. Ein POP3-Konto ist in plMail deshalb ein
+einziger Posteingang. Lesen, Markieren, Labels und Verschieben passieren hier und bleiben hier,
+und der nächste Abruf macht nichts davon rückgängig. Mail, die du sendest, bekommt in plMail das
+Label Gesendet; der Server hat keinen Ort für eine Kopie. IDLE gibt es auch nicht: Neue Mail
+kommt mit dem Durchlauf alle fünfzehn Minuten oder sofort über den Abruf-Knopf.
+
+Jede Nachricht wird an ihrer UIDL erkannt, dem Namen, den der Server ihr gibt, und deshalb nie
+doppelt geladen. Der erste Abruf eines großen Postfachs holt pro Durchlauf einige hundert
+Nachrichten, die neuesten zuerst.
+
+**Nach dem Abruf** entscheidet, was mit der Kopie auf dem Server passiert. Voreingestellt ist
+**Auf dem Server lassen**. Wählst du **Vom Server löschen**, wird eine Nachricht dort gelöscht,
+sobald sie in plMail gespeichert ist, und erst dann. Eine Nachricht, die plMail nicht laden oder
+speichern konnte, bleibt auf dem Server, egal was hier steht. Löschen schafft Platz bei deinem
+Anbieter, aber dann gibt es nur noch die Kopie in plMail.
+
+Ein bestehendes Konto kannst du in seinem Bearbeiten-Formular zwischen IMAP und POP3 umstellen.
+Seine Mail bleibt: Der nächste Abruf erkennt an der Message-ID, was plMail schon hat, und lädt nur
+den Rest. Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden
+nicht mehr synchronisiert.
 
 ## Gmail oder Outlook hinzufügen
 

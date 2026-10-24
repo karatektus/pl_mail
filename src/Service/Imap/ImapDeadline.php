@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Interface\DeadlineClosable;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 use Webklex\PHPIMAP\Client;
@@ -95,6 +96,27 @@ final class ImapDeadline implements ResetInterface
         $this->clients[] = WeakReference::create($client);
     }
 
+    /**
+     * The same for a POP3 session, whose connection is a bare stream.
+     *
+     * A resource cannot be weakly referenced, so the reference is taken to the
+     * session object that owns it — see Pop3Connection, which implements
+     * DeadlineClosable. Held weakly for the same reason the clients are: this
+     * class must not be what keeps a connection open.
+     */
+    public function watchSession(DeadlineClosable $session): void
+    {
+        $this->sessions = array_values(array_filter(
+            $this->sessions,
+            static fn (WeakReference $reference): bool => null !== $reference->get(),
+        ));
+
+        $this->sessions[] = WeakReference::create($session);
+    }
+
+    /** @var list<WeakReference<DeadlineClosable>> */
+    private array $sessions = [];
+
     public static function available(): bool
     {
         return 'cli' === PHP_SAPI && true === function_exists('pcntl_alarm') && true === function_exists('pcntl_async_signals');
@@ -140,6 +162,7 @@ final class ImapDeadline implements ResetInterface
 
         pcntl_alarm(0);
         $this->clients = [];
+        $this->sessions = [];
     }
 
     /**
@@ -189,6 +212,26 @@ final class ImapDeadline implements ResetInterface
 
         $this->clients = [];
 
+        // POP3 sessions, shut down the same way and counted in the same total:
+        // the warning below is about a handler that took too long, and which
+        // protocol it was talking is not what the reader of that log line needs.
+        foreach ($this->sessions as $reference) {
+            $session = $reference->get();
+
+            if (null === $session || false === $session->isOpen()) {
+                continue;
+            }
+
+            try {
+                $session->closeForDeadline();
+                ++$closed;
+            } catch (\Throwable) {
+                // Already gone: nothing was being read from it.
+            }
+        }
+
+        $this->sessions = [];
+
         if ($closed > 0) {
             $this->logger->warning('An IMAP conversation outlasted its deadline and was closed', [
                 'seconds'     => $this->seconds,
@@ -201,6 +244,7 @@ final class ImapDeadline implements ResetInterface
 
     public function reset(): void
     {
-        $this->clients = [];
+        $this->clients  = [];
+        $this->sessions = [];
     }
 }

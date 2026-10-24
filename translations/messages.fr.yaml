@@ -11,10 +11,21 @@ account:
             heading: Réception — IMAP
             host: Serveur
         password: Mot de passe
+        pop3:
+            delete_help: 'Laissé sur le serveur, un message est reconnu à la relève suivante par son UIDL et n''est jamais relevé deux fois. Le supprimer libère de la place sur le serveur, mais la copie de plMail devient alors la seule.'
+            delete_label: 'Après la relève'
+            delete_on_fetch: 'Le supprimer du serveur'
+            heading: 'Réception — POP3'
+            keep_on_server: 'Le laisser sur le serveur (recommandé)'
         port: Port
         preset:
             label: Fournisseur
             placeholder: Choisissez un fournisseur…
+        protocol:
+            help: 'Le changer plus tard conserve vos messages : la synchronisation suivante reconnaît ce qui est déjà là.'
+            imap: IMAP
+            label: 'Protocole de réception'
+            pop3: POP3
         smtp:
             heading: Envoi — SMTP
             host: Serveur
@@ -47,6 +58,7 @@ account:
             imap_ok: 'Connecté — %count% dossiers visibles.'
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
+            pop3_ok: 'Connecté — %count% messages dans la boîte.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'

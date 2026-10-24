@@ -541,7 +541,7 @@ class MessageSyncer
                 // the stored .eml all come from the same bytes.
                 $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
 
-                $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
+                $message = $this->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
 
                 // Only now, with the message whole. buildMessage() used to
@@ -954,7 +954,24 @@ class MessageSyncer
         );
     }
 
-    private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
+    /**
+     * Turn one parsed message into a Message row, attached to a mailbox.
+     *
+     * The single place a row is built from an RFC 822 message, whichever
+     * protocol delivered it. IMAP hands it one the library fetched; POP3 hands
+     * it one the library built with Message::fromString() from a RETR answer.
+     * Nothing below this line knows which — the parser is the shared part, and
+     * that is the reason the two protocols produce identical rows for
+     * identical bytes.
+     *
+     * Does NOT set imapUid and does NOT persist. An IMAP caller sets the UID
+     * after calling this (see storeMessages()); a POP3 caller leaves it null,
+     * because a POP3 message has no UID to give it — see Pop3AccountSyncer.
+     *
+     * Public since POP3 was added. It was private while IMAP was the only
+     * caller and the file was the interface.
+     */
+    public function buildMessageFromParsed(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message();
         $message->account = $mailbox->account;
