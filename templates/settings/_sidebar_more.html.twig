@@ -29,7 +29,6 @@ looking for the second will find the first.
 
 <form method="post"
       action="{{ path('app_settings_sidebar_more_update') }}"
-      data-turbo="false"
       data-controller="ui--auto-submit"
       class="px-4 py-3">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-sidebar') }}">

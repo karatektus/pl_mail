@@ -1,6 +1,7 @@
 import { test, expect } from "./support/test";
 import type { Page } from "@playwright/test";
 import { ajaxPost, seed } from "./support/config";
+import { saveSetting } from "./support/settings";
 
 /**
  * The inbox as one list, for somebody who does not want it in tabs (#29).
@@ -21,10 +22,7 @@ async function setTabs(page: Page, option: "Tabs" | "One list"): Promise<void> {
     // The visible segment, which is the radio's label: the input is sr-only.
     // The control submits on change and comes back to this page.
     if (false === (await group.getByRole("radio", { name: option, exact: true }).isChecked())) {
-        await Promise.all([
-            page.waitForURL(/section=categories/),
-            group.getByText(option, { exact: true }).click(),
-        ]);
+        await saveSetting(page, () => group.getByText(option, { exact: true }).click());
     }
 
     await expect(

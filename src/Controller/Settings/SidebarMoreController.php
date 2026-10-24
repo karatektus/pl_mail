@@ -17,9 +17,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 /**
  * Which system folders the sidebar keeps behind "More".
  *
- * Redirects rather than answering with a stream, like the clock and the
- * language: the choice moves rows in the sidebar of every page, so there is no
- * fragment small enough to be worth swapping.
+ * Redirects rather than answering with a stream, like the clock: the choice
+ * moves rows in the sidebar of every page, so there is no fragment small enough
+ * to be worth swapping. The redirect comes back to the page the box was ticked
+ * on, which Turbo morphs in place — the sidebar beside the form updates and the
+ * page does not reload. See the turbo_refresh block in settings/index.html.twig.
  */
 #[IsGranted('ROLE_USER')]
 final class SidebarMoreController extends AbstractController

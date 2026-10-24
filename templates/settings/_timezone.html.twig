@@ -15,7 +15,7 @@ Variables:
 #}
 {% import '_partials/_select.html.twig' as select %}
 <div class="px-4 py-3">
-    <form method="post" action="{{ path('app_settings_timezone_update') }}" data-turbo="false" data-controller="ui--auto-submit">
+    <form method="post" action="{{ path('app_settings_timezone_update') }}" data-controller="ui--auto-submit">
         <input type="hidden" name="_token" value="{{ csrf_token('settings-timezone') }}">
 
         <label for="settings-timezone" class="sr-only">{{ 'settings.timezone.label'|trans }}</label>

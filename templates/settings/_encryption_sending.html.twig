@@ -21,7 +21,7 @@ Accepts:
         block_partial: user.blockPartialEncryption,
         protect_subject: user.protectSubject,
     } %}
-        <form method="post" action="{{ path('app_settings_encryption_sending') }}" data-turbo="false"
+        <form method="post" action="{{ path('app_settings_encryption_sending') }}"
               data-controller="ui--auto-submit" class="py-3 first:pt-0 last:pb-0">
             <input type="hidden" name="_token" value="{{ csrf_token('settings-encryption-sending') }}">
 

@@ -32,7 +32,7 @@ Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
                     </span>
 
                     {% if account.keepDecrypted %}
-                        <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}" data-turbo="false">
+                        <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
                             <input type="hidden" name="keep" value="0">
                             <button type="submit" class="{{ button }}">{{ 'encryption.decrypted.turn_off'|trans }}</button>
@@ -41,7 +41,7 @@ Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
                 </div>
 
                 {% if not account.keepDecrypted %}
-                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}" data-turbo="false" class="mt-2">
+                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}" class="mt-2">
                         <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
                         <input type="hidden" name="keep" value="1">
                         <label class="flex items-start gap-2 text-[11px] text-ink-muted">
@@ -51,7 +51,7 @@ Reads decrypted_mail_settings() (App\Twig\DecryptedMailExtension).
                         <button type="submit" class="{{ button }} mt-2">{{ 'encryption.decrypted.turn_on'|trans }}</button>
                     </form>
                 {% else %}
-                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}" data-turbo="false"
+                    <form method="post" action="{{ path('app_settings_decrypted_mail', { id: account.id }) }}"
                           class="mt-3 rounded-lg border border-line px-3 py-2">
                         <input type="hidden" name="_token" value="{{ csrf_token('decrypted-mail-' ~ account.id) }}">
                         <input type="hidden" name="ai" value="{{ account.keepDecryptedAi ? '0' : '1' }}">

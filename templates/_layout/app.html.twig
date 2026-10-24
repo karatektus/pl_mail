@@ -135,6 +135,11 @@
        perfectly happy being restored from cache on a back navigation. The mail
        lists are not; see _layout/_mailbox.html.twig. #}
     {% block turbo_cache_control %}{% endblock %}
+    {# How Turbo redraws THIS page when a visit comes back to it — a form that
+       posts and redirects to where it was posted from. Empty by default: a
+       refresh is a plain render there. Settings fills it in; see
+       settings/index.html.twig. #}
+    {% block turbo_refresh %}{% endblock %}
     {# Both spellings. `mobile-web-app-capable` is the standardised one every
        engine now reads and the only one Chrome does not warn about; the Apple
        prefix stays because older iOS is the platform that actually needs it,

@@ -67,6 +67,23 @@ async function setBehindMore(page: Page, label: string, behind: boolean) {
     }
 }
 
+/**
+ * How far the settings content is scrolled. The page scrolls inside its own
+ * pane, not the window, so this walks up from the card to the first ancestor
+ * that scrolls.
+ */
+async function scrollOf(page: Page): Promise<number> {
+    return card(page).evaluate((form) => {
+        for (let el: HTMLElement | null = form as HTMLElement; el; el = el.parentElement) {
+            if (el.scrollHeight > el.clientHeight && "auto" === getComputedStyle(el).overflowY) {
+                return el.scrollTop;
+            }
+        }
+
+        return window.scrollY;
+    });
+}
+
 test.beforeEach(async ({ page }) => {
     await page.goto("/settings?section=general");
 });
@@ -121,6 +138,42 @@ test.describe("sidebar: what waits behind More (desktop)", () => {
         await page.reload();
         await expect(more.locator('[data-sidebar-row="sent"]')).toHaveCount(1);
         await expect(sidebar.locator('nav > [data-sidebar-row="archive"]')).toHaveCount(1);
+    });
+
+    /**
+     * The save redraws the page in place: the sidebar beside the form takes the
+     * change without the document being loaded again. A full reload drops
+     * everything a page holds in memory, so a value planted on `window` before
+     * the click is the proof — it survives a morph and not a reload. The scroll
+     * position is the part a person notices, and is kept the same way.
+     */
+    test("ticking a box moves the row in the sidebar beside it without reloading the page", async ({
+        page,
+    }) => {
+        const more = page.locator("#sidebar [data-sidebar-more]");
+
+        await expect(more.locator('[data-sidebar-row="sent"]')).toHaveCount(0);
+
+        // Scrolled to the card, as somebody using it would be.
+        await card(page).scrollIntoViewIfNeeded();
+        const scrolledTo = await scrollOf(page);
+
+        await page.evaluate(() => {
+            (window as unknown as { __sameDocument: boolean }).__sameDocument = true;
+        });
+
+        await setBehindMore(page, "Sent", true);
+
+        await expect(more.locator('[data-sidebar-row="sent"]')).toHaveCount(1);
+        await expect(page.locator('#sidebar nav > [data-sidebar-row="sent"]')).toHaveCount(0);
+
+        expect(
+            await page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument),
+            "the page was reloaded",
+        ).toBe(true);
+        expect(
+            await scrollOf(page),
+        ).toBe(scrolledTo);
     });
 
     test("More stays open when you click through to a folder inside it", async ({

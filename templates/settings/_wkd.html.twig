@@ -52,7 +52,7 @@ Reads wkd_settings() (App\Twig\WkdExtension).
                         </span>
 
                         {% if entry.state.switchable %}
-                            <form method="post" action="{{ path('app_settings_wkd_publish') }}" data-turbo="false"
+                            <form method="post" action="{{ path('app_settings_wkd_publish') }}"
                                   data-controller="ui--auto-submit" class="shrink-0">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">
                                 <input type="hidden" name="email" value="{{ entry.email }}">
@@ -101,7 +101,7 @@ Reads wkd_settings() (App\Twig\WkdExtension).
                             </div>
                         {% endif %}
 
-                        <form method="post" action="{{ path('app_settings_wkd_check') }}" data-turbo="false" class="mt-2">
+                        <form method="post" action="{{ path('app_settings_wkd_check') }}" class="mt-2">
                             <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">
                             <input type="hidden" name="email" value="{{ entry.email }}">
                             <button type="submit" class="{{ button }}">

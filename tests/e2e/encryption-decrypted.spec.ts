@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test, expect } from "./support/test";
 import { consoleCommand, login, mailRow, seedUser } from "./support/config";
+import { saveSetting } from "./support/settings";
 
 /**
  * Decrypted mail kept on the server, phase 3b of issue #28: an account that
@@ -26,7 +27,7 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
     const row = page.getByTestId("decrypted-mail-account").first();
 
     await row.getByRole("checkbox").check();
-    await row.getByRole("button", { name: "Keep decrypted mail here" }).click();
+    await saveSetting(page, () => row.getByRole("button", { name: "Keep decrypted mail here" }).click());
     await expect(page.getByTestId("decrypted-mail-account").first()).toContainText("kept readable here");
 
     const armored = await page.evaluate(async (plaintext) => {
@@ -67,7 +68,9 @@ test("keeps decrypted mail readable on the server, and takes it back out when sw
 
     // Off: the decrypted copy goes, and the message reads as encrypted again.
     await page.goto("/settings?section=encryption");
-    await page.getByTestId("decrypted-mail-account").first().getByRole("button", { name: "Stop, and delete the decrypted copies" }).click();
+    await saveSetting(page, () =>
+        page.getByTestId("decrypted-mail-account").first().getByRole("button", { name: "Stop, and delete the decrypted copies" }).click(),
+    );
 
     await expect.poll(async () => {
         await page.goto("/mail/inbox");
