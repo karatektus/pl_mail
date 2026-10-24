@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:a8d8bec6e9cb8b52913618e4a0001df12cb16f02 -->
+<!-- translated-from: features/mail.md sha1:79ac4fe7add161acb33c062513893ba7bb5a75b2 -->
 
 # Mail
 
@@ -921,19 +921,9 @@ angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die d
 ## Von wem eine Mail kommt
 
 Den Absendernamen kann jeder frei eintippen, also kann eine Mail mit **PayPal** von überall
-kommen. Was der Absender nicht wählen kann, ist die Domain seiner Adresse, und die zeigt plMail dort, wo du
-ohnehin hinschaust.
-
-**In der Liste** steht neben jedem Absender seine Domain: `PayPal evil.example`. Es ist die Domain
-der Organisation, nicht der ganze Host, also wird `paypal.com.evil.example` als `evil.example`
-angezeigt und nicht als etwas, das mit der nachgeahmten Marke beginnt. Eine Domain in einer anderen
-Schrift erscheint in ihrer `xn--`-Form, und daran verrät sich ein Doppelgänger. Ist die Spalte
-schmal, wird der Name gekürzt, nie die Domain. Schreibt derselbe Name in einer Unterhaltung von zwei
-Domains, stehen beide da. Deine eigenen Nachrichten heißen *ich*, und Gesendet und Entwürfe nennen,
-an wen die Mail geht, ohne Domain.
-
-**In einer geöffneten Mail** steht die Adresse so groß und so dunkel wie der Name und bricht um,
-statt am Ende abgeschnitten zu werden, denn dort steht die Domain.
+kommen. Was der Absender nicht wählen kann, ist seine Adresse. In einer geöffneten Mail steht sie
+deshalb so groß und so dunkel wie der Name und bricht um, statt am Ende abgeschnitten zu werden,
+denn dort steht die Domain.
 
 **Antworten gehen an …** erscheint unter dem Absender, wenn das Reply-To der Mail auf eine andere
 Organisation zeigt als ihre Absenderadresse — die Adresse, an die deine Antwort tatsächlich ginge.

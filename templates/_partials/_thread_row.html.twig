@@ -99,8 +99,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {# Everyone who has written in the conversation, oldest first — not the
        newest sender, which made every thread you had answered look like it
        came from you. #}
-    {% set senders = thread_senders(item) %}
-    {% set sender = senders|map(s => s.name)|join(', ') %}
+    {% set sender = thread_participants(item)|join(', ') %}
     {# No |striptags: bodyText is ALREADY plain text — DraftPersister::plainTextBody()
        stripped the markup and then decoded the entities, and ingest does the same.
        Running it again does not remove markup, it removes the user's WRITING: a
@@ -146,7 +145,6 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
         {% set sender = recipients|length > 0
             ? ('thread_row.to'|trans({ '%recipients%': recipients|join(', ') }))
             : ('thread_row.no_recipient'|trans) %}
-        {% set senders = [{ name: sender, domain: null }] %}
     {% endif %}
 
     {# Sent, for the same reason and with the same answer.
@@ -166,7 +164,6 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
         {% set sender = recipients|length > 0
             ? ('thread_row.to'|trans({ '%recipients%': recipients|join(', ') }))
             : ('thread_row.no_recipient'|trans) %}
-        {% set senders = [{ name: sender, domain: null }] %}
     {% endif %}
 
     {# A draft on a hold. sentAt guards it for the reason the compose window
@@ -192,9 +189,6 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set date = item.receivedAt %}
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
-    {# The name and, beside it, the domain the mail really comes from — the
-       thread branch above gets the same through thread_senders(). #}
-    {% set senders = [sender_label(item.fromName, item.fromAddress)] %}
     {% set senderSeed = item.fromAddress ?: sender %}
     {# Same source as the thread branch above, so the two cannot drift. #}
     {% set snippet = mail_snippet(item)|slice(0, 100) %}
@@ -444,23 +438,21 @@ be a worse regression than the one this feature fixes.
            siblings: the subject lives two wrappers down, beside the preview. So
            both wrappers go `display: contents` in that band and their children
            become cells of this grid — sender and subject on the first row, the
-           preview spanning the second. The sender column is the 13rem the
-           one-line layout gives it, so subjects line up down the list. It was
-           10rem until each sender carried a domain beside the name (#153);
-           both widths moved together.
+           preview spanning the second. The sender column is the 10rem the
+           one-line layout gives it, so subjects line up down the list.
 
            `@xl:@max-rowwide:` is a range, not a step: nothing here has to be
            undone again at `@rowwide`. #}
         <div data-row-layout
              class="flex-1 min-w-0 flex flex-col
-                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[13rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
+                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[10rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
                     @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
 
             {# Row 1 (three lines) / first cell of row 1 (two lines) / sender
                column (one line). `min-w-0` is for the middle one: a grid item
                will not shrink under its content without it, and a long sender
-               would push the column past its 13rem. #}
-            <div data-row-sender class="min-w-0 flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-52 @rowwide:flex-shrink-0">
+               would push the column past its 10rem. #}
+            <div data-row-sender class="min-w-0 flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-40 @rowwide:flex-shrink-0">
                 {# Sender and its marker travel together in one group, so the
                    badge sits to the LEFT of the name at both container widths.
                    Hanging it off the outer flex instead would have put it at
@@ -542,30 +534,8 @@ be a worse regression than the one this feature fixes.
                         </span>
                     {% endif %}
 
-                    {# The name, and beside it the domain the mail really comes
-                       from. A name is whatever the sender typed; the domain is
-                       the half they cannot choose, so it is printed here
-                       rather than behind a click. It is its own span and does
-                       not shrink: the column truncates from the end and the
-                       domain IS the end, so the name has to be the thing that
-                       gives way. text-ink-muted rather than -faint, because
-                       the faint token is for decoration and this is the one
-                       part of the row that carries a verdict. #}
-                    {# `max-w-[60%]` on the domain: "never shrinks" met a sender
-                       whose domain is longer than the column, and it ran
-                       straight over the subject. Capped, it truncates like
-                       anything else — but the name keeps the other 40%, so a
-                       long domain cannot push the name out altogether.
-                       `-ml-1` takes the comma back across the gap, so it
-                       reads "evil.example, Bob" and not "evil.example , Bob". #}
-                    <span class="min-w-0 overflow-hidden flex items-baseline gap-x-1 text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
-                        {% for s in senders %}
-                            <span class="min-w-0 truncate">{{ s.name }}</span>
-                            {% if s.domain %}
-                                <span class="shrink-0 max-w-[60%] truncate text-[11px] font-normal text-ink-muted" data-sender-domain>{{ s.domain }}</span>
-                            {% endif %}
-                            {% if not loop.last %}<span class="shrink-0 -ml-1">,</span>{% endif %}
-                        {% endfor %}
+                    <span class="truncate text-sm {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-muted' }}">
+                        {{ sender }}
                     </span>
                 </span>
             </div>

@@ -1,15 +1,7 @@
 <!-- highlight -->
-**You can see who a message really comes from, in the list and in the header.** A display name is
-whatever the sender typed, so `"PayPal" <service@evil.example>` read exactly like the real thing in
-a list that printed names only. Every row now shows the domain of the From address beside the name
-(`PayPal evil.example`) — the registrable domain, so `paypal.com.evil.example` shows as
-`evil.example`, and an internationalised lookalike shows in its `xn--` form. The name is what gives
-way when the column is narrow, never the domain, and the sender column is a little wider to make
-room. A conversation in which the same name writes from two domains lists both, instead of merging
-them into one. Sent and Drafts still name who the mail is *for*, with no domain.
-
-In an open message the address is now as large and dark as the name, and wraps instead of being
-cut off at the end, where the domain is.
+**An open message shows who it really comes from.** A display name is whatever the sender typed,
+so `"PayPal" <service@evil.example>` read exactly like the real thing. The address is now as large
+and dark as the name, and wraps instead of being cut off at the end, where the domain is.
 
 When a message's `Reply-To` points at a different organisation than its `From`, the header says so
 (*Replies go to …*). That is a line of fact, not a warning, on purpose: newsletters and ticket

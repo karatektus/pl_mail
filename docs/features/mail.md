@@ -835,19 +835,8 @@ leaves the conversation you are reading open.
 ## Who a message is from
 
 A sender's name is whatever they typed, so a mail signed **PayPal** can come from anywhere. The
-part they cannot choose is the domain of their address, and plMail prints it where you already
-look.
-
-**In the list**, every sender carries their domain beside the name: `PayPal evil.example`. It is
-the organisation's domain rather than the whole host, so `paypal.com.evil.example` shows as
-`evil.example`, not as something that starts with the brand it imitates. A domain written in
-another script shows in its `xn--` form, which is how a lookalike gives itself away. When the
-column is narrow the name is shortened, never the domain. If the same name writes from two
-domains in one conversation, both are listed. Your own messages say *me*, and Sent and Drafts name
-who the mail is for, with no domain.
-
-**In an open message**, the address is printed as large and as dark as the name, and wraps rather
-than being cut off at the end, which is where the domain is.
+part they cannot choose is their address, so an open message prints it as large and as dark as
+the name, and wraps it rather than cutting it off at the end, which is where the domain is.
 
 **Replies go to …** appears under the sender when the message's Reply-To points at a different
 organisation than its From address — the address your answer would actually go to. It is a line
