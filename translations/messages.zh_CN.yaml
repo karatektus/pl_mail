@@ -2532,6 +2532,8 @@ message:
         read_at: '阅读时间：%datetime%'
         requested: '%sender% 请求在你阅读此邮件时收到通知。'
         send: '发送回执'
+    reply_to:
+        elsewhere: '回复将发送至 %address%'
     save_to: '保存到'
     security:
         mismatch:

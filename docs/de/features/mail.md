@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:df37980670901d8064e9a02c3c0316ebd5549b93 -->
+<!-- translated-from: features/mail.md sha1:a8d8bec6e9cb8b52913618e4a0001df12cb16f02 -->
 
 # Mail
 
@@ -917,6 +917,32 @@ zurückbringt, wie du es eingerichtet hattest.
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
+## Von wem eine Mail kommt
+
+Den Absendernamen kann jeder frei eintippen, also kann eine Mail mit **PayPal** von überall
+kommen. Was der Absender nicht wählen kann, ist die Domain seiner Adresse, und die zeigt plMail dort, wo du
+ohnehin hinschaust.
+
+**In der Liste** steht neben jedem Absender seine Domain: `PayPal evil.example`. Es ist die Domain
+der Organisation, nicht der ganze Host, also wird `paypal.com.evil.example` als `evil.example`
+angezeigt und nicht als etwas, das mit der nachgeahmten Marke beginnt. Eine Domain in einer anderen
+Schrift erscheint in ihrer `xn--`-Form, und daran verrät sich ein Doppelgänger. Ist die Spalte
+schmal, wird der Name gekürzt, nie die Domain. Schreibt derselbe Name in einer Unterhaltung von zwei
+Domains, stehen beide da. Deine eigenen Nachrichten heißen *ich*, und Gesendet und Entwürfe nennen,
+an wen die Mail geht, ohne Domain.
+
+**In einer geöffneten Mail** steht die Adresse so groß und so dunkel wie der Name und bricht um,
+statt am Ende abgeschnitten zu werden, denn dort steht die Domain.
+
+**Antworten gehen an …** erscheint unter dem Absender, wenn das Reply-To der Mail auf eine andere
+Organisation zeigt als ihre Absenderadresse — die Adresse, an die deine Antwort tatsächlich ginge.
+Das ist eine sachliche Zeile, keine Warnung: Newsletter und Ticketsysteme antworten ständig von
+woanders, und eine Warnung bei gewöhnlicher Mail bringt dir bei, genau die eine zu übergehen, auf
+die es ankommt. Hält plMail einen Namen tatsächlich für vorgetäuscht, sagt es das wie bisher in
+einem Banner über der Nachricht.
+
+Eine Einstellung gibt es nicht; das gilt für alle.
 
 ## Externe Bilder
 

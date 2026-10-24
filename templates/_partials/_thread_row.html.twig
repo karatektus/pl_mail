@@ -444,20 +444,22 @@ be a worse regression than the one this feature fixes.
            siblings: the subject lives two wrappers down, beside the preview. So
            both wrappers go `display: contents` in that band and their children
            become cells of this grid — sender and subject on the first row, the
-           preview spanning the second. The sender column is the 10rem the
-           one-line layout gives it, so subjects line up down the list.
+           preview spanning the second. The sender column is the 13rem the
+           one-line layout gives it, so subjects line up down the list. It was
+           10rem until each sender carried a domain beside the name (#153);
+           both widths moved together.
 
            `@xl:@max-rowwide:` is a range, not a step: nothing here has to be
            undone again at `@rowwide`. #}
         <div data-row-layout
              class="flex-1 min-w-0 flex flex-col
-                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[10rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
+                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[13rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
                     @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
 
             {# Row 1 (three lines) / first cell of row 1 (two lines) / sender
                column (one line). `min-w-0` is for the middle one: a grid item
                will not shrink under its content without it, and a long sender
-               would push the column past its 10rem. #}
+               would push the column past its 13rem. #}
             <div data-row-sender class="min-w-0 flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-52 @rowwide:flex-shrink-0">
                 {# Sender and its marker travel together in one group, so the
                    badge sits to the LEFT of the name at both container widths.

@@ -2883,6 +2883,8 @@ message:
         read_at: 'Lu le %datetime%'
         requested: '%sender% a demandé à être prévenu quand vous lirez ce message.'
         send: 'Envoyer l’accusé'
+    reply_to:
+        elsewhere: 'Les réponses iront à %address%'
     save_to: 'Enregistrer dans'
     security:
         mismatch:
