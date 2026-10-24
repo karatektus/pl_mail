@@ -403,6 +403,15 @@
                                                 {% endblock %}
                                             {% endembed %}
 
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.sidebar.heading'|trans,
+                                                subheading: 'settings.sidebar.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sidebar_more.html.twig' %}
+                                                {% endblock %}
+                                            {% endembed %}
+
                                             {# Last on the page: the way back from "Don't show
                                                this after updates" in the dialog itself (#165). #}
                                             {% embed 'settings/_card.html.twig' with {
@@ -448,15 +457,6 @@
                                                         tabs:        categoryTabs,
                                                         switchedOff: app.user.categorySorting.switchedOff(),
                                                     } %}
-                                                {% endblock %}
-                                            {% endembed %}
-
-                                            {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.sidebar.heading'|trans,
-                                                subheading: 'settings.sidebar.subheading'|trans,
-                                            } %}
-                                                {% block body %}
-                                                    {% include 'settings/_sidebar_more.html.twig' %}
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>

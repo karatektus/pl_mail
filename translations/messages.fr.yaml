@@ -4597,6 +4597,13 @@ settings:
         'on': "Activés"
         show: "Afficher les raccourcis"
         subheading: "Des touches uniques pour ce que vous faites toute la journée."
+    sidebar:
+        heading: Barre latérale
+        hide_note: Pour masquer complètement un dossier, désactivez-le dans Libellés.
+        hint: Les dossiers cochés attendent derrière « Plus ». Les autres restent dans la barre latérale elle-même.
+        label: Derrière « Plus »
+        pinned: La boîte de réception reste toujours à sa place.
+        subheading: Les dossiers qui attendent derrière « Plus ».
     signature:
         for_alias: 'Signature pour %alias%'
         heading: Signatures

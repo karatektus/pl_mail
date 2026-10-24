@@ -3844,6 +3844,13 @@ settings:
         'on': '开启'
         show: '显示快捷键'
         subheading: '用单个按键完成日常操作。'
+    sidebar:
+        heading: 侧边栏
+        hide_note: 如需完全隐藏某个文件夹，请在“标签”中将其关闭。
+        hint: 勾选的文件夹会收在“更多”后面，其余的仍直接显示在侧边栏中。
+        label: 收在“更多”后面
+        pinned: 收件箱始终保持在原位。
+        subheading: 哪些文件夹收在“更多”后面。
     signature:
         for_alias: '%alias% 的签名'
         heading: '签名'

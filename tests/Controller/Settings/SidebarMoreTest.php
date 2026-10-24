@@ -390,6 +390,36 @@ final class SidebarMoreTest extends WebTestCase
     }
 
     /**
+     * The warning that a draft's send finally failed (#125) rides on the
+     * Drafts row, and goes with it behind More.
+     *
+     * It is rendered at every count and hidden at zero, so that ui--sidebar can
+     * find it after a counts refresh — which is what lets this assert it on a
+     * user with no drafts at all. Whether it shows, and when, is
+     * UnsentDraftWarningTest's; this pins only that the row carries it in both
+     * places and that no other row does.
+     */
+    public function testTheUnsentWarningStaysOnDraftsWhereverItSits(): void
+    {
+        foreach ([[], [SidebarRow::Drafts]] as $behind) {
+            $this->choose($behind);
+
+            $page  = $this->client->request('GET', '/mail/inbox');
+            $where = [] === $behind ? 'Drafts on top' : 'Drafts behind More';
+
+            self::assertCount(1, $page->filter('#sidebar [data-sidebar-row="drafts"] [data-unsent-mark]'), $where);
+            self::assertCount(1, $page->filter('#sidebar [data-unsent-mark]'), $where . ': on Drafts alone');
+
+            // The presence companion: Drafts really is in the group it was put in.
+            self::assertCount(
+                [] === $behind ? 0 : 1,
+                $page->filter('#sidebar [data-sidebar-more] [data-sidebar-row="drafts"]'),
+                $where,
+            );
+        }
+    }
+
+    /**
      * More comes back open when you are somewhere inside it — the sidebar is
      * re-rendered on every navigation, so a closed one would snap shut on the
      * row just clicked. "Inside it" is whatever the person put there.
