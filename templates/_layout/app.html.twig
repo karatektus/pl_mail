@@ -38,6 +38,11 @@
          being a Twig global rather than a controller variable. Read through
          `prefersHour12()` in assets/clock_format.js. #}
       data-clock-hour12="{{ clock.is12Hour ? 'true' : 'false' }}"
+      {# The preview-lines setting as a count, for the one thing its CSS
+         variables cannot do: move the width at which a list row goes to one
+         line. A container query cannot read a custom property. See the
+         `row-line:` variant in app.css. #}
+      data-list-preview-lines="{{ appearance().previewLines }}"
       style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">

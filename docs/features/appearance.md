@@ -91,7 +91,7 @@ already did before these controls existed, so nothing moves until you change som
 | **Account corner** | The coloured triangle in a row's lower-left saying which account the message arrived on. On by default; it is only ever drawn in a list that mixes accounts anyway |
 | **Sender discs** | The coloured circle carrying the sender's initial — see the trap below, this one does not disappear |
 | **Unread count on inbox tabs** | The number beside each category tab's name: how many conversations in it hold unread mail. On by default. Off hides the number only; the tint on a tab's icon and the "3 new" pill stay |
-| **Preview lines** | **None**, **One line** or **Two lines** of the message body under the subject |
+| **Preview lines** | **None**, **One line** or **Two lines** of the message body. With **One line**, a list of medium width or more shows each message on one slightly tighter line, the preview following the subject, as Gmail does. On a phone, and with the other two settings until the list is very wide, the preview sits under the subject |
 | **Unread rows** | **Subtle**, **Standard** or **Strong** — how loudly the list says a row is unread |
 
 **Unread rows** changes the tint behind the row and the accent bar beside it, and nothing else. The

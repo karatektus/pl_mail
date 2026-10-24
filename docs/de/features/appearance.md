@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:154002d7c9d4ebbdc4322a126e5b787da7586fca -->
+<!-- translated-from: features/appearance.md sha1:3c11f57d064a77c33257f4a98531938d0fa22590 -->
 
 # Darstellung
 
@@ -103,7 +103,7 @@ die Liste schon vor diesen Bedienelementen tat — es bewegt sich also nichts, b
 | **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
 | **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
 | **Ungelesen-Zahl auf den Posteingangs-Tabs** | Die Zahl neben dem Namen jedes Kategorie-Tabs: in wie vielen Unterhaltungen darin Ungelesenes liegt. Standardmäßig an. Aus blendet nur die Zahl aus; die Farbe auf dem Symbol eines Tabs und das Fähnchen „3 neu“ bleiben |
-| **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext unter dem Betreff |
+| **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext. Mit **Eine Zeile** steht ab mittlerer Listenbreite jede Nachricht auf einer etwas engeren Zeile, die Vorschau hinter dem Betreff, wie bei Gmail. Auf dem Handy, und bei den anderen beiden Einstellungen, bis die Liste sehr breit ist, steht die Vorschau unter dem Betreff |
 | **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
 
 **Ungelesene Zeilen** ändert den Farbton hinter der Zeile und den Akzentbalken daneben, und sonst

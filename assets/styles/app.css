@@ -3679,6 +3679,13 @@ html {
     padding-block: var(--surface-list-row-y);
 }
 
+/* The same row at one preview line and one line wide (`row-snug:`): 60% of
+   the density's padding, so it keeps following the density setting and only
+   sits closer, as Gmail's list does. */
+@utility list-row-y-snug {
+    padding-block: calc(var(--surface-list-row-y) * 0.6);
+}
+
 /* One message block in the reading pane. Comfortable is the old `py-4`. */
 @utility reading-y {
     padding-block: var(--surface-reading-row-y);
@@ -5273,6 +5280,67 @@ label:has(> input.sr-only) {
 */
 @theme {
     --container-rowwide: 75rem;
+    --container-rowsnug: 48rem;
+}
+
+/*
+   `row-line:` and `row-band:`, the one-line and the two-line row. The row
+   template writes these rather than `@rowwide:` and `@xl:@max-rowwide:`,
+   because where one line starts depends on the preview-lines setting.
+
+   With ONE preview line the row is one line from `--container-rowsnug` (48rem)
+   up, the way Gmail's list reads: sender, subject, and the preview after the
+   subject on the same line, cut wherever the row ends. That is the trade the
+   75rem line above refused for everybody, and it is still refused for the
+   other two settings: two preview lines need a line of their own, and with
+   none the two-line row loses nothing by keeping its band. Choosing one line
+   is choosing the denser list.
+
+   48rem rather than `@xl`: at 36rem the sender and date columns leave the
+   subject and the preview about 80px each ("E2E Remot…", "Your weekly …"),
+   which is not a preview of anything. At 48rem they share about 350px. Between
+   the two this setting keeps the two-line band like the others.
+
+   `row-snug:` is the one-line-from-48rem case on its own, for what only it
+   gets: a tighter row (`list-row-y-snug`).
+
+   The setting comes from `data-list-preview-lines` on <html>, because a
+   container query cannot read a custom property. The appearance settings
+   rewrite it as you click, like the variables. A page without the attribute
+   gets the 75rem line.
+*/
+@custom-variant row-line {
+    @container (width >= theme(--container-rowwide)) {
+        @slot;
+    }
+
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-band {
+    &:where(html:not([data-list-preview-lines="1"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-snug {
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
 }
 
 /* The account corner: the coloured triangle in a row's lower-left. */

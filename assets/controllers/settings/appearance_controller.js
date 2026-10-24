@@ -182,6 +182,16 @@ export default class extends Controller {
         this.queue();
     }
 
+    /**
+     * Preview lines: the variables, and the count on <html> that decides where
+     * a list row goes to one line (`row-line:` in app.css). No variable can do
+     * that part — a container query does not read custom properties.
+     */
+    applyPreviewLines(event) {
+        this.root.dataset.listPreviewLines = event.currentTarget.value;
+        this.applyVars(event);
+    }
+
     setVars(json) {
         if (!json) {
             return;

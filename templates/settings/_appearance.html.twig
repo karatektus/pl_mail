@@ -780,7 +780,7 @@
                                     <input type="radio" name="previewLines" class="peer sr-only" value="{{ lines }}"
                                            data-settings--appearance-field="previewLines"
                                            data-css-vars="{{ vars|json_encode }}"
-                                           data-action="change->settings--appearance#applyVars"
+                                           data-action="change->settings--appearance#applyPreviewLines"
                                            aria-label="{{ ('settings.appearance.list.previewLines' ~ lines)|trans }}"
                                         {{ a.previewLines == lines ? 'checked' : '' }}>
                                     <span class="{{ segText }}">
