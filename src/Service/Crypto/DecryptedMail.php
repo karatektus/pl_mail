@@ -7,6 +7,7 @@ namespace App\Service\Crypto;
 use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Exception\DecryptedMailRefused;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Ai\AiFeature;
@@ -28,7 +29,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Throwable;
 use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * The decrypted text of end-to-end encrypted mail, for an account that keeps
@@ -94,7 +94,7 @@ final readonly class DecryptedMail
         }
 
         try {
-            $parsed = ImapMessage::fromString(
+            $parsed = MessageParser::fromString(
                 $mime,
                 Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
             );

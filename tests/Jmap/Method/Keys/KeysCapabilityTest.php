@@ -238,6 +238,26 @@ final class KeysCapabilityTest extends JmapTestCase
         self::assertNotNull($message->rawPath);
     }
 
+    /**
+     * A message from an archive whose Date line is there three times is
+     * imported, not refused as "not an RFC 5322 message" (#357).
+     */
+    public function testAnImportedMessageWithARepeatedDateIsTaken(): void
+    {
+        $dates  = "Date: Mon, 12 Oct 2026 09:00:00 +0000\r\nDate: Mon, 12 Oct 2026 10:00:00 +0000\r\nDate: Mon, 12 Oct 2026 11:00:00 +0000\r\n";
+        $result = $this->import([
+            'blobId'     => $this->upload("From: Ada <ada@example.test>\r\nTo: {$this->account->email}\r\nSubject: Dated thrice\r\nMessage-ID: <imp-3@example.test>\r\n{$dates}\r\nHello from an archive."),
+            'mailboxIds' => [$this->mailboxIdFor(LabelRole::Inbox) => true],
+        ]);
+
+        self::assertArrayHasKey('a', $result['created'] ?? [], json_encode($result['notCreated'] ?? []) ?: '');
+
+        $message = $this->em->find(Message::class, (int) $result['created']['a']['id']);
+
+        self::assertSame('Dated thrice', $message->subject);
+        self::assertSame('2026-10-12 09:00:00', $message->sentAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
+    }
+
     public function testAnImportedDraftIsSentByteForByte(): void
     {
         $body   = "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 7bit\r\n\r\nBuilt on a phone, not here.\r\n";

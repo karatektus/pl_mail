@@ -6,6 +6,7 @@ namespace App\Jmap\Mail;
 
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Label\LabelBinding;
@@ -107,7 +108,7 @@ final readonly class EmailImporter
         }
 
         try {
-            $mime = ImapMessage::fromString($raw, Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]));
+            $mime = MessageParser::fromString($raw, Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]));
         } catch (Throwable $exception) {
             throw new MethodException('invalidProperties', 'The blob is not an RFC 5322 message: ' . $exception->getMessage(), ['properties' => ['blobId']]);
         }

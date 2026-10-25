@@ -6,6 +6,7 @@ namespace App\Service\Crypto;
 
 use App\Domain\Enum\Crypto\ContactKeyOrigin;
 use App\Domain\Enum\Crypto\ContactKeyOutcome;
+use App\Domain\Helper\MessageParser;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -17,7 +18,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Picks up the keys an incoming message brings for its sender: an Autocrypt
@@ -249,7 +249,7 @@ final readonly class ContactKeyCollector
         }
 
         try {
-            $parsed = ImapMessage::fromString(
+            $parsed = MessageParser::fromString(
                 (string) file_get_contents($path),
                 Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
             );
