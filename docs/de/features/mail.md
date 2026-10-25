@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:a5fad6bdff12db7653da215c206b8b2e47986059 -->
+<!-- translated-from: features/mail.md sha1:1a0f98c54d1f9805d416ef135c1677dae8954e97 -->
 
 # Mail
 
@@ -1166,6 +1166,9 @@ Schreibst du direkt in der Konversation, bekommst du eine **verkürzte Kopfzeile
 Bcc und Betreff. Bei einer Antwort änderst du die Empfängerin selten, bei einer Weiterleitung
 immer, und genau sie fehlt einer Weiterleitung ja noch. Also steht dort das Feld und nicht eine
 Zeile, die davon erzählt.
+
+Eine Weiterleitung nimmt die Anhänge des Originals mit, schon angehängt und wie jeder andere
+entfernbar; Bilder, die zum Text gehören, bleiben im Zitat. Eine Antwort nimmt sie nicht mit.
 
 Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
 es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →

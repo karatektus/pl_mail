@@ -1057,6 +1057,9 @@ From, Cc, Bcc and the subject folded away behind the chevron beside it. Replying
 retargeting — but forwarding always does, and the recipient is the one thing a forward is missing,
 so the field is the first thing under the caret rather than a line of text describing it.
 
+A forward carries the original's attachments with it, already attached and removable like any
+other; pictures that are part of the body stay in the quote. A reply does not carry them.
+
 A forward opens with the original folded behind the **show quoted text** pill. If you would rather
 see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
 the default, and either way the quote counts as the message's content: sending a forward without a

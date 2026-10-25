@@ -21,6 +21,7 @@ use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
+use App\Service\Mail\ForwardedAttachments;
 use App\Service\Mail\InvalidScheduleException;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
@@ -90,6 +91,7 @@ class ComposeController extends AbstractController
         private readonly ReplyDraftBuilder       $replyDrafts,
         private readonly DraftPersister          $drafts,
         private readonly DraftAttachmentService  $draftAttachments,
+        private readonly ForwardedAttachments    $forwardedAttachments,
         private readonly DraftAddressFields      $addressFields,
         private readonly SenderResolver          $senders,
         private readonly MessageEraser           $eraser,
@@ -304,6 +306,16 @@ class ComposeController extends AbstractController
         // whether you meant to send an empty mail — about the forward in it.
         // The context rides in the URL, so it survives the trip.
         $ctx = $ctx->withMode(ComposeContext::MODE_FORWARD);
+
+        // The files go with it. Saved first, like the signed reply, because
+        // the bytes are bucketed by message id and a draft the window has
+        // merely built does not have one — the window then edits that row
+        // instead of creating one on its first autosave. A mail with nothing
+        // to attach stays unsaved, as before.
+        if (true === $this->forwardedAttachments->has($original)) {
+            $this->drafts->save($draft, $account);
+            $this->forwardedAttachments->copy($original, $draft);
+        }
 
         $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->tokenFor($draft, $account));
