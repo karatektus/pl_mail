@@ -209,6 +209,13 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
     private function isMisfiledBody(Message $message, MessagePart $part): bool
     {
+        // An attachment encrypted in the browser for a sealed draft (#28) is
+        // ciphertext under whatever name it has, and its message keeps no
+        // body on purpose: nothing about it is a body webklex misfiled.
+        if (true === $part->sealed) {
+            return false;
+        }
+
         if (false === $this->detector->looksLikeStoredHash($part->filename)) {
             return false;
         }

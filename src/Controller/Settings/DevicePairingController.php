@@ -50,7 +50,12 @@ final class DevicePairingController extends AbstractController
         // reachable by a cross-site POST.
         $this->assertCsrf($request, 'device-pair');
 
-        ['code' => $code, 'expiresAt' => $expiresAt] = $this->pairing->issue($user);
+        // The keyring for the new device, sealed in this browser under a key
+        // the server never sees (assets/controllers/settings/device_keys_controller.js).
+        $keys = $request->request->get('keys');
+        $keys = is_string($keys) && '' !== $keys ? $keys : null;
+
+        ['code' => $code, 'expiresAt' => $expiresAt] = $this->pairing->issue($user, $keys);
 
         // The configured public address where there is one, and the one this
         // browser is on otherwise — see PublicUrlSetting::forDevices() for why
@@ -64,9 +69,13 @@ final class DevicePairingController extends AbstractController
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
             return $this->render('device_pair/_pairing.stream.html.twig', [
-                'qr' => $this->qrCodes->dataUri($uri),
+                // With keys, the QR code carries the transfer key in its
+                // fragment, which only the browser has: it draws the code
+                // itself. Without, the server draws it, as before.
+                'qr' => null === $keys ? $this->qrCodes->dataUri($uri) : null,
                 'uri' => $uri,
                 'expiresAt' => $expiresAt,
+                'withKeys' => null !== $keys,
             ]);
         }
 

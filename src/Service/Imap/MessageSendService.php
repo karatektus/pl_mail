@@ -4,6 +4,7 @@ namespace App\Service\Imap;
 
 use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\ImapConnectionFactory;
@@ -14,10 +15,17 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SendingKey;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\Mime\DataImageEmbedder;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
+use App\Service\Mail\Mime\SealedEntityPart;
+use App\Service\Mail\RawMessageResolver;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendFailureException;
 use App\Domain\Exception\SendOutcomeUnknownException;
@@ -39,6 +47,9 @@ use Symfony\Component\Mime\Email;
  */
 class MessageSendService
 {
+    /** The outer subject of a message whose real one is encrypted. */
+    public const string PROTECTED_SUBJECT = '...';
+
     public function __construct(
         private readonly MailboxRepository       $mailboxRepository,
         private readonly EntityManagerInterface  $em,
@@ -50,6 +61,12 @@ class MessageSendService
         private readonly MailChangeRecorder      $changes,
         private readonly MessageThreader         $threader,
         private readonly ThreadLabelSynchronizer $threadLabels,
+        private readonly SealGuard               $sealGuard,
+        private readonly SealedDrafts            $sealedDrafts,
+        private readonly AutocryptHeader         $autocrypt,
+        private readonly SendingKey              $sendingKeys,
+        private readonly RawMessageResolver      $rawMessages,
+        private readonly DraftAttachmentService  $draftAttachments,
         private readonly LoggerInterface         $logger = new NullLogger(),
         private readonly DataImageEmbedder       $dataImages = new DataImageEmbedder(),
     ) {
@@ -70,6 +87,19 @@ class MessageSendService
         $account = $message->account;
 
         if (null === $account) {
+            return false;
+        }
+
+        // A message the browser built goes out as it was built or not at all:
+        // the server holds no key to build it again. See SealGuard.
+        $refusal = $this->sealGuard->refusal($message);
+
+        if (null !== $refusal) {
+            $this->logger->warning('MessageSendService: a message built in the browser was not sent: {reason}', [
+                'reason'  => $refusal,
+                'message' => $message->id,
+            ]);
+
             return false;
         }
 
@@ -204,6 +234,10 @@ class MessageSendService
      */
     private function recordDelivery(Message $message, Account $account, Email $email, MailSenderInterface $sender): void
     {
+        if (null !== $message->outgoingSeal) {
+            $this->keepWhatWasSent($message, $email);
+        }
+
         // API senders file their own Sent copy; only append manually for SMTP.
         //
         // Its own try, so an unreachable IMAP server costs the Sent copy and
@@ -382,6 +416,13 @@ class MessageSendService
             $subject = '';
         }
 
+        // Header protection (RFC 9788): the browser put the real subject
+        // inside the encryption, and the outside says only what Thunderbird
+        // and others show for it. The row keeps the subject the person wrote.
+        if (true === ($message->outgoingSeal['protectedSubject'] ?? false)) {
+            $subject = self::PROTECTED_SUBJECT;
+        }
+
         $fromAddress = $message->fromAddress;
 
         if (null === $fromAddress || '' === $fromAddress) {
@@ -402,6 +443,7 @@ class MessageSendService
         $this->applyPriority($message, $email);
         $this->applyReceiptRequest($message, $email, $fromAddress);
         $this->applyThreadingHeaders($message, $email);
+        $this->applyAutocrypt($account, $email, $fromAddress);
 
         $toAddresses = $message->toAddresses;
         if (null !== $toAddresses) {
@@ -422,6 +464,16 @@ class MessageSendService
             foreach ($bccAddresses as $addr) {
                 $email->addBcc($this->toAddress($addr));
             }
+        }
+
+        // Built in the browser: the body is that message, byte for byte, and
+        // nothing on the row — body, parts — is any part of it.
+        $entity = $this->sealedDrafts->entityOf($message);
+
+        if (null !== $entity) {
+            $email->setBody(new SealedEntityPart($entity));
+
+            return $email;
         }
 
         if ($message->bodyHtml) {
@@ -455,7 +507,73 @@ class MessageSendService
             }
         }
 
+        $this->attachPublicKey($account, $email, $fromAddress);
+
         return $email;
+    }
+
+    /**
+     * The sender's public key in an Autocrypt header, so the program on the
+     * other end can answer encrypted. See AutocryptHeader; nothing is written
+     * when the person has switched it off or has no key for this address.
+     */
+    private function applyAutocrypt(Account $account, Email $email, string $fromAddress): void
+    {
+        if (null === $account->usr) {
+            return;
+        }
+
+        $header = $this->autocrypt->for($account->usr, $fromAddress);
+
+        if (null !== $header) {
+            $email->getHeaders()->addTextHeader('Autocrypt', $header);
+        }
+    }
+
+    /**
+     * The sender's public key as a file, when they asked for that (off by
+     * default — User::$attachPublicKey). Mail the browser built carries it
+     * inside, where the browser put it; this is for the mail built here.
+     */
+    private function attachPublicKey(Account $account, Email $email, string $fromAddress): void
+    {
+        if (null === $account->usr || false === $account->usr->attachPublicKey) {
+            return;
+        }
+
+        $key = $this->sendingKeys->for($account->usr, $fromAddress);
+
+        if (null !== $key) {
+            $email->attach($key->publicKey, sprintf('OpenPGP_0x%s.asc', strtoupper(substr($key->fingerprint, -16))), 'application/pgp-keys');
+        }
+    }
+
+    /**
+     * What a message built in the browser leaves behind once it has gone.
+     *
+     * The bytes that went out become the row's raw source: for encrypted mail
+     * that is the only copy of the text there is, and the reading pane opens
+     * it the way it opens any encrypted mail. Attachments the browser sealed
+     * are ciphertext nobody could open as files, and for encrypted mail every
+     * attachment is inside the message already — so those go. What is left of
+     * a signed or plain message's attachments is what it sent.
+     */
+    private function keepWhatWasSent(Message $message, Email $email): void
+    {
+        // Encrypted mail drops every attachment — they are inside it — unless
+        // its account keeps decrypted mail, which keeps the readable ones.
+        $encrypted = SealGuard::KIND_ENCRYPTED === ($message->outgoingSeal['kind'] ?? null)
+            && PlaintextSource::Client !== $message->plaintextSource;
+
+        $this->rawMessages->store($message, $email->toString());
+
+        foreach ($message->messageParts->toArray() as $part) {
+            if (true === $encrypted || true === $part->sealed) {
+                $this->draftAttachments->remove($part);
+            }
+        }
+
+        $this->sealedDrafts->sent($message);
     }
 
     /**

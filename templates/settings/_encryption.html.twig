@@ -1,0 +1,400 @@
+{#
+settings/_encryption.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Encryption: the keyring of issue #28, as far as a person ever needs
+to see it.
+
+Everything here is drawn and driven by settings--encryption, because nothing
+on it can be decided by the server: whether the keyring is open, which recovery
+copy belongs to this browser, what a key's addresses are — all of that is
+known only once the browser has opened it. The markup is the frame, in Twig so
+its words come from the catalogues; the script fills the parts that depend on
+the keyring and shows the forms that apply.
+
+An account that signs in only through single sign-on has no password for
+the keyring to hang off (phase 6e): the status card offers it "Set up
+encryption" with a passphrase of its own instead, and once that is done a
+card to change the passphrase follows the status. Neither is shown to anybody
+whose keyring hangs off the password. A session whose keyring is shut is
+asked through the shared unlock dialog (crypto/_unlock_dialog.html.twig),
+here as everywhere else; the status card keeps a button to ask again.
+
+Four cards, most comfortable first: whether it works, the recovery phrase,
+the devices that can reopen it on their own, and — folded away — the keys
+themselves for whoever wants to import, export or replace one. Then the
+person's S/MIME certificates (phase 6c), which live on the same keyring: a
+PKCS#12 file is opened in the browser and its key wrapped there, so this card
+is the script's as well. A fifth lists
+contacts' keys, which is a different thing — other people's public keys, no
+keyring involved — and is the server's own frame (settings/_contact_keys).
+After the sending switches comes the Web Key Directory (settings/_wkd), also
+the server's: which of the person's keys plMail publishes for others to find.
+
+Accepts nothing: what it needs is the signed-in user and the routes.
+#}
+{% set button = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
+{% set primaryButton = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
+{# The fields' classes come from _partials/_field_classes.html.twig, which the
+   form theme draws from too: these cards are not Symfony forms, and their
+   hand-written copy had drifted from every other field in Settings. Strings
+   in the context rather than the macros themselves, because an {% embed %}
+   block does not see this template's imports. #}
+{% import '_partials/_field_classes.html.twig' as fields %}
+{% set field = fields.input() %}
+{% set textarea = fields.textarea() %}
+{% set fileField = fields.file() %}
+{% set fieldLabel = fields.label() %}
+
+<div data-controller="settings--encryption"
+     data-settings--encryption-state-url-value="{{ path('app_keyring_state') }}"
+     data-settings--encryption-unlock-url-value="{{ path('app_keyring_unlock_current') }}"
+     data-settings--encryption-prelogin-url-value="{{ path('app_login_prelogin') }}"
+     data-settings--encryption-csrf-value="{{ csrf_token('keyring') }}"
+     data-settings--encryption-user-id-value="{{ app.user.id }}"
+     data-settings--encryption-email-value="{{ app.user.email }}"
+     data-settings--encryption-locale-value="{{ app.request.locale }}"
+     data-settings--encryption-min-length-value="{{ constant('App\\Entity\\User\\User::PASSWORD_MIN_LENGTH') }}"
+     data-settings--encryption-messages-value="{{ {
+         statusOpen:        'encryption.status.open'|trans,
+         statusLocked:      'encryption.status.locked'|trans,
+         statusLockedPassphrase: 'encryption.status.locked_passphrase'|trans,
+         statusUnset:       'encryption.status.unset'|trans,
+         setupDone:         'encryption.setup.done'|trans,
+         tooShort:          'encryption.setup.too_short'|trans({ '%min%': constant('App\\Entity\\User\\User::PASSWORD_MIN_LENGTH') }),
+         mismatch:          'encryption.setup.mismatch'|trans,
+         passphraseChanged: 'encryption.passphrase.done'|trans,
+         wrongRootPassphrase: 'encryption.unlock_dialog.wrong_passphrase'|trans,
+         statusDisabled:    'encryption.status.disabled'|trans,
+         statusInsecure:    'encryption.status.insecure'|trans,
+         statusBroken:      'encryption.status.broken'|trans,
+         statusLoading:     'encryption.status.loading'|trans,
+         keyCount:          'encryption.status.key_count'|trans,
+         phraseSaved:       'encryption.phrase.saved'|trans,
+         phraseMissing:     'encryption.phrase.missing'|trans,
+         phraseCreate:      'encryption.phrase.create'|trans,
+         phraseRecreate:    'encryption.phrase.recreate'|trans,
+         phraseInvalid:     'encryption.phrase.invalid'|trans,
+         phraseOpensNothing:'encryption.phrase.opens_nothing'|trans,
+         phraseRecovered:   'encryption.phrase.recovered'|trans,
+         phraseFileName:    'encryption.phrase.file_name'|trans,
+         phraseFileIntro:   'encryption.phrase.file_intro'|trans,
+         wrongPassword:     'encryption.unlock.wrong_password'|trans,
+         rateLimited:       'encryption.unlock.rate_limited'|trans,
+         devicesEmpty:      'encryption.devices.empty'|trans,
+         thisDevice:        'encryption.devices.this_device'|trans,
+         lastUsed:          'encryption.devices.last_used'|trans,
+         remove:            'encryption.devices.remove'|trans,
+         noDeviceStorage:   'encryption.devices.unavailable'|trans,
+         primary:           'encryption.keys.primary'|trans,
+         makePrimary:       'encryption.keys.make_primary'|trans,
+         renew:             'encryption.keys.renew'|trans,
+         compromised:       'encryption.keys.compromised'|trans,
+         confirmCompromised:'encryption.keys.confirm_compromised'|trans,
+         confirmRenew:      'encryption.keys.confirm_renew'|trans,
+         created:           'encryption.keys.created'|trans,
+         expires:           'encryption.keys.expires'|trans,
+         statusActive:      'encryption.keys.status.active'|trans,
+         statusObsolete:    'encryption.keys.status.obsolete'|trans,
+         statusCompromised: 'encryption.keys.status.compromised'|trans,
+         originGenerated:   'encryption.keys.origin.generated'|trans,
+         originImported:    'encryption.keys.origin.imported'|trans,
+         lockedKey:         'encryption.keys.locked'|trans,
+         importDone:        'encryption.import.done'|trans,
+         importNoMatch:     'encryption.import.no_match'|trans,
+         wrongPassphrase:   'encryption.import.wrong_passphrase'|trans,
+         hardwareKey:       'encryption.import.hardware_key'|trans,
+         notAKey:           'encryption.import.not_a_key'|trans,
+         exportFileName:    'encryption.export.file_name'|trans,
+         smimeEmpty:        'encryption.smime.empty'|trans,
+         smimeImported:     'encryption.smime.imported'|trans,
+         smimeValidUntil:   'encryption.smime.valid_until'|trans,
+         smimeExpired:      'encryption.smime.expired'|trans,
+         smimeIssuedBy:     'encryption.smime.issued_by'|trans,
+         smimeRetired:      'encryption.smime.retired'|trans,
+         smimeExport:       'encryption.smime.export'|trans,
+         smimeRemove:       'encryption.smime.remove'|trans,
+         smimeConfirmRemove:'encryption.smime.confirm_remove'|trans,
+         smimeExportPasswordMissing: 'encryption.smime.export_password_missing'|trans,
+         smimeWrongPassword:'encryption.smime.wrong_password'|trans,
+         smimeNotPkcs12:    'encryption.smime.not_pkcs12'|trans,
+         smimeLegacy:       'encryption.smime.legacy'|trans,
+         smimeNotRsa:       'encryption.smime.not_rsa'|trans,
+         smimeNoKey:        'encryption.smime.no_key'|trans,
+         smimeNoMatch:      'encryption.smime.no_match'|trans,
+         failed:            'encryption.failed'|trans,
+         publishTo:         'encryption.publish.button'|trans({ '%host%': '%host%' }),
+         publishAgain:      'encryption.publish.again'|trans,
+         publicationRefresh:'encryption.publish.refresh'|trans,
+         publicationSaved:  'encryption.publish.saved'|trans,
+         confirmPublish:    'encryption.publish.confirm'|trans({ '%host%': '%host%', '%addresses%': '%addresses%' }),
+         publishRenewed:    'encryption.publish.renewed'|trans({ '%host%': '%host%', '%addresses%': '%addresses%' }),
+         publication: {
+             none:        'encryption.publish.state.none'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             unpublished: 'encryption.publish.state.unpublished'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             pending:     'encryption.publish.state.pending'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             published:   'encryption.publish.state.published'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+             revoked:     'encryption.publish.state.revoked'|trans({ '%host%': '%host%', '%email%': '%email%' }),
+         },
+     }|json_encode }}">
+
+    {# ── Status ──────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.status.heading'|trans,
+        subheading: 'encryption.status.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <p class="flex items-start gap-2 text-sm text-ink" data-settings--encryption-target="status" role="status">
+                <i class="fa-solid fa-spinner fa-spin text-ink-faint mt-0.5" aria-hidden="true"></i>
+                {{ 'encryption.status.loading'|trans }}
+            </p>
+
+            {# The dialog asks by itself when this page opens; this is for asking
+               again after it was cancelled. #}
+            <div hidden class="mt-4" data-settings--encryption-target="unlockForm">
+                <button type="button" class="{{ primaryButton }}" data-action="click->settings--encryption#unlock">{{ 'encryption.unlock.submit'|trans }}</button>
+            </div>
+
+            {# An account without a password, before it has a keyring: the
+               passphrase everything else will hang off. Checked here for
+               length and agreement, because the server never sees it. #}
+            <form hidden class="mt-4 max-w-md" data-settings--encryption-target="setupForm"
+                  data-action="submit->settings--encryption#setUp" novalidate>
+                <h3 class="text-sm font-semibold text-ink mb-1">{{ 'encryption.setup.heading'|trans }}</h3>
+                <p class="text-xs text-ink-muted mb-2">{{ 'encryption.setup.intro'|trans }}</p>
+                <p class="text-xs text-danger mb-3" role="note">
+                    <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ 'encryption.setup.warning'|trans }}
+                </p>
+                <label for="encryption-setup-passphrase" class="{{ fieldLabel }} mb-2">{{ 'encryption.setup.passphrase'|trans }}</label>
+                <input type="password" id="encryption-setup-passphrase" required autocomplete="new-password"
+                       data-settings--encryption-target="setupPassphrase" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                <label for="encryption-setup-repeat" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.setup.repeat'|trans }}</label>
+                <input type="password" id="encryption-setup-repeat" required autocomplete="new-password"
+                       data-settings--encryption-target="setupRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                <button type="submit" class="{{ primaryButton }} mt-3">{{ 'encryption.setup.submit'|trans }}</button>
+                <p hidden class="mt-2 text-xs text-danger" data-settings--encryption-target="setupError" role="alert"></p>
+            </form>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Encryption passphrase ───────────────────────────────────────────── #}
+    {# Only for a keyring that hangs off a passphrase, and only while it is
+       open: the current passphrase opens the keys, the new one wraps them, all
+       in the browser. Changing the sign-in password never comes near this. #}
+    <div hidden data-settings--encryption-target="passphraseCard">
+        {% embed 'settings/_card.html.twig' with {
+            heading:    'encryption.passphrase.heading'|trans,
+            subheading: 'encryption.passphrase.subheading'|trans,
+            padded:     true,
+            } %}
+            {% block body %}
+                <form class="max-w-md" data-action="submit->settings--encryption#changePassphrase" novalidate>
+                    <label for="encryption-passphrase-current" class="{{ fieldLabel }} mb-2">{{ 'encryption.passphrase.current'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-current" required autocomplete="off"
+                           data-settings--encryption-target="passphraseCurrent" class="{{ field }}">
+                    <label for="encryption-passphrase-new" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.passphrase.new'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-new" required autocomplete="new-password"
+                           data-settings--encryption-target="passphraseNew" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                    <label for="encryption-passphrase-repeat" class="{{ fieldLabel }} mt-3 mb-2">{{ 'encryption.passphrase.repeat'|trans }}</label>
+                    <input type="password" id="encryption-passphrase-repeat" required autocomplete="new-password"
+                           data-settings--encryption-target="passphraseRepeat" data-action="input->settings--encryption#clearValidity" class="{{ field }}">
+                    <button type="submit" class="{{ button }} mt-3">{{ 'encryption.passphrase.submit'|trans }}</button>
+                    <p hidden class="mt-2 text-xs" data-settings--encryption-target="passphraseResult" role="status"></p>
+                </form>
+            {% endblock %}
+        {% endembed %}
+    </div>
+
+    {# ── Recovery phrase ─────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.phrase.heading'|trans,
+        subheading: 'encryption.phrase.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <p class="text-sm text-ink mb-3" data-settings--encryption-target="phraseState"></p>
+
+                <button type="button" class="{{ button }}" data-settings--encryption-target="phraseCreate"
+                        data-action="click->settings--encryption#createPhrase"></button>
+
+                <div hidden class="mt-4" data-settings--encryption-target="phraseBox">
+                    <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.phrase.shown_once'|trans }}</p>
+                    <code data-settings--encryption-target="phraseWords"
+                          class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-sm font-mono text-ink select-all leading-relaxed"></code>
+                    <button type="button" class="{{ primaryButton }} mt-3" data-action="click->settings--encryption#downloadPhrase">
+                        <i class="fa-solid fa-download text-[11px]" aria-hidden="true"></i>
+                        {{ 'encryption.phrase.download'|trans }}
+                    </button>
+                </div>
+
+                <form hidden class="mt-6 max-w-md border-t border-line pt-4" data-settings--encryption-target="recoverForm"
+                      data-action="submit->settings--encryption#recover">
+                    <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.phrase.recover_heading'|trans }}</h3>
+                    <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.phrase.recover_hint'|trans }}</p>
+                    <textarea rows="3" required autocomplete="off" spellcheck="false"
+                              data-settings--encryption-target="recoverWords" class="{{ textarea }} font-mono"></textarea>
+                    <button type="submit" class="{{ primaryButton }} mt-2">{{ 'encryption.phrase.recover_submit'|trans }}</button>
+                    <p hidden class="mt-2 text-xs" data-settings--encryption-target="recoverResult" role="status"></p>
+                </form>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Known devices ───────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.devices.heading'|trans,
+        subheading: 'encryption.devices.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <ul class="divide-y divide-line" data-settings--encryption-target="devices"></ul>
+                <button type="button" hidden class="{{ button }} mt-3" data-settings--encryption-target="rememberDevice"
+                        data-action="click->settings--encryption#rememberDevice">
+                    {{ 'encryption.devices.remember'|trans }}
+                </button>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Keys ────────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.keys.heading'|trans,
+        subheading: 'encryption.keys.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <div class="grid gap-6 md:grid-cols-2">
+                    <form data-action="submit->settings--encryption#importKeys">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.import.heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.import.hint'|trans }}</p>
+                        <input type="file" accept=".asc,.gpg,.key,.txt,application/pgp-keys"
+                               data-settings--encryption-target="importFile"
+                               class="{{ fileField }} mb-2">
+                        <textarea rows="3" spellcheck="false" placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----"
+                                  data-settings--encryption-target="importText" class="{{ textarea }} font-mono text-xs"></textarea>
+                        <label class="{{ fieldLabel }} mt-3 mb-2" for="encryption-import-passphrase">{{ 'encryption.import.passphrase'|trans }}</label>
+                        <input type="password" id="encryption-import-passphrase" autocomplete="off"
+                               data-settings--encryption-target="importPassphrase" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">{{ 'encryption.import.submit'|trans }}</button>
+                        <p hidden class="mt-2 text-xs" data-settings--encryption-target="importResult" role="status"></p>
+                    </form>
+
+                    <form data-action="submit->settings--encryption#exportKeys">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.export.heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.export.hint'|trans }}</p>
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-export-passphrase">{{ 'encryption.export.passphrase'|trans }}</label>
+                        <input type="password" id="encryption-export-passphrase" required minlength="8" autocomplete="new-password"
+                               data-settings--encryption-target="exportPassphrase" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">
+                            <i class="fa-solid fa-download text-[11px]" aria-hidden="true"></i>
+                            {{ 'encryption.export.submit'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+                <details class="mt-6 border-t border-line pt-4">
+                    <summary class="text-xs font-semibold text-ink cursor-pointer">{{ 'encryption.keys.advanced'|trans }}</summary>
+                    <ul class="mt-3 divide-y divide-line" data-settings--encryption-target="keys"></ul>
+                </details>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── S/MIME certificates ─────────────────────────────────────────────── #}
+    {# The person's own certificates, from PKCS#12 files. Opened in the browser
+       (crypto/smime.js), the key wrapped under the user key there; the list
+       is the keyring's, so it is drawn by the script like the keys above. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.smime.heading'|trans,
+        subheading: 'encryption.smime.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <ul class="divide-y divide-line mb-4" data-settings--encryption-target="smimeList" data-testid="smime-certificates"></ul>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <form data-action="submit->settings--encryption#importSmime">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.smime.import_heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.smime.import_hint'|trans }}</p>
+                        <input type="file" required accept=".p12,.pfx,application/x-pkcs12"
+                               aria-label="{{ 'encryption.smime.file'|trans }}"
+                               data-settings--encryption-target="smimeFile"
+                               data-testid="smime-file"
+                               class="{{ fileField }} mb-2">
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-smime-password">{{ 'encryption.smime.password'|trans }}</label>
+                        <input type="password" id="encryption-smime-password" autocomplete="off"
+                               data-settings--encryption-target="smimePassword" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">{{ 'encryption.smime.import_submit'|trans }}</button>
+                        <p hidden class="mt-2 text-xs" data-settings--encryption-target="smimeResult" role="status" data-testid="smime-result"></p>
+                    </form>
+
+                    <div>
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.smime.export_heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.smime.export_hint'|trans }}</p>
+                        <label class="{{ fieldLabel }} mb-2" for="encryption-smime-export-password">{{ 'encryption.smime.export_password'|trans }}</label>
+                        <input type="password" id="encryption-smime-export-password" minlength="8" autocomplete="new-password"
+                               data-settings--encryption-target="smimeExportPassword" class="{{ field }}">
+                    </div>
+                </div>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Contacts' keys ──────────────────────────────────────────────────── #}
+    {# Not behind openOnly: public keys, which the server shows without the
+       keyring — see settings/_contact_keys. Its own request, so the four
+       cards above do not wait on it; not loading="lazy", because the card is
+       a link target from the reading banner, and a lazy frame below the fold
+       had nothing in it to scroll to. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'contact_keys.heading'|trans,
+        subheading: 'contact_keys.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <turbo-frame id="contact-keys" src="{{ path('app_contact_keys_index') }}">
+                <p class="text-sm text-ink-muted">{{ 'contact_keys.loading'|trans }}</p>
+            </turbo-frame>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Decrypted mail on this server ───────────────────────────────────── #}
+    {# Phase 3b of #28: off unless chosen, per account. See DecryptedMail. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.decrypted.heading'|trans,
+        subheading: 'encryption.decrypted.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            {{ include('settings/_decrypted_mail.html.twig') }}
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Sending ─────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.sending.heading'|trans,
+        subheading: 'encryption.sending.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            {{ include('settings/_encryption_sending.html.twig', { user: app.user }) }}
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Web Key Directory ───────────────────────────────────────────────── #}
+    {# Phase 6d of #28: the person's key, published under the installation's
+       own domains for mail programs to find. See WkdDirectory. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.wkd.heading'|trans,
+        subheading: 'encryption.wkd.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            {{ include('settings/_wkd.html.twig') }}
+        {% endblock %}
+    {% endembed %}
+</div>

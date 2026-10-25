@@ -121,6 +121,12 @@ final readonly class MailImporter
             return $account->needsBackfill();
         }
 
+        // POP3 has no history to page through: each sync brings in what the
+        // server holds, newest first, and the next one carries on.
+        if (true === $account->isPop3()) {
+            return false;
+        }
+
         return [] !== $this->mailboxes->findImporting($account);
     }
 

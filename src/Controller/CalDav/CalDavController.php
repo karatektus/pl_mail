@@ -19,6 +19,7 @@ use App\Service\Calendar\Dav\DavReportRequest;
 use App\Service\Calendar\Dav\MultiStatusBuilder;
 use App\Domain\Exception\CalendarSyncException;
 use App\Service\Calendar\CalendarEventWriter;
+use App\Service\Calendar\CalendarTimeResolver;
 use App\Service\Calendar\Ics\IcsExporter;
 use App\Service\Calendar\Ics\IcsImporter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -82,6 +83,7 @@ final class CalDavController extends AbstractController
         private readonly IcsImporter $importer,
         private readonly CalendarEventWriter $writer,
         private readonly EntityManagerInterface $em,
+        private readonly CalendarTimeResolver $time,
     ) {
     }
 
@@ -616,7 +618,9 @@ final class CalDavController extends AbstractController
             'd:displayname'                  => $calendar->name,
             'ical:calendar-color'            => $calendar->color,
             'ical:calendar-order'            => (string) $calendar->sortOrder,
-            'c:calendar-timezone-id'         => $calendar->timeZone,
+            // The zone in effect, never null: a client has nothing to do with
+            // "follow plMail" but read it as the owner's zone.
+            'c:calendar-timezone-id'         => $this->time->calendarZone($calendar)->getName(),
             'cs:getctag'                     => $token,
             'd:sync-token'                   => $token,
             'c:supported-calendar-component-set' => function (XMLWriter $w): void {

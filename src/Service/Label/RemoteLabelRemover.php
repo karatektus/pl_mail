@@ -166,7 +166,10 @@ readonly class RemoteLabelRemover
             default            => null,
         };
 
-        if (null === $specialUse || null === $account->imapHost || true === $account->isGmail() || true === $account->isMicrosoft()) {
+        // A POP3 account is included in this guard for the same reason Gmail
+        // is: it has no folders to provision, and the caller's own fallback —
+        // a label-only arrival point — is the right answer for it.
+        if (null === $specialUse || null === $account->imapHost || false === $account->isPlainImap()) {
             return true;
         }
 

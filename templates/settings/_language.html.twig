@@ -4,6 +4,11 @@ settings/_language.html.twig
 Interface language picker. One POST per locale — the redirect that follows
 re-renders the whole document in the chosen language.
 
+The one settings form that still opts out of Turbo (data-turbo="false"), so
+the save is a real reload. Every other form here morphs the page in place, but
+a language reaches every string, <html lang> and the strings the controllers
+were handed on connect; a full load is the honest way to change all of it.
+
 Variables:
   locales       AppLocale[]
   activeLocale  AppLocale

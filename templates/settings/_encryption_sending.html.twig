@@ -1,0 +1,49 @@
+{#
+settings/_encryption_sending.html.twig
+─────────────────────────────────────────────────────────────────────────────
+How mail goes out once plMail can encrypt it: four switches, each a plain
+form that submits on change (EncryptionSendingController), the same shape as
+the keyboard shortcuts card.
+
+Accepts:
+  user  App\Entity\User\User
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<div class="divide-y divide-line">
+    {% for field, value in {
+        autocrypt:     user.autocryptHeader,
+        attach_key:    user.attachPublicKey,
+        sign_plain:    user.signPlainMail,
+        block_partial: user.blockPartialEncryption,
+        protect_subject: user.protectSubject,
+    } %}
+        <form method="post" action="{{ path('app_settings_encryption_sending') }}"
+              data-controller="ui--auto-submit" class="py-3 first:pt-0 last:pb-0">
+            <input type="hidden" name="_token" value="{{ csrf_token('settings-encryption-sending') }}">
+
+            <div class="flex items-start justify-between gap-3">
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ ('encryption.sending.' ~ field ~ '.label')|trans }}</span>
+                    <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('encryption.sending.' ~ field ~ '.hint')|trans }}</span>
+                </span>
+
+                <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+                     role="radiogroup" aria-label="{{ ('encryption.sending.' ~ field ~ '.label')|trans }}">
+                    {% for on in [true, false] %}
+                        <label>
+                            <input type="radio" name="{{ field }}" class="peer sr-only"
+                                   value="{{ on ? '1' : '0' }}"
+                                   data-action="change->ui--auto-submit#submit"
+                                   {{ value == on ? 'checked' : '' }}>
+                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </form>
+    {% endfor %}
+</div>

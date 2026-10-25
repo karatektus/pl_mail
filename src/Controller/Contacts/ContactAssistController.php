@@ -187,6 +187,7 @@ final class ContactAssistController extends AbstractController
         return match (substr($request->getLocale(), 0, 2)) {
             'de'    => 'DE',
             'fr'    => 'FR',
+            'zh'    => 'CN',
             default => null,
         };
     }

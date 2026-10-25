@@ -9,7 +9,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Every key in the English catalogue exists in German, French and pirate English.
+ * Every key in the English catalogue exists in every other interface language,
+ * and every translation keeps the placeholders its English message has.
  *
  * A missing key is not an error anywhere Symfony looks: the translator falls
  * back to `en`, the page renders, and the only symptom is an English sentence
@@ -20,6 +21,12 @@ use Symfony\Component\Yaml\Yaml;
  * One direction only. A key that exists in a translation but not in English is
  * dead weight, not a user-facing fault, and English is the catalogue new keys
  * are written into first.
+ *
+ * A lost or misspelt placeholder is quieter still. `%count%` translated as
+ * `%anzahl%` renders literally, and a dropped `{{ limit }}` leaves "use at least
+ * characters" with the number the sentence was for gone. Neither fails to
+ * parse, and neither is a missing key. The French and Chinese catalogues were
+ * each checked for this by hand when they came in; this makes the check stay.
  */
 final class CatalogueParityTest extends TestCase
 {
@@ -28,14 +35,30 @@ final class CatalogueParityTest extends TestCase
     {
         yield 'de' => ['de'];
         yield 'fr' => ['fr'];
+        yield 'zh_CN' => ['zh_CN'];
         yield 'en_PI' => ['en_PI'];
+    }
+
+    /**
+     * Every domain, not only `messages`: a validation message is where a
+     * placeholder like `{{ limit }}` is most often the point of the sentence.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function domainsAndLocales(): iterable
+    {
+        foreach (['messages', 'security', 'validators'] as $domain) {
+            foreach (self::locales() as [$locale]) {
+                yield $domain . '.' . $locale => [$domain, $locale];
+            }
+        }
     }
 
     #[DataProvider('locales')]
     public function testEveryEnglishKeyIsTranslated(string $locale): void
     {
-        $english = self::keys('en');
-        $other = self::keys($locale);
+        $english = array_keys(self::messages('messages', 'en'));
+        $other = array_keys(self::messages('messages', $locale));
 
         self::assertSame(
             [],
@@ -44,10 +67,34 @@ final class CatalogueParityTest extends TestCase
         );
     }
 
-    /** @return list<string> the dotted key of every leaf */
-    private static function keys(string $locale): array
+    #[DataProvider('domainsAndLocales')]
+    public function testEveryTranslationKeepsTheEnglishPlaceholders(string $domain, string $locale): void
     {
-        $tree = Yaml::parseFile(dirname(__DIR__, 3) . sprintf('/translations/messages.%s.yaml', $locale));
+        $english = self::messages($domain, 'en');
+        $other = self::messages($domain, $locale);
+        $broken = [];
+
+        foreach ($english as $key => $message) {
+            if (!isset($other[$key])) {
+                continue; // a missing key is the other test's to report
+            }
+
+            if (self::placeholders($message) !== self::placeholders($other[$key])) {
+                $broken[] = $key;
+            }
+        }
+
+        self::assertSame(
+            [],
+            $broken,
+            sprintf('These keys in %s.%s.yaml do not carry the placeholders their English message has.', $domain, $locale),
+        );
+    }
+
+    /** @return array<string, string> every leaf, by its dotted key */
+    private static function messages(string $domain, string $locale): array
+    {
+        $tree = Yaml::parseFile(dirname(__DIR__, 3) . sprintf('/translations/%s.%s.yaml', $domain, $locale));
 
         self::assertIsArray($tree);
 
@@ -55,24 +102,41 @@ final class CatalogueParityTest extends TestCase
     }
 
     /**
-     * @param array<mixed> $tree
+     * The placeholders a message is filled in through, sorted, so a translation
+     * may put them in any order its grammar wants: `%name%` (Symfony),
+     * `{{ name }}` (validator constraints) and `{ name }` (filled in by the
+     * Stimulus controllers).
      *
      * @return list<string>
      */
+    private static function placeholders(string $message): array
+    {
+        preg_match_all('/%\w+%|\{\{\s*\w+\s*\}\}|\{\s*\w+\s*\}/', $message, $matches);
+        $found = array_map(static fn (string $p): string => (string) preg_replace('/\s+/', '', $p), $matches[0]);
+        sort($found);
+
+        return $found;
+    }
+
+    /**
+     * @param array<mixed> $tree
+     *
+     * @return array<string, string>
+     */
     private static function flatten(array $tree, string $prefix = ''): array
     {
-        $keys = [];
+        $leaves = [];
 
         foreach ($tree as $key => $value) {
             $path = '' === $prefix ? (string) $key : $prefix . '.' . $key;
 
             if (is_array($value)) {
-                array_push($keys, ...self::flatten($value, $path));
+                $leaves += self::flatten($value, $path);
             } else {
-                $keys[] = $path;
+                $leaves[$path] = (string) $value;
             }
         }
 
-        return $keys;
+        return $leaves;
     }
 }

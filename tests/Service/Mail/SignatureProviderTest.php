@@ -117,6 +117,32 @@ final class SignatureProviderTest extends TestCase
         );
     }
 
+    /**
+     * The editor zeroes a blockquote's margin and nothing styles the mail that
+     * goes out, so a signature with one in it arrived indented by the
+     * browser's 40px (reported from the milestone build). The block carries
+     * the editor's margin on the blockquote itself.
+     */
+    public function testABlockquoteInTheSignatureKeepsTheEditorsMarginInTheMail(): void
+    {
+        $account = $this->account();
+        $account->setSetting(Account::SETTING_SIGNATURE, '<p>Regards,</p><blockquote><p>Ada</p></blockquote>');
+
+        self::assertSame(
+            '<div class="pl-signature" data-pl-signature><p>Regards,</p><blockquote style="margin:0"><p>Ada</p></blockquote></div>',
+            $this->signatures->blockFor($account, 'work@example.test'),
+        );
+    }
+
+    /** A margin the signature states for itself shows in the editor too, and stays. */
+    public function testAMarginTheSignatureStatesIsKept(): void
+    {
+        self::assertSame(
+            '<div class="pl-signature" data-pl-signature><blockquote style="margin: 0 0 0 40px">Ada</blockquote><blockquote style="margin:0;color: gray">Lovelace</blockquote></div>',
+            $this->signatures->block('<blockquote style="margin: 0 0 0 40px">Ada</blockquote><blockquote style="color: gray">Lovelace</blockquote>'),
+        );
+    }
+
     // ── sanitising ───────────────────────────────────────────────────────────
 
     /**

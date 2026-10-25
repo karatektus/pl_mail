@@ -1,0 +1,140 @@
+{#
+settings/_wkd.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Encryption → Web Key Directory: per address on one of the
+installation's domains, whether plMail publishes the person's key, the two
+URLs a mail program asks, a switch, and a check that looks the address up from
+outside (WkdSettingsController). For an administrator, how to make the domain
+reachable: DNS and TLS for openpgpkey.<domain>, or a forward from the website.
+
+The server's own frame, like the decrypted-mail card: what is published is
+decided from public keys and settings, so nothing here waits on the keyring.
+
+Reads wkd_settings() (App\Twig\WkdExtension).
+#}
+{% set state = wkd_settings() %}
+{% set button = 'inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer' %}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+{% set host = app.request.host %}
+{# The last check's two verdicts (WkdSettingsController::check()), drawn beside
+   the address they were asked for. #}
+{% set checks = {} %}
+{% for check in app.flashes('wkd_check') %}
+    {% set checks = checks|merge({ (check.email): check }) %}
+{% endfor %}
+{% set verdictTone = {
+    current:     'text-emerald-700 dark:text-emerald-400',
+    outdated:    'text-amber-700 dark:text-amber-400',
+    missing:     'text-danger',
+    unreachable: 'text-danger',
+} %}
+
+<div id="wkd" data-testid="wkd">
+    {% for flash in app.flashes('wkd') %}
+        <p class="mb-3 rounded-lg px-3 py-2 text-xs bg-zinc-500/10 text-ink" role="status" data-testid="wkd-notice">{{ flash }}</p>
+    {% endfor %}
+
+    {% if not state.enabled %}
+        <p class="text-xs text-ink-muted" data-testid="wkd-disabled">{{ 'encryption.wkd.disabled'|trans }}</p>
+    {% elseif state.entries is empty %}
+        <p class="text-xs text-ink-muted">{{ 'encryption.wkd.no_addresses'|trans({ '%domains%': state.domains|join(', ') }) }}</p>
+    {% else %}
+        <div class="divide-y divide-line">
+            {% for entry in state.entries %}
+                <div class="py-3 first:pt-0 last:pb-0" data-testid="wkd-address" data-email="{{ entry.email }}">
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="min-w-0">
+                            <span class="block text-xs font-medium text-ink break-all">{{ entry.email }}</span>
+                            <span class="block text-[11px] text-ink-faint mt-0.5" data-testid="wkd-state">{{ ('encryption.wkd.state.' ~ entry.state.value)|trans }}</span>
+                        </span>
+
+                        {% if entry.state.switchable %}
+                            <form method="post" action="{{ path('app_settings_wkd_publish') }}"
+                                  data-controller="ui--auto-submit" class="shrink-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">
+                                <input type="hidden" name="email" value="{{ entry.email }}">
+                                <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
+                                     role="radiogroup" aria-label="{{ 'encryption.wkd.publish'|trans({ '%email%': entry.email }) }}">
+                                    {% for on in [true, false] %}
+                                        <label>
+                                            <input type="radio" name="publish" class="peer sr-only"
+                                                   value="{{ on ? '1' : '0' }}"
+                                                   data-action="change->ui--auto-submit#submit"
+                                                   {{ (entry.state.value != 'switched_off') == on ? 'checked' : '' }}>
+                                            <span class="{{ segText }}">{{ (on ? 'encryption.sending.on' : 'encryption.sending.off')|trans }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </form>
+                        {% endif %}
+                    </div>
+
+                    {% if entry.state.switchable %}
+                        <dl class="mt-2 grid gap-1 text-[11px]">
+                            <dt class="text-ink-faint">{{ 'encryption.wkd.url_advanced'|trans }}</dt>
+                            <dd><code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink break-all select-all" data-testid="wkd-url">{{ entry.urls.advanced }}</code></dd>
+                            <dt class="text-ink-faint">{{ 'encryption.wkd.url_direct'|trans }}</dt>
+                            <dd><code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink break-all select-all">{{ entry.urls.direct }}</code></dd>
+                        </dl>
+
+                        {% set check = checks[entry.email]|default(null) %}
+                        {% if check %}
+                            {% set domain = entry.email|split('@')|last %}
+                            <div class="mt-2 rounded-lg px-3 py-2 text-xs bg-zinc-500/10 text-ink" role="status" data-testid="wkd-check">
+                                <p class="font-medium">{{ 'encryption.wkd.check.heading'|trans({ '%email%': entry.email }) }}</p>
+                                <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                    {% for method in ['advanced', 'direct'] %}
+                                        <dt class="text-ink-muted">{{ ('encryption.wkd.check.method.' ~ method)|trans({ '%domain%': domain }) }}</dt>
+                                        <dd class="{{ verdictTone[check[method]] }}" data-testid="wkd-check-{{ method }}" data-result="{{ check[method] }}">
+                                            {{ ('encryption.wkd.check.result.' ~ check[method])|trans }}
+                                        </dd>
+                                    {% endfor %}
+                                </dl>
+                                {% if check.advanced != 'current' and check.direct != 'current' %}
+                                    <p class="mt-1 text-ink-muted">{{ 'encryption.wkd.check.none_good'|trans }}</p>
+                                {% elseif check.advanced != 'current' or check.direct != 'current' %}
+                                    <p class="mt-1 text-ink-muted">{{ 'encryption.wkd.check.one_good'|trans }}</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <form method="post" action="{{ path('app_settings_wkd_check') }}" class="mt-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings-wkd') }}">
+                            <input type="hidden" name="email" value="{{ entry.email }}">
+                            <button type="submit" class="{{ button }}">
+                                <i class="fa-solid fa-magnifying-glass text-[10px]" aria-hidden="true"></i>
+                                {{ 'encryption.wkd.check.button'|trans }}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if is_granted('ROLE_ADMIN') %}
+        <details class="mt-4 border-t border-line pt-3" data-testid="wkd-setup">
+            <summary class="text-xs font-semibold text-ink cursor-pointer">{{ 'encryption.wkd.setup.heading'|trans }}</summary>
+            <div class="mt-2 space-y-2 text-[11px] text-ink-muted">
+                {% if not state.enabled %}
+                    <p>{{ 'encryption.wkd.setup.enable'|trans }}</p>
+                    <code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink">APP_WKD_DOMAINS=example.org</code>
+                {% else %}
+                    <p>{{ 'encryption.wkd.setup.domains'|trans({ '%domains%': state.domains|join(', ') }) }}</p>
+                {% endif %}
+                {% for domain in state.enabled ? state.domains : ['example.org'] %}
+                    <p class="font-medium text-ink">{{ domain }}</p>
+                    <p>{{ 'encryption.wkd.setup.advanced'|trans({ '%domain%': domain, '%host%': host }) }}</p>
+                    {# A CNAME names a host; plMail reached by an IP literal needs an A (or AAAA) record instead. #}
+                    <code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink break-all">openpgpkey.{{ domain }}. {{ host matches '/^[0-9.]+$/' ? 'A ' ~ host : (':' in host ? 'AAAA ' ~ host : 'CNAME ' ~ host ~ '.') }}</code>
+                    <p>{{ 'encryption.wkd.setup.direct'|trans({ '%domain%': domain, '%host%': host }) }}</p>
+                    <code class="block rounded bg-zinc-500/10 px-2 py-1 font-mono text-ink break-all">https://{{ domain }}/.well-known/openpgpkey/ → https://{{ host }}/.well-known/openpgpkey/</code>
+                {% endfor %}
+                <p>{{ 'encryption.wkd.setup.check'|trans }}</p>
+            </div>
+        </details>
+    {% endif %}
+</div>

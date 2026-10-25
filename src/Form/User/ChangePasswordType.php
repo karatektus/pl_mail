@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace App\Form\User;
 
-use App\Entity\User\User;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
-use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Security\Core\Validator\Constraints\UserPassword;
-use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 /**
  * Changing your own password, from Settings → Security.
  *
- * The one place on this install where a password can be changed through a
- * browser, and it is deliberately the only one: UserFormType refuses to let an
- * administrator set somebody else's, because an admin session would then be a
+ * Where a person changes their own password whenever they like. The only
+ * other browser form that sets one is RequiredPasswordType, which opens only
+ * when somebody else chose the current password — and neither lets anyone set
+ * a password but their own: UserFormType refuses to let an administrator
+ * change somebody else's, because an admin session would then be a
  * way into that person's mailbox. That objection does not apply to the account
  * holder, who is already reading the mail — so the field that must not exist
  * there is exactly the field that has to exist here. Until it did, plMail had a
@@ -40,9 +40,19 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  * fail, it sets a password nobody knows, and the person it happens to is locked
  * out the moment their session ends.
  *
- * The floor is User::PASSWORD_MIN_LENGTH, the same number the admin create form
- * applies, read from the constant rather than written out again — see the
- * constant's docblock for why it stopped being a literal in two places.
+ * ## Neither password is posted
+ *
+ * Since passwords are stretched in the browser (App\Security\PasswordKdf),
+ * the boxes on screen are for typing into and nothing else. The new password
+ * is NewPasswordType's business. The current one is proven by `currentProof`,
+ * which assets/controllers/auth/password_form_controller.js fills before the
+ * form goes: the auth hash stretched with this person's own salt — or, for an
+ * account still on a hash of the password itself, the password, which is the
+ * one thing that hash can be checked against. Either way it is exactly the
+ * string the stored hash was made from, so UserPassword checks it unchanged.
+ *
+ * The length floor is User::PASSWORD_MIN_LENGTH, enforced in the browser now
+ * that the server never sees the password — see NewPasswordType.
  */
 final class ChangePasswordType extends AbstractType
 {
@@ -50,43 +60,37 @@ final class ChangePasswordType extends AbstractType
     {
         $builder
             ->add('currentPassword', PasswordType::class, [
-                'label'       => 'settings.password.field.current',
-                'mapped'      => false,
-                'constraints' => [
-                    new NotBlank(message: 'settings.password.current_required'),
-                    new UserPassword(message: 'settings.password.current_wrong'),
-                ],
+                'label'    => 'settings.password.field.current',
+                'mapped'   => false,
+                'required' => false,
                 // The one field here a password manager SHOULD offer to fill:
                 // it is the credential already saved for this site. Its
                 // neighbours say `new-password` so the browser offers to
                 // generate and then to update, which is what they are for.
-                'attr' => ['autocomplete' => 'current-password'],
+                'attr' => [
+                    'autocomplete' => 'current-password',
+                    'data-auth--password-form-target' => 'currentPassword',
+                ],
             ])
-            ->add('plainPassword', RepeatedType::class, [
-                'type'            => PasswordType::class,
-                'mapped'          => false,
-                'first_options'   => [
-                    'label' => 'settings.password.field.new',
-                    'help'  => 'settings.password.field.new_help',
-                    // The floor is stated to the reader from the same constant
-                    // the constraint enforces it with. A help string that spelt
-                    // "12" out would be a second place to change, and the one
-                    // that nothing fails when somebody forgets.
-                    'help_translation_parameters' => ['%count%' => User::PASSWORD_MIN_LENGTH],
-                    'attr'  => ['autocomplete' => 'new-password'],
+            ->add('currentProof', HiddenType::class, [
+                'mapped'      => false,
+                'attr'        => ['data-auth--password-form-target' => 'currentProof'],
+                'constraints' => [
+                    new NotBlank(message: 'settings.password.needs_script'),
+                    new UserPassword(message: 'settings.password.current_wrong'),
                 ],
-                'second_options'  => [
-                    'label' => 'settings.password.field.repeat',
-                    'attr'  => ['autocomplete' => 'new-password'],
-                ],
-                'invalid_message' => 'settings.password.mismatch',
-                'constraints'     => [
-                    new NotBlank(),
-                    new Length(
-                        min: User::PASSWORD_MIN_LENGTH,
-                        minMessage: 'settings.password.too_short',
-                    ),
-                ],
+            ])
+            ->add('new', NewPasswordType::class, [
+                'label'  => false,
+                'mapped' => false,
+            ])
+            // JSON, user key id => that key wrapped under the new password.
+            // Filled by the browser, which is the only side that can open the
+            // keys; PasswordChanger refuses the change if one it could open is
+            // missing. Empty for an account with no keyring.
+            ->add('rewrappedKeys', HiddenType::class, [
+                'mapped' => false,
+                'attr'   => ['data-auth--password-form-target' => 'rewrappedKeys'],
             ]);
     }
 }

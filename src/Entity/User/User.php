@@ -7,10 +7,12 @@ use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
+use App\Domain\Enum\Crypto\KeyringRoot;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
@@ -133,10 +135,109 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Embedded(class: CategorySorting::class, columnPrefix: 'category_')]
     public private(set) CategorySorting $categorySorting;
     /**
-     * The hashed password
+     * The hashed password — of the password itself, or of what the browser
+     * derived from it. $kdfSalt says which; see App\Security\PasswordKdf.
+     *
+     * Still publicly writable, because a rehash to a better algorithm keeps the
+     * scheme and is exactly that: one write. Anything that sets a NEW password
+     * goes through useServerHashedPassword() or useClientDerivedPassword(),
+     * which keep the salt and the iteration count in step with it.
      */
     #[ORM\Column]
     public ?string $password = null;
+
+    /**
+     * The salt the browser stretches this person's password with, base64. Null
+     * means $password is a hash of the password itself.
+     *
+     * Null for everybody whose password was set before the browser started
+     * stretching it, and for anyone whose password was last set by something
+     * with no browser to do that: the install wizard, an administrator
+     * creating them, `app:user:password`, a seed. Their next sign-in through
+     * the form moves them over — see App\Security\PasswordKdfUpgradeListener.
+     *
+     * private(set), with $kdfIterations, so that the pair cannot be changed
+     * without $password, and the three never disagree about which scheme the
+     * row is on. A salt left behind on a server-hashed row would have the
+     * browser stretch a password the stored hash was never made from, and the
+     * account would refuse its own owner.
+     */
+    #[ORM\Column(name: 'kdf_salt', length: 64, nullable: true)]
+    public private(set) ?string $kdfSalt = null;
+
+    /**
+     * PBKDF2 iterations for $kdfSalt — stored per user rather than read from
+     * configuration, so that raising the configured number later does not lock
+     * out everybody whose hash was made with the old one.
+     */
+    #[ORM\Column(name: 'kdf_iterations', nullable: true)]
+    public private(set) ?int $kdfIterations = null;
+
+    /**
+     * What the keyring of issue #28 hangs off — see KeyringRoot. The password
+     * for every account until one without a usable password sets encryption
+     * up with a passphrase of its own; read $keyringRootInEffect rather than
+     * this to know which applies before that.
+     *
+     * private(set), with the two passphrase columns below, for the reason
+     * $kdfSalt gives: the root, its salt and its iteration count change
+     * together through usePassphraseRoot() or not at all.
+     */
+    #[ORM\Column(name: 'keyring_root', length: 16, enumType: KeyringRoot::class, options: ['default' => 'password'])]
+    public private(set) KeyringRoot $keyringRoot = KeyringRoot::Password;
+
+    /**
+     * The salt the browser stretches the encryption passphrase with, base64.
+     * Null unless $keyringRoot is the passphrase. Its own salt, not $kdfSalt:
+     * an account that later gets a login password must not have the two
+     * secrets stretched alike, or a password equal to the passphrase would
+     * hand the server — which sees the password's auth hash — the very bytes
+     * the passphrase's auth hash would have been.
+     */
+    #[ORM\Column(name: 'passphrase_salt', length: 64, nullable: true)]
+    public private(set) ?string $passphraseSalt = null;
+
+    /**
+     * PBKDF2 iterations for $passphraseSalt, per user for the reason
+     * $kdfIterations gives.
+     */
+    #[ORM\Column(name: 'passphrase_iterations', nullable: true)]
+    public private(set) ?int $passphraseIterations = null;
+
+    /**
+     * Whether a password could sign this person in at all. Empty is the hash
+     * no password produces, which OidcUserResolver writes for an account it
+     * creates and the admin delete action writes for a removed one.
+     */
+    public bool $hasUsablePassword {
+        get => '' !== (string) $this->password;
+    }
+
+    /**
+     * The root that applies now: the passphrase once it is set up, and also
+     * before — for an account with no usable password, which has nothing else
+     * a keyring could hang off and is offered "Set up encryption" instead. An
+     * account that gets a password before it sets anything up is a password
+     * account like any other.
+     */
+    public KeyringRoot $keyringRootInEffect {
+        get => KeyringRoot::Passphrase === $this->keyringRoot || false === $this->hasUsablePassword
+            ? KeyringRoot::Passphrase
+            : KeyringRoot::Password;
+    }
+
+    /**
+     * The current password was chosen by somebody else, and this person has to
+     * pick their own before plMail lets them do anything.
+     *
+     * Set when an administrator creates the account, and by
+     * `app:user:password`: in both cases a second person knows the password,
+     * and once the keys of issue #28 hang off it, that person could open them.
+     * App\Security\PasswordChangeRequiredListener holds the line; the form is
+     * App\Controller\Auth\RequiredPasswordController.
+     */
+    #[ORM\Column(name: 'password_change_required', options: ['default' => false])]
+    public bool $passwordChangeRequired = false;
 
     /**
      * Nullable: removing a picture is a normal thing to do, and the column has
@@ -395,6 +496,57 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * A new password, hashed from the password itself — set by something that
+     * had the plaintext and no browser to stretch it first.
+     */
+    public function useServerHashedPassword(string $hash): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = null;
+        $this->kdfIterations = null;
+    }
+
+    /**
+     * A new password, hashed from the auth hash a browser derived from it with
+     * this salt and iteration count.
+     */
+    public function useClientDerivedPassword(string $hash, string $salt, int $iterations): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = $salt;
+        $this->kdfIterations = $iterations;
+    }
+
+    public function hasClientDerivedPassword(): bool
+    {
+        return null !== $this->kdfSalt;
+    }
+
+    /**
+     * The keyring hangs off an encryption passphrase from now on, stretched
+     * with this salt and iteration count — or with new ones, when the
+     * passphrase changes. The login, whatever it is, is not touched.
+     */
+    public function usePassphraseRoot(string $salt, int $iterations): void
+    {
+        $this->keyringRoot          = KeyringRoot::Passphrase;
+        $this->passphraseSalt       = $salt;
+        $this->passphraseIterations = $iterations;
+    }
+
+    /**
+     * The root a config backup recorded, as it was. Only the restore calls
+     * this: switching a keyring between roots is not something plMail does,
+     * and a passphrase salt left on a password row would be read by nothing.
+     */
+    public function restoreKeyringRoot(KeyringRoot $root, ?string $salt, ?int $iterations): void
+    {
+        $this->keyringRoot          = $root;
+        $this->passphraseSalt       = KeyringRoot::Passphrase === $root ? $salt : null;
+        $this->passphraseIterations = KeyringRoot::Passphrase === $root ? $iterations : null;
+    }
+
+    /**
      * @see UserInterface
      */
     public function eraseCredentials()
@@ -617,6 +769,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /** The collapse keys for the two whole-section disclosures. */
     public const string SIDEBAR_SECTION_LABELS = 'section:labels';
     public const string SIDEBAR_SECTION_ACCOUNTS = 'section:accounts';
+
+    /**
+     * The sidebar rows the user keeps behind "More", as a list of
+     * {@see SidebarRow} values — absent for everybody who has never chosen.
+     *
+     * Three states, and they are three: ABSENT is the default
+     * ({@see SidebarRow::defaultBehindMore()}), a list is the choice, and an
+     * EMPTY list is a choice too — "nothing behind More" — which is why this
+     * is not stored the way SETTING_SIDEBAR_COLLAPSED is. Reading an empty
+     * list as absent would hand the default back to the person who had just
+     * switched it off.
+     *
+     * The rows that are behind More are stored rather than the rows that are
+     * on top, for the reason the collapsed keys are: a row added in a later
+     * version then appears on top, the quiet place, without anybody's bag
+     * needing a backfill.
+     *
+     * Not the same question as the eye toggle in label settings, which hides a
+     * row entirely. This only says WHERE a row that exists is drawn.
+     */
+    public const string SETTING_SIDEBAR_MORE = 'sidebar.more_rows';
 
     /**
      * When this admin last had the log browser open, as an ISO 8601 string.
@@ -1195,6 +1368,136 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * How mail goes out once plMail can encrypt it — Settings → Encryption →
+     * Sending. Four switches in the settings bag, each stored only when it
+     * differs from its default, like the two above.
+     *
+     *   autocrypt      ON:  every message carries an Autocrypt header with
+     *                       the sender's public key, so Thunderbird, Delta Chat
+     *                       and the like can answer encrypted. Invisible to the
+     *                       people who read the mail.
+     *   attach key     OFF: the public key as a file on every message, for
+     *                       recipients whose program does not read Autocrypt.
+     *   sign plain     OFF: sign mail that goes out unencrypted. A
+     *                       signature.asc confuses people without PGP, which is
+     *                       why it is off; mail to somebody whose key plMail
+     *                       knows is signed whatever this says.
+     *   block partial  OFF: when some recipients can be reached encrypted and
+     *                       others cannot, refuse to send rather than send the
+     *                       mail unencrypted to all of them, which is the
+     *                       default and what Proton does.
+     */
+    /**
+     * Whether any of this person's accounts keeps decrypted mail on the
+     * server (Account::SETTING_KEEP_DECRYPTED) — kept here, by the settings
+     * page that switches those, so the layout can decide whether to mount the
+     * background decrypter without a query of its own on every page.
+     */
+    public const string SETTING_KEEPS_DECRYPTED_ANY = 'crypto.keeps_decrypted_any';
+
+    public const string SETTING_CRYPTO_AUTOCRYPT     = 'crypto.autocrypt';
+    public const string SETTING_CRYPTO_ATTACH_KEY    = 'crypto.attach_key';
+    public const string SETTING_CRYPTO_SIGN_PLAIN    = 'crypto.sign_plain';
+    public const string SETTING_CRYPTO_BLOCK_PARTIAL = 'crypto.block_partial';
+
+    /**
+     * protect subject  ON:  an encrypted message carries its subject inside the
+     *                       encryption, and the outside says "..." (RFC 9788,
+     *                       what Thunderbird does by default). A recipient
+     *                       whose program cannot read it sees "...".
+     */
+    public const string SETTING_CRYPTO_PROTECT_SUBJECT = 'crypto.protect_subject';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_PROTECT_SUBJECT. */
+    public bool $protectSubject {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_PROTECT_SUBJECT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $autocryptHeader {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_AUTOCRYPT, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_AUTOCRYPT, $on ? null : false);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $attachPublicKey {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_ATTACH_KEY, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_ATTACH_KEY, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $signPlainMail {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_SIGN_PLAIN, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_SIGN_PLAIN, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_AUTOCRYPT. */
+    public bool $blockPartialEncryption {
+        get => true === $this->getSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_BLOCK_PARTIAL, $on ? true : null);
+        }
+    }
+
+    /**
+     * The addresses whose key the person does not want in plMail's Web Key
+     * Directory (WkdDirectory). A list of the ones switched OFF rather than of
+     * the ones switched on, so that publishing is the default the day an
+     * administrator enables the domain, and so an address that becomes the
+     * person's later starts published like the rest. Absent when empty.
+     */
+    public const string SETTING_CRYPTO_WKD_UNPUBLISHED = 'crypto.wkd_unpublished';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_WKD_UNPUBLISHED.
+     * Lower-cased and de-duplicated on the way in, so a comparison against a
+     * binding's address never depends on how somebody typed it.
+     *
+     * @var list<string>
+     */
+    public array $wkdUnpublished {
+        get {
+            $addresses = $this->getSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, []);
+
+            return true === is_array($addresses) ? array_values(array_filter($addresses, 'is_string')) : [];
+        }
+        set(array $addresses) {
+            $addresses = array_values(array_unique(array_map(static fn (string $address): string => strtolower(trim($address)), $addresses)));
+            $this->setSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, [] === $addresses ? null : $addresses);
+        }
+    }
+
+    /**
+     * Whether a lookup of a contact's key goes on to the public key servers
+     * when the address's own domain has none (KeyServerLookup) — Settings →
+     * Encryption → Contacts' keys.
+     *
+     * ON unless switched off, as Thunderbird asks keys.openpgp.org by default:
+     * without it most people's keys are not found, and mail to them goes out
+     * unencrypted. The price is that the server's operator learns which
+     * address somebody here looked up, which is why the switch is there and
+     * its hint says so. Stored only as a false.
+     */
+    public const string SETTING_CRYPTO_KEY_SERVERS = 'crypto.key_servers';
+
+    /** Virtual, out of the settings bag — see SETTING_CRYPTO_KEY_SERVERS. */
+    public bool $lookUpKeyServers {
+        get => false !== $this->getSetting(self::SETTING_CRYPTO_KEY_SERVERS, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_CRYPTO_KEY_SERVERS, $on ? null : false);
+        }
+    }
+
+    /**
      * Whether remote images load in every message without the "Show images"
      * bar, as if every sender were on the allowlist (#124).
      *
@@ -1417,6 +1720,52 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function isSidebarSectionCollapsed(string $key): bool
     {
         return in_array($key, $this->collapsedSidebarSections, true);
+    }
+
+    /**
+     * The rows behind "More", in the order the sidebar draws them — see
+     * SETTING_SIDEBAR_MORE for why absent and empty are different answers.
+     *
+     * Read defensively, because the bag outlives the code that wrote it: what
+     * is not a row, a repeat, and the pinned Inbox are dropped rather than
+     * thrown on, so one bad value cannot take the sidebar down. The result is
+     * sorted into the enum's own order so the caller never has to.
+     *
+     * @var list<SidebarRow>
+     */
+    public array $sidebarMoreRows {
+        get {
+            $stored = $this->getSetting(self::SETTING_SIDEBAR_MORE);
+
+            if (false === is_array($stored)) {
+                return SidebarRow::defaultBehindMore();
+            }
+
+            return array_values(array_filter(
+                SidebarRow::cases(),
+                static fn (SidebarRow $row): bool => false === $row->isPinned() && in_array($row->value, $stored, true),
+            ));
+        }
+    }
+
+    /**
+     * Stores the choice as clean strings in the sidebar's order — see
+     * $sidebarMoreRows. An empty list is stored as an empty list, never as a
+     * cleared key.
+     *
+     * @param list<SidebarRow> $rows
+     */
+    public function setSidebarMoreRows(array $rows): static
+    {
+        $values = array_map(
+            static fn (SidebarRow $row): string => $row->value,
+            array_values(array_filter(
+                SidebarRow::cases(),
+                static fn (SidebarRow $row): bool => false === $row->isPinned() && in_array($row, $rows, true),
+            )),
+        );
+
+        return $this->setSetting(self::SETTING_SIDEBAR_MORE, $values);
     }
 
     /** The sidebar's half of setAdminPanelCollapsed(), and the same shape. */

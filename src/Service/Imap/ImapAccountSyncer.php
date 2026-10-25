@@ -33,15 +33,11 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
 
     public function supports(Account $account): bool
     {
-        if (true === $account->isGmail()) {
-            return false;
-        }
-
-        if (true === $account->isMicrosoft()) {
-            return false;
-        }
-
-        return true;
+        // isPlainImap() rather than two negatives, since POP3 was added: a
+        // POP3 account is not Gmail and not Microsoft either, and before this
+        // it would have fallen through to here, opened an IMAP connection to a
+        // POP3 port, and failed on the greeting. See Pop3AccountSyncer.
+        return true === $account->isPlainImap();
     }
     public function sync(Account $account): array
     {

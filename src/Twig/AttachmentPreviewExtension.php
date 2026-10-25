@@ -44,6 +44,11 @@ final class AttachmentPreviewExtension extends AbstractExtension
      */
     public function previewKind(MessagePart $part): ?string
     {
+        // Ciphertext: there is nothing in it a viewer could show. See MessagePart::$sealed.
+        if (true === $part->sealed) {
+            return null;
+        }
+
         if (true === PdfAttachment::matches($part->contentType, $part->filename)) {
             return 'pdf';
         }

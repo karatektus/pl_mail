@@ -16,6 +16,7 @@ use App\Service\Mail\AccountCreator;
 use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\IncomingProtocolSwitch;
 use App\Service\Push\PushSubscriptionRegistry;
 use App\Twig\SenderAvatarExtension;
 use DateTimeImmutable;
@@ -70,7 +71,7 @@ final class AccountController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit')]
-    public function edit(Request $request, Account $account): Response
+    public function edit(Request $request, Account $account, IncomingProtocolSwitch $protocolSwitch): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
@@ -81,6 +82,7 @@ final class AccountController extends AbstractController
         }
 
         $existingPassword = $account->password;
+        $existingProtocol = $account->incomingProtocol;
 
         $form = $this->createForm(AccountType::class, $account, [
             'action'           => $this->generateUrl('app_account_edit', ['id' => $account->id]),
@@ -95,6 +97,10 @@ final class AccountController extends AbstractController
             if (null === $submittedPassword || '' === $submittedPassword) {
                 $account->password = $existingPassword;
             }
+
+            // IMAP to POP3 or back keeps the mail and drops the server
+            // addresses, so the next sync recognises what is already here.
+            $protocolSwitch->switched($account, $existingProtocol);
 
             $this->entityManager->flush();
 

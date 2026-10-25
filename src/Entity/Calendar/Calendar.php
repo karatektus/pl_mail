@@ -116,11 +116,20 @@ class Calendar
     public string $color = self::DEFAULT_COLOR;
 
     /**
-     * IANA zone this calendar is displayed in. Events carry their own; this is
-     * the fallback for ones that do not, and the zone a new event starts in.
+     * IANA zone an event on this calendar is written in when it carries none
+     * of its own, and the zone a new one starts in. Null is "follow plMail":
+     * whatever the owner's display zone is at the moment it is asked, which is
+     * what every calendar this install makes starts as (#343).
+     *
+     * Not the zone the calendar is DRAWN in. Every page is drawn on the
+     * reader's own clock — see CalendarTimeResolver::zoneFor() — so a meeting
+     * at 15:00 in Tokyo shows at the hour it happens for the person reading.
+     *
+     * Read through CalendarTimeResolver::calendarZone(), never directly: null
+     * has no meaning without the owner's zone beside it.
      */
-    #[ORM\Column(length: 64, options: ['default' => 'UTC'])]
-    public string $timeZone = 'UTC';
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $timeZone = null;
 
     #[ORM\Column(length: 20, enumType: CalendarRole::class, options: ['default' => 'custom'])]
     public CalendarRole $role = CalendarRole::Custom;

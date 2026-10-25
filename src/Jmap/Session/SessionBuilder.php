@@ -26,7 +26,11 @@ use App\Jmap\Protocol\Capability;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
+use App\Service\Crypto\DecryptedMail;
+use App\Service\Crypto\DecryptedMailPolicy;
+use App\Service\Crypto\RecipientKeys;
 use App\Service\Health\AccountHealthInspector;
+use App\Service\User\DevicePairingService;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -58,6 +62,7 @@ final class SessionBuilder
         private readonly FcmSettings $fcmSettings,
         private readonly AccountHealthInspector $health,
         private readonly string $vapidPublicKey,
+        private readonly ?DecryptedMailPolicy $decryptedMail = null,
     ) {
     }
 
@@ -93,6 +98,9 @@ final class SessionBuilder
                 // to draw once per account, and a client composing from the
                 // second account can ask the account it is composing from.
                 Capability::CONTACTS => new \stdClass(),
+                // Whether this account's encrypted mail is to be decrypted and
+                // handed over (DecryptedMail/pending, DecryptedMail/store).
+                Capability::KEYS => ['keepsDecryptedMail' => true === $this->decryptedMail?->keeps($account)],
                 // The user's tabs, answered by every account — see
                 // Capability::INBOX_TABS.
                 Capability::INBOX_TABS => new \stdClass(),
@@ -149,6 +157,7 @@ final class SessionBuilder
                 Capability::SYNC => new \stdClass(),
                 Capability::CONTACTS => $this->contactsCapabilities($base),
                 Capability::TEMPLATES => $this->templatesCapabilities(),
+                Capability::KEYS => $this->keysCapabilities(),
                 Capability::INBOX_TABS => new \stdClass(),
             ],
             'accounts' => $accountsValue,
@@ -406,6 +415,30 @@ final class SessionBuilder
             ),
             'dateOffsetUnits' => ['d', 'w', 'm'],
             'maxNameLength'   => 255,
+        ];
+    }
+
+    /**
+     * The constants a client needs to open what Keyring/get hands it, the
+     * same ones assets/crypto/aead.js and keyring.js use: every wrapping is
+     * `v1.<iv>.<ciphertext>` (base64), AES-256-GCM with the purpose string as
+     * associated data. See docs/CLIENT_DEVELOPMENT.md.
+     *
+     * @return array<string, mixed>
+     */
+    private function keysCapabilities(): array
+    {
+        return [
+            'kdf'                     => ['algorithm' => 'PBKDF2-SHA256', 'wrapKeyInfo' => 'plmail/user-key-wrap'],
+            'purposes'                => [
+                'userKey'         => 'plmail/user-key',
+                'addressKeyToken' => 'plmail/address-key-token',
+                'pairingTransfer' => DevicePairingService::TRANSFER_PURPOSE,
+                'smimeKey'        => 'plmail/smime-key',
+            ],
+            'decryptedMailAllowed'    => true === $this->decryptedMail?->allowedOnInstall(),
+            'maxDecryptedMailSize'    => DecryptedMail::MAX_BYTES,
+            'maxContactKeyLookups'    => RecipientKeys::MAX_RECIPIENTS,
         ];
     }
 

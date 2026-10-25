@@ -170,6 +170,51 @@ final readonly class SentCopyReconciler
             return $this->claimMoved($mailbox, $account, $rfcMessageId, $uid, $sourceStillExists);
         }
 
+        return $this->takeOver($claimable, $mailbox, $account, $uid);
+    }
+
+    /**
+     * The row that already stands for a message with no Message-ID, matched
+     * by MessageSyncer::fingerprintOf(), or null to let the syncer insert.
+     *
+     * Only for rows with no server address and no Message-ID — the shape a
+     * protocol switch leaves (#289): mail POP3 fetched, which IMAP now finds
+     * again under a UID. Without it every such message came back as a second
+     * row. claim() cannot help: it matches on the id these messages lack.
+     * Taking the row over gives it the UID, which also takes it out of the
+     * candidates, so two look-alike messages fill two rows rather than one.
+     *
+     * @param array{from: string, subject: string, date: \DateTimeImmutable} $fingerprint
+     */
+    public function claimByFingerprint(Mailbox $mailbox, array $fingerprint, int $uid): ?Message
+    {
+        $account = $mailbox->account;
+
+        if (null === $account) {
+            return null;
+        }
+
+        $claimable = $this->messages->findAdoptable($account, '', $fingerprint, notInPop3Ledger: false);
+
+        if (null === $claimable) {
+            return null;
+        }
+
+        $this->logger->info('Reconciled a message without a Message-ID onto the row it already had', [
+            'mailbox' => $mailbox->fullPath,
+            'uid'     => $uid,
+            'row'     => $claimable->id,
+        ]);
+
+        return $this->takeOver($claimable, $mailbox, $account, $uid);
+    }
+
+    /**
+     * Give an address-less row the folder and UID the server just reported,
+     * with the folder's label, and tell JMAP clients its mailboxes changed.
+     */
+    private function takeOver(Message $claimable, Mailbox $mailbox, Account $account, int $uid): Message
+    {
         $claimable->relocateTo($mailbox, $uid);
 
         $mailboxLabel = $mailbox->label;

@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SendFailure;
@@ -12,6 +13,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Entity\Mail\Pop3Uidl;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
 use App\Service\Graph\GraphMessageBuilder;
@@ -1564,6 +1566,9 @@ class MessageRepository extends ServiceEntityRepository
                 'EXISTS ('
                 . ' SELECT p.id FROM ' . MessagePart::class . ' p'
                 . ' WHERE p.message = m'
+                // Sealed parts are a sealed draft's encrypted attachments,
+                // never a misfiled body — see MisfiledBodyBackfillTask.
+                . ' AND p.sealed = false'
                 . " AND (p.contentType IN (:bodyTypes) OR p.contentType LIKE 'multipart/%')"
                 . ' AND LENGTH(p.filename) = 8'
                 . " AND ((p.contentType = 'text/html' AND (m.bodyHtml IS NULL OR m.bodyHtml = ''))"
@@ -2419,6 +2424,63 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * A row this account holds with no server address that is the same
+     * message as one a server is offering, judged by Message-ID or — for mail
+     * that has none — by MessageSyncer::fingerprintOf(). Null when there is
+     * none to adopt.
+     *
+     * For an account that changed incoming protocol (#289), whose rows all
+     * lost their addresses in the switch. Two narrowings keep it from taking
+     * one message for another:
+     *
+     *  - Only unlocated rows. A row with an IMAP UID is somewhere on a server
+     *    already, and is SentCopyReconciler's to match.
+     *  - $notInPop3Ledger: only rows no UIDL names yet. A POP3 adoption does
+     *    not give the row an address, so without this two copies on the server
+     *    that look alike would both be taken for the one row, and the second
+     *    — which the delete mode would then remove — would exist nowhere.
+     *
+     * A fingerprint match also leaves out unsent drafts (no sentAt), which
+     * have no Message-ID either and are nobody's copy of anything.
+     *
+     * @param array{from: string, subject: string, date: \DateTimeImmutable}|null $fingerprint
+     */
+    public function findAdoptable(Account $account, string $messageId, ?array $fingerprint, bool $notInPop3Ledger): ?Message
+    {
+        $qb = $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.imapUid IS NULL')
+            ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1);
+
+        if ('' !== $messageId) {
+            $qb->andWhere('message.messageId = :messageId')->setParameter('messageId', $messageId);
+        } elseif (null !== $fingerprint) {
+            $qb->andWhere("message.messageId IS NULL OR message.messageId = ''")
+                ->andWhere('message.subject = :subject')
+                ->andWhere('message.receivedAt = :date')
+                ->andWhere('message.sentAt IS NOT NULL')
+                ->setParameter('subject', $fingerprint['subject'])
+                ->setParameter('date', $fingerprint['date']);
+
+            if ('' === $fingerprint['from']) {
+                $qb->andWhere("message.fromAddress IS NULL OR message.fromAddress = ''");
+            } else {
+                $qb->andWhere('message.fromAddress = :from')->setParameter('from', $fingerprint['from']);
+            }
+        } else {
+            return null;
+        }
+
+        if (true === $notInPop3Ledger) {
+            $qb->andWhere('NOT EXISTS (SELECT ledger.id FROM ' . Pop3Uidl::class . ' ledger WHERE ledger.message = message)');
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
      * A *server-side* copy already stored in this exact folder under this RFC
      * Message-ID.
      *
@@ -2817,9 +2879,13 @@ class MessageRepository extends ServiceEntityRepository
      *
      * Labels are fetch-joined into the one statement; parts are NOT, because a
      * second to-many join multiplies the first (labels × parts rows, every one
-     * carrying the bodies). They are a statement of their own instead, and only
-     * for the messages that have attachments at all — the pane never touches
-     * the collection of one that does not.
+     * carrying the bodies). They are a statement of their own instead, for
+     * every message of the thread. It used to be only those with
+     * hasAttachments, because the pane touched no other message's parts; since
+     * phase 6g of #28 it does — a message whose one attachment is the sender's
+     * own key has hasAttachments false and still says that key in its banner
+     * (AttachedKeyExtension) — and a part-less message asked lazily is one
+     * query per message, which the budget test catches.
      *
      * @return list<Message>
      */
@@ -2837,21 +2903,16 @@ class MessageRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        $withAttachments = [];
+        $ids = array_values(array_filter(array_map(static fn (Message $message): ?int => $message->id, $messages)));
 
-        foreach ($messages as $message) {
-            if (true === $message->hasAttachments && null !== $message->id) {
-                $withAttachments[] = $message->id;
-            }
-        }
-
-        if ([] !== $withAttachments) {
-            // Already managed, so this only initialises messageParts on them.
+        if ([] !== $ids) {
+            // Already managed, so this only initialises messageParts on them —
+            // an empty collection too, for a message without any.
             $this->createQueryBuilder('m')
                 ->addSelect('p')
                 ->leftJoin('m.messageParts', 'p')
                 ->where('m.id IN (:ids)')
-                ->setParameter('ids', $withAttachments)
+                ->setParameter('ids', $ids)
                 ->getQuery()
                 ->getResult();
         }
@@ -2917,11 +2978,12 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * The columns MessageSnippet reads, for specific messages only — one per
      * list row, the row's latest. The category decides whether the preview
-     * may skip a bulk mail's chrome.
+     * may skip a bulk mail's chrome; whether it is encrypted is the lock in
+     * front of the row's subject (ThreadRow::$encrypted).
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, category: ?MessageCategory, crypto: ?MessageCrypto}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2929,9 +2991,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, category: MessageCategory|string|null, crypto: ?MessageCrypto}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.category', 'm.crypto')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2946,6 +3008,7 @@ class MessageRepository extends ServiceEntityRepository
                 'bodyHtmlSafe' => $row['bodyHtmlSafe'],
                 'bodyText'     => $row['bodyText'],
                 'category'     => is_string($category) ? MessageCategory::tryFrom($category) : $category,
+                'crypto'       => $row['crypto'],
             ];
         }
 
@@ -3272,5 +3335,36 @@ class MessageRepository extends ServiceEntityRepository
             'by'         => null === $row['arrived_by'] ? null : (string) $row['arrived_by'],
             'in'         => null === $row['arrived_in'] ? null : (string) $row['arrived_in'],
         ], $rows);
+    }
+
+    /**
+     * The newest PGP-signed messages a person received from one address,
+     * newest first — what SignatureRecheck checks again once a key for that
+     * address is added, pinned or replaced.
+     *
+     * Only messages whose signature the server checks: signed, not encrypted.
+     * The browser checks the signature inside an encrypted message every time
+     * it opens one, so there is nothing stored to bring up to date.
+     *
+     * @return list<int>
+     */
+    public function findPgpSignedIdsFrom(User $user, string $email, int $limit): array
+    {
+        /** @var list<array{id: int|string}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->join('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('LOWER(m.fromAddress) = :email')
+            ->andWhere('m.crypto IN (:crypto)')
+            ->setParameter('usr', $user)
+            ->setParameter('email', strtolower(trim($email)))
+            ->setParameter('crypto', [MessageCrypto::PgpSigned->value, MessageCrypto::PgpInlineSigned->value])
+            ->orderBy('m.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
     }
 }
