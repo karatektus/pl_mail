@@ -902,7 +902,10 @@ statement that creates the need for it.
   sender's certificate. Imported mail lives in plMail only; nothing is
   appended at the provider.
 - `urn:plmail:params:jmap:keys` (Method/Keys): `Keyring/get`, `ContactKey/get`,
-  `ContactKey/lookup`, `DecryptedMail/pending`, `DecryptedMail/store`, and the
+  `ContactKey/lookup`, `ContactKey/smimeSigner` (the signer of a signature
+  inside S/MIME-encrypted mail, judged and kept for the sender by
+  ContactCertificates::signerState(), as the web's smime-signer route does),
+  `DecryptedMail/pending`, `DecryptedMail/store`, and the
   Email properties `cryptoType`, `encrypted`, `signatureState`, `signer`,
   `decryptedOnServer`, `sealedDraft`. `Keyring/get` carries the person's S/MIME
   certificates (`smimeCertificates`) and which of their addresses the Web Key

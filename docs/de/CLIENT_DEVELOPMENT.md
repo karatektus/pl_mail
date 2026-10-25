@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:4c6bea77806bd3b90d156e6048faaa668611971f -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:2be2712648313d78072c5e359be041661216ad07 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -762,7 +762,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. Kein `accountId`-Argument bei get und set; pro Benutzer. Siehe [Vorlagen](#vorlagen). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Dieselbe Capability. Die Ordner, die ein Benutzer angelegt hat; die Konto-Ordner des Web-Baums sind keine Objekte. |
 | `Email/import` | RFC 8621 §4.8, plus das plMail-Argument `fingerprints` für einen verschlüsselten Entwurf. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
-| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. Siehe [Ende-zu-Ende-Verschlüsselung](#ende-zu-ende-verschlüsselung-urnplmailparamsjmapkeys). |
 
 **Heute nicht implementiert.** Nichts davon ist ein bewusster Ausschluss — es wurde bisher nur
 nicht gebraucht. Wenn dein Client etwas davon will, **frag danach, statt darum herum zu
@@ -1444,6 +1444,19 @@ S/MIME-Import wird mit `forbidden` abgelehnt, wenn das nicht das aktive, nicht a
 der Person für die Absenderadresse ist. Verschlüssele mit AES-256-CBC und RSA-Schlüsseltransport mit
 PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer, und signiere mit SHA-256 — so lesen es
 Outlook und Thunderbird.
+
+**S/MIME-verschlüsselte Mail lesen.** Eine Signatur in einer verschlüsselten Nachricht sieht der
+Server nicht. Hast du eine entschlüsselt und ihre Signatur geprüft, frag also den Server, was sie
+bedeutet: `ContactKey/smimeSigner {accountId, emailId, certificate, chain?}` mit dem Zertifikat des
+Unterzeichners und dem Rest der Kette der Signatur (PEM). Die Antwort ist `{state, signer}`: `state`
+ist `valid` (vom Trust Store bestätigt, oder das eigene Zertifikat der Person), `untrusted` (intakt,
+aber niemand bürgt dafür), `key_changed` (unbestätigt und nicht das Zertifikat, das für den Absender
+hinterlegt ist) oder `invalid` (es nennt den Absender nicht oder ist nicht lesbar), und `signer` ist
+sein SHA-256-Fingerabdruck. Der Absender ist das From der Nachricht selbst, nie deine Angabe. Der
+Server behält das Zertifikat außerdem für den Absender, außer es ist das eigene der Person oder
+`invalid` — so bietet `ContactKey/lookup` es an und eine Antwort kann verschlüsselt werden. Zeig den
+Zustand so, wie die Web-App es tut. Angenommen wird nur eine `smime_encrypted`-Email (sonst
+`forbidden`); eine, die nicht im Konto ist, ist `notFound`.
 
 **Web Key Directory.** `Keyring/get` liefert außerdem `wkd: [{email, state, published, fingerprint,
 urls: {advanced, direct}}]` — die Adressen der Person auf den Domains, für die die Installation

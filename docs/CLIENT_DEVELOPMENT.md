@@ -695,7 +695,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. No `accountId` argument on get and set; per-user. See [Templates](#templates). |
 | `TemplateFolder/get` / `TemplateFolder/set` | Same capability. The folders a user made; the per-account folders of the web tree are not objects. |
 | `Email/import` | RFC 8621 §4.8, plus the plMail argument `fingerprints` for an encrypted draft. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
-| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
+| `Keyring/get` / `ContactKey/get` / `ContactKey/lookup` / `ContactKey/smimeSigner` / `DecryptedMail/pending` / `DecryptedMail/store` | `urn:plmail:params:jmap:keys`. See [End-to-end encryption](#end-to-end-encryption-urnplmailparamsjmapkeys). |
 
 **Not implemented today.** None of these is a deliberate exclusion — they haven't been needed yet. If
 your client wants one, **ask for it rather than engineering around it** (see [§0](#0-read-this-first-the-server-is-under-active-development)):
@@ -1314,6 +1314,19 @@ its Content-Type (`application/pkcs7-mime; smime-type=enveloped-data`, or `multi
 S/MIME import is refused with `forbidden` unless that is the person's active, unexpired certificate
 for the From address. Encrypt with AES-256-CBC and RSA PKCS#1 v1.5 key transport, recipients
 named by issuer and serial number, and sign with SHA-256 — what Outlook and Thunderbird read.
+
+**Reading S/MIME-encrypted mail.** The server cannot see a signature inside an encrypted message,
+so after you decrypt one and check its signature, ask the server what it means:
+`ContactKey/smimeSigner {accountId, emailId, certificate, chain?}` with the signer's certificate and
+the rest of the signature's chain (PEM). The answer is `{state, signer}`: `state` is `valid`
+(vouched for by the trust store, or the person's own certificate), `untrusted` (intact, but nobody
+vouches for it), `key_changed` (unvouched-for, and not the certificate on record for the sender) or
+`invalid` (it does not name the sender, or cannot be read), and `signer` is its SHA-256
+fingerprint. The sender is the message's own From, never yours to give. The server also keeps the
+certificate for the sender, unless it is the person's own or `invalid`, so `ContactKey/lookup`
+offers it and a reply can be encrypted. Show the state the way the web app does. Only an
+`smime_encrypted` Email is accepted (`forbidden` otherwise); one that is not in the account is
+`notFound`.
 
 **Web Key Directory.** `Keyring/get` also returns `wkd: [{email, state, published, fingerprint,
 urls: {advanced, direct}}]` — the person's addresses on the domains the installation publishes keys

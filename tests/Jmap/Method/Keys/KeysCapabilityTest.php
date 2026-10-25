@@ -15,6 +15,7 @@ use App\Domain\Helper\SealedMessageStorage;
 use App\Domain\Helper\UploadStorage;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\ContactCertificate;
 use App\Entity\Crypto\ContactKey;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
@@ -25,6 +26,7 @@ use App\Jmap\Mapper\EmailMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Method\Keys\ContactKeyGetMethod;
 use App\Jmap\Method\Keys\ContactKeyLookupMethod;
+use App\Jmap\Method\Keys\ContactKeySmimeSignerMethod;
 use App\Jmap\Method\Keys\DecryptedMailPendingMethod;
 use App\Jmap\Method\Keys\DecryptedMailStoreMethod;
 use App\Jmap\Method\Keys\KeyringGetMethod;
@@ -36,6 +38,7 @@ use App\Service\Imap\MessageSendService;
 use App\Service\Mail\MailSenderRegistry;
 use App\Tests\Jmap\JmapTestCase;
 use App\Tests\Support\Crypto\Gpg;
+use App\Tests\Support\Crypto\Smime;
 use DateTimeImmutable;
 use Symfony\Component\Mime\Email;
 
@@ -48,6 +51,13 @@ use Symfony\Component\Mime\Email;
  */
 final class KeysCapabilityTest extends JmapTestCase
 {
+    protected function tearDown(): void
+    {
+        Smime::untrust();
+
+        parent::tearDown();
+    }
+
     public function testTheSessionAdvertisesTheCapabilityWithItsConstants(): void
     {
         $session = self::getContainer()->get(SessionBuilder::class)->build($this->user);
@@ -311,7 +321,105 @@ final class KeysCapabilityTest extends JmapTestCase
         self::assertSame('blobNotFound', $result['notCreated']['a']['type']);
     }
 
+    /**
+     * The signer of a signature inside S/MIME-encrypted mail, judged by the
+     * server and kept for the sender (#320) — what the web's smime-signer
+     * route does, for a client an app password signs in.
+     */
+    public function testTheSignerInsideSmimeEncryptedMailIsJudgedAndKeptForTheSender(): void
+    {
+        $authority = Smime::authority();
+        $authority->trustAuthority();
+        $sender  = Smime::issue('smime-sender@example.test', $authority);
+        $message = $this->smimeEncryptedFrom('smime-sender@example.test');
+
+        $answer = $this->smimeSigner($message, $sender->certificate);
+
+        self::assertSame('valid', $answer['state']);
+        self::assertSame($sender->fingerprint, $answer['signer']);
+        self::assertSame((string) $message->id, $answer['emailId']);
+        self::assertCount(1, $this->contactCertificates(), 'kept for the sender, so a reply can be encrypted');
+    }
+
+    /** Nobody vouches for it: untrusted, and a different one after it has changed. */
+    public function testAnUnvouchedForSignerIsUntrustedAndADifferentOneHasChanged(): void
+    {
+        $message = $this->smimeEncryptedFrom('smime-sender@example.test');
+
+        $first = Smime::issue('smime-sender@example.test');
+        self::assertSame('untrusted', $this->smimeSigner($message, $first->certificate)['state']);
+
+        $second = Smime::issue('smime-sender@example.test');
+        self::assertSame('key_changed', $this->smimeSigner($message, $second->certificate)['state']);
+    }
+
+    /** The sender is the message's From, not whatever the certificate claims. */
+    public function testASignerThatDoesNotNameTheSenderIsInvalidAndNotKept(): void
+    {
+        $message = $this->smimeEncryptedFrom('smime-sender@example.test');
+
+        $answer = $this->smimeSigner($message, Smime::issue('somebody-else@example.test')->certificate);
+
+        self::assertSame('invalid', $answer['state']);
+        self::assertSame([], $this->contactCertificates());
+    }
+
+    public function testOnlyAnSmimeEncryptedEmailOfTheAccountIsAccepted(): void
+    {
+        $certificate = Smime::issue('smime-sender@example.test')->certificate;
+
+        $plain = $this->receivedMessage();
+        $plain->fromAddress = 'smime-sender@example.test';
+        $this->em->flush();
+
+        try {
+            $this->smimeSigner($plain, $certificate);
+            self::fail('a message that is not S/MIME-encrypted was accepted');
+        } catch (MethodException $refused) {
+            self::assertSame('forbidden', $refused->errorType);
+        }
+
+        try {
+            $this->method(ContactKeySmimeSignerMethod::class)->handle([
+                'accountId'   => $this->accountId(),
+                'emailId'     => '999999999',
+                'certificate' => $certificate,
+            ], $this->context());
+            self::fail('an Email that is not in the account was accepted');
+        } catch (MethodException $refused) {
+            self::assertSame('notFound', $refused->errorType);
+        }
+
+        self::assertSame([], $this->contactCertificates());
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private function smimeEncryptedFrom(string $from): Message
+    {
+        $message              = $this->receivedMessage();
+        $message->crypto      = MessageCrypto::SmimeEncrypted;
+        $message->fromAddress = $from;
+        $this->em->flush();
+
+        return $message;
+    }
+
+    /** @return array<string, mixed> */
+    private function smimeSigner(Message $message, string $certificate): array
+    {
+        return $this->method(ContactKeySmimeSignerMethod::class)->handle([
+            'accountId'   => $this->accountId(),
+            'emailId'     => (string) $message->id,
+            'certificate' => $certificate,
+        ], $this->context());
+    }
+
+    /** @return list<ContactCertificate> */
+    private function contactCertificates(): array
+    {
+        return $this->em->getRepository(ContactCertificate::class)->findBy(['usr' => $this->user]);
+    }
 
     /**
      * @param array<string, mixed> $import
