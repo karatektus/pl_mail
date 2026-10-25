@@ -49,6 +49,19 @@ Variables: message, thread (MessageThread|null), ctx
     <template></template>
 </turbo-stream>
 
+{# The Drafts list, when it is the list behind the window (#310). Its rows are
+   there because of a draft, so a conversation whose last draft just went
+   leaves it — the same rule a discard follows (ComposeWindow::rowToDrop()).
+   The discard is told which list is open by the browser; this asks the page
+   instead, through the frame's scope, so the same stream serves every way a
+   send settles — optimistic, held, and a cancel that came too late — without
+   each of them carrying the scope along. Anywhere else the selector matches
+   nothing, and the conversation keeps its row. #}
+{% if thread is not null and thread.messages|filter(m => m.id != message.id and m.isDraft)|length == 0 %}
+    <turbo-stream action="remove" targets="#inbox-list-frame[data-sync-scope='drafts'] #thread_{{ thread.id }}">
+    </turbo-stream>
+{% endif %}
+
 {% if inConversation %}
     {# The draft's row is already in the conversation — hidden while the editor
        was open — so it is dropped and the sent message re-appended at the end,

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:1a0f98c54d1f9805d416ef135c1677dae8954e97 -->
+<!-- translated-from: features/mail.md sha1:a67ea8b53805ea77511626f8e972c1c383eca7fe -->
 
 # Mail
 
@@ -1295,19 +1295,26 @@ wird.
 
 ## Senden rückgängig machen
 
-Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein und lässt das
-Fenster genau dort, wo es ist. Der Senden-Knopf wird selbst zum Weg zurück: Er liest sich
-**Wird gesendet…** mit *zum Abbrechen klicken* darunter, und ein zweiter Klick auf denselben Knopf
-sagt das Senden ab. Mehr Abbruch gibt es nicht — keine Einblendung, keine Leiste am Fuß der
-Konversation — und es geht im schwebenden Fenster genauso wie in einer Antwort, die du direkt in
-der Konversation schreibst.
+Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein. Was das Fenster
+währenddessen tut, wählst du unter **Einstellungen → Allgemein → Verfassen → Beim Senden**:
 
-Solange das Senden läuft, ist die Nachricht selbst nicht mehr erreichbar: Das Fenster zeigt eine
-Kopie von Post, die schon weg ist, die Felder sind also eingefroren statt bearbeitbar. Läuft das
-Zeitfenster ab, schließt sich das Fenster von allein, eine Einblendung **Nachricht gesendet**
-bestätigt es, und die Nachricht nimmt ihren Platz in der Konversation ein — außer es war eine
-**Weiterleitung**: Die beginnt eine eigene Konversation und steht darum unter **Gesendet** und
-nicht unter der Mail, aus der du sie weitergeleitet hast.
+- **Schließen**, die Vorgabe. Das Fenster schließt sich, sobald der Server die Nachricht hat, und
+  eine Einblendung **Wird gesendet…** mit einem Knopf **Rückgängig** zählt den Abbruch herunter.
+  Solange der Server die Nachricht noch entgegennimmt, sagt der Senden-Knopf nur **Wird
+  gesendet…**: Er ist beschäftigt, kein zweiter Weg zurück, und ein Doppelklick kann die Mail, die
+  du gerade gesendet hast, nicht absagen.
+- **Offen lassen.** Das Fenster bleibt genau dort, wo es ist, und der Senden-Knopf wird selbst zum
+  Weg zurück: Er liest sich **Wird gesendet…** mit *zum Abbrechen klicken* darunter, und ein
+  zweiter Klick auf denselben Knopf sagt das Senden ab. Das geht im schwebenden Fenster genauso wie
+  in einer Antwort, die du direkt in der Konversation schreibst.
+
+Solange ein offen gelassenes Senden läuft, ist die Nachricht selbst nicht mehr erreichbar: Das
+Fenster zeigt eine Kopie von Post, die schon weg ist, die Felder sind also eingefroren statt
+bearbeitbar. Läuft das Zeitfenster ab, schließt sich das Fenster von allein. So oder so nimmt die
+Nachricht danach ihren Platz in der Konversation ein — außer es war eine **Weiterleitung**: Die
+beginnt eine eigene Konversation und steht darum unter **Gesendet** und nicht unter der Mail, aus
+der du sie weitergeleitet hast —, und ein Entwurf, den du aus der Liste **Entwürfe** sendest,
+verschwindet aus dieser Liste.
 
 Ein Abbruch sagt nichts. Der Entwurf, der mit allem darin zurückkommt — Empfänger, Betreff, Text,
 Anhänge —, ist die Bestätigung, und das ist in beiden Fenstern gleich.

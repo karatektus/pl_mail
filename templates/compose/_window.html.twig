@@ -143,6 +143,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             it was an empty mail. ctx travels in the URL. #}
          data-compose--compose-mode-value="{{ ctx.mode }}"
          data-compose--compose-collapse-forward-quote-value="{{ app.user and false == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED'), true) ? 'false' : 'true' }}"
+         data-compose--compose-hold-send-value="{{ app.user and constant('App\\Entity\\User\\User::SEND_FEEDBACK_HOLD') == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_SEND_FEEDBACK'), constant('App\\Entity\\User\\User::SEND_FEEDBACK_OPTIMISTIC')) ? 'true' : 'false' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeAttachmentController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}

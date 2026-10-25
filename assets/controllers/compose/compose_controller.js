@@ -77,6 +77,11 @@ export default class extends Controller {
         // Settings -> Compose: fold a forward's quoted original behind the
         // "show quoted text" pill, or show it open from the start.
         collapseForwardQuote: { type: Boolean, default: true },
+        // Settings -> Compose: what a send looks like. True for "hold", where
+        // the window stays open and the pill is the cancel; false for the
+        // default "optimistic", where the window closes and the toast carries
+        // the Undo — so the pill must not offer a second one (#302).
+        holdSend:     { type: Boolean, default: false },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
         // Rendered inline at the bottom of a thread rather than in the
@@ -3014,7 +3019,12 @@ export default class extends Controller {
         // face without the invitation to click it.
         const scheduling = true === event.submitter?.hasAttribute('formaction');
 
-        this._beginSending(false === scheduling);
+        // Nor does an optimistic send (#302). Its cancel is the toast's Undo,
+        // which is on screen the moment the server answers; until then the
+        // pill is only busy. As a cancel it was a trap: a double click, or a
+        // second press from somebody who thought the first did nothing, called
+        // off the mail they had just sent.
+        this._beginSending(false === scheduling && true === this.holdSendValue);
     }
 
     async _buildAndSubmit(submitter) {
@@ -3077,8 +3087,10 @@ export default class extends Controller {
 
         this.sendBtnTargets.forEach((button) => {
             button.setAttribute('aria-busy', 'true');
-            // Not disabled: while a send is in flight this button IS the
-            // cancel, and a disabled button takes no clicks. Re-submission is
+            // Not disabled while it is cancellable: then this button IS the
+            // cancel, and a disabled button takes no clicks. Disabled when it
+            // is not — a schedule, or an optimistic send, whose cancel is
+            // somewhere else. Re-submission is
             // stopped by `_submitting` in the handler above and by
             // sendOrCancel() swallowing the click, not by the attribute.
             button.disabled = false === cancellable;

@@ -1173,17 +1173,24 @@ sent before anything is attached to anything.
 
 ## Undo send
 
-Pressing send queues the message with a **ten-second** delay and leaves the composer exactly where
-it is. The Send button becomes the way back: it reads **Sending…** with *click to cancel* under it,
-and a second click on that same button calls the send off. That is the only cancel there is — no
-toast, no bar at the foot of the thread — and it works the same in the floating composer and in a
-reply written inside a conversation.
+Pressing send queues the message with a **ten-second** delay. What the composer does meanwhile is
+yours to choose, under **Settings → General → Composing → When you press Send**:
 
-While the send is out the message itself is out of reach: the window is showing a copy of mail that
-has left, so the fields are frozen rather than editable. When the window expires the composer closes
-on its own, a **Message sent** toast confirms it, and the message takes its place in the
-conversation — unless it was a **forward**, which starts a conversation of its own and is therefore
-found in **Sent** rather than under the mail it was forwarded from.
+- **Close it**, the default. The composer closes as soon as the server has the message, and a
+  **Sending…** toast with an **Undo** button counts the cancel down. While the server is still
+  taking the message the Send button only says **Sending…**: it is busy, not a second way back, so
+  a double click cannot call off the mail you just sent.
+- **Keep it open.** The composer stays exactly where it is, and the Send button becomes the way
+  back: it reads **Sending…** with *click to cancel* under it, and a second click on that same
+  button calls the send off. That works the same in the floating composer and in a reply written
+  inside a conversation.
+
+While a kept-open send is out the message itself is out of reach: the window is showing a copy of
+mail that has left, so the fields are frozen rather than editable. When the window expires the
+composer closes on its own. Either way the message then takes its place in the conversation — unless
+it was a **forward**, which starts a conversation of its own and is therefore found in **Sent**
+rather than under the mail it was forwarded from — and a draft sent from the **Drafts** list leaves
+that list.
 
 Cancelling says nothing. The draft coming back with everything in it — recipients, subject, body,
 attachments — is the confirmation, and it is the same in both composers.
