@@ -60,8 +60,9 @@ in plMail, and only then. A message plMail could not fetch or store stays on the
 this says. Deleting frees space at your provider, but plMail's copy is then the only one.
 
 You can switch an existing account between IMAP and POP3 on its edit form. Its mail stays: the
-next sync recognises what plMail already holds by its Message-ID and fetches only the rest. Folders
-other than the inbox keep their mail when an account becomes POP3, and stop syncing.
+next sync recognises what plMail already holds and does not store it again — by its Message-ID, or
+for the rare message without one, by its sender, subject and date. Folders other than the inbox
+keep their mail when an account becomes POP3, and stop syncing.
 
 ## Adding Gmail or Outlook
 

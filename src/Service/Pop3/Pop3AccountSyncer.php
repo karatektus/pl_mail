@@ -269,10 +269,14 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
                 continue;
             }
 
-            if (true === $account->pop3Adopting && true === $this->alreadyHeld($account, $session, $number)) {
-                $this->uidls->recordStored($account, [$uidl]);
+            if (true === $account->pop3Adopting) {
+                $held = $this->heldRowFor($account, $session, $number);
 
-                continue;
+                if (null !== $held) {
+                    $this->uidls->recordStored($account, $uidl, $held);
+
+                    continue;
+                }
             }
 
             try {
@@ -329,7 +333,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
             // Committed: only now may this message be called stored, and so
             // only now may a delete mode ever touch it.
-            $this->uidls->recordStored($account, [$uidl]);
+            $this->uidls->recordStored($account, $uidl, (int) $message->id);
 
             $storedIds[] = (int) $message->id;
             $raws[]      = $raw;
@@ -385,15 +389,21 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
     }
 
     /**
-     * Whether the account already holds this message, judged by its
-     * Message-ID — the adoption pass only; see Account::$pop3Adopting.
+     * The row the account already holds for this message, if any — the
+     * adoption pass only; see Account::$pop3Adopting.
+     *
+     * Judged by Message-ID, or for mail that has none by the sender, subject
+     * and Date header (MessageSyncer::fingerprintOf()), the same three
+     * columns the row was built with. A row some other UIDL already stands
+     * for is not offered twice, so two look-alike copies on the server are
+     * one adopted and one fetched, never two adopted.
      *
      * The headers are read with TOP so that recognising a message does not
      * mean downloading it. A server without TOP gets RETR instead, which costs
-     * the bytes and nothing else. A message with no Message-ID cannot be
-     * recognised and is fetched; that is a duplicate at worst.
+     * the bytes and nothing else. A message with neither a Message-ID nor a
+     * Date header cannot be recognised and is fetched.
      */
-    private function alreadyHeld(Account $account, Pop3Session $session, int $number): bool
+    private function heldRowFor(Account $account, Pop3Session $session, int $number): ?int
     {
         try {
             $head = $session->top($number);
@@ -401,17 +411,18 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
             try {
                 $head = $session->retrieve($number);
             } catch (Pop3RefusedException) {
-                return false;
+                return null;
             }
         }
 
-        $messageId = self::messageIdOf($head);
+        $messageId   = self::messageIdOf($head);
+        $fingerprint = '' === $messageId
+            ? $this->messageSyncer->fingerprintOf(ImapMessage::fromString($head, ImapConnectionFactory::config()))
+            : null;
 
-        if ('' === $messageId) {
-            return false;
-        }
+        $held = $this->messageRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
 
-        return 0 < $this->messageRepository->count(['account' => $account, 'messageId' => $messageId]);
+        return null === $held ? null : (int) $held->id;
     }
 
     /**

@@ -57,23 +57,20 @@ class Pop3UidlRepository extends ServiceEntityRepository
     }
 
     /**
-     * These messages are here now: stored by this sync, or recognised as
-     * already held. Committed straight away, because the delete marks that
-     * may follow are only ever made for what this has written.
+     * This message is here now: stored by this sync, or recognised as a row
+     * the account already holds. Committed straight away, because the delete
+     * marks that may follow are only ever made for what this has written.
      *
-     * @param list<string> $uidls
+     * $messageId is the row it stands for — see Pop3Uidl::$message.
      */
-    public function recordStored(Account $account, array $uidls): void
+    public function recordStored(Account $account, string $uidl, ?int $messageId = null): void
     {
-        $connection = $this->getEntityManager()->getConnection();
-
-        foreach (array_unique($uidls) as $uidl) {
-            $connection->executeStatement(
-                'INSERT INTO pop3_uidl (account_id, uidl, stored_at, attempts) VALUES (?, ?, now(), 0)'
-                . ' ON CONFLICT (account_id, uidl) DO UPDATE SET stored_at = COALESCE(pop3_uidl.stored_at, EXCLUDED.stored_at)',
-                [(int) $account->id, $uidl],
-            );
-        }
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'INSERT INTO pop3_uidl (account_id, uidl, stored_at, attempts, message_id) VALUES (?, ?, now(), 0, ?)'
+            . ' ON CONFLICT (account_id, uidl) DO UPDATE SET stored_at = COALESCE(pop3_uidl.stored_at, EXCLUDED.stored_at),'
+            . ' message_id = COALESCE(EXCLUDED.message_id, pop3_uidl.message_id)',
+            [(int) $account->id, $uidl, $messageId],
+        );
     }
 
     /** One more failed attempt at a message that is not here. */

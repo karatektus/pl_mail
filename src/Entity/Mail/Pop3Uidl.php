@@ -71,6 +71,20 @@ class Pop3Uidl
     #[ORM\Column(options: ['default' => 0])]
     public int $attempts = 0;
 
+    /**
+     * The row this server message is, once it is here.
+     *
+     * Set when the message is stored and when an adoption pass recognises it
+     * as a row the account already had (Account::$pop3Adopting). The second
+     * use is the one that needs it: a row already named by one UIDL is not
+     * offered to the next, so two copies on the server that look alike can
+     * never both be taken for the one row — the second is fetched instead.
+     * Null once that row is deleted here; the server's copy is unaffected.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    public ?Message $message = null;
+
     public function __construct(Account $account, string $uidl)
     {
         $this->account = $account;

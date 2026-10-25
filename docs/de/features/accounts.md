@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:d863f01e7afa9d49b02f72ebc8d8d48f0b00c2b6 -->
+<!-- translated-from: features/accounts.md sha1:1089d79f26ee0fc5d02fb1ecfb99314e7ce21530 -->
 
 # Konten und Aliase
 
@@ -71,9 +71,10 @@ speichern konnte, bleibt auf dem Server, egal was hier steht. Löschen schafft P
 Anbieter, aber dann gibt es nur noch die Kopie in plMail.
 
 Ein bestehendes Konto kannst du in seinem Bearbeiten-Formular zwischen IMAP und POP3 umstellen.
-Seine Mail bleibt: Der nächste Abruf erkennt an der Message-ID, was plMail schon hat, und lädt nur
-den Rest. Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden
-nicht mehr synchronisiert.
+Seine Mail bleibt: Der nächste Abruf erkennt, was plMail schon hat, und legt es nicht noch einmal
+ab — an der Message-ID oder, bei der seltenen Nachricht ohne eine, an Absender, Betreff und Datum.
+Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden nicht mehr
+synchronisiert.
 
 ## Gmail oder Outlook hinzufügen
 

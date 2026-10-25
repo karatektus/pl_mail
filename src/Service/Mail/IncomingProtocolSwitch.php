@@ -24,19 +24,21 @@ use Psr\Log\LoggerInterface;
  * Message-ID instead of storing them a second time:
  *
  *  - To POP3: the account is flagged as adopting (Account::$pop3Adopting), and
- *    its first POP3 pass records a message whose Message-ID the account
- *    already holds as stored rather than fetching it. The IMAP INBOX row is
+ *    its first POP3 pass records a message the account already holds as
+ *    stored rather than fetching it. The IMAP INBOX row is
  *    the mailbox POP3 files into from then on. Folders other than the inbox
  *    keep their mail and simply stop syncing: POP3 has no folders to sync
  *    them from.
  *  - To IMAP: every folder is unplanned, so it is read like a first one, and
  *    SentCopyReconciler::claim() matches each message to the address-less
  *    row the account already holds for it — the same path a UIDVALIDITY
- *    rebuild takes. Mail POP3 deleted from the server stays here, with no
+ *    rebuild takes — or claimByFingerprint() when it has no Message-ID. Mail POP3 deleted from the server stays here, with no
  *    address, which is where it was all along.
  *
- * A message with no Message-ID cannot be recognised either way and is
- * fetched again. That is the one cost, and it is a duplicate, never a loss.
+ * Mail with no Message-ID is recognised by its sender, subject and Date
+ * header instead (MessageSyncer::fingerprintOf()). Only a message with
+ * neither a Message-ID nor a Date header cannot be recognised; it is stored
+ * a second time, which is a duplicate and never a loss.
  *
  * Dropping the addresses is also what keeps the old protocol from being used
  * by anything still queued: flag changes, moves and purges all act on rows

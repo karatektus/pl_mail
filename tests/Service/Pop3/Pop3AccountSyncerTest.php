@@ -290,6 +290,51 @@ final class Pop3AccountSyncerTest extends KernelTestCase
     }
 
     /**
+     * Mail with no Message-ID is recognised by sender, subject and Date
+     * header — the three columns the row was built from — so a switch does
+     * not leave a second copy of it in the inbox.
+     */
+    public function testAnAdoptingPassRecognisesMailWithoutAMessageId(): void
+    {
+        $this->heldMessage('', 'Your parcel is on its way');
+
+        $this->account->pop3Adopting = true;
+        $this->em->flush();
+
+        $this->server->add('held', $this->raw('', 'Your parcel is on its way'));
+        $this->server->add('other', $this->raw('', 'Your parcel has arrived'));
+
+        $this->syncer()->sync($this->account);
+
+        self::assertSame(['Your parcel has arrived', 'Your parcel is on its way'], $this->storedSubjects());
+        self::assertSame(['other'], $this->server->sent('RETR'), 'the held one was recognised from its headers');
+    }
+
+    /**
+     * One held row is one adoption. Two copies on the server that look the
+     * same — no Message-ID, same sender, subject and second — are one row
+     * recognised and one message fetched; taking both for the one row would
+     * leave the second nowhere once the delete mode removed it.
+     */
+    public function testTwoLookAlikeCopiesAreNotBothTakenForOneRow(): void
+    {
+        $this->heldMessage('', 'Daily report');
+
+        $this->account->pop3Adopting   = true;
+        $this->account->pop3DeleteMode = Pop3DeleteMode::Delete;
+        $this->em->flush();
+
+        $this->server->add('first', $this->raw('', 'Daily report'));
+        $this->server->add('second', $this->raw('', 'Daily report'));
+
+        $this->syncer()->sync($this->account);
+
+        self::assertSame(['Daily report', 'Daily report'], $this->storedSubjects(), 'one adopted, one stored');
+        self::assertCount(1, $this->server->sent('RETR'));
+        self::assertSame([], $this->server->messages, 'both are here, so both may go');
+    }
+
+    /**
      * Header parsing for the adoption pass: unfolded, bracketed, and never a
      * DKIM signature's list of signed headers.
      */
@@ -325,12 +370,16 @@ final class Pop3AccountSyncerTest extends KernelTestCase
         );
     }
 
+    /** The Date header every fixture message carries, and the time held rows are dated. */
+    private const string DATE = '2026-10-23 10:00:00';
+
+    /** A message as the server holds it; '' as the Message-ID leaves the header out. */
     private function raw(string $messageId, string $subject): string
     {
         return "From: Sender <sender@example.test>\r\n"
             . 'To: ' . $this->account->email . "\r\n"
             . 'Subject: ' . $subject . "\r\n"
-            . 'Message-ID: <' . $messageId . ">\r\n"
+            . ('' === $messageId ? '' : 'Message-ID: <' . $messageId . ">\r\n")
             . "Date: Fri, 23 Oct 2026 10:00:00 +0000\r\n"
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=utf-8\r\n"
@@ -338,20 +387,28 @@ final class Pop3AccountSyncerTest extends KernelTestCase
             . 'Body of ' . $subject . "\r\n";
     }
 
-    /** A message the IMAP sync stored before the switch: in the inbox, with no UID left. */
+    /**
+     * A message the IMAP sync stored before the switch: in the inbox, with no
+     * UID left, dated as raw() dates its messages.
+     */
     private function heldMessage(string $messageId, string $subject): void
     {
+        $date = new \DateTimeImmutable(self::DATE, new \DateTimeZone('UTC'));
+
         $held                 = new Message();
         $held->account        = $this->account;
-        $held->mailbox        = $this->inboxMailbox();
+        $held->mailbox        = $this->mailbox ??= $this->inboxMailbox();
         $held->messageId      = $messageId;
         $held->subject        = $subject;
         $held->fromAddress    = 'sender@example.test';
-        $held->receivedAt     = new \DateTimeImmutable();
+        $held->receivedAt     = $date;
+        $held->sentAt         = $date;
         $held->syncedAt       = new \DateTimeImmutable();
         $held->hasAttachments = false;
         $this->em->persist($held);
     }
+
+    private ?Mailbox $mailbox = null;
 
     /** The Inbox mailbox, made the way the syncer makes it, before any sync. */
     private function inboxMailbox(): Mailbox

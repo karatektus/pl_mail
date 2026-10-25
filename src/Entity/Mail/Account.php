@@ -1039,9 +1039,10 @@ class Account extends AccountModel
      * Set by IncomingProtocolSwitch when an IMAP account becomes a POP3 one:
      * the server's mailbox then is, message for message, mail the account
      * already has — the IMAP sync fetched it. POP3 has nothing to match those
-     * rows on but the Message-ID, so while this is set a message whose
-     * Message-ID the account already holds is recorded as stored and not
-     * fetched. Cleared once a pass has walked the whole server listing.
+     * rows on but the headers, so while this is set a message the account
+     * already holds — by Message-ID, or by sender, subject and Date header
+     * when it has none — is recorded as stored and not fetched. Cleared once
+     * a pass has walked the whole server listing.
      *
      * Only for that pass, and not as the rule: in normal running a repeated
      * Message-ID is a second copy that arrived (a mail sent to two of the

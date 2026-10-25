@@ -13,6 +13,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
+use App\Entity\Mail\Pop3Uidl;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
 use App\Service\Graph\GraphMessageBuilder;
@@ -2417,6 +2418,63 @@ class MessageRepository extends ServiceEntityRepository
                 'message.gmailId IS NOT NULL'
                 . ' OR (mailbox.id IS NOT NULL AND (mailbox.specialUse IS NULL OR mailbox.specialUse != :sent))',
             )->setParameter('sent', MailboxSpecialUse::SENT);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * A row this account holds with no server address that is the same
+     * message as one a server is offering, judged by Message-ID or — for mail
+     * that has none — by MessageSyncer::fingerprintOf(). Null when there is
+     * none to adopt.
+     *
+     * For an account that changed incoming protocol (#289), whose rows all
+     * lost their addresses in the switch. Two narrowings keep it from taking
+     * one message for another:
+     *
+     *  - Only unlocated rows. A row with an IMAP UID is somewhere on a server
+     *    already, and is SentCopyReconciler's to match.
+     *  - $notInPop3Ledger: only rows no UIDL names yet. A POP3 adoption does
+     *    not give the row an address, so without this two copies on the server
+     *    that look alike would both be taken for the one row, and the second
+     *    — which the delete mode would then remove — would exist nowhere.
+     *
+     * A fingerprint match also leaves out unsent drafts (no sentAt), which
+     * have no Message-ID either and are nobody's copy of anything.
+     *
+     * @param array{from: string, subject: string, date: \DateTimeImmutable}|null $fingerprint
+     */
+    public function findAdoptable(Account $account, string $messageId, ?array $fingerprint, bool $notInPop3Ledger): ?Message
+    {
+        $qb = $this->createQueryBuilder('message')
+            ->where('message.account = :account')
+            ->andWhere('message.imapUid IS NULL')
+            ->setParameter('account', $account)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults(1);
+
+        if ('' !== $messageId) {
+            $qb->andWhere('message.messageId = :messageId')->setParameter('messageId', $messageId);
+        } elseif (null !== $fingerprint) {
+            $qb->andWhere("message.messageId IS NULL OR message.messageId = ''")
+                ->andWhere('message.subject = :subject')
+                ->andWhere('message.receivedAt = :date')
+                ->andWhere('message.sentAt IS NOT NULL')
+                ->setParameter('subject', $fingerprint['subject'])
+                ->setParameter('date', $fingerprint['date']);
+
+            if ('' === $fingerprint['from']) {
+                $qb->andWhere("message.fromAddress IS NULL OR message.fromAddress = ''");
+            } else {
+                $qb->andWhere('message.fromAddress = :from')->setParameter('from', $fingerprint['from']);
+            }
+        } else {
+            return null;
+        }
+
+        if (true === $notInPop3Ledger) {
+            $qb->andWhere('NOT EXISTS (SELECT ledger.id FROM ' . Pop3Uidl::class . ' ledger WHERE ledger.message = message)');
         }
 
         return $qb->getQuery()->getOneOrNullResult();

@@ -14,6 +14,7 @@ use App\Entity\User\User;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\Pop3UidlRepository;
+use App\Service\Imap\SentCopyReconciler;
 use App\Service\Mail\IncomingProtocolSwitch;
 use App\Service\Mail\MailImporter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -124,7 +125,7 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
     public function testPop3BackToImapLeavesEveryRowForTheImapSyncToReclaim(): void
     {
         $this->switchTo(IncomingProtocol::Pop3);
-        static::getContainer()->get(Pop3UidlRepository::class)->recordStored($this->account, ['some-uidl']);
+        static::getContainer()->get(Pop3UidlRepository::class)->recordStored($this->account, 'some-uidl');
 
         $this->switchTo(IncomingProtocol::Imap);
 
@@ -141,6 +142,48 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
             ->findUnlocatedByMessageId($this->account, 'kept@example.test', false);
 
         self::assertSame($this->message->id, $claimable?->id);
+    }
+
+    /**
+     * Mail without a Message-ID: after the switch back to IMAP the server's
+     * copy is matched to the row by sender, subject and Date header, and the
+     * row gets the UID — which also takes it out of the running for the next
+     * look-alike.
+     */
+    public function testImapReclaimsMailWithoutAMessageIdByItsHeaders(): void
+    {
+        $date = new \DateTimeImmutable('2026-10-23 10:00:00', new \DateTimeZone('UTC'));
+
+        $bare                 = new Message();
+        $bare->account        = $this->account;
+        $bare->mailbox        = $this->inbox;
+        $bare->messageId      = '';
+        $bare->subject        = 'Your parcel is on its way';
+        $bare->fromAddress    = 'shop@example.test';
+        $bare->receivedAt     = $date;
+        $bare->sentAt         = $date;
+        $bare->syncedAt       = new \DateTimeImmutable();
+        $bare->hasAttachments = false;
+        $this->em->persist($bare);
+        $this->em->flush();
+
+        $this->switchTo(IncomingProtocol::Pop3);
+        $this->switchTo(IncomingProtocol::Imap);
+
+        $reconciler  = static::getContainer()->get(SentCopyReconciler::class);
+        $fingerprint = ['from' => 'shop@example.test', 'subject' => 'Your parcel is on its way', 'date' => $date];
+
+        self::assertNull(
+            $reconciler->claimByFingerprint($this->inbox, ['from' => 'shop@example.test', 'subject' => 'Your parcel has arrived', 'date' => $date], 900),
+            'a different subject is a different message',
+        );
+
+        $claimed = $reconciler->claimByFingerprint($this->inbox, $fingerprint, 900);
+        $this->em->flush();
+
+        self::assertSame($bare->id, $claimed?->id);
+        self::assertSame(900, $claimed->imapUid);
+        self::assertNull($reconciler->claimByFingerprint($this->inbox, $fingerprint, 901), 'a row is claimed once');
     }
 
     public function testKeepingTheProtocolChangesNothing(): void

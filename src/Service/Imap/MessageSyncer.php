@@ -521,8 +521,20 @@ class MessageSyncer
             // See SentCopyReconciler, which owns the matching rules and the
             // reason each of them is scoped the way it is.
             $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
+            $claimed      = $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence);
 
-            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence)) {
+            // Mail with no Message-ID has nothing for claim() to match, so a
+            // row that lost its address in a protocol switch (#289) is found
+            // by sender, subject and Date header instead — see fingerprintOf().
+            if (null === $claimed && '' === $rfcMessageId) {
+                $fingerprint = $this->fingerprintOf($imapMessage);
+
+                if (null !== $fingerprint) {
+                    $claimed = $this->sentCopies->claimByFingerprint($mailbox, $fingerprint, $uid);
+                }
+            }
+
+            if (null !== $claimed) {
                 if (true === $oneAtATime) {
                     $this->em->flush();
                 }
@@ -952,6 +964,41 @@ class MessageSyncer
             $this->headerNormalizer->first($headers, 'importance'),
             $this->headerNormalizer->first($headers, 'x-priority'),
         );
+    }
+
+    /**
+     * What identifies a message that has no Message-ID: its sender, its
+     * subject and the instant its Date header names — read exactly as
+     * buildMessageFromParsed() writes them to the row, so a fingerprint taken
+     * here matches the columns of a row built from the same bytes, whichever
+     * protocol delivered them.
+     *
+     * Null when the message has a Message-ID (that is the identity to use)
+     * and when it has no Date header: the row's time is then the moment it
+     * was fetched, which no second fetch reproduces.
+     *
+     * Used only where a row is known to have lost its server address — after
+     * a protocol switch (#289) — never to decide whether new mail is new.
+     *
+     * @return array{from: string, subject: string, date: DateTimeImmutable}|null
+     */
+    public function fingerprintOf(ImapMessage $imapMessage): ?array
+    {
+        if ('' !== MessageIdHelper::normalise((string) $imapMessage->getMessageId())) {
+            return null;
+        }
+
+        if (false === $this->hasDateHeader($imapMessage)) {
+            return null;
+        }
+
+        $from = $imapMessage->getFrom()->first();
+
+        return [
+            'from'    => false !== $from && null !== $from ? AddressHelper::email($from->mail ?? '') : '',
+            'subject' => $this->decodeMimeHeader((string) $imapMessage->getSubject()),
+            'date'    => $this->receivedAtOf($imapMessage),
+        ];
     }
 
     /**
