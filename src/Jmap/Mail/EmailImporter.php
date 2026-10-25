@@ -211,12 +211,17 @@ final readonly class EmailImporter
             $message->bodyHtml,
         ));
 
+        // In UTC, like every other date on the row. The columns have no zone of
+        // their own, so a value is stored as the wall time of whatever zone it
+        // carries: a Date header of "14:53 +0100" kept as it stands was read
+        // back as 14:53 UTC, and shown an hour late in Berlin — two in summer.
+        // The sync has always converted (MessageSyncer::toUtc()); this did not.
         $date = $mime->getDate()->first();
-        $sent = $date instanceof \DateTimeInterface ? DateTimeImmutable::createFromInterface($date) : null;
+        $sent = $date instanceof \DateTimeInterface ? MessageSyncer::toUtc($date) : null;
 
         // A draft has not been sent, whatever its Date header says.
         $message->sentAt     = true === $draft ? null : $sent;
-        $message->receivedAt = is_string($receivedAt) ? (new DateTimeImmutable($receivedAt)) : ($sent ?? new DateTimeImmutable());
+        $message->receivedAt = is_string($receivedAt) ? MessageSyncer::toUtc(new DateTimeImmutable($receivedAt)) : ($sent ?? new DateTimeImmutable());
         $message->hasAttachments = false;
         $message->flags          = [];
 

@@ -249,6 +249,38 @@ final class KeysCapabilityTest extends JmapTestCase
     }
 
     /**
+     * A Date header with an offset keeps its instant through the database.
+     *
+     * The columns have no zone, so a value is stored as the wall time of the
+     * zone it carries. "14:53 +0100" kept as it stands was read back as 14:53
+     * UTC — an hour in the future in Berlin, two in summer — which is how a
+     * mail sent from the phone came to sit above the answer to it. The same
+     * for a `receivedAt` the client gives with an offset.
+     */
+    public function testAnImportedDateWithAnOffsetKeepsItsInstant(): void
+    {
+        $result = $this->import([
+            'blobId'     => $this->upload("From: Ada <ada@example.test>\r\nTo: {$this->account->email}\r\nSubject: Offset\r\nMessage-ID: <imp-offset@example.test>\r\nDate: Sun, 25 Oct 2026 14:53:00 +0100\r\n\r\nSent in Berlin."),
+            'mailboxIds' => [$this->mailboxIdFor(LabelRole::Inbox) => true],
+        ]);
+
+        $given = $this->import([
+            'blobId'     => $this->upload("From: Ada <ada@example.test>\r\nTo: {$this->account->email}\r\nSubject: Offset given\r\nMessage-ID: <imp-offset-2@example.test>\r\nDate: Sun, 25 Oct 2026 14:53:00 +0100\r\n\r\nSent in Berlin."),
+            'mailboxIds' => [$this->mailboxIdFor(LabelRole::Inbox) => true],
+            'receivedAt' => '2026-10-25T14:54:00+01:00',
+        ]);
+
+        $this->em->clear();
+
+        $message = $this->em->find(Message::class, (int) $result['created']['a']['id']);
+        self::assertSame('2026-10-25 13:53:00', $message->sentAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
+        self::assertSame('2026-10-25 13:53:00', $message->receivedAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
+
+        $message = $this->em->find(Message::class, (int) $given['created']['a']['id']);
+        self::assertSame('2026-10-25 13:54:00', $message->receivedAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
+    }
+
+    /**
      * A message from an archive whose Date line is there three times is
      * imported, not refused as "not an RFC 5322 message" (#357).
      */
