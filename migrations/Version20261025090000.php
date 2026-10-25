@@ -21,14 +21,15 @@ use Doctrine\Migrations\AbstractMigration;
  * query" with no hint that the problem was one resource out of 765.
  *
  * TEXT rather than a larger varchar: the href is opaque, the server sets its
- * length, and picking another number would only move the cliff. Nothing indexes
- * this column — the lookups are by calendar and by uid.
+ * length, and picking another number would only move the cliff. The column is in
+ * idx_calendar_event_calendar_remote, which the type change rebuilds; a btree
+ * takes text up to about 2.7 kB, far past any href a server writes.
  *
  * NOT REVERSIBLE WITHOUT LOSS, and the down() says so rather than pretending:
  * narrowing back to 255 fails on any row already longer than that, which would
  * be an error at migration time rather than a surprise later.
  */
-final class Version20261021160000 extends AbstractMigration
+final class Version20261025090000 extends AbstractMigration
 {
     public function getDescription(): string
     {

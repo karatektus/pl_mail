@@ -237,7 +237,9 @@ class CalendarEvent
      * own resource hrefs are and Google's encoding is long: an event exported
      * from Google and imported into Baïkal produced a 258-character href, and at
      * varchar(255) that one resource failed the whole pull for the calendar.
-     * Nothing indexes this column, so there is no reason to pick a number.
+     * idx_calendar_event_calendar_remote indexes it, which TEXT does not
+     * change: a btree takes a text value up to about 2.7 kB, ten times any
+     * href a server has been seen to write.
      */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
