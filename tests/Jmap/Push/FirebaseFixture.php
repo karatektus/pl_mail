@@ -57,7 +57,7 @@ final class FirebaseFixture
      */
     public static function googleServicesJson(
         string $projectId = 'plmail-test',
-        string $package = 'de.plmail.google',
+        string $package = 'de.pluetzner.plmail',
     ): string {
         return (string) json_encode([
             'project_info' => [

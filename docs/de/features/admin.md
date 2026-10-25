@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:4865212012d4cf6a29e0240502f77ebd35946462 -->
+<!-- translated-from: features/admin.md sha1:370fb2bfa7179a174c1dcbdfeb7089a8366cd440 -->
 
 # Administration
 
@@ -426,6 +426,12 @@ Zwei Dateien, und keine ist allein zu gebrauchen:
   also nicht einkompilieren. Die Werte werden stattdessen in der JMAP-Session veröffentlicht, und
   die App baut ihre `FirebaseOptions` zur Laufzeit. Sie stecken im APK jeder Firebase-App und sind
   ihrer Natur nach öffentlich, werden also im Klartext gespeichert.
+
+  **Das Paket, das du registrierst**, wenn du die Android-App zum Firebase-Projekt hinzufügst, ist
+  `de.pluetzner.plmail`, die App aus dem Play Store. Die auf GitHub veröffentlichten APKs wurden als
+  `de.plmail.google` gebaut; ein Projekt, das nur dieses Paket registriert hat, funktioniert weiter
+  wie bisher. Eine Datei mit mehreren Paketen ist in Ordnung: plMail veröffentlicht die aus dem Play
+  Store, wenn sie dabei ist, dann `de.plmail.google`, sonst die erste App in der Datei.
 
 **Ein Paar aus zwei verschiedenen Projekten wird abgelehnt, unter Nennung beider.** Nichts weiter
 unten kann diesen Fehler erkennen: Die App registriert sich fröhlich gegen das eine Projekt, der

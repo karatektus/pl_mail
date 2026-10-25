@@ -385,6 +385,12 @@ Two files, and neither is any use alone:
   are published in the JMAP session instead and the app builds its `FirebaseOptions` at runtime.
   They ship inside every Firebase APK and are public by nature, so they are stored in clear.
 
+  **The package to register** when you add the Android app to the Firebase project is
+  `de.pluetzner.plmail`, the app from the Play Store. The APKs released on GitHub were built as
+  `de.plmail.google`; a project that registered only that one keeps working as before. A file that
+  registers several packages is fine: plMail publishes the Play Store one where it is there, then
+  `de.plmail.google`, and otherwise the first app in the file.
+
 **A pair from two different projects is refused, saying which is which.** Nothing downstream can
 detect that mistake: the app registers happily against one project, the server sends happily to the
 other, every message is rejected into a log file and the user's symptom is that notifications do not
