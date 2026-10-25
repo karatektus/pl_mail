@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -144,6 +145,32 @@ final class ForwardedAttachmentsTest extends KernelTestCase
 
         self::assertSame(1, $this->forwarded->copy($original, $draft));
         self::assertSame('ok.txt', $draft->messageParts->first()->filename);
+    }
+
+    /** The signature signs the original; on the forward it is a stray file. */
+    public function testASignatureIsNotAttachedButTheSignedMailsFilesAre(): void
+    {
+        $original         = $this->received();
+        $original->crypto = MessageCrypto::PgpSigned;
+        $this->receive($original, 'invoice.pdf', 'application/pdf', 'the invoice');
+        $this->receive($original, 'signature.asc', 'application/pgp-signature', 'armored signature');
+        $this->receive($original, 'smime.p7s', 'application/pkcs7-signature; name=smime.p7s', 'der signature');
+
+        $draft = $this->message();
+
+        self::assertSame(1, $this->forwarded->copy($original, $draft));
+        self::assertSame('invoice.pdf', $draft->messageParts->first()->filename);
+    }
+
+    /** An encrypted mail's parts are ciphertext for this mailbox's key alone. */
+    public function testAnEncryptedMailHasNothingToCopy(): void
+    {
+        $original         = $this->received();
+        $original->crypto = MessageCrypto::PgpEncrypted;
+        $this->receive($original, 'encrypted.asc', 'application/octet-stream', 'ciphertext');
+
+        self::assertFalse($this->forwarded->has($original));
+        self::assertSame(0, $this->forwarded->copy($original, $this->message()));
     }
 
     public function testAMailWithoutFilesHasNothingToCopy(): void

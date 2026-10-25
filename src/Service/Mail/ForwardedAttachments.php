@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -21,11 +22,22 @@ use Psr\Log\LoggerInterface;
  * already carries it; attaching it again would put a second, visible copy of a
  * picture the reader sees in the text.
  *
+ * Nor the wrapping of a signed or encrypted mail. A signature part signs the
+ * original, not the forward, and an encrypted mail's parts are ciphertext only
+ * this mailbox's key opens — its files are inside it, and the browser that
+ * decrypts the quote does not hand them back to the server.
+ *
  * A reply does not come through here. Replies have never quoted the original's
  * files, and nobody sends a document back to the person who sent it.
  */
 final readonly class ForwardedAttachments
 {
+    private const array SIGNATURE_TYPES = [
+        'application/pgp-signature',
+        'application/pkcs7-signature',
+        'application/x-pkcs7-signature',
+    ];
+
     public function __construct(
         private AttachmentResolver     $resolver,
         private DraftAttachmentService $attachments,
@@ -100,9 +112,13 @@ final readonly class ForwardedAttachments
         return $copied;
     }
 
-    /** @return list<\App\Entity\Mail\MessagePart> */
+    /** @return list<MessagePart> */
     private function attachable(Message $original): array
     {
+        if (true === $original->crypto?->isEncrypted()) {
+            return [];
+        }
+
         $parts = [];
 
         foreach ($original->messageParts as $part) {
@@ -110,9 +126,26 @@ final readonly class ForwardedAttachments
                 continue;
             }
 
+            if (true === self::isSignature($part)) {
+                continue;
+            }
+
             $parts[] = $part;
         }
 
         return $parts;
+    }
+
+    /**
+     * A detached signature, PGP or S/MIME. Not Exchange's smime.p7m on a signed
+     * mail: that one holds the whole signed body, files included.
+     */
+    private static function isSignature(MessagePart $part): bool
+    {
+        $type = strtolower(trim(explode(';', (string) $part->contentType)[0]));
+        $name = strtolower((string) $part->filename);
+
+        return in_array($type, self::SIGNATURE_TYPES, true)
+            || in_array($name, ['signature.asc', 'smime.p7s'], true);
     }
 }
