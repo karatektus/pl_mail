@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Service\Imap\ImapQuery;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -366,7 +367,9 @@ final class ApplyImapFlagsHandler
         string  $action,
         ?string $destinationPath,
     ): void {
-        $imapMessage = $folder->messages()
+        // ImapQuery, so a message whose header repeats a once-only line is
+        // flagged and moved like any other (#357); see its class docblock.
+        $imapMessage = ImapQuery::of($folder)
             ->whereUid($uid)
             ->setFetchBody(false)
             ->get()
@@ -583,7 +586,7 @@ final class ApplyImapFlagsHandler
                 return;
             }
 
-            $candidates = $destination->messages()
+            $candidates = ImapQuery::of($destination)
                 ->where('HEADER Message-ID', '<' . $wanted . '>')
                 ->setFetchBody(false)
                 ->get();

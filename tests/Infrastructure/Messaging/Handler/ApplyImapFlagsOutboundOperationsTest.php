@@ -26,6 +26,7 @@ use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 use Webklex\PHPIMAP\Connection\Protocols\Response;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use App\Service\Imap\ImapQuery;
 use Webklex\PHPIMAP\Query\WhereQuery;
 use Webklex\PHPIMAP\Support\FlagCollection;
 use Webklex\PHPIMAP\Support\MessageCollection;
@@ -495,7 +496,8 @@ final class RecordingFolder extends Folder
     }
 }
 
-final class RecordingQuery extends WhereQuery
+/** An ImapQuery, so ImapQuery::of() hands it back as it is. */
+final class RecordingQuery extends ImapQuery
 {
     public function __construct(private readonly MessageCollection $holding)
     {

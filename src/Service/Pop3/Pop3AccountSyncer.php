@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\RepeatedSingletonHeaders;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -294,7 +295,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
             try {
                 $message = $this->messageSyncer->buildMessageFromParsed(
-                    ImapMessage::fromString($raw, ImapConnectionFactory::config()),
+                    self::parse($raw),
                     $mailbox,
                     $accountId,
                 );
@@ -416,13 +417,70 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
         }
 
         $messageId   = self::messageIdOf($head);
-        $fingerprint = '' === $messageId
-            ? $this->messageSyncer->fingerprintOf(ImapMessage::fromString($head, ImapConnectionFactory::config()))
-            : null;
+        $fingerprint = null;
+
+        if ('' === $messageId) {
+            try {
+                $fingerprint = $this->messageSyncer->fingerprintOf(self::parse($head));
+            } catch (Throwable) {
+                // A header not even the repair makes readable cannot be
+                // recognised, and is fetched like any message that cannot be.
+                // Letting it out would end the sync, and with the adoption pass
+                // unable to finish, every sync after it (#357).
+                return null;
+            }
+        }
 
         $held = $this->messageRepository->findAdoptable($account, $messageId, $fingerprint, notInPop3Ledger: true);
 
         return null === $held ? null : (int) $held->id;
+    }
+
+    /**
+     * The library's message for a RETR or TOP answer, with a repeated
+     * once-only header collapsed when that is what it could not read (#357).
+     *
+     * The repair ImapQuery::make() gives IMAP mail, for the same mail arriving
+     * by POP3: a Date line three times over makes webklex hand preg_match() an
+     * array, and here that was a message failing every attempt and given up
+     * on — still on the server, never in the inbox. Tried as it came first,
+     * so a message the parser reads is parsed exactly as before; the header
+     * the server sent is put back on the result, so the .eml holds every line
+     * of it (see RepeatedSingletonHeaders for why the first copy is kept).
+     *
+     * Only the three throwables ImapQuery catches, for its reasons: anything
+     * else is not about this message's header.
+     */
+    private static function parse(string $blob): ImapMessage
+    {
+        try {
+            return ImapMessage::fromString($blob, ImapConnectionFactory::config());
+        } catch (\TypeError|\ValueError|\InvalidArgumentException $failure) {
+            // Repaired below, or thrown as it is when there is nothing to repair.
+        }
+
+        // Split where fromString() splits, so the header repaired is the one
+        // it failed to read.
+        if (false === str_contains($blob, "\r\n")) {
+            $blob = str_replace("\n", "\r\n", $blob);
+        }
+
+        $split    = strpos($blob, "\r\n\r\n");
+        $header   = false === $split ? $blob : substr($blob, 0, $split);
+        $repaired = RepeatedSingletonHeaders::keepFirst($header);
+
+        if ($repaired === $header) {
+            throw $failure;
+        }
+
+        $message = ImapMessage::fromString($repaired . (false === $split ? '' : substr($blob, $split)), ImapConnectionFactory::config());
+        $built   = $message->getHeader();
+
+        if (null !== $built) {
+            $built->raw = $header;
+        }
+
+        return $message;
     }
 
     /**

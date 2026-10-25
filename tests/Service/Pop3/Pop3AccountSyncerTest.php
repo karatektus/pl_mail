@@ -335,6 +335,50 @@ final class Pop3AccountSyncerTest extends KernelTestCase
     }
 
     /**
+     * Mail whose Date line is there three times is stored, dated by the first
+     * (#357).
+     *
+     * webklex collects a repeated header into an array and hands it to
+     * preg_match(), and the TypeError made this a message that failed all
+     * three attempts: never deleted, because never stored, and never seen.
+     */
+    public function testMailWithItsDateRepeatedIsStored(): void
+    {
+        $this->server->add('u1', $this->raw('dates@example.test', 'Three dates', dates: 3));
+
+        $this->syncer()->sync($this->account);
+
+        self::assertSame(['Three dates'], $this->storedSubjects());
+        self::assertSame(
+            '2026-10-23 10:00:00',
+            $this->messages()[0]->sentAt?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'the first Date is the one kept',
+        );
+        self::assertTrue($this->ledger()['u1']['stored'] ?? false, 'stored, so a delete mode may remove it');
+    }
+
+    /**
+     * The adoption pass reads the same headers to recognise mail without a
+     * Message-ID, and there the TypeError was outside any try: one such
+     * message ended the sync before the pass could finish, so every sync
+     * after it ended there too (#357).
+     */
+    public function testAnAdoptingPassReadsARepeatedDate(): void
+    {
+        $this->heldMessage('', 'Your parcel is on its way');
+
+        $this->account->pop3Adopting = true;
+        $this->em->flush();
+
+        $this->server->add('held', $this->raw('', 'Your parcel is on its way', dates: 3));
+
+        $this->syncer()->sync($this->account);
+
+        self::assertSame([], $this->server->sent('RETR'), 'recognised by its first Date');
+        self::assertFalse($this->refreshedAccount()->pop3Adopting, 'the pass got through the listing');
+    }
+
+    /**
      * Header parsing for the adoption pass: unfolded, bracketed, and never a
      * DKIM signature's list of signed headers.
      */
@@ -373,14 +417,23 @@ final class Pop3AccountSyncerTest extends KernelTestCase
     /** The Date header every fixture message carries, and the time held rows are dated. */
     private const string DATE = '2026-10-23 10:00:00';
 
-    /** A message as the server holds it; '' as the Message-ID leaves the header out. */
-    private function raw(string $messageId, string $subject): string
+    /**
+     * A message as the server holds it; '' as the Message-ID leaves the header
+     * out. $dates above one repeats the Date line, each later copy an hour on.
+     */
+    private function raw(string $messageId, string $subject, int $dates = 1): string
     {
+        $dateLines = '';
+
+        for ($hour = 10; $hour < 10 + $dates; ++$hour) {
+            $dateLines .= 'Date: Fri, 23 Oct 2026 ' . $hour . ":00:00 +0000\r\n";
+        }
+
         return "From: Sender <sender@example.test>\r\n"
             . 'To: ' . $this->account->email . "\r\n"
             . 'Subject: ' . $subject . "\r\n"
             . ('' === $messageId ? '' : 'Message-ID: <' . $messageId . ">\r\n")
-            . "Date: Fri, 23 Oct 2026 10:00:00 +0000\r\n"
+            . $dateLines
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=utf-8\r\n"
             . "\r\n"
