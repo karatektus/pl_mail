@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bcc21c95d2ccc5c21500be5207c2ada07416b10e -->
+<!-- translated-from: features/mail.md sha1:a5fad6bdff12db7653da215c206b8b2e47986059 -->
 
 # Mail
 
@@ -30,6 +30,19 @@ Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürf
 hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
 der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
 **Alle E-Mails** beginnen ausgeschaltet.
+
+**Zurückgestellt**, **Archiv**, **Spam** und **Papierkorb** warten hinter einer Zeile **Mehr**, und
+unter **Einstellungen → Allgemein → Seitenleiste** legst du fest, welche Zeilen das sind: Haken
+setzen, und der Ordner rutscht hinter „Mehr“; Haken entfernen, und er kommt zurück in die
+Seitenleiste selbst. Der **Posteingang** bleibt immer oben, ebenso **Alle E-Mails**, das nicht zur
+Wahl steht. Die übrigen Zeilen behalten auf beiden Seiten die Reihenfolge der Seitenleiste, und ohne
+einen einzigen Haken gibt es gar kein „Mehr“. Das bestimmt, wo eine Zeile steht, nie, ob es sie gibt
+— das Auge unter Einstellungen → Labels schaltet sie weiterhin ganz aus, und **Ungelesen** und
+**Spam** warten weiterhin darauf, dass ihr Label eingeschaltet ist, **Zurückgestellt** darauf, dass
+etwas zurückgestellt ist, egal wohin du sie legst. „Mehr“ ist aufgeklappt, sobald du dich auf einer
+Seite darin befindest. Die Wahl wird an dein Konto gebunden, steckt in einer Konfigurationssicherung
+und zeigt sich nur in der vollen Seitenleiste: Die schmale Symbolleiste hat kein „Mehr“, ein
+dahinter versteckter Ordner fehlt dort also.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -923,6 +936,22 @@ zurückbringt, wie du es eingerichtet hattest.
 **Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
+## Von wem eine Mail kommt
+
+Den Absendernamen kann jeder frei eintippen, also kann eine Mail mit **PayPal** von überall
+kommen. Was der Absender nicht wählen kann, ist seine Adresse. In einer geöffneten Mail steht sie
+deshalb so groß und so dunkel wie der Name und bricht um, statt am Ende abgeschnitten zu werden,
+denn dort steht die Domain.
+
+**Antworten gehen an …** erscheint unter dem Absender, wenn das Reply-To der Mail auf eine andere
+Organisation zeigt als ihre Absenderadresse — die Adresse, an die deine Antwort tatsächlich ginge.
+Das ist eine sachliche Zeile, keine Warnung: Newsletter und Ticketsysteme antworten ständig von
+woanders, und eine Warnung bei gewöhnlicher Mail bringt dir bei, genau die eine zu übergehen, auf
+die es ankommt. Hält plMail einen Namen tatsächlich für vorgetäuscht, sagt es das wie bisher in
+einem Banner über der Nachricht.
+
+Eine Einstellung gibt es nicht; das gilt für alle.
 
 ## Externe Bilder
 

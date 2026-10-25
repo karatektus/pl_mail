@@ -249,13 +249,19 @@ one) `placed`:
                         {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
                  data-calendar--time-grid-target="heading">
                 <div class="h-full flex items-center gap-1.5 px-2">
-                    {# No zone on a day key, deliberately. $dayKey is a wall date as
-                       a string, so Twig parses it in its default zone and printing
-                       it in that same zone is the only reading that cannot move it.
-                       Converting it to $zone instead re-reads midnight-in-the-
-                       default as an instant, which for a calendar west of the
-                       default lands on the day before and numbers the whole header
-                       row wrong. $zone is for instants — see `nowMinute` above,
+                    {# No zone on a day key, deliberately, and `false` is how that is
+                       said. $dayKey is a wall date as a string. `|date` with no
+                       zone argument does NOT read it in Twig's zone: it parses
+                       the string as midnight in PHP's (UTC) and then converts
+                       that instant to Twig's zone — the reader's, which
+                       TwigTimezoneSubscriber sets. West of UTC midnight lands on
+                       the evening before, so every heading in the Americas said
+                       FRI 5 under Nov 6 (#325): the weekday, read by
+                       `intl_date(…, false)`, was right and the number beside it
+                       was not. East of UTC it moves forward within the same day,
+                       which is why nobody here saw it. `false` keeps the zone the
+                       string was parsed in, so the date printed is the date
+                       written. $zone is for instants — see `nowMinute` above,
                        which is one. #}
                     <span class="text-[10px] uppercase tracking-wide
                                  {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
@@ -284,11 +290,11 @@ one) `placed`:
                            that there is one layout rather than two. #}
                         <span class="w-5 h-5 shrink-0 flex items-center justify-center rounded-full
                                      bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                            {{ dayKey|date('j') }}
+                            {{ dayKey|date('j', false) }}
                         </span>
                     {% else %}
                         <span class="shrink-0 text-sm tabular-nums {{ isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
-                            {{ dayKey|date('j') }}
+                            {{ dayKey|date('j', false) }}
                         </span>
                     {% endif %}
 

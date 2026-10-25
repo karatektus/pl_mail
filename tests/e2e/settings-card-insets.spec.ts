@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "./support/test";
 import { TEST_USER, consoleCommand } from "./support/config";
 
@@ -89,6 +90,12 @@ import { TEST_USER, consoleCommand } from "./support/config";
  * Mirrors SettingsController::SECTIONS, in its order. Health leads there and
  * leads here for the same reason it is worth measuring at all — it is the one
  * section that is not built from settings/_card.html.twig.
+ *
+ * It used to name eighteen of them and the controller had twenty-six: the
+ * eight it missed included Encryption, whose last three cards sat flush on
+ * each other and went unseen by a guard written for exactly that (check D).
+ * So the list is now held to the controller — see the first test below — and
+ * a section added there fails here until it is measured too.
  */
 const SECTIONS = [
     "health",
@@ -106,9 +113,18 @@ const SECTIONS = [
     "aliases",
     "read-receipts",
     "signature",
+    "templates",
     "app-passwords",
+    "encryption",
     "notifications",
     "general",
+    "categories",
+    "reading-pane",
+    "shortcuts",
+    "disposal",
+    "images",
+    "swipe-actions",
+    "calendar-behaviour",
     "contacts",
 ] as const;
 
@@ -552,8 +568,9 @@ async function measure(page: Page, section: string): Promise<Measurement> {
                         `${section}: two cards are touching — the one ending at ` +
                             `y=${round(above.bottom)} and the one starting at y=${round(below.top)}, ` +
                             `${round(gap)}px apart. Cards stacked without a gap render as one card ` +
-                            `with a rule through it and two headings inside it. The multi-card ` +
-                            `sections wrap their cards in space-y-4.`,
+                            `with a rule through it and two headings inside it. settings/_card.html.twig ` +
+                            `gives every card its own mb-4 — check for a card built by hand, or a margin ` +
+                            `that cannot collapse through a flex or grid wrapper.`,
                     );
                 }
             }
@@ -564,9 +581,18 @@ async function measure(page: Page, section: string): Promise<Measurement> {
     );
 }
 
+test("measures every section the controller serves", () => {
+    const controller = readFileSync("src/Controller/Settings/SettingsController.php", "utf8");
+    const declared = /const array SECTIONS = \[([^\]]*)\]/.exec(controller)?.[1] ?? "";
+    const served = Array.from(declared.matchAll(/'([a-z-]+)'/g), (match) => match[1]);
+
+    expect(served.length, "SettingsController::SECTIONS was not found — has it moved?").toBeGreaterThan(20);
+    expect([...SECTIONS]).toEqual(served);
+});
+
 test("every settings section lines its cards up, inside and against each other", async ({ page }) => {
-    // Eighteen sections, each a full navigation.
-    test.setTimeout(120_000);
+    // Twenty-six sections, each a full navigation.
+    test.setTimeout(180_000);
 
     const offences: string[] = [];
     let cards = 0;
@@ -591,4 +617,30 @@ test("every settings section lines its cards up, inside and against each other",
     expect(cards, "the sweep found no settings cards at all — has the card markup changed?").toBeGreaterThan(15);
 
     expect(offences.join("\n"), "settings cards disagree about where their content starts").toBe("");
+});
+
+/**
+ * The same sweep on a phone, for the gap between cards only (check D).
+ *
+ * The flush cards were reported from a desktop, but the -mx-6 that runs the
+ * cards to the pane edges below 42rem of pane is exactly where a margin
+ * could go missing differently, and every section has to keep its cards
+ * apart at both widths. Only the gap is asserted here: the inset checks are
+ * the desktop test's, and repeating them at 390px would report every
+ * difference between the two layouts twice.
+ */
+test("keeps its cards apart on a phone too", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const offences: string[] = [];
+
+    for (const section of SECTIONS) {
+        await openSection(page, section);
+        await settle(page);
+
+        offences.push(...(await measure(page, section)).offences.filter((offence) => offence.includes("two cards are touching")));
+    }
+
+    expect(offences.join("\n"), "settings cards touch on a phone").toBe("");
 });

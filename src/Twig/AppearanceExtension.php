@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Helper\AppIconStorage;
+use App\Domain\Helper\CustomLogoStorage;
 use App\Entity\Embeddable\Appearance;
 use Symfony\Component\HttpFoundation\RequestStack;
 use App\Infrastructure\Event\Subscriber\AppearanceCookieSubscriber;
@@ -37,6 +38,8 @@ final class AppearanceExtension extends AbstractExtension
         private readonly LogoIcons          $logoIcons,
         // The installed app's PNGs, which the user's own browser draws (#141).
         private readonly AppIconStorage     $appIcons,
+        // A logo of the user's own (#48).
+        private readonly CustomLogoStorage  $customLogos,
     ) {
     }
 
@@ -56,6 +59,11 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('logo_bleed_url', $this->logoIcons->bleedUrl(...)),
             new TwigFunction('logo_manifest_url', $this->logoIcons->manifestUrl(...)),
             new TwigFunction('logo_app_icon_url', $this->logoIcons->appIconUrl(...)),
+            new TwigFunction('logo_custom_url', $this->logoIcons->customUrl(...)),
+            new TwigFunction('logo_custom_manifest_url', $this->logoIcons->customManifestUrl(...)),
+            new TwigFunction('logo_custom_app_icon_url', $this->logoIcons->customAppIconUrl(...)),
+            new TwigFunction('logo_custom', $this->logoCustom(...)),
+            new TwigFunction('logo_current', $this->logoCurrent(...)),
             new TwigFunction('app_icons', $this->appIcons(...)),
         ];
     }
@@ -133,14 +141,84 @@ final class AppearanceExtension extends AbstractExtension
         }
 
         $appearance = $user->appearance;
+        $custom     = $this->logoCustom();
 
         return [
             'key'     => $this->appIcons->keyFor((string) $user->id),
             'missing' => false === $this->appIcons->has(
                 (string) $user->id,
-                LogoIcons::choice($appearance->effectiveLogoMotif(), $appearance->effectiveLogoPaint()),
+                null === $custom
+                    ? LogoIcons::choice($appearance->effectiveLogoMotif(), $appearance->effectiveLogoPaint())
+                    : LogoIcons::customChoice($custom),
                 $this->logoIcons->version(),
             ),
+        ];
+    }
+
+    /**
+     * The signed-in user's uploaded logo (#48) — its hash — when they have
+     * one, whether or not it is the one worn; null otherwise.
+     *
+     * Only when the file is there. A user restored from a backup, or one whose
+     * storage was lost, still has the hash on their row, and a page that
+     * linked it would be a page with a broken tab icon; without the file the
+     * motif kept underneath is what they wear.
+     */
+    public function logoCustom(bool $worn = true): ?string
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return null;
+        }
+
+        $hash = true === $worn ? $user->appearance->customLogo() : $user->appearance->logoCustom;
+
+        return null !== $hash && true === $this->customLogos->has((string) $user->id, $hash) ? $hash : null;
+    }
+
+    /**
+     * Every URL the layout links the logo by, for the icon the user wears: the
+     * uploaded one, or their motif in its paint. Spelled here once, so the
+     * tab icon, the top bar, the manifest and the iOS icon cannot wear two
+     * different logos.
+     *
+     * `custom` is the uploaded logo's hash while it is worn, null otherwise.
+     *
+     * @return array{custom: string|null, icon: string, favicon: string, bar: string, barDark: string, bleed: string, manifest: string, appleTouch: string}
+     */
+    public function logoCurrent(): array
+    {
+        $icons  = $this->appIcons();
+        $key    = $icons['key'] ?? null;
+        $custom = $this->logoCustom();
+
+        if (null !== $custom && null !== $key) {
+            return [
+                'custom'     => $custom,
+                'icon'       => $this->logoIcons->customUrl('icon', $key, $custom),
+                'favicon'    => $this->logoIcons->customUrl('favicon', $key, $custom),
+                'bar'        => $this->logoIcons->customUrl('logo', $key, $custom),
+                'barDark'    => $this->logoIcons->customUrl('logo', $key, $custom),
+                'bleed'      => $this->logoIcons->customUrl('bleed', $key, $custom),
+                'manifest'   => $this->logoIcons->customManifestUrl($key, $custom),
+                'appleTouch' => $this->logoIcons->customAppIconUrl('bleed-180', $key, $custom),
+            ];
+        }
+
+        $appearance = $this->appearance();
+        $motif      = $appearance->effectiveLogoMotif();
+        $paint      = $appearance->effectiveLogoPaint();
+
+        return [
+            'custom'     => null,
+            'icon'       => $this->logoIcons->url($motif, $paint),
+            'favicon'    => $this->logoIcons->faviconUrl($motif, $paint),
+            'bar'        => $this->logoIcons->logoUrl($motif, $paint),
+            'barDark'    => $this->logoIcons->logoUrl($motif, $paint, true),
+            'bleed'      => $this->logoIcons->bleedUrl($motif, $paint),
+            'manifest'   => $this->logoIcons->manifestUrl($motif, $paint, $key),
+            'appleTouch' => null === $key ? '/icons/apple-touch-icon.png' : $this->logoIcons->appIconUrl('bleed-180', $key, $motif, $paint),
         ];
     }
 }

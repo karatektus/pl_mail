@@ -19,7 +19,6 @@ use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Push\PushTeardown;
-use App\Service\User\UserTimezoneResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -96,7 +95,6 @@ final readonly class CalendarSubscriber
         private CalendarRepository      $calendars,
         private CalendarEventRepository $events,
         private CalendarProvisioner     $provisioner,
-        private UserTimezoneResolver    $timezones,
         private EntityManagerInterface  $em,
         private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
@@ -288,7 +286,9 @@ final readonly class CalendarSubscriber
         $calendar->isReadOnly  = $remote->isReadOnly;
         $calendar->name        = $this->nameOf($remote);
         $calendar->color       = $this->colorOf($remote, count($siblings));
-        $calendar->timeZone    = $remote->timeZone ?? $this->timezones->nameFor($user);
+        // The remote's zone when it states one; otherwise the calendar
+        // follows the user's, as a local one does.
+        $calendar->timeZone    = $remote->timeZone;
         $calendar->sortOrder   = count($siblings);
 
         $this->em->persist($calendar);

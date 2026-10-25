@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Mapper;
 
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Jmap\Blob\BlobId;
@@ -128,6 +129,19 @@ final class EmailMapper
             // condition: filtering it would put that same conversation in two
             // tabs. See EmailFilterCompiler::threadCategory().
             'category' => $message->category?->value,
+            // plMail extension, `urn:plmail:params:jmap:keys`: what the message
+            // is wrapped in and what checking its signature found, as the web
+            // banner says it. For an encrypted message bodyValues are empty —
+            // the server holds no text — and blobId is the ciphertext as it
+            // arrived, for a client with the keys to open
+            // (docs/CLIENT_DEVELOPMENT.md). `decryptedOnServer`: a client
+            // already handed its decrypted text over, and the bodies are it.
+            'cryptoType' => $message->crypto?->value,
+            'encrypted' => true === $message->crypto?->isEncrypted(),
+            'signatureState' => $message->signatureState?->value,
+            'signer' => $message->signer,
+            'decryptedOnServer' => PlaintextSource::Client === $message->plaintextSource,
+            'sealedDraft' => $message->sealedDraft,
             'preview' => $this->preview($message),
             'textBody' => $textBody,
             'htmlBody' => $htmlBody,

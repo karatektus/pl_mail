@@ -1,0 +1,16 @@
+{#
+compose/_settled_row.html.twig
+─────────────────────────────────────────────────────────────────────────────
+A message of the conversation once its send has settled, inside the frame the
+worker's outcome stream put where it was being sent — see
+ComposeController::settledRow() and mail/_send_outcome.stream.html.twig.
+
+No `draft` override, unlike compose/_sent.stream.html.twig: by now the row
+says what it is. Sent, the message renders open, the way a reply of one's own
+joins the conversation; refused, it renders as the draft it is again.
+
+Variables: message
+#}
+<turbo-frame id="settled_message_{{ message.id }}">
+    {% include 'mail/_thread_message.html.twig' with { message: message, expanded: true } only %}
+</turbo-frame>

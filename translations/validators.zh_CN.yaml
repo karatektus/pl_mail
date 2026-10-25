@@ -1,0 +1,46 @@
+# Constraint messages are translated in the validators domain.
+account.host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
+admin.ai.keep_alive_invalid: '请输入 5m、30m、4h 等时长或秒数，输入 -1 可让模型一直保持加载。留空则使用主机自身的设置。'
+admin.integrations.client_id_missing: '请输入与此密钥对应的客户端 ID。'
+admin.integrations.secret_missing: '请同时输入客户端密钥，仅有客户端 ID 无法完成登录。'
+admin.sso.error.client_id_missing: '填写签发者和密钥时，还需要客户端 ID。这三项必须全部填写或全部留空。'
+admin.sso.error.issuer_missing: '填写客户端 ID 和密钥时，还需要签发者。这三项必须全部填写或全部留空。'
+admin.sso.error.issuer_not_https: '签发者地址必须以 https:// 开头。plMail 通过 TLS 连接确认身份提供商的可信性。'
+admin.sso.error.password_login_needs_own_sso: '将其设为唯一登录方式前，请先亲自通过身份提供商登录至少一次，以免将自己锁在账户之外。'
+admin.sso.error.password_login_needs_provider: '将单点登录设为唯一登录方式前，请先保存完整的身份提供商配置（签发者、客户端 ID 和密钥）。'
+admin.sso.error.secret_missing: '填写签发者和客户端 ID 时，还需要客户端密钥。这三项必须全部填写或全部留空。'
+admin.users.password_too_short: '请使用至少 {{ limit }} 个字符，你正在为其他人设置密码。'
+alias.invalid: '请输入有效的电子邮件地址。'
+app_password.name_required: '请为应用密码命名，以便日后识别。'
+caldav.address_required: '请输入 CalDAV 服务器地址，否则 plMail 无法连接。'
+caldav.credential_required: '请输入应用密码，或勾选使用邮件账户已保存密码的选项。'
+caldav.reuse_account_required: '请选择要使用哪个邮件账户的密码，或取消勾选并手动输入密码。'
+caldav.username_required: '请输入你在 CalDAV 服务器上的用户名。'
+calendar.name_required: '请为日历命名，以便与其他日历区分。'
+compose.recipient_invalid: '“{{ address }}”不是有效的电子邮件地址。'
+compose.recipient_required: '发送前请至少添加一位收件人。'
+integration.name_taken: '你已为此服务创建了名为 {{ value }} 的连接。请换一个名称，例如“家庭”或“工作”。'
+settings.password.current_required: '请输入当前密码，以防他人在你未锁定的屏幕上修改密码。'
+settings.password.current_wrong: '当前密码不正确。'
+settings.password.mismatch: '两次输入的新密码不一致。'
+settings.password.too_short: '请使用至少 {{ limit }} 个字符。'
+setup.install.password_mismatch: '两次输入的密码不一致。'
+setup.install.password_too_short: '请使用至少 {{ limit }} 个字符。此账户不支持密码重置。'
+user.email_taken: '此地址已被使用。此站点中的每个电子邮件地址只能属于一个用户。'
+admin.ai.field.base_url_invalid: '地址必须以 http:// 或 https:// 开头。'
+profile.avatar_wrong_type: '请使用 PNG、JPEG、GIF 或 WebP 图片。'
+admin.ai.headers.malformed: '每个请求头单独一行，格式为 Name: value。'
+admin.ai.headers.name: '请求头名称只能包含字母、数字和连字符，且不能为空。'
+admin.ai.headers.value: '请求头的值不能为空，不能包含换行或其他控制字符，且最多为 4096 个字符。'
+admin.ai.headers.reserved: '这些请求头中有一项由 plMail 自行设置，不能覆盖，例如 Host、Content-Type、Content-Length、Connection。'
+admin.ai.headers.duplicate: '同一个请求头被填写了两次。'
+admin.ai.headers.too_many: '最多可添加 %max% 个额外请求头。'
+carddav:
+    address_required: "请输入 CardDAV 服务器地址，否则 plMail 无法查找通讯录。"
+    username_required: "请输入你在 CardDAV 服务器上的用户名。"
+contacts:
+    invalid_email: "“%email%”不是有效的电子邮件地址。"
+    name_or_email_required: "请填写联系人的姓名或至少一个电子邮件地址。"
+settings.password.keys_not_rewrapped: "无法将你的加密密钥转为由新密码保护。请重新加载页面后重试。"
+settings.password.malformed: "浏览器发送了 plMail 无法识别的内容。请重新加载页面后重试。"
+settings.password.needs_script: "更改密码需要 JavaScript，发送任何内容前会先在浏览器中保护密码。"

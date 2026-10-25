@@ -18,7 +18,7 @@ Accepts:
                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
                   transition-colors cursor-pointer' %}
 
-<form method="post" action="{{ path('app_settings_contacts_behaviour_update') }}" data-turbo="false"
+<form method="post" action="{{ path('app_settings_contacts_behaviour_update') }}"
       data-controller="ui--auto-submit" class="px-4 py-3">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-contacts-behaviour') }}">
 

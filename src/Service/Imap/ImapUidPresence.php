@@ -12,6 +12,7 @@ use App\Entity\Mail\Mailbox;
 use Psr\Log\LoggerInterface;
 use Throwable;
 use Webklex\PHPIMAP\Client;
+use Webklex\PHPIMAP\Folder;
 
 /**
  * "Is this UID still in that folder?" — asked of the server, once per question.
@@ -101,13 +102,7 @@ final class ImapUidPresence
                 return null;
             }
 
-            $found = $folder->messages()
-                ->whereUid($uid)
-                ->setFetchBody(false)
-                ->get()
-                ->first();
-
-            return null !== $found;
+            return self::holds($folder, $uid);
         } catch (Throwable $e) {
             $this->logger->log(ThrowableSeverity::level($e), 'Could not establish whether a UID is still on the server', [
                 'mailbox'   => $mailbox->fullPath,
@@ -118,6 +113,28 @@ final class ImapUidPresence
 
             return null;
         }
+    }
+
+    /**
+     * Whether the folder lists the UID, by UID SEARCH alone.
+     *
+     * Not a fetch of the message, which is what this was until #357: the
+     * question is whether the UID exists, and building a message to answer it
+     * put the header parser in the way. A message with its Date header three
+     * times made webklex hand preg_match() an array, the TypeError came out of
+     * the fetch, and the answer was null — on every sync, for a message that
+     * was there all along, so the duplicate it was asked about was never
+     * repaired. SEARCH returns numbers and parses nothing.
+     *
+     * Not ImapQuery either, which repairs such a header and drops a message it
+     * still cannot read: dropped would come back here as "not found", and
+     * "not found" is the answer that deletes rows.
+     */
+    public static function holds(Folder $folder, int $uid): bool
+    {
+        $found = $folder->messages()->where(MessageSyncer::uidSetCriteria([$uid]))->search();
+
+        return in_array($uid, array_map('intval', $found->all()), true);
     }
 
     private function client(): ?Client

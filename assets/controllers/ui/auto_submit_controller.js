@@ -37,9 +37,9 @@ export default class extends Controller {
         }
 
         // requestSubmit(), not submit(): it fires the submit event, so Turbo
-        // sees it and constraint validation still runs. On the two forms here
-        // that opt out of Turbo with data-turbo="false" it behaves exactly as
-        // submit() did.
+        // sees it and constraint validation still runs. On a form that opts
+        // out of Turbo with data-turbo="false" it behaves exactly as submit()
+        // did.
         if ("function" === typeof form.requestSubmit) {
             form.requestSubmit();
 

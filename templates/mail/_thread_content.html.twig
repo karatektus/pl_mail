@@ -153,7 +153,9 @@ self-contained: no {% extends %}, no block dependencies.
     <div class="w-full px-4 md:px-6 py-5"{{ thread_summary.root(thread) }}>
 
         <div class="flex items-baseline gap-3 mb-6">
-            <h1 class="text-xl font-semibold text-ink min-w-0 break-words">
+            {# data-thread-subject: mail--encrypted-message puts a subject it
+               decrypted here when the outside only said "..." (RFC 9788). #}
+            <h1 class="text-xl font-semibold text-ink min-w-0 break-words" data-thread-subject>
                 {{ thread.subject ?: ('thread.no_subject'|trans) }}
             </h1>
             {% if thread.messageCount > 1 %}

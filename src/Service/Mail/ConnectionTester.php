@@ -8,6 +8,7 @@ use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
+use App\Infrastructure\Pop3\Pop3ConnectionFactory;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
@@ -30,12 +31,15 @@ final class ConnectionTester
         private readonly SmtpDsnFactory        $dsnFactory,
         private readonly TranslatorInterface   $translator,
         private readonly LoggerInterface       $logger,
+        private readonly Pop3ConnectionFactory $pop3,
     ) {
     }
 
     public function test(Account $account): ConnectionTestResult
     {
-        [$imapOk, $imapMessage] = $this->probeImap($account);
+        [$imapOk, $imapMessage] = true === $account->isPop3()
+            ? $this->probePop3($account)
+            : $this->probeImap($account);
         [$smtpOk, $smtpMessage] = $this->probeSmtp($account);
 
         return new ConnectionTestResult(
@@ -83,6 +87,40 @@ final class ConnectionTester
                     // Nothing useful to do — the probe result already stands.
                 }
             }
+        }
+    }
+
+    /**
+     * The POP3 probe.
+     *
+     * Deliberately answers the same two things the IMAP one does — can we log
+     * in, and how much is there — with the count coming from LIST rather than
+     * from a folder list, because that is the only structure a POP3 server
+     * has. The greeting, the TLS handshake and USER/PASS are all exercised by
+     * open(), so a passing answer means exactly what it means on the IMAP
+     * side: this account will sync.
+     *
+     * @return array{0: bool, 1: string}
+     */
+    private function probePop3(Account $account): array
+    {
+        try {
+            $connection = $this->pop3->open($account);
+
+            try {
+                $count = count($connection->list());
+            } finally {
+                $connection->quit();
+            }
+
+            return [true, $this->translator->trans('account.test.result.pop3_ok', ['%count%' => $count])];
+        } catch (Throwable $e) {
+            // 'imap' as the protocol argument on purpose: it picks the field
+            // pair the incoming server lives in (imapHost, imapPort), which a
+            // POP3 account shares, and POP3's failures are the same set — bad
+            // certificate, refused login, wrong port. The port hints know
+            // 110 and 995 as well as IMAP's pair.
+            return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
         }
     }
 
@@ -217,11 +255,11 @@ final class ConnectionTester
 
         $normalised = strtolower($encryption);
 
-        if ('ssl' === $normalised && in_array($port, [587, 143], true)) {
+        if ('ssl' === $normalised && in_array($port, [587, 143, 110], true)) {
             return $this->translator->trans('account.test.hint.expects_starttls', ['%port%' => $port]);
         }
 
-        if ('ssl' !== $normalised && in_array($port, [465, 993], true)) {
+        if ('ssl' !== $normalised && in_array($port, [465, 993, 995], true)) {
             return $this->translator->trans('account.test.hint.expects_ssl', ['%port%' => $port]);
         }
 

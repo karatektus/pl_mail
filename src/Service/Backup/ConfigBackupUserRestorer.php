@@ -5,12 +5,30 @@ declare(strict_types=1);
 namespace App\Service\Backup;
 
 use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\AddressKeyStatus;
+use App\Domain\Enum\Crypto\ContactKeyOrigin;
+use App\Domain\Enum\Crypto\ContactKeyStatus;
+use App\Domain\Enum\Crypto\KeyPublicationState;
+use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Crypto\SmimeCertificateStatus;
+use App\Domain\Enum\Crypto\PgpScheme;
+use App\Domain\Enum\Crypto\RecipientPolicy;
+use App\Domain\Enum\Crypto\UserKeyCopyKind;
+use App\Domain\Enum\Crypto\UserKeyStatus;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Calendar\ShareWindow;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
+use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\ContactCertificate;
+use App\Entity\Crypto\ContactKey;
+use App\Entity\Crypto\KeyPublication;
+use App\Entity\Crypto\SmimeCertificate;
+use App\Entity\Crypto\UserKey;
+use App\Entity\Crypto\UserKeyCopy;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\Integration\Integration;
@@ -184,6 +202,9 @@ final readonly class ConfigBackupUserRestorer
         $calendars    = $this->createCalendars($user, $this->rows($document, 'calendars'), $accounts, $integrations);
 
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
+        $this->createKeyring($user, $this->map($document, 'keyring'));
+        $this->createContactKeys($user, $this->rows($document, 'contactKeys'));
+        $this->createContactCertificates($user, $this->rows($document, 'contactCertificates'));
         $this->createShareLinks($user, $this->rows($document, 'shareLinks'), $calendars);
         $this->createBookingPages($user, $this->rows($document, 'bookingPages'), $calendars);
 
@@ -249,6 +270,29 @@ final readonly class ConfigBackupUserRestorer
         // restored user sign in with the password they already know. The
         // plaintext was never anywhere to carry.
         $user->password = $this->text($document, 'password');
+
+        // Absent from documents written before passwords were stretched in the
+        // browser, and those hashes are all of the password itself — which is
+        // exactly what leaving the salt null says.
+        $kdf        = $this->map($document, 'passwordKdf');
+        $salt       = $this->text($kdf, 'salt');
+        $iterations = $this->number($kdf, 'iterations');
+
+        if (null !== $salt && null !== $iterations && null !== $user->password) {
+            $user->useClientDerivedPassword($user->password, $salt, $iterations);
+        }
+
+        $user->passwordChangeRequired = true === ($document['passwordChangeRequired'] ?? false);
+
+        // Absent from documents written before the passphrase existed, whose
+        // keyrings all hang off the password — the default this leaves.
+        $root = $this->map($document, 'keyringRoot');
+
+        $user->restoreKeyringRoot(
+            KeyringRoot::tryFrom((string) $this->text($root, 'root')) ?? KeyringRoot::Password,
+            $this->text($root, 'salt'),
+            $this->number($root, 'iterations'),
+        );
         $user->locale   = $this->text($document, 'locale');
         // The set hook drops an identifier this build does not recognise, which
         // is the right answer for a backup from a host with a newer tzdata.
@@ -526,7 +570,7 @@ final readonly class ConfigBackupUserRestorer
             $calendar->integration = $integrations[$this->number($row, 'integrationId') ?? 0] ?? null;
             $calendar->name        = (string) ($this->text($row, 'name') ?? '');
             $calendar->color       = (string) ($this->text($row, 'color') ?? Calendar::DEFAULT_COLOR);
-            $calendar->timeZone    = (string) ($this->text($row, 'timeZone') ?? 'UTC');
+            $calendar->timeZone    = $this->text($row, 'timeZone');
             $calendar->role        = CalendarRole::tryFrom((string) $this->text($row, 'role')) ?? CalendarRole::Custom;
             $calendar->isVisible   = true === ($row['isVisible'] ?? true);
             $calendar->isDefault   = true === ($row['isDefault'] ?? false);
@@ -541,6 +585,270 @@ final readonly class ConfigBackupUserRestorer
         }
 
         return $created;
+    }
+
+    /**
+     * The keyring, blob for blob. Absent from every document written before it
+     * existed, which restores as an account without one — what it was.
+     *
+     * A row the restorer cannot place (an unknown status, an address key whose
+     * user key is not in the file) is left out rather than guessed at: an
+     * address key under the wrong user key opens with nothing.
+     *
+     * @param array<string, mixed> $keyring
+     */
+    private function createKeyring(User $user, array $keyring): void
+    {
+        $userKeys = [];
+
+        foreach ($this->rows($keyring, 'userKeys') as $row) {
+            $wrapped = $this->text($row, 'wrapped');
+            $status  = UserKeyStatus::tryFrom((string) $this->text($row, 'status'));
+
+            if (null === $wrapped || null === $status) {
+                continue;
+            }
+
+            $userKey = UserKey::restore($user, $wrapped, $status, $this->moment($row, 'lockedAt'));
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $userKey->restoreCreatedAt($createdAt);
+            }
+
+            $this->entityManager->persist($userKey);
+            $userKeys[$this->number($row, 'id') ?? 0] = $userKey;
+
+            foreach ($this->rows($row, 'copies') as $copyRow) {
+                $kind        = UserKeyCopyKind::tryFrom((string) $this->text($copyRow, 'kind'));
+                $copyWrapped = $this->text($copyRow, 'wrapped');
+
+                if (null === $kind || null === $copyWrapped) {
+                    continue;
+                }
+
+                $copy             = new UserKeyCopy($userKey, $kind, $copyWrapped, $this->text($copyRow, 'label'));
+                $copy->lastUsedAt = $this->moment($copyRow, 'lastUsedAt');
+
+                if (null !== $copyCreatedAt = $this->moment($copyRow, 'createdAt')) {
+                    $copy->restoreCreatedAt($copyCreatedAt);
+                }
+
+                $this->entityManager->persist($copy);
+            }
+        }
+
+        foreach ($this->rows($keyring, 'addressKeys') as $row) {
+            $userKey     = $userKeys[$this->number($row, 'userKeyId') ?? 0] ?? null;
+            $origin      = AddressKeyOrigin::tryFrom((string) $this->text($row, 'origin'));
+            $status      = AddressKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $fingerprint = $this->text($row, 'fingerprint');
+            $publicKey   = $this->text($row, 'publicKey');
+            $privateKey  = $this->text($row, 'privateKey');
+            $token       = $this->text($row, 'token');
+
+            if (null === $userKey || null === $origin || null === $status || null === $fingerprint
+                || null === $publicKey || null === $privateKey || null === $token) {
+                continue;
+            }
+
+            $key = new AddressKey(
+                $user,
+                $userKey,
+                $fingerprint,
+                $publicKey,
+                $privateKey,
+                $token,
+                $origin,
+                $this->moment($row, 'expiresAt'),
+                $this->text($row, 'revocationCertificate'),
+            );
+            $key->restoreStatus($status);
+            $key->firstUsedAt = $this->moment($row, 'firstUsedAt');
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $key->restoreCreatedAt($createdAt);
+            }
+
+            foreach ($this->rows($row, 'addresses') as $binding) {
+                $email = $this->text($binding, 'email');
+
+                if (null !== $email) {
+                    $key->bind($email, true === ($binding['primary'] ?? false));
+                }
+            }
+
+            if (null !== $revoked = $this->text($row, 'revokedPublicKey')) {
+                $key->keepRevocation($revoked);
+            }
+
+            $this->entityManager->persist($key);
+
+            // Where the key is published (phase 6g). Absent from documents
+            // written before it.
+            foreach ($this->rows($row, 'publications') as $publication) {
+                $host      = $this->text($publication, 'host');
+                $email     = $this->text($publication, 'email');
+                $state     = KeyPublicationState::tryFrom((string) $this->text($publication, 'state'));
+                $checkedAt = $this->moment($publication, 'checkedAt');
+
+                if (null !== $host && null !== $email && null !== $state && null !== $checkedAt) {
+                    $this->entityManager->persist(new KeyPublication($key, $host, $email, $state, $checkedAt));
+                }
+            }
+        }
+
+        // The S/MIME certificates, whose private keys are wrapped under the
+        // user keys above. Absent from documents written before phase 6c.
+        foreach ($this->rows($keyring, 'smimeCertificates') as $row) {
+            $userKey     = $userKeys[$this->number($row, 'userKeyId') ?? 0] ?? null;
+            $status      = SmimeCertificateStatus::tryFrom((string) $this->text($row, 'status'));
+            $fingerprint = $this->text($row, 'fingerprint');
+            $pem         = $this->text($row, 'certificate');
+            $privateKey  = $this->text($row, 'privateKey');
+            $notBefore   = $this->moment($row, 'notBefore');
+            $notAfter    = $this->moment($row, 'notAfter');
+            $addresses   = array_values(array_filter((array) ($row['addresses'] ?? []), 'is_string'));
+
+            if (null === $userKey || null === $status || null === $fingerprint || null === $pem
+                || null === $privateKey || null === $notBefore || null === $notAfter || [] === $addresses) {
+                continue;
+            }
+
+            $certificate = new SmimeCertificate(
+                $user,
+                $userKey,
+                $fingerprint,
+                $pem,
+                $this->text($row, 'chain') ?? '',
+                $privateKey,
+                $addresses,
+                $this->text($row, 'subject') ?? '',
+                $this->text($row, 'issuer') ?? '',
+                $notBefore,
+                $notAfter,
+            );
+            $certificate->restoreStatus($status);
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $certificate->restoreCreatedAt($createdAt);
+            }
+
+            $this->entityManager->persist($certificate);
+        }
+    }
+
+    /**
+     * Contacts' S/MIME certificates. Absent from documents written before
+     * they existed, which restores as a person with none. A second Current
+     * row for one address comes back Changed, as createContactKeys() has it.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    private function createContactCertificates(User $user, array $rows): void
+    {
+        $current = [];
+        $seen    = [];
+
+        foreach ($rows as $row) {
+            $email       = $this->text($row, 'email');
+            $fingerprint = $this->text($row, 'fingerprint');
+            $pem         = $this->text($row, 'certificate');
+            $status      = ContactKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $notBefore   = $this->moment($row, 'notBefore');
+            $notAfter    = $this->moment($row, 'notAfter');
+            $firstSeenAt = $this->moment($row, 'firstSeenAt') ?? new DateTimeImmutable();
+
+            if (null === $email || null === $fingerprint || null === $pem || null === $status || null === $notBefore || null === $notAfter) {
+                continue;
+            }
+
+            $email = strtolower($email);
+            $key   = $email . ' ' . strtolower($fingerprint);
+
+            if (true === isset($seen[$key])) {
+                continue;
+            }
+
+            if (ContactKeyStatus::Current === $status && true === isset($current[$email])) {
+                $status = ContactKeyStatus::Changed;
+            }
+
+            $certificate = new ContactCertificate(
+                $user,
+                $email,
+                $fingerprint,
+                $pem,
+                true === ($row['verified'] ?? false),
+                $status,
+                $this->text($row, 'subject') ?? '',
+                $this->text($row, 'issuer') ?? '',
+                $notBefore,
+                $notAfter,
+                $firstSeenAt,
+            );
+            $certificate->restoreSeen($firstSeenAt, $this->moment($row, 'lastSeenAt') ?? $firstSeenAt);
+
+            $seen[$key] = true;
+
+            if (ContactKeyStatus::Current === $status) {
+                $current[$email] = true;
+            }
+
+            $this->entityManager->persist($certificate);
+        }
+    }
+
+    /**
+     * Contacts' keys. Absent from documents written before they existed,
+     * which restores as a person with none — what they had.
+     *
+     * A second Current row for one address is restored as Changed rather
+     * than dropped or allowed to break the unique index: a hand-edited file
+     * can say anything, and "the person decides" is the safe reading.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    private function createContactKeys(User $user, array $rows): void
+    {
+        $current = [];
+        $seen    = [];
+
+        foreach ($rows as $row) {
+            $email       = $this->text($row, 'email');
+            $fingerprint = $this->text($row, 'fingerprint');
+            $publicKey   = $this->text($row, 'publicKey');
+            $origin      = ContactKeyOrigin::tryFrom((string) $this->text($row, 'origin'));
+            $status      = ContactKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $firstSeenAt = $this->moment($row, 'firstSeenAt') ?? new DateTimeImmutable();
+
+            if (null === $email || null === $fingerprint || null === $publicKey || null === $origin || null === $status) {
+                continue;
+            }
+
+            $email = strtolower($email);
+
+            if (true === isset($seen[$email . ' ' . strtolower($fingerprint)])) {
+                continue;
+            }
+
+            if (ContactKeyStatus::Current === $status && true === isset($current[$email])) {
+                $status = ContactKeyStatus::Changed;
+            }
+
+            $key = new ContactKey($user, $email, $fingerprint, $publicKey, $origin, $status, $this->moment($row, 'expiresAt'), $firstSeenAt, $this->text($row, 'originHost'));
+            $key->restoreState(true === ($row['pinned'] ?? false), $firstSeenAt, $this->moment($row, 'lastSeenAt') ?? $firstSeenAt);
+            $key->encrypt = RecipientPolicy::tryFrom((string) $this->text($row, 'encrypt')) ?? RecipientPolicy::Auto;
+            $key->sign    = RecipientPolicy::tryFrom((string) $this->text($row, 'sign')) ?? RecipientPolicy::Auto;
+            $key->scheme  = PgpScheme::tryFrom((string) $this->text($row, 'scheme')) ?? PgpScheme::Mime;
+
+            $seen[$email . ' ' . strtolower($fingerprint)] = true;
+
+            if (ContactKeyStatus::Current === $status) {
+                $current[$email] = true;
+            }
+
+            $this->entityManager->persist($key);
+        }
     }
 
     /**

@@ -17,6 +17,7 @@ use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Account;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
@@ -109,6 +110,7 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
         private GoogleCalendarApiClient $api,
         private GoogleEventMapper       $mapper,
         private LoggerInterface         $logger,
+        private UserTimezoneResolver    $timezones,
     ) {
     }
 
@@ -175,7 +177,9 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
             $body = $this->api->get($account, $path, $this->pullQuery($syncToken, $pageToken), 'events.list');
 
             foreach ($this->itemsOf($body) as $item) {
-                $event = $this->mapper->toRemoteEvent($item, $calendar->timeZone);
+                // CalendarTimeResolver::calendarZone() spelled out, without the
+                // repository that resolver carries for its other questions.
+                $event = $this->mapper->toRemoteEvent($item, $calendar->timeZone ?? $this->timezones->nameFor($calendar->usr));
 
                 if (null === $event) {
                     continue;

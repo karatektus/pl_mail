@@ -102,7 +102,8 @@ final class CalendarSettingsController extends AbstractController
         $calendar = $this->blank($user);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action' => $this->generateUrl('app_settings_calendar_new'),
+            'action'     => $this->generateUrl('app_settings_calendar_new'),
+            'owner_zone' => $this->timezones->nameFor($user),
         ]);
 
         $form->handleRequest($request);
@@ -123,7 +124,8 @@ final class CalendarSettingsController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action' => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
+            'action'     => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
+            'owner_zone' => $this->timezones->nameFor($calendar->usr),
         ]);
 
         $form->handleRequest($request);
@@ -478,8 +480,8 @@ final class CalendarSettingsController extends AbstractController
 
     /**
      * A new calendar, already carrying the answers a user should not have to
-     * give: their own zone rather than the server's, and the next colour along
-     * so two calendars made in a row do not look like one.
+     * give: following their own zone, and the next colour along so two
+     * calendars made in a row do not look like one.
      */
     private function blank(User $user): Calendar
     {
@@ -487,7 +489,7 @@ final class CalendarSettingsController extends AbstractController
 
         $calendar            = new Calendar();
         $calendar->usr       = $user;
-        $calendar->timeZone  = $this->timezones->nameFor($user);
+        $calendar->timeZone  = null;
         $calendar->color     = Calendar::COLORS[count($siblings) % count(Calendar::COLORS)];
         $calendar->sortOrder = count($siblings);
 

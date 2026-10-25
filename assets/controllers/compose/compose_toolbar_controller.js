@@ -974,9 +974,11 @@ export default class extends Controller {
                 list.appendChild(li);
             });
 
+            // Put the list where the first block was. Appending it to the
+            // editor put it under the quoted message in a reply, and under the
+            // signature in a new mail, far from the caret the writer clicked.
+            blocks[0].before(list);
             blocks.forEach(block => block.remove());
-
-            editor.appendChild(list);
         } else {
             const li = document.createElement('li');
             list.appendChild(li);

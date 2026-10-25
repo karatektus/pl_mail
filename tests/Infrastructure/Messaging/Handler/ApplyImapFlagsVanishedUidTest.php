@@ -23,6 +23,7 @@ use ReflectionProperty;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use App\Service\Imap\ImapQuery;
 use Webklex\PHPIMAP\Query\WhereQuery;
 use Webklex\PHPIMAP\Support\FlagCollection;
 use Webklex\PHPIMAP\Support\MessageCollection;
@@ -239,7 +240,8 @@ final class FakeFolder extends Folder
     }
 }
 
-final class FakeQuery extends WhereQuery
+/** An ImapQuery, so ImapQuery::of() hands it back as it is. */
+final class FakeQuery extends ImapQuery
 {
     public function __construct(private readonly MessageCollection $holding)
     {

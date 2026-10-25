@@ -27,6 +27,17 @@ Mail**, **Trash**, and **Spam** where an account has a junk folder — has an ey
 Labels**: switch one off and its row leaves the sidebar, switch it back on and it returns, both
 straight away. **Unread** and **All Mail** are the ones that start off.
 
+**Snoozed**, **Archive**, **Spam** and **Trash** wait behind a **More** row, and **Settings → General →
+Sidebar** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
+comes back to the sidebar proper. The **Inbox** always stays on top, and so does **All Mail**, which
+is not offered. The other rows keep the sidebar's own order whichever side of More they are on, and
+with nothing ticked there is no More at all. This decides where a row sits, never whether it exists —
+the eye in Settings → Labels still switches one off altogether, and **Unread** and **Spam** still
+wait for their label to be on and **Snoozed** for something to be snoozed, wherever you put them.
+More comes back open when you are on a page inside it. The choice is remembered against your
+account, is kept in a configuration backup, and shows only in the full sidebar: the narrow icon rail
+has no More, so a folder tucked behind it is not in the rail.
+
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is
@@ -837,6 +848,20 @@ you had it.
 **Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
+
+## Who a message is from
+
+A sender's name is whatever they typed, so a mail signed **PayPal** can come from anywhere. The
+part they cannot choose is their address, so an open message prints it as large and as dark as
+the name, and wraps it rather than cutting it off at the end, which is where the domain is.
+
+**Replies go to …** appears under the sender when the message's Reply-To points at a different
+organisation than its From address — the address your answer would actually go to. It is a line
+of fact, not a warning: newsletters and ticket systems answer from somewhere else all the time, and
+a warning on ordinary mail teaches you to ignore the one that matters. When plMail does think a
+name is pretending to be somebody else, it says so in a banner above the message, as before.
+
+There is no setting; this is on for everybody.
 
 ## Remote images
 

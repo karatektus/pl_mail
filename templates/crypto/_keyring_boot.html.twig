@@ -1,0 +1,53 @@
+{#
+crypto/_keyring_boot.html.twig — opens the keyring on every page, quietly.
+
+An empty element carrying crypto--keyring, which opens the person's keyring
+with what the session left behind, makes a first one for an account that has
+none, reopens the old one from this browser after a password reset, and adds a
+key for any address that lacks one — then, at most once per tab, says what is
+changed under the person: keys reopened from this browser, or old keys only a
+phrase can reopen. A missing phrase is said on Settings → Encryption instead.
+
+Silent on a session the password form did not open: the keyring simply
+stays shut, and the first thing that needs it asks through the unlock dialog
+included below (crypto/_unlock_dialog.html.twig). An account on the encryption
+passphrase that has not set encryption up gets nothing here at all.
+
+Not on a demo, and not while a password somebody else chose is waiting to be
+replaced: a keyring hung off that password would be one the chooser could open.
+#}
+{% if app.user and not demo.isEnabled and not app.user.passwordChangeRequired %}
+    <div hidden
+         data-controller="crypto--keyring"
+         data-crypto--keyring-state-url-value="{{ path('app_keyring_state') }}"
+         data-crypto--keyring-unlock-url-value="{{ path('app_keyring_unlock_current') }}"
+         data-crypto--keyring-prelogin-url-value="{{ path('app_login_prelogin') }}"
+         data-crypto--keyring-csrf-value="{{ csrf_token('keyring') }}"
+         data-crypto--keyring-user-id-value="{{ app.user.id }}"
+         data-crypto--keyring-email-value="{{ app.user.email }}"
+         data-crypto--keyring-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
+         data-crypto--keyring-messages-value="{{ {
+             lockedKeys:    'encryption.nag.locked_keys'|trans,
+             recovered:     'encryption.nag.recovered'|trans,
+             action:        'encryption.nag.action'|trans,
+         }|json_encode }}"></div>
+
+    {% include 'crypto/_unlock_dialog.html.twig' %}
+
+    {# For a person with an account that keeps decrypted mail on the server:
+       decrypts that account's encrypted mail in the background and hands it
+       over. See crypto--decrypted-mail and DecryptedMail. #}
+    {% if keeps_decrypted_mail() %}
+        <div hidden
+             data-controller="crypto--decrypted-mail"
+             data-crypto--decrypted-mail-pending-url-value="{{ path('app_mail_decrypted_pending') }}"
+             data-crypto--decrypted-mail-keyring-value="{{ {
+                 stateUrl:    path('app_keyring_state'),
+                 unlockUrl:   path('app_keyring_unlock_current'),
+                 preloginUrl: path('app_login_prelogin'),
+                 csrf:        csrf_token('keyring'),
+                 userId:      app.user.id,
+                 email:       app.user.email,
+             }|json_encode }}"></div>
+    {% endif %}
+{% endif %}

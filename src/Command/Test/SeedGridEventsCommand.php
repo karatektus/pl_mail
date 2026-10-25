@@ -11,6 +11,7 @@ use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Calendar\CalendarEventWriter;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,12 +37,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * has to be lifted out of the hours, and a series whose occurrences raise the
  * this-one-or-all question.
  *
- * **Times are the CALENDAR's wall clock, not UTC**, and the events are seeded
- * on the user's default calendar rather than one of this fixture's own. Both
- * follow from what the grid reads: it draws against the default calendar's zone
- * (CalendarRangeReader::zoneOf), so a fixture written as a UTC instant would sit
- * at the hour the spec expects only on an install running in UTC, and one on a
- * calendar of its own would draw in that calendar's zone instead.
+ * **Times are the USER's wall clock, not UTC**, and the events are seeded on
+ * the user's default calendar. The grid draws against the user's own zone
+ * (CalendarTimeResolver::zoneFor), so a fixture written as a UTC instant would
+ * sit at the hour the spec expects only on an install running in UTC.
  *
  * "Today" rather than "tomorrow", so a spec can reach the events at
  * /calendar/day with no date in it and the two cannot disagree about which day
@@ -95,6 +94,7 @@ final class SeedGridEventsCommand extends Command
         private readonly CalendarRepository      $calendarRepository,
         private readonly CalendarEventRepository $events,
         private readonly CalendarEventWriter     $writer,
+        private readonly UserTimezoneResolver    $timezones,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
     ) {
@@ -243,12 +243,12 @@ final class SeedGridEventsCommand extends Command
         $this->entityManager->flush();
     }
 
+    /**
+     * The owner's zone: the clock every calendar page is drawn on (#343),
+     * whatever zone the calendar itself carries.
+     */
     private function zoneOf(Calendar $calendar): DateTimeZone
     {
-        try {
-            return new DateTimeZone($calendar->timeZone);
-        } catch (\Exception) {
-            return new DateTimeZone('UTC');
-        }
+        return $this->timezones->resolve($calendar->usr);
     }
 }

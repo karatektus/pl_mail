@@ -148,13 +148,13 @@ all move to the new day — so a calendar left open beside the mail stays true.
 
 **The grid is drawn on your clock.** The hours down the side, where the red current-time line sits,
 and the time a new event is proposed at when you double-click empty space all follow the timezone in
-**Settings → General**. That is the same zone every other timestamp in the app is read against.
-Where a calendar carries a time zone of its own it wins for the events on it, as it always has; what
-changed is the fallback, which used to be the container's own idea of the time — UTC — so the
-current-time line could sit an hour or two away from the labels beside it and a new event was
-proposed at a slot already in the past. A calendar you subscribe to from Google or a CalDAV server
-is the exception: its zone is the one the remote account holds for it, often UTC for a shared
-calendar, so when such a calendar is your default the grid still follows your own zone.
+**Settings → General**. That is the same zone every other timestamp in the app is read against,
+and the header clock, so the two always agree. Every event shows at the moment it actually happens
+for you: a 15:00 meeting in a Tokyo calendar, read in Berlin, is on the 07:00 line. Change your
+timezone and the calendar moves with it. Until plMail 0.4.0 the grid followed your default
+calendar's own zone instead, which was a copy of yours from the day that calendar was made, so after
+a change of timezone the calendar and the clock disagreed
+([#343](https://github.com/karatektus/pl_mail/issues/343)).
 
 Three things about the grid are worth knowing:
 
@@ -299,7 +299,12 @@ every writable copy moves.
 
 **Settings → Calendars** is where calendars are created, renamed, recoloured, given a time zone,
 hidden from the views, and nominated as the one new events land on. A calendar's time zone is the
-one it is read in, and the one an event carrying no zone of its own is shown in.
+one a new event on it is written in; it does not change where events are shown, which is always on
+your own clock. It starts as **Follow plMail**, which means your own timezone whatever it is at the
+moment, and the list says *Follows plMail* for such a calendar. Pick a zone instead for a calendar
+that belongs somewhere else, such as one for an office in another country: a slot you double-click
+then opens at the same moment written in that zone. A calendar you subscribe to from Google or a
+CalDAV server keeps the zone the remote account holds for it.
 
 plMail creates two kinds of calendar for you: one default calendar per user, and one per mail
 account, which is where events found in that account's mail are filed. Neither can be deleted —

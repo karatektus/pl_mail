@@ -22,6 +22,10 @@ answer the chip is absent entirely rather than reading "development" beside ever
 Two images can both call themselves `main`, which is why the commit is shown next to the label and
 not instead of it.
 
+A click on the chip copies both, label and commit with one space between them
+(`milestone-v0.4.0 0805208`), ready for a bug report or a deploy command; its clipboard icon turns
+into a tick to say so. It also works on a phone and on an instance served over plain HTTP.
+
 ## System
 
 Live panels, refreshed every ten seconds. Each can be collapsed, and a collapsed card shows a
@@ -717,7 +721,9 @@ become a second way into every mailbox on the install:
 
 - **Change an existing user's password.** The field exists on create and not on edit. Someone who
   has not signed in yet has no mail, so setting their initial password discloses nothing; changing
-  it afterwards would. A forgotten password is reset with `app:user:password` on the console.
+  it afterwards would. And even the initial one works only once: the person has to choose their own
+  the first time they sign in, so the one you typed stops being a way in. A forgotten password is
+  reset with `app:user:password` on the console, which makes the same one-time password.
 - **Remove anyone's second factor.** That is `app:user:2fa-disable` on the console, and only there.
 - **Read anyone's mail.** Nothing in this area touches an account or a message.
 

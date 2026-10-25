@@ -15,6 +15,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
@@ -53,6 +54,7 @@ final class GmailMessageBuilder
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly LoggerInterface        $logger,
         private readonly GmailLabelPolicy       $labelPolicy,
+        private readonly MessageCryptoDetector  $cryptoDetector,
     )
     {
     }
@@ -171,8 +173,25 @@ final class GmailMessageBuilder
         $message->bodyText = $body->bodyText;
         $message->bodyHtml = $body->bodyHtml;
 
-        $hasAttachments = $this->persistAttachmentStubs($body->lazyParts, $message, $body->bodyHtml);
-        $this->persistInlineParts($body->inlineParts, $message, $account);
+        // OpenPGP or S/MIME, before the row is written — see the IMAP builder
+        // (MessageSyncer::buildMessage) for why it has to be here, and for why
+        // the part list is not consulted when the header is there to read.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers, 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        $unwrapped = fn (array $part): bool => null === $crypto
+            || false === $this->cryptoDetector->isWrapping($crypto, $part['mimeType'] ?? null, $part['filename'] ?? null);
+
+        $hasAttachments = $this->persistAttachmentStubs(array_values(array_filter($body->lazyParts, $unwrapped)), $message, $message->bodyHtml);
+        $this->persistInlineParts(
+            array_values(array_filter($body->inlineParts, static fn (array $entry): bool => $unwrapped($entry['part']))),
+            $message,
+            $account,
+        );
 
         $message->hasAttachments = $hasAttachments;
         $message->syncedAt = new DateTimeImmutable();

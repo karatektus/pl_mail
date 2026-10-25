@@ -1,6 +1,7 @@
 import { test, expect } from "./support/test";
 import type { Page } from "@playwright/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { saveSetting } from "./support/settings";
 
 /**
  * Gmail's keyboard shortcuts (#36), in a real browser, because the claim is
@@ -22,10 +23,7 @@ async function setShortcuts(page: Page, option: "On" | "Off"): Promise<void> {
     const group = page.getByRole("radiogroup", { name: "Shortcuts" });
 
     if (false === (await group.getByRole("radio", { name: option, exact: true }).isChecked())) {
-        await Promise.all([
-            page.waitForURL(/section=shortcuts/),
-            group.getByText(option, { exact: true }).click(),
-        ]);
+        await saveSetting(page, () => group.getByText(option, { exact: true }).click());
     }
 
     await expect(

@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:07ca79710a14017f094316936796ec53ba56ebb6 -->
+<!-- translated-from: features/appearance.md sha1:c3dae4655eb02b9e560eb412c9f40ff795c8effc -->
 
 # Darstellung
 
@@ -70,6 +70,28 @@ aufbewahrt. Nach einem Update, das die Zeichnung ändert, zeichnet die erste Sei
 es im Hintergrund neu. Eine schon installierte App behält ihr altes Symbol, bis der Browser es
 auffrischt oder du sie neu installierst.
 
+### Ein eigenes Logo
+
+**Eigenes hochladen…** unter den Symbolen nimmt eine SVG-Datei und trägt sie sofort: in der
+Kopfleiste, als Tab-Symbol und als Symbol der installierten App und auf dem Home-Bildschirm des
+iPhones. Sie erscheint als weitere Kachel, **Eigenes**, sodass du zu einem Motiv und zurück wechseln
+kannst, ohne sie neu hochzuladen; **Eigenes Logo ersetzen** tauscht die Datei aus, und **Eigenes
+Logo entfernen** vergisst sie und bringt das Motiv zurück, das du vorher hattest.
+
+Ein hochgeladenes Logo erscheint in seinen eigenen Farben. **Farbe** ist ausgeblendet, solange es
+gewählt ist, denn plMail kann nicht wissen, welche Teile einer fremden Zeichnung ihre Lackierung
+sind. In der Kopfleiste steht es auf hellen und dunklen Themes gleich da, ein Logo mit
+durchsichtigem Hintergrund sollte also auf beiden lesbar sein. Für das Symbol der installierten App
+zeichnet dein Browser es in dieselben Bilder wie ein Motiv: so, wie es ist, und mittig auf einem
+weißen Quadrat für die Formen, die ihre Ecken selbst abschneiden, etwa die von iOS.
+
+Die Datei wird gesäubert, bevor sie aufbewahrt wird: Alles, was etwas ausführen oder laden könnte —
+Skripte, Links, eingebettete Bilder oder Webseiten, Stile, die aus dem Internet laden —, wird
+entfernt, und übrig bleibt nur die Zeichnung. Eine Datei, die keine SVG ist, größer als 256 KB ist
+oder keine Größe hat (keine `viewBox` und weder Breite noch Höhe, aus denen sich eine machen ließe),
+wird mit einer Meldung abgelehnt, die sagt, woran es liegt. Die Handy-Apps zeigen weiter das Motiv,
+das du vorher hattest; nur die Web-App und was sie installiert tragen das hochgeladene Logo.
+
 ## Die Live-Vorschau
 
 Neben den Bedienelementen steht eine zweite Karte, die eine Beispiel-Seitenleiste, eine
@@ -103,7 +125,7 @@ die Liste schon vor diesen Bedienelementen tat — es bewegt sich also nichts, b
 | **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
 | **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
 | **Ungelesen-Zahl auf den Posteingangs-Tabs** | Die Zahl neben dem Namen jedes Kategorie-Tabs: in wie vielen Unterhaltungen darin Ungelesenes liegt. Standardmäßig an. Aus blendet nur die Zahl aus; die Farbe auf dem Symbol eines Tabs und das Fähnchen „3 neu“ bleiben |
-| **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext unter dem Betreff |
+| **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext. Mit **Eine Zeile** steht ab mittlerer Listenbreite jede Nachricht auf einer etwas engeren Zeile, die Vorschau hinter dem Betreff, wie bei Gmail. Auf dem Handy, und bei den anderen beiden Einstellungen, bis die Liste sehr breit ist, steht die Vorschau unter dem Betreff |
 | **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
 
 **Ungelesene Zeilen** ändert den Farbton hinter der Zeile und den Akzentbalken daneben, und sonst
@@ -270,7 +292,7 @@ Nachrichtenliste, Schriftart und Textgröße, die Hintergrundwahl, die Textfarbe
 Einstellungen des Hauptbereichs. Er trägt
 bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf der
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
-exportiert.
+exportiert. Dasselbe gilt für ein eigenes Logo: Der Export nennt das Motiv, das darunter liegt.
 
 Die Breite der Vorschau trägt er ebenfalls nicht. Sie ist eine Vorliebe dazu, wie diese
 Einstellungsseite geformt ist, und kein Teil davon, wie die App aussieht — das Theme von jemand
@@ -287,8 +309,8 @@ wurde, bevor es ein bestimmtes Bedienelement gab, trotzdem irgendwo Sinnvollem l
 wird. Deine Mail bleibt genau so, wie sie geschrieben wurde — es wird nichts übersetzt und
 nichts umgeschrieben.
 
-plMail liefert **English**, **Deutsch**, **Français** und **Pirate English** mit. Eine Änderung lädt die
-Seite neu, statt sie nachzubessern, denn jede Zeichenkette auf dem Bildschirm muss neu
+plMail liefert **English**, **Deutsch**, **Français**, **简体中文** (vereinfachtes Chinesisch) und
+**Pirate English** mit. Eine Änderung lädt die Seite neu, statt sie nachzubessern, denn jede Zeichenkette auf dem Bildschirm muss neu
 gerendert werden.
 
 Derselbe Abschnitt trägt die **Zeitzone**, die über die Uhrzeiten und Daten entscheidet, die
@@ -301,8 +323,8 @@ der Mailliste, in einem Thread, auf einem Kalender-Chip, in der Agenda, an der S
 Tagesrasters —, denn eine Einstellung, die an den meisten Stellen greift und an einer nicht, liest
 sich als Fehler und nicht als Wahlmöglichkeit.
 
-Der Standard ist **Der Sprache folgen**, und darauf steht anfangs jede: Deutsch liest 14:30,
-Englisch liest 2:30 pm. Das ist ein echter Zustand und kein getarnter Wert — lässt du ihn stehen,
+Der Standard ist **Der Sprache folgen**, und darauf steht anfangs jede: Deutsch und vereinfachtes
+Chinesisch lesen 14:30, Englisch liest 2:30 pm. Das ist ein echter Zustand und kein getarnter Wert — lässt du ihn stehen,
 wandert das Format mit der Sprache mit. Wer eines von beiden ausdrücklich wählt, legt es fest,
 gleich welche Sprache später eingestellt wird.
 

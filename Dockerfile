@@ -64,6 +64,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # then fail at the moment someone actually needed a backup.
 #
 # PGDG publishes amd64 and arm64, which the two-runner image build requires.
+#
+# gnupg is not only for the PGDG key: plMail runs the gpg binary to check PGP
+# signatures, read contacts' keys and publish keys over WKD (GnupgHome).
 # hadolint ignore=DL3008
 RUN set -eux; \
 	apt-get update; \

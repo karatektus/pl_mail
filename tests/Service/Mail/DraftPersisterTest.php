@@ -244,6 +244,23 @@ final class DraftPersisterTest extends KernelTestCase
         self::assertSame('Sounds good.', $text);
     }
 
+    /**
+     * A signature that wraps its name in a blockquote is still the signature
+     * (reported from the milestone build). The cut above took that blockquote
+     * for the quoted original, so the text part ended before the signature —
+     * and in a reply, before everything the quote was meant to follow.
+     */
+    public function testABlockquoteInTheSignatureIsNotTakenForTheQuote(): void
+    {
+        $text = $this->drafts->plainTextBody(
+            '<p>Yes, Tuesday works.</p>'
+            . '<div class="pl-signature" data-pl-signature><p>Kind regards,</p><blockquote style="margin:0"><p>Ada Lovelace</p></blockquote></div>'
+            . '<div data-quoted="1">On Monday, Katharina wrote:<blockquote>Does Tuesday work?</blockquote></div>',
+        );
+
+        self::assertSame("Yes, Tuesday works.\nKind regards,\nAda Lovelace", $text);
+    }
+
     public function testLineBreaksSurviveAsLineBreaks(): void
     {
         self::assertSame("one\ntwo", $this->drafts->plainTextBody('<p>one<br>two</p>'));

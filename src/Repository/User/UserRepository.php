@@ -395,6 +395,31 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * The people whose sign-in address is on $domain, for plMail's Web Key
+     * Directory (WkdDirectory): undeleted and not suspended, because a key is
+     * published for a person who can still use it, and a removed person's
+     * address is a tombstone anyway.
+     *
+     * By sign-in address alone, and case-folded, since the directory matches
+     * on a hash of the lower-cased local part. Hand-written for the LOWER()
+     * and the suffix match, neither of which findBy() can say. $domain is a
+     * DNS name WkdLookup::domain() has already shaped, so it holds no `%` or
+     * `_` for LIKE to misread.
+     *
+     * @return list<User>
+     */
+    public function findForWkdDomain(string $domain): array
+    {
+        return $this->createUndeletedQueryBuilder()
+            ->andWhere('user.deactivatedAt IS NULL')
+            ->andWhere('LOWER(user.email) LIKE :suffix')
+            ->setParameter('suffix', '%@' . strtolower($domain))
+            ->orderBy('user.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * The admin user list, filtered. A builder for the same reason
      * createUndeletedQueryBuilder() is one, and hand-written because a LIKE
      * across three case-folded columns is three expressions joined by OR —

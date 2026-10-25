@@ -52,12 +52,20 @@ final class CalendarType extends AbstractType
                 'choice_translation_domain' => false,
             ])
             ->add('timeZone', ChoiceType::class, [
-                'label'   => 'calendar.form.time_zone',
-                'choices' => $this->zoneChoices(),
-                // The zone an event with none of its own is read in, which is
-                // not obvious from a field labelled "Time zone" sitting under
-                // a name.
-                'help'    => 'calendar.form.time_zone_help',
+                'label'       => 'calendar.form.time_zone',
+                'choices'     => $this->zoneChoices(),
+                // The empty option, and the default: null in the column, the
+                // owner's zone whenever it is asked (#343). Not required, so
+                // choosing it submits null rather than failing validation.
+                'required'    => false,
+                'placeholder' => 'calendar.form.time_zone_follow',
+                // The zone a new event starts in, which is not obvious from a
+                // field labelled "Time zone" sitting under a name. It names the
+                // zone "follow" currently means, since the option cannot.
+                'help'                         => 'calendar.form.time_zone_help',
+                'help_translation_parameters'  => ['%zone%' => $options['owner_zone']],
+                // IANA names are their own labels; see `color` above.
+                'choice_translation_domain'    => false,
             ]);
     }
 
@@ -66,6 +74,10 @@ final class CalendarType extends AbstractType
         $resolver->setDefaults([
             'data_class' => Calendar::class,
         ]);
+
+        // The zone "Follow plMail" stands for, named in the help text.
+        $resolver->setRequired('owner_zone');
+        $resolver->setAllowedTypes('owner_zone', 'string');
     }
 
     /**

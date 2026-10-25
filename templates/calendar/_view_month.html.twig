@@ -95,12 +95,12 @@ neither.
             {% if isToday %}
                 <span class="w-5 h-5 flex items-center justify-center rounded-full
                              bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                    {{ dayKey|date('j') }}
+                    {{ dayKey|date('j', false) }}
                 </span>
             {% else %}
                 <span class="block px-1 text-xs tabular-nums
                              {{ isOtherMonth ? 'text-ink-faint' : 'text-ink-muted' }}">
-                    {{ dayKey|date('j') }}
+                    {{ dayKey|date('j', false) }}
                 </span>
             {% endif %}
         </a>

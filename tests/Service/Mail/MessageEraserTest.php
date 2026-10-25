@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\RawMessageStorage;
+use App\Domain\Helper\SealedMessageStorage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -170,6 +171,7 @@ final class MessageEraserTest extends KernelTestCase
             self::getContainer()->get(ThreadLabelSynchronizer::class),
             $attachments,
             $raw,
+            self::getContainer()->get(SealedMessageStorage::class),
             new NullLogger(),
         );
 

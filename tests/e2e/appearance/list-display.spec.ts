@@ -229,6 +229,29 @@ test.describe("appearance — mail list display", () => {
         await expect.poll(() => cssVar(page, "--list-preview-display")).toBe("none");
     });
 
+    test("the preview-lines count on <html> follows the control and the save", async ({ page }) => {
+        // The count is what moves the one-line row to 48rem for one preview
+        // line (`row-line:` in app.css), so it has to change live, like the
+        // variables, and come back from the server after a reload.
+        await open(page);
+        const html = page.locator("html");
+
+        await pick(page, "previewLines", "0");
+        await expect(html).toHaveAttribute("data-list-preview-lines", "0");
+
+        // Two, not the default one, so the reload below proves the save. The
+        // panel debounces its POST; arm the wait before the click.
+        const written = page.waitForResponse(
+            (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",
+        );
+        await pick(page, "previewLines", "2");
+        await expect(html).toHaveAttribute("data-list-preview-lines", "2");
+        await written;
+
+        await page.reload();
+        await expect(html).toHaveAttribute("data-list-preview-lines", "2");
+    });
+
     test("strong unread emphasis paints a bar and subtle paints nothing", async ({ page }) => {
         await open(page);
 

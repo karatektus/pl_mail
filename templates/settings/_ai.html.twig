@@ -119,11 +119,12 @@ Variables:
             post the OTHER field's value alongside them, which is the
             shared-form problem _compose_behavior.html.twig warns about.
 
-            data-turbo="false" like the other posting forms on this page: the
-            action redirects, and the flash lands on the reload.
+            Through Turbo like the other posting forms on this page: the
+            action redirects back here, and the page morphs in place with the
+            flash — see the turbo_refresh block in settings/index.html.twig.
             #}
             <div class="px-4 py-3">
-                <form method="post" action="{{ path('app_settings_ai_notes') }}" data-turbo="false" class="space-y-4">
+                <form method="post" action="{{ path('app_settings_ai_notes') }}" class="space-y-4">
                     <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-notes') }}">
 
                     <div class="space-y-1.5">
@@ -184,7 +185,7 @@ Variables:
                 {# Submits on change and redirects, like the clock picker: the
                    choice matters on the next draft, not on this page, so there
                    is no fragment small enough to be worth swapping back. #}
-                <form method="post" action="{{ path('app_settings_ai_context') }}" data-turbo="false"
+                <form method="post" action="{{ path('app_settings_ai_context') }}"
                       data-controller="ui--auto-submit">
                     <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-context') }}">
 

@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -125,9 +126,13 @@ class MailboxRepository extends ServiceEntityRepository
             ->andWhere('mailbox.isIdleEnabled = :isIdleEnabled')
             ->andWhere('mailbox.isSyncEnabled = :isSyncEnabled')
             ->andWhere('account.isActive = :isActive')
+            // IDLE is an IMAP command. A POP3 account's mailbox can carry the
+            // switch from when the account was IMAP, and has nothing to idle on.
+            ->andWhere('account.incomingProtocol = :imap')
             ->setParameter('isIdleEnabled', true)
             ->setParameter('isSyncEnabled', true)
-            ->setParameter('isActive', true);
+            ->setParameter('isActive', true)
+            ->setParameter('imap', IncomingProtocol::Imap);
 
         return $queryBuilder->getQuery()->getResult();
     }

@@ -93,7 +93,7 @@
                 </p>
 
                 <form method="post" action="{{ path('app_two_factor_regenerate_codes') }}"
-                      data-turbo="false" class="flex items-end gap-2">
+                      class="flex items-end gap-2">
                     <input type="hidden" name="_token" value="{{ csrf_token('two-factor-backup-codes') }}">
                     <div class="flex-1 min-w-0 max-w-[200px]">
                         <label for="regen-code" class="block text-[11px] text-ink-faint mb-1">
@@ -152,7 +152,7 @@
                                 </span>
 
                                 <form method="post" action="{{ path('app_two_factor_revoke_device', { id: device.id }) }}"
-                                      data-turbo="false" class="shrink-0"
+                                      class="shrink-0"
                                       data-turbo-confirm="{{ 'settings.security.devices.revoke_confirm'|trans({ '%name%': device.label }) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('two-factor-revoke-device' ~ device.id) }}">
                                     <button type="submit"
@@ -166,7 +166,6 @@
 
                     <div class="px-4 py-3 border-t border-line">
                         <form method="post" action="{{ path('app_two_factor_revoke_all_devices') }}"
-                              data-turbo="false"
                               data-turbo-confirm="{{ 'settings.security.devices.revoke_all_confirm'|trans }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('two-factor-revoke-all-devices') }}">
                             <button type="submit"
@@ -186,7 +185,7 @@
                 </p>
 
                 <form method="post" action="{{ path('app_two_factor_disable') }}"
-                      data-turbo="false" class="flex items-end gap-2"
+                      class="flex items-end gap-2"
                       data-turbo-confirm="{{ 'settings.security.disable.confirm'|trans }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('two-factor-disable') }}">
                     <div class="flex-1 min-w-0 max-w-[200px]">
@@ -271,7 +270,7 @@
                                 the second use.
                             #}
                             <form method="post" action="{{ path('app_two_factor_confirm') }}"
-                                  data-turbo="false" class="flex items-end gap-2"
+                                  class="flex items-end gap-2"
                                   data-controller="core--submit-once"
                                   data-action="submit->core--submit-once#guard"
                                   data-core--submit-once-busy-label-value="{{ 'two_factor.form.submitting'|trans }}">

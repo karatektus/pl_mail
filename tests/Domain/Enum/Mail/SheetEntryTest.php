@@ -28,7 +28,7 @@ use Symfony\Component\Yaml\Yaml;
 final class SheetEntryTest extends KernelTestCase
 {
     /** The locales the shipped catalogue carries; a key missing from one is a gap a user would see. */
-    private const array LOCALES = ['de', 'en', 'en_PI', 'fr'];
+    private const array LOCALES = ['de', 'en', 'en_PI', 'fr', 'zh_CN'];
 
     public function testTheCaseSetIsExactlyTheEightEntriesOutsideTheSwipeSet(): void
     {

@@ -29,9 +29,25 @@ Variables: message, live (default true)
     <div class="flex flex-wrap gap-2 px-4 pb-2" {% if live %}data-enter-stagger{% endif %}>
         {% for part in parts %}
             {% set kb = (part.size ?: 0) / 1024 %}
+            {# data-compose-part*: what compose--encryption needs to put the
+               file into a message it builds in the browser. #}
             <span {% if live %}data-enter="rise"{% endif %}
+                  data-compose-part="{{ part.id }}"
+                  data-part-name="{{ part.filename ?: 'attachment' }}"
+                  data-part-type="{{ part.contentType ?: 'application/octet-stream' }}"
+                  data-part-sealed="{{ part.sealed ? '1' : '0' }}"
                   class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
                          bg-sunken border border-line text-ink-soft">
+                {% if part.sealed %}
+                    {# Encrypted in the browser to the person's own key: the
+                       file on the server is ciphertext, so there is nothing a
+                       link could usefully download. See MessagePart::$sealed. #}
+                    <i class="fa-solid fa-lock text-[10px] text-success" aria-hidden="true"
+                       title="{{ 'compose.crypto.sealed_attachment'|trans }}"></i>
+                    <span class="truncate max-w-[11rem]" data-testid="sealed-attachment">
+                        {{- part.filename ?: 'attachment' -}}
+                    </span>
+                {% else %}
                 <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
                 {# `download` for the same reason as in mail/_attachment_chip:
                    without it Turbo intercepts the click and throws the file
@@ -41,6 +57,7 @@ Variables: message, live (default true)
                    class="truncate max-w-[11rem] hover:text-accent transition-colors">
                     {{- part.filename ?: 'attachment' -}}
                 </a>
+                {% endif %}
                 <span class="text-ink-faint shrink-0">
                     {{- kb >= 1024 ? (kb / 1024)|number_format(1) ~ ' MB' : kb|number_format(0) ~ ' KB' -}}
                 </span>

@@ -26,6 +26,38 @@ parameters:
     # reverse. See App\Service\Demo\DemoMode.
     app.demo_mode_default: false
 
+    # Whether people on this install may keep the decrypted text of their
+    # end-to-end encrypted mail on the server (`allow`, the default) or not
+    # (`forbid`). For an organisation that must not hold such text for
+    # compliance: a setting in the deployment, not a switch in the admin
+    # panel, so it cannot be flipped in passing. See DecryptedMailPolicy.
+    app.e2e_server_plaintext_default: 'allow'
+    app.e2e_server_plaintext: '%env(default:app.e2e_server_plaintext_default:APP_E2E_SERVER_PLAINTEXT)%'
+
+    # The domains plMail publishes people's OpenPGP keys for, through the Web
+    # Key Directory (`example.org,example.net`). Empty, the default, is no
+    # directory at all: the routes answer 404 to everything. A list rather than
+    # "every domain somebody here has an address on", because a person with a
+    # Gmail account here gives plMail no right to speak for gmail.com — and
+    # because serving a domain also needs DNS or a forward only its owner can
+    # set up. A deployment setting like the one above. See WkdDirectory.
+    app.wkd_domains_default: ''
+    app.wkd_domains: '%env(default:app.wkd_domains_default:APP_WKD_DOMAINS)%'
+
+    # The public key servers a contact's key is looked up on when the address's
+    # own domain publishes none (KeyServerLookup), by host name, in the order
+    # they are asked. Both servers plMail can speak to by default, as
+    # Thunderbird asks keys.openpgp.org out of the box: without them most
+    # people's keys are never found. Empty switches key servers off; a host
+    # plMail has no implementation for is ignored with a log line.
+    #
+    # Read as env(APP_KEY_SERVERS) with that default, not through
+    # `default:` like the two above: the `default:` processor treats an
+    # empty variable as an absent one, and `APP_KEY_SERVERS=` has to mean
+    # "none", not "both".
+    env(APP_KEY_SERVERS): 'keys.openpgp.org,keys.mailvelope.com'
+    app.key_servers: '%env(APP_KEY_SERVERS)%'
+
     # The subscriber cookie's name when nothing says otherwise: no prefix.
     #
     # The Mercure 1.0 default is `__Secure-` prefixed, and a browser refuses a
@@ -111,6 +143,14 @@ parameters:
     app.enrich_recent_days_default: 30
     app.enrich_recent_days: '%env(default:app.enrich_recent_days_default:int:ENRICH_RECENT_DAYS)%'
 
+    # PBKDF2-SHA256 iterations a browser stretches a newly set password with —
+    # see App\Security\PasswordKdf. 600 000 is OWASP's figure for this
+    # function and Bitwarden's default. Stored with each user's hash, so raising
+    # it changes only passwords set from then on and locks nobody out. Not an
+    # environment variable: it is a security floor, not a tuning knob, and an
+    # install has no reason to lower it.
+    app.password_kdf_iterations: 600000
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -148,6 +188,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
+    App\Domain\Helper\SealedMessageStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Domain\Helper\UploadStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
@@ -165,6 +209,10 @@ services:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(APP_STORAGE_DIR)%'
             $secret: '%kernel.secret%'
+    App\Domain\Helper\CustomLogoStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $storageDir: '%env(APP_STORAGE_DIR)%'
     App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
@@ -363,9 +411,65 @@ services:
         # notifying a device it already holds a subscription for.
         App\Domain\Interface\PushSenderInterface:
             tags: ['app.push_sender']
+        # One per public key server plMail can ask (KeyServerLookup); which of
+        # them are asked is APP_KEY_SERVERS's business.
+        App\Domain\Interface\KeyServerInterface:
+            tags: ['app.key_server']
+        # The key servers a person can publish their own key to as well
+        # (KeyPublishing), under the same APP_KEY_SERVERS.
+        App\Domain\Interface\KeyPublisherInterface:
+            tags: ['app.key_publisher']
         App\Jmap\Method\JmapMethod:
             tags: ['app.jmap_method']
         # Adding a wizard step is a new handler class and a new enum case —
         # nothing has to be registered here by hand.
         App\Service\Onboarding\OnboardingStepHandlerInterface:
             tags: ['app.onboarding_step']
+
+when@test:
+    # The suite signs in hundreds of times and has no attacker to slow down. The
+    # browser and PasswordKdf read this one number, so they still agree.
+    parameters:
+        app.password_kdf_iterations: 1000
+
+    # Every place a key is asked for outside plMail, stood in for: the key
+    # servers' lookup APIs, keys.openpgp.org's upload API and every domain's
+    # Web Key Directory are answered from the files app:test:seed-key-server
+    # writes, with host names resolved without DNS — so no test reaches the
+    # internet or asks real DNS, and the request rules and API readers under
+    # test are the real ones. WKD was left on the real fetcher in phase 6f,
+    # which held as long as every address looked up ended in `.test`; phase
+    # 6g looks up a real domain's address (test@pluetzner.de, the case that
+    # was reported), and that must not leave the machine.
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+
+        App\Tests\Support\Crypto\KeyServerStub:
+            arguments: ['%kernel.project_dir%/var/test-key-servers']
+
+        app.key_server_stub_fetcher:
+            class: App\Service\Crypto\KeyFetcher
+            arguments:
+                $httpClient: '@App\Tests\Support\Crypto\KeyServerStub'
+                $resolve: !closure '@App\Tests\Support\Crypto\KeyServerStub'
+
+        App\Service\Crypto\KeyServerLookup:
+            arguments:
+                $fetcher: '@app.key_server_stub_fetcher'
+
+        App\Service\Crypto\WkdLookup:
+            arguments:
+                $fetcher: '@app.key_server_stub_fetcher'
+
+        App\Service\Crypto\KeyPublishing:
+            arguments:
+                $fetcher: '@app.key_server_stub_fetcher'
+
+        # The provider the browser suite sends to: nothing leaves, and the mail
+        # is written to var/test-sent for app:test:finish-send to print. Above
+        # every real sender, claiming only the accounts the suite seeds.
+        App\Tests\Support\Mail\RecordingMailSender:
+            arguments: ['%kernel.project_dir%/var/test-sent']
+            tags: [{ name: app.mail_sender, priority: 200 }]

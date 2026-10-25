@@ -88,7 +88,7 @@ Accepts:
                             </p>
                         </div>
 
-                        <form method="post" action="{{ path('app_settings_categories_switch') }}" data-turbo="false" data-controller="ui--auto-submit" class="shrink-0">
+                        <form method="post" action="{{ path('app_settings_categories_switch') }}" data-controller="ui--auto-submit" class="shrink-0">
                             <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
                             <input type="hidden" name="key" value="{{ tab.value }}">
                             <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
@@ -106,7 +106,7 @@ Accepts:
                         </form>
                     {% else %}
                         <form method="post" action="{{ path('app_settings_categories_rename', { id: tab.categoryId }) }}"
-                              data-turbo="false" class="flex min-w-0 flex-1 items-center gap-2">
+                              class="flex min-w-0 flex-1 items-center gap-2">
                             <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
                             <input type="text" name="name" value="{{ tab.name }}" required maxlength="40"
                                    aria-label="{{ 'settings.categories.name_label'|trans }}"
@@ -117,8 +117,9 @@ Accepts:
                             </button>
                         </form>
 
-                        {# Through Turbo, unlike the forms above: data-turbo-confirm is
-                           Turbo's, and with Turbo off the tab was deleted without
+                        {# Through Turbo, like every form on this page now — and
+                           this one could never be anything else: data-turbo-confirm
+                           is Turbo's, and with Turbo off the tab was deleted without
                            the question being asked. #}
                         <form method="post" action="{{ path('app_settings_categories_delete', { id: tab.categoryId }) }}"
                               class="shrink-0"
@@ -137,7 +138,7 @@ Accepts:
         </ul>
     </div>
 
-    <form method="post" action="{{ path('app_settings_categories_create') }}" data-turbo="false" class="mt-3 flex items-center gap-2">
+    <form method="post" action="{{ path('app_settings_categories_create') }}" class="mt-3 flex items-center gap-2">
         <input type="hidden" name="_token" value="{{ csrf_token('settings-categories') }}">
         <input type="text" name="name" required maxlength="40"
                placeholder="{{ 'settings.categories.placeholder'|trans }}"

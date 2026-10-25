@@ -20,7 +20,7 @@ Accepts:
 
 <div class="px-4 py-3">
     {% for direction, active in {right: right, left: left} %}
-        <form method="post" action="{{ path('app_settings_swipe_actions_update') }}" data-turbo="false"
+        <form method="post" action="{{ path('app_settings_swipe_actions_update') }}"
               data-controller="ui--auto-submit" class="{{ loop.first ? '' : 'mt-3' }}">
             <input type="hidden" name="_token" value="{{ csrf_token('settings-swipe-actions') }}">
 
