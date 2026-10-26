@@ -28,8 +28,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *     invitation nobody has answered carries the dashed bar;
  *   - every day of the six weeks has its list under the grid, only today's is
  *     open at first, an empty one says so, and each list adds to its own day;
- *   - the toolbar carries a short label beside the long one, and a week inside
- *     one month of this year names that month once;
+ *   - the toolbar carries a short label beside the long one, a week inside
+ *     one month of this year names that month once, and one across two months
+ *     names only its months on the narrowest row;
  *   - the month and the time grid mount calendar--now on the view's clock.
  */
 final class CalendarMonthReadabilityTest extends WebTestCase
@@ -137,6 +138,14 @@ final class CalendarMonthReadabilityTest extends WebTestCase
             trim($labels->eq(1)->text()),
             'English puts the month in front of the two days: "Oct 3–9"',
         );
+
+        // A week into the next month has a third form, for a 320px phone: its
+        // months alone, which fit where "Oct 26–Nov 1" was cut.
+        $crawler = $client->request('GET', '/calendar/week/2026-10-26');
+        $tightest = $crawler->filter('[data-calendar-position] > span')->eq(1)->children('span');
+
+        self::assertCount(2, $tightest, 'the short label and the one for the narrowest row');
+        self::assertSame('Oct–Nov', trim($tightest->eq(1)->text()));
 
         $crawler = $client->request('GET', '/calendar/month');
         self::assertSame(

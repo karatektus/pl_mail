@@ -12,13 +12,21 @@ import { seed } from "./support/config";
  *   - on a touch screen wide enough for words, the first tap opens a day's card
  *     and only the second acts on an entry in it;
  *   - the toolbar and the bar above it fit a 320px phone in every view, without
- *     scrolling or overlapping;
+ *     scrolling or overlapping, a week across two months included;
  *   - a dialog is the whole screen below 768px;
  *   - the now line follows the clock.
  *
  * The markup these stand on is asserted in CalendarMonthReadabilityTest.
  */
 const VIEWS = ["day", "week", "month", "agenda"] as const;
+
+/**
+ * Weeks whose label is the longest it gets, pinned so the claim holds on any
+ * day the suite runs: across a month, across a year, and inside one month of a
+ * year that is not this one. Today's week alone passed for three weeks of a
+ * month and failed the fourth.
+ */
+const LONG_WEEKS = ["2026-10-26", "2026-12-28", "2030-01-07"] as const;
 
 test.describe("the calendar on a phone", () => {
     test.use({ viewport: { width: 375, height: 760 } });
@@ -94,7 +102,7 @@ test.describe("the calendar on a 320px phone", () => {
     test.use({ viewport: { width: 320, height: 640 } });
 
     test("the toolbar and the bar above it fit in every view", async ({ page }) => {
-        for (const view of VIEWS) {
+        for (const view of [...VIEWS, ...LONG_WEEKS.map((date) => `week/${date}`)]) {
             await page.goto(`/calendar/${view}`);
 
             const fit = await page.evaluate(() => {
