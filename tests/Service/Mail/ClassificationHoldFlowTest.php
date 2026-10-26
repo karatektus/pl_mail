@@ -6,6 +6,7 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\CategorySource;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Mail\Account;
@@ -31,6 +32,7 @@ use App\Service\Ai\PromptLibrary;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\OpenAiClient;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeldMailReleaser;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
@@ -212,6 +214,47 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         // The timed release arriving after the verdict has already released
         // the message is the ordinary case, and must be a no-op.
         self::assertSame(0, $releaser->release([$message]));
+    }
+
+    /**
+     * The sidebar's Inbox row and the category tabs light up for the same
+     * arrival at the same moment (#371).
+     *
+     * The tabs have never shown held mail; the sidebar's Inbox dot and badge
+     * did, so a new message announced itself in two steps a model call apart.
+     * Both read the counts of one answer, so agreeing in the data is what
+     * makes them agree on the screen.
+     */
+    public function testHeldMailLightsTheSidebarAndTheTabsTogether(): void
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $message = $this->message('together', '-1 minute');
+        $message->addLabel(self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Inbox, $this->account));
+        $this->em->flush();
+
+        $this->ingest($message);
+
+        self::assertTrue($message->isCategoryHeld());
+
+        $threads = self::getContainer()->get(MessageThreadRepository::class);
+        $now     = new DateTimeImmutable('+1 second');
+        $inbox   = LabelRole::Inbox->value;
+
+        self::assertSame([], $threads->countNewByCategoryForUnifiedInbox($this->user, $now), 'held mail is in no tab');
+        self::assertSame(0, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0, 'so the Inbox dot waits too');
+        self::assertSame(0, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0, 'and so does the Inbox badge');
+
+        self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
+        $this->em->refresh($message->thread);
+
+        // Keyed by the tab the release filed it in, whichever the rules chose.
+        $tab = (string) $message->thread->category?->value;
+
+        self::assertSame(1, $threads->countNewByCategoryForUnifiedInbox($this->user, $now)[$tab] ?? 0);
+        self::assertSame(1, $threads->countNewPerRole($this->user, $now)[$inbox] ?? 0);
+        self::assertSame(1, $threads->countUnreadPerRole($this->user)[$inbox] ?? 0);
     }
 
     public function testMailHeldTooLongIsFoundByTheSweep(): void

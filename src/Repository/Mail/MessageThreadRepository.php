@@ -765,6 +765,38 @@ class MessageThreadRepository extends ServiceEntityRepository
     {
         $qb->andWhere('t.binned = false');
     }
+
+    /**
+     * Mail held for the assistant is not in the Inbox yet, as far as the
+     * sidebar is concerned (#371).
+     *
+     * A held conversation has no category (MessageThreader::createThread()),
+     * and that is what keeps it out of every inbox tab until the verdict or
+     * the timed release. The sidebar's Inbox row read the Inbox label alone,
+     * so it lit its dot and raised its badge the moment the mail was stored,
+     * and the tab beside it caught up seconds later, when the release
+     * published the second change. Two halves of one arrival, on the screen
+     * at different times. Now the row waits for the same release the tabs
+     * do, and both are patched from the one counts answer that follows it.
+     *
+     * The test is on the thread's category alone, not on the messages'
+     * categoryHeldAt: a NULL category is how a thread says it is in no tab,
+     * which is the statement the badge has to agree with, and it needs no
+     * join. Every other role keeps counting: holding is about the tabs, and
+     * only the Inbox has them.
+     *
+     * The Inbox role only, and as an OR rather than a WHERE on the role,
+     * because the callers group every role in one query.
+     */
+    private function excludeHeldFromInbox(QueryBuilder $qb): void
+    {
+        $qb->andWhere(
+            $qb->expr()->orX(
+                'l.role <> :heldRole',
+                't.category IS NOT NULL',
+            ),
+        )->setParameter('heldRole', LabelRole::Inbox);
+    }
     /**
      * QueryBuilder for the join to Account: both the owner and whether the
      * account is still active live there, and neither is a field of the thread.
@@ -908,6 +940,8 @@ class MessageThreadRepository extends ServiceEntityRepository
                 't.binned = false',
             ),
         )->setParameter('trashRole', LabelRole::Trash);
+
+        $this->excludeHeldFromInbox($qb);
 
         $rows = $qb->getQuery()->getArrayResult();
 
@@ -1303,6 +1337,8 @@ class MessageThreadRepository extends ServiceEntityRepository
                 't.binned = false',
             ),
         )->setParameter('trashRole', LabelRole::Trash);
+
+        $this->excludeHeldFromInbox($qb);
 
         $counts = [];
 
