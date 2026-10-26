@@ -287,7 +287,6 @@ readonly class ImapFolderProvisioner
     private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse, bool $empty): Mailbox
     {
         $separator = $this->separatorFor($account);
-        $segments  = $this->labels->segmentsFromImapPath($path, $separator);
 
         // Reused rather than built, when there is already a row for this path.
         //
@@ -300,7 +299,7 @@ readonly class ImapFolderProvisioner
         $mailbox = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
 
         if (null !== $mailbox) {
-            $this->bind($account, $mailbox, $segments, $specialUse);
+            $this->bind($account, $mailbox, $specialUse);
 
             return $mailbox;
         }
@@ -333,7 +332,7 @@ readonly class ImapFolderProvisioner
         // has to be managed by then or the binding's FK points at nothing.
         $this->em->persist($mailbox);
 
-        $this->bind($account, $mailbox, $segments, $specialUse);
+        $this->bind($account, $mailbox, $specialUse);
 
         return $mailbox;
     }
@@ -347,21 +346,14 @@ readonly class ImapFolderProvisioner
      * so recording the mailbox without binding it would fix half of the problem
      * and leave the move with nowhere to go a second time.
      *
-     * @param list<string> $segments
+     * The same rule a sync applies (LabelResolver::linkFolder()), so the label
+     * this gives a folder is the one the next sync keeps.
      */
-    private function bind(
-        Account            $account,
-        Mailbox            $mailbox,
-        array              $segments,
-        ?MailboxSpecialUse $specialUse,
-    ): void {
-        $label = null !== $specialUse
-            ? $this->labels->systemLabel(LabelRole::fromSpecialUse($specialUse), $account)
-            : $this->labels->customChain($segments, $account);
+    private function bind(Account $account, Mailbox $mailbox, ?MailboxSpecialUse $specialUse): void
+    {
+        $mailbox->specialUse ??= $specialUse;
 
-        if (null !== $label) {
-            $this->labels->bindMailbox($label, $mailbox);
-        }
+        $this->labels->linkFolder($mailbox, $account);
 
         $this->em->flush();
     }

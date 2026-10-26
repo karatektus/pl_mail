@@ -34,6 +34,19 @@ final class FakeListingClient extends Client
         }
     }
 
+    /**
+     * What STATUS answers for a folder — a UIDVALIDITY is how a rename by
+     * another client is told from a new folder.
+     *
+     * @param array<string, int> $status e.g. ['uidvalidity' => 42]
+     */
+    public function withStatus(string $path, array $status): self
+    {
+        $this->fakeProtocol->status[$path] = $status;
+
+        return $this;
+    }
+
     public function getConnection(): ProtocolInterface
     {
         return $this->fakeProtocol;
