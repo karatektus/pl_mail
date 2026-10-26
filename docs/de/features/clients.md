@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:a74d79f0110b60eefe51388f2743ee644d27ec4f -->
+<!-- translated-from: features/clients.md sha1:e08e0c778097638bb9172b46a2136343942b0428 -->
 
 # Andere Clients
 
@@ -124,6 +124,11 @@ Lesen, Markieren, Archivieren oder Verschieben, nicht von Spam, nicht von einem 
 Kopie von etwas, das du gesendet hast, und nicht von Post, die gerade importiert wird. Die
 Benachrichtigung sagt nur „New mail“; Absender und Betreff trägt sie nicht. Eine Nachricht, deren
 Ankunftszeit plMail aus ihren Headern nicht ermitteln kann, wird nicht gemeldet.
+
+Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine Nachricht, die ein
+Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschiebt, wird nicht
+gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
+dem Handy geöffnet.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

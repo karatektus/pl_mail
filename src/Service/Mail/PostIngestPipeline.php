@@ -88,6 +88,7 @@ final readonly class PostIngestPipeline
         $messages    = [];
         $accounts    = [];
         $ruleTargets = [];
+        $arrivals    = [];
 
         // Is this mail trickling in, or a mailbox being imported? Asked once,
         // before the loop, because two things below turn on it and both have
@@ -139,10 +140,12 @@ final readonly class PostIngestPipeline
             // Sent folder is filed as Elsewhere, and a draft written here is
             // stored outside any sync and left unplaced (null); neither counts.
             //
-            // The arrivals buffer is what the in-app PWA's "new mail" push
-            // reads; see StateManager::recordArrival().
+            // Only a candidate here. The arrivals buffer is what the in-app
+            // PWA's "new mail" push reads (see StateManager::recordArrival()),
+            // and a rule may still read, archive or trash the message, so the
+            // verdict is given after the rules have run.
             if (true === $live && ArrivalPlace::Inbox === $message->arrivedIn) {
-                $this->changes->mailArrived($accountId);
+                $arrivals[] = [$message, $message->isInInbox()];
             }
 
             $message->category = $this->categorizer->categorize($message, $correspondents, $user?->categorySorting);
@@ -180,6 +183,27 @@ final readonly class PostIngestPipeline
         // One query per rule for the whole batch, after threading so archive
         // and trash actions can reach each message's thread.
         $this->ruleEngine->applyToBatch($ruleTargets, $carrier);
+
+        // The rules have had their say. A message one of them marked read, or
+        // took out of the Inbox (archive, Trash, Spam), is mail the user will
+        // never see arrive: announcing it opens a "New mail" notification for
+        // something that is not there when they look. Mail that came in
+        // already read — opened on the phone before this sync fetched it — is
+        // not news either, rule or no rule.
+        //
+        // "Left the Inbox" compares with the label it arrived with rather than
+        // asking isInInbox() alone. arrivedIn is the folder it was fetched
+        // from; the Inbox label is put on by the sync, and a message stored
+        // without one (a path that labels later, a test fixture) would
+        // otherwise never count as arriving at all. Only a label a rule took
+        // away is evidence that it left.
+        foreach ($arrivals as [$arrived, $wasInInbox]) {
+            $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
+
+            if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
+                $this->changes->mailArrived((int) $arrived->account->id);
+            }
+        }
 
         // Threads exist only after assignThread() above, so this runs as a
         // second pass rather than inside the loop — and only after the flush,
