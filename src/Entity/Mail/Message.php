@@ -829,6 +829,18 @@ class Message extends MessageModel
         return false;
     }
 
+    /** Whether the message carries the Inbox label, which a rule may remove. */
+    public function isInInbox(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Inbox === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Whether the message is in Spam. See isSetAside(). */
     public function isSpam(): bool
     {
