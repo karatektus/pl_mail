@@ -1,0 +1,44 @@
+{#
+settings/_contacts_behaviour.html.twig
+─────────────────────────────────────────────────────────────────────────
+How the topbar's contacts button moves between views: the calendar's choice
+(settings/_calendar_behaviour.html.twig, whose reasons all apply), for the
+address book. One choice of three, named for the views the button is left
+with:
+
+  All three         mail → beside the mail → full width
+  Full width only   mail ↔ the address book full width   (skips the split)
+  Beside mail only  mail ↔ the address book beside mail  (skips the full width)
+
+Accepts:
+  skip  ContactsSwitchSkip
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<form method="post" action="{{ path('app_settings_contacts_behaviour_update') }}"
+      data-controller="ui--auto-submit" class="px-4 py-3">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-contacts-behaviour') }}">
+
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.contacts_behaviour.button'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.contacts_behaviour.button_hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.contacts_behaviour.button'|trans }}">
+            {% for option in enum('App\\Domain\\Enum\\Contacts\\ContactsSwitchSkip').cases() %}
+                <label>
+                    <input type="radio" name="skip" class="peer sr-only"
+                           value="{{ option.value }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ option == skip ? 'checked' : '' }}>
+                    <span class="{{ segText }}">{{ ('settings.contacts_behaviour.option_' ~ option.value)|trans }}</span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</form>

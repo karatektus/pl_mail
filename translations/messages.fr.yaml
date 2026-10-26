@@ -11,10 +11,21 @@ account:
             heading: Réception — IMAP
             host: Serveur
         password: Mot de passe
+        pop3:
+            delete_help: 'Laissé sur le serveur, un message est reconnu à la relève suivante par son UIDL et n''est jamais relevé deux fois. Le supprimer libère de la place sur le serveur, mais la copie de plMail devient alors la seule.'
+            delete_label: 'Après la relève'
+            delete_on_fetch: 'Le supprimer du serveur'
+            heading: 'Réception — POP3'
+            keep_on_server: 'Le laisser sur le serveur (recommandé)'
         port: Port
         preset:
             label: Fournisseur
             placeholder: Choisissez un fournisseur…
+        protocol:
+            help: 'Le changer plus tard conserve vos messages : la synchronisation suivante reconnaît ce qui est déjà là.'
+            imap: IMAP
+            label: 'Protocole de réception'
+            pop3: POP3
         smtp:
             heading: Envoi — SMTP
             host: Serveur
@@ -47,6 +58,7 @@ account:
             imap_ok: 'Connecté — %count% dossiers visibles.'
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
+            pop3_ok: 'Connecté — %count% messages dans la boîte.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -156,6 +168,8 @@ admin:
             chat_keep_alive_help: '5m, 30m, 4h, ou un nombre de secondes. -1 le garde chargé en permanence, 0 le décharge après chaque requête. Plus c’est long, plus la première réponse arrive vite ; l’hôte garde la mémoire réservée pendant toute la durée dans les deux cas. Laissez vide pour utiliser le réglage de l’hôte.'
             chat_model: 'Modèle de rédaction'
             chat_model_help: 'Utilisé pour les réponses, les résumés et le tri. Un modèle entraîné aux instructions.'
+            contact_help: 'Aide aux contacts'
+            contact_help_help: 'Lit un contact dans un texte collé et propose des corrections d’après la signature de son dernier e-mail. Utilise le modèle de rédaction et lui envoie ce texte.'
             embedding_keep_alive: 'Garder le modèle de recherche chargé pendant'
             embedding_keep_alive_help: 'Même format que ci-dessus. Ce modèle est petit et sollicité en permanence, donc -1 — chargé pour de bon — coûte généralement peu et évite une attente à chaque recherche ; à régler si l’hôte a la mémoire nécessaire. Laissez vide pour utiliser le réglage de l’hôte.'
             embedding_base_url: 'Hôte de recherche'
@@ -569,8 +583,13 @@ admin:
             not_asked: 'non demandé'
             rules: 'Les règles ont dit'
     integrations:
+        base_url_exempt: 'exempte seulement les flux de cet hôte du contrôle des réseaux privés'
         base_url_per_user: 'Chaque utilisateur saisit l’adresse de son propre serveur.'
         base_url_pinned: 'imposée à tous les utilisateurs'
+        calendar:
+            connected_warning: 'Connexions déjà établies : %count%. Une adresse modifiée ou effacée s’applique à chacune d’elles la prochaine fois que ses calendriers sont recherchés : une personne connectée à un autre serveur, iCloud par exemple, est alors interrogée sur celui-ci avec son propre mot de passe. Les calendriers déjà reflétés gardent l’adresse où ils ont été trouvés ; si une adresse effacée était dans un réseau privé, ils ne se synchronisent plus tant que son hôte n’est pas dans INTEGRATIONS_ALLOWED_HOSTS.'
+            heading: 'Calendriers'
+            intro: 'Les serveurs et flux depuis lesquels les utilisateurs reflètent des calendriers, dans Réglages → Calendriers. Les deux sont proposés à tous ; on peut définir ici une adresse de serveur pour tout le monde. Nextcloud se configure avec les services de fichiers ci-dessus, et ses calendriers l’accompagnent.'
         clear_secret: 'Supprimer le secret client enregistré'
         configure: 'Configurer'
         connected_users: '%count% connecté(s)'
@@ -579,6 +598,7 @@ admin:
         inherit_toggle_help: 'Un même projet Google couvre aussi Drive et Photos ; une même application Microsoft couvre aussi OneDrive. Laissez ceci activé et il n’y a rien de plus à configurer pour eux.'
         field:
             base_url: 'Adresse du serveur'
+            base_url_help_ics: 'Laissez vide. Chaque flux a sa propre adresse, donc rien ici ne change les flux auxquels on s’abonne. Une adresse enregistrée ici exempte seulement les flux de son hôte du contrôle des réseaux privés.'
             base_url_help_saas: 'Laissez vide. Ce service a une adresse fixe.'
             base_url_help_selfhosted: 'Facultatif. Renseignez-la pour imposer un même serveur à tous ; laissez vide pour que chacun saisisse le sien.'
             client_id: 'ID client'
@@ -610,6 +630,24 @@ admin:
                 utilisateurs obtiennent alors leurs agendas avec la connexion qu’ils
                 utilisent déjà pour le courrier. Sans cela, le courrier continue de
                 fonctionner et les agendas n’apparaissent simplement pas.
+            consent_heading: 'Si votre organisation approuve les applications pour ses utilisateurs'
+            consent_microsoft: 'Certaines organisations Microsoft 365 ne laissent pas les utilisateurs approuver eux-mêmes les applications : un administrateur a approuvé plMail une fois, pour les autorisations qu''il demandait alors. plMail demande désormais aussi Contacts.ReadWrite, que cette approbation ne couvre pas ; Microsoft refuse donc toute connexion à plMail, messagerie comprise, jusqu''à une nouvelle approbation. Avant que quiconque se reconnecte, ouvrez le centre d''administration Microsoft Entra → Applications d''entreprise → plMail → Autorisations et choisissez « Accorder le consentement administrateur ». Les comptes Microsoft personnels et les organisations où les utilisateurs approuvent eux-mêmes les applications ne sont pas concernés.'
+            contacts_google: >-
+                Activez l’API Google People pour ce projet et ajoutez le scope
+                .../auth/contacts à l’écran de consentement : les utilisateurs
+                obtiennent alors leurs contacts avec la même connexion. Les
+                comptes connectés avant sont invités une fois, dans leurs
+                réglages, à se reconnecter. Sans cela, le courrier et les
+                agendas continuent de fonctionner et les contacts n’apparaissent
+                simplement pas.
+            contacts_heading: 'La synchronisation des contacts utilise cette même application'
+            contacts_microsoft: >-
+                Ajoutez l’autorisation déléguée Contacts.ReadWrite à cet
+                enregistrement d’application : les utilisateurs obtiennent alors
+                leurs contacts Outlook avec la même connexion. Les comptes
+                connectés avant sont invités une fois, dans leurs réglages, à se
+                reconnecter. Sans cela, le courrier et les agendas continuent de
+                fonctionner et les contacts n’apparaissent simplement pas.
             env_note: 'Si ces champs restent vides, GOOGLE_OAUTH_* / MICROSOFT_OAUTH_* de l’environnement sont utilisés : une installation déjà configurée ainsi continue de fonctionner.'
             from_env: 'Depuis l’environnement'
             google: 'Connexion Gmail'
@@ -624,6 +662,7 @@ admin:
         secret_stored: 'Enregistré'
         secret_unchanged: 'Laissez vide pour conserver le secret enregistré'
         status:
+            always_offered: 'Proposé à tous'
             disabled: 'Désactivé'
             enabled: 'Activé'
             incomplete: 'Identifiants manquants'
@@ -635,7 +674,6 @@ admin:
                 security: 'Les utilisateurs devraient créer un mot de passe d’application plutôt qu’utiliser leur mot de passe de connexion : les mots de passe d’application sont révocables un par un et fonctionnent avec l’authentification à deux facteurs. iCloud et Fastmail n’acceptent rien d’autre.'
                 step_app_password: 'Chaque utilisateur crée un mot de passe d’application sur son propre serveur — Nextcloud sous Paramètres → Sécurité, iCloud sur appleid.apple.com, Fastmail sous Settings → Password & Security — et le colle dans ses propres réglages d’agenda.'
                 step_base_url: 'Facultatif : imposez l’adresse du serveur, par exemple https://cloud.example.com, si tout le monde ici utilise le même serveur.'
-                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
                 step_url: 'L’adresse à saisir est l’adresse CalDAV, pas celle de l’interface web : Nextcloud l’affiche sous Agenda → Paramètres → « Copier l’adresse CalDAV principale », et elle se termine généralement par /remote.php/dav. Un simple domaine fonctionne aussi — plMail lui demande où se trouvent ses agendas.'
             dropbox:
                 intro: 'Dropbox nécessite une application enregistrée dans la console développeur Dropbox.'
@@ -659,6 +697,9 @@ admin:
                 intro: 'Google Photos utilise OAuth et sa propre API, distincte de Drive.'
                 scope_warning: 'Google a restreint les portées de lecture de Photos en mars 2025. Une application nouvellement enregistrée n’obtient généralement que appcreateddata, qui ne voit que les médias envoyés par plMail lui-même — parcourir une bibliothèque existante nécessite la portée photoslibrary.readonly, que Google accorde au cas par cas. Enregistrer des pièces jointes dans Photos fonctionne dans tous les cas ; la navigation peut afficher une bibliothèque vide tant que cette portée n’est pas approuvée.'
                 step_api: 'Activez l’API Photos Library pour le projet.'
+            ics:
+                intro: 'Un flux de calendrier ne demande aucune configuration ici. Chaque utilisateur colle l’adresse où un calendrier est publié, qui se termine généralement par .ics, dans Réglages → Calendriers → « S’abonner à une adresse ».'
+                security: 'Pour un calendrier publié, l’adresse vaut mot de passe : quiconque la connaît peut lire le calendrier.'
             immich:
                 intro: 'Immich s’authentifie avec une clé d’API propre à chaque utilisateur : il n’y a rien à enregistrer ici.'
                 no_share_links: 'Immich ne peut pas créer de lien public pour une seule photo — le partage se fait par album. Les photos au-dessus de la taille limite des pièces jointes ne peuvent donc pas du tout être jointes.'
@@ -945,6 +986,8 @@ admin:
             client_secret: 'Secret client'
             issuer: 'Émetteur'
             issuer_help: 'L’URL de l’émetteur du fournisseur, exactement comme l’indique son document de découverte. Dans Authentik, c’est « OpenID Configuration Issuer » sur la page du fournisseur.'
+            password_login_disabled: 'Authentification unique uniquement'
+            password_login_disabled_help: 'Masque le formulaire de mot de passe et refuse les connexions par mot de passe : tout le monde passe par le fournisseur. Actif uniquement tant qu’un fournisseur est configuré ici. Vous ne pouvez le cocher qu’après vous être connecté vous-même via le fournisseur, et si le fournisseur tombe en panne, bin/console app:sso:allow-password-login ramène le formulaire. Les mots de passe des clients de messagerie (mots de passe d’application) ne sont pas concernés.'
             require_verified_email: 'Ne lier qu’une adresse vérifiée par le fournisseur'
             require_verified_email_help: 'Une première connexion retrouve son compte par l’adresse e-mail. Ne désactivez ceci que là où les gens ne peuvent pas modifier leur propre adresse chez le fournisseur : désactivé, quiconque le peut est en mesure de s’approprier n’importe quel compte qui ne s’est pas encore connecté via le fournisseur.'
             scopes: 'Portées'
@@ -1172,6 +1215,7 @@ admin:
         two_factor_short: 2FA
     version:
         hint: La version que cette installation exécute — la publication, et le commit à partir duquel elle a été construite.
+        copy: Copier la version %version%
 # The All Mail lists — every conversation outside Spam and the bin
 # (LabelRole::AllMail). Their heading is sidebar.nav.all_mail.
 all_mail:
@@ -1186,6 +1230,9 @@ alias:
     catch_all_unsupported: 'Gmail et Outlook n’envoient qu’au nom d’adresses que le fournisseur connaît : un domaine fourre-tout ne peut donc pas être utilisé sur ce compte.'
     deleted: 'Adresse supprimée.'
     duplicate: 'Cette adresse est déjà sur ce compte.'
+    gmailify_off: 'Gmailify est désactivé. Ce compte Gmail ne garde que le courrier qui lui est adressé, et les copies des autres comptes ne suivent plus Gmail.'
+    gmailify_on: 'Gmailify est activé. Le courrier que ce compte Gmail relève pour vos autres comptes est classé sous ceux-ci.'
+    gmailify_unsupported: 'Gmailify est un réglage des comptes Gmail.'
     invalid: "Cela ne ressemble pas à une adresse e-mail valide."
     name_cleared: 'Nom d’expéditeur supprimé. Cette adresse envoie de nouveau sous le nom du compte.'
     name_set: 'Nom d’expéditeur enregistré.'
@@ -1198,6 +1245,7 @@ app:
     name: Mail
 
 attachment:
+    download_named: Télécharger %name%
     sign:
         # A VISUAL signature: a picture of a name on a page. Nothing here may
         # suggest it proves the document is unaltered — it is not PAdES, there
@@ -1218,6 +1266,7 @@ attachment:
         download: Télécharger
         failed: Ce PDF n’a pas pu être ouvert. Vous pouvez toujours le télécharger.
         loading: Ouverture…
+        media_failed: Ce fichier ne peut pas être affiché ici. Vous pouvez toujours le télécharger.
         untitled: Pièce jointe
         zoom_in: Zoom avant
         zoom_out: Zoom arrière
@@ -1332,6 +1381,7 @@ calendar:
         on_calendars: 'Dans %calendars%'
     delete_confirm: 'Supprimer « %name% » et tous ses événements ? Cette action est irréversible.'
     empty: Rien à venir
+    empty_day: Rien ce jour-là
     details:
         description: Description
         edit: Modifier
@@ -1427,9 +1477,11 @@ calendar:
         edit: Modifier l’agenda
         name: Nom
         time_zone: Fuseau horaire
+        time_zone_follow: Suivre plMail
         time_zone_help: >-
-            Le fuseau dans lequel cet agenda est lu, et celui dans lequel s’affiche
-            un événement qui n’a pas de fuseau propre.
+            Le fuseau dans lequel un nouvel événement de cet agenda est créé.
+            « Suivre plMail » prend le vôtre, actuellement %zone%. Les événements
+            s’affichent toujours à l’heure où ils ont lieu pour vous.
     grid:
         all_day: Toute la journée
         continues_after: Se poursuit le jour suivant
@@ -1691,6 +1743,8 @@ calendar:
     toolbar:
         range: '%start% – %end%'
         range_day: '%day%'
+        range_short: '%start%–%end%'
+        range_short_month: '%start%–%end% %month%'
     upcoming:
         imminent: Commence dans l’heure
         later: Plus tard aujourd’hui
@@ -1855,6 +1909,7 @@ compose:
         save_failed: Impossible d’enregistrer le brouillon
         saved: Brouillon enregistré
         saving: "Enregistrement…"
+        sealing: Chiffrement…
         uploading: "Envoi du fichier…"
     # Why an upload was refused. The compose window prints these as-is on its
     # status line, so they are the whole of the explanation the user gets.
@@ -1878,6 +1933,29 @@ compose:
     discard: Supprimer le brouillon
     empty_draft: (brouillon vide)
     encrypt: Chiffrer le message
+    crypto:
+        encrypt: Chiffrer
+        sign: Signer
+        encrypted: Chiffré
+        encrypted_hint: 'Ce message sera chiffré de bout en bout : seuls vous et ses destinataires pourront le lire.'
+        has_key: 'plMail a une clé pour cette adresse : le courrier qui lui est destiné peut être chiffré.'
+        has_certificate: 'plMail a un certificat S/MIME pour cette adresse : le courrier qui lui est destiné peut être chiffré.'
+        key_changed: Une nouvelle clé pour cette adresse attend d’être acceptée dans Paramètres → Chiffrement. D’ici là, la clé connue est utilisée.
+        partial: '%emails% ne peuvent pas recevoir de courrier chiffré : ce message part donc en clair pour tout le monde.'
+        partial_blocked: '%emails% ne peuvent pas recevoir de courrier chiffré. Retirez-les, ou désactivez le chiffrement pour ce message.'
+        missing: Il n’y a pas de clé pour %emails%. Retirez-les, ou désactivez le chiffrement pour ce message.
+        locked: Vos clés sont verrouillées dans ce navigateur. Ouvrez-les dans Paramètres → Chiffrement, ou désactivez le chiffrement pour ce message.
+        locked_not_saved: 'Non enregistré : ce brouillon est chiffré, et vos clés sont verrouillées dans ce navigateur.'
+        locked_draft: Ce brouillon est chiffré, et vos clés sont verrouillées dans ce navigateur. Ouvrez-les dans Paramètres → Chiffrement pour continuer à écrire.
+        failed_draft: Ce brouillon chiffré n’a pas pu être ouvert.
+        no_own_key: 'Vous n’avez pas de clé pour cette adresse d’expédition : rien ne peut être signé ni chiffré depuis elle.'
+        no_own_certificate: 'Vous n’avez pas de certificat S/MIME pour cette adresse d’expédition : ce message ne peut pas être signé ni chiffré avec S/MIME.'
+        failed: Le message n’a pas pu être chiffré. Rien n’a été envoyé.
+        sealed_attachment: 'Chiffré : jusqu’à l’envoi du message, vous seul pouvez l’ouvrir.'
+    seal:
+        refused: Le message chiffré n’est pas arrivé intact. Rien n’a été envoyé ; réessayez.
+        keys_changed: La clé d’un destinataire a changé pendant que vous écriviez. Rien n’a été envoyé ; renvoyez le message.
+        unbuilt: 'Ce brouillon est chiffré : il ne peut être envoyé que depuis un navigateur où vos clés sont ouvertes.'
     # The whole of what the disabled encrypt button says for itself. It has to
     # be a complete sentence: it is the only explanation anyone gets.
     encrypt_unavailable: Le chiffrement n’est pas encore disponible.
@@ -1962,6 +2040,84 @@ compose:
         saved: 'Enregistré comme modèle « %name% ». Renommez-le ou déplacez-le dans les Réglages.'
         search: 'Trouver un modèle'
         untitled: 'Modèle sans titre'
+
+contact_keys:
+    heading: Clés de vos contacts
+    subheading: Les clés publiques avec lesquelles plMail vérifie les signatures de vos contacts, et vers lesquelles il chiffre le courrier.
+    loading: Chargement des clés de vos contacts…
+    empty: Aucune clé pour l’instant. plMail les récupère dans le courrier signé ; vous pouvez aussi en rechercher ou en importer une ci-dessus.
+    verified: Vérifiée
+    first_seen: vue pour la première fois le %date%
+    last_seen: vue pour la dernière fois le %date%
+    expires: expire le %date%
+    origin:
+        attached: Jointe à un message
+        autocrypt: Issue de l’en-tête Autocrypt d’un message
+        keyserver: Issue du serveur de clés %host%
+        manual: Importée par vous
+        wkd: Issue de l’annuaire de clés du domaine (WKD)
+    pin: Marquer comme vérifiée
+    unpin: Retirer la coche
+    accept: Utiliser plutôt cette clé
+    remove: Supprimer
+    confirm_remove: Supprimer cette clé ? Les signatures faites avec elle ne pourront plus être vérifiées tant que plMail ne l’aura pas retrouvée.
+    changed_warning: Une autre clé est apparue pour cette adresse. C’est peut-être la nouvelle clé de votre contact — ou quelqu’un qui se fait passer pour lui. plMail continue d’utiliser la clé connue jusqu’à ce que vous compariez cette empreinte avec votre contact et que vous l’acceptiez.
+    pinned: Marquée comme vérifiée.
+    accepted: Cette clé est désormais celle utilisée pour l’adresse.
+    removed: Clé supprimée.
+    preferences_saved: Enregistré.
+    not_found: Cette clé n’existe plus.
+    signer_unknown: plMail n’a pas la clé qui a fait cette signature. Recherchez-la ou importez-la d’abord.
+    certificates:
+        heading: Certificats S/MIME de vos contacts
+        hint: Récupérés dans le courrier signé de vos contacts. Le courrier qui leur est destiné est chiffré avec S/MIME quand chaque destinataire en a un et que vous avez votre propre certificat.
+        empty: Aucun pour l’instant. plMail conserve le certificat de chaque message signé S/MIME dont la signature est valable.
+        verified: Confirmé par %issuer%
+        unverified: Non confirmé par une autorité de certification
+        confirm_remove: Supprimer ce certificat ? Le courrier vers cette adresse ne pourra plus être chiffré avec S/MIME tant que plMail n’en aura pas vu un nouveau.
+        changed_warning: Un autre certificat est apparu pour cette adresse, et aucune autorité de certification ne garantit ce changement. plMail continue d’utiliser le certificat connu jusqu’à ce que vous compariez cette empreinte avec votre contact et que vous l’acceptiez.
+        removed: Certificat supprimé.
+    import:
+        heading: Importer une clé
+        hint: Collez un bloc de clé publique ou choisissez un fichier. La clé est conservée pour chaque adresse qu’elle mentionne.
+        file: Fichier de clé
+        paste: Clé publique
+        submit: Ajouter la clé
+        done: 'Importée. Adresses avec cette clé : %count%.'
+        changed: Importée — mais %count% des adresses avaient déjà une autre clé. Comparez les empreintes ci-dessous avant d’accepter la nouvelle.
+        unusable: 'Rien d’utilisable dans cette clé : elle est révoquée, expirée, ou ne mentionne aucune adresse.'
+        not_a_key: Ce n’est pas une clé publique OpenPGP.
+        private_key: C’est une clé privée. N’importez ici que les clés publiques de vos contacts — vos propres clés vont dans le trousseau ci-dessus.
+    lookup:
+        heading: Rechercher une clé
+        hint: Demande sa clé au domaine de l’adresse (Web Key Directory). La requête passe par ce serveur.
+        hint_keyservers: Demande sa clé au domaine de l’adresse (Web Key Directory), puis aux serveurs de clés %servers%. La requête passe par ce serveur.
+        email: Adresse e-mail
+        submit: Rechercher
+        found: Clé trouvée dans l’annuaire de clés du domaine (WKD) et conservée.
+        found_keyserver: Clé trouvée sur le serveur de clés %host% et conservée. Le serveur a seulement vérifié que quelqu’un lit le courrier de cette adresse — comparez l’empreinte avec votre contact avant de la marquer comme vérifiée.
+        changed: Clé trouvée dans l’annuaire de clés du domaine — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        changed_keyserver: Clé trouvée sur le serveur de clés %host% — mais elle diffère de celle que plMail connaît pour cette adresse. Comparez les empreintes avant de l’accepter.
+        nothing: Le domaine ne publie aucune clé utilisable pour cette adresse.
+        nothing_keyservers: Ni le domaine ni les serveurs de clés n’ont de clé utilisable pour cette adresse.
+        invalid_address: Cette adresse ne peut pas être recherchée.
+        rate_limited: Trop de recherches d’affilée. Réessayez dans quelques minutes.
+    key_servers:
+        label: Chercher aussi sur les serveurs de clés publics
+        hint: Si le domaine de l’adresse n’a pas de clé, plMail interroge aussi %servers%. Une recherche leur indique quelle adresse vous cherchez.
+    preferences:
+        heading: Préférences pour ce destinataire
+        hint: Utilisées quand plMail envoie du courrier chiffré.
+        encrypt: Chiffrer
+        sign: Signer
+        scheme: Format
+        save: Enregistrer
+        policy:
+            always: Toujours
+            auto: Automatiquement
+            never: Jamais
+        scheme_pgp-inline: PGP en ligne
+        scheme_pgp-mime: PGP/MIME
 
 demo:
     bar:
@@ -2070,6 +2226,236 @@ dnd:
 drafts:
     empty: Aucun brouillon.
     heading: Brouillons
+
+encryption:
+    decrypted:
+        heading: Courrier déchiffré sur ce serveur
+        subheading: Désactivé sauf si vous le choisissez, compte par compte. Dans tous les cas, votre fournisseur de messagerie ne peut toujours pas lire votre courrier chiffré.
+        forbidden: Cette installation ne conserve pas de courrier déchiffré. Votre courrier chiffré reste chiffré sur le serveur.
+        state_on: 'Le courrier chiffré est déchiffré dans votre navigateur et conservé lisible ici : la recherche, les colis, les dates et les règles fonctionnent dessus.'
+        state_off: 'Le courrier chiffré reste chiffré ici : seuls l’expéditeur et l’objet sont consultables par la recherche.'
+        confirm: Le courrier chiffré de ce compte sera stocké sur ce serveur plMail une fois déchiffré. La recherche, les colis et les dates fonctionneront alors dessus. Toute personne ayant accès au serveur pourra le lire. Votre fournisseur de messagerie, toujours pas.
+        confirm_needed: Cochez la case pour confirmer que vous voulez conserver le courrier déchiffré sur ce serveur.
+        turn_on: Conserver ici le courrier déchiffré
+        turn_off: Arrêter, et supprimer les copies déchiffrées
+        ai:
+            label: Laisser aussi les modèles le lire
+            local: Tri, recherche par le sens et résumés, avec l’hôte de modèle %host%, qui se trouve sur le réseau de cette installation.
+            external: 'L’hôte de modèle %host% est en dehors du réseau de cette installation : le courrier déchiffré lui serait envoyé.'
+            no_model: Aucun hôte de modèle n’est configuré sur cette installation.
+            consent: J’accepte que le courrier déchiffré de ce compte soit envoyé à %host%.
+            consent_needed: Cochez la case pour accepter que le courrier déchiffré soit envoyé à l’hôte de modèle.
+            turn_on: Laisser les modèles le lire
+            turn_off: Arrêter, et supprimer ce qu’ils en ont tiré
+    sending:
+        heading: Envoi
+        subheading: Comment le courrier part maintenant que plMail sait le chiffrer. Le courrier destiné à des personnes dont plMail connaît la clé est chiffré de lui-même.
+        on: Activé
+        off: Désactivé
+        autocrypt:
+            label: Partager votre clé avec chaque message
+            hint: Un en-tête Autocrypt invisible transporte votre clé publique, pour que Thunderbird, Delta Chat et d’autres puissent répondre chiffré.
+        attach_key:
+            label: Joindre votre clé publique
+            hint: Sous forme de fichier sur chaque message, pour les destinataires dont le logiciel de messagerie ne lit pas Autocrypt. Les personnes sans PGP voient une pièce jointe dont elles n’ont pas besoin.
+        sign_plain:
+            label: Signer le courrier non chiffré
+            hint: Les personnes sans PGP voient une pièce jointe signature.asc. Le courrier destiné à quelqu’un dont plMail connaît la clé est signé dans tous les cas.
+        block_partial:
+            label: Refuser d’envoyer quand tout le monde ne peut pas recevoir de courrier chiffré
+            hint: 'Désactivé : un tel message part en clair pour tout le monde, avec une note dans la fenêtre de rédaction. Activé : il n’est pas envoyé tant que vous n’avez pas retiré ces destinataires ou désactivé le chiffrement pour lui.'
+        protect_subject:
+            label: Chiffrer l’objet
+            hint: L’objet d’un message chiffré voyage à l’intérieur du chiffrement, et l’extérieur indique seulement « ... ». Thunderbird et d’autres affichent le véritable objet ; un logiciel qui ne le peut pas affiche « ... ».
+    wkd:
+        heading: Web Key Directory
+        subheading: Votre clé publique, publiée sous les domaines de cette installation, pour que Thunderbird, Proton et GnuPG la trouvent à partir de votre adresse.
+        disabled: Cette installation ne publie pas de clés. Un administrateur peut l’activer.
+        no_addresses: Aucune de vos adresses n’est sur un domaine pour lequel cette installation publie des clés (%domains%).
+        publish: Publier la clé de %email%
+        url_advanced: Méthode avancée (sous-domaine openpgpkey)
+        url_direct: Méthode directe
+        state:
+            published: Publiée. Toute personne qui connaît l’adresse peut récupérer votre clé publique.
+            switched_off: Non publiée — vous l’avez désactivée.
+            no_key: 'Rien à publier pour l’instant : cette adresse n’a pas de clé active.'
+            not_sign_in_address: 'Non publiée : plMail ne publie que l’adresse avec laquelle vous vous connectez, attribuée par un administrateur.'
+        check:
+            button: Vérifier depuis l’extérieur
+            heading: "%email% vérifiée depuis l’extérieur, chaque méthode séparément :"
+            method:
+                advanced: Avancée (openpgpkey.%domain%)
+                direct: Directe (%domain%)
+            result:
+                current: votre clé actuelle a été trouvée
+                outdated: une clé a été trouvée, mais ce n’est pas votre clé actuelle — un autre serveur répond peut-être pour le domaine, ou un cache conserve encore l’ancienne clé
+                missing: répond, mais n’a aucune clé pour cette adresse
+                unreachable: injoignable — le nom ne se résout pas, ou la connexion ou son certificat a échoué
+            one_good: Les logiciels de messagerie qui essaient d’abord l’autre méthode trouvent quand même votre clé, mais corrigez aussi celle-ci — certains n’en essaient qu’une.
+            none_good: Aucune des deux méthodes ne fournit votre clé actuelle. Le domaine ne pointe peut-être pas encore vers plMail — consultez les notes de configuration, ou demandez à votre administrateur.
+        setup:
+            heading: Configurer le domaine (administrateurs)
+            enable: 'Indiquez les domaines dans la variable d’environnement APP_WKD_DOMAINS et redémarrez plMail :'
+            domains: 'Les clés sont publiées pour : %domains%. Chaque domaine a besoin de l’une de ces deux façons d’atteindre plMail.'
+            advanced: 'Méthode avancée, à privilégier : un enregistrement DNS pour openpgpkey.%domain% qui pointe vers %host%, et un certificat TLS pour ce nom sur le serveur de plMail.'
+            direct: 'Méthode directe : le site web de %domain% transmet tout ce qui se trouve sous /.well-known/openpgpkey/ à plMail, en conservant l’en-tête Host.'
+            check: 'Utilisez ensuite « Vérifier depuis l’extérieur » sur votre propre adresse. La vérification part de ce serveur : un domaine qui se résout ici en adresse privée est signalé comme absent, même s’il fonctionne depuis l’extérieur.'
+    devices:
+        empty: Aucun appareil pour l’instant.
+        heading: Appareils connus
+        last_used: utilisé
+        remember: Mémoriser cet appareil
+        remove: Supprimer
+        subheading: Les navigateurs qui peuvent ouvrir vos clés par eux-mêmes après une réinitialisation du mot de passe, sans la phrase de récupération.
+        this_device: Cet appareil
+        unavailable: Ce navigateur ne peut pas conserver de clé d’appareil ici — il faut HTTPS et le stockage du site.
+    export:
+        file_name: plmail-keys.asc
+        heading: Exporter vos clés
+        hint: Toutes les clés privées, anciennes comprises, dans un seul fichier que GnuPG, Thunderbird et Proton savent lire.
+        passphrase: Phrase secrète du fichier
+        submit: Exporter
+    failed: Cela n’a pas fonctionné. Rechargez la page et réessayez.
+    import:
+        done: '%count% clés importées.'
+        hardware_key: Les parties secrètes de cette clé se trouvent sur une carte à puce ou une clé de sécurité, qu’un navigateur ne peut pas utiliser.
+        heading: Importer une clé
+        hint: Une clé privée OpenPGP que vous utilisez déjà, exportée de GnuPG, Thunderbird ou Proton. Elle devient la clé des adresses qu’elle mentionne.
+        no_match: Aucune de ces clés ne mentionne l’une de vos adresses.
+        not_a_key: Ce n’est pas une clé privée OpenPGP.
+        passphrase: Phrase secrète de la clé
+        submit: Importer
+        wrong_passphrase: Cette phrase secrète n’ouvre pas la clé.
+    publish:
+        button: Publier sur %host%
+        again: Renvoyer le lien de confirmation
+        refresh: Vérifier à nouveau
+        saved: Le serveur de clés a répondu ; l’état ci-dessous est ce qu’il a indiqué.
+        confirm: "Publier cette clé sur %host% ? Tout le monde pourra alors la trouver à partir de %addresses%. Ces adresses sont ainsi liées publiquement à la clé, et un serveur de clés ne l’oublie pas vraiment. %host% envoie un lien à chaque adresse, et la clé ne se trouve par adresse qu’une fois que vous avez cliqué dessus."
+        renewed: "Votre clé précédente était publiée sur %host%. Y publier aussi la nouvelle clé pour %addresses% ? %host% envoie à nouveau un lien de confirmation à chaque adresse."
+        state:
+            none: "%email% — non publiée sur %host%"
+            unpublished: "%email% — sur %host%, mais personne ne peut encore la trouver par cette adresse"
+            pending: "%email% — en attente : %host% a envoyé à cette adresse un lien de confirmation"
+            published: "%email% — publiée : tout le monde peut la trouver sur %host%"
+            revoked: "%email% — révoquée sur %host% : le serveur fournit la clé révoquée"
+        unavailable: Publier sur ce serveur de clés n’est pas possible — l’installation ne l’utilise pas, ou les serveurs de clés sont désactivés sous « Clés de vos contacts ».
+        not_active: Seule une clé en usage peut être publiée.
+        not_found: Cette clé n’existe plus.
+        not_published: Cette clé n’y est pas publiée.
+        failed: Le serveur de clés n’a pas pu être joint, ou n’a pas accepté la clé. Réessayez plus tard.
+        not_a_revocation: Ce n’est pas la révocation de cette clé.
+    keys:
+        advanced: Afficher les clés
+        compromised: Marquer comme compromise
+        confirm_compromised: Marquer cette clé comme compromise ? Elle ne sera plus utilisée, et ses adresses en reçoivent une nouvelle.
+        confirm_renew: Créer une nouvelle clé pour ces adresses ? L’ancienne reste, pour ouvrir le courrier qui lui a été envoyé.
+        created: créée
+        expires: expire
+        heading: Clés
+        locked: verrouillée — ouvrez-la avec votre phrase de récupération
+        make_primary: Rendre principale
+        origin:
+            generated: créée par plMail
+            imported: importée
+        primary: principale
+        renew: Renouveler
+        status:
+            active: Active
+            compromised: Compromise
+            obsolete: Remplacée
+        subheading: Les clés OpenPGP de vos adresses. Apportez une clé que vous utilisez déjà, ou emportez les vôtres ailleurs.
+    smime:
+        heading: Certificats S/MIME
+        subheading: Des certificats d’une autorité de certification ou de votre organisation, que comprennent Outlook, Apple Mail et Thunderbird. Utilisés quand chaque destinataire en a un et que tous n’ont pas de clé OpenPGP.
+        empty: Aucun certificat S/MIME pour l’instant.
+        import_heading: Importer un certificat
+        import_hint: Un fichier .p12 ou .pfx contenant votre certificat et sa clé privée. Le fichier est ouvert dans ce navigateur ; le serveur ne conserve la clé que chiffrée.
+        file: Fichier du certificat
+        password: Mot de passe du fichier
+        import_submit: Importer le certificat
+        imported: Importé. Il signe et déchiffre désormais le courrier pour %addresses%.
+        export_heading: Exporter un certificat
+        export_hint: Saisissez ici un mot de passe pour le fichier, puis choisissez Exporter à côté d’un certificat ci-dessus.
+        export_password: Mot de passe du fichier exporté
+        export_password_missing: Saisissez d’abord un mot de passe d’au moins 8 caractères pour le fichier exporté.
+        export: Exporter en .p12
+        remove: Supprimer
+        confirm_remove: Supprimer ce certificat et sa clé privée ? Le courrier chiffré pour lui ne pourra plus être lu ici.
+        valid_until: valable jusqu’au
+        expired: expiré
+        issued_by: émis par
+        retired: remplacé par un certificat plus récent
+        wrong_password: Ce mot de passe n’ouvre pas le fichier.
+        not_pkcs12: Ce n’est pas un fichier .p12 ou .pfx.
+        legacy: Ce fichier utilise un ancien chiffrement (RC2 ou 3DES) que plMail ne sait pas ouvrir. Exportez-le à nouveau avec AES — OpenSSL 3 le fait par défaut, Windows avec l’option AES-256.
+        not_rsa: Seuls les certificats avec une clé RSA peuvent être utilisés ici.
+        no_key: Le fichier ne contient aucune clé privée correspondant à l’un de ses certificats.
+        no_match: Le certificat n’est pour aucune de vos adresses.
+    nag:
+        action: Ouvrir les paramètres
+        locked_keys: Certaines de vos anciennes clés sont verrouillées depuis la réinitialisation de votre mot de passe.
+        recovered: Vos anciennes clés ont été rouvertes depuis cet appareil.
+    phrase:
+        create: Créer une phrase de récupération
+        download: Télécharger
+        file_intro: Phrase de récupération plMail. Conservez ce fichier en lieu sûr, hors ligne. Les blocs qui suivent sont les certificats de révocation de vos clés.
+        file_name: plmail-recovery-phrase.txt
+        heading: Phrase de récupération
+        invalid: Ce ne sont pas douze mots de récupération valides. Vérifiez les fautes de frappe.
+        missing: Vous n’avez pas encore de phrase de récupération.
+        opens_nothing: Cette phrase n’ouvre aucune de vos clés verrouillées.
+        recover_heading: Ouvrir les anciennes clés
+        recover_hint: Certaines de vos clés ont été verrouillées lors de la réinitialisation de votre mot de passe. Saisissez votre phrase de récupération pour les rouvrir.
+        recover_submit: Ouvrir avec la phrase de récupération
+        recovered: '%count% clés rouvertes.'
+        recreate: Créer une nouvelle phrase de récupération
+        saved: Votre phrase de récupération est en place. Créez-en une nouvelle si l’ancienne a pu être vue.
+        shown_once: Notez ces mots ou téléchargez-les maintenant — ils ne sont affichés qu’une fois. Quiconque les possède peut ouvrir vos clés.
+        subheading: Douze mots qui ouvrent vos clés si vous oubliez un jour votre mot de passe. Sans eux, le courrier chiffré est perdu avec le mot de passe.
+    passphrase:
+        heading: "Phrase de passe de chiffrement"
+        subheading: "Elle ouvre vos clés. La changer ne change rien à votre connexion."
+        current: "Phrase de passe actuelle"
+        new: "Nouvelle phrase de passe"
+        repeat: "Répétez la nouvelle phrase de passe"
+        submit: "Changer la phrase de passe"
+        done: "Phrase de passe changée. Utilisez désormais la nouvelle."
+    setup:
+        heading: "Configurer le chiffrement"
+        intro: "Choisissez une phrase de passe de chiffrement. Elle protège vos clés et vous est demandée une fois par session, lorsque quelque chose en a besoin pour la première fois. Ce n’est pas le mot de passe de votre fournisseur d’identité, et elle ne quitte jamais ce navigateur."
+        warning: "plMail ne peut pas réinitialiser cette phrase de passe. Si vous l’oubliez, seule votre phrase de récupération — créez-la juste après — ou un navigateur déjà utilisé rouvre votre courrier chiffré. Sans l’une ni l’autre, ce courrier est perdu."
+        passphrase: "Phrase de passe de chiffrement"
+        repeat: "Répétez la phrase de passe"
+        submit: "Configurer le chiffrement"
+        too_short: "Au moins %min% caractères."
+        mismatch: "Les deux phrases de passe ne correspondent pas."
+        done: "Le chiffrement est configuré. Créez maintenant une phrase de récupération."
+    status:
+        broken: Vos clés n’ont pas pu être ouvertes. Déconnectez-vous puis reconnectez-vous ; si cela ne suffit pas, un administrateur trouvera la raison dans le journal.
+        disabled: Non disponible sur cette installation.
+        insecure: Nécessite HTTPS. Cette page a été ouverte en http:// simple, où le navigateur n’offre aucune cryptographie — ouvrez plMail par son adresse https://.
+        heading: Chiffrement de bout en bout
+        key_count: 'Clés actives : %keys% · Adresses : %addresses%'
+        loading: Ouverture de vos clés…
+        locked: Verrouillé dans ce navigateur. Saisissez votre mot de passe pour le déverrouiller.
+        locked_passphrase: "Verrouillé dans ce navigateur. Saisissez votre phrase de passe de chiffrement pour le déverrouiller."
+        open: Configuré, et déverrouillé dans ce navigateur.
+        subheading: Du courrier que seuls vous et vos correspondants pouvez lire — ni ce serveur, ni votre fournisseur de messagerie.
+        unset: "Pas encore configuré. Vous vous connectez par authentification unique ; vos clés ont donc besoin d’une phrase de passe à elles — choisissez-en une ci-dessous."
+    unlock:
+        rate_limited: Trop de tentatives. Patientez quelques minutes et réessayez.
+        submit: Déverrouiller
+        wrong_password: Ce n’est pas votre mot de passe.
+    unlock_dialog:
+        heading: "Déverrouiller vos clés"
+        password_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre mot de passe pour les ouvrir — une seule fois, pour le reste de cette session."
+        passphrase_intro: "Cette action a besoin de vos clés de chiffrement. Saisissez votre phrase de passe de chiffrement pour les ouvrir — une seule fois, pour le reste de cette session. Ce n’est pas le mot de passe de votre fournisseur d’identité."
+        password_label: "Mot de passe"
+        passphrase_label: "Phrase de passe de chiffrement"
+        wrong_passphrase: "Cette phrase de passe n’ouvre pas vos clés."
+        cancel: "Pas maintenant"
+        submit: "Déverrouiller"
 
 errors:
     page:
@@ -2267,6 +2653,7 @@ jobs:
         move_to: Déplacement
         purge: Suppression définitive
         reclassify: Nouveau tri du courrier récent
+        delete_label: Suppression d’un libellé
     state:
         done: '%count% terminés'
         failed: échec
@@ -2285,6 +2672,21 @@ label:
         violet: Violet
     empty: Aucune conversation avec ce libellé.
     created: Libellé créé.
+    delete:
+        already_running: '« %name% » est déjà en cours de suppression.'
+        destination: Déplacer son courrier vers
+        destination_placeholder: '— choisissez une destination —'
+        destination_required: 'Choisissez où va le courrier. Le dossier n’est pas supprimé tant qu’il contient du courrier.'
+        failed_destination_create: 'Le serveur de messagerie n’a pas créé le dossier %name% où devait aller le courrier. Rien n’a été déplacé ni supprimé.'
+        failed_destination_gone: 'La destination choisie pour le courrier n’existe plus. Supprimez à nouveau le libellé et choisissez-en une autre.'
+        failed_new_mail: 'Du nouveau courrier est arrivé dans le dossier après la suppression. Supprimez à nouveau le libellé pour choisir où il va.'
+        failed_not_empty: 'Le dossier « %name% » contient encore du courrier sur le serveur, il n’a donc pas été supprimé. Déplacez ce courrier dans votre client de messagerie, puis supprimez à nouveau le libellé.'
+        failed_server: 'Le serveur de messagerie n’a pas supprimé « %name% » : %error%'
+        mail_count: 'Il contient %count% message(s). Ils sont déplacés vers la destination choisie ci-dessous avant la suppression du dossier.'
+        on_server: 'C’est un dossier sur votre serveur de messagerie : le dossier y est donc supprimé aussi.'
+        still_importing: 'plMail importe encore le courrier de « %name% » depuis le serveur. Supprimez-le une fois l’import terminé, pour que rien n’en reste en arrière.'
+        title: 'Supprimer « %name% »'
+        waiting: 'En attente que le serveur de messagerie vide « %name% » avant de le supprimer.'
     delete_confirm: 'Supprimer le libellé « %name% » ? Il disparaît de tous les comptes. Les messages gardent leurs autres libellés et ne sont pas supprimés.'
     delete_confirm_children: 'Supprimer « %name% » et ses %count% libellé(s) imbriqué(s) ? Ils disparaissent de tous les comptes. Les messages ne sont pas supprimés.'
     deleted: Libellé supprimé.
@@ -2317,9 +2719,13 @@ login:
         email: Adresse e-mail
         forgot_password: Mot de passe oublié ?
         forgot_password_hint: 'La récupération du mot de passe se fait depuis la console du serveur : bin/console app:user:2fa-disable et un nouveau mot de passe défini par un administrateur.'
+        needs_script: 'La connexion nécessite JavaScript : votre mot de passe est protégé dans le navigateur avant tout envoi.'
         password: Mot de passe
+        prelogin_failed: Impossible de joindre le serveur pour vous connecter. Vérifiez votre connexion et réessayez.
+        prelogin_rate_limited: Trop de tentatives de connexion depuis cet endroit. Patientez quelques minutes et réessayez.
         remember_me: Rester connecté
         submit: Se connecter
+        submitting: Connexion…
     oidc:
         button: Se connecter avec l’authentification unique
         button_named: Se connecter avec %provider%
@@ -2351,6 +2757,53 @@ message:
         failed: 'Ce message n’a pas été distribué.'
         failed_for: 'Non distribué à %recipient%.'
         reported_at: 'Signalé %datetime%'
+    crypto:
+        attached_key:
+            heading: La clé de l’expéditeur est jointe
+            own: Votre clé publique est jointe
+            keep: Conserver cette clé
+            accept: Utiliser plutôt cette clé
+            none_hint: plMail ne détient pas encore cette clé. Conservez-la pour vérifier les signatures de l’expéditeur et lui écrire chiffré — comparez l’empreinte avec l’expéditeur pour vous assurer qu’elle est bien la sienne.
+            changed_hint: Elle diffère de la clé que plMail connaît pour cet expéditeur. Il peut s’agir de sa nouvelle clé, ou de quelqu’un qui se fait passer pour lui — comparez l’empreinte avec l’expéditeur avant de l’utiliser.
+            kept: La clé de l’expéditeur a été conservée.
+            kept_changed: Conservée — mais elle diffère de la clé que plMail connaît pour cet expéditeur. Comparez les empreintes avant de l’utiliser.
+            unusable: "Cette clé ne peut pas être conservée : elle est révoquée, expirée, ou ne porte aucun identifiant pour l’adresse de l’expéditeur."
+        subject: 'Objet : %subject%'
+        encrypted_kept: Chiffré à l’arrivée · conservé lisible sur ce serveur
+        sealed_draft: Brouillon chiffré. Ouvrez-le pour continuer à écrire ; seul un navigateur disposant de vos clés peut le lire.
+        sending: Message chiffré en cours d'envoi. Il s'ouvrira ici une fois parti.
+        action:
+            accept: Utiliser la nouvelle clé
+            lookup: Rechercher la clé
+            manage: Clés de vos contacts
+            trust: Faire confiance à cette clé
+        compare_hint: Comparez l’empreinte avec l’expéditeur — par téléphone, en personne — avant de lui faire confiance.
+        key_changed_hint: C’est peut-être la nouvelle clé de l’expéditeur, ou quelqu’un qui se fait passer pour lui. Comparez l’empreinte avec l’expéditeur avant de l’utiliser.
+        decrypting: Déchiffrement…
+        encrypted: Chiffré de bout en bout
+        encrypted_smime: Chiffré avec S/MIME
+        failed: Ce message n’a pas pu être déchiffré.
+        inner:
+            invalid: La signature à l’intérieur ne correspond pas
+            key_changed: Signé avec la clé %signer% — pas celle que plMail connaît pour cet expéditeur
+            unchecked: Signé à l’intérieur du chiffrement ; la signature n’a pas été vérifiée
+            unknown_key: Signé avec la clé %signer%, que plMail ne connaît pas encore
+            untrusted: Signé à l’intérieur du chiffrement — intact, mais personne n’a confirmé la clé %signer%
+            valid: Signé à l’intérieur du chiffrement, avec votre propre clé ou une clé que vous avez vérifiée
+        locked: Vos clés sont verrouillées dans ce navigateur.
+        no_key: Ce message a été chiffré pour une clé que vous n’avez pas ici.
+        no_source: 'L’original de ce message n’est pas disponible : il ne peut donc pas être déchiffré.'
+        open_settings: Les déverrouiller
+        signed:
+            invalid: La signature ne correspond pas — ce message a été modifié ou ne vient pas de l’expéditeur
+            key_changed: Signé avec une autre clé que celle que plMail connaît pour cet expéditeur
+            pending: Signé — vérification de la signature…
+            unknown_key: Signé avec une clé que plMail ne connaît pas encore
+            untrusted: Signé — le message est intact, mais rien ne confirme qui l’a signé
+            valid: Signé, et la signature est valable
+        signer: Signé par %signer%
+        smime_unreadable: Ce message est chiffré avec S/MIME pour un certificat que plMail n’a pas. Importez-le dans Paramètres → Chiffrement, ou ouvrez le message dans un logiciel de messagerie qui le possède.
+        smime_unsupported: Ce message est chiffré avec un algorithme que plMail ne sait pas ouvrir ; seul AES est pris en charge.
     details:
         categorised:
             ai: 'un modèle de langage, faute de règle l’ayant reconnu : '
@@ -2422,6 +2875,7 @@ message:
         show_once: Afficher les images
         stop_trusting: Ne plus afficher
         trusted: 'Les images sont toujours affichées pour %sender%'
+    in_trash: À la corbeille
     original:
         copied: Copié
         copy: Copier dans le presse-papiers
@@ -2446,6 +2900,8 @@ message:
         read_at: 'Lu le %datetime%'
         requested: '%sender% a demandé à être prévenu quand vous lirez ce message.'
         send: 'Envoyer l’accusé'
+    reply_to:
+        elsewhere: 'Les réponses iront à %address%'
     save_to: 'Enregistrer dans'
     security:
         mismatch:
@@ -2470,10 +2926,7 @@ oauth:
     error:
         generic: Impossible de connecter ce compte. Veuillez réessayer.
         microsoft:
-            admin_consent_required: >-
-                Votre organisation exige qu’un administrateur approuve plMail avant
-                que vous puissiez connecter ce compte. Demandez à votre administrateur
-                Microsoft d’accorder l’accès.
+            admin_consent_required: 'Votre organisation exige qu''un administrateur approuve plMail avant que vous puissiez connecter ce compte. Si cela fonctionnait auparavant, plMail demande désormais aussi l''accès à vos contacts, ce qui nécessite également son approbation. Demandez à votre administrateur Microsoft d''accorder l''accès.'
             app_not_found: >-
                 plMail n’est pas enregistré dans votre organisation Microsoft.
             bad_credentials: >-
@@ -2599,6 +3052,14 @@ onboarding:
             lead: Le seul compte qui vaille vraiment d’être bien verrouillé. Cela prend environ une minute.
             title: Protéger votre compte
     title: Configurer plMail
+
+password_required:
+    explanation: Quelqu’un d’autre a choisi le mot de passe avec lequel vous venez de vous connecter. Choisissez-en un que vous seul connaissez — plMail ne vous laissera pas entrer avant.
+    page_title: Choisissez votre mot de passe
+    sign_out: Me déconnecter plutôt
+    submit: Enregistrer et continuer
+    submitting: Enregistrement…
+    tagline: Encore une étape
 
 profile:
     avatar_current: Image actuelle
@@ -2754,6 +3215,7 @@ session:
         sign_in: Se reconnecter
         sign_in_new_tab: Se reconnecter dans un nouvel onglet
         reload: Recharger cette page
+
 settings:
     ai:
         context:
@@ -2769,6 +3231,8 @@ settings:
             admin_off: 'Non activé sur cette installation'
             categorise: 'Trier le courrier dans les onglets'
             categorise_hint: 'Laisse le modèle départager quand les règles ordinaires ne savent pas où placer un message. Désactivé, ces messages restent là où les règles les ont mis.'
+            contact_help: 'Aide aux contacts'
+            contact_help_hint: 'Remplit un contact à partir d’une signature ou d’une carte collée, et propose des mises à jour d’après la signature de son dernier e-mail, quand vous le demandez.'
             search: 'Recherche par le sens'
             search_hint: 'Trouve le courrier qui veut dire ce que vous cherchez, pas seulement celui qui l’écrit de la même façon. Désactivé, votre courrier cesse d’être indexé autant que d’être recherché.'
             summary: 'Résumés de conversation'
@@ -2791,6 +3255,7 @@ settings:
             system_prompt_placeholder: 'Phrases courtes. Pas de points d’exclamation. Signer uniquement de mon prénom.'
         reads:
             categorise: 'Tri : l’expéditeur, l’objet et le début du message.'
+            contact_help: 'Contacts : le texte que vous collez, ou un contact et la signature de son dernier e-mail, quand vous le demandez.'
             heading: 'Ce que reçoit l’assistant'
             search: 'Indexation : l’objet, l’expéditeur et le début de chaque message.'
             summary: 'Les messages d’une conversation dont vous demandez le résumé'
@@ -2903,6 +3368,11 @@ settings:
         disable: 'Désactiver'
         empty: 'Aucune adresse pour l’instant.'
         enable: 'Activer'
+        gmailify:
+            hint: 'Pour un compte Gmail qui relève le courrier d’une autre adresse connectée ici. Activé, ce courrier est classé sous l’autre compte, et sa copie y suit ce que vous faites dans Gmail. Désactivé, ce compte ne garde que le courrier qui lui est adressé, et les copies de l’autre compte ne suivent plus Gmail. À désactiver de préférence quand Gmail ne relève plus ce courrier : tant qu’il le fait, un courrier envoyé en Cci à l’autre adresse ne nomme personne et se retrouve donc ici comme là-bas.'
+            label: 'Classer le courrier de mes autres comptes sous ceux-ci (Gmailify)'
+            'off': 'Désactivé'
+            'on': 'Activé'
         heading: 'Adresses e-mail'
         make_primary: 'Définir comme principale'
         ms_sender_hint: 'Outlook envoie avec l’alias principal de votre compte quelle que soit l’adresse choisie ici — changez-le dans vos'
@@ -2961,6 +3431,7 @@ settings:
         scan_title: "Scannez ceci avec l’application plMail"
         scan_hint: "Le code ne fonctionne qu’une fois et expire au bout de deux minutes. Il ne contient pas votre mot de passe d’application — l’application l’échange contre un nouveau."
         qr_alt: "Code d’association"
+        with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
     app_passwords:
@@ -3050,6 +3521,15 @@ settings:
             unreadEmphasis: Lignes non lues
         logo:
             colour: 'Couleur'
+            custom:
+                error_missing: 'Aucun fichier n’est arrivé. Choisissez un SVG et réessayez.'
+                error_size: 'Ce SVG dépasse 256 Ko. Un logo en demande bien moins ; essayez de l’exporter sans images intégrées.'
+                error_type: 'Ce fichier n’est pas un SVG que plMail peut utiliser comme logo. Il lui faut un <svg> avec un viewBox, ou une largeur et une hauteur.'
+                help: 'Un SVG à vous, utilisé pour la barre du haut, l’icône d’onglet et l’application installée. Il garde ses propres couleurs, et plMail en dessine les icônes de l’application.'
+                name: 'Le vôtre'
+                remove: 'Retirer votre logo'
+                replace: 'Remplacer votre logo'
+                upload: 'Importer le vôtre…'
             heading: Logo
             icon: 'Icône'
             independent: 'Choisir séparément'
@@ -3423,6 +3903,14 @@ settings:
                     une application non vérifiée fonctionne toujours, elle affiche
                     simplement un écran d’avertissement la première fois.
                 title: '%account% demande que vous vous reconnectiez — et le redemandera dans une semaine'
+            account_contacts_scope_missing:
+                body: >-
+                    plMail peut désormais synchroniser les contacts de ce
+                    compte, mais %account% a été connecté avant qu’il ne les
+                    demande. Le courrier et les agendas ne sont pas concernés.
+                    Reconnectez-vous une fois et autorisez les contacts : son
+                    carnet d’adresses apparaîtra dans Contacts.
+                title: 'Reconnectez %account% pour synchroniser ses contacts'
             account_scope_missing:
                 body: >-
                     Certaines des autorisations demandées par plMail à la connexion de ce
@@ -3554,6 +4042,12 @@ settings:
                 promise: >-
                     Réessaie une fois les tâches abandonnées. Sans risque — celles qui
                     échouent encore reviennent simplement ici.
+            grant_contacts:
+                label: 'Autoriser les contacts'
+                promise: >-
+                    Vous ramène chez le fournisseur pour vous connecter en tant
+                    que %account% et autoriser les contacts. Rien ne change pour
+                    votre courrier, et aucun message n’est retéléchargé.
             grant_calendar:
                 label: 'Accorder un accès complet'
                 promise: >-
@@ -3645,6 +4139,7 @@ settings:
         disabled: 'Connexion en pause'
         disconnect: Déconnecter
         disconnect_confirm: 'Déconnecter %name% ? Les fichiers déjà joints à des mails ne sont pas concernés.'
+        disconnect_confirm_mirrored: 'Déconnecter %name% ? %calendars% agenda(s) et %books% carnet(s) d’adresses reflétés depuis ce service sont aussi retirés d’ici ; les événements venus de vos mails passent d’abord dans votre agenda par défaut. Les fichiers déjà joints à des mails ne sont pas concernés.'
         disconnected: 'Service déconnecté'
         edit: Modifier
         empty: 'Aucun service connecté pour l’instant.'
@@ -3700,6 +4195,82 @@ settings:
         option_none: Les trois
         option_split: Pleine largeur uniquement
         subheading: 'Comment le bouton d’agenda de la barre du haut passe d’une vue à l’autre.'
+    contacts_behaviour:
+        button: 'Bouton Contacts'
+        button_hint: 'Les vues que parcourt le bouton de la barre du haut. Une vue omise n''est pas supprimée : la poignée l''atteint toujours.'
+        heading: 'Comportement'
+        option_contacts: 'À côté du courrier seulement'
+        option_none: 'Les trois'
+        option_split: 'Pleine largeur seulement'
+        subheading: 'Comment le bouton Contacts de la barre du haut passe d’une vue à l’autre.'
+    contacts:
+        allow_contacts: 'Autoriser les contacts'
+        allow_contacts_hint: 'Connecté avant que plMail ne demande les contacts. Reconnectez-vous une fois et autorisez-les : le carnet d’adresses de ce compte apparaîtra ici.'
+        allow_contacts_microsoft: 'Si votre organisation approuve les applications pour ses utilisateurs, demandez d''abord à votre administrateur d''approuver l''autorisation de plMail sur les contacts. D''ici là, Microsoft refuse cette connexion.'
+        carddav:
+            connect: Connecter un serveur CardDAV
+            disconnect: Déconnecter « %name% »
+            disconnect_confirm: >-
+                Déconnecter « %name% » ? Chaque carnet d’adresses reflété depuis ce
+                serveur est supprimé ici, avec toute modification pas encore envoyée au
+                serveur. Les contacts sur le serveur ne sont pas touchés.
+            field:
+                address: Adresse du serveur
+                address_help: >-
+                    L’adresse CardDAV que votre serveur vous indique, ou simplement son
+                    domaine — plMail demande au domaine où se trouvent ses carnets
+                    d’adresses avant d’abandonner.
+                name: Nom
+                name_help: Comment appeler cette connexion dans vos réglages.
+                reuse: Utiliser le mot de passe d’un de mes comptes mail
+                reuse_account: Le mot de passe de quel compte
+                reuse_account_none: Choisissez un compte…
+                reuse_help: >-
+                    Désactivé par défaut, et mieux vaut le laisser ainsi : la plupart
+                    des serveurs veulent un mot de passe d’application, et cocher ceci
+                    envoie un mot de passe que vous avez donné à plMail pour votre boîte
+                    à l’adresse ci-dessus.
+                secret: Mot de passe d’application
+                secret_help: >-
+                    Créez-en un sur votre serveur plutôt que d’utiliser votre mot de
+                    passe de connexion — iCloud et Fastmail n’acceptent rien d’autre.
+                username: Nom d’utilisateur
+                username_help: Le nom de compte sous lequel votre serveur vous connaît.
+            intro: >-
+                N’importe quel serveur CardDAV : Nextcloud, Radicale, Baïkal, Fastmail,
+                iCloud. En général la même adresse et le même mot de passe d’application
+                que vos agendas.
+            submit: Connecter et trouver les carnets d’adresses
+            title: Connecter un serveur CardDAV
+        empty: Aucun serveur de contacts connecté pour l’instant.
+        find: Choisir les carnets d’adresses
+        heading: Contacts
+        intro: >-
+            Les carnets d’adresses reflétés depuis un serveur CardDAV. Leurs contacts
+            sont suggérés quand vous écrivez, et les modifications faites ici sont
+            renvoyées au serveur.
+        never_synced: Pas encore synchronisé
+        no_books: Aucun carnet d’adresses choisi sur ce serveur pour l’instant.
+        open: Ouvrir les contacts
+        read_only: Lecture seule
+        subheading: D’où viennent vos carnets d’adresses.
+        subscribe:
+            empty: '« %name% » ne propose aucun carnet d’adresses.'
+            intro: Choisissez les carnets d’adresses de « %name% » à refléter dans plMail.
+            mirrored: Reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
+            save: Enregistrer
+            title: Choisir les carnets d’adresses
+            unsubscribe_note: >-
+                Décocher un carnet d’adresses supprime sa copie ici, y compris toute
+                modification pas encore envoyée. Le serveur garde la sienne.
+        sync_now: Synchroniser « %name% » maintenant
+        synced: Synchronisé %date%
+        toast:
+            disconnected: Serveur de contacts déconnecté
+            saved: Carnets d’adresses enregistrés
+            sync_queued: Synchronisation programmée
+            unchanged: Rien n’a changé
     calendars:
         account_hint: Là où sont classés les événements trouvés dans le courrier de %address%.
         caldav:
@@ -3763,6 +4334,8 @@ settings:
                 reste.
             find: Trouver les agendas de %name%
             heading: D’où viennent les agendas
+            managed: 'Configuré dans Intégrations'
+            managed_hint: '%name% contient aussi vos fichiers. Déconnectez-le dans Réglages → Intégrations.'
             why_admin: >-
                 Votre administrateur n’a peut-être pas ajouté les autorisations
                 d’agenda à l’inscription d’application avec laquelle plMail se
@@ -3785,6 +4358,7 @@ settings:
                 Cochez les agendas de %name% à synchroniser avec plMail. Les
                 événements apparaissent dans la minute qui suit.
             mirrored: Déjà reflété
+            mirrored_elsewhere: 'Déjà reflété via %name%'
             primary: Principal
             save: Enregistrer les abonnements
             title: Trouver mes agendas
@@ -3794,6 +4368,7 @@ settings:
                 agenda par défaut.
         sync_now: Synchroniser « %name% » maintenant
         sync_now_title: Synchroniser maintenant
+        zone_follows: Suit plMail
     labels:
         count: '%count% libellés'
         delete: Supprimer le libellé « %name% »
@@ -3834,6 +4409,23 @@ settings:
         'off': 'Désactivé'
         'on': 'Activé'
         subheading: Si les images qu’un message charge depuis ailleurs attendent qu’on les demande.
+    swipe_actions:
+        heading: Balayage des lignes
+        hint: >-
+            Un balayage agit dès que vous allez assez loin ou faites un geste rapide.
+            Lu / non lu et étoile se rétablissent en balayant à nouveau, et archiver
+            propose Annuler. La corbeille n’est pas proposée : un balayage qui
+            supprimerait du courrier n’aurait rien pour l’annuler.
+        left:
+            label: Balayer vers la gauche
+        option:
+            archive: Archiver
+            none: Aucune action
+            read_unread: Lu / non lu
+            star: Étoile
+        right:
+            label: Balayer vers la droite
+        subheading: Ce que fait un balayage sur une ligne, sur téléphone.
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -3850,7 +4442,9 @@ settings:
         calendar_behaviour: Comportement
         calendars: Agendas
         categories: "Catégories"
+        contacts: Contacts
         disposal: Suppression
+        encryption: Chiffrement
         filters: Filtres
         general: Général
         group:
@@ -3872,6 +4466,7 @@ settings:
         sharing: Partage
         shortcuts: Raccourcis clavier
         signature: Signatures
+        swipe_actions: Balayage des lignes
         templates: 'Modèles'
     notifications:
         devices:
@@ -3900,6 +4495,9 @@ settings:
                 webpush: 'Web Push'
             unverified: 'Non vérifié'
             verified: 'Vérifié'
+        error_server: 'Le serveur a refusé cet appareil (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
+        error_subscribe: 'Le service push du navigateur n’a attribué aucune adresse à cet appareil (%error%). Dans Brave, activez d’abord « Utiliser les services Google pour les messages push ».'
+        error_worker: 'Le service d’arrière-plan de plMail n’a pas démarré (%error%). Réessayez ; si cela se reproduit, prévenez votre administrateur.'
         heading: Notifications
         ios_hint: >-
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
@@ -3940,6 +4538,7 @@ settings:
         remember_me_note: 'Changer votre mot de passe déconnecte tous les navigateurs mémorisés sauf celui-ci. C’est ce qui le rend utile quand un appareil disparaît.'
         subheading: 'Ce avec quoi vous vous connectez. Vous seul pouvez le changer — même un administrateur ne peut pas le définir à votre place.'
         submit: Changer le mot de passe
+        submitting: Enregistrement…
     reading_pane:
         heading: Volet de lecture
         hint: 'Désactivé affiche la liste et le message l’un après l’autre. À droite place le message à côté de la liste quand la fenêtre a la place pour les deux — faites glisser le séparateur pour choisir la part de chacun.'
@@ -4025,6 +4624,13 @@ settings:
         'on': "Activés"
         show: "Afficher les raccourcis"
         subheading: "Des touches uniques pour ce que vous faites toute la journée."
+    sidebar:
+        heading: Barre latérale
+        hide_note: Pour masquer complètement un dossier, désactivez-le dans Libellés.
+        hint: Les dossiers cochés attendent derrière « Plus ». Les autres restent dans la barre latérale elle-même.
+        label: Derrière « Plus »
+        pinned: La boîte de réception reste toujours à sa place.
+        subheading: Les dossiers qui attendent derrière « Plus ».
     signature:
         for_alias: 'Signature pour %alias%'
         heading: Signatures
@@ -4231,6 +4837,7 @@ sidebar:
     badge:
         total: '%count% au total'
         unread: '%count% non lus'
+        unsent: Un brouillon n’a pas pu être envoyé
     compose: Nouveau message
     labels:
         add: Créer un libellé
@@ -4329,8 +4936,17 @@ thread_row:
     new_badge: Nouveau
     no_recipient: (sans destinataire)
     no_subject: (sans objet)
+    send_failed:
+        failed: Non envoyé
+        may_have_sent: 'Peut-être envoyé : vérifiez Envoyés avant de le renvoyer'
+        rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
+        refused: 'Non envoyé : le serveur de messagerie l’a refusé'
+        unavailable: 'Non envoyé : votre fournisseur était injoignable'
     scheduled: 'Programmé %when%'
     select: Sélectionner
+    sheet:
+        label: Actions pour cette conversation
+        select: Sélectionner
     star: Suivre ce message
     to: 'À : %recipients%'
     unread: Non lu
@@ -4361,6 +4977,10 @@ toast:
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Trop tard — ce message avait déjà été envoyé.
     send_failed: 'Ce message n’a pas pu être envoyé : %subject%'
+    send_failed_may_have_sent: '%subject% a peut-être été envoyé, mais la réponse s’est perdue. Vérifiez Envoyés avant de le renvoyer.'
+    send_failed_rate_limited: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur limite les envois en ce moment ; réessayez dans quelques minutes.'
+    send_failed_refused: 'Ce message n’a pas pu être envoyé : %subject%. Le serveur de messagerie l’a refusé.'
+    send_failed_unavailable: 'Ce message n’a pas pu être envoyé : %subject%. Votre fournisseur était injoignable.'
     sent: Message envoyé.
     spam_filtered: 'Déplacé vers Spam. Le courrier futur de %sender% y ira aussi.'
     undo: Annuler
@@ -4387,6 +5007,7 @@ toolbar:
         mark_unread: Marquer comme non lu
         more: Plus
         move_to: Déplacer vers
+        not_spam: 'Pas un spam'
         purge: Supprimer définitivement
         snooze: Mettre en attente
         spam: 'Marquer comme spam'
@@ -4526,3 +5147,307 @@ whats_new:
     screenshot_close: 'Fermer la capture'
     screenshot_open: 'Ouvrir la capture en taille réelle'
     title: 'Nouveautés'
+contacts:
+    add_address: 'Ajouter une adresse'
+    add_custom: 'Ajouter un champ'
+    add_date: 'Ajouter une date'
+    add_email: 'Ajouter un e-mail'
+    add_im: 'Ajouter une adresse de messagerie'
+    add_phone: 'Ajouter un téléphone'
+    add_relation: 'Ajouter une personne'
+    add_to_address_book: 'Ajouter aux contacts'
+    add_url: 'Ajouter un site web'
+    back: Retour
+    book_all: 'Tous les carnets'
+    book_local: 'Non synchronisés'
+    cancel: Annuler
+    check_carefully: 'Vérifier attentivement'
+    city: Ville
+    company: Société
+    confidence: '%pct%% de correspondance'
+    count: '{0}Aucun contact|{1}1 contact|]1,Inf[ %count% contacts'
+    country: Pays
+    created: 'Contact créé.'
+    custom_label_placeholder: 'Nom du champ'
+    custom_value_placeholder: 'Valeur'
+    date_full: '%day% %month% %year%'
+    date_no_year: '%day% %month%'
+    day: 'Jour'
+    delete: Supprimer
+    delete_confirm: 'Supprimer %name% ? Le contact ira dans la corbeille et sera définitivement effacé après 90 jours.'
+    deleted_contact: '(contact supprimé)'
+    display_name: 'Nom complet'
+    duplicates: Doublons
+    duplicates_count: '{1}1 paire suspecte|]1,Inf[ %count% paires suspectes'
+    duplicates_none: 'Aucun doublon trouvé. Les nouveaux imports sont vérifiés automatiquement.'
+    edit: 'Modifier le contact'
+    email_placeholder: nom@exemple.com
+    empty: 'Aucun contact pour le moment. Ajoutez le premier, ou importez un fichier vCard ou CSV.'
+    empty_search: 'Aucun contact ne correspond à cette recherche.'
+    export_vcf: 'Exporter en vCard'
+    field:
+        birthday: 'Anniversaire'
+        company: 'Entreprise'
+        department: 'Service'
+        familyName: 'Nom'
+        givenName: 'Prénom'
+        jobTitle: 'Poste'
+        middleName: 'Deuxième prénom'
+        namePrefix: 'Civilité'
+        nameSuffix: 'Suffixe'
+        nickname: 'Surnom'
+        officeLocation: 'Bureau'
+        phoneticCompany: 'Entreprise (phonétique)'
+        phoneticFamilyName: 'Nom (phonétique)'
+        phoneticGivenName: 'Prénom (phonétique)'
+        phoneticMiddleName: 'Deuxième prénom (phonétique)'
+    im_placeholder: 'Identifiant ou adresse'
+    im_service:
+        aim: 'AIM'
+        googleTalk: 'Google Talk'
+        icq: 'ICQ'
+        matrix: 'Matrix'
+        msn: 'MSN'
+        other: 'Autre'
+        qq: 'QQ'
+        sip: 'SIP'
+        skype: 'Skype'
+        teams: 'Teams'
+        xmpp: 'XMPP (Jabber)'
+        yahoo: 'Yahoo'
+    im_service_label: 'Service'
+    import: Importer
+    import_bad_format: 'Seuls les fichiers .vcf/.vcard et .csv peuvent être importés.'
+    import_choose: 'Choisir un fichier'
+    import_confirm: 'Importer %count% contacts'
+    import_dedupe_note: 'Après l’import, la page des doublons permet de fusionner les éventuels doublons.'
+    import_expired: 'L’import préparé a expiré. Veuillez renvoyer le fichier.'
+    import_formats: '.vcf, .vcard ou .csv'
+    import_hint: 'Un export de carnet d’adresses .vcf/.vcard ou un fichier .csv. Les doublons sont vérifiés après l’import.'
+    import_no_file: 'Aucun fichier téléversé.'
+    import_preview_count: '%count% contacts trouvés dans le fichier %format%. Premiers affichés :'
+    import_step1: 'Étape 1 — choisir un fichier'
+    import_step2: 'Étape 2 — aperçu'
+    import_upload: 'Importer & aperçu'
+    import_uploading: 'Envoi en cours…'
+    imported: '%count% contacts importés.'
+    in_address_book: 'Dans vos contacts'
+    keep_this: 'Garder celui-ci'
+    label: Étiquette
+    label_home: Domicile
+    label_mobile: Mobile
+    label_other: Autre
+    label_work: Travail
+    labels:
+        anniversary: 'Anniversaire de mariage'
+        assistant: 'Assistant(e)'
+        blog: 'Blog'
+        brother: 'Frère'
+        child: 'Enfant'
+        father: 'Père'
+        friend: 'Ami(e)'
+        home: 'Domicile'
+        manager: 'Responsable'
+        mobile: 'Mobile'
+        mother: 'Mère'
+        other: 'Autre'
+        parent: 'Parent'
+        partner: 'Partenaire'
+        profile: 'Profil'
+        relative: 'Proche'
+        sibling: 'Frère ou sœur'
+        sister: 'Sœur'
+        spouse: 'Conjoint(e)'
+        work: 'Travail'
+    merge: Fusionner
+    merge_pick_keep: 'Choisissez d’abord le contact à garder.'
+    merge_read_only: 'Un contact d’un carnet en lecture seule ne peut pas être fusionné.'
+    merge_undo: Annuler
+    merge_undo_expired: 'Le délai d’annulation de 90 jours pour cette fusion est dépassé.'
+    merge_undone: 'Fusion annulée.'
+    merged: 'Contacts fusionnés. Annulation possible dans la liste ci-dessous.'
+    merged_into: '%count% fusionné(s) dans %name%'
+    month: 'Mois'
+    months:
+        1: 'janvier'
+        2: 'février'
+        3: 'mars'
+        4: 'avril'
+        5: 'mai'
+        6: 'juin'
+        7: 'juillet'
+        8: 'août'
+        9: 'septembre'
+        10: 'octobre'
+        11: 'novembre'
+        12: 'décembre'
+    nav: Contacts
+    new: 'Nouveau contact'
+    next: Suivant
+    no_details: 'Aucune coordonnée pour le moment.'
+    no_subject: '(sans objet)'
+    notes: Notes
+    page: 'Page %page%'
+    pane:
+        close: 'Fermer les contacts'
+        mode:
+            contacts: 'Afficher les contacts en pleine largeur'
+            mail: 'Masquer les contacts'
+            split: 'Afficher les contacts à côté du courrier'
+        resize: 'Redimensionner les contacts'
+    pending: 'En attente d’envoi au serveur'
+    phone_placeholder: '+33 6 12 34 56 78'
+    phonetic: 'Orthographe phonétique'
+    photo_hint: 'JPG, PNG ou WebP, 5 Mo maximum.'
+    photo_invalid: 'Cette photo est inutilisable. JPG, PNG ou WebP de 5 Mo maximum.'
+    photo_remove: 'Supprimer la photo'
+    photo_removed: 'Photo supprimée.'
+    photo_upload: 'Changer la photo'
+    photo_uploaded: 'Photo mise à jour.'
+    postcode: 'Code postal'
+    prev: Précédent
+    primary: Principal
+    primary_short: Principal
+    recent_merges: 'Fusions récentes'
+    reference_emails: 'E-mails de référence'
+    reference_emails_empty: 'Aucun e-mail avec ce contact pour le moment.'
+    reference_emails_hint: 'Tous les e-mails échangés avec ce contact et non supprimés — boîte de réception, envoyés, brouillons, corbeille et étiquettes.'
+    region: Région
+    rel_assistant: Assistant
+    rel_manager: Manager
+    rel_partner: Partenaire
+    rel_related: Lié
+    related: 'Contacts liés'
+    relation_placeholder: 'Nom'
+    remove: Retirer
+    save: Enregistrer
+    save_to: 'Enregistrer dans'
+    save_to_book_hint: 'Va dans %book% sur %server%, puis sur chaque appareil qui le synchronise.'
+    save_to_hint: 'Un contact dans un carnet synchronisé est envoyé à son serveur, puis sur chaque appareil qui le synchronise.'
+    save_to_local: 'plMail'
+    save_to_local_hint: 'Conservé uniquement dans plMail.'
+    search: 'Rechercher des contacts'
+    search_placeholder: 'Rechercher nom, société ou e-mail…'
+    section_addresses: Adresses
+    section_custom: 'Champs personnalisés'
+    section_dates: 'Dates'
+    section_details: Coordonnées
+    section_emails: E-mails
+    section_ims: 'Messagerie'
+    section_name: Nom
+    section_notes: Notes
+    section_phones: Téléphones
+    section_relations: 'Personnes'
+    section_urls: 'Sites web'
+    section_work: 'Travail'
+    street: Rue
+    synced_read_only: 'En lecture seule, depuis %book% sur %server%'
+    synced_with: 'Synchronisé avec %book% sur %server%'
+    tag_all: Tous
+    tags: Étiquettes
+    tags_placeholder: 'Séparées par des virgules, p. ex. famille, fournisseurs'
+    title: Contacts
+    trashed: 'Contact déplacé dans la corbeille.'
+    updated: 'Contact enregistré.'
+    url_placeholder: 'https://'
+    validation:
+        name_required: 'Donnez un nom au contact.'
+    year_optional: 'Année (facultatif)'
+    editor:
+        add: 'Ajouter'
+        add_email: 'Ajouter une adresse e-mail'
+        add_phone: 'Ajouter un numéro'
+        address: 'Adresse'
+        adds: 'Nouveau'
+        ai_failed: 'L’IA n’a pas répondu. Réessayez dans un instant.'
+        ai_nothing: 'L’IA n’a rien à suggérer.'
+        ai_running: 'Interrogation de l’IA… Elle reçoit ce contact et la signature de son dernier e-mail.'
+        ai_sent: 'Ce contact et la signature de son e-mail du %date% ont été envoyés au service d’IA configuré par votre administrateur. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_sent_no_mail: 'Ce contact a été envoyé au service d’IA configuré par votre administrateur. Aucun e-mail de sa part ne contient de signature. Rien ne change tant que vous ne l’appliquez pas.'
+        ai_title: 'Suggestions de l’IA'
+        applied: 'Ajouté au formulaire et surligné : %count%. Rien n’est enregistré avant de cliquer sur Enregistrer.'
+        apply_many: 'Appliquer %count% informations'
+        apply_none: 'Rien à appliquer'
+        apply_one: 'Appliquer 1 information'
+        auto_label: 'Type deviné d’après la saisie. Choisissez-en un pour le fixer.'
+        close_panel: 'Fermer'
+        dates: 'Dates'
+        dirty_many: '%count% modifications non enregistrées'
+        dirty_one: '1 modification non enregistrée'
+        discard: 'Annuler les modifications'
+        edit_parts: 'Modifier les parties'
+        email: 'E-mail'
+        email_invalid: 'Cela ne ressemble pas encore à une adresse e-mail.'
+        fills: 'Remplit un champ vide'
+        fix_emails: 'Corrigez l’adresse e-mail en rouge pour enregistrer.'
+        hide_parts: 'Masquer les parties'
+        improve: 'Améliorer avec l’IA'
+        more_work: 'Service, bureau, nom phonétique'
+        name_placeholder: 'Prénom et nom'
+        new_hint: 'Un nouveau contact. Enregistrez quand il est complet.'
+        note: 'Note'
+        nothing_found: 'Rien dans ce texte ne ressemble encore à une information de contact.'
+        parts_stale: 'Le nom et ses parties ne correspondent plus.'
+        paste: 'Coller des informations'
+        paste_placeholder: 'Collez une signature, une adresse ou une vCard. Rien ne change tant que vous ne l’appliquez pas.'
+        paste_title: 'Coller une signature, une vCard ou une adresse'
+        person: 'Personne'
+        phone: 'Téléphone'
+        preferred: 'Préféré'
+        reading: 'Lecture…'
+        relabels: 'Change le type de %from% en %to%'
+        remove_what: 'Retirer : %what%'
+        replaces: 'Remplace « %value% »'
+        same: 'Déjà présent'
+        split_again: 'Redécouper le nom'
+        summary_conflict: '%count% différent(s) de l’existant'
+        summary_new: '%count% nouveau(x)'
+        summary_same: '%count% déjà présent(s)'
+        website: 'Site web'
+    from_mail:
+        add_to: 'Ajouter à %name%'
+        existing: 'Ajouter à un contact existant'
+        more_details: 'Plus de détails'
+        name: 'Nom'
+        new: 'Nouveau contact'
+        no_matches: 'Aucun contact ne correspond.'
+        save: 'Enregistrer'
+        search: 'Chercher dans vos contacts'
+        title: 'Ajouter aux contacts'
+    quick:
+        ai_ask: 'Certains éléments n’étaient pas clairs. L’IA sait généralement trier ce genre de signature.'
+        ai_ask_complete: 'Cela semble complet. Vous pouvez quand même demander à l’IA de vérifier.'
+        ai_disclosure: 'N’envoie que ce texte au service d’IA configuré par votre administrateur. Rien n’est enregistré avant la création du contact.'
+        ai_running: 'Interrogation de l’IA…'
+        ai_undo: 'Annuler les changements de l’IA'
+        ai_undo_ask: 'Pas ce que vous vouliez ? Revenez à ce que les règles ont trouvé.'
+        all_fields: 'Tous les champs'
+        box_hint: 'Lu pendant la saisie. Chaque ligne ci-dessous peut être décochée, retapée ou changée de type.'
+        box_label: 'Saisissez ou collez n’importe quoi à son sujet'
+        box_placeholder: 'Un nom, une signature d’e-mail, une ligne comme  Mia Hoffmann <mia@example.net>, ou une vCard'
+        change_type: 'Changer ce que c’est'
+        create: 'Créer le contact'
+        detail_ai: 'Les modifications sont marquées. Décochez ou corrigez avant de créer le contact.'
+        detail_ai_same: 'L’IA n’a rien trouvé à changer.'
+        detail_rules: 'Chaque ligne a été placée.'
+        detail_unsure: 'Pas encore placé : %count%'
+        detail_vcard: 'Les %count% champs lus directement. Rien n’a été deviné.'
+        done_parts: 'Terminé'
+        existing: '%name% a déjà %email%.'
+        fix_parts: 'Corriger'
+        ignore: 'Laisser de côté'
+        keep: 'Garder'
+        no_name: 'Il faut un nom'
+        open_existing: 'Ouvrir ce contact'
+        skipped: 'Laissé de côté comme formule de politesse : %lines%'
+        source_ai: 'Amélioré par l’IA'
+        source_rules: 'Lu par règles'
+        source_vcard: 'vCard'
+        summary_many: '%name% avec %count% informations'
+        summary_name: '%name%, nom seulement'
+        summary_none: 'Saisissez ou collez quelque chose à son sujet pour commencer.'
+        summary_one: '%name% avec 1 information'
+        unsure_many: 'Où vont ces lignes ?'
+        unsure_one: 'Où va cette ligne ?'
+        use_as: 'Utiliser comme…'
+        you_placed: 'Placée par vous'

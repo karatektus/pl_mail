@@ -256,7 +256,10 @@ was set or lowered is stopped too. The handler cannot read "bulk" off the mail â
 delivered now can carry an old date â€” so `TellClassificationItsQueue` passes it the transport the
 envelope came off, and only those two queues are limited; `enrich_live` never is. A skipped
 message gets no `aiCategorisedAt`, so `app:ai:classify-backlog --any-age`, which selects on its
-absence and flags its envelopes with `ClassifyMailMessage::$anyAge`, can still sort it.
+absence and flags its envelopes with `ClassifyMailMessage::$anyAge`, can still sort it. The same
+limit bounds the second attempt a message gets when the model host could not be reached (#222):
+that attempt is the catch-up's, so mail older than the limit that met an outage keeps the rules'
+answer until somebody runs `--any-age`.
 
 **One model host.** Separate workers still end at one host that answers one request at a time.
 `App\Service\Ai\LiveMailPriority` makes bulk classification look at `enrich_live` before each
@@ -470,6 +473,28 @@ carrying it would look like it is in two places at once to anything counting loc
 `wake()` marks the thread unread, and the read state it had is genuinely lost. That is a
 deliberate trade: a thread that returns in the state you left it in is one you have already
 learned to scroll past.
+
+### "In the bin" is stored, and the database keeps it
+
+A conversation is in the bin when it carries Trash and none of its messages is outside Trash
+(#268). Every list, every badge and search leave such a conversation out. They read
+`message_thread.binned` instead of working the rule out from the messages; on a mailbox of 67k
+conversations, working it out took about 170 ms per query.
+
+Triggers maintain the column, not PHP (`Version20261022160000`). The writes that change the
+answer are spread out: labels through the ORM, raw SQL that rebuilds threads or unlinks a label,
+`ON DELETE CASCADE`, a message moving to another thread, a reply arriving in a conversation in
+the bin. A flag set from PHP would be right only on the paths someone remembered.
+
+- `message_label` and `thread_label` fire once per statement and recompute only the threads
+  whose Trash rows changed. Filing, reading and labelling mail cost nothing.
+- `message` fires per row: on insert only when the thread is in the bin (a new message can only
+  take it out), on delete and on a change of `thread_id` for the thread the message left.
+- Each recompute derives the answer from scratch (`plmail_refresh_thread_binned()`), so the
+  order of the statements in a flush does not matter.
+
+The entity maps the column read-only. In memory it can lag behind a change that has not been
+flushed, so nothing in PHP should branch on it; the queries read it.
 
 ## The change log JMAP reads
 

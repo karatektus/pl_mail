@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Service\Imap\ImapQuery;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -269,6 +270,12 @@ final class ApplyImapFlagsHandler
         ApplyImapFlagsMessage $envelope,
         ?string               $destinationPath,
     ): void {
+        if (true === in_array($envelope->action, self::MOVE_ACTIONS, true) && $sourceMailbox->fullPath === $destinationPath) {
+            $this->stayInPlace($sourceMailbox, $messages, $envelope);
+
+            return;
+        }
+
         $folder = ImapFolderLocator::of($client, $sourceMailbox);
 
         if (null === $folder) {
@@ -313,6 +320,45 @@ final class ApplyImapFlagsHandler
         }
     }
 
+    /**
+     * A move into the folder the messages are already in: nothing to send, and
+     * the rows get their address back.
+     *
+     * Not merely a wasted command. webklex's move() opens the destination,
+     * EXAMINEs it, then opens the source again — and Client::openFolder() skips
+     * the SELECT when that folder is the one already open. With source and
+     * destination the same, the connection is left read-only and the server
+     * answers the MOVE with "NO Not permitted in EXAMINE state" (#269). That
+     * was logged as an error and recorded as a refused export, for a message
+     * that was exactly where it was meant to be.
+     *
+     * The caller cleared each row's UID when it queued the move
+     * (Message::relocateTo()), so the envelope's UID goes back on: the message
+     * never left the folder, and the address it had is still its address. A row
+     * that something else has re-pointed since, or that has a UID again, is
+     * left to the sync, as adopt() leaves it.
+     *
+     * @param Message[] $messages
+     */
+    private function stayInPlace(Mailbox $mailbox, array $messages, ApplyImapFlagsMessage $envelope): void
+    {
+        foreach ($messages as $msg) {
+            $uid = $envelope->sourceUidFor((int) $msg->id);
+
+            if (null === $uid || null !== $msg->imapUid || $msg->mailbox?->fullPath !== $mailbox->fullPath) {
+                continue;
+            }
+
+            $msg->relocateTo($msg->mailbox, $uid);
+        }
+
+        $this->logger->info('ApplyImapFlagsHandler: already in the destination, not moving', [
+            'mailbox' => $mailbox->fullPath,
+            'action'  => $envelope->action,
+            'count'   => count($messages),
+        ]);
+    }
+
     private function applyToMessage(
         Client  $client,
         Folder  $folder,
@@ -321,7 +367,9 @@ final class ApplyImapFlagsHandler
         string  $action,
         ?string $destinationPath,
     ): void {
-        $imapMessage = $folder->messages()
+        // ImapQuery, so a message whose header repeats a once-only line is
+        // flagged and moved like any other (#357); see its class docblock.
+        $imapMessage = ImapQuery::of($folder)
             ->whereUid($uid)
             ->setFetchBody(false)
             ->get()
@@ -538,7 +586,7 @@ final class ApplyImapFlagsHandler
                 return;
             }
 
-            $candidates = $destination->messages()
+            $candidates = ImapQuery::of($destination)
                 ->where('HEADER Message-ID', '<' . $wanted . '>')
                 ->setFetchBody(false)
                 ->get();

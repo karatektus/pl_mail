@@ -9,6 +9,7 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Ai\AiSettingsRepository;
+use App\Service\Crypto\DecryptedMailPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -39,6 +40,7 @@ final readonly class MessageEmbedder
         private EmbeddingStore         $store,
         private AiSettingsRepository   $settings,
         private EntityManagerInterface $entityManager,
+        private ?DecryptedMailPolicy   $decrypted = null,
     ) {
     }
 
@@ -80,6 +82,12 @@ final readonly class MessageEmbedder
             $id = $message->id;
 
             if (null === $id) {
+                continue;
+            }
+
+        // Decrypted mail only as far as its account lets the models read it.
+        // See DecryptedMailPolicy::allowsAi().
+            if (false === ($this->decrypted?->allowsAi($message, AiFeature::Search) ?? true)) {
                 continue;
             }
 

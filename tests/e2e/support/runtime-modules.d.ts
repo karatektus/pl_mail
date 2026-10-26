@@ -29,3 +29,18 @@ declare module "/pdfjs/*" {
 
     export = pdfjs;
 }
+
+/**
+ * openpgp.js as the BROWSER sees it: an importmap entry, so a spec that needs
+ * a real OpenPGP key — encryption.spec.ts, importing one the way a person
+ * would — makes it inside page.evaluate() with the page's own copy, and Node
+ * never resolves the name. Typed as loosely as pdf.js above, for its reason.
+ */
+declare module "openpgp" {
+    export function generateKey(options: Record<string, unknown>): Promise<{ privateKey: string; publicKey: string }>;
+    export function readKey(options: { armoredKey: string } | { binaryKey: Uint8Array }): Promise<{ write(): Uint8Array; getFingerprint(): string }>;
+    export function readPrivateKey(options: { armoredKey: string }): Promise<unknown>;
+    export function createMessage(options: { text: string } | { binary: Uint8Array }): Promise<unknown>;
+    export function encrypt(options: Record<string, unknown>): Promise<string>;
+    export function sign(options: Record<string, unknown>): Promise<string>;
+}

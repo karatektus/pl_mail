@@ -77,6 +77,11 @@ export default class extends Controller {
         // Settings -> Compose: fold a forward's quoted original behind the
         // "show quoted text" pill, or show it open from the start.
         collapseForwardQuote: { type: Boolean, default: true },
+        // Settings -> Compose: what a send looks like. True for "hold", where
+        // the window stays open and the pill is the cancel; false for the
+        // default "optimistic", where the window closes and the toast carries
+        // the Undo — so the pill must not offer a second one (#302).
+        holdSend:     { type: Boolean, default: false },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
         // Rendered inline at the bottom of a thread rather than in the
@@ -199,6 +204,11 @@ export default class extends Controller {
         // event.
         this._boundNameAddressFields = this._nameAddressFields.bind(this);
         this.element.addEventListener('autocomplete:connect', this._boundNameAddressFields);
+        // Before the widget is built, so its first chips are drawn this way
+        // too. This controller is an ancestor of the fields, so Stimulus has
+        // connected it before the bundle's controller dispatches this.
+        this._boundRenderAddressFields = this._renderAddressFields.bind(this);
+        this.element.addEventListener('autocomplete:pre-connect', this._boundRenderAddressFields);
         requestAnimationFrame(this._boundNameAddressFields);
 
         // A draft that arrives with text and no HTML is already a plain-text
@@ -306,6 +316,60 @@ export default class extends Controller {
         }
 
         this._markInvalid(this.hasErrorsTarget && false === this.errorsTarget.classList.contains('hidden'));
+    }
+
+    /**
+     * How a recipient is drawn: a suggestion as avatar, name and address, a
+     * chip as the name alone, with the address on hover.
+     *
+     * These were tom_select_options in ContactAutocompleteField, as strings of
+     * JavaScript. The bundle hands options to Tom Select as they are, so the
+     * strings were never run, and the bundle's own renderers drew every chip
+     * as "Name <address>". Once address-book contacts were suggested, nearly
+     * every chip had a name, and at the chip's maximum width its × was clipped.
+     */
+    _renderAddressFields(event) {
+        const options = event.detail?.options;
+
+        if (undefined === options || false === this._addressRows().some((row) => row.contains(event.target))) {
+            return;
+        }
+
+        const parts = (data) => {
+            // Plain text, escaped when drawn — never tag-stripped, which would
+            // take the <address> with it.
+            const raw   = String(data.text ?? data.value ?? '');
+            const match = raw.match(/^(.*?)\s*<([^<>]+)>$/);
+
+            return null !== match && '' !== match[1].trim()
+                ? { name: match[1].trim(), email: match[2], full: raw }
+                : { name: '', email: raw, full: raw };
+        };
+
+        options.render = {
+            ...options.render,
+            option: (data, escape) => {
+                const { name, email } = parts(data);
+                const initials = '' !== name
+                    ? name.split(/\s+/).map((word) => word[0] ?? '').slice(0, 2).join('')
+                    : (email[0] ?? '?');
+
+                // A child of the option, not the option: Tom Select puts its
+                // `.option` class on whatever root it is given, and that
+                // rule's display: block would undo the row's flex.
+                return '<div><div class="ts-option-row">'
+                    + `<span class="ts-option-avatar">${escape(initials.toUpperCase())}</span>`
+                    + '<span class="ts-option-text">'
+                    + ('' !== name ? `<span class="ts-option-name">${escape(name)}</span>` : '')
+                    + `<span class="ts-option-email">${escape(email)}</span>`
+                    + '</span></div></div>';
+            },
+            item: (data, escape) => {
+                const { name, email, full } = parts(data);
+
+                return `<div title="${escape(full)}"><span class="ts-item-label">${escape('' !== name ? name : email)}</span></div>`;
+            },
+        };
     }
 
     /** The id of the shared refusal line, minted once so it can be pointed at. */
@@ -581,6 +645,7 @@ export default class extends Controller {
         this.element.removeEventListener('keydown', this._boundHandleTab);
         this.element.removeEventListener('keydown', this._boundHandleEnter);
         this.element.removeEventListener('autocomplete:connect', this._boundNameAddressFields);
+        this.element.removeEventListener('autocomplete:pre-connect', this._boundRenderAddressFields);
 
         if (this.hasBodyTarget && undefined !== this._boundBodyPaste) {
             this.bodyTarget.removeEventListener('paste',    this._boundBodyPaste);
@@ -1406,10 +1471,29 @@ export default class extends Controller {
                 flex-direction: column;
             `;
 
+            // The body fills the window, and grows past it with a long
+            // message so the scroller around it scrolls. The wrapper becomes
+            // the flex column that `flex-grow` needs.
+            //
+            // This used to be `closest('div').style.flex = '1'` plus
+            // `height: 0` on the editor. closest() starts at the element
+            // itself, and the editor is a <div>, so the wrapper never became a
+            // flex container; `height: 0` lost to `min-h-[170px]`, and the
+            // editor's [contain:paint] clipped everything past 170px instead
+            // of letting it scroll (#262). `1 0 auto`, not `1`: the editor may
+            // grow to fill but never shrink below its content.
+            //
+            // The plain-text field gets the same fill. A textarea scrolls
+            // itself, so it is sized by the window and not by its text.
             if (this.hasBodyTarget) {
-                this.bodyTarget.closest('div').style.flex = '1';
-                this.bodyTarget.style.flex = '1';
-                this.bodyTarget.style.height = '0';
+                const wrap = this.bodyTarget.parentElement;
+                wrap.style.display       = 'flex';
+                wrap.style.flexDirection = 'column';
+                this.bodyTarget.style.flex = '1 0 auto';
+            }
+
+            if (this.hasPlainBodyTarget) {
+                this.plainBodyTarget.style.flex = '1 1 auto';
             }
 
             document.body.style.overflow = 'hidden';
@@ -1430,9 +1514,14 @@ export default class extends Controller {
             return;
         }
 
-        this.bodyTarget.closest('div').style.flex = '';
-        this.bodyTarget.style.flex   = '';
-        this.bodyTarget.style.height = '';
+        const wrap = this.bodyTarget.parentElement;
+        wrap.style.display       = '';
+        wrap.style.flexDirection = '';
+        this.bodyTarget.style.flex = '';
+
+        if (this.hasPlainBodyTarget) {
+            this.plainBodyTarget.style.flex = '';
+        }
     }
 
     _syncExpandIcon(expanded) {
@@ -2261,7 +2350,12 @@ export default class extends Controller {
             return;
         }
 
-        dock.src = `/compose/edit/${id}`;
+        // With the thread, as a reply opened below md carries it: the window
+        // is still answering this conversation, and without it the send had
+        // nowhere to put the sent message — compose/_sent.stream.html.twig
+        // only touches the conversation the window says it belongs to, so a
+        // reply sent from the popped-out window never appeared in the thread.
+        dock.src = `/compose/edit/${id}${this.hasThreadValue ? `?thread=${this.threadValue}` : ''}`;
 
         // Put the row back rather than emptying the frame. Popping out moves
         // where the draft is edited; it does not remove the draft from the
@@ -2368,12 +2462,24 @@ export default class extends Controller {
 
         const url    = this.hasDraftUrlValue ? this.draftUrlValue : form.action;
         const status = this.hasSaveStatusTarget ? this.saveStatusTarget : null;
+        const body   = new FormData(form);
+
+        // A draft that is to be encrypted is sealed here, in the browser,
+        // before it is saved, and the body fields go empty — see
+        // compose--encryption. False means it cannot be sealed right now (the
+        // keyring is shut, the sealed draft has not been opened yet), and then
+        // nothing is saved: an unsealed save is the one thing that must not
+        // happen to it.
+        if (false === await this._encryption()?.prepareDraft(body)) {
+            return;
+        }
+
         this._setStatus(this._t('saving', 'Saving…'), 'text-ink-faint');
 
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                body: new FormData(form),
+                body,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json',
@@ -2534,9 +2640,10 @@ export default class extends Controller {
         const clone = this.bodyTarget.cloneNode(true);
 
         // The last two selectors cover drafts written before buildQuotedHtml
-        // marked the quote with data-quoted.
+        // marked the quote with data-quoted. A blockquote in the signature is
+        // the signature's, and goes with it below only while it is untouched.
         clone.querySelectorAll(
-            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"], div[style*="font-size:0.85em"]',
+            '[data-quote-wrapped], [data-quoted], blockquote:not([data-pl-signature] blockquote), div[style*="border-top"], div[style*="font-size:0.85em"]',
         ).forEach((node) => node.remove());
 
         // The signature is dropped for the same reason the quote is: it is not
@@ -2872,13 +2979,28 @@ export default class extends Controller {
      * tidy up. See _send_pill.html.twig for why that costs no layout shift.
      */
     _handleSubmit(event) {
-        if (true === this._submitting) {
+        if (true === this._submitting || true === this._building) {
             event.preventDefault();
             return;
         }
 
-        if (false === this._guardSend(event.submitter)) {
+        // The second pass of a send whose message the browser has just built:
+        // every guard below was already answered on the first.
+        const built = true === this._builtResubmit;
+        this._builtResubmit = false;
+
+        if (false === built && false === this._guardSend(event.submitter)) {
             event.preventDefault();
+
+            return;
+        }
+
+        // Encrypted, signed, or from a draft the server cannot read: the
+        // message is built here before the form goes. Asynchronous, so this
+        // submit is stopped and a second one is sent once it is ready.
+        if (false === built && true === this._encryption()?.mustBuild()) {
+            event.preventDefault();
+            this._buildAndSubmit(event.submitter);
 
             return;
         }
@@ -2897,7 +3019,39 @@ export default class extends Controller {
         // face without the invitation to click it.
         const scheduling = true === event.submitter?.hasAttribute('formaction');
 
-        this._beginSending(false === scheduling);
+        // Nor does an optimistic send (#302). Its cancel is the toast's Undo,
+        // which is on screen the moment the server answers; until then the
+        // pill is only busy. As a cancel it was a trap: a double click, or a
+        // second press from somebody who thought the first did nothing, called
+        // off the mail they had just sent.
+        this._beginSending(false === scheduling && true === this.holdSendValue);
+    }
+
+    async _buildAndSubmit(submitter) {
+        const encryption = this._encryption();
+
+        clearTimeout(this.#autosaveTimer);
+        this._building = true;
+        this._setStatus(this._t('sealing', 'Encrypting…'), 'text-ink-faint');
+
+        try {
+            await encryption.build();
+        } catch (error) {
+            this._building = false;
+            this._setStatus('', '');
+            this._reportError(encryption.report(error));
+
+            return;
+        }
+
+        this._building = false;
+        this._builtResubmit = true;
+        this.element.querySelector('form')?.requestSubmit(submitter ?? undefined);
+    }
+
+    /** The window's encryption controller, when this window has one. */
+    _encryption() {
+        return this.application.getControllerForElementAndIdentifier(this.element, 'compose--encryption');
     }
 
     /**
@@ -2933,8 +3087,10 @@ export default class extends Controller {
 
         this.sendBtnTargets.forEach((button) => {
             button.setAttribute('aria-busy', 'true');
-            // Not disabled: while a send is in flight this button IS the
-            // cancel, and a disabled button takes no clicks. Re-submission is
+            // Not disabled while it is cancellable: then this button IS the
+            // cancel, and a disabled button takes no clicks. Disabled when it
+            // is not — a schedule, or an optimistic send, whose cancel is
+            // somewhere else. Re-submission is
             // stopped by `_submitting` in the handler above and by
             // sendOrCancel() swallowing the click, not by the attribute.
             button.disabled = false === cancellable;
@@ -3504,7 +3660,14 @@ export default class extends Controller {
         }
 
         const body = new FormData();
-        files.forEach((file) => body.append('files[]', file));
+        const sealed = await this._encryption()?.sealUploads(files) ?? null;
+
+        if (null !== sealed) {
+            sealed.forEach((file) => body.append('files[]', file));
+            body.append('sealed', '1');
+        } else {
+            files.forEach((file) => body.append('files[]', file));
+        }
 
         this._setStatus(this._t('uploading', 'Uploading…'), 'text-ink-faint');
 
@@ -3728,6 +3891,26 @@ export default class extends Controller {
                     .replace('%d', String(limit)),
                 'text-danger',
             );
+
+            return;
+        }
+
+        // A sealed draft keeps its pictures inside itself, as data: URIs:
+        // uploaded, they would sit on the server readable. The browser turns
+        // them into parts of the message when it builds it.
+        if (true === this._encryption()?.isSealing()) {
+            const url = await new Promise((resolve) => {
+                const reader = new FileReader();
+
+                reader.onload = () => resolve(String(reader.result));
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+
+            if (null !== url) {
+                this._toolbar()?.insertInlineImage({ url });
+                await this.saveDraft(null, { force: true, allowEmpty: true });
+            }
 
             return;
         }

@@ -16,15 +16,17 @@ import { seed } from "./support/config";
  * A native dialog makes `page.on("dialog")` fire, so that is watched throughout.
  */
 /**
- * `seed-label` is not decoration: three of the cases below drive the label
- * delete form, which only exists on the settings page if the user HAS a label.
- * Seeding only mail left that fixture to whichever other spec happened to
- * create one first — so the trio passed or failed on file ordering, and turned
- * red together with "no confirmed action on this page to exercise" whenever the
- * worker reached this file before anything had made a label.
+ * The three cases below drive the account delete form in Settings → Accounts,
+ * which `seed-mail` guarantees: it always leaves the E2E account in place.
+ * They used to drive the label delete form, which needed `seed-label` to exist
+ * and no longer carries a confirmation at all — deleting a label opens a dialog
+ * of its own now, because for a folder on the server it also has to ask where
+ * the mail goes (issue #40). Only Cancel and Escape are ever pressed here.
  */
+const CONFIRMED_ACTION_URL = "/settings?section=accounts";
+
 test.beforeEach(() => {
-    seed("seed-mail", "seed-label");
+    seed("seed-mail");
 });
 
 /** Fails loudly instead of hanging: a native confirm() blocks the page. */
@@ -43,7 +45,7 @@ test.describe("confirmations", () => {
     test("a confirmed action asks in the app, and Cancel means no", async ({ page }) => {
         const nativeDialogs = refuseNativeDialogs(page);
 
-        await page.goto("/settings?section=labels");
+        await page.goto(CONFIRMED_ACTION_URL);
 
         const form = page.locator("form[data-turbo-confirm]").first();
         await expect(form, "no confirmed action on this page to exercise").toBeVisible();
@@ -79,7 +81,7 @@ test.describe("confirmations", () => {
     test("Escape cancels rather than confirming", async ({ page }) => {
         const nativeDialogs = refuseNativeDialogs(page);
 
-        await page.goto("/settings?section=labels");
+        await page.goto(CONFIRMED_ACTION_URL);
 
         const form = page.locator("form[data-turbo-confirm]").first();
         await form.locator('button[type="submit"], button:not([type])').first().click();
@@ -101,7 +103,7 @@ test.describe("confirmations", () => {
      * — so the safe answer is the one a stray Enter or Space lands on.
      */
     test("the safe answer has the focus", async ({ page }) => {
-        await page.goto("/settings?section=labels");
+        await page.goto(CONFIRMED_ACTION_URL);
 
         const form = page.locator("form[data-turbo-confirm]").first();
         await form.locator('button[type="submit"], button:not([type])').first().click();

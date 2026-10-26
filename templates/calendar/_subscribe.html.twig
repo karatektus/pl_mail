@@ -66,6 +66,12 @@ Variables:
                            CalendarSubscriber refuses it server-side too; this
                            is the half a person meets. #}
                         {% set locked = local is not null and local.isDefault %}
+                        {# Mirrored through another account or connection —
+                           a CalDAV connection to the same Nextcloud, say.
+                           Ticking it would sync every event twice, so the box
+                           is off and disabled, and CalendarSubscriber skips it
+                           whatever is posted. #}
+                        {% set elsewhere = subscription.isMirroredElsewhere %}
                         {% set field  = 'remote-calendar-' ~ loop.index %}
 
                         <li class="flex items-start gap-3 py-2.5">
@@ -74,7 +80,7 @@ Variables:
                                    name="remoteIds[]"
                                    value="{{ remote.remoteId }}"
                                    {% if subscription.isSubscribed %}checked{% endif %}
-                                   {% if locked %}disabled{% endif %}
+                                   {% if locked or elsewhere %}disabled{% endif %}
                                    class="mt-0.5 size-4 shrink-0 rounded border-field accent-accent focus:ring-accent cursor-pointer">
 
                             {# The disabled box submits nothing, so the ticked
@@ -111,6 +117,10 @@ Variables:
                                 {% if locked %}
                                     <span class="text-[11px] text-ink-faint leading-snug">
                                         {{ 'settings.calendars.subscribe.default_locked'|trans }}
+                                    </span>
+                                {% elseif elsewhere %}
+                                    <span class="text-[11px] text-ink-faint leading-snug">
+                                        {{ 'settings.calendars.subscribe.mirrored_elsewhere'|trans({ '%name%': subscription.elsewhereLabel }) }}
                                     </span>
                                 {% elseif subscription.isSubscribed %}
                                     <span class="text-[11px] text-ink-faint leading-snug">

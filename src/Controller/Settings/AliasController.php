@@ -11,6 +11,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Form\EmailAliasType;
 use App\Form\Factory\AliasAddFormFactory;
+use App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\EmailAliasRepository;
 use App\Security\Voter\OwnershipVoter;
@@ -19,6 +20,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
@@ -36,6 +38,7 @@ final class AliasController extends AbstractController
         private readonly EmailAliasRepository   $aliasRepository,
         private readonly AliasSeeder            $aliasSeeder,
         private readonly AliasAddFormFactory    $aliasAddForms,
+        private readonly MessageBusInterface    $bus,
     ) {}
 
     #[Route('/add', name: 'add', methods: ['POST'])]
@@ -217,6 +220,53 @@ final class AliasController extends AbstractController
         $this->em->flush();
 
         return $this->streamResponse($request, $account, 'alias.catch_all_removed');
+    }
+
+    /**
+     * Turn Gmailify on or off for a Gmail account (#205): whether mail it
+     * collects for another connected address is filed under that account.
+     *
+     * Off also takes the Gmail identity off the other account's IMAP copies
+     * this mailbox had merged into. Left on them, Gmail would go on changing
+     * those copies on every relabel — the very thing switching it off is
+     * meant to stop — and a change made here would still be sent to a Gmail
+     * mailbox that no longer claims the mail. Mail Gmail itself filed under
+     * the other account, with no IMAP copy behind it, stays linked: Gmail is
+     * all it has. See GmailifyLinks.
+     *
+     * The detaching is a job on the maintenance queue, so the switch answers at
+     * once and the copies follow shortly after.
+     *
+     * On again changes nothing that is stored: mail that arrives from then on
+     * is matched as before, and the detached copies are matched again only
+     * when Gmail next reports a change to them.
+     */
+    #[Route('/gmailify', name: 'gmailify', methods: ['POST'])]
+    public function gmailify(Request $request, Account $account): Response
+    {
+        $this->assertCsrf($request, 'alias-gmailify' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        if (false === $account->isGmail()) {
+            return $this->streamResponse($request, $account, 'alias.gmailify_unsupported');
+        }
+
+        $enabled = '1' === $request->request->get('enabled');
+
+        if ($enabled === $account->gmailifyEnabled) {
+            return $this->streamResponse($request, $account, $enabled ? 'alias.gmailify_on' : 'alias.gmailify_off');
+        }
+
+        $account->gmailifyEnabled = $enabled;
+        $this->em->flush();
+
+        // Queued: tens of thousands of copies is minutes of work, not a
+        // request's. See SeverGmailifyLinksMessage.
+        if (false === $enabled) {
+            $this->bus->dispatch(new SeverGmailifyLinksMessage((int) $account->id));
+        }
+
+        return $this->streamResponse($request, $account, $enabled ? 'alias.gmailify_on' : 'alias.gmailify_off');
     }
 
     #[Route('/refresh', name: 'refresh', methods: ['POST'])]

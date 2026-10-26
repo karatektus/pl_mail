@@ -180,7 +180,12 @@ final class AdminUserManagementTest extends WebTestCase
         $client->request('GET', sprintf('/admin/users/%d/edit', $victim->id));
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorNotExists('input[type="password"]');
+        // Every page a signed-in person sees carries the keyring's unlock
+        // dialog (crypto/_unlock_dialog.html.twig), whose box is for the
+        // ADMIN's own password or passphrase and posts nowhere near the user
+        // being edited. Anything else with a password box is the regression.
+        self::assertSelectorNotExists('input[type="password"]:not([data-keyring-unlock-secret])');
+        self::assertSelectorExists('dialog#keyring-unlock-dialog input[data-keyring-unlock-secret]');
     }
 
     /** Nor may it be smuggled in by posting the field anyway. */

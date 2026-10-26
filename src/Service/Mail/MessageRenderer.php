@@ -55,6 +55,7 @@ final readonly class MessageRenderer
 
     public function __construct(
         private RemoteContentBlocker         $blocker,
+        private InlineAttachmentLinker       $inlineImages,
         private QuoteCollapser               $quoteCollapser,
         private SenderIdentityChecker        $identityChecker,
         private ThreadSenderFacts            $trustedSenders,
@@ -116,7 +117,7 @@ final readonly class MessageRenderer
         // are pure display transformations over the same safe HTML — the image
         // counts the blocker measured are about images, so wrapping a quote
         // leaves them untouched.
-        $blocked = $this->blocker->rewrite($message->bodyHtmlSafe, $allow);
+        $blocked = $this->blocker->rewrite($this->inlineImages->link($message->bodyHtmlSafe, $message), $allow);
         $content = new RemoteContent(
             $this->quoteCollapser->collapse($blocked->html),
             $blocked->blocked,

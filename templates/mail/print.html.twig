@@ -96,7 +96,7 @@ does not care which stylesheet fired it.
 {% if message.hasAttachments %}
     <div class="attachments">
         {{ 'message.attachments'|trans }}:
-        {% for part in message.messageParts %}{% if not part.isInline %}{{ part.filename ?: 'attachment' }}{{ not loop.last ? ', ' : '' }}{% endif %}{% endfor %}
+        {% for part in message.messageParts %}{% if part.isListed %}{{ part.filename ?: 'attachment' }}{{ not loop.last ? ', ' : '' }}{% endif %}{% endfor %}
     </div>
 {% endif %}
 

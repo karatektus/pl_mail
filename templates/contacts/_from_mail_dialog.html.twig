@@ -1,0 +1,143 @@
+{#
+contacts/_from_mail_dialog.html.twig — "Add to contacts" on an address in a
+mail: a new contact, or one already in the address book.
+
+See ContactFromMailController. Two halves, new first because it is the
+common case:
+  - New contact: the name, prefilled from the mail, and Save. "More details"
+    opens the full editor with the name and address filled in.
+  - Existing contact: a search, prefilled with the name, and the contacts it
+    finds. Picking one adds the address to it.
+
+Both saves answer with the badges' turbo-stream, so every badge for this
+address turns to "in your contacts" and the dialog closes on its own (the
+modal closes on a successful submit), and ask for the contact in the
+contacts pane (an open_pane stream, see assets/panes.js). The search is live:
+a GET into the results frame on each pause in typing, marked
+data-ui--modal-keep-open so searching does not close the dialog.
+
+Variables:
+  address    string          the address being added
+  name       string          the name the mail gave it, may be empty
+  q          string          the search, the name to begin with
+  matches    list<Contact>   contacts the address could join, editable only
+  contactId  ?int            the contact already holding the address, if any
+#}
+{% extends '_layout/app.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% set field = 'w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink placeholder:text-ink-faint
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-accent' %}
+{% set btnPrimary = 'shrink-0 inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                     bg-accent hover:bg-accent-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                     focus-visible:ring-offset-1 transition-colors cursor-pointer' %}
+{% set heading = 'text-[11px] font-semibold uppercase tracking-wide text-ink-faint' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'contacts.from_mail.title'|trans }}</template>
+
+    {# ui--auto-submit on the whole dialog rather than the search form, so a
+       save from either half cancels a search still waiting to go (see its
+       cancel()). The search input names its own form. #}
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-6" data-contacts-from-mail
+         data-controller="ui--auto-submit" data-action="submit->ui--auto-submit#cancel">
+        <p class="text-sm text-ink-muted break-all">
+            {% if name %}<span class="text-ink font-medium">{{ name }}</span> &lt;{{ address }}&gt;{% else %}{{ address }}{% endif %}
+        </p>
+
+        {# Somebody else's badge got there first — another tab, or the same
+           address shown twice. Say so instead of offering to add it again. #}
+        {% if contactId is not null %}
+            <p class="flex items-center gap-2 text-sm text-ink-muted">
+                <i class="fa-solid fa-address-book text-ink-faint" aria-hidden="true"></i>
+                <a href="{{ path('app_contacts_show', { id: contactId }) }}" data-turbo-frame="_top"
+                   class="text-accent hover:underline">{{ 'contacts.in_address_book'|trans }}</a>
+            </p>
+        {% else %}
+            {# ── New contact ── #}
+            <section class="space-y-2.5" aria-labelledby="from-mail-new">
+                <h3 id="from-mail-new" class="{{ heading }}">{{ 'contacts.from_mail.new'|trans }}</h3>
+
+                <form method="post" action="{{ path('app_contacts_from_mail') }}" data-turbo-stream
+                      class="flex items-center gap-2" data-from-mail-new>
+                    <input type="hidden" name="_token" value="{{ csrf_token('contacts_from_mail') }}">
+                    <input type="hidden" name="address" value="{{ address }}">
+                    <label for="from-mail-name" class="sr-only">{{ 'contacts.from_mail.name'|trans }}</label>
+                    <input type="text" id="from-mail-name" name="name" value="{{ name }}" maxlength="200"
+                           placeholder="{{ 'contacts.from_mail.name'|trans }}" autocomplete="off"
+                           class="{{ field }} flex-1 min-w-0">
+                    <button type="submit" class="{{ btnPrimary }}">
+                        <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>{{ 'contacts.from_mail.save'|trans }}
+                    </button>
+                </form>
+
+                {# In the contacts pane when there is one, opening it if it was
+                   closed (ui--pane-link, assets/panes.js), and the dialog closes
+                   behind it. Without a pane it is the full page, _top, which
+                   takes the dialog with it. #}
+                <a href="{{ path('app_contacts_new_full', { name: name, email: address }) }}" data-turbo-frame="_top"
+                   data-controller="ui--pane-link"
+                   data-ui--pane-link-pane-value="contacts"
+                   data-action="click->ui--pane-link#open ui--pane-link:opened->ui--modal#close"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+                    <i class="fa-solid fa-pen-to-square text-[10px]" aria-hidden="true"></i>{{ 'contacts.from_mail.more_details'|trans }}
+                </a>
+            </section>
+
+            {# ── Existing contact ── #}
+            <section class="space-y-2.5" aria-labelledby="from-mail-existing">
+                <h3 id="from-mail-existing" class="{{ heading }}">{{ 'contacts.from_mail.existing'|trans }}</h3>
+
+                {# Live: each pause in typing fills the results frame below, and
+                   only that frame, so the box keeps its focus and caret. #}
+                <form method="get" action="{{ path('app_contacts_from_mail_choose') }}" data-ui--modal-keep-open
+                      data-turbo-frame="from-mail-matches"
+                      class="flex items-center gap-2" role="search">
+                    <input type="hidden" name="address" value="{{ address }}">
+                    <input type="hidden" name="name" value="{{ name }}">
+                    <div class="relative flex-1 min-w-0">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint" aria-hidden="true"></i>
+                        <label for="from-mail-q" class="sr-only">{{ 'contacts.from_mail.search'|trans }}</label>
+                        <input type="search" id="from-mail-q" name="q" value="{{ q }}" autocomplete="off"
+                               data-action="input->ui--auto-submit#submitSoon"
+                               placeholder="{{ 'contacts.from_mail.search'|trans }}"
+                               class="{{ field }} pl-8">
+                    </div>
+                </form>
+
+                <turbo-frame id="from-mail-matches">
+                {% if matches is not empty %}
+                    <ul class="-mx-2" data-from-mail-matches>
+                        {% for contact in matches %}
+                            <li>
+                                <form method="post" action="{{ path('app_contacts_from_mail_attach', { id: contact.id }) }}" data-turbo-stream>
+                                    <input type="hidden" name="_token" value="{{ csrf_token('contacts_from_mail') }}">
+                                    <input type="hidden" name="address" value="{{ address }}">
+                                    <input type="hidden" name="name" value="{{ name }}">
+                                    <button type="submit"
+                                            title="{{ 'contacts.from_mail.add_to'|trans({ '%name%': contact.displayName }) }}"
+                                            class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left hover:bg-hover transition-colors cursor-pointer">
+                                        {{ cm.avatar(contact, 'size-8 text-sm') }}
+                                        <span class="flex-1 min-w-0">
+                                            <span class="block truncate text-sm text-ink">{{ contact.displayName }}</span>
+                                            {% set first = contact.emails|first %}
+                                            {% if first or contact.company %}
+                                                <span class="block truncate text-xs text-ink-faint">{{ first ? first.email : contact.company }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <i class="fa-solid fa-plus text-xs text-ink-faint" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% elseif q is not empty %}
+                    <p class="text-sm text-ink-faint italic">{{ 'contacts.from_mail.no_matches'|trans }}</p>
+                {% endif %}
+                </turbo-frame>
+            </section>
+        {% endif %}
+    </div>
+</turbo-frame>
+{% endblock %}

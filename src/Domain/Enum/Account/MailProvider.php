@@ -74,6 +74,12 @@ enum MailProvider: string
                 // the feature — an event edited here is written back, which
                 // means creating, updating and deleting on the remote.
                 'https://www.googleapis.com/auth/calendar',
+                // Read-write for the calendar's reason: an edit to a contact
+                // here is written back. Same grant, so a Google account brings
+                // its contacts with its mail. An account connected before this
+                // holds a grant without it and is asked, once, to reconnect —
+                // see contactScopes() and AccountHealthInspector.
+                'https://www.googleapis.com/auth/contacts',
                 'openid',
                 'email',
             ],
@@ -95,8 +101,45 @@ enum MailProvider: string
                 // method. Microsoft consents to the requested set as a whole,
                 // so unlike Google there is no partial grant to handle.
                 'https://graph.microsoft.com/Calendars.ReadWrite',
+                // Outlook contacts, read and written back, on the same grant.
+                'https://graph.microsoft.com/Contacts.ReadWrite',
             ],
         };
+    }
+
+    /**
+     * The scopes that buy contact access, out of scopes().
+     *
+     * Separate for the calendar's reason, and for one of its own: these were
+     * added to scopes() after accounts already existed. Every Google and
+     * Microsoft account connected before then holds a grant without them,
+     * and that is not the "some permissions were refused" the scope card is
+     * about — nothing was refused, the account predates the question. The
+     * health check tells the two apart with this list.
+     *
+     * @return list<string>
+     */
+    public function contactScopes(): array
+    {
+        return match ($this) {
+            MailProvider::Google    => ['https://www.googleapis.com/auth/contacts'],
+            MailProvider::Microsoft => ['https://graph.microsoft.com/Contacts.ReadWrite'],
+        };
+    }
+
+    /**
+     * Whether a grant we were given includes contact access, as
+     * grantsCalendarAccess() asks of calendars. Null when no scope came back.
+     */
+    public function grantsContactsAccess(?string $granted): ?bool
+    {
+        $missing = $this->missingScopes($granted);
+
+        if (null === $missing) {
+            return null;
+        }
+
+        return [] === array_intersect($missing, $this->contactScopes());
     }
 
     /**

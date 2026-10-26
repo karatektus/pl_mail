@@ -32,10 +32,11 @@ use Symfony\Component\Messenger\Stamp\ReceivedStamp;
  * middleware that tells the handler its queue is under test as well as the
  * handler.
  *
- * "Was it asked?" is read off `aiCategorisedAt`. The model host is an address
- * that does not resolve, and the handler stamps a message it asked about
- * whether or not an answer came, so a stamp means asked and its absence means
- * skipped — which is also exactly what `--any-age` selects on later.
+ * "Was it asked?" is read off `aiCallMs`, the time the call took. The model
+ * host is an address that does not resolve, and since #231 a host that cannot
+ * be reached leaves `aiCategorisedAt` empty — so the stamp no longer tells an
+ * asked message from a skipped one here. The timing is written for every call
+ * that was made, answered or not, and never for a message that was skipped.
  */
 final class ClassifyMailAgeLimitTest extends KernelTestCase
 {
@@ -86,7 +87,8 @@ final class ClassifyMailAgeLimitTest extends KernelTestCase
 
         $this->takeOff($queue, new ClassifyMailMessage([$id]));
 
-        self::assertFalse($this->asked($id), 'mail past the limit must not be asked about, nor marked as asked');
+        self::assertFalse($this->asked($id), 'mail past the limit must not be asked about');
+        self::assertFalse($this->stamped($id), 'and must not be marked as asked, or --any-age could not find it');
     }
 
     #[DataProvider('bulkQueues')]
@@ -140,6 +142,20 @@ final class ClassifyMailAgeLimitTest extends KernelTestCase
     }
 
     /**
+     * Held mail is out of the tabs until something answers, so the limit never
+     * reaches it — not even on a bulk queue, and however old its date.
+     */
+    public function testHeldMailIsAskedAboutEvenOnABulkQueue(): void
+    {
+        $this->assistantSorts(backlogDays: 30);
+        $id = $this->message('-90 days', held: true);
+
+        $this->takeOff(EnrichmentRouter::BACKLOG, new ClassifyMailMessage([$id]));
+
+        self::assertTrue($this->asked($id));
+    }
+
+    /**
      * Invoked directly — ReclassifyRecentHandler does this for the "ask again"
      * button — there is no queue, and no limit.
      */
@@ -178,8 +194,8 @@ final class ClassifyMailAgeLimitTest extends KernelTestCase
         $this->em->flush();
     }
 
-    /** A message received $received ago, by id. */
-    private function message(string $received): int
+    /** A message received $received ago, by id; held out of the tabs if $held. */
+    private function message(string $received, bool $held = false): int
     {
         $message = new Message();
         $message->account = $this->mailbox->account;
@@ -189,6 +205,7 @@ final class ClassifyMailAgeLimitTest extends KernelTestCase
         $message->receivedAt = new DateTimeImmutable($received);
         $message->hasAttachments = false;
         $message->messageId = sprintf('<age-limit-%s@example.test>', uniqid('', true));
+        $message->categoryHeldAt = true === $held ? new DateTimeImmutable() : null;
 
         $this->em->persist($message);
         $this->em->flush();
@@ -202,11 +219,21 @@ final class ClassifyMailAgeLimitTest extends KernelTestCase
      */
     private function asked(int $id): bool
     {
-        $stamp = $this->connection->fetchOne('SELECT ai_categorised_at FROM message WHERE id = :id', ['id' => $id]);
+        return null !== $this->column($id, 'ai_call_ms');
+    }
 
-        self::assertNotFalse($stamp, 'the fixture message is gone');
+    private function stamped(int $id): bool
+    {
+        return null !== $this->column($id, 'ai_categorised_at');
+    }
 
-        return null !== $stamp;
+    private function column(int $id, string $column): mixed
+    {
+        $value = $this->connection->fetchOne(sprintf('SELECT %s FROM message WHERE id = :id', $column), ['id' => $id]);
+
+        self::assertNotFalse($value, 'the fixture message is gone');
+
+        return $value;
     }
 
     private function seed(): void

@@ -1,0 +1,138 @@
+{#
+contacts/_editor_rows.html.twig — one row of each of the editor's lists.
+
+Each macro draws a row with a real index for a saved row and with
+`__INDEX__` inside the list's <template>, which contacts--editor clones when
+a row is added (by typing into the dashed row, by "Add another", or by
+applying a pasted detail). One macro per kind, so the row the server draws
+and the row the browser adds are the same markup and post the same names —
+the names ContactController::parsedFromForm() reads.
+
+`ui` carries the layout's shared classes: field, select, icon.
+
+Every row has `data-row`, and the parts contacts--editor reads or fills:
+`data-row-value` (the main input), `data-row-label` (the type select), and
+for the address row one `data-address-part` per field.
+#}
+
+{% macro removeButton(ui, what) %}
+    <button type="button" class="{{ ui.icon }} shrink-0" data-action="contacts--editor#removeRow"
+            title="{{ 'contacts.remove'|trans }}" aria-label="{{ 'contacts.editor.remove_what'|trans({'%what%': what}) }}">
+        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+    </button>
+{% endmacro %}
+
+{#
+emailRow / phoneRow: value, type, the preferred star, remove. `primary` is a
+hidden input that is enabled on the one starred row only, so exactly one
+row of the kind posts `[primary]=1`.
+#}
+{% macro emailRow(index, value, label, primary, ui) %}
+    {{ _self.labelledRow('emails', index, value, label, primary, ['home', 'work', 'other'], 'email', 320, 'contacts.email_placeholder', 'contacts.editor.email', ui) }}
+{% endmacro %}
+
+{% macro phoneRow(index, value, label, primary, ui) %}
+    {{ _self.labelledRow('phones', index, value, label, primary, ['mobile', 'home', 'work', 'other'], 'tel', 64, 'contacts.phone_placeholder', 'contacts.editor.phone', ui) }}
+{% endmacro %}
+
+{% macro labelledRow(list, index, value, label, primary, labels, type, max, placeholder, noun, ui) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex flex-col gap-1" data-row>
+        <div class="flex items-center gap-1.5">
+            <input name="{{ list }}[{{ index }}][value]" value="{{ value }}" type="{{ type }}" maxlength="{{ max }}"
+                   placeholder="{{ placeholder|trans }}" aria-label="{{ noun|trans }}"
+                   class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-row-value>
+            <span class="text-accent shrink-0" data-auto-mark hidden title="{{ 'contacts.editor.auto_label'|trans }}">
+                <i class="fa-solid fa-wand-magic-sparkles text-[10px]" aria-hidden="true"></i>
+                <span class="sr-only">{{ 'contacts.editor.auto_label'|trans }}</span>
+            </span>
+            {{ cm.labelSelect(list ~ '[' ~ index ~ '][label]', labels, label, ui.select ~ ' w-24') }}
+            <input type="hidden" name="{{ list }}[{{ index }}][primary]" value="1" data-row-primary {{ primary ? '' : 'disabled' }}>
+            <button type="button" class="{{ ui.icon }} shrink-0 {{ primary ? 'text-accent' : '' }}" data-action="contacts--editor#makePrimary"
+                    aria-pressed="{{ primary ? 'true' : 'false' }}" data-star
+                    title="{{ 'contacts.editor.preferred'|trans }}" aria-label="{{ 'contacts.editor.preferred'|trans }}">
+                <i class="{{ primary ? 'fa-solid' : 'fa-regular' }} fa-star text-xs" aria-hidden="true"></i>
+            </button>
+            {{ _self.removeButton(ui, noun|trans) }}
+        </div>
+        <p class="text-xs text-danger pl-1" data-row-error hidden>{{ 'contacts.editor.email_invalid'|trans }}</p>
+    </div>
+{% endmacro %}
+
+{#
+addressRow: a small card — its type and remove on top, then street, postcode
+and city, country and region — so it reads as one address and fits the
+docked pane without squeezing a postcode to three characters.
+#}
+{% macro addressRow(index, row, ui) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex flex-col gap-1.5 rounded-lg border border-line p-2" data-row>
+        <div class="flex items-center gap-1.5">
+            {{ cm.labelSelect('addresses[' ~ index ~ '][label]', ['home', 'work', 'other'], row.label|default('home'), ui.select ~ ' w-28') }}
+            <span class="flex-1"></span>
+            {{ _self.removeButton(ui, 'contacts.editor.address'|trans) }}
+        </div>
+        <input name="addresses[{{ index }}][street]" value="{{ row.street|default('') }}" placeholder="{{ 'contacts.street'|trans }}" aria-label="{{ 'contacts.street'|trans }}"
+               class="{{ ui.field }}" autocomplete="off" data-row-value data-address-part="street">
+        <div class="flex gap-1.5">
+            <input name="addresses[{{ index }}][postcode]" value="{{ row.postcode|default('') }}" placeholder="{{ 'contacts.postcode'|trans }}" aria-label="{{ 'contacts.postcode'|trans }}"
+                   class="{{ ui.field }} !w-28 shrink-0" autocomplete="off" data-address-part="postcode">
+            <input name="addresses[{{ index }}][city]" value="{{ row.city|default('') }}" placeholder="{{ 'contacts.city'|trans }}" aria-label="{{ 'contacts.city'|trans }}"
+                   class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-address-part="city">
+        </div>
+        <div class="flex gap-1.5">
+            <input name="addresses[{{ index }}][country]" value="{{ row.country|default('') }}" placeholder="{{ 'contacts.country'|trans }}" aria-label="{{ 'contacts.country'|trans }}"
+                   class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-address-part="country">
+            <input name="addresses[{{ index }}][region]" value="{{ row.region|default('') }}" placeholder="{{ 'contacts.region'|trans }}" aria-label="{{ 'contacts.region'|trans }}"
+                   class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-address-part="region">
+        </div>
+    </div>
+{% endmacro %}
+
+{# A label and one value: websites (url) and people (name). #}
+{% macro pairRow(list, key, index, row, labels, type, placeholder, noun, ui) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex items-center gap-1.5" data-row>
+        {{ cm.labelSelect(list ~ '[' ~ index ~ '][label]', labels, row.label|default(labels|first), ui.select ~ ' w-24') }}
+        <input name="{{ list }}[{{ index }}][{{ key }}]" value="{{ attribute(row, key)|default('') }}" type="{{ type }}" maxlength="1024"
+               placeholder="{{ placeholder|trans }}" aria-label="{{ noun|trans }}" class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-row-value>
+        {{ _self.removeButton(ui, noun|trans) }}
+    </div>
+{% endmacro %}
+
+{% macro imRow(index, row, services, labels, ui) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex flex-wrap items-center gap-1.5" data-row>
+        <select name="ims[{{ index }}][service]" class="{{ ui.select }} w-28" aria-label="{{ 'contacts.im_service_label'|trans }}">
+            {% if row.service not in services %}
+                <option value="{{ row.service }}" selected>{{ row.service }}</option>
+            {% endif %}
+            {% for service in services %}
+                <option value="{{ service }}" {{ row.service == service ? 'selected' }}>{{ ('contacts.im_service.' ~ service)|trans }}</option>
+            {% endfor %}
+        </select>
+        <input name="ims[{{ index }}][handle]" value="{{ row.handle }}" maxlength="1024" placeholder="{{ 'contacts.im_placeholder'|trans }}"
+               aria-label="{{ 'contacts.im_placeholder'|trans }}" class="{{ ui.field }} flex-1 min-w-40" autocomplete="off" data-row-value>
+        {{ cm.labelSelect('ims[' ~ index ~ '][label]', labels, row.label, ui.select ~ ' w-24') }}
+        {{ _self.removeButton(ui, 'contacts.section_ims'|trans) }}
+    </div>
+{% endmacro %}
+
+{% macro customRow(index, row, ui) %}
+    <div class="flex items-center gap-1.5" data-row>
+        <input name="customFields[{{ index }}][label]" value="{{ row.label }}" maxlength="1024"
+               placeholder="{{ 'contacts.custom_label_placeholder'|trans }}" aria-label="{{ 'contacts.label'|trans }}" class="{{ ui.field }} w-36 shrink-0" autocomplete="off">
+        <input name="customFields[{{ index }}][value]" value="{{ row.value }}" maxlength="1024"
+               placeholder="{{ 'contacts.custom_value_placeholder'|trans }}" aria-label="{{ 'contacts.custom_value_placeholder'|trans }}" class="{{ ui.field }} flex-1 min-w-0" autocomplete="off" data-row-value>
+        {{ _self.removeButton(ui, 'contacts.section_custom'|trans) }}
+    </div>
+{% endmacro %}
+
+{% macro dateRow(index, row, labels, ui) %}
+    {% import 'contacts/_macros.html.twig' as cm %}
+    <div class="flex flex-wrap items-center gap-1.5" data-row>
+        {{ cm.labelSelect('dates[' ~ index ~ '][label]', labels, row.label|default('anniversary'), ui.select ~ ' w-32') }}
+        {{ cm.dateInputs('dates[' ~ index ~ ']', row.date|default(null), ui.field) }}
+        {{ _self.removeButton(ui, 'contacts.section_dates'|trans) }}
+    </div>
+{% endmacro %}

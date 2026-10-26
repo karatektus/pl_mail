@@ -4,7 +4,9 @@ namespace App\Entity\Mail;
 
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\EmailAliasStatus;
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Enum\Account\Pop3DeleteMode;
 use App\Domain\Model\AccountModel;
 use App\Entity\User\User;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -81,6 +83,33 @@ class Account extends AccountModel
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $email = null;
 
+    /**
+     * How this account's incoming mail is read.
+     *
+     * A column of its own since POP3 was added, rather than a fourth value on
+     * $authType: authType answers "how are the credentials presented", and a
+     * POP3 account presents a password exactly as an IMAP one does. What
+     * changes is the protocol underneath, and everything downstream that
+     * reads this belongs to one protocol or the other.
+     *
+     * Defaults to IMAP at the database level so every row that existed before
+     * the column — all of them IMAP, Gmail or Graph — reads as what it is
+     * without a backfill. Gmail and Microsoft accounts are API-synced and
+     * never open this connection; they carry Imap because it predates the
+     * column and nothing reads it for them.
+     */
+    #[ORM\Column(length: 10, options: ['default' => IncomingProtocol::Imap->value], enumType: IncomingProtocol::class)]
+    public IncomingProtocol $incomingProtocol = IncomingProtocol::Imap;
+
+    /**
+     * The incoming server, whichever protocol it speaks.
+     *
+     * Still called imapHost because the column is, and because renaming it
+     * would touch every template, form field and export for a name that is
+     * only ever read after $incomingProtocol has said what is on the other
+     * end. The form labels it by protocol; nothing user-facing says "IMAP"
+     * for a POP3 account.
+     */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $imapHost = null;
 
@@ -490,6 +519,18 @@ class Account extends AccountModel
     /** Where a backfill listing that is under way has got to. See $backfillPageToken. */
     public const string SETTING_BACKFILL_PAGE_TOKEN = 'sync.backfill_page_token';
 
+    /**
+     * What a POP3 account does with a message once it is stored here. See
+     * $pop3DeleteMode.
+     */
+    public const string SETTING_POP3_DELETE_MODE = 'sync.pop3.delete_mode';
+
+    /**
+     * Set while a POP3 account's first pass after a protocol switch is still
+     * to finish. See $pop3Adopting.
+     */
+    public const string SETTING_POP3_ADOPTING = 'sync.pop3.adopting';
+
     /** Unfetched messages the listing under way has found so far. */
     public const string SETTING_BACKFILL_PENDING = 'sync.backfill_pending';
 
@@ -501,6 +542,16 @@ class Account extends AccountModel
 
     /** Removals a Microsoft import was not yet able to judge. See $graphRemovals. */
     public const string SETTING_GRAPH_REMOVALS = 'sync.graph_removals';
+
+    /**
+     * Whether this Gmail account files mail addressed to another connected
+     * account under that account (Gmailify). See $gmailifyEnabled.
+     *
+     * The key predates the dotted names: it was read long before anything
+     * wrote it, and a hand-set value in an existing install must keep meaning
+     * what it meant.
+     */
+    public const string SETTING_GMAILIFY = 'gmailSyncGmailifyEnabled';
 
     /**
      * What this account does when a sender asks for a read receipt, for any
@@ -614,6 +665,45 @@ class Account extends AccountModel
         ++$this->syncFailureCount;
     }
 
+    /**
+     * Whether this account keeps the decrypted text of its end-to-end
+     * encrypted mail on the server, so that search, parcels, dates and rules
+     * work on it (Settings → Encryption → Decrypted mail on this server).
+     *
+     * OFF unless the person switches it on, and only honoured while the
+     * installation allows it (DecryptedMailPolicy). Per account because the
+     * reason to want it is per provider: somebody with a Gmail address may be
+     * encrypting against Google, and have no quarrel with their own server.
+     */
+    public const string SETTING_KEEP_DECRYPTED = 'crypto.keep_decrypted';
+
+    /**
+     * Whether the model features — classification, embeddings, summaries, the
+     * writing assistant's context — may read that decrypted text too. A
+     * separate switch, off by default, and for a model host outside the
+     * installation's own network only with a consent of its own, recorded for
+     * that host (SETTING_KEEP_DECRYPTED_AI_HOST): a host changed later is a
+     * host nobody agreed to.
+     */
+    public const string SETTING_KEEP_DECRYPTED_AI      = 'crypto.keep_decrypted_ai';
+    public const string SETTING_KEEP_DECRYPTED_AI_HOST = 'crypto.keep_decrypted_ai_host';
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED. */
+    public bool $keepDecrypted {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED_AI. */
+    public bool $keepDecryptedAi {
+        get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED_AI, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEEP_DECRYPTED_AI, $on ? true : null);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {
@@ -644,6 +734,34 @@ class Account extends AccountModel
         unset($this->settings[$key]);
 
         return $this;
+    }
+
+    /**
+     * Whether this account's mail is read from a POP3 server.
+     *
+     * The counterpart of isGmail()/isMicrosoft(), and deliberately shaped the
+     * same way: a question about stored state that every caller may ask
+     * without opening anything. Unlike those two it can be true at the same
+     * time as neither — a plain IMAP account answers false to all three.
+     */
+    public function isPop3(): bool
+    {
+        return $this->incomingProtocol->isPop3();
+    }
+
+    /**
+     * Whether this account speaks IMAP and no API — the road that has
+     * folders, flags and a folder tree to read.
+     *
+     * The one predicate that replaces "not Gmail and not Microsoft" wherever
+     * the code then goes on to open an IMAP connection. POP3 accounts are
+     * excluded here and handled by their own syncer; see Pop3AccountSyncer.
+     */
+    public function isPlainImap(): bool
+    {
+        return false === $this->isGmail()
+            && false === $this->isMicrosoft()
+            && false === $this->isPop3();
     }
 
     /**
@@ -899,6 +1017,45 @@ class Account extends AccountModel
         }
     }
 
+    /**
+     * What a POP3 sync does with a message it has just stored.
+     *
+     * Virtual on the jsonb bag, like $backfillTarget, and read through
+     * Pop3DeleteMode::fromSetting() so an unrecognised value — a restored
+     * backup, a hand edit, a value from a future version — reads as Keep
+     * rather than as Delete. That is the one direction this must fail in.
+     */
+    public Pop3DeleteMode $pop3DeleteMode {
+        get => Pop3DeleteMode::fromSetting($this->getSetting(self::SETTING_POP3_DELETE_MODE));
+        set (Pop3DeleteMode $mode) {
+            $this->setSetting(self::SETTING_POP3_DELETE_MODE, $mode->value);
+        }
+    }
+
+    /**
+     * Whether the next POP3 pass should recognise mail this account already
+     * holds, rather than store it again.
+     *
+     * Set by IncomingProtocolSwitch when an IMAP account becomes a POP3 one:
+     * the server's mailbox then is, message for message, mail the account
+     * already has — the IMAP sync fetched it. POP3 has nothing to match those
+     * rows on but the headers, so while this is set a message the account
+     * already holds — by Message-ID, or by sender, subject and Date header
+     * when it has none — is recorded as stored and not fetched. Cleared once
+     * a pass has walked the whole server listing.
+     *
+     * Only for that pass, and not as the rule: in normal running a repeated
+     * Message-ID is a second copy that arrived (a mail sent to two of the
+     * user's addresses), and it is stored like any other — see
+     * Pop3AccountSyncer on why recognition is by UIDL.
+     */
+    public bool $pop3Adopting {
+        get => true === $this->getSetting(self::SETTING_POP3_ADOPTING, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_POP3_ADOPTING, $on ? true : null);
+        }
+    }
+
     /** Whether a Microsoft account has folders whose history is still to be read. */
     public function needsGraphImport(): bool
     {
@@ -1092,6 +1249,30 @@ class Account extends AccountModel
             }
 
             $this->setSetting(self::SETTING_CATCH_ALL_DOMAINS, $domains);
+        }
+    }
+
+    /**
+     * Whether this Gmail account hands mail addressed to another connected
+     * account over to that account. See SETTING_GMAILIFY.
+     *
+     * On unless switched off, which is what every install did before there
+     * was a switch: Gmail collecting another address's mail is the setup this
+     * exists for. Off is for an account that has stopped collecting, typically
+     * after a domain moved from Gmail to an IMAP provider of its own, where
+     * Gmail's old and late copies would otherwise go on being matched to it.
+     * Stored only when off, so the default stays the default.
+     */
+    public bool $gmailifyEnabled {
+        get => false !== $this->getSetting(self::SETTING_GMAILIFY, true);
+        set {
+            if (true === $value) {
+                $this->unsetSetting(self::SETTING_GMAILIFY);
+
+                return;
+            }
+
+            $this->setSetting(self::SETTING_GMAILIFY, false);
         }
     }
 

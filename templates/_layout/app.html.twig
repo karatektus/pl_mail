@@ -38,6 +38,11 @@
          being a Twig global rather than a controller variable. Read through
          `prefersHour12()` in assets/clock_format.js. #}
       data-clock-hour12="{{ clock.is12Hour ? 'true' : 'false' }}"
+      {# The preview-lines setting as a count, for the one thing its CSS
+         variables cannot do: move the width at which a list row goes to one
+         line. A container query cannot read a custom property. See the
+         `row-line:` variant in app.css. #}
+      data-list-preview-lines="{{ appearance().previewLines }}"
       style="{{ appearance_vars() }}">
 <head>
     <meta charset="UTF-8">
@@ -100,9 +105,20 @@
     <meta name="title-count-key" content="{% block title_count_key %}role:inbox{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
-       needs the apple-touch-icon specifically — it ignores the manifest icons. #}
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+       needs the apple-touch-icon specifically — it ignores the manifest icons.
+
+       Both follow the logo picked in Settings → Appearance (#141), as PNGs the
+       user's own browser drew (see AppIconStorage for why not the server). The
+       manifest is a route with the choice and the user's key in its URL, like
+       the tab icon: it is fetched without credentials. The apple-touch-icon is
+       the form that fills its square, because iOS rounds the corners itself
+       and paints a transparent one black. Nobody signed in: the wax seal.
+       A logo the user uploaded (#48) is drawn into the same PNGs the same way;
+       logo_current() says which logo is worn. #}
+    {% set _app_icons = app_icons() %}
+    {% set _logo = logo_current() %}
+    <link rel="manifest" href="{{ _logo.manifest }}">
+    <link rel="apple-touch-icon" href="{{ _logo.appleTouch }}">
     {# The token the fetch-based endpoints check. Stimulus controllers that
        build their own request body cannot carry a form field, so they read this
        and send it as X-CSRF-Token. Every such endpoint validates against the
@@ -120,6 +136,11 @@
        perfectly happy being restored from cache on a back navigation. The mail
        lists are not; see _layout/_mailbox.html.twig. #}
     {% block turbo_cache_control %}{% endblock %}
+    {# How Turbo redraws THIS page when a visit comes back to it — a form that
+       posts and redirects to where it was posted from. Empty by default: a
+       refresh is a plain render there. Settings fills it in; see
+       settings/index.html.twig. #}
+    {% block turbo_refresh %}{% endblock %}
     {# Both spellings. `mobile-web-app-capable` is the standardised one every
        engine now reads and the only one Chrome does not warn about; the Apple
        prefix stays because older iOS is the platform that actually needs it,
@@ -293,6 +314,7 @@
        through setup: it drives the dialog above, so that has to exist first. #}
     {% if app.user %}
         {% include 'onboarding/_boot.html.twig' %}
+        {% include 'crypto/_keyring_boot.html.twig' %}
         {# After an update, What's new — never on an install, and never on top
            of the setup wizard above (WhatsNewGlobal::opensByItself). #}
         {% include 'whats_new/_boot.html.twig' %}
@@ -424,5 +446,16 @@
             {% endfor %}
         {% endfor %}
     </div>
+    {# The installed app's PNGs for the current choice are not drawn yet: a logo
+       picked before #141, or a deploy that changed the drawing. This page draws
+       and uploads them once (core--app-icons); until then the icon route serves
+       the wax seal. #}
+    {% if _app_icons and _app_icons.missing %}
+        <div hidden
+             data-controller="core--app-icons"
+             data-core--app-icons-tile-url-value="{{ _logo.icon }}"
+             data-core--app-icons-bleed-url-value="{{ _logo.bleed }}"
+             data-core--app-icons-upload-url-value="{{ path('app_appearance_app_icons') }}"></div>
+    {% endif %}
 </body>
 </html>

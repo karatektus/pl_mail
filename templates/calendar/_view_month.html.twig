@@ -25,12 +25,48 @@ neither.
    hours the two are apart. #}
 {% set today = 'now'|date('Y-m-d', range.zone) %}
 
+{# The day the list under a narrow month starts on: today when it is in the
+   six weeks on screen, otherwise the first of the month being shown. #}
+{% set firstOfMonth = (days|keys)|filter(k => k|date('j') == '1' and k|date('n') == anchor|date('n'))|first %}
+{% set selectedDay = today in days|keys ? today : firstOfMonth %}
+
+{# **A month too narrow for words is the grid AND the day under it (#253).**
+   Below 39rem a day is under 5.5rem wide (39 rather than 38.5, for the six
+   1px gutters, so no width has bars and no list) and its entries are bars (see
+   _event_chip), which give the shape of the month and nothing else. So there
+   the grid stops filling the pane and keeps six short rows, and the space it
+   gives up lists one day in full: today at first, then whichever day was
+   tapped. It is the arrangement every phone calendar has, and for the reason
+   they have it: a month on a phone is an overview, and what a day holds is read
+   in a list, not in a 49px box.
+
+   Every day's list is rendered and all but one hidden, so choosing a day is a
+   matter of showing it, with no request and nothing to wait for; a month is at
+   most 42 short lists. See calendar/month_tap_controller.js for the tap, which
+   on a wider month opens the day's card instead.
+
+   A container query on this wrapper rather than a viewport breakpoint, for the
+   reason the chip gives: the same phone-sized width is a month in the pane and a
+   month on a page. #}
+<div class="@container/month h-full min-h-0 flex flex-col"
+     data-controller="calendar--month-tap calendar--now"
+     data-calendar--month-tap-selected-value="{{ selectedDay }}"
+     {# Today's circle moves at midnight: calendar--now redraws the view when the
+        date changes. #}
+     data-calendar--now-zone-value="{{ range.zone }}"
+     data-calendar--now-today-value="{{ today }}"
+     data-action="click->calendar--month-tap#tap:capture keydown.esc@window->calendar--month-tap#close click@window->calendar--month-tap#outside">
+{# The ring on the chosen day is drawn only where there is a list for it to
+   name. The pointer is on every day: a click on one selects it below 39rem and
+   opens its card on a touch screen above. #}
 {% embed 'calendar/_month_shell.html.twig' with {
     dayKeys: days|keys,
     days: days,
     anchorMonth: anchor|date('n'),
     today: today,
     shellCellExpands: true,
+    shellOuterClass: 'min-h-0 flex flex-col flex-1 @max-[39rem]/month:flex-none @max-[39rem]/month:h-[20rem]',
+    shellCellClass: 'cursor-pointer @max-[39rem]/month:data-[selected]:after:pointer-events-none @max-[39rem]/month:data-[selected]:after:absolute @max-[39rem]/month:data-[selected]:after:inset-0 @max-[39rem]/month:data-[selected]:after:z-10 @max-[39rem]/month:data-[selected]:after:ring-2 @max-[39rem]/month:data-[selected]:after:ring-inset @max-[39rem]/month:data-[selected]:after:ring-accent',
 } %}
     {% block cell_actions %}
         <button type="button"
@@ -40,7 +76,7 @@ neither.
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
            aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|intl_date('EEEdMMM') }) }}"
            class="w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint
-                  opacity-0 group-hover/cell:opacity-100 focus:opacity-100
+                  opacity-0 day-open:opacity-100 focus:opacity-100 @max-[5.5rem]:hidden
                   hover:bg-hover transition-opacity
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
@@ -59,12 +95,12 @@ neither.
             {% if isToday %}
                 <span class="w-5 h-5 flex items-center justify-center rounded-full
                              bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                    {{ dayKey|date('j') }}
+                    {{ dayKey|date('j', false) }}
                 </span>
             {% else %}
                 <span class="block px-1 text-xs tabular-nums
                              {{ isOtherMonth ? 'text-ink-faint' : 'text-ink-muted' }}">
-                    {{ dayKey|date('j') }}
+                    {{ dayKey|date('j', false) }}
                 </span>
             {% endif %}
         </a>
@@ -91,14 +127,13 @@ neither.
            out. All this list does about it is stop clipping: the card is what
            decides how far it opens, and it scrolls past the bottom of the grid.
 
-           Titles stay clamped to one line while it is open — see the chip. A
-           wider card is a longer line rather than a shorter stack, so no chip
-           changes height and no chip below one moves. 18rem is where the
+           Titles stay clamped to two lines while it is open — see the chip,
+           which says when a title still closes up to one. 18rem is where the
            widening stops, which is about thirty-five characters. #}
         <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden
-                    @min-[5.5rem]:group-hover/cell:overflow-visible @min-[5.5rem]:group-hover/cell:shrink-0
+                    day-open:overflow-visible day-open:shrink-0
                     [mask-image:linear-gradient(to_bottom,black_calc(100%-0.625rem),transparent)]
-                    group-hover/cell:[mask-image:none]">
+                    day-open:[mask-image:none]">
             {% for cluster in dayEntries %}
                 {% include 'calendar/_event_chip.html.twig' with { monthCell: true } %}
             {% endfor %}
@@ -106,3 +141,48 @@ neither.
 
     {% endblock %}
 {% endembed %}
+
+<section class="hidden @max-[39rem]/month:block flex-1 min-h-0 overflow-y-auto border-t border-line"
+         aria-live="polite">
+    {% for dayKey, dayEntries in days %}
+        <div data-calendar--month-tap-target="list" data-list-day="{{ dayKey }}"
+             {% if dayKey != selectedDay %}hidden{% endif %}>
+            {# The day's own "new event", with the day filled in: the cell's
+               hover button cannot be reached on a phone, and this is where the
+               reader is looking when they decide the day needs one. #}
+            <div class="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
+                <h3 class="text-xs font-medium {{ dayKey == today ? 'text-accent' : 'text-ink' }}">
+                    {{ dayKey|intl_date('EEEEdMMMM') }}
+                </h3>
+                <button type="button"
+                   data-controller="ui--modal"
+                   data-action="click->ui--modal#open"
+                   data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey }) }}"
+                   data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
+                   aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|intl_date('EEEdMMM') }) }}"
+                   class="w-7 h-7 flex items-center justify-center rounded-lg shrink-0
+                          bg-accent text-accent-ink hover:opacity-90 transition-opacity
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1"
+                ><i class="fa-solid fa-plus text-xs" aria-hidden="true"></i></button>
+            </div>
+            {% if dayEntries is empty %}
+                <p class="px-3 py-2 text-sm text-ink-faint">{{ 'calendar.empty_day'|trans }}</p>
+            {% else %}
+                {# The agenda's rows: the same three tracks, so a day here reads
+                   exactly as it does in that view. #}
+                <div class="grid gap-x-2 px-3 pb-3"
+                     style="grid-template-columns: fit-content(7rem) max-content minmax(0, 1fr)">
+                    {% for cluster in dayEntries %}
+                        {% include 'calendar/_event_chip.html.twig' with {
+                            showRange: true,
+                            timeColumn: true,
+                            tooltip: false,
+                            dayKey: dayKey,
+                        } %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</section>
+</div>

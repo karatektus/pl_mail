@@ -70,12 +70,23 @@ looking at, the view switcher, and a **New event** button. Previous and Next ste
 month view, by seven days in the 7-day view, and by a day everywhere else — agenda included, because it
 is a rolling list rather than a page.
 
+**On a narrow screen the toolbar tightens rather than scrolling.** Below about 590 pixels the view
+switcher shows icons, and the date takes a short form: the month without its year while it is this
+year's (**October**), a week as **Oct 20–26**, a day as **Oct 20**. On the narrowest phones **Today**
+becomes today's date in a small box.
+
 The full page opens on **7 days**. The docked pane opens on **Agenda** — it is 380 pixels of a shared
 row, and a month grid in that width is a lot of empty cells. The pane still offers all four views,
 as icons rather than words, because the version that dropped the switcher entirely left the pane
 able to show nothing but its agenda.
 
-In month view a cell draws as many of its day's entries as fit and fades the last one where it runs
+**In month view an entry is its title first**, on up to two lines, and under it the time it runs
+and where: **Quartalsplanung Q4**, then **10:00–11:00 · Raum Elbe**. In a narrower day the end time
+and the place go, and the title gets a third line in a smaller size; long words are hyphenated in
+the language plMail is set to. An invitation you have not answered yet has a dashed bar, so the
+week's open invitations can be seen at a glance.
+
+A cell draws as many of its day's entries as fit and fades the last one where it runs
 out, rather than counting them. It used to say **N more**, and the count could not be right: a cell's
 height is the window's divided by six and an entry is one line or two depending on whether it has a
 time, so the number was always a guess about a box nobody had measured. **The date is a link** — it
@@ -84,12 +95,16 @@ opens that day, which is where the rest of them are.
 **Resting the pointer on a day floats that whole day out.** The cell becomes a small panel, wide
 enough for the full titles and long enough for every entry. Nothing in it moves as it opens — it
 grows right and down from exactly where the list already was — so the entry you were looking at is
-still under the pointer.
+still under the pointer. On a touch screen, which has no pointer to rest, **the first tap on a day
+opens it** and does nothing else; the entries in it open on the next tap.
 
-**Where a cell is too narrow for words it stops using them.** Seven columns of a phone are about
-forty pixels each, which is not a width a title or even a time can finish in, so below that an entry
-is drawn as a bar in its calendar's colour — how many, and which calendars, at a glance. Tapping the
-date opens the day, where they are written out.
+**Where a cell is too narrow for words it stops using them, and the day is listed under the
+month instead.** Seven columns of a phone are about fifty pixels each, which is not a width a title
+or even a time can finish in, so there an entry is drawn as a bar in its calendar's colour — how
+many, and which calendars, at a glance — and the grid shrinks to make room for a list of one day
+underneath, written out the way the agenda writes it. It starts on today; **tapping any day, bars
+included, lists that day instead**. The list has its own **+**, which opens a new event on that day,
+and the toolbar's **New event** adds to that day too.
 
 The agenda groups its entries under a heading per day, which stays at the top of the list while that
 day's events are on screen. The start and end time — or **All day** — sit in a lane of their own down
@@ -127,15 +142,19 @@ Month and Agenda have no time axis in either shape. A month cell is a couple of 
 and has no room to say where in the day anything is; an agenda's whole value is that it skips the
 empty time, which is exactly the axis a grid would draw.
 
+**The red current-time line moves with the clock**, once a minute, and when the date changes the
+view draws itself again — the line, the tint on today and the circle on today's date in the month
+all move to the new day — so a calendar left open beside the mail stays true.
+
 **The grid is drawn on your clock.** The hours down the side, where the red current-time line sits,
 and the time a new event is proposed at when you double-click empty space all follow the timezone in
-**Settings → General**. That is the same zone every other timestamp in the app is read against.
-Where a calendar carries a time zone of its own it wins for the events on it, as it always has; what
-changed is the fallback, which used to be the container's own idea of the time — UTC — so the
-current-time line could sit an hour or two away from the labels beside it and a new event was
-proposed at a slot already in the past. A calendar you subscribe to from Google or a CalDAV server
-is the exception: its zone is the one the remote account holds for it, often UTC for a shared
-calendar, so when such a calendar is your default the grid still follows your own zone.
+**Settings → General**. That is the same zone every other timestamp in the app is read against,
+and the header clock, so the two always agree. Every event shows at the moment it actually happens
+for you: a 15:00 meeting in a Tokyo calendar, read in Berlin, is on the 07:00 line. Change your
+timezone and the calendar moves with it. Until plMail 0.4.0 the grid followed your default
+calendar's own zone instead, which was a copy of yours from the day that calendar was made, so after
+a change of timezone the calendar and the clock disagreed
+([#343](https://github.com/karatektus/pl_mail/issues/343)).
 
 Three things about the grid are worth knowing:
 
@@ -162,7 +181,10 @@ toolbar and is a single full-width column.
 **New event** in the toolbar, the **+** on a day heading, or clicking an existing event, all open the
 same editor. It is a modal over whatever page you were on — the calendar page, or a mail view with
 the calendar docked beside it — and saving puts you back there rather than dragging you to the
-calendar.
+calendar. On a phone it is the whole screen, as the compose window is.
+
+A **+** on a day opens the editor on that day at the next full hour. A day that has already gone keeps
+its date: a meeting written down after it happened lands on the day it happened, not on today.
 
 The fields are **Title**, **Starts**, **Ends**, **All day**, **Calendars**, **Repeat**, **Location**,
 **Description** and **Reminders**, with **Apply to** appearing when the event repeats. An event
@@ -277,7 +299,12 @@ every writable copy moves.
 
 **Settings → Calendars** is where calendars are created, renamed, recoloured, given a time zone,
 hidden from the views, and nominated as the one new events land on. A calendar's time zone is the
-one it is read in, and the one an event carrying no zone of its own is shown in.
+one a new event on it is written in; it does not change where events are shown, which is always on
+your own clock. It starts as **Follow plMail**, which means your own timezone whatever it is at the
+moment, and the list says *Follows plMail* for such a calendar. Pick a zone instead for a calendar
+that belongs somewhere else, such as one for an office in another country: a slot you double-click
+then opens at the same moment written in that zone. A calendar you subscribe to from Google or a
+CalDAV server keeps the zone the remote account holds for it.
 
 plMail creates two kinds of calendar for you: one default calendar per user, and one per mail
 account, which is where events found in that account's mail are filed. Neither can be deleted —

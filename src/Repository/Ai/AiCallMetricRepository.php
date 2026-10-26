@@ -155,6 +155,9 @@ final readonly class AiCallMetricRepository
      * `thread_summary` belongs inside the predicate and the shorthand does not
      * survive it.
      *
+     * `contact_help` joined them for the same reason: somebody pressed a
+     * button on a contact and is watching it think.
+     *
      * The index `idx_ai_call_metric_feature_created` serves an IN() exactly as
      * it serves an equality, so this costs nothing.
      *
@@ -172,7 +175,7 @@ final readonly class AiCallMetricRepository
         $sql = <<<'SQL'
             SELECT MAX(created_at)
               FROM ai_call_metric
-             WHERE feature IN ('writing_help', 'thread_summary')
+             WHERE feature IN ('writing_help', 'thread_summary', 'contact_help')
                AND created_at >= :since
         SQL;
 

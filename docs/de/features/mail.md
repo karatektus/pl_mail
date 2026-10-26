@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:1aee1ecf391427b1e6c35fd4f36b0f59ba68da1e -->
+<!-- translated-from: features/mail.md sha1:a67ea8b53805ea77511626f8e972c1c383eca7fe -->
 
 # Mail
 
@@ -30,6 +30,19 @@ Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürf
 hat unter **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus
 der Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** und
 **Alle E-Mails** beginnen ausgeschaltet.
+
+**Zurückgestellt**, **Archiv**, **Spam** und **Papierkorb** warten hinter einer Zeile **Mehr**, und
+unter **Einstellungen → Allgemein → Seitenleiste** legst du fest, welche Zeilen das sind: Haken
+setzen, und der Ordner rutscht hinter „Mehr“; Haken entfernen, und er kommt zurück in die
+Seitenleiste selbst. Der **Posteingang** bleibt immer oben, ebenso **Alle E-Mails**, das nicht zur
+Wahl steht. Die übrigen Zeilen behalten auf beiden Seiten die Reihenfolge der Seitenleiste, und ohne
+einen einzigen Haken gibt es gar kein „Mehr“. Das bestimmt, wo eine Zeile steht, nie, ob es sie gibt
+— das Auge unter Einstellungen → Labels schaltet sie weiterhin ganz aus, und **Ungelesen** und
+**Spam** warten weiterhin darauf, dass ihr Label eingeschaltet ist, **Zurückgestellt** darauf, dass
+etwas zurückgestellt ist, egal wohin du sie legst. „Mehr“ ist aufgeklappt, sobald du dich auf einer
+Seite darin befindest. Die Wahl wird an dein Konto gebunden, steckt in einer Konfigurationssicherung
+und zeigt sich nur in der vollen Seitenleiste: Die schmale Symbolleiste hat kein „Mehr“, ein
+dahinter versteckter Ordner fehlt dort also.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
@@ -333,11 +346,24 @@ Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **A
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
 
+Mail im Spam ergibt keine Karten, auch nicht Mail, die du später dorthin verschiebst: Ihre Karten
+verschwinden aus dem Panel und aus der Leiste über der Mailliste, und eine Spam-Konversation zeigt
+keine über ihren Nachrichten — eine gefälschte Versandbenachrichtigung ist genau das, was Spam
+nachahmt. **Kein Spam** (oder das Verschieben in den Posteingang) holt sie zurück. Der Papierkorb ist
+etwas anderes: Wer eine Versandbestätigung löscht, hält das Paket nicht auf, also bleiben ihre Karten.
+
 Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt eine Bestellnummer und
 einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
-landet auf demselben Tag wie beim ersten Mal.
+landet auf demselben Tag wie beim ersten Mal. "Heute" ist der Tag, der in deinem Kalender stand, als
+die Mail ankam, in der Zeitzone aus **Einstellungen → Allgemein** (oder der Vorgabe der Installation, wenn du
+nie eine gewählt hast). Eine Mail, die früh morgens in Sydney oder abends in Los Angeles ankommt,
+landet so nicht einen Tag daneben. Gelesen werden die Amazon-Shops amazon.de, amazon.com, amazon.fr,
+amazon.co.uk, amazon.ca, amazon.com.au, amazon.in und amazon.sg, und der Button einer Karte öffnet
+den Shop, der die Mail geschickt hat. Ein Datum mit Schrägstrichen wie "23/10/2026" wird bei den
+Shops aus Ländern, die den Tag zuerst schreiben, als Tag/Monat gelesen, und nur mit Jahr; bei
+amazon.com und amazon.ca gar nicht, weil dort der Monat vorne stehen kann.
 
 Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
 DPD France, GLS France (der achtstellige Code unter "Numéro de colis") und Cainiao, und Amazon.fr
@@ -350,7 +376,11 @@ Zusteller aus dem Absendernamen, wenn der mit Chronopost oder Colissimo beginnt,
 die Überschrift **Pickup**, ohne Zusteller und ohne Sendungslink. Noch nicht gelesen werden die
 Stufen "an den Absender zurück" und "Zustellversuch gescheitert". Die Zufriedenheitsumfrage, die
 ein Zusteller nach der Zustellung schickt, wird ignoriert, damit sie eine Karte **Zugestellt**
-nicht in etwas anderes zurückverwandelt.
+nicht in etwas anderes zurückverwandelt. **Zugestellt** ist ein Paket erst, wenn die Mail sagt, dass
+es passiert ist: "will be delivered", "scheduled to be delivered" oder "when it's delivered" meinen
+eine Zustellung, die noch kommt. Und eine Nummer, die als etwas anderes beschriftet ist, etwa
+"Order number", "Reference" oder "Bestellnummer", gilt nicht als Sendungsnummer, auch wenn sie so
+aussieht.
 
 ### Die Leiste über der Mailliste
 
@@ -423,6 +453,12 @@ Antworten klappen zu einer Konversation zusammen, von alt nach neu sortiert, die
 Nachricht aufgeklappt. Jede Nachricht hat ihr eigenes Menü: **Markieren**, **Archivieren**,
 **Als ungelesen markieren**, **Diese Nachricht löschen**, **Drucken** und **Original anzeigen**.
 
+Wenn du eine Nachricht einer Konversation löschst, bleibt die Konversation, wo sie ist: Sie steht im
+Posteingang und unter ihren Labels, bis jede Nachricht darin im Papierkorb liegt. Geöffnet zeigt sie
+die gelöschte Nachricht zwischen den anderen mit dem Hinweis **Im Papierkorb** und einer abgeblendeten
+Kopfzeile, ohne **Archivieren** und **Diese Nachricht löschen**, die für Post im Papierkorb nichts
+bedeuten. Im Papierkorb selbst ist jede Nachricht gelöscht, deshalb wird dort nichts markiert.
+
 **Original anzeigen** setzt die Nachricht aus der gespeicherten Header-Zuordnung und dem
 dekodierten Text wieder zusammen — ein roher RFC-822-Blob wird nicht aufbewahrt — und stellt
 die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
@@ -432,8 +468,10 @@ die SPF-, DKIM- und DMARC-Urteile daneben, sofern der Anbieter einen
 HTML-Texte werden direkt eingebettet dargestellt und nicht in einem iframe. Vorher läuft der
 Text genau einmal, beim Import, durch einen Sanitizer: `cid:`-Verweise werden auf plMails
 eigene Anhang-Route umgeschrieben, `<style>`-Blöcke werden auf die Elemente heruntergezogen,
-für die sie galten, und Skripte, Formulare, iframes und Klassen fallen weg. Links werden
-gezwungen, außerhalb der App zu öffnen.
+für die sie galten, und Skripte, iframes und Klassen fallen weg. Ein Formular wird aufgelöst statt
+entfernt: Sein Inhalt bleibt, seine Textfelder und Auswahllisten fallen weg, und die Mail sieht so
+aus, wie ihr Absender sie für ein Mailprogramm ohne Formulare gedacht hat. Links werden gezwungen,
+außerhalb der App zu öffnen.
 
 ### Ein langes Gespräch zusammenfassen
 
@@ -521,9 +559,23 @@ solange du es nicht pro Konto einschaltest; siehe [Konten und Aliase](accounts.m
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
 Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem
-Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und die Bestätigung sagt
-klar, dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen —
-statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
+Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und der Dialog sagt klar,
+dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen — statt
+dich etwas bestätigen zu lassen, dessen Reichweite er verschwiegen hat.
+
+Ist das Label ein Ordner auf deinem Mailserver — jeder Ordner eines reinen IMAP-Kontos oder ein
+Mailordner bei Outlook —, wird der Ordner dort ebenfalls gelöscht, damit die nächste Synchronisierung
+das Label nicht zurückbringt. Ein Ordner lässt sich nicht löschen, solange Mail darin liegt; liegt
+welche darin, fragt der Dialog deshalb zuerst, wohin sie soll: **Posteingang**, **Archiv**,
+**Papierkorb** oder einer deiner anderen Ordner. Die Mail wird verschoben, der Ordner wird gelöscht,
+sobald der Server ihn leer meldet, und erst dann verschwindet das Label. Das läuft im Hintergrund und
+erscheint in der Aktivitätsanzeige, die auch sagt, auf welchen Ordner sie wartet. Liegt auf dem
+Server noch Mail, die plMail nie importiert hat, wird nichts gelöscht: Ordner und Label bleiben, und
+die Anzeige nennt den Ordner. Lehnt der Server das Löschen des Ordners ab, endet der Vorgang sofort
+mit der Begründung des Servers, und das Label bleibt. Einen Ordner, dessen Mail plMail noch
+importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt dir das. Ein Gmail-Label
+oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
+und verschiebt nichts.
 
 ### Verschieben nach
 
@@ -578,6 +630,9 @@ deren Text nur `help.wirhub.de` steht.
 `in:` nimmt `inbox`, `sent`, `drafts` (oder `draft`), `trash` (oder `deleted`, oder `bin`),
 `junk` (oder `spam`), `archive` (oder `archived`) und `snoozed`. Werte in Anführungszeichen
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
+
+Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
 
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
@@ -690,6 +745,37 @@ Knopf oben auf dem Bildschirm dreht sich, solange er läuft, und der Hinweis dre
 Berührung ist der Knopf der Ersatz: ein benannter Knopf für Tastatur und Bildschirmleser, und die
 Meldung zur Synchronisierung sagt, wann ein Lauf beginnt und endet.
 
+Auf dem Telefon lässt sich eine Zeile auch wischen. Zieh sie nach rechts, und geschieht, was die
+Richtung rechts eingestellt hat; standardmäßig wird sie als gelesen markiert, oder als ungelesen,
+wenn sie schon gelesen ist. Zieh sie nach links, und standardmäßig wird sie archiviert. Was jede Richtung
+tut, stellst du unter **Einstellungen → E-Mail → Wischgesten** ein (siehe unten). Über ein Drittel der Zeilenbreite wartet die Aktion hinter der Zeile, und Drücken führt
+sie aus. Über zwei Drittel, oder ein schneller Wisch über das erste Drittel, geschieht sie beim
+Loslassen. Ein Tippen irgendwo anders schließt eine offene Zeile, und dieses Tippen tut sonst nichts.
+Gelesen / ungelesen und Archivieren gibt es nur bei normalen Mails: nie bei einem Entwurf und nie im
+Archiv, im Papierkorb oder bei Spam. Stern gibt es bei jeder Zeile, auch bei Entwürfen. Ohne Berührung erledigen das
+Kontrollkästchen der Zeile (ihr Avatar) und die Leiste dieselbe Arbeit, **Archivieren** und **Mehr**
+für eine Auswahl eingeschlossen.
+
+Jede Richtung hat ihre eigene Einstellung unter **Einstellungen → E-Mail → Wischgesten**, je eine
+Auswahl für rechts und für links. Zur Wahl stehen Gelesen / ungelesen, Archivieren, Stern und Nichts.
+Beide Richtungen dürfen auf dasselbe gesetzt sein. Löschen gehört nicht dazu (siehe *Fallstricke*). Ein Stern ist auf der Zeile ein Schalter: Ein zweiter Wisch nimmt ihn wieder weg, wie bei Gelesen /
+ungelesen; Archivieren bietet sein **Rückgängig** an.
+
+Auf dem Telefon öffnet auch ein längeres Drücken einer Zeile ihre Aktionen. Halte eine Zeile etwa eine
+halbe Sekunde still, und von unten erscheint ein Aktionsblatt mit allem, was die Zeile anbietet:
+auswählen, als gelesen oder ungelesen markieren, archivieren, markieren, verschieben (nur eine
+Unterhaltung, nicht eine einzelne Nachricht), mit Labels versehen, auf später legen, als Spam markieren, löschen und, im Papierkorb oder im Spam, in den
+Posteingang zurückholen und, wenn du unter **Einstellungen → E-Mail → Entsorgen → Knöpfe zum sofortigen
+Löschen** eingeschaltet hast, endgültig löschen. Die Einträge sind die, die auch die eigenen Knöpfe der
+Zeile anbieten, an denselben Stellen, und jeder tut, was sein Knopf tut. **Verschieben**, **Labels** und
+**Später** öffnen ihre Auswahl über dem Blatt, wie in der Leiste. Das Blatt schließt sich bei einem
+Tippen auf die abgedunkelte Seite, mit Escape oder nach einer Aktion; die Seite dahinter reagiert,
+solange es offen ist, nicht. Eine Aktualisierung im Hintergrund lässt es in Ruhe, und eine Aktualisierung,
+die die Zeile aus der Liste nimmt, schließt es. Wo der Browser vibrieren kann (Android Chrome), gibt es
+beim Öffnen einen kurzen Impuls; iOS kennt für Webseiten keine Vibration, dort gibt es keinen. Bei
+reduzierter Bewegung erscheint das Blatt ohne Gleiten. Ohne Berührung erledigen die Knöpfe der Zeile und
+die Leiste dieselbe Arbeit.
+
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
@@ -752,6 +838,9 @@ holt die Konversation zurück und nimmt einen Filter wieder weg, den derselbe Kl
 Über einer Auswahl verschiebt der Knopf alles Ausgewählte in den Spam und bietet keinen Filter
 an: Eine Auswahl hat nicht den einen Absender. Für Mail, die schon im Spam oder im Papierkorb
 liegt, wird der Knopf nicht gezeigt.
+
+Eine geöffnete Konversation im Spam hat stattdessen einen Knopf **Kein Spam** in ihrer
+Werkzeugleiste. Er verschiebt sie zurück in den Posteingang, wie **Verschieben nach → Posteingang**.
 
 Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
@@ -848,6 +937,22 @@ zurückbringt, wie du es eingerichtet hattest.
 Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
 angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
 
+## Von wem eine Mail kommt
+
+Den Absendernamen kann jeder frei eintippen, also kann eine Mail mit **PayPal** von überall
+kommen. Was der Absender nicht wählen kann, ist seine Adresse. In einer geöffneten Mail steht sie
+deshalb so groß und so dunkel wie der Name und bricht um, statt am Ende abgeschnitten zu werden,
+denn dort steht die Domain.
+
+**Antworten gehen an …** erscheint unter dem Absender, wenn das Reply-To der Mail auf eine andere
+Organisation zeigt als ihre Absenderadresse — die Adresse, an die deine Antwort tatsächlich ginge.
+Das ist eine sachliche Zeile, keine Warnung: Newsletter und Ticketsysteme antworten ständig von
+woanders, und eine Warnung bei gewöhnlicher Mail bringt dir bei, genau die eine zu übergehen, auf
+die es ankommt. Hält plMail einen Namen tatsächlich für vorgetäuscht, sagt es das wie bisher in
+einem Banner über der Nachricht.
+
+Eine Einstellung gibt es nicht; das gilt für alle.
+
 ## Externe Bilder
 
 Bilder, die eine Mail von den Servern des Absenders lädt, bleiben blockiert, bis du sie anforderst:
@@ -856,6 +961,10 @@ hast. Die Mail sagt, wie viele sie zurückgehalten hat, und bietet zwei Wege an 
 nur für diese Mail und **Bilder von … immer anzeigen**, das sich den Absender für dein Konto merkt.
 Unter der Mail eines vertrauten Absenders steht das dann, mit **Nicht mehr anzeigen**, um es
 zurückzunehmen. Mail, die du selbst gesendet hast, zeigt ihre Bilder ohne Nachfrage.
+
+Angezeigte Bilder kommen immer über plMail, und nur über eine verschlüsselte Verbindung: Ein Bild,
+das die Mail mit `http://` verlinkt, wird mit `https://` geholt. Der seltene Server, der so nicht
+antwortet, hinterlässt ein leeres Feld.
 
 **Einstellungen → Mail → Bilder**, **Externe Bilder immer anzeigen**, schaltet die Nachfrage für
 alle Absender ab. Es ist aus, bis du es einschaltest. Absender können dann sehen, dass du ihre Mail
@@ -1058,6 +1167,9 @@ Bcc und Betreff. Bei einer Antwort änderst du die Empfängerin selten, bei eine
 immer, und genau sie fehlt einer Weiterleitung ja noch. Also steht dort das Feld und nicht eine
 Zeile, die davon erzählt.
 
+Eine Weiterleitung nimmt die Anhänge des Originals mit, schon angehängt und wie jeder andere
+entfernbar; Bilder, die zum Text gehören, bleiben im Zitat. Eine Antwort nimmt sie nicht mit.
+
 Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
 es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →
 Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
@@ -1183,19 +1295,26 @@ wird.
 
 ## Senden rückgängig machen
 
-Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein und lässt das
-Fenster genau dort, wo es ist. Der Senden-Knopf wird selbst zum Weg zurück: Er liest sich
-**Wird gesendet…** mit *zum Abbrechen klicken* darunter, und ein zweiter Klick auf denselben Knopf
-sagt das Senden ab. Mehr Abbruch gibt es nicht — keine Einblendung, keine Leiste am Fuß der
-Konversation — und es geht im schwebenden Fenster genauso wie in einer Antwort, die du direkt in
-der Konversation schreibst.
+Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein. Was das Fenster
+währenddessen tut, wählst du unter **Einstellungen → Allgemein → Verfassen → Beim Senden**:
 
-Solange das Senden läuft, ist die Nachricht selbst nicht mehr erreichbar: Das Fenster zeigt eine
-Kopie von Post, die schon weg ist, die Felder sind also eingefroren statt bearbeitbar. Läuft das
-Zeitfenster ab, schließt sich das Fenster von allein, eine Einblendung **Nachricht gesendet**
-bestätigt es, und die Nachricht nimmt ihren Platz in der Konversation ein — außer es war eine
-**Weiterleitung**: Die beginnt eine eigene Konversation und steht darum unter **Gesendet** und
-nicht unter der Mail, aus der du sie weitergeleitet hast.
+- **Schließen**, die Vorgabe. Das Fenster schließt sich, sobald der Server die Nachricht hat, und
+  eine Einblendung **Wird gesendet…** mit einem Knopf **Rückgängig** zählt den Abbruch herunter.
+  Solange der Server die Nachricht noch entgegennimmt, sagt der Senden-Knopf nur **Wird
+  gesendet…**: Er ist beschäftigt, kein zweiter Weg zurück, und ein Doppelklick kann die Mail, die
+  du gerade gesendet hast, nicht absagen.
+- **Offen lassen.** Das Fenster bleibt genau dort, wo es ist, und der Senden-Knopf wird selbst zum
+  Weg zurück: Er liest sich **Wird gesendet…** mit *zum Abbrechen klicken* darunter, und ein
+  zweiter Klick auf denselben Knopf sagt das Senden ab. Das geht im schwebenden Fenster genauso wie
+  in einer Antwort, die du direkt in der Konversation schreibst.
+
+Solange ein offen gelassenes Senden läuft, ist die Nachricht selbst nicht mehr erreichbar: Das
+Fenster zeigt eine Kopie von Post, die schon weg ist, die Felder sind also eingefroren statt
+bearbeitbar. Läuft das Zeitfenster ab, schließt sich das Fenster von allein. So oder so nimmt die
+Nachricht danach ihren Platz in der Konversation ein — außer es war eine **Weiterleitung**: Die
+beginnt eine eigene Konversation und steht darum unter **Gesendet** und nicht unter der Mail, aus
+der du sie weitergeleitet hast —, und ein Entwurf, den du aus der Liste **Entwürfe** sendest,
+verschwindet aus dieser Liste.
 
 Ein Abbruch sagt nichts. Der Entwurf, der mit allem darin zurückkommt — Empfänger, Betreff, Text,
 Anhänge —, ist die Bestätigung, und das ist in beiden Fenstern gleich.
@@ -1209,6 +1328,35 @@ Verlierst du — drückst du Rückgängig in den letzten Momenten, nachdem der A
 bereits an sich genommen hat —, wird dir das klar gesagt: *Zu spät — diese Nachricht war schon
 gesendet.* Du bekommst keine bearbeitbare Kopie von Post, die schon draußen ist. Weil das angebotene
 Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten und nicht die Regel.
+
+## Wenn das Senden scheitert
+
+Scheitert ein Senden aus einem vorübergehenden Grund, versucht plMail es von selbst noch einmal, bis
+zu **zwei Minuten** lang: bei einem Limit (Gmail und Outlook sagen, wie lange zu warten ist, und daran
+wird sich gehalten), bei einem Fehler auf der Seite des Anbieters, bei einem Mailserver, der gerade
+ausgelastet ist oder per Greylisting vertröstet, oder bei einer Verbindung, die gar nicht erst
+zustande kam. Solange es noch versucht wird, wird nichts gemeldet. Geht es durch, bestätigt der Toast
+**Nachricht gesendet** das wie immer.
+
+Ein Senden, das so nicht klappen kann, wird nicht wiederholt: ein Empfänger, den der Server nicht
+kennt, eine zu große Nachricht, ein Passwort, das der Server nicht mehr annimmt. Das wird sofort
+gemeldet.
+
+**Wenn die Antwort auf ein Senden verloren geht** — die Verbindung brach ab oder lief in eine
+Zeitüberschreitung, nachdem der Anbieter die Mail schon hatte —, ist die Mail vielleicht schon
+unterwegs. Sie wird dann nie ungeprüft noch einmal gesendet. Bei Gmail- und Outlook-Konten schaut
+plMail ein paar Sekunden später unter Gesendet nach: Ist sie da, gilt sie als gesendet; ist sie nicht
+da, wird sie noch einmal gesendet. Bei anderen Konten (SMTP) gibt es nichts, wo man nachschauen
+könnte, deshalb wird sofort gemeldet, dass sie vielleicht gesendet wurde: Schau unter **Gesendet**
+nach, bevor du sie noch einmal sendest.
+
+Scheitert ein Senden endgültig, sagt ein Toast, warum, und der Entwurf wird markiert: mit einem
+**roten Warndreieck** an seiner Zeile unter **Entwürfe**, das den Grund zeigt, wenn du darauf zeigst,
+und mit demselben Dreieck an **Entwürfe** in der Seitenleiste, solange ein Entwurf eins trägt. Das ist
+es, was zu finden bleibt, wenn niemand den Toast gesehen hat — ein geplanter Versand scheitert, ohne
+dass jemand zuschaut. Die Markierung verschwindet, wenn der Entwurf gesendet oder noch einmal
+gesendet oder gelöscht wird. Bearbeiten allein nimmt sie nicht weg, denn die Mail ist ja immer noch
+nicht raus.
 
 ## Wo du weiterliest
 
@@ -1260,6 +1408,11 @@ ohne „Neu“ zurück — das ist die Markierung, die funktioniert, und keine, 
 **Der Nur-Text-Modus lässt sich nur zurücknehmen, solange der Entwurf nicht gespeichert ist.** Die
 Warnung sagt das vor dem Umschalten. Ist der Entwurf einmal als Nur-Text abgelegt, gibt es
 nirgends mehr eine Formatierung, zu der man zurückkehren könnte.
+
+**Ein Warndreieck an einem Entwurf heißt, dass sein Senden gescheitert ist, nicht dass der Entwurf
+kaputt ist.** Öffne ihn und sende ihn noch einmal; die Markierung verschwindet, sobald der neue
+Versuch beginnt. Vorsicht nur bei *Vielleicht gesendet*: Schau erst unter Gesendet nach, sonst
+bekommt der Empfänger die Mail womöglich doppelt.
 
 **Ein geplanter Versand kann nicht näher als eine Minute liegen.** Die nächste volle Minute
 einzutippen ist genau die Zeit, die man zum Ausprobieren wählt, und sie wird abgelehnt — mit
@@ -1313,6 +1466,30 @@ Code noch geht — das kann nur die Mail, aus der er stammt.
 
 **Ziehen zum Aktualisieren gibt es nur mit dem Finger, und nur ganz oben in der Liste.** Maus,
 Trackpad und jedes Fenster ab der Tablet-Breite ziehen nie. Ein Ziehen beginnt nur, wenn die Liste
-ganz oben steht, und nicht bei offener Seitenleiste; von weiter unten scrollt dieselbe Bewegung nur.
+ganz oben steht, und nicht bei offener Seitenleiste, offener Zeile oder offenem Aktionsblatt; von weiter
+unten scrollt dieselbe Bewegung nur.
 Reduzierte Bewegung nimmt dem Hinweis das Gleiten und sonst nichts, der Auslösepunkt bleibt gleich.
+
+**Ein Wisch ist eine Fingergeste auf dem Telefon, und seine Richtungen sind echte Richtungen.** Eine
+Maus wischt nie, in keiner Breite, und ab der Tablet-Breite wischt nichts. Rechts heißt zum rechten
+Bildschirmrand, unabhängig von der Sprache, denn eine Sprache von rechts nach links wird nicht
+mitgeliefert. Wer eine ergänzt, muss entscheiden, wie sich die beiden Seiten spiegeln.
+
+**Eine Aktualisierung lässt eine Zeile, die du wischst oder offen hast, wo sie ist.** Eine solche Zeile
+behält ihren Zustand, während eine Synchronisierung oder eine Aktualisierung die Liste neu zeichnet.
+Die Änderung an dieser Zeile kommt, wenn du sie schließt. Eine Zeile, die nur gedrückt wird, oder die
+ein langes Drücken in das Aktionsblatt geöffnet hat, wird wie gewohnt neu gezeichnet. Eine
+Aktualisierung, die die Zeile entfernt, nimmt sie von der Liste und schließt das Blatt mit ihr.
+
+**Löschen ist kein Wisch.** Ein voller Zug hat kein Tippen davor, und eine Zeile im Papierkorb hat
+kein eigenes Rückgängig. Das Löschen bleibt daher bei den Knöpfen der Zeile und im Papierkorb, wo
+zuerst getippt werden muss. Auch unter **Einstellungen → E-Mail → Wischgesten** ist Löschen keine
+Wahl: Ein dafür gespeicherter Wert gilt als Standard der Richtung, sodass auch ein wiederhergestelltes
+Backup es nicht zurückbringt.
+
+**Ein längeres Drücken öffnet das Blatt, und Zeilen werden auf dem Telefon nicht gezogen.** Unterhalb des
+Tablet-Breakpunkts ist eine Unterhaltung kein natives Ziehen: Ziehen per HTML5 hat mit dem Finger nie
+funktioniert, und das Abschalten verhindert, dass iOS eine Zeile während der halben Sekunde anhebt. Mit der
+Maus lässt sich eine Zeile wie bisher ziehen. Das Blatt bietet Löschen an einer Zeile im Posteingang an, wie
+es der eigene Knopf der Zeile tut, und hat kein Rückgängig, so wie dieser Knopf.
 

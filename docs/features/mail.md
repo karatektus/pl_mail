@@ -27,6 +27,17 @@ Mail**, **Trash**, and **Spam** where an account has a junk folder — has an ey
 Labels**: switch one off and its row leaves the sidebar, switch it back on and it returns, both
 straight away. **Unread** and **All Mail** are the ones that start off.
 
+**Snoozed**, **Archive**, **Spam** and **Trash** wait behind a **More** row, and **Settings → General →
+Sidebar** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
+comes back to the sidebar proper. The **Inbox** always stays on top, and so does **All Mail**, which
+is not offered. The other rows keep the sidebar's own order whichever side of More they are on, and
+with nothing ticked there is no More at all. This decides where a row sits, never whether it exists —
+the eye in Settings → Labels still switches one off altogether, and **Unread** and **Spam** still
+wait for their label to be on and **Snoozed** for something to be snoozed, wherever you put them.
+More comes back open when you are on a page inside it. The choice is remembered against your
+account, is kept in a configuration backup, and shows only in the full sidebar: the narrow icon rail
+has no More, so a folder tucked behind it is not in the rail.
+
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is
@@ -299,11 +310,23 @@ card. Dated ones queue
 up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
 something also shows its cards in a **Found in this conversation** strip above the messages.
 
+Mail in Spam yields no cards, and neither does mail you move there later: its cards leave the panel
+and the strip above the mail list, and a spam conversation shows none above its messages, because a
+fake delivery notice is exactly what spam imitates. **Not spam** (or moving it to the inbox) brings
+them back. The bin is different: deleting a shipping confirmation does not stop the parcel, so its
+cards stay.
+
 A shop that never names a carrier still yields a parcel. Amazon states an order number and a link
 into its own tracker and no tracking number anywhere, so that is what the card carries — and a
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
-it always did.
+it always did. "Today" is the day it was on your calendar when the mail came in, in the timezone
+from **Settings → General** (or the install's default if you never picked one), so a mail that arrives
+early in the morning in Sydney or in the evening in Los Angeles is not put a day off. The Amazon
+shops read are amazon.de, amazon.com, amazon.fr, amazon.co.uk, amazon.ca, amazon.com.au, amazon.in
+and amazon.sg, and a card's button opens the shop that sent the mail. A date written with slashes,
+such as "23/10/2026", is read day first from the shops of countries that write it that way, and only
+with the year; from amazon.com and amazon.ca it is not read at all, because the month may come first.
 
 The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France,
 GLS France (the eight-character code under "Numéro de colis") and Cainiao, with Amazon.fr treated
@@ -315,7 +338,10 @@ carriers, so its address names none of them: a card takes its carrier from the s
 that starts with Chronopost or Colissimo, and is headed **Pickup** with no carrier and no tracking
 link otherwise. Not read yet: the "returned to sender" and "delivery attempt failed" stages. The
 satisfaction survey a carrier sends after delivery is ignored, so it cannot turn a **Delivered**
-card back into something else.
+card back into something else. A parcel is only **Delivered** when the mail says it happened: "will
+be delivered", "scheduled to be delivered" or "when it's delivered" are about a delivery still to
+come. And a number labelled as something else, such as "Order number", "Reference" or
+"Bestellnummer", is not taken for a tracking number even when it has the same shape.
 
 ### The strip above the mail list
 
@@ -382,14 +408,22 @@ Replies collapse into one conversation, ordered oldest to newest with the latest
 expanded. Each message has its own menu: **Star**, **Archive**, **Mark as unread**,
 **Delete this message**, **Print**, and **Show original**.
 
+Deleting one message of a conversation leaves the conversation where it is: it stays in the inbox
+and under its labels until every message of it is in the bin. Opened, it shows the deleted message
+among the others with an **In Trash** chip and a dimmed header, and without **Archive** and
+**Delete this message**, which mean nothing for mail that is already in the bin. In Trash itself
+every message is deleted, so nothing is marked there.
+
 **Show original** reconstructs the message from the stored header map and the decoded body — no
 raw RFC 822 blob is kept — and prints the SPF, DKIM and DMARC verdicts alongside it where the
 provider recorded an `Authentication-Results` header. Both it and **Print** open in their own tab.
 
 HTML bodies are rendered inline rather than in an iframe. Before that happens the body is put
 through a sanitiser once, at ingest: `cid:` references are rewritten to plMail's own attachment
-route, `<style>` blocks are flattened onto the elements they applied to, and scripts, forms,
-iframes and classes are dropped. Links are forced to open away from the app.
+route, `<style>` blocks are flattened onto the elements they applied to, and scripts, iframes and
+classes are dropped. A form is taken apart rather than dropped: what is in it stays, its text
+fields and menus go, and the mail looks the way its sender meant it to in a mail program without
+forms. Links are forced to open away from the app.
 
 ### Summarising a long conversation
 
@@ -470,9 +504,21 @@ off unless you switch it on per account; see [Accounts and aliases](accounts.md)
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
-as well as from **Settings → Labels**, and the confirmation says plainly that the label goes from
-every account and how many nested labels are going with it — rather than asking you to agree to
-something whose reach it has not mentioned.
+as well as from **Settings → Labels**, and the dialog says plainly that the label goes from every
+account and how many nested labels are going with it — rather than asking you to agree to something
+whose reach it has not mentioned.
+
+When the label is a folder on your mail server — any folder on a plain IMAP account, or a mail
+folder on Outlook — the folder is deleted there as well, so the next sync does not bring the label
+back. A folder cannot be deleted with mail still in it, so if there is any, the dialog asks where it
+goes first: **Inbox**, **Archive**, **Trash**, or one of your other folders. The mail is moved, the
+folder is deleted once the server says it is empty, and only then does the label go. This runs in
+the background and shows in the activity indicator, which says which folder it is waiting for. If
+the server still holds mail plMail never imported, nothing is deleted: the folder and the label stay,
+and the indicator says which folder it was. If the server refuses to delete the folder, the job stops
+at once with the server's reason, and the label stays. A folder whose mail plMail is still importing
+cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
+and moves nothing.
 
 ### Move to
 
@@ -525,6 +571,9 @@ whose body only ever says `help.wirhub.de`.
 `in:` accepts `inbox`, `sent`, `drafts` (or `draft`), `trash` (or `deleted`, or `bin`), `junk` (or
 `spam`), `archive` (or `archived`) and `snoozed`. Quoted values are kept together, so
 `from:"Ada Lovelace"` works.
+
+Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
+as the lists do. The suggestions as you type leave both out.
 
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview
@@ -625,6 +674,34 @@ On a phone the same sync is a pull: drag the list down from its top, past the in
 the indicator spins with it. Without touch, the sync button is the equivalent: it is a named button
 for a keyboard or a screen reader, and the sync toast says when the run starts and when it ends.
 
+On a phone a row swipes too. Drag it to the right and it does what the right direction is set to; by
+default that marks it read, or unread if it already is. Drag it to the left and, by default, it is
+archived. What each direction does is set under **Settings → Mail → Swipe actions**, below. Past a third of
+the row's width the action waits behind the row, and pressing it does the thing. Past two thirds, or a
+quick flick past the first third, it happens as you let go. Touching anything else closes an open row,
+and that touch does nothing more. Read / unread and archive are offered only on ordinary mail: never on
+a draft, and never in the archive, the bin or spam. Star is offered on every row, drafts included. Without touch, the row's checkbox (its avatar) and
+the toolbar do the same work, **Archive** and **More** on a selection included.
+
+Each direction has its own setting under **Settings → Mail → Swipe actions**, a select for right and one
+for left. The choices are read / unread, archive, star, and nothing. Both directions may be set to the
+same choice. Trash is not one of them (see *Things that bite*). A star is a toggle on the row, so a
+second swipe takes it off again, as it does for read / unread; archive offers its **Undo**.
+
+On a phone, pressing and holding a row also opens its actions. Hold a row still for about half a second
+and an action sheet rises from the bottom of the screen with every action the row offers: select it,
+mark it read or unread, archive it, star it, move it (a conversation, not a single message), label it,
+snooze it, mark it as spam, delete it,
+and, in the bin or in spam, move it back to the inbox and, if you have switched on **Settings → Mail →
+Disposal → Delete-now buttons**, delete it for good. The entries are the ones the row's own buttons
+offer, in the same places, and each does what that button does. **Move to**, **Label as** and **Snooze**
+open their pickers over the sheet, as they do on the toolbar. The sheet closes on a tap on the dimmed
+page, on Escape, or after an action, and the page behind it does not respond while it is open. A
+background refresh leaves it alone, and a refresh that takes the row out of the list closes it. Where
+the browser can vibrate (Android Chrome), opening the sheet gives a short buzz; iOS has no vibration for
+web pages, so there is none there. Reduced motion makes the sheet appear without its slide. Without
+touch, the row's own buttons and the toolbar do the same work.
+
 ### Keyboard shortcuts
 
 The single keys Gmail uses work here too. Press **?** anywhere for the full list, or the
@@ -682,6 +759,9 @@ conversation back and takes away a filter the same click created.
 
 Above a selection the button moves everything selected to Spam and offers no filter: a selection
 has no one sender. The button is not shown for mail that is already in Spam or in the bin.
+
+An open conversation in Spam has a **Not spam** button in its toolbar instead. It moves the
+conversation back to the inbox, the same as **Move to → Inbox**.
 
 Moving mail to spam tells plMail nothing about the next message. plMail has no spam filter of its
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter
@@ -769,6 +849,20 @@ you had it.
 together. A key still goes to the selection first: `e` with two rows ticked archives those two and
 leaves the conversation you are reading open.
 
+## Who a message is from
+
+A sender's name is whatever they typed, so a mail signed **PayPal** can come from anywhere. The
+part they cannot choose is their address, so an open message prints it as large and as dark as
+the name, and wraps it rather than cutting it off at the end, which is where the domain is.
+
+**Replies go to …** appears under the sender when the message's Reply-To points at a different
+organisation than its From address — the address your answer would actually go to. It is a line
+of fact, not a warning: newsletters and ticket systems answer from somewhere else all the time, and
+a warning on ordinary mail teaches you to ignore the one that matters. When plMail does think a
+name is pretending to be somebody else, it says so in a banner above the message, as before.
+
+There is no setting; this is on for everybody.
+
 ## Remote images
 
 Pictures that a message loads from the sender's servers are blocked until you ask for them: a
@@ -777,6 +871,10 @@ says how many it held back, with two ways to show them — **Show images** for t
 **Always show images from** the sender, which remembers that sender for your account. A trusted
 sender's messages say so under the body, with **Stop showing** to take it back. Mail you sent
 yourself shows its pictures without asking.
+
+Shown pictures always come through plMail, and only over an encrypted connection: a picture the
+mail links as `http://` is fetched as `https://`. The rare host that cannot answer that way leaves
+an empty box.
 
 **Settings → Mail → Images**, **Always show remote images**, turns the question off for every
 sender. It is off until you turn it on. Senders can then tell that you opened their mail, but not
@@ -959,6 +1057,9 @@ From, Cc, Bcc and the subject folded away behind the chevron beside it. Replying
 retargeting — but forwarding always does, and the recipient is the one thing a forward is missing,
 so the field is the first thing under the caret rather than a line of text describing it.
 
+A forward carries the original's attachments with it, already attached and removable like any
+other; pictures that are part of the body stay in the quote. A reply does not carry them.
+
 A forward opens with the original folded behind the **show quoted text** pill. If you would rather
 see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
 the default, and either way the quote counts as the message's content: sending a forward without a
@@ -1072,17 +1173,24 @@ sent before anything is attached to anything.
 
 ## Undo send
 
-Pressing send queues the message with a **ten-second** delay and leaves the composer exactly where
-it is. The Send button becomes the way back: it reads **Sending…** with *click to cancel* under it,
-and a second click on that same button calls the send off. That is the only cancel there is — no
-toast, no bar at the foot of the thread — and it works the same in the floating composer and in a
-reply written inside a conversation.
+Pressing send queues the message with a **ten-second** delay. What the composer does meanwhile is
+yours to choose, under **Settings → General → Composing → When you press Send**:
 
-While the send is out the message itself is out of reach: the window is showing a copy of mail that
-has left, so the fields are frozen rather than editable. When the window expires the composer closes
-on its own, a **Message sent** toast confirms it, and the message takes its place in the
-conversation — unless it was a **forward**, which starts a conversation of its own and is therefore
-found in **Sent** rather than under the mail it was forwarded from.
+- **Close it**, the default. The composer closes as soon as the server has the message, and a
+  **Sending…** toast with an **Undo** button counts the cancel down. While the server is still
+  taking the message the Send button only says **Sending…**: it is busy, not a second way back, so
+  a double click cannot call off the mail you just sent.
+- **Keep it open.** The composer stays exactly where it is, and the Send button becomes the way
+  back: it reads **Sending…** with *click to cancel* under it, and a second click on that same
+  button calls the send off. That works the same in the floating composer and in a reply written
+  inside a conversation.
+
+While a kept-open send is out the message itself is out of reach: the window is showing a copy of
+mail that has left, so the fields are frozen rather than editable. When the window expires the
+composer closes on its own. Either way the message then takes its place in the conversation — unless
+it was a **forward**, which starts a conversation of its own and is therefore found in **Sent**
+rather than under the mail it was forwarded from — and a draft sent from the **Drafts** list leaves
+that list.
 
 Cancelling says nothing. The draft coming back with everything in it — recipients, subject, body,
 attachments — is the confirmation, and it is the same in both composers.
@@ -1096,6 +1204,28 @@ Lose — press Undo in the last moments, after the job has already claimed the m
 told so plainly: *Too late — that message had already been sent.* You are not handed an editable copy
 of mail that has gone out. Because the window offered is eight seconds against a ten-second hold,
 losing is rare rather than routine.
+
+## When a send fails
+
+A send that fails for a passing reason is tried again on its own, for up to **two minutes**: a rate
+limit (Gmail and Outlook say how long to wait, and that wait is kept), the provider failing on its
+side, a mail server that is busy or greylisting, or a connection that never opened. Nothing is said
+while it is being retried. If it goes through, the **Message sent** toast says so as usual.
+
+A send that cannot work is not retried: a recipient the server does not know, a message that is too
+large, a password the server no longer accepts. That is said at once.
+
+**When the answer to a send is lost** — the connection dropped or timed out after the provider had
+been handed the mail — the mail may have gone out. It is never sent again without checking. For Gmail
+and Outlook accounts plMail looks for the message in Sent a few seconds later: found, it is recorded
+as sent; not found, it is sent again. For other accounts (SMTP) there is nothing to look in, so it is
+reported straight away as possibly sent: check **Sent** before sending it again.
+
+When a send finally fails, a toast says why, and the draft is marked: a **red warning triangle** on
+its row in **Drafts**, with the reason when you point at it, and the same triangle on **Drafts** in
+the sidebar for as long as any draft has one. That is what is left to find when nobody saw the toast
+— a scheduled send fails with nobody watching. The mark goes when the draft is sent, or sent again,
+or deleted. Editing it does not lift the mark, because the mail has still not gone.
 
 ## Where to read further
 
@@ -1130,9 +1260,30 @@ included.
 
 **Pull to refresh is for a finger at the top of the list, and only there.** A mouse, a trackpad and
 any window at the tablet breakpoint or wider never pull. A pull starts only while the list is
-scrolled to its very top, and not while the sidebar is open: from further down, the same drag just
-scrolls. Reduced motion removes the indicator's slide and nothing else, so the release point is the
+scrolled to its very top, and not while the sidebar, an open row or the action sheet is up: from further
+down, the same drag just scrolls. Reduced motion removes the indicator's slide and nothing else, so the release point is the
 same.
+
+**A swipe is a finger's gesture on a phone, and its directions are physical.** A mouse never swipes,
+at any width, and nothing swipes at the tablet breakpoint or wider. Right means towards the right
+edge of the screen whatever the language, because no right-to-left locale ships. A reader who adds
+one has to decide how the two sides mirror.
+
+**A refresh leaves a row you are swiping, or have open, where it is.** Such a row keeps its state while
+a sync or an update redraws the list, and the change to that row arrives when you close it. A row that
+is only pressed, or that a long press has opened into the action sheet, is redrawn as usual. A refresh
+that removes the row takes it off the list, and closes the sheet with it.
+
+**Trash is not a swipe.** A full drag has no tap in front of it, and a trashed row has no undo of its
+own, so deleting stays with the row's buttons and the bin, where a tap comes first. Trash is not one of
+the **Settings → Mail → Swipe actions** choices either: a value stored for it reads as that direction's
+default, so a restored backup cannot bring it back.
+
+**A long press opens the sheet, and a phone's rows are not dragged.** Below the tablet breakpoint a
+thread row is not a native drag: HTML5 drag never worked from a finger, and turning it off keeps iOS
+from lifting a row during the half-second hold. A mouse still drags a row as before. The sheet offers
+trash on a row in the inbox, where the row's own trash button does, and it has no Undo, as that button
+has none.
 
 **A signature image has to be small to travel with the mail.** A picture in a *signature* is stored
 inside it and sent as an inline part, up to 256 KB each and 768 KB per signature; see
@@ -1151,6 +1302,10 @@ marker working, not a marker that failed to appear.
 **Plain-text mode is only reversible until the draft is saved.** The warning says so before the
 switch. Once the draft has been stored as plain text there is no formatting left anywhere to come
 back to.
+
+**A warning triangle on a draft means its send failed, not that the draft is broken.** Open it and
+send it again; the mark goes as soon as the new attempt starts. *May have been sent* is the one to
+take care with: look in Sent first, or the recipient may get it twice.
 
 **A scheduled send cannot be closer than a minute away.** Typing the next whole minute is exactly
 the time a person picks to try the feature, and it is refused — with a reason, in the window,

@@ -78,6 +78,30 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
     }
 
     /**
+     * The contact page's email links open the window as /compose/new?to=…;
+     * the address has to arrive in To, not only in the URL.
+     */
+    public function testALinkWithAnAddressOpensANewDraftAddressedToIt(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+        $this->account($user, 'sender@joder.dev');
+
+        $crawler = $client->request('GET', '/compose/new?to=Ada@Example.com&name=Ada%20Lovelace', server: self::DOCK_FRAME);
+
+        self::assertResponseIsSuccessful();
+
+        $selected = $crawler->filter('select[name$="[toAddresses][]"] option[selected]');
+
+        self::assertCount(1, $selected);
+        self::assertStringContainsString('ada@example.com', $selected->text(), 'lower-cased, as every address is kept');
+
+        $junk = $client->request('GET', '/compose/new?to=not-an-address', server: self::DOCK_FRAME);
+
+        self::assertCount(0, $junk->filter('select[name$="[toAddresses][]"] option[selected]'), 'a URL anybody can type addresses nobody');
+    }
+
+    /**
      * The From switch is a DOM swap, not a fetch, so the signatures have to
      * arrive with the window — keyed the way the account <select> carries them.
      */
@@ -111,7 +135,12 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         );
     }
 
-    public function testTheEncryptButtonIsDisabledAndSaysWhy(): void
+    /**
+     * The lock is a switch now (compose--encryption), and it must never start
+     * out saying a message is encrypted: it is drawn not pressed, and the
+     * browser presses it once the recipients' keys say so.
+     */
+    public function testTheEncryptSwitchIsLiveNamedAndStartsUnpressed(): void
     {
         $client = static::createClient();
         $user   = $this->boot($client);
@@ -120,17 +149,13 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $this->em->flush();
 
         $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
-        $button  = $crawler->filter('button[disabled] .fa-lock')->closest('button');
+        $button  = $crawler->filter('button[data-compose--encryption-target="encryptButton"]');
 
-        self::assertNotNull($button, 'the encrypt button is present and disabled');
-        self::assertNotSame('', (string) $button->attr('aria-label'), 'and still named');
-
-        self::assertStringContainsString(
-            'not available yet',
-            $crawler->filter('[title]')->reduce(
-                static fn ($node): bool => str_contains((string) $node->attr('title'), 'not available'),
-            )->attr('title'),
-        );
+        self::assertCount(1, $button, 'the encrypt switch is present');
+        self::assertNull($button->attr('disabled'), 'and can be pressed');
+        self::assertSame('false', $button->attr('aria-pressed'));
+        self::assertNotSame('', (string) $button->attr('aria-label'), 'and is named');
+        self::assertStringContainsString('compose--encryption#toggleEncrypt', (string) $button->attr('data-action'));
     }
 
     public function testTheMoreOptionsMenuRendersBothMappedFields(): void

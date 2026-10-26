@@ -1,0 +1,162 @@
+{#
+contacts/list.html.twig — the address book.
+
+Search (q), address-book and tag chips, a card grid, prev/next pagination.
+New / import / export actions in the header.
+
+Variables: contacts, total, q, tag, page, hasNext, tags, books (the person's
+synced address books), book ('' for all, 'local', or a book id).
+#}
+{% extends 'contacts/_layout.html.twig' %}
+{% import 'contacts/_macros.html.twig' as cm %}
+
+{% block title %}{{ 'contacts.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block contacts_content %}
+    {# Wraps rather than hides: in the docked pane (or a phone) the search
+       drops to a full-width row of its own under the title and actions, and
+       is never the thing that goes missing. Container breakpoints, so the
+       pane and the page each decide by their own width — see _layout. #}
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-2 px-4 @2xl:px-6 py-2.5 min-h-14 border-b border-line shrink-0">
+        {# The title never shrinks below its own width (no min-w-0): when the
+           row is too narrow for it and the buttons, the buttons wrap to a line
+           of their own instead of sliding under the title, which is what a
+           shrinking flex item with unshrinkable text did in the docked pane. #}
+        <nav class="flex items-center gap-1 flex-1 shrink-0 text-sm whitespace-nowrap" aria-label="{{ 'contacts.title'|trans }}">
+            <i class="fa-solid fa-address-book text-ink-faint mr-1.5" aria-hidden="true"></i>
+            <h1 class="text-base font-semibold text-ink">{{ 'contacts.title'|trans }}</h1>
+            <span class="hidden @lg:inline text-xs text-ink-faint ml-1 whitespace-nowrap">{{ 'contacts.count'|trans({'%count%': total}) }}</span>
+        </nav>
+
+        <form method="get" action="{{ path('app_contacts_list') }}" class="relative order-last w-full @2xl:order-none @2xl:w-auto" role="search">
+            {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+            {% if book %}<input type="hidden" name="book" value="{{ book }}">{% endif %}
+            <span class="sr-only">{{ 'contacts.search'|trans }}</span>
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint pointer-events-none" aria-hidden="true"></i>
+            <input type="search" name="q" value="{{ q }}"
+                   placeholder="{{ 'contacts.search_placeholder'|trans }}"
+                   class="h-8 w-full @2xl:w-44 @4xl:w-56 rounded-lg border border-field bg-field pl-7 pr-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        </form>
+
+        {# The actions as one group, so they wrap together and stay at the end. #}
+        <div class="flex items-center gap-2 ml-auto shrink-0">
+        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}" title="{{ 'contacts.import'|trans }}" aria-label="{{ 'contacts.import'|trans }}">
+            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i><span class="hidden @3xl:inline">{{ 'contacts.import'|trans }}</span>
+        </a>
+        {# A download, not a page: Turbo would fetch it into the pane's
+           frame and find no frame in it. #}
+        <a href="{{ path('app_contacts_export_vcf') }}" data-turbo="false" class="{{ iconBtn }}" title="{{ 'contacts.export_vcf'|trans }}">
+            <i class="fa-solid fa-file-export text-sm" aria-hidden="true"></i>
+        </a>
+        <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}" title="{{ 'contacts.new'|trans }}">
+            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i><span class="hidden @md:inline">{{ 'contacts.new'|trans }}</span>
+        </a>
+        {% include 'contacts/_pane_actions.html.twig' %}
+        </div>
+    </div>
+
+    {% set chipOn = 'bg-accent-soft text-accent border-accent' %}
+    {% set chipOff = 'text-ink-muted border-line hover:bg-hover' %}
+    {% set chipCls = 'shrink-0 h-7 px-2.5 inline-flex items-center gap-1.5 rounded-full text-xs font-medium border transition-colors' %}
+    {% if books is not empty or tags is not empty %}
+        <div class="flex items-center gap-1.5 px-4 @2xl:px-6 py-2 border-b border-line shrink-0 overflow-x-auto">
+            {# Where the contacts live: everywhere, plMail's own, or one synced
+               book. Only shown once there is a synced book to tell apart. #}
+            {% if books is not empty %}
+                <a href="{{ path('app_contacts_list', { q: q, tag: tag }) }}" class="{{ chipCls }} {{ book == '' ? chipOn : chipOff }}" data-book-chip="">
+                    {{ 'contacts.book_all'|trans }}
+                </a>
+                <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: 'local' }) }}" class="{{ chipCls }} {{ book == 'local' ? chipOn : chipOff }}" data-book-chip="local">
+                    <i class="fa-solid fa-address-book text-[10px]" aria-hidden="true"></i>{{ 'contacts.book_local'|trans }}
+                </a>
+                {% for b in books %}
+                    <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: b.id }) }}" class="{{ chipCls }} {{ book == (b.id ~ '') ? chipOn : chipOff }}" data-book-chip="{{ b.id }}">
+                        <i class="fa-solid {{ b.isReadOnly ? 'fa-lock' : 'fa-cloud' }} text-[10px]" aria-hidden="true"></i>{{ b.name }}
+                    </a>
+                {% endfor %}
+                {% if tags is not empty %}<span class="shrink-0 w-px h-5 bg-line mx-1" aria-hidden="true"></span>{% endif %}
+            {% endif %}
+            {% if tags is not empty %}
+                <a href="{{ path('app_contacts_list', { q: q, book: book }) }}" class="{{ chipCls }} {{ tag == '' ? chipOn : chipOff }}">
+                    {{ 'contacts.tag_all'|trans }}
+                </a>
+                {% for t in tags %}
+                    <a href="{{ path('app_contacts_list', { q: q, tag: t, book: book }) }}" class="{{ chipCls }} {{ tag == t ? chipOn : chipOff }}">
+                        {{ t }}
+                    </a>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="flex-1 overflow-y-auto p-4 @2xl:p-6">
+        {% if contacts is empty %}
+            <div class="h-full flex flex-col items-center justify-center gap-3 text-center py-16">
+                <i class="fa-solid fa-address-book text-4xl text-ink-faint" aria-hidden="true"></i>
+                <p class="text-sm text-ink-muted max-w-sm">
+                    {{ q or tag or book ? 'contacts.empty_search'|trans : 'contacts.empty'|trans }}
+                </p>
+                {% if not (q or tag or book) %}
+                    <div class="flex items-center gap-2">
+                        <a href="{{ path('app_contacts_new') }}" class="{{ btnPrimary }}">
+                            <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>{{ 'contacts.new'|trans }}
+                        </a>
+                        <a href="{{ path('app_contacts_import') }}" class="{{ btnGhost }}">
+                            <i class="fa-solid fa-file-import text-xs" aria-hidden="true"></i>{{ 'contacts.import'|trans }}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-3">
+                {% for contact in contacts %}
+                    <a href="{{ path('app_contacts_show', { id: contact.id }) }}" data-contact-card="{{ contact.id }}"
+                       class="flex items-center gap-3 rounded-pane border border-line bg-surface p-3.5 hover:bg-hover transition-colors min-w-0">
+                        {{ cm.avatar(contact, 'w-11 h-11 text-lg') }}
+                        <span class="flex-1 min-w-0">
+                            <span class="block truncate text-sm font-semibold text-ink">{{ contact.displayName }}</span>
+                            {% if contact.company or contact.jobTitle %}
+                                <span class="block truncate text-xs text-ink-muted">
+                                    {{- [contact.jobTitle, contact.company]|filter(v => v)|join(' · ') -}}
+                                </span>
+                            {% endif %}
+                            {% set _primary = contact.emails|filter(e => e.isPrimary)|first %}
+                            {% if _primary is empty and contact.emails is not empty %}
+                                {% set _primary = contact.emails|first %}
+                            {% endif %}
+                            {% if _primary %}
+                                <span class="block truncate text-xs text-ink-faint">{{ _primary.email }}</span>
+                            {% endif %}
+                        </span>
+                        {# Synced: a cloud, a lock for a read-only book, and a
+                           clock while an edit made here waits for the worker
+                           to send it (see docs/providers/carddav.md). #}
+                        {% if contact.addressBook %}
+                            {% set _pending = contact.syncState.isPending %}
+                            <i class="fa-solid {{ _pending ? 'fa-clock' : (contact.addressBook.isReadOnly ? 'fa-lock' : 'fa-cloud') }} text-[10px] text-ink-faint shrink-0"
+                               title="{{ _pending ? 'contacts.pending'|trans : contact.addressBook.name }}"
+                               aria-label="{{ _pending ? 'contacts.pending'|trans : contact.addressBook.name }}"></i>
+                        {% endif %}
+                        <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint shrink-0" aria-hidden="true"></i>
+                    </a>
+                {% endfor %}
+            </div>
+
+            {% if page > 1 or hasNext %}
+                <div class="flex items-center justify-center gap-2 mt-6">
+                    {% if page > 1 %}
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: book, page: page - 1 }) }}" class="{{ btnGhost }}">
+                            <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>{{ 'contacts.prev'|trans }}
+                        </a>
+                    {% endif %}
+                    <span class="text-xs text-ink-faint">{{ 'contacts.page'|trans({'%page%': page}) }}</span>
+                    {% if hasNext %}
+                        <a href="{{ path('app_contacts_list', { q: q, tag: tag, book: book, page: page + 1 }) }}" class="{{ btnGhost }}">
+                            {{ 'contacts.next'|trans }}<i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock %}

@@ -159,4 +159,98 @@ test.describe("send closes the composer and puts the undo in a toast", () => {
         await expect(page.locator('[id^="thread_message_"]').filter({ hasText: "Inline optimistic body" }))
             .toHaveCount(1, { timeout: 10_000 });
     });
+
+    /**
+     * Until the server answers, the pill is busy and nothing else (#302).
+     *
+     * It used to read "Sending… click to cancel" here as well, and a second
+     * press — a double click, or somebody who thought the first did nothing —
+     * called off the mail they had just sent. The toast's Undo is the cancel
+     * in this mode, so the answer is held back to keep the pill on screen long
+     * enough to press it.
+     */
+    test("the pill is busy, not a cancel, while the send is on its way", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const window_ = page.locator(`${DOCK} .compose-window`);
+        await expect(window_).toBeVisible();
+
+        await window_.locator('input[type="text"], input[type="email"]').first()
+            .fill("optimistic@example.test");
+        await window_.locator('input[name*="[subject]"]').first().fill("E2E Busy Pill");
+        await window_.locator('[data-compose--compose-toolbar-target="editor"]').first()
+            .fill("Body");
+
+        let release: () => void = () => {};
+        const held = new Promise<void>((resolve) => { release = resolve; });
+        await page.route(/\/compose\/send/, async (route) => {
+            await held;
+            await route.continue();
+        });
+
+        const undos: string[] = [];
+        page.on("request", (request) => {
+            if (/\/compose\/undo\//.test(request.url())) {
+                undos.push(request.url());
+            }
+        });
+
+        const send = window_.locator('[data-compose--compose-target="sendBtn"]:visible').first();
+        await send.click();
+
+        await expect(send).toContainText("Sending");
+        await expect(send.locator('[data-compose--compose-target="sendCancelHint"]')).toBeHidden();
+        await expect(send).toBeDisabled();
+
+        await send.click({ force: true });
+
+        release();
+        await expect(window_).toHaveCount(0, { timeout: 5_000 });
+        await expect(page.locator(TOAST).getByRole("button", { name: "Undo" })).toBeVisible();
+        expect(undos, "the second press called the send off").toEqual([]);
+    });
+
+    /**
+     * A draft sent from the Drafts list leaves that list (#310), as a discarded
+     * one always did. It stayed until the next reload.
+     */
+    test("a draft sent from the Drafts list leaves the list", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+
+        const window_ = page.locator(`${DOCK} .compose-window`);
+        await expect(window_).toBeVisible();
+
+        const saved = page.waitForResponse(
+            (r) => /\/compose\/draft/.test(r.url()) && r.request().method() === "POST",
+        );
+        // Committed as a chip, so the saved draft has its recipient.
+        const to = window_.locator('input[type="text"], input[type="email"]').first();
+        await to.fill("optimistic@example.test");
+        await to.press("Enter");
+        await window_.locator('input[name*="[subject]"]').first().fill("E2E Sent From Drafts");
+        await window_.locator('[data-compose--compose-toolbar-target="editor"]').first()
+            .fill("A draft long enough to be saved");
+        await saved;
+        await page.locator(DOCK).getByRole("button", { name: "Save draft and close" }).click();
+        await expect(window_).toHaveCount(0);
+
+        await page.getByRole("link", { name: /^Drafts/ }).first().click();
+        await expect(page).toHaveURL(/\/mail\/drafts/);
+
+        const row = page
+            .locator('#message-list li[data-controller="mail--message-row"]')
+            .filter({ hasText: "E2E Sent From Drafts" });
+        await expect(row).toHaveCount(1);
+
+        await row.first().click();
+        const reopened = page.locator(`${DOCK} .compose-window`);
+        await expect(reopened.locator('[data-compose--compose-target="subject"]')).toHaveValue("E2E Sent From Drafts");
+
+        await reopened.getByRole("button", { name: /^Send/ }).first().click();
+        await expect(reopened).toHaveCount(0, { timeout: 5_000 });
+
+        await expect(row, "the sent draft is still in the Drafts list").toHaveCount(0);
+    });
 });

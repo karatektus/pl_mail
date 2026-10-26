@@ -56,6 +56,31 @@ dark-chrome colours, so an ink-dark icon never disappears into a dark top bar. T
 the tile for every icon but the pl mark, because a drawing with nothing behind it is hard to make
 out at the size of a tab.
 
+An app installed from the browser, or plMail added to an iPhone's Home Screen, wears it too. Your
+browser draws that icon when you pick a logo, and it is kept for your account. After an update that
+changes the drawing, the first page you open draws it again in the background. An app that is
+already installed keeps its old icon until the browser refreshes it or you install it again.
+
+### A logo of your own
+
+**Upload your own…** under the icons takes an SVG file and wears it at once: in the top bar, as the
+tab icon, and as the icon of the installed app and the iPhone Home Screen. It appears as one more
+tile, **Your own**, so you can go to a motif and back without uploading it again; **Replace your
+logo** swaps the file and **Remove your logo** forgets it and puts back the motif you had.
+
+An uploaded logo is shown in its own colours. **Colour** is hidden while it is chosen, because
+plMail cannot know which parts of somebody else's drawing are its livery. It appears as drawn in
+the top bar on light and dark themes alike, so a logo with a transparent background should read on
+both. For the installed app's icon your browser draws it into the same pictures it draws for a
+motif: as it is, and centred on a white square for the shapes that cut their own corners, such as
+iOS's.
+
+The file is cleaned before it is kept: anything that could run or fetch something — scripts, links,
+embedded pictures or web pages, styles that load from the internet — is removed, and what remains
+is only the drawing. A file that is not an SVG, is larger than 256 KB, or has no size (no `viewBox`,
+and no width and height to make one from) is refused with a message saying which. The phone apps go
+on showing the motif you had before; only the web app and what it installs wear the upload.
+
 ## The live preview
 
 Beside the controls sits a second card showing a sample sidebar, message list and reading pane in
@@ -86,7 +111,7 @@ already did before these controls existed, so nothing moves until you change som
 | **Account corner** | The coloured triangle in a row's lower-left saying which account the message arrived on. On by default; it is only ever drawn in a list that mixes accounts anyway |
 | **Sender discs** | The coloured circle carrying the sender's initial — see the trap below, this one does not disappear |
 | **Unread count on inbox tabs** | The number beside each category tab's name: how many conversations in it hold unread mail. On by default. Off hides the number only; the tint on a tab's icon and the "3 new" pill stay |
-| **Preview lines** | **None**, **One line** or **Two lines** of the message body under the subject |
+| **Preview lines** | **None**, **One line** or **Two lines** of the message body. With **One line**, a list of medium width or more shows each message on one slightly tighter line, the preview following the subject, as Gmail does. On a phone, and with the other two settings until the list is very wide, the preview sits under the subject |
 | **Unread rows** | **Subtle**, **Standard** or **Strong** — how loudly the list says a row is unread |
 
 **Unread rows** changes the tint behind the row and the accent bar beside it, and nothing else. The
@@ -240,7 +265,8 @@ five glass numbers, the density and the three per-surface density overrides, the
 settings, the typeface and text scale, the background choice, the text colours and the main pane
 settings. It deliberately does
 **not** carry your uploaded background image: a filename on someone else's install means nothing, so
-a custom background exports as **Theme default**.
+a custom background exports as **Theme default**. The same goes for a logo of your own: the export
+names the motif underneath it.
 
 It does not carry the preview pane's width either. That is a preference about how this settings page
 is shaped rather than part of how the app looks, so importing somebody else's theme leaves your own
@@ -256,8 +282,9 @@ sensible.
 **Settings → General → Language** sets the language the interface is shown in. Your mail is left
 exactly as it was written — nothing is translated, and nothing is rewritten.
 
-plMail ships **English**, **Deutsch**, **Français** and **Pirate English**. Changing it reloads the page rather
-than patching it, because every string on screen has to be re-rendered.
+plMail ships **English**, **Deutsch**, **Français**, **简体中文** (Simplified Chinese) and **Pirate English**.
+Changing it reloads the page rather than patching it, because every string on screen has to be
+re-rendered.
 
 The same section carries **Time zone**, which decides the clock times and dates you are shown. It
 too rewrites nothing — the same instant is simply read on your own clock — and it can be left on the
@@ -269,8 +296,8 @@ calendar chip, the agenda, the day grid's hour axis — because a setting honour
 not in one reads as a bug rather than as an option.
 
 Its default is **Follow your language**, which is what everyone is on until they change it: German
-reads 14:30, English reads 2:30 pm. That is a real state and not a value in disguise — leave it
-there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
+and Simplified Chinese read 14:30, English reads 2:30 pm. That is a real state and not a value in
+disguise — leave it there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
 whatever the language later becomes.
 
 Below that, **Show the time** puts the current time somewhere you can see it while reading mail:

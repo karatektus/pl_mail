@@ -123,18 +123,6 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
      */
     private const int MAX_SYNC_PAGES = 20;
 
-    /**
-     * Privileges any one of which means "we may write here".
-     *
-     * write-content is the one that matters — it is what permits a PUT of an
-     * event body — but a server that grants the coarser `write` or `all`
-     * without enumerating the finer ones is not read-only, and treating it as
-     * such would silently strand every edit a user makes.
-     *
-     * @var list<string>
-     */
-    private const array WRITE_PRIVILEGES = ['write-content', 'write', 'all'];
-
     public function __construct(
         private CalDavClient         $client,
         private CalDavDiscovery      $discovery,
@@ -158,9 +146,17 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
      */
     public function supports(Provider|CalendarSource $subject): bool
     {
+        // Nextcloud as a calendar source only. A bare Provider is what the
+        // connect and test paths ask, and the Nextcloud connection is made and
+        // verified as a file service by NextcloudDriver — answering yes here
+        // would put it in the "connect a CalDAV server" form as well (#158).
         return match (true) {
             $subject instanceof Provider       => Provider::CalDav === $subject,
-            $subject instanceof CalendarSource => Provider::CalDav === $subject->integrationProvider(),
+            $subject instanceof CalendarSource => in_array(
+                $subject->integrationProvider(),
+                [Provider::CalDav, Provider::Nextcloud],
+                true,
+            ),
         };
     }
 
@@ -203,7 +199,7 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
         }
 
         $endpoint = $this->discovery->endpointFor($integration);
-        $url      = $endpoint->collection ?? (string) $endpoint->calendarHome;
+        $url      = $endpoint->collection ?? (string) $endpoint->home;
 
         // Depth 1 on a home lists its children; Depth 0 on a single pasted
         // collection asks about that collection alone. Same body, same parse.
@@ -229,7 +225,7 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
                 name:       $this->nameOf($resource, $href),
                 color:      $this->colourOf($resource),
                 timeZone:   $this->timeZoneOf($resource),
-                isReadOnly: $this->isReadOnly($resource),
+                isReadOnly: $resource->isReadOnly(),
                 // CalDAV has no notion of a primary calendar — no property says
                 // it and no server implies it — so nothing is ticked by
                 // default rather than one being guessed at.
@@ -290,7 +286,7 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
             );
         }
 
-        return new RemoteWriteResult($href, $this->etagAfterWrite($integration, $href, $response['headers']));
+        return new RemoteWriteResult($href, $this->client->etagAfterWrite($integration, $href, $response['headers']));
     }
 
     /**
@@ -697,31 +693,6 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
         return null === $raw ? null : $this->converter->timeZoneOf($raw);
     }
 
-    /**
-     * Read-only when the server enumerated our privileges and none of them
-     * permits a write.
-     *
-     * A collection whose privilege set is absent is treated as writable. The
-     * property is a SHOULD, several servers omit it, and defaulting to
-     * read-only there would make every calendar on such a server refuse edits
-     * with no way for the user to tell why — where defaulting to writable
-     * costs, at worst, a 403 on the first push, which is reported as itself.
-     */
-    private function isReadOnly(DavResource $resource): bool
-    {
-        if (false === $resource->hasProp('current-user-privilege-set')) {
-            return false;
-        }
-
-        foreach (self::WRITE_PRIVILEGES as $privilege) {
-            if (true === $resource->contains('current-user-privilege-set', $privilege)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     // ── Plumbing ──────────────────────────────────────────────────────────────
 
     /**
@@ -736,46 +707,6 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
     private function mintHref(Calendar $calendar, CalendarEvent $event): string
     {
         return sprintf('%s/%s.ics', rtrim($this->collectionOf($calendar), '/'), rawurlencode($event->uid));
-    }
-
-    /**
-     * The etag the server assigned, asking for it again when the PUT did not
-     * say.
-     *
-     * Servers are not required to answer a PUT with an ETag, and a good many do
-     * not — RFC 4791 §5.3.4 anticipates exactly this and says the client may
-     * GET the resource to learn it. Without that follow-up the local row stores
-     * a null etag, which makes the next pull treat the event as changed and
-     * write it again: correct, but a wasted write per push forever.
-     *
-     * A failure to read it back is not a failure of the push, which has already
-     * succeeded — the null is stored and the next pull repairs it.
-     *
-     * @param array<string,list<string>> $headers
-     */
-    private function etagAfterWrite(Integration $integration, string $href, array $headers): ?string
-    {
-        $etag = trim($headers['etag'][0] ?? '');
-
-        if ('' !== $etag) {
-            return $etag;
-        }
-
-        try {
-            $response = $this->client->request($integration, 'GET', $href, [], [404, 410]);
-        } catch (CalendarSyncException $e) {
-            $this->logger->info('CalDav: could not read back the etag after a write', [
-                'href'      => $href,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
-            ]);
-
-            return null;
-        }
-
-        $etag = trim($response['headers']['etag'][0] ?? '');
-
-        return '' === $etag ? null : $etag;
     }
 
     /** @throws CalendarSyncPermanentException */

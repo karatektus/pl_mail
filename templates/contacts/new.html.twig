@@ -1,0 +1,197 @@
+{#
+contacts/new.html.twig — quick add: a new contact from whatever somebody
+types or pastes.
+
+One box. As it is typed, ContactAssistController::parse() reads it — a
+signature, a `Name <address>` line, an address, a whole vCard — and the
+rows found appear below it, each with a tick to keep it, a type that changes
+with one click (a work number that is a home number, a line taken for the
+job title that is the company), and its value, editable in place. A line
+nothing could place is asked about rather than guessed. "Improve with AI",
+when contact help is on, sends the text for a second reading and marks what
+it changed; "Undo" goes back to the rules' reading.
+
+It is a form that posts to create(), with the full editor's field names —
+contacts--quick-add writes a named input for every kept row and disables the
+ones unticked, so what posts is what is ticked. "All fields" posts the same
+to the full editor instead, which opens with all of it filled in.
+
+Variables: books (the writable synced address books).
+#}
+{% extends 'contacts/_layout.html.twig' %}
+
+{% block title %}{{ 'contacts.new'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% set aiOn = ai_contact_help_enabled() %}
+
+{% set strings = {
+    kinds: {
+        email: 'contacts.editor.email'|trans, phone: 'contacts.editor.phone'|trans, address: 'contacts.editor.address'|trans,
+        url: 'contacts.editor.website'|trans, jobTitle: 'contacts.field.jobTitle'|trans, company: 'contacts.field.company'|trans,
+        department: 'contacts.field.department'|trans, notes: 'contacts.editor.note'|trans, birthday: 'contacts.field.birthday'|trans,
+        nickname: 'contacts.field.nickname'|trans,
+    },
+    labels: {
+        home: 'contacts.labels.home'|trans, work: 'contacts.labels.work'|trans, mobile: 'contacts.labels.mobile'|trans,
+        other: 'contacts.labels.other'|trans, blog: 'contacts.labels.blog'|trans, profile: 'contacts.labels.profile'|trans,
+    },
+    parts: {
+        namePrefix: 'contacts.field.namePrefix'|trans, givenName: 'contacts.field.givenName'|trans, middleName: 'contacts.field.middleName'|trans,
+        familyName: 'contacts.field.familyName'|trans, nameSuffix: 'contacts.field.nameSuffix'|trans,
+    },
+    sourceRules:   'contacts.quick.source_rules'|trans,
+    sourceVcard:   'contacts.quick.source_vcard'|trans,
+    sourceAi:      'contacts.quick.source_ai'|trans,
+    detailRules:   'contacts.quick.detail_rules'|trans,
+    detailUnsure:  'contacts.quick.detail_unsure'|trans,
+    detailVcard:   'contacts.quick.detail_vcard'|trans,
+    detailAi:      'contacts.quick.detail_ai'|trans,
+    detailAiSame:  'contacts.quick.detail_ai_same'|trans,
+    unsureOne:     'contacts.quick.unsure_one'|trans,
+    unsureMany:    'contacts.quick.unsure_many'|trans,
+    skipped:       'contacts.quick.skipped'|trans,
+    aiAsk:         'contacts.quick.ai_ask'|trans,
+    aiAskComplete: 'contacts.quick.ai_ask_complete'|trans,
+    aiUndoAsk:     'contacts.quick.ai_undo_ask'|trans,
+    aiButton:      'contacts.editor.improve'|trans,
+    aiRunning:     'contacts.quick.ai_running'|trans,
+    aiUndo:        'contacts.quick.ai_undo'|trans,
+    aiFailed:      'contacts.editor.ai_failed'|trans,
+    youPlaced:     'contacts.quick.you_placed'|trans,
+    keep:          'contacts.quick.keep'|trans,
+    summaryName:   'contacts.quick.summary_name'|trans,
+    summaryOne:    'contacts.quick.summary_one'|trans,
+    summaryMany:   'contacts.quick.summary_many'|trans,
+    summaryNone:   'contacts.quick.summary_none'|trans,
+    existing:      'contacts.quick.existing'|trans,
+    openExisting:  'contacts.quick.open_existing'|trans,
+    useAs:         'contacts.quick.use_as'|trans,
+    ignore:        'contacts.quick.ignore'|trans,
+    noName:        'contacts.quick.no_name'|trans,
+    reading:       'contacts.editor.reading'|trans,
+    fix:           'contacts.quick.fix_parts'|trans,
+    done:          'contacts.quick.done_parts'|trans,
+} %}
+
+{% block contacts_content %}
+<form method="post" action="{{ path('app_contacts_create') }}" class="flex flex-col h-full min-h-0"
+      data-controller="contacts--quick-add"
+      data-contacts--quick-add-parse-url-value="{{ path('app_contacts_parse') }}"
+      data-contacts--quick-add-parse-token-value="{{ csrf_token('contacts_parse') }}"
+      {% if aiOn %}
+          data-contacts--quick-add-ai-url-value="{{ path('app_contacts_ai_parse') }}"
+          data-contacts--quick-add-ai-token-value="{{ csrf_token('contacts_ai') }}"
+      {% endif %}
+      data-contacts--quick-add-strings-value="{{ strings|json_encode }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('contacts_create') }}">
+
+    <div class="flex items-center gap-2 px-4 @2xl:px-6 h-14 border-b border-line shrink-0">
+        <a href="{{ path('app_contacts_list') }}" class="{{ iconBtn }}" title="{{ 'contacts.cancel'|trans }}" aria-label="{{ 'contacts.cancel'|trans }}">
+            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+        </a>
+        <h1 class="text-base font-semibold text-ink flex-1 min-w-0 truncate">{{ 'contacts.new'|trans }}</h1>
+        {% include 'contacts/_pane_actions.html.twig' %}
+    </div>
+
+    <div class="flex-1 overflow-y-auto">
+        <div class="max-w-2xl mx-auto flex flex-col gap-5 p-4 @2xl:p-6">
+
+            <div class="flex flex-col gap-2">
+                <label for="quick-text" class="text-sm font-semibold text-ink">{{ 'contacts.quick.box_label'|trans }}</label>
+                <textarea id="quick-text" rows="6" class="{{ fieldCls }} h-auto py-2.5 leading-relaxed min-h-36"
+                          placeholder="{{ 'contacts.quick.box_placeholder'|trans }}"
+                          data-contacts--quick-add-target="text" data-action="input->contacts--quick-add#typed" autofocus></textarea>
+                <p class="text-xs text-ink-faint">{{ 'contacts.quick.box_hint'|trans }}</p>
+            </div>
+
+            <div class="flex flex-col gap-2.5" data-contacts--quick-add-target="result" hidden>
+                <div class="flex items-center gap-2 flex-wrap text-xs text-ink-muted">
+                    <span class="px-2 py-0.5 rounded-full font-semibold bg-sunken text-ink" data-contacts--quick-add-target="sourceBadge"></span>
+                    <span data-contacts--quick-add-target="sourceDetail"></span>
+                </div>
+
+                <div class="rounded-pane border border-line overflow-hidden">
+                    <div class="flex items-center gap-3 px-4 py-3 bg-sunken border-b border-line">
+                        <span class="w-12 h-12 text-lg rounded-full bg-accent-soft text-accent inline-flex items-center justify-center font-semibold shrink-0"
+                              aria-hidden="true" data-contacts--quick-add-target="initials">?</span>
+                        <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <input name="displayName" maxlength="255" autocomplete="off" aria-label="{{ 'contacts.display_name'|trans }}"
+                                   placeholder="{{ 'contacts.display_name'|trans }}"
+                                   class="w-full h-9 -ml-2 px-2 rounded-lg border border-transparent hover:border-line focus:border-field bg-transparent text-lg font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                   data-contacts--quick-add-target="name" data-action="input->contacts--quick-add#nameTyped">
+                            <div class="flex flex-wrap items-center gap-1 text-xs">
+                                <span class="contents" data-contacts--quick-add-target="partsSummary"></span>
+                                <button type="button" class="ml-1 text-accent font-medium hover:underline" data-action="contacts--quick-add#toggleParts"
+                                        data-contacts--quick-add-target="partsToggle" aria-expanded="false" aria-controls="quick-name-parts">{{ 'contacts.quick.fix_parts'|trans }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quick-name-parts" class="grid gap-2 grid-cols-2 @lg:grid-cols-5 px-4 py-3 border-b border-line bg-sunken" data-contacts--quick-add-target="partsPanel" hidden>
+                        {% for key in ['namePrefix', 'givenName', 'middleName', 'familyName', 'nameSuffix'] %}
+                            <label class="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+                                {{ ('contacts.field.' ~ key)|trans }}
+                                <input name="{{ key }}" maxlength="255" class="{{ fieldCls }} h-8" autocomplete="off"
+                                       data-contacts--quick-add-target="part" data-part="{{ key }}" data-action="input->contacts--quick-add#partTyped">
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <div class="flex flex-col px-3 py-1" data-contacts--quick-add-target="rows"></div>
+                </div>
+
+                <div class="rounded-pane border border-dashed border-line p-3 flex flex-col gap-2" data-contacts--quick-add-target="unsureBox" hidden>
+                    <p class="text-sm font-semibold text-ink" data-contacts--quick-add-target="unsureTitle"></p>
+                    <div class="flex flex-col gap-2" data-contacts--quick-add-target="unsureList"></div>
+                </div>
+
+                <p class="text-xs text-ink-faint" data-contacts--quick-add-target="skipped" hidden></p>
+
+                {% if aiOn %}
+                    <div class="rounded-pane border border-accent/30 bg-accent-soft px-3 py-2.5 flex items-center gap-3 flex-wrap" data-contacts--quick-add-target="aiBar">
+                        <div class="flex-1 basis-60 min-w-0 flex flex-col gap-0.5">
+                            <span class="text-sm font-semibold text-ink" data-contacts--quick-add-target="aiAsk"></span>
+                            <span class="text-xs text-ink-muted">{{ 'contacts.quick.ai_disclosure'|trans }}</span>
+                        </div>
+                        <button type="button" class="{{ btnGhost }} bg-surface text-accent disabled:opacity-60 disabled:cursor-wait" data-action="contacts--quick-add#improve"
+                                data-contacts--quick-add-target="aiButton">
+                            <i class="fa-solid fa-wand-magic-sparkles text-xs" aria-hidden="true"></i><span data-contacts--quick-add-target="aiButtonText">{{ 'contacts.editor.improve'|trans }}</span>
+                        </button>
+                    </div>
+                {% endif %}
+
+                <div class="rounded-lg bg-warning/10 px-3 py-2 text-sm text-ink flex items-center gap-2 flex-wrap" data-contacts--quick-add-target="existing" hidden></div>
+            </div>
+
+            {% if books is not empty %}
+                {% include 'contacts/_save_to.html.twig' with { books: books, book: '', fieldCls: fieldCls } only %}
+            {% endif %}
+
+            <div class="flex items-center gap-2 flex-wrap pt-4 border-t border-line">
+                <span class="basis-full @lg:basis-0 @lg:flex-1 text-sm text-ink-muted" data-contacts--quick-add-target="summary">{{ 'contacts.quick.summary_none'|trans }}</span>
+                <button type="submit" class="{{ btnGhost }} ml-auto" formaction="{{ path('app_contacts_new_full') }}" formnovalidate>
+                    {{ 'contacts.quick.all_fields'|trans }}
+                </button>
+                <button type="submit" class="{{ btnPrimary }} disabled:opacity-50 disabled:cursor-not-allowed" data-contacts--quick-add-target="create">
+                    <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>{{ 'contacts.quick.create'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <template data-contacts--quick-add-target="rowTemplate">
+        <div class="flex items-start gap-2.5 py-1.5 border-b border-line last:border-b-0" data-row>
+            <input type="checkbox" class="mt-2.5 w-4 h-4 accent-[var(--color-accent)] shrink-0" checked data-keep>
+            <select class="h-9 w-36 shrink-0 rounded-lg border border-transparent hover:border-line bg-transparent px-1 text-xs font-semibold cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    data-kind title="{{ 'contacts.quick.change_type'|trans }}" aria-label="{{ 'contacts.quick.change_type'|trans }}"></select>
+            <div class="flex-1 min-w-0 flex flex-col">
+                <input class="w-full h-9 px-2 rounded-lg border border-transparent hover:border-line focus:border-field bg-transparent text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                       autocomplete="off" data-value>
+                <span class="px-2 pb-1 text-xs text-ink-muted" data-note hidden>
+                    <span class="inline-block mr-1 px-1 rounded text-[10px] font-bold bg-accent-soft text-accent" data-ai hidden>AI</span><span data-note-text></span>
+                </span>
+            </div>
+        </div>
+    </template>
+    {# What posts: written by contacts--quick-add from the kept rows. #}
+    <div hidden data-contacts--quick-add-target="inputs"></div>
+</form>
+{% endblock %}

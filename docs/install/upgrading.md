@@ -48,6 +48,7 @@ The release workflow publishes one multi-architecture manifest and points severa
 |---|---|
 | `latest` | the most recent **release** — it moves only when a `v*` tag is pushed |
 | `main` | the tip of the default branch, released or not |
+| `milestone-v0.3.8` | the work collected for one release on its milestone branch, before it reaches `main`. For trying a release early; it can carry migrations `main` does not have yet, so going back to `main` from it is not always possible |
 | `0.0.16` | one release, pinned. No leading `v`: the git tag is `v0.0.16`, the image tag is not |
 | `0.0` | the newest patch of one minor line |
 | `sha-1a2b3c` | one commit, pinned exactly |
@@ -139,6 +140,13 @@ The image the checks read is stamped in at build time as `APP_IMAGE` (for exampl
 own image checks its own. Setting `APP_IMAGE` in the environment overrides it.
 
 The page does not install anything yet; the commands under [Upgrading](#upgrading) above do.
+
+**From outside an installation**, follow the releases on GitHub. Every tagged release, from v0.3.0
+on, has a page under [Releases](https://github.com/karatektus/pl_mail/releases) with its notes from
+`CHANGELOG.md` and the image to pull. A feed reader can subscribe to
+`https://github.com/karatektus/pl_mail/releases.atom`, and **Watch → Custom → Releases** on the
+repository sends a GitHub notification. The page appears once the release's image is published, so
+what it announces can be pulled.
 
 **The failure mode is a check that cannot reach the registry.** An installation behind a firewall
 gets no answer. The page says so and keeps what the last answered check found, and the hourly

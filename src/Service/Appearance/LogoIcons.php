@@ -8,6 +8,7 @@ use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\ColourHelper;
 use App\Domain\Theme\Colourway;
+use App\Entity\Embeddable\Appearance;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -62,6 +63,9 @@ final class LogoIcons
         'templates/branding/*.svg.twig',
         'templates/branding/motif/*.svg.twig',
         'templates/_partials/_logo_mark.html.twig',
+        // Not a drawing, but the manifest route serves it and promises its URL
+        // is immutable, so an edit to it must move the URL like one.
+        'public/manifest.webmanifest',
     ];
 
     /** @var list<class-string> */
@@ -95,12 +99,77 @@ final class LogoIcons
     }
 
     /**
+     * One tile with its ground out to every edge: what the installed app's
+     * maskable and iOS icons are drawn from (see icon.svg.twig). The browser
+     * draws it into PNGs; nothing shows it as it is.
+     */
+    public function bleedUrl(LogoMotif $motif, ?LogoStyle $paint = null): string
+    {
+        return $this->generate('app_branding_bleed', $motif, $paint);
+    }
+
+    /**
+     * The install manifest for one choice, with the icons of the user whose
+     * key it carries, or the wax seal's static PNGs without one (a page nobody
+     * is signed in to).
+     *
+     * Same rule as the tab icon: a manifest is fetched without credentials, so
+     * the URL has to carry everything it depends on.
+     */
+    public function manifestUrl(LogoMotif $motif, ?LogoStyle $paint = null, ?string $key = null): string
+    {
+        return $this->generate('app_branding_manifest', $motif, $paint, null === $key ? [] : ['u' => $key]);
+    }
+
+    /**
+     * One of a user's installed-app PNGs for one choice; $name is a key of
+     * AppIconStorage::ICONS (`tile-192`, `tile-512`, `bleed-512`, `bleed-180`).
+     */
+    public function appIconUrl(string $name, string $key, LogoMotif $motif, ?LogoStyle $paint = null): string
+    {
+        return $this->generate('app_branding_app_icon', $motif, $paint, ['key' => $key, 'name' => $name]);
+    }
+
+    /**
      * The top bar's logo for one choice: the glyph bare, for light chrome or
      * for dark.
      */
     public function logoUrl(LogoMotif $motif, ?LogoStyle $paint = null, bool $dark = false): string
     {
         return $this->generate('app_branding_logo', $motif, $paint, $dark ? ['dark' => 1] : []);
+    }
+
+    /**
+     * The user's uploaded logo (#48) in one of the forms the motifs have:
+     * `icon` (its tile), `favicon`, `logo` (the top bar's) or `bleed` (the
+     * ground to every edge, for the installed app's maskable and iOS icons).
+     *
+     * Shaped like a motif's URL with `custom` for the motif and the logo's
+     * hash for the paint, so the appearance pane builds its forms the way it
+     * builds every other icon's. The key says whose logo it is, as it does
+     * for the manifest.
+     */
+    public function customUrl(string $form, string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom', $hash, ['form' => $form, 'u' => $key]);
+    }
+
+    /** The install manifest whose icons are the user's uploaded logo. */
+    public function customManifestUrl(string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom_manifest', $hash, ['u' => $key]);
+    }
+
+    /** One of the installed app's PNGs, drawn from the uploaded logo. */
+    public function customAppIconUrl(string $name, string $key, string $hash): string
+    {
+        return $this->generateCustom('app_branding_custom_app_icon', $hash, ['key' => $key, 'name' => $name]);
+    }
+
+    /** `custom.<hash>` — the uploaded logo as a choice, the way choice() spells a motif's. */
+    public static function customChoice(string $hash): string
+    {
+        return Appearance::CUSTOM_LOGO . '.' . $hash;
     }
 
     /** `<motif>.<paint>` — a choice as the ETags spell it. */
@@ -122,11 +191,11 @@ final class LogoIcons
     }
 
     /**
-     * The paint is the path's last segment, before `.svg`, and every query
+     * The paint is the path's last segment, before its extension, and every query
      * parameter comes after it: the appearance pane builds each colourway's
      * URL by swapping that one segment in the motif's own URL.
      *
-     * @param array<string, int> $query
+     * @param array<string, int|string> $query
      */
     private function generate(string $route, LogoMotif $motif, ?LogoStyle $paint, array $query = []): string
     {
@@ -136,6 +205,18 @@ final class LogoIcons
             ...$query,
             'v'     => $this->version(),
         ]);
+    }
+
+    /**
+     * Versioned like every other icon, though the logo itself never changes
+     * under its hash: the bleed form and the manifest around it are drawn
+     * here, and a change to those has to reach caches too.
+     *
+     * @param array<string, string> $query
+     */
+    private function generateCustom(string $route, string $hash, array $query): string
+    {
+        return $this->urls->generate($route, ['hash' => $hash, ...$query, 'v' => $this->version()]);
     }
 
     private function fingerprint(): string

@@ -163,7 +163,9 @@ final class GmailImportPagingTest extends TestCase
         $tokens->method('getValidAccessToken')->willReturn('test-token');
 
         $messages = $this->createStub(MessageRepository::class);
-        $messages->method('findSyncedGmailIdsForUser')->willReturn($synced);
+        $messages->method('findStoredGmailIdsForUser')->willReturnCallback(
+            static fn (\App\Entity\User\User $user, array $ids): array => array_values(array_intersect($synced, $ids)),
+        );
 
         $bus = $this->createStub(MessageBusInterface::class);
         $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []): Envelope {
@@ -179,6 +181,16 @@ final class GmailImportPagingTest extends TestCase
             $this->createStub(MessageEraser::class),
             new SyncOrigin(),
             $this->createStub(\App\Repository\Mail\GmailSkippedMessageRepository::class),
+            new \App\Service\Gmail\GmailifyLinks(
+                $this->createStub(MessageRepository::class),
+                new \App\Service\Gmail\GmailLabelPolicy(),
+                new \App\Service\Label\ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
+                new \App\Jmap\State\StateManager(
+                    $this->createStub(EntityManagerInterface::class),
+                    new \App\Jmap\State\ChangeLogRepository($this->createStub(\Doctrine\Persistence\ManagerRegistry::class)),
+                ),
+                $this->createStub(EntityManagerInterface::class),
+            ),
         );
     }
 

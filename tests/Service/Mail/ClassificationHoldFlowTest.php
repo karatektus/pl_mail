@@ -37,6 +37,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -264,9 +265,9 @@ final class ClassificationHoldFlowTest extends KernelTestCase
 
     /**
      * The model host is a box on somebody's network and may simply be off.
-     * Held mail must come out anyway, at once, under the rules' answer. It
-     * is stamped as asked, like any other unanswered message: the question was
-     * put once and is not put again.
+     * Held mail must come out anyway, at once, under the rules' answer. It is
+     * not stamped as asked, because nothing was: the catch-up sweep offers it
+     * again once the host is back (#222).
      */
     public function testAHostThatDoesNotAnswerReleasesTheMailUnderTheRules(): void
     {
@@ -281,8 +282,68 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->em->refresh($message->thread);
 
         self::assertFalse($message->isCategoryHeld());
-        self::assertNotNull($message->aiCategorisedAt);
+        self::assertNull($message->aiCategorisedAt, 'an unreachable host asked nothing');
         self::assertSame(MessageCategory::Primary, $message->thread->category);
+    }
+
+    /**
+     * #222. A minute's outage left 327 messages with no category and no second
+     * attempt, because the failed call was stamped as an answer. A refusal
+     * that says "not now" is the same case: a credential being rotated, a
+     * proxy in front of a host that is restarting, a rate limit, any 5xx.
+     */
+    #[DataProvider('passingRefusals')]
+    public function testARefusalThatWillPassLeavesTheMessageForTheCatchUp(int $status): void
+    {
+        $message = $this->askedAbout(new MockResponse('', ['http_code' => $status]));
+
+        self::assertNull($message->aiCategorisedAt, $status . ' is not an answer');
+        self::assertContains((int) $message->id, $this->unclassified());
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function passingRefusals(): iterable
+    {
+        foreach ([401, 403, 408, 429, 500, 502, 503, 504] as $status) {
+            yield (string) $status => [$status];
+        }
+    }
+
+    /**
+     * A refusal of the request itself comes back the same on every retry: a
+     * content filter's 400 for this mail, a 413, a 422. Retried, a handful of
+     * them would take the catch-up's whole budget (it offers the newest
+     * unstamped mail first) every quarter of an hour, for good. And a 404 is a
+     * model the host does not have: a setting to change, not an outage.
+     */
+    #[DataProvider('lastingRefusals')]
+    public function testARefusalThatWouldRepeatIsStamped(int $status): void
+    {
+        $message = $this->askedAbout(new MockResponse('', ['http_code' => $status]));
+
+        self::assertNotNull($message->aiCategorisedAt, $status . ' would only repeat');
+        self::assertNotContains((int) $message->id, $this->unclassified());
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function lastingRefusals(): iterable
+    {
+        foreach ([400, 404, 413, 422] as $status) {
+            yield (string) $status => [$status];
+        }
+    }
+
+    /**
+     * The other half of the promise: a host that did answer is not asked
+     * twice, however useless the answer. The stamp is what keeps a message the
+     * model cannot sort from being offered on every pass for ever.
+     */
+    public function testAHostThatAnswersWithNothingUsableIsNotAskedAgain(): void
+    {
+        $message = $this->askedAbout(new MockResponse((string) json_encode(['message' => ['content' => 'hmm']])));
+
+        self::assertNotNull($message->aiCategorisedAt);
+        self::assertNotContains((int) $message->id, $this->unclassified());
     }
 
     /**
@@ -398,12 +459,39 @@ final class ClassificationHoldFlowTest extends KernelTestCase
      */
     private function handlerWithAModelThatSays(string $answer): ClassifyMailHandler
     {
+        return $this->handlerAround(new MockResponse((string) json_encode(['message' => ['content' => $answer]])));
+    }
+
+    /** One fresh message put to a host that gives this response, and the message as the handler left it. */
+    private function askedAbout(MockResponse $response): Message
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $message = $this->message('asked', '-1 minute');
+        $this->ingest($message);
+
+        ($this->handlerAround($response))(new ClassifyMailMessage([(int) $message->id]));
+
+        $this->em->refresh($message);
+
+        return $message;
+    }
+
+    /** @return list<int> what the catch-up sweep would offer this person */
+    private function unclassified(): array
+    {
+        return self::getContainer()->get(MessageRepository::class)->unclassifiedIdsForUser((int) $this->user->id, 100);
+    }
+
+    private function handlerAround(MockResponse $response): ClassifyMailHandler
+    {
         $container = self::getContainer();
 
         $assistant = new AiAssistant(
             $container->get(AiSettingsRepository::class),
             new OllamaClient(
-                new MockHttpClient(new MockResponse((string) json_encode(['message' => ['content' => $answer]]))),
+                new MockHttpClient($response),
                 new NullLogger(),
             ),
             new OpenAiClient(new MockHttpClient([]), new NullLogger()),

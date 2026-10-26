@@ -289,7 +289,17 @@ final readonly class SyncGmailMessageBatchHandler
             // as this account's, the user's other accounts are asked for the
             // same Message-ID, and a copy found there is enriched instead,
             // exactly as a Gmailify sibling's is below.
-            if ($targetAccount === $account && false === $this->namesCarrier($labelIds, $headers, $account)) {
+            //
+            // Not with Gmailify switched off. With it off, received mail reaches
+            // this point only when it names this account, so what is left is
+            // mail this account sent as another address, and merging that into
+            // the other account's copy would link it to Gmail again: the very
+            // link the switch took off (#205).
+            if (
+                true === $account->gmailifyEnabled
+                && $targetAccount === $account
+                && false === $this->namesCarrier($labelIds, $headers, $account)
+            ) {
                 $copy = $this->copyOnAnotherAccount($headers, $siblingAccounts);
 
                 if (null !== $copy) {
@@ -501,7 +511,9 @@ final readonly class SyncGmailMessageBatchHandler
 
         $existing->gmailLabelIds = $labelIds;
 
-        $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
+        // A sibling's IMAP copy keeps its placement: the folder it is in decides
+        // Inbox, Trash and Spam, not what Gmail did with its own copy.
+        $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier, false === $ownsFlags);
 
         // ## Recategorise, because the line above changed the only signal
         //
@@ -665,6 +677,15 @@ final readonly class SyncGmailMessageBatchHandler
      *     Gmailify attribution off is a deliberate "only what was sent to this
      *     address", and it stays that.
      *
+     *     Read with the same rule as with it on, and declined when the rule
+     *     names another account. Asking only "does Delivered-To name this
+     *     account" took in mail Gmail was still collecting for the other
+     *     address: Gmail writes its OWN address into Delivered-To when it
+     *     collects, and a server that adds no stamp of its own leaves that as
+     *     the only one. Such mail was stored here and again on the other
+     *     account by its own IMAP sync (#205). Mail Bcc'd to the other address
+     *     keeps no trace of it, so that still lands here; the handbook says so.
+     *
      * Sent mail and drafts (SENT or DRAFT):
      *   - From a Gmailify sibling, with attribution on → the sibling.
      *   - Otherwise → this account. A message in this account's Sent was sent
@@ -687,11 +708,11 @@ final readonly class SyncGmailMessageBatchHandler
         }
 
         $written          = true === in_array('SENT', $labelIds, true) || true === in_array('DRAFT', $labelIds, true);
-        $gmailifyEnabled  = true === $account->getSetting('gmailSyncGmailifyEnabled', true);
+        $gmailifyEnabled  = $account->gmailifyEnabled;
 
         if (false === $written) {
             if (false === $gmailifyEnabled) {
-                return true === $this->addressFilter->isAddressedToAccount($headers, $account) ? $account : null;
+                return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts) === $account ? $account : null;
             }
 
             return $this->addressFilter->resolveReceivedAccount($headers, $account, $siblingAccounts) ?? $account;

@@ -185,6 +185,23 @@ final class ClassificationCatchUpTest extends KernelTestCase
         self::assertSame(array_reverse($ids), $this->queuedIds(anyAge: true));
     }
 
+    /**
+     * The query reads a message's age the way the handler does — receivedAt,
+     * else sentAt, and neither is not too old — or the two would disagree
+     * about a message and the catch-up would queue what the handler drops.
+     */
+    public function testTheLimitFallsBackToTheSentDateAndKeepsUndatedMail(): void
+    {
+        $recentlySent = $this->mailReceived(null, sent: '-2 days');
+        $this->mailReceived(null, sent: '-90 days');
+        $undated = $this->mailReceived(null);
+        $this->importFinished();
+        $this->assistantSorts(backlogDays: 30);
+
+        self::assertSame(2, $this->catchUp()->sweep($this->user, 100));
+        self::assertEqualsCanonicalizing([$recentlySent, $undated], $this->queuedIds());
+    }
+
     private function catchUp(): ClassificationCatchUp
     {
         return self::getContainer()->get(ClassificationCatchUp::class);
@@ -284,14 +301,15 @@ final class ClassificationCatchUpTest extends KernelTestCase
         return $ids;
     }
 
-    private function mailReceived(string $received): int
+    private function mailReceived(?string $received, ?string $sent = null): int
     {
         $message = new Message();
         $message->account = $this->mailbox->account;
         $message->mailbox = $this->mailbox;
         $message->subject = 'Recent fixture';
         $message->fromAddress = 'somebody@elsewhere.test';
-        $message->receivedAt = new DateTimeImmutable($received);
+        $message->receivedAt = null === $received ? null : new DateTimeImmutable($received);
+        $message->sentAt = null === $sent ? null : new DateTimeImmutable($sent);
         $message->hasAttachments = false;
         $message->messageId = sprintf('<recent-%s@example.test>', uniqid('', true));
 

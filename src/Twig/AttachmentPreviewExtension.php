@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Domain\Helper\MediaAttachment;
 use App\Domain\Helper\PdfAttachment;
 use App\Entity\Mail\MessagePart;
 use App\Service\Mail\AttachmentThumbnailer;
@@ -12,6 +13,7 @@ use Twig\TwigFunction;
 
 /**
  * `attachment_has_preview(part)` — whether the chip should show a thumbnail.
+ * `attachment_preview_kind(part)` — which viewer, if any, a click opens.
  *
  * Answers from the part's own columns, so a thread with a dozen attachments
  * costs a dozen string comparisons and no I/O. The image is only decoded when
@@ -27,21 +29,31 @@ final class AttachmentPreviewExtension extends AbstractExtension
     {
         return [
             new TwigFunction('attachment_has_preview', $this->hasPreview(...)),
-            new TwigFunction('attachment_is_pdf', $this->isPdf(...)),
+            new TwigFunction('attachment_preview_kind', $this->previewKind(...)),
         ];
     }
 
     /**
-     * Whether the chip should offer to open this in the reader.
+     * Which viewer the chip should open this in: 'pdf', 'image', 'video', or
+     * null for a plain download.
      *
      * Distinct from hasPreview(), which asks whether a THUMBNAIL can be drawn —
      * that is about raster images and GD. This asks whether there is a viewer
-     * for it, which today means PDF and is decided from the declared type
-     * rather than from the bytes. See App\Domain\Helper\PdfAttachment.
+     * for it, and is decided from the declared type rather than from the
+     * bytes. See App\Domain\Helper\PdfAttachment and MediaAttachment.
      */
-    public function isPdf(MessagePart $part): bool
+    public function previewKind(MessagePart $part): ?string
     {
-        return PdfAttachment::matches($part->contentType, $part->filename);
+        // Ciphertext: there is nothing in it a viewer could show. See MessagePart::$sealed.
+        if (true === $part->sealed) {
+            return null;
+        }
+
+        if (true === PdfAttachment::matches($part->contentType, $part->filename)) {
+            return 'pdf';
+        }
+
+        return MediaAttachment::kindOf($part->contentType, $part->filename);
     }
 
     public function hasPreview(MessagePart $part): bool

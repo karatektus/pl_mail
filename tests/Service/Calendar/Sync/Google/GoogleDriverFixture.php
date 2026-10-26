@@ -19,6 +19,7 @@ use App\Service\Calendar\Sync\Google\GoogleCalendarSyncDriver;
 use App\Service\Calendar\Sync\Google\GoogleEventMapper;
 use App\Service\Calendar\Sync\Google\GoogleRecurrenceMapper;
 use App\Service\OAuth\OAuthTokenManager;
+use App\Service\User\UserTimezoneResolver;
 use App\Tests\Service\Calendar\RecordingLogger;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -80,6 +81,7 @@ final class GoogleDriverFixture
             new GoogleCalendarApiClient($this->http, self::tokens()),
             new GoogleEventMapper($recurrence, new AlertReader(new NullLogger())),
             $this->logger,
+            new UserTimezoneResolver('Europe/Berlin'),
         );
     }
 

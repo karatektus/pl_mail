@@ -17,6 +17,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
@@ -61,6 +62,7 @@ class MessageSyncer
         private readonly ImapPagedFetch $pagedFetch,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
+        private readonly MessageCryptoDetector $cryptoDetector,
     ) {}
 
     /**
@@ -177,7 +179,9 @@ class MessageSyncer
         try {
             // Not the library's chunked(): one message it cannot parse ends
             // that loop for the whole folder, on every sync. See ImapPagedFetch.
-            $query = $folder->messages()->where(self::uidRangeCriteria($uidRange));
+            // A range that finds nothing moves nothing, so a server's "no such
+            // message" for it is read as the empty answer it means (#219).
+            $query = ImapQuery::of($folder)->emptyWhenNoSuchMessage()->where(self::uidRangeCriteria($uidRange));
 
             foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
                 $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
@@ -517,8 +521,20 @@ class MessageSyncer
             // See SentCopyReconciler, which owns the matching rules and the
             // reason each of them is scoped the way it is.
             $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
+            $claimed      = $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence);
 
-            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence)) {
+            // Mail with no Message-ID has nothing for claim() to match, so a
+            // row that lost its address in a protocol switch (#289) is found
+            // by sender, subject and Date header instead — see fingerprintOf().
+            if (null === $claimed && '' === $rfcMessageId) {
+                $fingerprint = $this->fingerprintOf($imapMessage);
+
+                if (null !== $fingerprint) {
+                    $claimed = $this->sentCopies->claimByFingerprint($mailbox, $fingerprint, $uid);
+                }
+            }
+
+            if (null !== $claimed) {
                 if (true === $oneAtATime) {
                     $this->em->flush();
                 }
@@ -537,7 +553,7 @@ class MessageSyncer
                 // the stored .eml all come from the same bytes.
                 $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
 
-                $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
+                $message = $this->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
 
                 // Only now, with the message whole. buildMessage() used to
@@ -950,7 +966,59 @@ class MessageSyncer
         );
     }
 
-    private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
+    /**
+     * What identifies a message that has no Message-ID: its sender, its
+     * subject and the instant its Date header names — read exactly as
+     * buildMessageFromParsed() writes them to the row, so a fingerprint taken
+     * here matches the columns of a row built from the same bytes, whichever
+     * protocol delivered them.
+     *
+     * Null when the message has a Message-ID (that is the identity to use)
+     * and when it has no Date header: the row's time is then the moment it
+     * was fetched, which no second fetch reproduces.
+     *
+     * Used only where a row is known to have lost its server address — after
+     * a protocol switch (#289) — never to decide whether new mail is new.
+     *
+     * @return array{from: string, subject: string, date: DateTimeImmutable}|null
+     */
+    public function fingerprintOf(ImapMessage $imapMessage): ?array
+    {
+        if ('' !== MessageIdHelper::normalise((string) $imapMessage->getMessageId())) {
+            return null;
+        }
+
+        if (false === $this->hasDateHeader($imapMessage)) {
+            return null;
+        }
+
+        $from = $imapMessage->getFrom()->first();
+
+        return [
+            'from'    => false !== $from && null !== $from ? AddressHelper::email($from->mail ?? '') : '',
+            'subject' => $this->decodeMimeHeader((string) $imapMessage->getSubject()),
+            'date'    => $this->receivedAtOf($imapMessage),
+        ];
+    }
+
+    /**
+     * Turn one parsed message into a Message row, attached to a mailbox.
+     *
+     * The single place a row is built from an RFC 822 message, whichever
+     * protocol delivered it. IMAP hands it one the library fetched; POP3 hands
+     * it one the library built with Message::fromString() from a RETR answer.
+     * Nothing below this line knows which — the parser is the shared part, and
+     * that is the reason the two protocols produce identical rows for
+     * identical bytes.
+     *
+     * Does NOT set imapUid and does NOT persist. An IMAP caller sets the UID
+     * after calling this (see storeMessages()); a POP3 caller leaves it null,
+     * because a POP3 message has no UID to give it — see Pop3AccountSyncer.
+     *
+     * Public since POP3 was added. It was private while IMAP was the only
+     * caller and the file was the interface.
+     */
+    public function buildMessageFromParsed(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message();
         $message->account = $mailbox->account;
@@ -1033,8 +1101,26 @@ class MessageSyncer
         $message->bodyText = CharsetHelper::ensureUtf8($imapMessage->getTextBody() ?? '');
         $message->bodyHtml = CharsetHelper::ensureUtf8($imapMessage->getHTMLBody() ?? '');
 
-        // Attachments
-        $attachments = $imapMessage->getAttachments();
+        // OpenPGP or S/MIME, decided from the top-level Content-Type and the
+        // body — before anything is written, because an encrypted message's
+        // body must never reach the row: search_vector is generated from it
+        // on insert. No part list: IMAP always has the header, and a plain
+        // message that merely carries somebody's signature.asc is not signed.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers, 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        // Attachments — without the parts that are only the wrapping: the
+        // signature, the ciphertext. The raw source keeps them for whoever
+        // checks or decrypts.
+        $attachments = array_values(array_filter(
+            iterator_to_array($imapMessage->getAttachments()),
+            fn (mixed $attachment): bool => null === $crypto
+                || false === $this->cryptoDetector->isWrapping($crypto, $attachment->getContentType(), $attachment->getFilename()),
+        ));
         $message->syncedAt = new DateTimeImmutable();
 
         $hasAttachments = false;

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Ai;
 
 use App\Domain\Enum\Ai\ReplyContext;
+use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Crypto\DecryptedMailPolicy;
 
 /**
  * What the composer hands the model about the conversation being answered.
@@ -28,8 +30,10 @@ use App\Repository\Mail\MessageRepository;
  */
 final readonly class ReplyContextReader
 {
-    public function __construct(private MessageRepository $messages)
-    {
+    public function __construct(
+        private MessageRepository    $messages,
+        private ?DecryptedMailPolicy $decrypted = null,
+    ) {
     }
 
     /**
@@ -46,8 +50,8 @@ final readonly class ReplyContextReader
 
         return match (true) {
             ReplyContext::None === $depth              => null,
-            ReplyContext::Thread !== $depth            => $message->bodyText,
-            false === $thread instanceof MessageThread => $message->bodyText,
+            ReplyContext::Thread !== $depth            => $this->readable($message),
+            false === $thread instanceof MessageThread => $this->readable($message),
             default                                    => $this->transcript($thread),
         };
     }
@@ -84,7 +88,7 @@ final readonly class ReplyContextReader
         foreach (array_reverse($this->messages->forThreadInConversationOrder($thread)) as $turn) {
             $block = trim(implode("\n", [
                 'From: ' . trim(((string) $turn->fromName) . ' <' . ((string) $turn->fromAddress) . '>'),
-                trim((string) ($turn->bodyText ?? '')),
+                trim((string) ($this->readable($turn) ?? '')),
             ]));
 
             // +2 for the blank line this block is joined with. Counted before
@@ -101,5 +105,14 @@ final readonly class ReplyContextReader
         }
 
         return implode("\n\n", array_reverse($kept));
+    }
+
+    /**
+     * The message's text, unless it is decrypted mail its account does not
+     * let the models read. See DecryptedMailPolicy::allowsAi().
+     */
+    private function readable(Message $message): ?string
+    {
+        return false === ($this->decrypted?->allowsAi($message, AiFeature::WritingHelp) ?? true) ? null : $message->bodyText;
     }
 }

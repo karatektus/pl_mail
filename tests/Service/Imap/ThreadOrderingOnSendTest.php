@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Service\Crypto\AutocryptHeader;
+use App\Service\Crypto\SealedDrafts;
+use App\Service\Crypto\SealGuard;
+use App\Service\Crypto\SendingKey;
+use App\Service\Mail\DraftAttachmentService;
+use App\Service\Mail\RawMessageResolver;
 use App\Tests\Support\Imap\ImapUidSequence;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
@@ -437,6 +443,12 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
             $container->get(MailChangeRecorder::class),
             $container->get(MessageThreader::class),
             $container->get(ThreadLabelSynchronizer::class),
+            $container->get(SealGuard::class),
+            $container->get(SealedDrafts::class),
+            $container->get(AutocryptHeader::class),
+            $container->get(SendingKey::class),
+            $container->get(RawMessageResolver::class),
+            $container->get(DraftAttachmentService::class),
         );
     }
 

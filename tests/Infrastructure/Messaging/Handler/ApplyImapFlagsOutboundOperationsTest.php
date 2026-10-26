@@ -26,6 +26,7 @@ use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 use Webklex\PHPIMAP\Connection\Protocols\Response;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
+use App\Service\Imap\ImapQuery;
 use Webklex\PHPIMAP\Query\WhereQuery;
 use Webklex\PHPIMAP\Support\FlagCollection;
 use Webklex\PHPIMAP\Support\MessageCollection;
@@ -177,6 +178,27 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
 
         self::assertSame(1, $present->moveCalls);
         self::assertSame('INBOX.Trash', $present->movedTo);
+    }
+
+    /**
+     * A message already in the Trash stays there, and keeps its address.
+     *
+     * webklex's move() into the folder it is moving out of leaves the
+     * connection in EXAMINE, and the server refuses the MOVE: "NO Not
+     * permitted in EXAMINE state" (#269). The row arrives with no UID —
+     * relocateTo() cleared it when the job was queued — and the envelope's UID
+     * is still right, because the message never left the folder that issued it.
+     */
+    public function testTrashingAMessageAlreadyInTheTrashDoesNotMoveIt(): void
+    {
+        $present = new RecordingImapMessage(uid: 6, rfcMessageId: 'abc@example.test');
+
+        $row = $this->issue($present, 'trash', rowMessageId: 'abc@example.test', rowLandsIn: 'INBOX.Trash', sourceIsTrash: true);
+
+        self::assertSame(0, $present->moveCalls, 'a move from Trash into Trash was sent to the server');
+        self::assertSame([], $present->calls);
+        self::assertSame('INBOX.Trash', $row->mailbox?->fullPath);
+        self::assertSame(6, $row->imapUid, 'the row should have its address in Trash back');
     }
 
     public function testArchivingMovesToTheAccountsArchiveFolder(): void
@@ -335,12 +357,15 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         ?string              $rowMessageId = null,
         ?string              $rowLandsIn = null,
         bool                 $destinationExists = true,
+        bool                 $sourceIsTrash = false,
     ): Message {
         $account      = new Account();
         $account->usr = new User();
 
-        $source = $this->mailbox($account, 'INBOX', 'INBOX', MailboxSpecialUse::INBOX);
         $trash  = $this->mailbox($account, 'Trash', 'INBOX.Trash', MailboxSpecialUse::TRASH);
+        $source = true === $sourceIsTrash
+            ? $trash
+            : $this->mailbox($account, 'INBOX', 'INBOX', MailboxSpecialUse::INBOX);
 
         $row            = new Message();
         $row->account   = $account;
@@ -471,7 +496,8 @@ final class RecordingFolder extends Folder
     }
 }
 
-final class RecordingQuery extends WhereQuery
+/** An ImapQuery, so ImapQuery::of() hands it back as it is. */
+final class RecordingQuery extends ImapQuery
 {
     public function __construct(private readonly MessageCollection $holding)
     {

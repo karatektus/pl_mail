@@ -7,6 +7,8 @@ admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der 
 admin.sso.error.client_id_missing: 'Zum Issuer und zum Secret gehört eine Client-ID. Alle drei oder keins davon.'
 admin.sso.error.issuer_missing: 'Zur Client-ID und zum Secret gehört ein Issuer. Alle drei oder keins davon.'
 admin.sso.error.issuer_not_https: 'Der Issuer muss mit https:// beginnen. plMail vertraut dem Anbieter wegen der TLS-Verbindung zu ihm.'
+admin.sso.error.password_login_needs_own_sso: 'Melde dich mindestens einmal selbst über den Anbieter an, bevor du ihn zum einzigen Weg machst — sonst sperrst du dich aus.'
+admin.sso.error.password_login_needs_provider: 'Speichere zuerst einen vollständigen Anbieter (Issuer, Client-ID und Secret), bevor du Single Sign-on zum einzigen Weg machst.'
 admin.sso.error.secret_missing: 'Zum Issuer und zur Client-ID gehört ein Client-Secret. Alle drei oder keins davon.'
 admin.users.password_too_short: Mindestens {{ limit }} Zeichen — dieses Passwort wählst du für jemand anderen.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
@@ -15,12 +17,20 @@ caldav.address_required: Gib die Adresse deines CalDAV-Servers ein — ohne sie 
 caldav.credential_required: Gib ein App-Passwort ein oder setz den Haken, um das gespeicherte Passwort eines E-Mail-Kontos zu verwenden.
 caldav.reuse_account_required: Wähle, welches E-Mail-Konto sein Passwort hergeben soll — oder nimm den Haken weg und tippe eines ein.
 caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-Server kennt.
+carddav.address_required: Gib die Adresse deines CardDAV-Servers ein — ohne sie hat plMail niemanden zu fragen.
+carddav.username_required: Gib den Benutzernamen ein, unter dem dich dein CardDAV-Server kennt.
+contacts.invalid_email: "„%email%“ ist keine gültige E-Mail-Adresse."
+contacts.name_or_email_required: Gib dem Kontakt einen Namen oder mindestens eine E-Mail-Adresse.
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
+integration.name_taken: Du hast schon eine Verbindung zu diesem Dienst mit dem Namen {{ value }}. Gib dieser einen anderen Namen — etwa Privat und Arbeit.
 settings.password.current_required: Gib dein aktuelles Passwort ein — es verhindert, dass jemand an deinem offenen Bildschirm es einfach ändert.
 settings.password.current_wrong: Das ist nicht dein aktuelles Passwort.
+settings.password.keys_not_rewrapped: "Deine Verschlüsselungsschlüssel konnten nicht auf das neue Passwort übertragen werden. Lade die Seite neu und versuche es noch einmal."
+settings.password.malformed: Dein Browser hat etwas gesendet, das plMail nicht erwartet hat. Lade die Seite neu und versuche es noch einmal.
 settings.password.mismatch: Die beiden neuen Passwörter stimmen nicht überein.
+settings.password.needs_script: Zum Ändern des Passworts wird JavaScript gebraucht — es wird im Browser geschützt, bevor etwas gesendet wird.
 settings.password.too_short: Mindestens {{ limit }} Zeichen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.

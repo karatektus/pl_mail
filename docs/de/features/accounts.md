@@ -1,11 +1,11 @@
-<!-- translated-from: features/accounts.md sha1:e3b70a077702b079166c724d88537caef5fba35f -->
+<!-- translated-from: features/accounts.md sha1:1089d79f26ee0fc5d02fb1ecfb99314e7ce21530 -->
 
 # Konten und Aliase
 
-Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP-Server, bei Gmail oder
-bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst so viele
-verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als ein
-einziger Posteingang.
+Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP- oder POP3-Server,
+bei Gmail oder bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst
+so viele verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als
+ein einziger Posteingang.
 
 Alles auf dieser Seite liegt unter **Einstellungen → E-Mail-Konten**, sofern nicht anders
 angegeben.
@@ -45,6 +45,36 @@ Durchlauf alle fünfzehn Minuten dahinter.
 
 Siehe [IMAP und SMTP](../providers/imap-smtp.md) für die Einstellungen, über die sich die
 Server uneinig sind.
+
+## Ein POP3-Postfach hinzufügen
+
+Manche Anbieter bieten POP3 und SMTP an, aber gar kein IMAP. Für diese wählst du im selben
+Formular unter **Protokoll für eingehende Mail** die Option **POP3**; der Port für eingehende Mail
+startet dann bei 995, also POP3 über SSL. Die Liste **Anbieter** enthält IMAP-Einstellungen —
+wählst du dort einen Eintrag, stellt sich das Formular wieder auf IMAP.
+
+POP3 kennt ein Postfach und sonst nichts: keine Ordner, keine Markierungen und keinen Weg, dem
+Server etwas anderes mitzuteilen als „lösch das“. Ein POP3-Konto ist in plMail deshalb ein
+einziger Posteingang. Lesen, Markieren, Labels und Verschieben passieren hier und bleiben hier,
+und der nächste Abruf macht nichts davon rückgängig. Mail, die du sendest, bekommt in plMail das
+Label Gesendet; der Server hat keinen Ort für eine Kopie. IDLE gibt es auch nicht: Neue Mail
+kommt mit dem Durchlauf alle fünfzehn Minuten oder sofort über den Abruf-Knopf.
+
+Jede Nachricht wird an ihrer UIDL erkannt, dem Namen, den der Server ihr gibt, und deshalb nie
+doppelt geladen. Der erste Abruf eines großen Postfachs holt pro Durchlauf einige hundert
+Nachrichten, die neuesten zuerst.
+
+**Nach dem Abruf** entscheidet, was mit der Kopie auf dem Server passiert. Voreingestellt ist
+**Auf dem Server lassen**. Wählst du **Vom Server löschen**, wird eine Nachricht dort gelöscht,
+sobald sie in plMail gespeichert ist, und erst dann. Eine Nachricht, die plMail nicht laden oder
+speichern konnte, bleibt auf dem Server, egal was hier steht. Löschen schafft Platz bei deinem
+Anbieter, aber dann gibt es nur noch die Kopie in plMail.
+
+Ein bestehendes Konto kannst du in seinem Bearbeiten-Formular zwischen IMAP und POP3 umstellen.
+Seine Mail bleibt: Der nächste Abruf erkennt, was plMail schon hat, und legt es nicht noch einmal
+ab — an der Message-ID oder, bei der seltenen Nachricht ohne eine, an Absender, Betreff und Datum.
+Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden nicht mehr
+synchronisiert.
 
 ## Gmail oder Outlook hinzufügen
 
@@ -281,6 +311,60 @@ sich bei der ersten Antwort als abgelehnter oder umgeschriebener Absender.
 Einen Vorbehalt nennt plMail auf der Seite selbst: **Outlook versendet unabhängig von deiner
 Wahl hier immer über den primären Alias des Kontos.** Das ist Microsofts Verhalten, geändert
 wird es in deinen Microsoft-Kontoeinstellungen und nicht hier.
+
+### Gmail holt Mail für ein anderes Konto ab (Gmailify)
+
+Gmail kann die Mail einer anderen Adresse in deinen Gmail-Posteingang holen. Ist diese andere
+Adresse auch hier verbunden, kommt jede Nachricht zweimal bei plMail an: einmal über Gmail und
+einmal über die eigene IMAP-Synchronisierung des anderen Kontos. plMail legt solche Mail unter dem
+anderen Konto ab und führt die beiden Kopien zu einer zusammen, sodass eine Nachricht nur einmal
+in der Liste steht. Die zusammengeführte Nachricht gehört weiter dem anderen Konto: Ihr
+IMAP-Ordner entscheidet, ob sie im Posteingang, im Papierkorb oder in einem anderen Ordner liegt,
+egal was Gmail mit seiner eigenen Kopie gemacht hat. Labels, die du ihr in Gmail gibst, erscheinen
+hier, und wenn du sie hier archivierst, markierst oder labelst, geht das auch an Gmail.
+
+Unter jedem Gmail-Konto auf dieser Seite schaltet **Mail für meine anderen Konten unter diesen
+ablegen** das an oder aus. Es ist an, solange du es nicht ausschaltest. Schalte es aus, sobald
+Gmail diese Mail nicht mehr abholt, typischerweise nachdem eine Domain von Gmail zu einem eigenen
+IMAP-Anbieter umgezogen ist. Sonst werden alte und verspätete Kopien aus Gmail weiter dem anderen
+Konto zugeordnet. Wenn es aus ist:
+
+- Das Gmail-Konto behält nur Mail, die an es selbst gerichtet ist. Mail, die es für andere
+  Adressen hat, wird nicht noch einmal gespeichert.
+- Die eigenen Kopien des anderen Kontos folgen Gmail nicht mehr. Sie verlieren die Labels, die
+  Gmail ihnen gegeben hat, und was du an ihnen änderst, geht nicht mehr an Gmail. Die Mail selbst
+  bleibt, wo ihr IMAP-Ordner sie hat. Das läuft im Hintergrund, bei einem Postfach, das jahrelang
+  Mail abgeholt hat, also unter Umständen noch ein paar Minuten nach dem Ausschalten.
+- Mail, die Gmail unter dem anderen Konto abgelegt hat und die der IMAP-Server des anderen Kontos
+  nie hatte, bleibt, wie sie ist, und folgt weiter Gmail. Gmail ist der einzige Ort, an dem es
+  diese Mail gibt.
+
+**Am besten ausschalten, sobald Gmail nicht mehr abholt.** Solange Gmail die Mail der anderen
+Adresse noch abholt, unterscheidet plMail diese Mail an ihren Empfängern: Eine Nachricht, deren An
+oder Cc die andere Adresse nennt und nicht die Gmail-Adresse, bleibt dem anderen Konto überlassen,
+auch wenn Gmail seine eigene Adresse als Zustelladresse daraufstempelt. Eine Nachricht, die per Bcc
+an die andere Adresse ging, nennt niemanden, sieht deshalb wie eigene Mail des Gmail-Kontos aus und
+liegt in beiden Konten. Mailinglisten und Newsletter kommen oft so an. Beende das Abholen in Gmail
+(Einstellungen → Konten → E-Mails von anderen Konten abrufen), dann hören auch diese Doppelten auf.
+
+Schaltest du es wieder an, ändert sich an Gespeichertem nichts. Mail, die danach ankommt, wird
+wieder zugeordnet, und eine ältere Nachricht ebenso, sobald Gmail eine Änderung an ihr meldet.
+
+**Mail, die Gmail vor v0.3.9 verschoben hat.** Frühere Versionen haben die Kopie des anderen
+Kontos dorthin verschoben, wohin Gmail seine eigene verschoben hat. Mail, die in Gmail gelöscht
+oder archiviert wurde, stand in plMail im Papierkorb oder im Archiv, obwohl der IMAP-Server sie
+noch im Posteingang hatte. Um diese Mail dorthin zurückzulegen, wo ihr IMAP-Ordner sie hat, führt
+ein Administrator aus:
+
+```bash
+php bin/console app:backfill gmailify-placement
+```
+
+Führe es aus, wenn die Worker ruhig sind. Eine Verschiebung, die du in plMail machst, ändert erst
+die Labels und einen Moment später den IMAP-Ordner, und eine Nachricht, die genau dazwischen
+erwischt wird, ginge kurz in ihren alten Ordner zurück. Mail, die frühere Versionen entfernt
+haben, weil Gmail sie aus seinem Papierkorb geleert hatte, holt das nicht zurück. Die
+IMAP-Synchronisierung holt nur Mail, die neuer ist als das, was sie schon hat.
 
 ### Was jede Adresse standardmäßig tut
 

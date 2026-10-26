@@ -227,7 +227,7 @@ final readonly class ImageProxyFetcher
             // download it.
             if (
                 false === str_starts_with($contentType, 'image/')
-                && false === self::isUnlabelled($contentType)
+                && false === InlineDisposition::isUnlabelled($contentType)
             ) {
                 $response->cancel();
 
@@ -257,8 +257,8 @@ final readonly class ImageProxyFetcher
 
             // Unlabelled: decide from the bytes, and serve what the bytes
             // actually are rather than what the sender claimed.
-            if (true === self::isUnlabelled($contentType)) {
-                $sniffed = self::sniff($body);
+            if (true === InlineDisposition::isUnlabelled($contentType)) {
+                $sniffed = InlineDisposition::sniff($body);
 
                 if (null === $sniffed) {
                     $this->logger->info('ImageProxyFetcher: unlabelled response is not an image', [
@@ -277,55 +277,6 @@ final readonly class ImageProxyFetcher
     }
 
     /**
-     * Did the sender decline to say what this is?
-     *
-     * S3 hands back `application/octet-stream` for any object uploaded without
-     * a content type, and a great deal of the web's images live in exactly
-     * that state. Amazon's return-label QR codes are one: a real 8KB PNG,
-     * served unlabelled, refused by this proxy for years while the reader saw
-     * a blank space where their barcode should be.
-     *
-     * Treated as "unknown", not as "not an image" — the difference between the
-     * two is the whole bug.
-     */
-    private static function isUnlabelled(string $contentType): bool
-    {
-        return '' === $contentType
-            || 'application/octet-stream' === $contentType
-            || 'binary/octet-stream' === $contentType;
-    }
-
-    /**
-     * What the bytes actually are, or null if they are not an image we serve.
-     *
-     * THIS IS NOT TRUSTING THE SENDER — it is the opposite. The declared type
-     * is discarded and the content is identified from its own magic bytes,
-     * then checked against InlineDisposition's list, which is the same
-     * deliberate allow-list attachments are held to and which excludes SVG.
-     * SVG matters here: it is the one image format that can carry script, and
-     * a proxy that served one would be serving script from our own origin.
-     *
-     * So an unlabelled response can only ever be served as one of a fixed set
-     * of raster types, whatever the sender said or did not say.
-     */
-    private static function sniff(string $body): ?string
-    {
-        if ('' === $body) {
-            return null;
-        }
-
-        $sniffed = (new \finfo(FILEINFO_MIME_TYPE))->buffer($body);
-
-        if (false === $sniffed) {
-            return null;
-        }
-
-        $sniffed = strtolower(trim(explode(';', $sniffed)[0]));
-
-        return true === InlineDisposition::allows($sniffed) ? $sniffed : null;
-    }
-
-    /**
      * Rules 1–3. Returns the host and the ONE address the connection may use.
      *
      * @return array{host: string, ip: string}|null
@@ -335,6 +286,8 @@ final readonly class ImageProxyFetcher
         $parts = parse_url($url);
 
         if (false === is_array($parts)) {
+            $this->refused($url, 'not a URL');
+
             return null;
         }
 
@@ -343,21 +296,33 @@ final readonly class ImageProxyFetcher
         $port   = (int) ($parts['port'] ?? 443);
 
         if ('https' !== $scheme || '' === $host || 443 !== $port) {
+            $this->refused($url, 'not https on port 443');
+
             return null;
         }
 
         // A literal address skips DNS but not the range check.
         if (false !== filter_var($host, FILTER_VALIDATE_IP)) {
-            return true === self::isPublicAddress($host) ? ['host' => $host, 'ip' => $host] : null;
+            if (false === self::isPublicAddress($host)) {
+                $this->refused($url, 'not a public address');
+
+                return null;
+            }
+
+            return ['host' => $host, 'ip' => $host];
         }
 
         if (false === self::isResolvableName($host)) {
+            $this->refused($url, 'not a public host name');
+
             return null;
         }
 
         $addresses = self::resolve($host);
 
         if (0 === count($addresses)) {
+            $this->refused($url, 'host does not resolve');
+
             return null;
         }
 
@@ -377,6 +342,20 @@ final readonly class ImageProxyFetcher
         }
 
         return ['host' => $host, 'ip' => $addresses[0]];
+    }
+
+    /**
+     * Every refusal in validate() says which rule it was. Without these the
+     * rules were the one silent path left: the controller logged "no image to
+     * serve" and nothing said why, which is how every http image in every mail
+     * turned into a placeholder unnoticed (#271).
+     */
+    private function refused(string $url, string $reason): void
+    {
+        $this->logger->info('ImageProxyFetcher: refused the target', [
+            'url'    => $url,
+            'reason' => $reason,
+        ]);
     }
 
     /**

@@ -53,6 +53,9 @@ jobs:
                   REPO: ${{ github.repository }}
                   NUMBER: ${{ github.event.pull_request.number }}
                   LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+                  BASE: ${{ github.event.pull_request.base.ref }}
+                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+                  BODY: ${{ github.event.pull_request.body }}
               run: |
                   count=$(gh api graphql \
                       -f query='query($owner: String!, $name: String!, $number: Int!) {
@@ -65,6 +68,19 @@ jobs:
 
                   if [ "$count" != "0" ]; then
                       echo "Links $count issue(s)." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+
+                  # GitHub reads "Closes #N" only in a pull request into the
+                  # default branch, so one into `milestone/v0.3.8` or a `wip/`
+                  # branch links nothing that way and its closing references
+                  # stay empty, whatever the description says. There the
+                  # description is read here instead, with the keywords GitHub
+                  # itself accepts. The issue closes when the pull request is
+                  # merged into a milestone branch (close-milestone-issues.yml).
+                  if [ "$BASE" != "$DEFAULT_BRANCH" ] \
+                      && printf '%s' "$BODY" | grep -Eiq '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? +#[0-9]+'; then
+                      echo "Into \`$BASE\`: names the issue it closes in its description." >> "$GITHUB_STEP_SUMMARY"
                       exit 0
                   fi
 

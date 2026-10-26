@@ -56,6 +56,7 @@ final class PageRendersTest extends WebTestCase
         yield 'settings general' => ['/settings?section=general'];
         yield 'settings disposal' => ['/settings?section=disposal'];
         yield 'settings images' => ['/settings?section=images'];
+        yield 'settings swipe actions' => ['/settings?section=swipe-actions'];
         // The AI section renders whether or not an administrator has switched
         // anything on: a feature that is off is a row with a sentence instead
         // of a switch, and that branch is the one nothing else walks.

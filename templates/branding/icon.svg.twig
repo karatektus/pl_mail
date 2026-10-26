@@ -14,12 +14,24 @@
       p           the paints by part: '#rrggbb', 'url(#g)', 'url(#t)' or null
       glyph_ramp  seven stops when a glyph part is a sweep, else null
       tile_ramp   seven stops when the ground is one, else null
+      bleed       true for the ground out to every edge of the 108 canvas, with
+                  no rounded clip (see below), else the rounded tile
+
+    THE BLEED
+    A launcher or iOS cuts the corners itself: iOS rounds the square it is given
+    and paints a transparent corner black, and an Android maskable icon is masked
+    to whatever shape the launcher uses. Both want the ground to the edge, with
+    the glyph inside the safe circle, and the 108 canvas is exactly that: the
+    glyph sits in the middle 72, as it does in the tile, so the bleed is the same
+    picture with its edges let out. (It is the geometry of the fixed
+    apple-touch-icon.png and icon-maskable-512.png the installed app wore.)
 
     Both gradients are userSpaceOnUse, so a ramp runs corner to corner across
     the glyph — (8,6) to (40,42) on its grid — rather than restarting inside
     every stroke it paints, and the ground's across the visible square.
 #}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="72" height="72">
+{% set bleed = bleed|default(false) %}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="{{ bleed ? '0 0 108 108' : '18 18 72 72' }}" width="{{ bleed ? 108 : 72 }}" height="{{ bleed ? 108 : 72 }}">
     <defs>
 {% if glyph_ramp %}
         <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="8" y1="6" x2="40" y2="42">
@@ -31,9 +43,15 @@
             {%- for stop in tile_ramp %}<stop offset="{{ '%.3f'|format(loop.index0 / 6) }}" stop-color="{{ stop }}"/>{% endfor -%}
         </linearGradient>
 {% endif %}
+{% if not bleed %}
         <clipPath id="tile"><rect x="18" y="18" width="72" height="72" rx="16"/></clipPath>
+{% endif %}
     </defs>
+{% if bleed %}
+    <g>
+{% else %}
     <g clip-path="url(#tile)">
+{% endif %}
         <rect width="108" height="108" fill="{{ p.background }}"/>
         <g transform="translate(25.2 25.2) scale(1.2)">{% include 'branding/motif/' ~ motif.value ~ '.svg.twig' with { p: p } only %}</g>
     </g>

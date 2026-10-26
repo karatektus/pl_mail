@@ -2,8 +2,8 @@
 
 CalDAV is the standard protocol for calendars on a server, and plMail speaks it to any server that
 implements RFC 4791: Nextcloud, Radicale, Baïkal, Fastmail, iCloud, a Synology box in a cupboard.
-There is nothing to register with anybody and no administrator step — a user connects a server from
-their own settings with an address, a username and a password.
+There is nothing to register with anybody and nothing an administrator has to switch on — a user
+connects a server from their own settings with an address, a username and a password.
 
 **Gmail and Outlook calendars do not come in this way.** They arrive with the mail account, on the
 grant it already holds, and need only the calendar permission ticked on the app registration — see
@@ -12,6 +12,40 @@ pointing it at Google's CalDAV endpoint is the first thing somebody tries.
 
 What happens after a server is connected — ticking which calendars to mirror, two-way sync,
 read-only calendars — is in [Connected calendars](../features/calendar-sync.md).
+
+## Nextcloud: no second connection
+
+A Nextcloud connected for files under **Settings → Integrations** also gives you its calendars.
+Nextcloud serves CalDAV under the same `/remote.php/dav` with the same app password, so that
+connection is listed in **Settings → Calendars** and its calendars are found from there. Nothing
+on this page needs doing for it.
+
+- **The address** is the one the Nextcloud connection uses, so an address an administrator pinned
+  in **Admin → Integrations** applies to calendars as well, including its exemption from the
+  private-network rule below.
+- **Discovery** starts at `/remote.php/dav` under that address, subfolder installs included, and
+  only falls back to `.well-known` when nothing answers there.
+- **Disconnecting** Nextcloud in Settings → Integrations removes its calendars too. As with any
+  calendar connection, events that came from your mail rather than from the server are moved to
+  your default calendar first.
+- **A separate CalDAV connection** you made earlier to the same Nextcloud keeps working. Its
+  calendars show as *Already mirrored through …* on the Nextcloud connection's list, so the same
+  calendar is never mirrored twice.
+
+The generic CalDAV connection below stays for every other server.
+
+## One server for everybody
+
+An administrator can pin one CalDAV server in **Admin → Integrations**, under **Calendars**, and the
+setup wizard asks the same question. With an address pinned, every CalDAV connection finds its
+calendars on that server rather than at the address its user typed, and that host is exempt from the
+private-network rule [below](#addresses-plmail-will-refuse).
+
+The address is changed or cleared in the same place, and the change applies the next time calendars
+are found on a connection. Calendars already mirrored keep the address they were found at, so after
+a server moves, find its calendars again. Clearing a pinned address in a private range takes its
+exemption with it: calendars mirrored from that host then stop syncing with *"Server address must not
+point at a private network"* until the host is listed in `INTEGRATIONS_ALLOWED_HOSTS`.
 
 ## Connecting a server
 
@@ -95,7 +129,8 @@ as every other user-supplied server address:
 - A username or password embedded in the URL is refused outright — it would be logged wherever the
   URL is, and would silently override the credentials on the connection.
 - Anything resolving into loopback, link-local or a private range is refused unless the host is
-  listed in `INTEGRATIONS_ALLOWED_HOSTS`.
+  listed in `INTEGRATIONS_ALLOWED_HOSTS`, or is the host of a server address an administrator
+  pinned in **Admin → Integrations**.
 
 That last rule is the one a self-hoster meets. A Nextcloud on your LAN at `192.168.1.10` or
 `nextcloud.lan` is refused until you allow it, and a Nextcloud with no certificate needs the http

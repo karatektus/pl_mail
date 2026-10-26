@@ -20,7 +20,7 @@ use Doctrine\Migrations\AbstractMigration;
  * about mail older than a month at the next catch-up. The changelog says so,
  * and says that 0 puts it back.
  */
-final class Version20261017120000 extends AbstractMigration
+final class Version20261026120000 extends AbstractMigration
 {
     public function getDescription(): string
     {

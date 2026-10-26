@@ -22,9 +22,10 @@ mailed-by and signed-by were silently missing from every IMAP message.
 #}
 {% import _self as details %}
 
-{# One address, with a copy button for the addr-spec itself. The clipboard
-   source is the address text as it is rendered, so the insecure-context
-   fallback (which selects the source) highlights exactly what it copied. #}
+{# One address, with a copy button for the addr-spec itself and its contact
+   badge. The clipboard source is the address text as it is rendered, so the
+   insecure-context fallback (which selects the source) highlights exactly
+   what it copied. #}
 {% macro address(entry, separator = '') %}
     <span data-controller="ui--clipboard"
           data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
@@ -51,6 +52,15 @@ mailed-by and signed-by were silently missing from every IMAP message.
                and this is the same news for a screen reader. #}
             <span data-ui--clipboard-target="label" class="sr-only" role="status"></span>
         </button>
+        {# The sender's badge, on every address here too: somebody on Cc is as
+           likely a person to keep as the one who wrote. #}
+        <span class="shrink-0 self-center">
+            {%- include 'contacts/_sender_badge.html.twig' with {
+                address: entry.address,
+                name: entry.name ?? '',
+                contactId: address_book_contact_id(entry.address),
+            } only -%}
+        </span>
         {{- separator -}}
     </span>
 {% endmacro %}

@@ -34,7 +34,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *   deliberate admin decision instead of a silent default.
  *
  *   A host that RESOLVES into loopback, link-local, private or reserved space
- *   is refused outright unless it appears in INTEGRATIONS_ALLOWED_HOSTS. This
+ *   is refused outright unless it appears in INTEGRATIONS_ALLOWED_HOSTS or
+ *   is the host of a server address an admin pinned (isTrusted()). This
  *   is the check that stops http://localhost:5432, the container names on the
  *   compose network, and the cloud metadata endpoint at 169.254.169.254.
  *
@@ -136,7 +137,12 @@ final readonly class IntegrationUrlValidator implements TrustedHosts
 
         $host = strtolower((string) $parts['host']);
 
-        if (true === in_array($host, $this->allowedHosts, true)) {
+        // isTrusted() rather than the allow-list alone, so a pinned server
+        // address counts here as it does in UserUrlHttpClient. CalDavClient
+        // checks every URL through this method before requesting it, and
+        // without the pin a Nextcloud an admin pinned at http://nextcloud
+        // served files and refused calendars on the same host.
+        if (true === $this->isTrusted($host)) {
             return;
         }
 

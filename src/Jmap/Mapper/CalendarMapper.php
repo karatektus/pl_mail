@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Mapper;
 
 use App\Entity\Calendar\Calendar;
+use App\Service\Calendar\CalendarTimeResolver;
 
 /**
  * Maps a plMail Calendar onto the JMAP Calendar object this server publishes.
@@ -32,6 +33,11 @@ use App\Entity\Calendar\Calendar;
  */
 final class CalendarMapper
 {
+    public function __construct(
+        private readonly CalendarTimeResolver $time,
+    ) {
+    }
+
     /**
      * @param list<string>|null $properties
      *
@@ -73,7 +79,9 @@ final class CalendarMapper
             'sortOrder' => $calendar->sortOrder,
             'isVisible' => $calendar->isVisible,
             'isDefault' => $calendar->isDefault,
-            'timeZone' => $calendar->timeZone,
+            // The zone in effect. A calendar following plMail stores null, which
+            // JMAP would read as floating time — see CalendarTimeResolver.
+            'timeZone' => $this->time->calendarZone($calendar)->getName(),
             // plMail extension: what the calendar is FOR, which is what decides
             // where an extracted event lands. A client cannot derive it and a
             // user cannot change it, but "the calendar this account's mail files

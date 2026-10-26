@@ -36,7 +36,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 {% set tb = "shrink-0 px-1.5 py-0.5 rounded text-sm transition-colors text-ink-muted hover:bg-hover" %}
 
 <turbo-frame id="{{ frame }}">
-    <div data-controller="compose--compose compose--compose-toolbar"
+    <div data-controller="compose--compose compose--compose-toolbar compose--encryption"
          {# The server's statement that this render followed a save that was
             actually ACCEPTED. ComposeController::draft() has always passed
             `saved` and this template has never rendered it, which left the
@@ -75,6 +75,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
+             sealing:          'compose.status.sealing'|trans,
          }|json_encode|e('html_attr') }}"
          {# The toolbar controller's own vocabulary. Same arrangement and same
             reason as compose--compose's above: the link popover writes words
@@ -93,6 +94,44 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             a spinner where a signature should be. See signature_map(). #}
          data-compose--compose-signatures-value="{{ signature_map()|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
+         {# Encryption: see compose--encryption. Encrypted from the start when
+            the draft is already sealed, or when it answers encrypted mail —
+            ReplyDraftBuilder leaves a data-quote-sealed marker in the body
+            where the decrypted original goes. #}
+         {% set answersEncrypted = 'data-quote-sealed' in (form.bodyHtml.vars.value|default('')) %}
+         data-compose--encryption-mode-value="{{ message.sealedDraft or answersEncrypted ? 'on' : 'auto' }}"
+         data-compose--encryption-sealed-value="{{ message.sealedDraft ? 'true' : 'false' }}"
+         data-compose--encryption-sealed-draft-url-value="{{ message.sealedDraft and message.id ? path('app_compose_sealed_draft', { id: message.id }) : '' }}"
+         data-compose--encryption-recipients-url-value="{{ path('app_contact_keys_recipients') }}"
+         data-compose--encryption-raw-url-value="{{ path('app_mail_message_raw', { id: 0 })|replace({ '/0/': '/__ID__/' }) }}"
+         data-compose--encryption-attachment-url-value="{{ path('app_mail_attachment', { id: 0 })|replace({ '/0': '/__ID__' }) }}?download=1"
+         data-compose--encryption-sign-plain-value="{{ app.user.signPlainMail ? 'true' : 'false' }}"
+         data-compose--encryption-block-partial-value="{{ app.user.blockPartialEncryption ? 'true' : 'false' }}"
+         data-compose--encryption-protect-subject-value="{{ app.user.protectSubject ? 'true' : 'false' }}"
+         data-compose--encryption-attach-key-value="{{ app.user.attachPublicKey ? 'true' : 'false' }}"
+         data-compose--encryption-keyring-value="{{ {
+             stateUrl:    path('app_keyring_state'),
+             unlockUrl:   path('app_keyring_unlock_current'),
+             preloginUrl: path('app_login_prelogin'),
+             csrf:        csrf_token('keyring'),
+             userId:      app.user.id,
+             email:       app.user.email,
+         }|json_encode|e('html_attr') }}"
+         data-compose--encryption-messages-value="{{ {
+             partial:        'compose.crypto.partial'|trans({ '%emails%': '%emails%' }),
+             partialBlocked: 'compose.crypto.partial_blocked'|trans({ '%emails%': '%emails%' }),
+             missing:        'compose.crypto.missing'|trans({ '%emails%': '%emails%' }),
+             locked:         'compose.crypto.locked'|trans,
+             lockedNotSaved: 'compose.crypto.locked_not_saved'|trans,
+             lockedDraft:    'compose.crypto.locked_draft'|trans,
+             failedDraft:    'compose.crypto.failed_draft'|trans,
+             noOwnKey:       'compose.crypto.no_own_key'|trans,
+             noOwnCertificate: 'compose.crypto.no_own_certificate'|trans,
+             failed:         'compose.crypto.failed'|trans,
+             hasKey:         'compose.crypto.has_key'|trans,
+             hasCertificate: 'compose.crypto.has_certificate'|trans,
+             keyChanged:     'compose.crypto.key_changed'|trans,
+         }|json_encode|e('html_attr') }}"
          {# 'forward' moves the caret to To, spares the quote-only body the
             empty-mail question, and is the case the quote-collapse setting
             below is about. See ComposeController::forwardMessage().
@@ -104,6 +143,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             it was an empty mail. ctx travels in the URL. #}
          data-compose--compose-mode-value="{{ ctx.mode }}"
          data-compose--compose-collapse-forward-quote-value="{{ app.user and false == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED'), true) ? 'false' : 'true' }}"
+         data-compose--compose-hold-send-value="{{ app.user and constant('App\\Entity\\User\\User::SEND_FEEDBACK_HOLD') == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_SEND_FEEDBACK'), constant('App\\Entity\\User\\User::SEND_FEEDBACK_OPTIMISTIC')) ? 'true' : 'false' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeAttachmentController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}
@@ -253,6 +293,13 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                 {# 30vw below md, not 40: the pill next to it is ~100px wide and
                    at 320px the two of them plus the back arrow would leave the
                    title nothing at all. It truncates. #}
+                <span data-compose--encryption-target="indicator" hidden
+                      data-testid="compose-encrypted"
+                      title="{{ 'compose.crypto.encrypted_hint'|trans }}"
+                      class="inline-flex items-center gap-1 text-xs font-medium text-success mr-1 shrink-0">
+                    <i class="fa-solid fa-lock text-[10px]" aria-hidden="true"></i>
+                    <span class="hidden md:inline">{{ 'compose.crypto.encrypted'|trans }}</span>
+                </span>
                 <span data-compose--compose-target="saveStatus"
                       class="text-xs text-ink-muted mr-2 transition-colors truncate max-w-[30vw] md:max-w-none"></span>
 
@@ -345,6 +392,17 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    name="{{ form.bodyHtml.vars.full_name }}"
                    data-compose--compose-toolbar-target="hiddenInput"
                    value="{{ form.bodyHtml.vars.value|e('html_attr') ?: '' }}">
+
+            {# What the browser sealed for a send: the built message and what it
+               was built for. Filled by compose--encryption just before the form
+               goes, never rendered with anything in it. #}
+            <div data-compose--encryption-target="fields" hidden></div>
+
+            {# Encryption, said quietly: who cannot be reached encrypted, or why
+               this message cannot go as it is. #}
+            <p data-compose--encryption-target="hint" hidden
+               data-testid="compose-crypto-hint"
+               class="px-4 pt-1 text-xs text-ink-muted"></p>
 
             {# ── Refusals that belong to the message, not to one field ──
                This block did not exist, and its absence is what made scheduled
@@ -883,7 +941,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     <div data-controller="ui--dropdown compose--emoji-picker"
                          data-action="ui--dropdown:opened->compose--emoji-picker#build"
                          data-compose--emoji-picker-locale-value="{{ app.request.locale|split('_')|first }}"
-                         data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale|split('_')|first in ['de', 'fr'] ? app.request.locale|split('_')|first : 'en') ~ '/data.json') }}"
+                         data-compose--emoji-picker-data-source-value="{{ asset('emoji/' ~ (app.request.locale|split('_')|first in ['de', 'fr', 'zh'] ? app.request.locale|split('_')|first : 'en') ~ '/data.json') }}"
                          data-compose--emoji-picker-i18n-value="{{ {
                              categoriesLabel:         'compose.emoji.categories'|trans,
                              emojiUnsupportedMessage: 'compose.emoji.unsupported'|trans,
@@ -962,34 +1020,20 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                            data-action="change->compose--compose#uploadInlineImage">
 
                     {# ── Encrypt ───────────────────────────────────────
-                       DISABLED, and honestly so. There is no encryption in
-                       plMail yet — no ext-openssl requirement, no certificate
-                       storage, no key custody — and the seam it will hook into
-                       (MessageSendService::buildEmail) is one line in a service
-                       nothing here touches. A button that looked live and did
-                       nothing would tell the user their mail was encrypted when
-                       it was not, which is the one lie a mail client must never
-                       tell. So it stays visible and named, greyed, and says why
-                       when you hover it.
-
-                       `title` on the wrapper rather than the button: a disabled
-                       button does not fire the events a tooltip needs in most
-                       browsers, so the title has to live on something that is
-                       not disabled. aria-describedby points the screen reader
-                       at the same sentence. #}
-                    <span class="inline-flex shrink-0"
-                          title="{{ 'compose.encrypt_unavailable'|trans }}">
-                        <button type="button" disabled
-                                aria-describedby="{{ form.vars.id }}_encrypt_why"
-                                title="{{ 'compose.encrypt'|trans }}"
-                                aria-label="{{ 'compose.encrypt'|trans }}"
-                                class="{{ ic }} opacity-40 cursor-not-allowed hover:bg-transparent hover:text-ink-muted">
-                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
-                        </button>
-                        <span id="{{ form.vars.id }}_encrypt_why" class="sr-only">
-                            {{ 'compose.encrypt_unavailable'|trans }}
-                        </span>
-                    </span>
+                       A switch for this one message, over what the recipients'
+                       keys decide by themselves (compose--encryption): pressed
+                       means it goes out end-to-end encrypted. Green when it
+                       does, whoever decided it — the lock must never look the
+                       same for mail that leaves readable. #}
+                    <button type="button"
+                            aria-pressed="false"
+                            data-compose--encryption-target="encryptButton"
+                            data-action="click->compose--encryption#toggleEncrypt"
+                            title="{{ 'compose.encrypt'|trans }}"
+                            aria-label="{{ 'compose.encrypt'|trans }}"
+                            class="{{ ic }} aria-pressed:text-success">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                    </button>
 
                     {# ── Signature ─────────────────────────────────────
                        Inserts the signature of whoever is currently in From. If
@@ -1078,6 +1122,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        ask for a first draft. #}
                     {% if ai_writing_help_enabled() %}
                         <div data-controller="ui--dropdown compose--ai-assist"
+                             data-compose--encryption-target="aiAssist"
                              data-compose--ai-assist-url-value="{{ path('app_compose_assist_stream') }}"
                              {# ctx.replyTo, not a variable of our own: the context object is what
                                 already survives the round trip through both undo streams, so a
@@ -1459,6 +1504,27 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                 <i class="fa-solid fa-check w-4 text-center {{ plainText ? '' : 'invisible' }}"
                                    data-compose--compose-target="plainCheck" aria-hidden="true"></i>
                                 <span>{{ 'compose.plain_text'|trans }}</span>
+                            </button>
+
+                            {# Encryption for this one message, over what the
+                               recipients' keys decided. See compose--encryption. #}
+                            <button type="button" role="menuitemcheckbox" aria-checked="false"
+                                    data-compose--encryption-target="encryptToggle"
+                                    data-testid="compose-encrypt-toggle"
+                                    data-action="click->compose--encryption#toggleEncrypt click->ui--dropdown#close"
+                                    class="group w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                           hover:bg-hover hover:text-ink transition-colors text-left">
+                                <i class="fa-solid fa-check w-4 text-center invisible group-aria-checked:visible" aria-hidden="true"></i>
+                                <span>{{ 'compose.crypto.encrypt'|trans }}</span>
+                            </button>
+                            <button type="button" role="menuitemcheckbox" aria-checked="false"
+                                    data-compose--encryption-target="signToggle"
+                                    data-testid="compose-sign-toggle"
+                                    data-action="click->compose--encryption#toggleSign click->ui--dropdown#close"
+                                    class="group w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                           hover:bg-hover hover:text-ink transition-colors text-left">
+                                <i class="fa-solid fa-check w-4 text-center invisible group-aria-checked:visible" aria-hidden="true"></i>
+                                <span>{{ 'compose.crypto.sign'|trans }}</span>
                             </button>
 
                             <div class="my-1 border-t border-line"></div>

@@ -42,6 +42,7 @@ final class AiAvailabilityExtension extends AbstractExtension
         return [
             new TwigFunction('ai_writing_help_enabled', $this->writingHelp(...)),
             new TwigFunction('ai_summary_enabled', $this->summary(...)),
+            new TwigFunction('ai_contact_help_enabled', $this->contactHelp(...)),
             new TwigFunction('ai_categorisation_enabled', $this->categorisation(...)),
             new TwigFunction('ai_settings_available', $this->settingsAvailable(...)),
         ];
@@ -95,6 +96,19 @@ final class AiAvailabilityExtension extends AbstractExtension
         $user = $this->security->getUser();
 
         return $this->permissions->allows($user instanceof User ? $user : null, AiFeature::Summary);
+    }
+
+    /**
+     * The same two switches, for the contact editor's "Improve with AI"
+     * buttons. Both pages that draw one (the editor and quick add) render
+     * from ContactController, but a function keeps the question where the
+     * other three are asked.
+     */
+    public function contactHelp(): bool
+    {
+        $user = $this->security->getUser();
+
+        return $this->permissions->allows($user instanceof User ? $user : null, AiFeature::ContactHelp);
     }
 
     /**

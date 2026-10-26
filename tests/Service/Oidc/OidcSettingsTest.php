@@ -7,6 +7,7 @@ namespace App\Tests\Service\Oidc;
 use App\Entity\Oidc\OidcConfig;
 use App\Repository\Oidc\OidcConfigRepository;
 use App\Service\Oidc\OidcSettings;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -52,6 +53,59 @@ final class OidcSettingsTest extends TestCase
         self::assertSame(OidcSettings::SOURCE_ENVIRONMENT, $settings->source());
         self::assertSame(['https://env.example.com/', 'env-client', 'env-secret'], [$current->issuer, $current->clientId, $current->clientSecret]);
         self::assertTrue($current->requireVerifiedEmail, 'a blank variable must not switch the check off');
+    }
+
+    public function testPasswordLoginStaysOnUnlessAWholeProviderIsInForceAndSaysOtherwise(): void
+    {
+        self::assertTrue($this->settings(null)->current()->allowsPasswordLogin());
+
+        $row                        = new OidcConfig();
+        $row->issuer                = 'https://admin.example.com/';
+        $row->clientId              = 'admin-client';
+        $row->clientSecret          = 'admin-secret';
+        $row->passwordLoginDisabled = true;
+
+        self::assertFalse($this->settings($row)->current()->allowsPasswordLogin());
+
+        $row->clientSecret = null;
+        self::assertTrue(
+            $this->settings($row)->current()->allowsPasswordLogin(),
+            'a half-saved provider is ignored, and the box ticked beside it must not lock anybody out',
+        );
+    }
+
+    public function testTheSettingIsInertWithoutAProvider(): void
+    {
+        $configs = self::createStub(OidcConfigRepository::class);
+        $settings = new OidcSettings($configs, '', '', '', '', false, '', 'openid email', 'true');
+
+        self::assertTrue($settings->current()->allowsPasswordLogin(), 'no provider, so the password form is the only way in and stays');
+    }
+
+    /**
+     * Only a value that plainly says yes locks the form: this setting takes
+     * people's way in away, so a typo has to land on "still there".
+     */
+    #[DataProvider('environmentValues')]
+    public function testTheEnvironmentSwitchesItOffOnlyOnAClearYes(string $value, bool $passwordAllowed): void
+    {
+        $configs = self::createStub(OidcConfigRepository::class);
+        $settings = new OidcSettings($configs, 'https://env.example.com/', 'env-client', 'env-secret', '', false, '', 'openid email', $value);
+
+        self::assertSame($passwordAllowed, $settings->current()->allowsPasswordLogin());
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function environmentValues(): iterable
+    {
+        yield 'true' => ['true', false];
+        yield 'on, any case' => [' On ', false];
+        yield '1' => ['1', false];
+        yield 'blank' => ['', true];
+        yield 'false' => ['false', true];
+        yield 'a typo' => ['ture', true];
     }
 
     private function settings(?OidcConfig $row): OidcSettings

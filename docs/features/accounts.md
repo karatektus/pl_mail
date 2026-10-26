@@ -1,8 +1,8 @@
 # Accounts and aliases
 
-A plMail account is one mailbox you have somewhere else — an IMAP server, Gmail, or Outlook — that
-plMail signs into and syncs. You can connect as many as you like; they sync independently and read
-as one inbox.
+A plMail account is one mailbox you have somewhere else — an IMAP or POP3 server, Gmail, or
+Outlook — that plMail signs into and syncs. You can connect as many as you like; they sync
+independently and read as one inbox.
 
 Everything on this page lives under **Settings → Mail accounts**, except where it says otherwise.
 
@@ -37,6 +37,32 @@ mailbox and syncs the moment something changes, with a scheduled sweep every fif
 behind it.
 
 See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree about.
+
+## Adding a POP3 mailbox
+
+Some providers serve POP3 and SMTP and no IMAP at all. For those, choose **POP3** under **Incoming
+protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. The
+**Provider** list is IMAP settings, so picking an entry there switches the form back to IMAP.
+
+POP3 has one mailbox and nothing else: no folders, no flags, and no way to tell the server
+anything but "delete this". So in plMail a POP3 account is a single inbox. Reading, starring,
+labelling and moving mail all happen here and stay here, and the next sync does not undo them.
+Mail you send is labelled Sent in plMail; the server has nowhere to keep a copy. There is no IDLE
+either, so new mail arrives with the sweep every fifteen minutes, or straight away with the sync
+button.
+
+Each message is recognised by its UIDL, the server's own name for it, so mail is never fetched
+twice. The first sync of a large mailbox brings in a few hundred messages per sync, newest first.
+
+**After fetching** decides what happens to the server's copy. **Leave it on the server** is the
+default. Choose **Delete it from the server** and a message is deleted there once it is stored
+in plMail, and only then. A message plMail could not fetch or store stays on the server whatever
+this says. Deleting frees space at your provider, but plMail's copy is then the only one.
+
+You can switch an existing account between IMAP and POP3 on its edit form. Its mail stays: the
+next sync recognises what plMail already holds and does not store it again — by its Message-ID, or
+for the rare message without one, by its sender, subject and date. Folders other than the inbox
+keep their mail when an account becomes POP3, and stop syncing.
 
 ## Adding Gmail or Outlook
 
@@ -248,6 +274,55 @@ the provider, and a wrong entry shows up as a refused or rewritten sender on the
 One caveat plMail states on the page itself: **Outlook sends as the account's primary alias
 regardless of what you choose here.** That is Microsoft's behaviour, changed in your Microsoft
 account settings, not here.
+
+### Gmail collecting mail for another account (Gmailify)
+
+Gmail can fetch the mail of another address into your Gmail inbox. When that other address is
+connected here as well, every message reaches plMail twice: once through Gmail and once through the
+other account's own IMAP sync. plMail files such mail under the other account and merges the two
+copies into one, so a message is listed once. The merged message is still the other account's: its
+IMAP folder decides whether it is in the Inbox, the bin or another folder, whatever Gmail did with
+its own copy. Labels you give it in Gmail show here, and archiving, starring or labelling it here
+is also sent to Gmail.
+
+Under each Gmail account on this page, **File mail for my other accounts under them** turns this
+on or off. It is on unless you turn it off. Turn it off once Gmail no longer collects that mail,
+typically after a domain has moved from Gmail to an IMAP provider of its own. Otherwise Gmail's old
+and late copies keep being matched to the other account. With it off:
+
+- The Gmail account keeps only mail addressed to itself. Mail it has for other addresses is not
+  stored again.
+- The other account's own copies stop following Gmail. They lose the labels Gmail put on them,
+  and a change you make to them is no longer sent to Gmail. The mail itself stays where its IMAP
+  folder has it. This runs in the background, so on a mailbox that has collected mail for years it
+  can take a few minutes after the switch is turned off.
+- Mail that Gmail filed under the other account, and that the other account's IMAP server never
+  had, stays as it is and keeps following Gmail. Gmail is the only place that mail exists.
+
+**Best turned off once Gmail has stopped collecting.** While Gmail still collects the other
+address's mail, plMail tells that mail apart by its recipients: a message whose To or Cc names the
+other address, and not the Gmail address, is left to the other account, even though Gmail stamps
+its own address on it as the place it was delivered. A message Bcc'd to the other address names
+nobody, so it looks like the Gmail account's own mail and is kept on both accounts. Mailing lists
+and newsletters often arrive that way. Stop the collecting in Gmail (Settings → Accounts → Check
+mail from other accounts) and those duplicates stop too.
+
+Turning it back on changes nothing that is already stored. Mail that arrives afterwards is matched
+again, and so is an older message once Gmail reports a change to it.
+
+**Mail moved by Gmail before v0.3.9.** Earlier versions moved the other account's copy wherever
+Gmail moved its own. Mail trashed or archived in Gmail showed in plMail's bin or archive, although
+the IMAP server still had it in its Inbox. To put that mail back where its IMAP folder has it, an
+administrator runs:
+
+```bash
+php bin/console app:backfill gmailify-placement
+```
+
+Run it while the workers are quiet. A move you make in plMail updates the labels first and the IMAP
+folder a moment later, and a message caught in between would briefly go back to its old folder.
+Mail that those earlier versions removed because Gmail had emptied it from its bin is not brought
+back by this. The IMAP sync only fetches mail newer than what it already has.
 
 ### What each address does by default
 

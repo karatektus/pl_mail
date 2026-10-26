@@ -102,7 +102,8 @@ final class CalendarSettingsController extends AbstractController
         $calendar = $this->blank($user);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action' => $this->generateUrl('app_settings_calendar_new'),
+            'action'     => $this->generateUrl('app_settings_calendar_new'),
+            'owner_zone' => $this->timezones->nameFor($user),
         ]);
 
         $form->handleRequest($request);
@@ -123,7 +124,8 @@ final class CalendarSettingsController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
-            'action' => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
+            'action'     => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
+            'owner_zone' => $this->timezones->nameFor($calendar->usr),
         ]);
 
         $form->handleRequest($request);
@@ -322,7 +324,10 @@ final class CalendarSettingsController extends AbstractController
 
         $integration = $source->integration;
 
-        if (null === $integration) {
+        // Only a connection made for calendars. A Nextcloud connection also
+        // holds the user's files, so it is disconnected where it was made, in
+        // Settings → Integrations, whose confirmation says what goes with it.
+        if (null === $integration || ServiceKind::Calendar !== $integration->provider->kind()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -385,12 +390,13 @@ final class CalendarSettingsController extends AbstractController
 
         $integration = $this->integrations->find($id);
 
-        // ServiceKind, not the CalDav case: a file connection has no calendars
-        // and no driver, and answering "not yours" for one is more honest than
-        // letting it reach a registry that would say the same thing in a 500.
+        // offersCalendars(), not the CalDav case: most file connections have
+        // no calendars and no driver, and answering "not yours" for one is
+        // more honest than letting it reach a registry that would say the same
+        // thing in a 500. Nextcloud is the file connection that does (#158).
         if (null === $integration
             || $integration->usr !== $user
-            || ServiceKind::Calendar !== $integration->provider->kind()) {
+            || false === $integration->provider->offersCalendars()) {
             throw $this->createAccessDeniedException();
         }
 
@@ -474,8 +480,8 @@ final class CalendarSettingsController extends AbstractController
 
     /**
      * A new calendar, already carrying the answers a user should not have to
-     * give: their own zone rather than the server's, and the next colour along
-     * so two calendars made in a row do not look like one.
+     * give: following their own zone, and the next colour along so two
+     * calendars made in a row do not look like one.
      */
     private function blank(User $user): Calendar
     {
@@ -483,7 +489,7 @@ final class CalendarSettingsController extends AbstractController
 
         $calendar            = new Calendar();
         $calendar->usr       = $user;
-        $calendar->timeZone  = $this->timezones->nameFor($user);
+        $calendar->timeZone  = null;
         $calendar->color     = Calendar::COLORS[count($siblings) % count(Calendar::COLORS)];
         $calendar->sortOrder = count($siblings);
 

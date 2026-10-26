@@ -153,6 +153,35 @@ class ImapIdleCommand extends Command
         return $readSeconds < self::CLOSED_READ_SECONDS;
     }
 
+    /**
+     * End an IDLE session the server may already have ended.
+     *
+     * `DONE` has to be answered by the server, and a server that closed the
+     * session a little before our own 29-minute re-issue answers with nothing:
+     * `done()` throws "empty response" (after the library has logged a
+     * "Connection reset by peer" and a "Broken pipe"). FranklyMail does this.
+     * That is the ordinary end of a session, but it left through the retry
+     * ladder in execute() as a failure, and since idle() never returned
+     * normally the counter never went back to zero: ten of them in a row, about
+     * five hours, and the process gave up with exit code 1 and an ERROR from
+     * the supervisor.
+     *
+     * Public and static for the reason connectionEnded() is.
+     */
+    public static function closeSession(object $connection, object $client): void
+    {
+        try {
+            $connection->done();
+        } catch (\Throwable) {
+            // The server is gone already; there is nothing left to finish.
+        }
+
+        try {
+            $client->disconnect();
+        } catch (\Throwable) {
+        }
+    }
+
     /** Run something whose failure changes nothing — closing what is already closed. */
     private function quietly(callable $action): void
     {
@@ -255,15 +284,13 @@ class ImapIdleCommand extends Command
 
             if (true === $this->shouldStop) {
                 $io->text(sprintf('[%s] Shutdown requested — closing IDLE cleanly.', date('H:i:s')));
-                $connection->done();
-                $client->disconnect();
+                self::closeSession($connection, $client);
                 return;
             }
 
             if (time() - $startTime >= self::IDLE_TIMEOUT) {
                 $io->text(sprintf('[%s] IDLE timeout — reconnecting.', date('H:i:s')));
-                $connection->done();
-                $client->disconnect();
+                self::closeSession($connection, $client);
                 $this->beat($mailbox, $account, true);
                 return;
             }
@@ -274,8 +301,7 @@ class ImapIdleCommand extends Command
                 $line = $connection->nextLine(new Response(0, false));
             } catch (\Throwable $e) {
                 if (true === $this->shouldStop) {
-                    $connection->done();
-                    $client->disconnect();
+                    self::closeSession($connection, $client);
                     return;
                 }
 

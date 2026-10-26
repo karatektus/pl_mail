@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:122f0e14aa2280cfe38b171539644284c35d7c38 -->
+<!-- translated-from: features/calendar.md sha1:b293d951b77d4bb00035776790dd9e8bf7517a7e -->
 
 # Kalender
 
@@ -76,13 +76,25 @@ Zurück und Weiter springen in der Monatsansicht um einen Monat, in der 7-Tage-A
 und überall sonst um einen Tag — die Agenda eingeschlossen, denn sie ist eine fortlaufende Liste und
 keine Seite.
 
+**Auf einem schmalen Bildschirm rückt die Werkzeugleiste zusammen, statt zu scrollen.** Unter etwa
+590 Pixeln zeigt der Ansichtsumschalter Symbole, und das Datum nimmt eine kurze Form an: der Monat
+ohne Jahr, solange es dieses Jahr ist (**Oktober**), eine Woche als **20.–26. Okt.**, ein Tag als
+**20. Okt.** Auf den schmalsten Telefonen wird **Heute** zum heutigen Datum in einem kleinen Kästchen.
+
 Die volle Seite öffnet mit der Ansicht **7 Tage**. Die angedockte Fläche öffnet mit **Agenda** — sie
 ist 380 Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus
 leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
 die Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda
 zeigen.
 
-In der Monatsansicht zeichnet eine Zelle so viele Einträge ihres Tages, wie hineinpassen, und blendet
+**In der Monatsansicht steht bei einem Eintrag der Titel zuerst**, auf bis zu zwei Zeilen, und
+darunter, wann er ist und wo: **Quartalsplanung Q4**, dann **10:00–11:00 · Raum Elbe**. In einem
+schmaleren Tag fallen das Ende und der Ort weg, und der Titel bekommt eine dritte Zeile in kleinerer
+Schrift; lange Wörter werden in der Sprache getrennt, auf die plMail eingestellt ist. Eine Einladung,
+die du noch nicht beantwortet hast, hat einen gestrichelten Balken, damit die offenen Einladungen
+der Woche auf einen Blick zu sehen sind.
+
+Eine Zelle zeichnet so viele Einträge ihres Tages, wie hineinpassen, und blendet
 den letzten dort aus, wo der Platz endet — statt sie zu zählen. Früher stand dort **N weitere**, und
 diese Zahl konnte nicht stimmen: Die Höhe einer Zelle ist die des Fensters geteilt durch sechs, und
 ein Eintrag ist ein oder zwei Zeilen hoch, je nachdem, ob er eine Uhrzeit hat. Die Zahl war immer
@@ -92,13 +104,18 @@ diesen Tag, und dort stehen die übrigen.
 **Bleibt der Zeiger auf einem Tag stehen, klappt dieser ganze Tag heraus.** Die Zelle wird zu einer
 kleinen Fläche, breit genug für die vollen Titel und lang genug für jeden Eintrag. Dabei verrutscht
 nichts: Sie wächst nach rechts und nach unten, genau von dort, wo die Liste ohnehin stand, und der
-Eintrag, den du angesehen hast, liegt weiterhin unter dem Zeiger.
+Eintrag, den du angesehen hast, liegt weiterhin unter dem Zeiger. Auf einem Touchscreen, der keinen
+Zeiger hat, der stehen bleiben könnte, **öffnet der erste Tipp auf einen Tag diesen Tag** und tut
+sonst nichts; die Einträge darin öffnen sich beim nächsten Tipp.
 
-**Wo eine Zelle zu schmal für Wörter ist, verzichtet sie darauf.** Sieben Spalten eines Telefons
-sind je etwa vierzig Pixel breit, und in dieser Breite wird weder ein Titel noch eine Uhrzeit fertig.
-Darunter wird ein Eintrag deshalb als Balken in der Farbe seines Kalenders gezeichnet — wie viele,
-und aus welchen Kalendern, auf einen Blick. Ein Tipp auf das Datum öffnet den Tag, dort stehen sie
-ausgeschrieben.
+**Wo eine Zelle zu schmal für Wörter ist, verzichtet sie darauf, und der Tag steht stattdessen
+unter dem Monat.** Sieben Spalten eines Telefons sind je etwa fünfzig Pixel breit, und in dieser
+Breite wird weder ein Titel noch eine Uhrzeit fertig. Dort wird ein Eintrag deshalb als Balken in der
+Farbe seines Kalenders gezeichnet — wie viele, und aus welchen Kalendern, auf einen Blick —, und das
+Raster wird kleiner, um darunter Platz für die Liste eines Tages zu machen, ausgeschrieben, wie die
+Agenda schreibt. Sie beginnt mit heute; **ein Tipp auf einen beliebigen Tag, die Balken
+eingeschlossen, listet stattdessen diesen Tag**. Die Liste hat ihr eigenes **+**, das einen neuen
+Termin an diesem Tag öffnet, und **Neuer Termin** in der Werkzeugleiste legt ihn ebenfalls dort an.
 
 Die Agenda fasst ihre Einträge unter einer Überschrift je Tag zusammen, die oben stehen bleibt,
 solange die Termine dieses Tages auf dem Schirm sind. Beginn und Ende — oder **Ganztägig** — stehen
@@ -141,17 +158,21 @@ Quadratzentimeter groß und hat keinen Platz zu sagen, wo im Tag etwas liegt; un
 Agenda besteht darin, die leere Zeit zu überspringen — also genau das, was eine Rasterachse zeichnen
 würde.
 
+**Die rote Linie der aktuellen Zeit läuft mit der Uhr mit**, einmal pro Minute, und wenn sich das
+Datum ändert, zeichnet sich die Ansicht neu — die Linie, die Tönung auf heute und der Kreis um das
+heutige Datum im Monat wandern zum neuen Tag —, sodass ein Kalender, der neben der Mail offen bleibt,
+stimmt.
+
 **Das Raster wird auf deiner Uhr gezeichnet.** Die Stunden an der Seite, die Stelle, an der die
 Linie der aktuellen Zeit sitzt, und die Zeit, die für einen neuen Termin vorgeschlagen wird, wenn du
 auf leeren Raum doppelklickst, folgen alle der Zeitzone aus **Einstellungen → Allgemein**. Das ist
-dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird. Trägt ein Kalender eine
-eigene Zeitzone, gilt sie für seine Termine, wie eh und je; geändert hat sich der Rückfall, der
-früher die Vorstellung des Containers von der Zeit war — UTC —, sodass die Linie der aktuellen Zeit
-ein bis zwei Stunden neben ihren eigenen Beschriftungen sitzen konnte und ein neuer Termin für einen
-bereits vergangenen Zeitpunkt vorgeschlagen wurde. Ein Kalender, den du von Google oder einem
-CalDAV-Server abonnierst, ist die Ausnahme: Seine Zone ist die, die das entfernte Konto für ihn
-führt, bei einem geteilten Kalender oft UTC; ist so ein Kalender dein Standardkalender, folgt das
-Raster trotzdem deiner eigenen Zone.
+dieselbe Zone, gegen die jeder andere Zeitstempel in der App gelesen wird, und die der Uhr oben,
+also sind sich beide immer einig. Jeder Termin steht zu dem Zeitpunkt da, zu dem er bei dir
+tatsächlich stattfindet: Ein Termin um 15:00 in einem Tokioter Kalender liegt, in Berlin gelesen,
+auf der Linie von 07:00. Änderst du deine Zeitzone, zieht der Kalender mit. Bis plMail 0.4.0 folgte
+das Raster stattdessen der eigenen Zone deines Standardkalenders, und die war eine Kopie deiner Zone
+vom Tag, an dem der Kalender angelegt wurde — nach einem Wechsel der Zeitzone waren sich Kalender und
+Uhr deshalb uneinig ([#343](https://github.com/karatektus/pl_mail/issues/343)).
 
 Drei Dinge über das Raster sind es wert, gewusst zu werden:
 
@@ -179,7 +200,12 @@ Agenda, und die Tagesansicht ist in der Werkzeugleiste einen Tipper entfernt und
 **Neuer Termin** in der Werkzeugleiste, das **+** an einer Tagesüberschrift und ein Klick auf einen
 vorhandenen Termin öffnen alle denselben Editor. Er ist ein Dialog über der Seite, auf der du gerade
 warst — der Kalenderseite oder einer Mail-Ansicht mit dem angedockten Kalender daneben — und
-Speichern bringt dich dorthin zurück, statt dich in den Kalender zu ziehen.
+Speichern bringt dich dorthin zurück, statt dich in den Kalender zu ziehen. Auf einem Telefon füllt er
+den ganzen Bildschirm, wie das Fenster zum Verfassen.
+
+Ein **+** an einem Tag öffnet den Editor an diesem Tag zur nächsten vollen Stunde. Ein Tag, der schon
+vorbei ist, behält sein Datum: Ein Termin, den du nachträglich einträgst, landet an dem Tag, an dem er
+war, nicht an heute.
 
 Die Felder sind **Titel**, **Beginn**, **Ende**, **Ganztägig**, **Kalender**, **Wiederholung**,
 **Ort**, **Beschreibung** und **Erinnerungen**, dazu **Ändern**, sobald sich der Termin wiederholt.
@@ -304,8 +330,13 @@ deshalb das, was der Editor voreingestellt meint: Jede beschreibbare Kopie zieht
 
 Unter **Einstellungen → Kalender** werden Kalender angelegt, umbenannt, umgefärbt, mit einer Zeitzone
 versehen, aus den Ansichten ausgeblendet und zu dem ernannt, in dem neue Termine landen. Die Zeitzone
-eines Kalenders ist die, in der er gelesen wird, und die, in der ein Termin ohne eigene Zone
-angezeigt wird.
+eines Kalenders ist die, in der ein neuer Termin darin angelegt wird; wo Termine angezeigt werden,
+ändert sie nicht, das ist immer deine eigene Uhr. Sie steht zuerst auf **plMail folgen**, also auf
+deiner eigenen Zeitzone, wie sie gerade ist, und die Liste schreibt bei so einem Kalender *Folgt
+plMail*. Wähl stattdessen eine Zone für einen Kalender, der woanders hingehört, etwa einen für ein
+Büro in einem anderen Land: Ein Zeitfenster, auf das du doppelklickst, öffnet sich dann zum selben
+Zeitpunkt, geschrieben in dieser Zone. Ein Kalender, den du von Google oder einem CalDAV-Server
+abonnierst, behält die Zone, die das entfernte Konto für ihn führt.
 
 plMail legt zwei Arten von Kalender für dich an: einen Standardkalender je Benutzer und einen je
 E-Mail-Konto, in den die Termine einsortiert werden, die in der Mail dieses Kontos gefunden wurden.

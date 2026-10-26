@@ -1,0 +1,17 @@
+{#
+    The user's uploaded logo (#48) with a ground out to every edge: what the
+    installed app's maskable icon and iOS's home-screen icon are drawn from,
+    the same job icon.svg.twig's bleed does for a motif.
+
+    The logo sits in the middle 72 of the 108 canvas, where a motif's glyph
+    sits, so a launcher cutting the square down to its own shape cuts the
+    ground and not the logo. The ground is white: a logo is drawn to be read
+    on something pale, and iOS paints a transparent corner black.
+
+    Variables (see BrandingController::customSvg()):
+      logo  the sanitised SVG, its root already placed at 18,18 and 72 square
+#}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+    <rect width="108" height="108" fill="#ffffff"/>
+    {{ logo|raw }}
+</svg>

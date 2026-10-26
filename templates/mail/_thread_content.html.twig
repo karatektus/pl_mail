@@ -153,7 +153,9 @@ self-contained: no {% extends %}, no block dependencies.
     <div class="w-full px-4 md:px-6 py-5"{{ thread_summary.root(thread) }}>
 
         <div class="flex items-baseline gap-3 mb-6">
-            <h1 class="text-xl font-semibold text-ink min-w-0 break-words">
+            {# data-thread-subject: mail--encrypted-message puts a subject it
+               decrypted here when the outside only said "..." (RFC 9788). #}
+            <h1 class="text-xl font-semibold text-ink min-w-0 break-words" data-thread-subject>
                 {{ thread.subject ?: ('thread.no_subject'|trans) }}
             </h1>
             {% if thread.messageCount > 1 %}
@@ -191,11 +193,39 @@ self-contained: no {% extends %}, no block dependencies.
         {# `.thread-messages` is the container the message headers query: how
            much room a header has is the width of THIS block, which in the
            reading pane is the pane's, not the window's. See app.css. #}
+        {# Every address the messages below show a contact badge for, looked
+           up in one query rather than one per address (see
+           AddressBookExtension::prime()). #}
+        {% set badgeAddresses = [] %}
+        {% for message in messages %}
+            {% set badgeAddresses = badgeAddresses|merge([message.fromAddress]) %}
+            {% for kind in ['to', 'cc', 'bcc', 'reply-to'] %}
+                {% set badgeAddresses = badgeAddresses|merge(message_addresses(message, kind)|map(entry => entry.address)) %}
+            {% endfor %}
+        {% endfor %}
+        {% do address_book_prime(badgeAddresses) %}
+
+        {# Which messages are in the bin, when only some of them are. A
+           conversation stays in the Inbox and its labels until EVERY message of
+           it is deleted (#268), so opening one shows deleted messages among
+           live ones, and nothing said which was which. Where all of them are in
+           the bin — Trash itself — the mark would sit on every message and say
+           nothing, so it is drawn only for a mixed conversation. Read per
+           message by the same MailPlacement the actions use. #}
+        {% set binnedIds = [] %}
+        {% for message in messages %}
+            {% if mail_placement(message) == 'trash' %}
+                {% set binnedIds = binnedIds|merge([message.id]) %}
+            {% endif %}
+        {% endfor %}
+        {% set markBinned = binnedIds|length > 0 and binnedIds|length < messages|length %}
+
         <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,
                     expanded: loop.last or message.seenAt is null,
+                    binned:   markBinned and message.id in binnedIds,
                 } only %}
             {% endfor %}
         </div>

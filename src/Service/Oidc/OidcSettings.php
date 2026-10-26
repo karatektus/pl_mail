@@ -53,6 +53,8 @@ final readonly class OidcSettings
         private string               $requireVerifiedEmail,
         #[Autowire('%env(OIDC_SCOPES)%')]
         private string               $scopes,
+        #[Autowire('%env(OIDC_DISABLE_PASSWORD_LOGIN)%')]
+        private string               $disablePasswordLogin = '',
     ) {
     }
 
@@ -91,6 +93,7 @@ final readonly class OidcSettings
             $stored->autoCreate,
             $stored->requireVerifiedEmail,
             '' === trim((string) $stored->scopes) ? self::DEFAULT_SCOPES : (string) $stored->scopes,
+            $stored->passwordLoginDisabled,
         );
     }
 
@@ -110,6 +113,10 @@ final readonly class OidcSettings
             // The safe answer has to be the one a mistake lands on.
             false === in_array(strtolower(trim($this->requireVerifiedEmail)), ['false', '0', 'no', 'off'], true),
             $this->scopes,
+            // The mirror image of the check above, and for the same reason:
+            // this one locks people out of the password form, so only a value
+            // that plainly says yes may switch it on. A typo leaves the form.
+            true === in_array(strtolower(trim($this->disablePasswordLogin)), ['true', '1', 'yes', 'on'], true),
         );
     }
 }

@@ -303,6 +303,11 @@ final class AiSettingsType extends AbstractType
                 'label'    => 'admin.ai.field.summary',
                 'help'     => 'admin.ai.field.summary_help',
                 'required' => false,
+            ])
+            ->add('contactHelpEnabled', CheckboxType::class, [
+                'label'    => 'admin.ai.field.contact_help',
+                'help'     => 'admin.ai.field.contact_help_help',
+                'required' => false,
             ]);
     }
 

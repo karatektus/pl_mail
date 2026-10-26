@@ -212,6 +212,7 @@ in before, with logs and orphaned blobs growing without bound.
 |---|---|---|
 | `*/15 * * * *` | `app:mail:sync` | Neither Gmail push nor Graph subscriptions guarantee delivery and IDLE connections drop; polling is the backstop |
 | `7-59/15 * * * *` | `app:calendar:sync --stale` | The mechanism for CalDAV and ICS feeds, the backstop for Google and Graph. Offset off the quarter hour so it does not stack on the mail sweep — they share one worker |
+| `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV address books have no push at all, so this is the only way changes made on a phone arrive. Offset off both sweeps above for the same shared-worker reason |
 | `20 * * * *` | `app:calendar:push` | Hourly, not because anything expires that fast, but because registration fails for *deployment* reasons that have nothing to do with the click that connected the calendar |
 | `* * * * *` | `app:mail:wake-snoozed` | A minute is the unit people pick a wake time in |
 | `* * * * *` | `app:calendar:alerts` | Same argument, plus the interval is the bound on how late a reminder can be |
@@ -219,7 +220,7 @@ in before, with logs and orphaned blobs growing without bound.
 | `50 3 * * *` | `app:calendar:materialise` | Rolls the occurrence horizon forward, so a repeating event does not quietly run out of dates |
 | `30 4 * * *` | `app:monitoring:prune` | Log entries, push deliveries, dead heartbeats, finished background jobs (30 days) and expired trusted devices |
 | `37 * * * *` | `app:updates:check` | Hourly, at an odd minute: the registry and GitHub's anonymous API are shared with everybody else's installations. Each new build is announced once, however often it is found |
-| `0 5 * * 0` | `app:prune:blobs` | Weekly; it walks three directory trees and a week of orphans is a rounding error |
+| `0 5 * * 0` | `app:prune:blobs` | Weekly; it walks the per-account trees of three stores under `APP_STORAGE_DIR`, and the attachment thumbnails, and a week of orphans is a rounding error. Only those: avatars, signature images, backgrounds, sealed messages and anything else kept under the same volumes are left alone |
 
 The schedule is `stateful()` against the cache and `processOnlyLastMissedRun(true)`, so a
 worker that was down over a scheduled run catches up rather than silently skipping the day —

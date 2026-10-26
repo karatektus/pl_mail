@@ -6,10 +6,12 @@ namespace App\Service\Mail;
 
 use App\Jmap\State\ChangeLogRepository;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
@@ -32,6 +34,7 @@ class SidebarCounts implements ResetInterface
     private ?int $starredCount = null;
     private ?int $unreadCount = null;
     private ?int $snoozedCount = null;
+    private ?int $unsentDrafts = null;
     private ?int $labelsUnread = null;
     private ?array $userLabelTree = null;
     private ?array $visibleLabels = null;
@@ -81,6 +84,7 @@ class SidebarCounts implements ResetInterface
         $this->starredCount       = null;
         $this->unreadCount        = null;
         $this->snoozedCount       = null;
+        $this->unsentDrafts       = null;
         $this->labelsUnread       = null;
         $this->userLabelTree      = null;
         $this->visibleLabels      = null;
@@ -98,6 +102,7 @@ class SidebarCounts implements ResetInterface
         private readonly LabelRepository         $labelRepository,
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
+        private readonly MessageRepository       $messages,
     ) {}
 
     /**
@@ -331,6 +336,24 @@ class SidebarCounts implements ResetInterface
         return $this->labelsUnread;
     }
 
+    /**
+     * Drafts whose send finally failed — the warning on the Drafts entry
+     * (#125). A count rather than a flag because the counts payload carries
+     * numbers, and zero is what hides it.
+     */
+    public function unsentDrafts(): int
+    {
+        if (null === $this->unsentDrafts) {
+            $user = $this->security->getUser();
+
+            $this->unsentDrafts = $user instanceof User
+                ? $this->messages->countUnsentDraftsForUser($user)
+                : 0;
+        }
+
+        return $this->unsentDrafts;
+    }
+
     public function forStarred(): int
     {
         if (null === $this->starredCount) {
@@ -444,6 +467,73 @@ class SidebarCounts implements ResetInterface
         }
 
         return $this->snoozedCount > 0;
+    }
+
+    /**
+     * The system rows drawn directly in the nav, in the sidebar's order.
+     *
+     * Every row that EXISTS for this person — see isRowShown() — and is not
+     * one they keep behind "More". Which side a row is on is the user's choice
+     * (User::$sidebarMoreRows); whether it is there at all is not, and the two
+     * are kept apart on purpose so that moving a row can never conjure one the
+     * eye toggle has hidden.
+     *
+     * @return list<SidebarRow>
+     */
+    public function topRows(): array
+    {
+        return $this->shownRows(false);
+    }
+
+    /**
+     * The rows behind the "More" disclosure — empty when there is nothing to
+     * show, which is the template's cue not to draw the disclosure at all.
+     *
+     * @return list<SidebarRow>
+     */
+    public function moreRows(): array
+    {
+        return $this->shownRows(true);
+    }
+
+    /** @return list<SidebarRow> */
+    private function shownRows(bool $behindMore): array
+    {
+        $user   = $this->security->getUser();
+        $behind = $user instanceof User ? $user->sidebarMoreRows : SidebarRow::defaultBehindMore();
+
+        return array_values(array_filter(
+            SidebarRow::cases(),
+            fn (SidebarRow $row): bool => $behindMore === in_array($row, $behind, true) && true === $this->isRowShown($row),
+        ));
+    }
+
+    /**
+     * Whether a system row exists for this person, wherever it is placed.
+     *
+     * The rules the sidebar followed row by row before the rows became a loop,
+     * and deliberately the SAME for both groups: a rule that changed with the
+     * placement would make "move it to the top" mean "and show it too".
+     *
+     *   - Starred is always there.
+     *   - Spam and Unread are absent until their label is switched on.
+     *   - Snoozed is absent until something is snoozed (and off if switched off).
+     *   - Everything else is there until its label is switched off.
+     */
+    public function isRowShown(SidebarRow $row): bool
+    {
+        $role = $row->role();
+
+        // Starred, the one row with no label behind it, so nothing to switch off.
+        if (null === $role) {
+            return true;
+        }
+
+        return match ($row) {
+            SidebarRow::Unread, SidebarRow::Spam => $this->hasVisibleRole($role),
+            SidebarRow::Snoozed => $this->hasSnoozed() && false === $this->isRoleHidden($role),
+            default => false === $this->isRoleHidden($role),
+        };
     }
 
     /**

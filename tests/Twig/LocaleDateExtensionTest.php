@@ -43,6 +43,8 @@ final class LocaleDateExtensionTest extends TestCase
         yield 'de weekday date'   => ['de', 'EEEdMMM', 'Mo., 3. Aug.'];
         yield 'en month and year' => ['en', 'yMMMM', 'August 2026'];
         yield 'de month and year' => ['de', 'yMMMM', 'August 2026'];
+        yield 'zh weekday'       => ['zh_CN', 'EEE', '周一'];
+        yield 'zh full date'     => ['zh_CN', 'dMMMy', '2026年8月3日'];
     }
 
     #[DataProvider('renderings')]

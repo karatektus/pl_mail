@@ -216,13 +216,17 @@ readonly class ImapFolderProvisioner
         }
 
         if (true === $record) {
-            $this->record($account, $path, $specialUse);
+            $this->record($account, $path, $specialUse, $created);
         }
 
         return $path;
     }
 
-    private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse): void
+    /**
+     * @param bool $empty whether this folder was made just now, by the CREATE
+     *                    above, and so cannot have anything in it to import
+     */
+    private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse, bool $empty): void
     {
         $separator = $this->separatorFor($account);
         $segments  = explode($separator, $path);
@@ -251,6 +255,18 @@ readonly class ImapFolderProvisioner
         $mailbox->specialUse    = $specialUse;
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;
+
+        // NOTHING TO IMPORT, said now. A folder this class has just created
+        // has no history, and a row left at the default — import never
+        // planned — counts as an import in progress: the indicator showed
+        // "Importing … Now: Archive" after the first archive on an account,
+        // and went on showing it until a sync came along to plan the folder
+        // and the importer found nothing, which with MailImporter's quiet
+        // window could be minutes. Only for a folder made here; one the server
+        // already had may have years of mail in it and is planned as usual.
+        if (true === $empty) {
+            $mailbox->importFloorUid = 0;
+        }
 
         // Persisted before the binding, for the reason MailboxSyncer::create()
         // gives: LabelResolver flushes to mint the binding id, and the mailbox

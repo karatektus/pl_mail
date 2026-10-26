@@ -15,6 +15,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
+use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
@@ -53,6 +54,7 @@ final class GmailMessageBuilder
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly LoggerInterface        $logger,
         private readonly GmailLabelPolicy       $labelPolicy,
+        private readonly MessageCryptoDetector  $cryptoDetector,
     )
     {
     }
@@ -171,8 +173,25 @@ final class GmailMessageBuilder
         $message->bodyText = $body->bodyText;
         $message->bodyHtml = $body->bodyHtml;
 
-        $hasAttachments = $this->persistAttachmentStubs($body->lazyParts, $message, $body->bodyHtml);
-        $this->persistInlineParts($body->inlineParts, $message, $account);
+        // OpenPGP or S/MIME, before the row is written — see the IMAP builder
+        // (MessageSyncer::buildMessage) for why it has to be here, and for why
+        // the part list is not consulted when the header is there to read.
+        $crypto = $this->cryptoDetector->classify(
+            $this->headerNormalizer->first($message->headers, 'content-type'),
+            $message->bodyText,
+            $message->bodyHtml,
+        );
+        $this->cryptoDetector->seal($message, $crypto);
+
+        $unwrapped = fn (array $part): bool => null === $crypto
+            || false === $this->cryptoDetector->isWrapping($crypto, $part['mimeType'] ?? null, $part['filename'] ?? null);
+
+        $hasAttachments = $this->persistAttachmentStubs(array_values(array_filter($body->lazyParts, $unwrapped)), $message, $message->bodyHtml);
+        $this->persistInlineParts(
+            array_values(array_filter($body->inlineParts, static fn (array $entry): bool => $unwrapped($entry['part']))),
+            $message,
+            $account,
+        );
 
         $message->hasAttachments = $hasAttachments;
         $message->syncedAt = new DateTimeImmutable();
@@ -250,6 +269,20 @@ final class GmailMessageBuilder
      * @var list<string>
      */
     private const array ALWAYS_KEEP_MIME = ['text/calendar', 'application/ics'];
+
+    /**
+     * The Gmail system labels that say where a message sits, and the plMail
+     * roles they map to. See applyTranslatedLabels() $placementIsLocal.
+     */
+    private const array PLACEMENT_LABEL_IDS = ['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM'];
+
+    public const array PLACEMENT_ROLES = [
+        LabelRole::Inbox,
+        LabelRole::Sent,
+        LabelRole::Drafts,
+        LabelRole::Trash,
+        LabelRole::Spam,
+    ];
 
     /**
      * Walk the MIME tree for the body and the parts worth keeping.
@@ -511,8 +544,23 @@ final class GmailMessageBuilder
      *
      * @param list<string> $labelIds
      */
-    public function applyTranslatedLabels(Message $message, array $labelIds, Account $target, Account $carrier): void
-    {
+    public function applyTranslatedLabels(
+        Message $message,
+        array   $labelIds,
+        Account $target,
+        Account $carrier,
+        bool    $placementIsLocal = false,
+    ): void {
+        // Where a message sits is the folder's word when the row is a sibling
+        // account's own IMAP copy: Gmail only collected the mail, and what it
+        // did with its copy (trashed it, archived it, marked it spam) says
+        // nothing about the copy on the server the sibling actually reads.
+        // Neither the placement ids Gmail reported nor the placement labels
+        // the row already wears are touched, in either direction.
+        if (true === $placementIsLocal) {
+            $labelIds = array_values(array_diff($labelIds, self::PLACEMENT_LABEL_IDS));
+        }
+
         $resolved = $this->labelResolver->resolve($labelIds, $carrier);
 
         /** @var array<int,true> $keep */
@@ -529,6 +577,10 @@ final class GmailMessageBuilder
         // added and then removed by its own pass.
         foreach ($this->labelPolicy->providerLabels($message, $carrier) as $current) {
             if (true === isset($keep[(int) $current->id])) {
+                continue;
+            }
+
+            if (true === $placementIsLocal && true === in_array($current->role, self::PLACEMENT_ROLES, true)) {
                 continue;
             }
 

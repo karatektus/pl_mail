@@ -81,8 +81,13 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
             {% set isOutside = days[dayKey] is not defined %}
             {% set dayEntries = days[dayKey]|default([]) %}
             {% set isToday = dayKey == today %}
-            {% set isWeekend = dayKey|date('N') >= 6 %}
-            {% set isOtherMonth = dayKey|date('n') != anchorMonth %}
+            {# `false` on every |date of a day key: without it a wall date is
+               read as midnight UTC and moved into the reader's zone, which
+               west of UTC is the day before — weekends shaded on Friday and
+               Saturday, the 1st dimmed as last month's (#325). See the day
+               headings in _time_grid_shell. #}
+            {% set isWeekend = dayKey|date('N', false) >= 6 %}
+            {% set isOtherMonth = dayKey|date('n', false) != anchorMonth %}
 
             {# The spill-in days are dimmed as a whole cell, not just by their
                date number: a neighbouring month's events rendered at full
@@ -117,11 +122,12 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
 
                Chips do not reflow while it widens: they ask the grid item how
                wide the day is (`@container` is on it, not on the card), and
-               their titles are clamped to one line — see _event_chip.
+               their titles are clamped to two lines — see _event_chip, which
+               says when one still closes up a line.
 
-               `@min-[5.5rem]:` on all of it, because a wider card is worth
-               opening only where there is something behind the truncation to
-               reveal. Below that the chips have already given up their titles.
+               `@min-[5.5rem]:` on all of it. Below that the chips are bars and
+               the month view lists the chosen day under the grid instead (see
+               _view_month), so a card would only repeat that list over it.
 
                Literal strings per row and per column: Tailwind finds classes by
                reading the source, so a class assembled from a number is a class
@@ -129,37 +135,37 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
             {% set cellRow = loop.index0 // 7 %}
             {% set cellExpandClass = shellCellExpands ? (
                 [
-                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(600%_+_5px)]',
-                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(500%_+_4px)]',
-                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(400%_+_3px)]',
-                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(300%_+_2px)]',
-                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(200%_+_1px)]',
-                    '@min-[5.5rem]:group-hover/cell:max-h-full',
+                    '@min-[5.5rem]:day-open:max-h-[calc(600%_+_5px)]',
+                    '@min-[5.5rem]:day-open:max-h-[calc(500%_+_4px)]',
+                    '@min-[5.5rem]:day-open:max-h-[calc(400%_+_3px)]',
+                    '@min-[5.5rem]:day-open:max-h-[calc(300%_+_2px)]',
+                    '@min-[5.5rem]:day-open:max-h-[calc(200%_+_1px)]',
+                    '@min-[5.5rem]:day-open:max-h-full',
                 ][cellRow]
                 ~ [
-                    ' @min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @max-[42rem]/grid:@min-[5.5rem]:group-hover/cell:left-auto
-                      @min-[42rem]/grid:@min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @max-[63rem]/grid:@min-[5.5rem]:group-hover/cell:left-auto
-                      @min-[63rem]/grid:@min-[5.5rem]:group-hover/cell:right-auto',
-                    ' @min-[5.5rem]:group-hover/cell:left-auto',
+                    ' @min-[5.5rem]:day-open:right-auto',
+                    ' @min-[5.5rem]:day-open:right-auto',
+                    ' @min-[5.5rem]:day-open:right-auto',
+                    ' @min-[5.5rem]:day-open:right-auto',
+                    ' @max-[42rem]/grid:@min-[5.5rem]:day-open:left-auto
+                      @min-[42rem]/grid:@min-[5.5rem]:day-open:right-auto',
+                    ' @max-[63rem]/grid:@min-[5.5rem]:day-open:left-auto
+                      @min-[63rem]/grid:@min-[5.5rem]:day-open:right-auto',
+                    ' @min-[5.5rem]:day-open:left-auto',
                 ][loop.index0 % 7]
                 ~ ' absolute inset-0
-                   @min-[5.5rem]:group-hover/cell:bottom-auto @min-[5.5rem]:group-hover/cell:h-auto
-                   @min-[5.5rem]:group-hover/cell:min-h-full
-                   @min-[5.5rem]:group-hover/cell:w-max @min-[5.5rem]:group-hover/cell:min-w-full
-                   @min-[5.5rem]:group-hover/cell:max-w-[18rem]
-                   @min-[5.5rem]:group-hover/cell:overflow-y-auto
-                   @min-[5.5rem]:group-hover/cell:rounded-md @min-[5.5rem]:group-hover/cell:bg-surface
-                   @min-[5.5rem]:group-hover/cell:opacity-100
-                   @min-[5.5rem]:group-hover/cell:shadow-lg
-                   @min-[5.5rem]:group-hover/cell:ring-1 @min-[5.5rem]:group-hover/cell:ring-line'
+                   @min-[5.5rem]:day-open:bottom-auto @min-[5.5rem]:day-open:h-auto
+                   @min-[5.5rem]:day-open:min-h-full
+                   @min-[5.5rem]:day-open:w-max @min-[5.5rem]:day-open:min-w-full
+                   @min-[5.5rem]:day-open:max-w-[18rem]
+                   @min-[5.5rem]:day-open:overflow-y-auto
+                   @min-[5.5rem]:day-open:rounded-md @min-[5.5rem]:day-open:bg-surface
+                   @min-[5.5rem]:day-open:opacity-100
+                   @min-[5.5rem]:day-open:shadow-lg
+                   @min-[5.5rem]:day-open:ring-1 @min-[5.5rem]:day-open:ring-line'
             ) : '' %}
 
-            {# `hover:z-40` is what puts an open card over the days around it —
+            {# `day-open:z-40` is what puts an open card over the days around it —
                a cell is a grid item, so without a number the cells after it in
                source paint on top.
 
@@ -179,7 +185,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
             <div data-day="{{ dayKey }}"
                  {% if isOutside %}data-day-unpublished{% endif %}
                  class="group/cell @container relative min-h-0 min-w-0 flex flex-col
-                        {{ shellCellExpands ? 'hover:z-40' : '' }} {{ shellCellClass }}">
+                        {{ shellCellExpands ? 'day-open:z-40' : '' }} {{ shellCellClass }}">
             <div class="flex-1 min-h-0 min-w-0 flex flex-col p-1 gap-0.5 overflow-hidden {{ cellExpandClass }}
                         {{ isOutside
                             ? 'bg-sunken/20'
@@ -197,11 +203,11 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
                         {% if isToday %}
                             <span class="w-5 h-5 flex items-center justify-center rounded-full
                                          bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                                {{ dayKey|date('j') }}
+                                {{ dayKey|date('j', false) }}
                             </span>
                         {% else %}
                             <span class="text-xs tabular-nums {{ isOtherMonth or isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
-                                {{ dayKey|date('j') }}
+                                {{ dayKey|date('j', false) }}
                             </span>
                         {% endif %}
                     {% endblock %}

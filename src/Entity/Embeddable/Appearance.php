@@ -22,6 +22,9 @@ final class Appearance
     /** Paper's clay, since Paper is what an account starts on — see $theme. */
     public const string DEFAULT_ACCENT = '#7d6b4f';
 
+    /** The logoMotif value that picks the uploaded logo (#48); see applyArray(). */
+    public const string CUSTOM_LOGO = 'custom';
+
     /**
      * The clamps the numeric setters below apply, named rather than inlined
      * because the JMAP session publishes them (`SessionBuilder`) so a client
@@ -169,6 +172,34 @@ final class Appearance
      */
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     public bool $logoOriginal = true;
+
+    /**
+     * The user's own logo, an SVG they uploaded (#48): the hash it is stored
+     * under (CustomLogoStorage), or null for none.
+     *
+     * Kept while another icon is chosen, so going to the horn and back does
+     * not ask for the file again; $logoCustomActive says which is worn.
+     * Neither travels in toArray(): a theme export is a JSON file, and the
+     * logo it would name is a file on this server.
+     */
+    #[ORM\Column(type: 'string', length: 16, nullable: true)]
+    public ?string $logoCustom = null;
+
+    /** Whether the uploaded logo is worn instead of $logoMotif. */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    public bool $logoCustomActive = false;
+
+    /**
+     * The uploaded logo's hash while it is the icon worn, null otherwise.
+     *
+     * Everything else about the logo — the motif, its paint — is kept as it
+     * was underneath, which is also what a client that knows nothing of an
+     * uploaded logo (the phone apps, over JMAP) goes on showing.
+     */
+    public function customLogo(): ?string
+    {
+        return true === $this->logoCustomActive ? $this->logoCustom : null;
+    }
 
     /** The icon the product wears — topbar, favicon and launcher alike. */
     public function effectiveLogoMotif(): LogoMotif
@@ -542,8 +573,19 @@ final class Appearance
         // one icon carries neither, and importing it keeps the icon you have —
         // and a motif this install does not know keeps the current one, like
         // every other closed vocabulary here.
+        //
+        // `custom` is the uploaded logo (#48), which is a choice and not a
+        // motif: it is worn only while there is one, and picking any real
+        // motif — here, from an import, from a phone — takes it off again.
         if (true === isset($data['logoMotif'])) {
-            $this->logoMotif = LogoMotif::tryFrom((string) $data['logoMotif']) ?? $this->logoMotif;
+            $motif = LogoMotif::tryFrom((string) $data['logoMotif']);
+
+            if (null !== $motif) {
+                $this->logoMotif        = $motif;
+                $this->logoCustomActive = false;
+            } elseif (self::CUSTOM_LOGO === $data['logoMotif']) {
+                $this->logoCustomActive = null !== $this->logoCustom;
+            }
         }
 
         if (true === isset($data['logoOriginal'])) {

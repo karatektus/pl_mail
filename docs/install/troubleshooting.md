@@ -103,6 +103,7 @@ one container consuming `scheduler_default`. **Without that container, none of t
 | every minute | `app:calendar:alerts` |
 | `*/15` | `app:mail:sync` |
 | `7-59/15` | `app:calendar:sync --stale` |
+| `11-59/15` | `app:contacts:sync --stale` |
 | hourly at :20 | `app:calendar:push` |
 | daily 03:50 | `app:calendar:materialise` |
 | daily 04:00 | `app:push:renew --repair` |

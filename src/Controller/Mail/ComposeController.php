@@ -5,6 +5,8 @@ namespace App\Controller\Mail;
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Mail\ComposeContext;
+use App\Domain\Exception\SealRefused;
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -12,12 +14,14 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Crypto\SealedDrafts;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\ComposeFormFactory;
 use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\DraftAddressFields;
 use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
+use App\Service\Mail\ForwardedAttachments;
 use App\Service\Mail\InvalidScheduleException;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
@@ -87,6 +91,7 @@ class ComposeController extends AbstractController
         private readonly ReplyDraftBuilder       $replyDrafts,
         private readonly DraftPersister          $drafts,
         private readonly DraftAttachmentService  $draftAttachments,
+        private readonly ForwardedAttachments    $forwardedAttachments,
         private readonly DraftAddressFields      $addressFields,
         private readonly SenderResolver          $senders,
         private readonly MessageEraser           $eraser,
@@ -94,6 +99,7 @@ class ComposeController extends AbstractController
         private readonly TranslatorInterface     $translator,
         private readonly ScheduledSendResolver   $schedules,
         private readonly RequestStack            $requestStack,
+        private readonly SealedDrafts            $sealedDrafts,
     )
     {
     }
@@ -130,6 +136,7 @@ class ComposeController extends AbstractController
             // reason.
             $message->bodyHtml = $this->window->signatureSeed($account);
 
+            $message->toAddresses = $this->addressedTo();
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $this->assertEditableDraft($message);
@@ -141,6 +148,27 @@ class ComposeController extends AbstractController
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         return $this->renderWindow($form, $message, $ctx);
+    }
+
+    /**
+     * The recipient a link asked for: `?to=` (and `name=`), as the contact
+     * page's email links send. Nothing for an address that is not one — the
+     * link is a URL anybody can type.
+     *
+     * @return list<array{name: ?string, address: string}>|null
+     */
+    private function addressedTo(): ?array
+    {
+        $query = $this->requestStack->getCurrentRequest()?->query;
+        $email = AddressHelper::email((string) $query?->get('to', ''));
+
+        if (false === AddressHelper::isValidEmail($email)) {
+            return null;
+        }
+
+        $name = trim((string) $query?->get('name', ''));
+
+        return [['name' => '' === $name ? null : mb_substr($name, 0, 255), 'address' => $email]];
     }
 
     #[Route('/reply/{id}', name: 'reply', methods: ['GET'])]
@@ -279,6 +307,16 @@ class ComposeController extends AbstractController
         // The context rides in the URL, so it survives the trip.
         $ctx = $ctx->withMode(ComposeContext::MODE_FORWARD);
 
+        // The files go with it. Saved first, like the signed reply, because
+        // the bytes are bucketed by message id and a draft the window has
+        // merely built does not have one — the window then edits that row
+        // instead of creating one on its first autosave. A mail with nothing
+        // to attach stays unsaved, as before.
+        if (true === $this->forwardedAttachments->has($original)) {
+            $this->drafts->save($draft, $account);
+            $this->forwardedAttachments->copy($original, $draft);
+        }
+
         $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->tokenFor($draft, $account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
@@ -321,6 +359,14 @@ class ComposeController extends AbstractController
                 $account,
                 $this->senders->addressFor($token, $account, $this->getUser()),
             );
+
+            $refusal = $this->acceptSealed($request, $message, sending: false);
+
+            if (null !== $refusal) {
+                $form->addError(new FormError($refusal));
+
+                return $this->renderWindow($form, $message, $ctx);
+            }
 
             return $this->renderWindow($form, $message, $ctx, ['saved' => true]);
         }
@@ -388,6 +434,14 @@ class ComposeController extends AbstractController
                 $account,
                 $this->senders->addressFor($token, $account, $this->getUser()),
             );
+
+            $refusal = $this->acceptSealed($request, $message, sending: true);
+
+            if (null !== $refusal) {
+                $form->addError(new FormError($refusal));
+
+                return $this->renderWindow($form, $message, $ctx);
+            }
 
             // The row's schedule as it stands, usually none: the envelope is
             // only honoured while the row still says the same. See
@@ -492,6 +546,14 @@ class ComposeController extends AbstractController
             $account,
             $this->senders->addressFor($token, $account, $this->getUser()),
         );
+
+        $refusal = $this->acceptSealed($request, $message, sending: true);
+
+        if (null !== $refusal) {
+            $form->addError(new FormError($refusal));
+
+            return $this->renderWindow($form, $message, $ctx);
+        }
 
         // Set after the save, because the save is what mints the id for a draft
         // that did not have one — and this is the column EmailSubmission/get
@@ -832,9 +894,85 @@ class ComposeController extends AbstractController
     }
 
     /**
+     * The conversation's message for one whose send has settled, as the frame
+     * the worker's outcome stream put in its place.
+     *
+     * For a message built in the browser — a reply to encrypted mail, most
+     * often. The conversation shows it as being sent while the send job holds
+     * it, because there is nothing to read yet; once the job has finished,
+     * mail/_send_outcome.stream.html.twig swaps it for a frame that loads
+     * this. Rendered here, in the person's own request, rather than in the
+     * worker: the message opens through the keyring, whose CSRF token and
+     * user belong to a session the worker does not have.
+     *
+     * The message says what it became. Sent, it opens like any encrypted mail
+     * of the person's own; refused, it is a draft again, and the row says so.
+     */
+    #[Route('/settled-row/{id}', name: 'settled_row', methods: ['GET'])]
+    public function settledRow(Message $message): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        return $this->render('compose/_settled_row.html.twig', [
+            'message' => $message,
+        ]);
+    }
+
+    /**
      * Discard: the trash button in the compose window really deletes the
      * draft instead of just closing the window on top of it.
      */
+    /**
+     * The sealed draft, for the composer to open in the browser that holds the
+     * key. Never cached by anything between: it is the draft.
+     */
+    #[Route('/sealed/{id}', name: 'sealed_draft', methods: ['GET'])]
+    public function sealedDraft(Message $message): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        $draft = $this->sealedDrafts->draftOf($message);
+
+        if (null === $draft) {
+            throw $this->createNotFoundException('This draft is not sealed.');
+        }
+
+        return new Response($draft, Response::HTTP_OK, [
+            'Content-Type'           => 'application/pgp-encrypted',
+            'Cache-Control'          => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /**
+     * Take what the browser sealed, and say why not when it cannot be taken.
+     *
+     * A send from a sealed draft needs the message the browser built: the
+     * server holds nothing it could send instead. That is refused here, while
+     * the window is still open to say so, rather than by the send job later.
+     *
+     * Flushed here: DraftPersister::save() has already written the row, and
+     * this changes it again.
+     */
+    private function acceptSealed(Request $request, Message $message, bool $sending): ?string
+    {
+        try {
+            $this->sealedDrafts->accept($request, $message, $sending);
+        } catch (SealRefused $refused) {
+            $this->em->flush();
+
+            return $this->translator->trans($refused->getMessage());
+        }
+
+        $this->em->flush();
+
+        if (true === $sending && true === $message->sealedDraft && null === $message->outgoingSeal) {
+            return $this->translator->trans('compose.seal.unbuilt');
+        }
+
+        return null;
+    }
+
     #[Route('/discard/{id}', name: 'discard', methods: ['POST'])]
     public function discard(Request $request, ComposeContext $ctx, Message $message): Response
     {
@@ -869,19 +1007,22 @@ class ComposeController extends AbstractController
         // in the sync layer; MessageEraser is the one path now.
         $this->eraser->erase($message);
 
-        $remaining = $thread?->messages->count() ?? 0;
+        // Before the flush, not after: a draft that was its conversation's only
+        // message takes the thread with it (#299), the flush takes the thread's
+        // id away, and the stream that drops its row is addressed by that id.
+        $threadId = $this->window->rowToDrop(
+            $thread,
+            $messageId,
+            $thread?->messages->count() ?? 0,
+            'drafts' === $request->query->get('scope'),
+        );
 
         $this->em->flush();
 
         return $this->renderTurboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
             'ctx'       => $ctx,
-            'threadId'  => $this->window->rowToDrop(
-                $thread,
-                $messageId,
-                $remaining,
-                'drafts' === $request->query->get('scope'),
-            ),
+            'threadId'  => $threadId,
         ]);
     }
 

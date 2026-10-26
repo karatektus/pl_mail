@@ -42,7 +42,11 @@ stop, and a double-click is not a gesture a keyboard has.
     hourFormat: clock.hour,
 } %}
     {% block grid_root_attributes %}
-        data-controller="calendar--time-grid"
+        data-controller="calendar--time-grid calendar--now"
+        {# The line moves with the clock, and the view redraws at midnight —
+           see calendar/now_controller.js. #}
+        data-calendar--now-zone-value="{{ range.zone }}"
+        data-calendar--now-today-value="{{ 'now'|date('Y-m-d', range.zone) }}"
         data-action="pointerdown->calendar--time-grid#pointerdown
                      dblclick->calendar--time-grid#createAt
                      keydown->calendar--time-grid#keydown"

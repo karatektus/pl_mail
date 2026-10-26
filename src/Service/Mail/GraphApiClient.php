@@ -676,6 +676,30 @@ final class GraphApiClient
         $this->assertSuccess($response);
     }
 
+    /**
+     * Whether Sent Items holds a message with this Message-ID — how a send
+     * whose answer was lost is settled before it is tried again (#125).
+     *
+     * A GET, so the scoped client retries a 5xx on it (see
+     * GraphRetryStrategy), which is right here: asking twice is harmless.
+     */
+    public function hasSentMessage(Account $account, string $messageId): bool
+    {
+        // Graph keeps the angle brackets; plMail stores the id without them.
+        // An apostrophe is doubled, OData's escape inside a quoted literal.
+        $literal = str_replace("'", "''", '<' . $messageId . '>');
+
+        $response = $this->request($account, 'GET', self::ME . '/mailFolders/sentitems/messages', [
+            'query' => [
+                '$filter' => sprintf("internetMessageId eq '%s'", $literal),
+                '$select' => 'id',
+                '$top'    => 1,
+            ],
+        ]);
+
+        return [] !== ($response->toArray(false)['value'] ?? []);
+    }
+
     // ── Batched writes ───────────────────────────────────────────────────────
 
     /**
@@ -833,6 +857,36 @@ final class GraphApiClient
     {
         $this->request($account, 'DELETE', self::ME . '/mailFolders/' . rawurlencode($folderId))
             ->getContent();
+    }
+
+    /**
+     * How many things a mail folder holds — messages and folders inside it —
+     * or null when it no longer exists.
+     *
+     * The check deleteFolder() needs before it is called: Graph removes a
+     * folder's mail along with it, and its child folders with all of theirs.
+     * totalItemCount alone does not see those, so a subfolder plMail never
+     * synced would go with its parent; childFolderCount is counted beside it.
+     * Null rather than an exception for a folder already gone, because for a
+     * caller about to delete it that is the outcome it wanted.
+     */
+    public function folderContentCount(Account $account, string $folderId): ?int
+    {
+        try {
+            $folder = $this->request(
+                $account,
+                'GET',
+                self::ME . '/mailFolders/' . rawurlencode($folderId) . '?$select=totalItemCount,childFolderCount',
+            )->toArray();
+        } catch (GraphApiException $e) {
+            if (404 === $e->getStatus()) {
+                return null;
+            }
+
+            throw $e;
+        }
+
+        return (int) ($folder['totalItemCount'] ?? 0) + (int) ($folder['childFolderCount'] ?? 0);
     }
 
     // ── Subscriptions (push) ─────────────────────────────────────────────────

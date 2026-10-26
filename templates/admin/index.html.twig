@@ -46,15 +46,36 @@
                                it is?") is asked while looking at something
                                else. Absent entirely on a checkout that was
                                never built from a tag, because a chip reading
-                               "development" beside every page is furniture. #}
+                               "development" beside every page is furniture.
+                               A button that copies itself (#313), because the
+                               place it is pasted into — a bug report, a
+                               registry tag, a deploy command — wants both
+                               halves, and selecting a tiny chip by hand does
+                               not work on a phone. The source is composed
+                               apart so the clipboard gets one space between
+                               them, not the template's line breaks. #}
                             {% if app_version.isKnown %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-ink-muted whitespace-nowrap"
-                                      title="{{ 'admin.version.hint'|trans }}">
-                                    {{ app_version.label }}
-                                    {% if app_version.commit %}
-                                        <span class="text-ink-faint">{{ app_version.commit }}</span>
-                                    {% endif %}
-                                </span>
+                                {% set _build = app_version.commit ? app_version.label ~ ' ' ~ app_version.commit : app_version.label %}
+                                <button type="button"
+                                        data-controller="ui--clipboard"
+                                        data-action="click->ui--clipboard#copy"
+                                        title="{{ 'admin.version.hint'|trans }}"
+                                        aria-label="{{ 'admin.version.copy'|trans({ '%version%': _build }) }}"
+                                        class="inline-flex items-center gap-1.5 rounded-full bg-raised px-2 py-2 font-mono text-[11px] leading-none text-ink-muted whitespace-nowrap
+                                               hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                                    <span data-ui--clipboard-target="source" class="hidden">{{ _build }}</span>
+                                    {# Trimmed to cap height and baseline: a monospace
+                                       font's em box sits its glyphs high, so
+                                       centring the box left the text above the
+                                       icon. #}
+                                    <span class="flex items-center gap-1.5 *:[text-box:trim-both_cap_alphabetic]">
+                                        <span>{{ app_version.label }}</span>
+                                        {% if app_version.commit %}
+                                            <span class="text-ink-faint">{{ app_version.commit }}</span>
+                                        {% endif %}
+                                    </span>
+                                    <i data-ui--clipboard-target="icon" class="fa-solid fa-copy text-[9px] leading-none text-ink-faint" aria-hidden="true"></i>
+                                </button>
                             {% endif %}
 
                             {# Beside the version it would replace, on every

@@ -11,6 +11,25 @@
    inside it, the way it styles its own hover. */
 @custom-variant lit (&:where(.is-lit, .is-lit > *));
 
+/* A month day opened: under the pointer, or tapped on a screen that has no
+   pointer to hover with (#253). `group-hover/cell:` was the whole of it, and
+   Tailwind gates `hover:` on `(hover: hover)`, so on a phone a day never opened
+   and its narrowest days were bars nobody could read. calendar/month_tap_controller.js
+   puts `data-open` on the day a finger tapped; everything a hover opened, this
+   opens, from the same classes. The cell itself as well as what is inside it,
+   for the `z-40` that lifts it over its neighbours. */
+@custom-variant day-open {
+    @media (hover: hover) {
+        &:where(.group\/cell:hover, .group\/cell:hover *) {
+            @slot;
+        }
+    }
+
+    &:where(.group\/cell[data-open], .group\/cell[data-open] *) {
+        @slot;
+    }
+}
+
 /* ═══ Palette channels + runtime knobs ══════════════════════════════════════
    Unlayered on purpose: these are variable definitions, not utilities, and
    unlayered declarations outrank Tailwind's cascade layers.
@@ -2656,14 +2675,32 @@
    told to grow, which is what `flex: 1 1 0%` says and what `width: auto`
    un-says about the stored pixel count. The handle goes too: there is no
    boundary left to drag when one side has all of it. */
-[data-calendar-mode="calendar"] [data-ui--split-target="wrapper"],
-[data-calendar-mode="calendar"] [data-ui--split-target="pane"] {
+[data-calendar-mode="calendar"] [data-side-pane="calendar"],
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="pane"] {
     flex: 1 1 0%;
     width: auto;
 }
 
-[data-calendar-mode="calendar"] [data-ui--split-target="handle"] {
+[data-calendar-mode="calendar"] [data-side-pane="calendar"] [data-ui--split-target="handle"] {
     display: none;
+}
+
+/* ═══ The address book beside the calendar ═══════════════════════════════════
+   Both are docked panes (_side_pane.html.twig), and from 1920px up the row
+   holds them side by side. Below that it holds one beside the mail, so the
+   address book is not drawn while the calendar is — contacts--pane keeps what
+   is remembered in step, but the layout must not wait for it: a first paint
+   with both remembered open, or a window made narrower with both showing,
+   would otherwise squeeze the mail under three panes. And a calendar that has
+   the whole row has it at every width. The numbers match contacts--pane. */
+[data-calendar-mode="calendar"] [data-side-pane="contacts"] {
+    display: none;
+}
+
+@media (max-width: 1919px) {
+    [data-calendar-mode="split"] [data-side-pane="contacts"] {
+        display: none;
+    }
 }
 
 /* Split below lg is Calendar. The row cannot hold a sidebar, a usable message
@@ -2674,6 +2711,82 @@
     [data-calendar-mode="split"]:not([data-calendar-restored]) .main-pane:not([data-ui--split-target="pane"]),
     [data-calendar-mode="split"]:not([data-calendar-restored]) [data-mail-column] {
         display: none;
+    }
+}
+
+/* ═══ The address book at full size ═════════════════════════════════════════
+   The full contacts page is the mailbox with `data-contacts-full` on the shell
+   (contacts/_page_shell.html.twig): the mail column put away and the address
+   book's dock given what is left of the row, at every width. A calendar the
+   user keeps open stays beside it — there is no mail here to take turns with.
+
+   After the rules above, which they have to beat: a calendar that covers the
+   mail, or splits it on a notebook, hides the dock, and its .main-pane rule
+   catches the dock's pane as well. Same specificity, later in the file.
+
+   The dock's own way out to the full page, its × and its handle go while it
+   has the row — each of them is about a boundary that is not there. */
+[data-contacts-full] [data-mail-column] {
+    display: none;
+}
+
+[data-contacts-full] [data-side-pane="contacts"],
+[data-contacts-full] [data-side-pane="contacts"] .main-pane {
+    display: flex;
+    flex: 1 1 0%;
+    width: auto;
+}
+
+[data-contacts-full] [data-side-pane="contacts"] [data-ui--side-split-target="handle"],
+[data-contacts-full] [data-contacts-pane-actions] {
+    display: none;
+}
+
+/* Leaving it — a message opened from the contact — is a view transition (see
+   contacts--pane#reveal): the mail column comes in from the left and the
+   address book draws back to its docked width, the same DOM throughout. The
+   names are only given for the length of it, so no other change of the page
+   is animated by accident. The two pictures of the address book are pinned to
+   its right edge and not stretched: the contact narrows, it does not squash. */
+[data-contacts-revealing] [data-mail-column] {
+    view-transition-name: contacts-reveal-mail;
+}
+
+[data-contacts-revealing] [data-side-pane="contacts"] {
+    view-transition-name: contacts-reveal-dock;
+}
+
+[data-contacts-revealing] [data-side-pane="calendar"] {
+    view-transition-name: contacts-reveal-calendar;
+}
+
+::view-transition-group(contacts-reveal-mail),
+::view-transition-group(contacts-reveal-dock),
+::view-transition-group(contacts-reveal-calendar) {
+    animation-duration: 280ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-group(contacts-reveal-dock) {
+    overflow: clip;
+}
+
+::view-transition-old(contacts-reveal-dock),
+::view-transition-new(contacts-reveal-dock) {
+    height: 100%;
+    object-fit: none;
+    object-position: right top;
+    animation-duration: 280ms;
+}
+
+::view-transition-new(contacts-reveal-mail) {
+    animation: contacts-reveal-mail 280ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes contacts-reveal-mail {
+    from {
+        opacity: 0;
+        transform: translateX(-2rem);
     }
 }
 
@@ -2692,13 +2805,15 @@
    switches position; short of it, this transition is what puts the pane back.
    Only ever on for the length of that settle: a transition left on would make
    every drag lag a frame behind the pointer. */
-[data-ui--split-target="pane"].is-settling {
+[data-ui--split-target="pane"].is-settling,
+[data-ui--side-split-target="pane"].is-settling {
     transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* And the grip says the same thing, so the affordance is visible on a handle
    that is only two pixels wide. */
-[data-ui--split-target="handle"].is-straining .split-grip {
+[data-ui--split-target="handle"].is-straining .split-grip,
+[data-ui--side-split-target="handle"].is-straining .split-grip {
     background-color: rgb(var(--rgb-accent));
     transform: scaleY(1.6);
 }
@@ -2709,11 +2824,13 @@
 
 @media (prefers-reduced-motion: reduce) {
     [data-ui--split-target="pane"].is-settling,
+    [data-ui--side-split-target="pane"].is-settling,
     .split-grip {
         transition: none;
     }
 
-    [data-ui--split-target="handle"].is-straining .split-grip {
+    [data-ui--split-target="handle"].is-straining .split-grip,
+    [data-ui--side-split-target="handle"].is-straining .split-grip {
         transform: none;
     }
 }
@@ -3562,6 +3679,13 @@ html {
     padding-block: var(--surface-list-row-y);
 }
 
+/* The same row at one preview line and one line wide (`row-snug:`): 60% of
+   the density's padding, so it keeps following the density setting and only
+   sits closer, as Gmail's list does. */
+@utility list-row-y-snug {
+    padding-block: calc(var(--surface-list-row-y) * 0.6);
+}
+
 /* One message block in the reading pane. Comfortable is the old `py-4`. */
 @utility reading-y {
     padding-block: var(--surface-reading-row-y);
@@ -3766,6 +3890,21 @@ html {
 @container (max-width: 5.5rem) {
     [data-tentative-bar] {
         background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 2px, transparent 2px 4px);
+    }
+}
+
+/* An invitation not answered yet, in a month cell (see _event_chip): its bar is
+   dashed. A mask rather than a dashed border, because the bar is a background
+   (a gradient, for a meeting on several calendars) and a mask cuts whichever
+   it is. Across the bar below 5.5rem, where the bar is the whole chip and
+   lies on its side. */
+[data-awaiting-bar] {
+    mask-image: repeating-linear-gradient(to bottom, black 0 3px, transparent 3px 5px);
+}
+
+@container (max-width: 5.5rem) {
+    [data-awaiting-bar] {
+        mask-image: repeating-linear-gradient(to right, black 0 6px, transparent 6px 9px);
     }
 }
 
@@ -4906,7 +5045,8 @@ emoji-picker {
    not dim the page at all. What a modal does to the page behind it is the app's
    decision, not a preference.
    ───────────────────────────────────────────────────────────────────────── */
-#confirm-dialog {
+#confirm-dialog,
+#keyring-unlock-dialog {
     position: fixed;
     inset: 0;
     margin: auto;
@@ -4923,7 +5063,8 @@ emoji-picker {
     overflow-y: auto;
 }
 
-#confirm-dialog::backdrop {
+#confirm-dialog::backdrop,
+#keyring-unlock-dialog::backdrop {
     background-color: rgb(0 0 0 / 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -5139,6 +5280,67 @@ label:has(> input.sr-only) {
 */
 @theme {
     --container-rowwide: 75rem;
+    --container-rowsnug: 48rem;
+}
+
+/*
+   `row-line:` and `row-band:`, the one-line and the two-line row. The row
+   template writes these rather than `@rowwide:` and `@xl:@max-rowwide:`,
+   because where one line starts depends on the preview-lines setting.
+
+   With ONE preview line the row is one line from `--container-rowsnug` (48rem)
+   up, the way Gmail's list reads: sender, subject, and the preview after the
+   subject on the same line, cut wherever the row ends. That is the trade the
+   75rem line above refused for everybody, and it is still refused for the
+   other two settings: two preview lines need a line of their own, and with
+   none the two-line row loses nothing by keeping its band. Choosing one line
+   is choosing the denser list.
+
+   48rem rather than `@xl`: at 36rem the sender and date columns leave the
+   subject and the preview about 80px each ("E2E Remot…", "Your weekly …"),
+   which is not a preview of anything. At 48rem they share about 350px. Between
+   the two this setting keeps the two-line band like the others.
+
+   `row-snug:` is the one-line-from-48rem case on its own, for what only it
+   gets: a tighter row (`list-row-y-snug`).
+
+   The setting comes from `data-list-preview-lines` on <html>, because a
+   container query cannot read a custom property. The appearance settings
+   rewrite it as you click, like the variables. A page without the attribute
+   gets the 75rem line.
+*/
+@custom-variant row-line {
+    @container (width >= theme(--container-rowwide)) {
+        @slot;
+    }
+
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-band {
+    &:where(html:not([data-list-preview-lines="1"]) *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowwide)) {
+            @slot;
+        }
+    }
+
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (theme(--container-xl) <= width < theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
+}
+
+@custom-variant row-snug {
+    &:where(html[data-list-preview-lines="1"] *) {
+        @container (width >= theme(--container-rowsnug)) {
+            @slot;
+        }
+    }
 }
 
 /* The account corner: the coloured triangle in a row's lower-left. */
@@ -5706,4 +5908,153 @@ html[data-dnd-active] [data-dnd-ghost] {
 
 .mail-pull-indicator[data-state="release"] {
     color: var(--accent-text);
+}
+
+/* Lists inside the compose editors. Tailwind's preflight sets
+   `list-style: none` and zero padding on ul/ol, so a list made with the
+   toolbar's bullet button was there in the HTML and invisible on screen. */
+[data-compose--compose-toolbar-target="editor"] ul {
+    list-style: disc;
+    padding-left: 1.5em;
+}
+
+[data-compose--compose-toolbar-target="editor"] ol {
+    list-style: decimal;
+    padding-left: 1.5em;
+}
+
+/* ── Row swipe ─────────────────────────────────────────────────────────────
+   The action revealed on each side of a row, on a phone. row_swipe_controller.js
+   moves the row's content (data-swipe-content) with an inline transform, sets
+   data-swipe-side on the row while it is dragged or open, and sizes the panel
+   with --swipe-reveal. The panels themselves come from the server: one per
+   direction that does something on that row, so a direction with no panel is
+   inert and draws nothing.
+
+   Touch only, below md: a mouse never reaches these rules, and the row claims
+   no horizontal pan (pan-y), so the browser leaves a sideways drag to the
+   gesture. Colours are tokens.
+
+   Unlayered, like the rules above. */
+
+@media (pointer: coarse) and (width < 48rem) {
+    li[data-controller~="mail--message-row"] {
+        touch-action: pan-y;
+    }
+}
+
+[data-swipe-panel] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    width: var(--swipe-reveal, 0px);
+    overflow: hidden;
+    display: flex;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+[data-swipe-panel="right"] {
+    left: 0;
+}
+
+[data-swipe-panel="left"] {
+    right: 0;
+    justify-content: flex-end;
+}
+
+li[data-swipe-side="right"] > [data-swipe-panel="right"],
+li[data-swipe-side="left"] > [data-swipe-panel="left"] {
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* The button is a fixed 96px, the same figure the controller rests an open row at. */
+[data-swipe-commit] {
+    flex: 0 0 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    color: rgb(var(--rgb-accent-ink));
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+[data-swipe-panel="right"] [data-swipe-commit] {
+    background: rgb(var(--rgb-success));
+}
+
+[data-swipe-panel="left"] [data-swipe-commit] {
+    background: rgb(var(--rgb-info));
+}
+
+/* Eased back into place by a release, and held still under a finger. */
+[data-swipe-content] {
+    transition: transform 180ms ease-out;
+}
+
+/* Above the overlay link and the panels only while the row is in motion or open.
+   At rest the link is on top, so a tap on the row still opens the message. */
+li[data-swipe-side] > [data-swipe-content] {
+    position: relative;
+    z-index: 2;
+}
+
+/* ── Action sheet ──────────────────────────────────────────────────────────
+   The long-press sheet on a phone (mail--action-sheet, opened by mail--row-hold).
+   A copy of the list's template, appended to <body>, so it sits above the page and
+   outside the list's own stacking. Its slide takes --sheet-duration, which the
+   controller sets to 0ms under reduced motion.
+
+   Pressed rows (data-pressed, while a finger is on them) switch off iOS's touch
+   callout and text selection, on the row and on its overlay link, which is the
+   element iOS calls out on. Pressed is CLIENT_OWNED in mail_pane, so a refresh
+   does not strip it mid-press.
+
+   The pickers (move, labels, snooze) are the list's own menus, each behind its
+   own trigger. The trigger is invisible and never clicked by a finger; the sheet
+   presses it. Only the picker's panel takes pointer events, so the entry under it
+   stays tappable. Unlayered, like the rules above. */
+
+/* Both spellings: iOS Safari reads only -webkit-user-select, and the stylesheet build adds no
+   prefix to a hand-written rule (only to Tailwind's own utilities). Unprefixed alone, the
+   press on a word still starts a selection on an iPhone. */
+[data-pressed],
+[data-pressed] > a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.action-sheet-panel {
+    animation: action-sheet-rise var(--sheet-duration, 200ms) ease-out both;
+
+    /* The base is 1rem, what the panel had as pb-4. The inset clears the home indicator on an iPhone:
+       the sheet is appended to <body>, outside the padding the app gives its own body. */
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes action-sheet-rise {
+    from {
+        transform: translateY(100%);
+    }
+}
+
+[data-sheet-picker-scope] {
+    pointer-events: none;
+}
+
+[data-sheet-picker-scope] > * > button:first-child {
+    opacity: 0;
+    pointer-events: none;
+}
+
+[data-sheet-picker-scope] [role="menu"],
+[data-sheet-picker-scope] [data-mail--label-menu-target="panel"],
+[data-sheet-picker-scope] [data-ui--dropdown-target="menu"] {
+    pointer-events: auto;
 }

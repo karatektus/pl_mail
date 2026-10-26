@@ -332,6 +332,48 @@ final class GmailLabelMirroringTest extends KernelTestCase
     // ── two accounts, which is where this could have gone wrong ──────────
 
     /**
+     * A sibling's IMAP row is placed by its folder. Gmail collected a copy of
+     * the mail and the user trashed that copy; the copy on the sibling's server
+     * is still in its Inbox, and the label application must not move it.
+     */
+    public function testAGmailCopyTrashedInGmailDoesNotMoveASiblingsImapRowOutOfItsInbox(): void
+    {
+        $inbox = $this->labels->systemLabel(LabelRole::Inbox, $this->sibling);
+        $trash = $this->labels->systemLabel(LabelRole::Trash, $this->sibling);
+        $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $this->gmailLabel(LabelRole::Trash, 'TRASH', $this->account);
+
+        $message          = $this->message();
+        $message->account = $this->sibling;
+        $message->addLabel($inbox);
+        $this->em->flush();
+
+        $this->builder->applyTranslatedLabels($message, ['TRASH'], $this->sibling, $this->account, true);
+        $this->em->flush();
+
+        self::assertTrue($message->hasLabel($inbox), 'the folder on the server still says Inbox');
+        self::assertFalse($message->hasLabel($trash), 'Gmail trashing its copy is not the sibling trashing its own');
+    }
+
+    /**
+     * The same call without the flag is the native Gmail path and still obeys
+     * Gmail: there Gmail is the mailbox.
+     */
+    public function testAnAccountsOwnGmailRowStillFollowsGmailsTrash(): void
+    {
+        $inbox = $this->gmailLabel(LabelRole::Inbox, 'INBOX', $this->account);
+        $trash = $this->gmailLabel(LabelRole::Trash, 'TRASH', $this->account);
+
+        $message = $this->message();
+        $this->apply($message, ['INBOX']);
+        $this->apply($message, ['TRASH']);
+
+        self::assertFalse($message->hasLabel($inbox));
+        self::assertTrue($message->hasLabel($trash));
+    }
+
+
+    /**
      * The bug worth fearing, and the reason the policy is asked about the
      * *carrier* account rather than the message's own.
      *

@@ -57,6 +57,7 @@ the set as a whole; unlike Google there is no partial grant to handle.
 | `Mail.Send` | Sending. Separate from the above in Graph's model, so it has to be added separately. |
 | `MailboxSettings.ReadWrite` | Master categories, at `/me/outlook/masterCategories`. These are **not** covered by `Mail.ReadWrite`: they live under the Outlook user-settings resource and return `ErrorAccessDenied` without this. ReadWrite rather than Read because plMail creates category definitions when a label is mirrored. |
 | `Calendars.ReadWrite` | Calendars on the same account, read and write. |
+| `Contacts.ReadWrite` | Outlook contacts on the same account, read and write: each contact folder is an address book. |
 
 Two of them are worth understanding before you decide to skip one.
 
@@ -82,6 +83,29 @@ back to Outlook, which means creating, updating and deleting on Microsoft's side
 If calendars do not appear for a user, plMail says which of the possible causes it is in
 **Settings → Calendars**: the permission may not be on the app registration, or the account may
 genuinely have no calendars.
+
+### Contacts are on the same sign-in too
+
+`Contacts.ReadWrite` rides the same grant. A Microsoft account connected to plMail brings its
+Outlook contacts with it: each contact folder appears as an address book under **Contacts**, with
+Outlook's categories as tags, and an edit made in plMail is written back. See
+[Contacts](../features/contacts.md).
+
+Outlook's contact has fixed places where plMail has lists: three email addresses, two business and
+two home numbers and one mobile, one home, one business and one other address, one spouse (or
+partner), one manager, one assistant and the children's names, one website (the work one if there
+is one), three chat addresses and a birthday. plMail fills those places, primary first. An entry
+beyond them — a fourth email address, a second partner — is not sent, and stays only in plMail until
+the contact next changes in Outlook, when Outlook's version comes back. Outlook has no place at all
+for other dates (an anniversary), a phonetic middle name or custom fields; those stay in plMail. Its
+chat addresses carry no service: a SIP address comes back as SIP, any other as "other".
+
+Photos go both ways, with one exception: Microsoft Graph can replace an Outlook contact's photo but
+not remove it, so a photo removed in plMail stays in Outlook.
+
+An account connected before plMail asked for contacts holds a token without the permission. Mail
+and calendars carry on, and **Settings → Account health** shows a notice whose button signs in once more
+and adds it.
 
 ## The tenant value
 
@@ -175,9 +199,21 @@ misconfiguration here.
 usable; it is displayed once and cannot be retrieved afterwards, only replaced.
 
 **Adding a permission does not upgrade tokens that already exist.** A user who connected before you
-added `Calendars.ReadWrite` or `MailboxSettings.ReadWrite` holds a token that does not carry it, and
-no amount of waiting changes that. The account has to be disconnected and reconnected so a fresh
-consent issues a new token — `app:graph:diagnose` says so explicitly when it finds the gap.
+added `Calendars.ReadWrite`, `Contacts.ReadWrite` or `MailboxSettings.ReadWrite` holds a token that
+does not carry it, and no amount of waiting changes that. The account has to sign in again so a
+fresh consent issues a new token — the reconnect button in **Settings → Account health** does that without
+removing the account, and `app:graph:diagnose` says so explicitly when it finds the gap.
+
+**An organisation that approves apps for its users refuses every sign-in after an upgrade that
+adds a permission.** In a tenant where users may not consent to apps themselves, an administrator
+approved plMail once, for the permissions it asked for then. A plMail version that asks for one
+more (`Contacts.ReadWrite`, when contact sync arrived) is refused at sign-in, mail included, with
+`AADSTS65001` or `AADSTS90094`, until the administrator approves again: **Microsoft Entra admin
+centre → Enterprise applications → plMail → Permissions → Grant admin consent**. Do it before
+upgrading, or before anyone reconnects. The sign-in error tells the user to ask their administrator,
+**Admin → Integrations → Microsoft mail sign-in** carries the same warning, and so does the
+reconnect offer in **Settings → Contacts**. Personal Microsoft accounts and tenants where users
+approve apps themselves are not affected.
 
 **Identity working while every mail endpoint fails is not a credentials problem.** It usually means
 the Microsoft account has no Outlook mailbox provisioned at all, which happens with accounts created

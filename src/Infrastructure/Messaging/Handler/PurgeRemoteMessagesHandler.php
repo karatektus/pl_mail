@@ -10,6 +10,7 @@ use App\Domain\Helper\ImapFolderLocator;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Imap\ImapQuery;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Psr\Log\LoggerInterface;
@@ -118,8 +119,10 @@ final readonly class PurgeRemoteMessagesHandler
                 try {
                     // setFetchBody(false): the body is about to stop existing,
                     // and fetching it to mark it deleted would download every
-                    // attachment of every message being purged.
-                    $folder->messages()
+                    // attachment of every message being purged. ImapQuery,
+                    // so a header that repeats a once-only line does not
+                    // keep the message from being deleted (#357).
+                    ImapQuery::of($folder)
                         ->whereUid($uid)
                         ->setFetchBody(false)
                         ->get()

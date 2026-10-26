@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:426116f2483e1351db6c59a6611683cd39b2712c -->
+<!-- translated-from: internals/mail-ingest.md sha1:3d50d39448dfbac508b6da8e9c06a2145c197aa2 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -294,7 +294,10 @@ Datum tragen —, deshalb reicht ihm `TellClassificationItsQueue` den Transport,
 kam, und nur diese zwei Warteschlangen sind begrenzt; `enrich_live` nie. Eine übersprungene
 Nachricht bekommt kein `aiCategorisedAt`, also kann `app:ai:classify-backlog --any-age`, das nach
 dessen Fehlen auswählt und seine Umschläge mit `ClassifyMailMessage::$anyAge` markiert, sie
-trotzdem einsortieren.
+trotzdem einsortieren. Dieselbe Grenze gilt für den zweiten Versuch, den eine Nachricht bekommt,
+wenn der Modell-Host nicht erreichbar war (#222): Diesen Versuch macht der Durchlauf, also behält
+Mail jenseits der Grenze, die in einen Ausfall geraten ist, die Antwort der Regeln, bis jemand
+`--any-age` ausführt.
 
 **Ein Modell-Host.** Getrennte Worker enden trotzdem an einem Host, der eine Anfrage nach der
 anderen beantwortet. `App\Service\Ai\LiveMailPriority` lässt die Massen-Klassifizierung vor jedem
@@ -533,6 +536,31 @@ sie an zwei Stellen zugleich.
 tatsächlich verloren. Das ist ein bewusster Handel: Eine Konversation, die in dem Zustand
 zurückkommt, in dem du sie verlassen hast, ist eine, an der du bereits gelernt hast
 vorbeizuscrollen.
+
+### „Im Papierkorb“ ist gespeichert, und die Datenbank pflegt es
+
+Eine Konversation ist im Papierkorb, wenn sie Trash trägt und keine ihrer Nachrichten außerhalb
+von Trash liegt (#268). Jede Liste, jedes Badge und die Suche lassen eine solche Konversation
+weg. Sie lesen dafür `message_thread.binned`, statt die Regel aus den Nachrichten abzuleiten; bei
+einem Postfach mit 67k Konversationen kostete das Ableiten etwa 170 ms pro Abfrage.
+
+Die Spalte pflegen Trigger, nicht PHP (`Version20261022160000`). Die Schreibvorgänge, die die
+Antwort ändern, sind verstreut: Labels über das ORM, rohes SQL, das Konversationen neu aufbaut
+oder ein Label entfernt, `ON DELETE CASCADE`, eine Nachricht, die in eine andere Konversation
+wandert, eine Antwort, die in einer Konversation im Papierkorb ankommt. Ein Flag, das PHP setzt,
+wäre nur auf den Wegen richtig, an die jemand gedacht hat.
+
+- `message_label` und `thread_label` feuern einmal pro Anweisung und berechnen nur die
+  Konversationen neu, deren Trash-Zeilen sich geändert haben. Ablegen, Lesen und Labeln kosten
+  nichts.
+- `message` feuert pro Zeile: beim Einfügen nur, wenn die Konversation im Papierkorb ist (eine
+  neue Nachricht kann sie dort nur herausholen), beim Löschen und bei geändertem `thread_id` für
+  die Konversation, die die Nachricht verlassen hat.
+- Jede Neuberechnung leitet die Antwort von Grund auf ab (`plmail_refresh_thread_binned()`),
+  deshalb spielt die Reihenfolge der Anweisungen in einem Flush keine Rolle.
+
+Die Entity bildet die Spalte nur lesend ab. Im Speicher kann sie einer noch nicht geflushten
+Änderung hinterherhinken, deshalb sollte PHP nicht darauf verzweigen; die Abfragen lesen sie.
 
 ## Das Änderungsprotokoll, das JMAP liest
 

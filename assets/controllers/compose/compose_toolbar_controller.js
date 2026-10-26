@@ -974,9 +974,11 @@ export default class extends Controller {
                 list.appendChild(li);
             });
 
+            // Put the list where the first block was. Appending it to the
+            // editor put it under the quoted message in a reply, and under the
+            // signature in a new mail, far from the caret the writer clicked.
+            blocks[0].before(list);
             blocks.forEach(block => block.remove());
-
-            editor.appendChild(list);
         } else {
             const li = document.createElement('li');
             list.appendChild(li);
@@ -1092,11 +1094,19 @@ export default class extends Controller {
      * draft: the debug toolbar used to end up quoted inside the body, and the
      * "show quoted text" toggle is a UI affordance, not part of the mail.
      * Scripts go too — nothing executable belongs in a mail we're sending.
+     *
+     * The fold around the quote goes with its toggle. Removing only the button
+     * left the quote's `display: none` behind, and every reply sent with the
+     * quote still folded — which is how the composer opens — reached its
+     * recipient with the history invisible, in every client (#257). The quote
+     * is unhidden and its wrapper unwrapped; a draft reopened from this is
+     * folded again by compose_controller, as it always was.
+     * MailBodySanitizer::unfoldQuotes() does the same on the server.
      */
     _cleanHtml() {
         const html = this.editorTarget.innerHTML;
 
-        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle/i.test(html)) {
+        if (!/sf-toolbar|<script|sfwdt|data-quote-toggle|data-quote-wrapped/i.test(html)) {
             return html;
         }
 
@@ -1105,6 +1115,16 @@ export default class extends Controller {
         clone.querySelectorAll(
             'script, .sf-toolbar, [id^="sfwdt"], [data-frankenphp-hot-reload-preserve], [data-quote-toggle]',
         ).forEach((node) => node.remove());
+
+        clone.querySelectorAll('[data-quote-wrapped]').forEach((wrapper) => {
+            Array.from(wrapper.children).forEach((child) => {
+                child.style.removeProperty('display');
+                if ('' === child.getAttribute('style')) {
+                    child.removeAttribute('style');
+                }
+            });
+            wrapper.replaceWith(...wrapper.childNodes);
+        });
 
         return clone.innerHTML;
     }

@@ -138,8 +138,7 @@ final class InboxTabUnreadCountTest extends WebTestCase
         $binned = $this->thread('promo binned but unread', category: MessageCategory::Promotions, unread: 1);
 
         // Both labels, as binning leaves it — not a swap.
-        $binned->addLabel($trash);
-        $this->em->flush();
+        $this->binThread($binned, $trash);
 
         $crawler = $this->client->request('GET', '/mail/inbox');
 

@@ -170,7 +170,25 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
         <div class="shell-frame flex h-full flex-col p-gutter gap-gutter"
              {% if app.user %}
              style="--calendar-pane-width: {{ app.user.calendarPaneWidth }}px"
-             data-controller="ui--split"
+             {# contacts--pane after ui--split: it reads the calendar's position
+                on connect, once ui--split has settled it for this window. #}
+             data-controller="ui--split contacts--pane"
+             {# A contacts page at full size, or the mailbox with the address
+                book in its full-width position: the mail column put away and
+                the dock given the row. See contacts/_page_shell.html.twig. #}
+             {% if contactsFull|default(false) or app.user.contactsPaneMode.value == 'contacts' %}data-contacts-full{% endif %}
+             data-contacts--pane-open-value="{{ contactsFull|default(false) or app.user.contactsPaneOpen ? 'true' : 'false' }}"
+             {# The stored position, and which one the button skips (Settings →
+                Contacts → Behaviour). `contacts` is drawn as full width above
+                too: the mailbox with the full page's attribute. `page` is the
+                /contacts page, where there is no mail behind it. #}
+             data-contacts--pane-mode-value="{{ app.user.contactsPaneMode.value }}"
+             data-contacts--pane-skip-value="{{ app.user.contactsSwitchSkip.value }}"
+             data-contacts--pane-page-value="{{ contactsFull|default(false) ? 'true' : 'false' }}"
+             data-contacts--pane-src-value="{{ path('app_contacts_list') }}"
+             data-contacts--pane-inbox-url-value="{{ path('app_mail_inbox') }}"
+             data-contacts--pane-state-url-value="{{ path('app_contacts_pane_state') }}"
+             data-contacts--pane-token-value="{{ csrf_token('contacts_pane_state') }}"
              data-ui--split-state-url-value="{{ path('app_calendar_pane_state') }}"
              data-ui--split-token-value="{{ csrf_token('calendar_pane_state') }}"
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
@@ -202,7 +220,10 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 lands on decides how much room it wants — see
                 CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so
                 the boundary's own controller can hear it from up here. #}
-             data-action="turbo:frame-load->ui--split#paneLoaded"
+             {# …and the two docked panes, which share the row: the calendar's
+                moves are reported to the address book, and the address book
+                asks the calendar for room. See contacts--pane. #}
+             data-action="turbo:frame-load->ui--split#paneLoaded ui--split:mode->contacts--pane#calendarMoved contacts--pane:claim->ui--split#yield"
              {% endif %}
         >
 
@@ -303,11 +324,16 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                         {# One data-controller attribute: a second one is dropped by the parser. The
                            pull gesture is outside the frame, so a refresh cannot take it away, and
                            it reaches the topbar's sync button by lookup, not by DOM position. #}
+                        {# The row swipe is outside the frame for the same reason, and one delegated
+                           listener serves every row, so a refresh cannot leave a row without it. #}
+                        {# The long-press is outside the frame for the same reason, and it opens the action sheet, which
+                           is copied from the template at the end of this frame: a sheet opened by a hold is always the
+                           list's current one. #}
                         {% if app.user %}
-                            data-controller="mail--new-marker mail--pull-to-refresh"
+                            data-controller="mail--new-marker mail--pull-to-refresh mail--row-swipe mail--row-hold"
                             data-mail--new-marker-url-value="{{ path('app_mail_threads_listed') }}"
                         {% else %}
-                            data-controller="mail--pull-to-refresh"
+                            data-controller="mail--pull-to-refresh mail--row-swipe mail--row-hold"
                         {% endif %}
                         {# @container, so the rows below switch to their stacked
                            layout on the LIST's width. They used to switch on the
@@ -391,6 +417,12 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                    to the full page instead. #}
                 {% if app.user %}
                     {% include '_partials/_calendar_pane.html.twig' %}
+                    {# The address book, the same kind of pane, after it. A
+                       block, because the full contacts page fills it with its
+                       own content — see contacts/_page_shell.html.twig. #}
+                    {% block contacts_dock %}
+                        {% include '_partials/_contacts_pane.html.twig' %}
+                    {% endblock %}
                 {% endif %}
             </div>
         </div>
@@ -482,6 +514,11 @@ which of the two is happening.
             class="flex-1 overflow-y-auto divide-y divide-line">
             {% block message_list %}{% endblock %}
         </ul>
+
+        {# The long-press action sheet, once per list. A <template>, so it is inert until a hold
+           copies it, and it sits after the rows region, outside every data-list-region: a refresh
+           morphs the rows and the tabs and never this. See _partials/_action_sheet.html.twig. #}
+        {% include '_partials/_action_sheet.html.twig' %}
 
     </turbo-frame>
 {% endblock %}

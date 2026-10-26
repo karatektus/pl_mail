@@ -1,0 +1,36 @@
+{#
+contacts/_layout.html.twig — the address book inside the app shell.
+
+Pages extend this and fill `contacts_content`; they may override `title`.
+Button and field classes are shared here so every contacts page matches.
+
+Every page runs in the pane docked beside the mail (_contacts_pane.html.twig),
+and only there. Asked for by that frame — the header Turbo sends on every
+navigation inside it, or the attribute the mailbox sets when it renders an
+open pane with the page — a page renders into the frame alone, with no topbar
+or sidebar to build and throw away: _pane_layout.html.twig.
+
+The full page is the same pane, not a page of its own: _page_shell.html.twig
+draws the mailbox with its mail column put away and the dock given the row. A
+message opened from a contact then slides the mail in beside it, and nothing
+about the contact moves or reloads. A page of its own, drawn the way Drive is,
+was what it used to be, and opening a message from it could only be a visit
+that threw the contact away and brought back whatever the mailbox remembered
+— the calendar, on a notebook. Everything else about the page is the same
+template, which is why the content sits in a @container: its breakpoints are
+the pane's width, never the window's.
+#}
+{% set inFrame = 'contacts-pane-frame' == app.request.headers.get('Turbo-Frame')
+    or true == app.request.attributes.get('_contacts_pane') %}
+{% extends inFrame ? 'contacts/_pane_layout.html.twig' : 'contacts/_page_shell.html.twig' %}
+
+{# In the pane, either way — _pane_actions reads it. #}
+{% set inPane = true %}
+
+{% set btnGhost = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover hover:text-ink border border-line transition-colors cursor-pointer' %}
+{% set btnPrimary = 'inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer' %}
+{% set btnDanger = 'inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium text-danger hover:bg-danger-soft border border-line transition-colors cursor-pointer' %}
+{% set iconBtn = 'inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer' %}
+{% set fieldCls = 'w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-accent' %}
+{% set labelCls = 'block text-xs font-semibold text-ink-faint uppercase tracking-wider mb-1' %}
+{% set cardCls = 'rounded-pane border border-line bg-surface p-4' %}

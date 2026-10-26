@@ -37,9 +37,9 @@ export default class extends Controller {
         }
 
         // requestSubmit(), not submit(): it fires the submit event, so Turbo
-        // sees it and constraint validation still runs. On the two forms here
-        // that opt out of Turbo with data-turbo="false" it behaves exactly as
-        // submit() did.
+        // sees it and constraint validation still runs. On a form that opts
+        // out of Turbo with data-turbo="false" it behaves exactly as submit()
+        // did.
         if ("function" === typeof form.requestSubmit) {
             form.requestSubmit();
 
@@ -47,6 +47,31 @@ export default class extends Controller {
         }
 
         form.submit();
+    }
+
+    /**
+     * submit(), once typing pauses: for a search that answers as it is
+     * typed. On `input`, not `change`, which a text field only fires when it
+     * loses focus. One timer per controller, so each key restarts it and a word
+     * typed quickly is one request, not one per letter.
+     */
+    submitSoon(event) {
+        clearTimeout(this._soon);
+        this._soon = setTimeout(() => this.submit(event), 250);
+    }
+
+    /**
+     * Drops a submitSoon() still waiting. For a container holding the search
+     * and other forms (the add-to-contacts dialog): a pick submitted while a
+     * search is pending must not be followed by that search, whose answer
+     * would land in a dialog already closing.
+     */
+    cancel() {
+        clearTimeout(this._soon);
+    }
+
+    disconnect() {
+        clearTimeout(this._soon);
     }
 
     /**

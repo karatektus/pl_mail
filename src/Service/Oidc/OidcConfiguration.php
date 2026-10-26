@@ -29,6 +29,7 @@ final readonly class OidcConfiguration
         public bool   $autoCreate,
         public bool   $requireVerifiedEmail,
         string        $scopes,
+        public bool   $passwordLoginDisabled = false,
     ) {
         $requested = preg_split('/[\s,]+/', $scopes, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
@@ -37,6 +38,17 @@ final readonly class OidcConfiguration
         // token, and the failure reads as the provider misbehaving. So it is
         // added rather than required of whoever writes the setting.
         $this->scopes = array_values(array_unique(['openid', ...$requested]));
+    }
+
+    /**
+     * Whether the password form is offered and accepted. Only an install whose
+     * single sign-on is actually switched on can turn it off: with no provider
+     * configured the setting is inert, so nobody is locked out by a provider
+     * that was removed, or was never finished, after the box was ticked.
+     */
+    public function allowsPasswordLogin(): bool
+    {
+        return false === ($this->isEnabled() && true === $this->passwordLoginDisabled);
     }
 
     public function isEnabled(): bool

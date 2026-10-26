@@ -18,12 +18,15 @@ final readonly class ThreadRow
     public ?ThreadRowMessage $draft;
 
     /**
-     * @param list<ThreadRowMessage> $messages oldest first
-     * @param string                 $snippet  MessageSnippet of the latest message
+     * @param list<ThreadRowMessage> $messages  oldest first
+     * @param string                 $snippet   MessageSnippet of the latest message
+     * @param bool                   $encrypted whether the latest message is encrypted:
+     *                                          the row's lock, in front of the subject
      */
     public function __construct(
         public array $messages,
         public string $snippet,
+        public bool $encrypted = false,
     ) {
         $this->latest = [] === $messages ? null : $messages[count($messages) - 1];
 

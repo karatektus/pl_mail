@@ -80,6 +80,10 @@ final class IntegrationProviderController extends AbstractController
         $form = $this->createForm(IntegrationProviderConfigType::class, $config, [
             'integration_provider' => $provider,
             'action'               => $this->generateUrl('app_admin_integrations_edit', ['provider' => $provider->value]),
+            // A calendar service is offered to every user whatever this switch
+            // says: Settings → Calendars never asked the provider config. A
+            // switch that saves and changes nothing is worse than none.
+            'offer_toggle'         => false === in_array($provider, self::calendarProviders(), true),
         ]);
         $form->handleRequest($request);
 
@@ -90,9 +94,15 @@ final class IntegrationProviderController extends AbstractController
         }
 
         return $this->render('admin/integrations/_form.html.twig', [
-            'provider' => $provider,
-            'config'   => $config,
-            'form'     => $form,
+            'provider'  => $provider,
+            'config'    => $config,
+            'form'      => $form,
+            // For the CalDAV form's warning: a pin reaches every connection
+            // already made, on its next discovery, and an admin changing it
+            // should know how many people that is before saving.
+            'connected' => Provider::CalDav === $provider
+                ? $this->integrationRepository->countUsersByProvider()[$provider->value] ?? 0
+                : 0,
         ]);
     }
 
@@ -192,20 +202,43 @@ final class IntegrationProviderController extends AbstractController
 
 
     /**
+     * The services listed under Calendars: every provider that offers
+     * calendars, less the ones already listed among the file services.
+     *
+     * Provider::offersCalendars() decides, not kind(), so the group follows
+     * whatever Settings → Calendars lists. Nextcloud offers calendars too, but
+     * it has one config row and one Configure form, and that is in the file
+     * group already; listing it twice would be two forms for one row.
+     *
+     * @return list<Provider>
+     */
+    private static function calendarProviders(): array
+    {
+        $fileProviders = Provider::of(ServiceKind::Files);
+
+        return array_values(array_filter(
+            Provider::cases(),
+            static fn (Provider $provider): bool => true === $provider->offersCalendars()
+                && false === in_array($provider, $fileProviders, true),
+        ));
+    }
+
+    /**
      * @return array<string,mixed>
      */
     private function listData(): array
     {
         return [
-            'providers'     => Provider::of(ServiceKind::Files),
-            'configs'       => $this->configRepository->findAllIndexedByProvider(),
-            'userCounts'    => $this->integrationRepository->countUsersByProvider(),
-            'mailProviders' => MailProvider::cases(),
-            'mailConfigs'   => $this->mailConfigRepository->findAllIndexedByProvider(),
+            'providers'         => Provider::of(ServiceKind::Files),
+            'calendarProviders' => self::calendarProviders(),
+            'configs'           => $this->configRepository->findAllIndexedByProvider(),
+            'userCounts'        => $this->integrationRepository->countUsersByProvider(),
+            'mailProviders'     => MailProvider::cases(),
+            'mailConfigs'       => $this->mailConfigRepository->findAllIndexedByProvider(),
             // Which integrations could inherit credentials from which mail
             // provider. Drives the "reuse" button, and stays here rather than in
             // the template so the copy endpoint validates against the same map.
-            'inheritable'   => self::INHERITABLE,
+            'inheritable'       => self::INHERITABLE,
         ];
     }
 
