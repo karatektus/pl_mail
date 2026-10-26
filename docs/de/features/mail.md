@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e10e5d0559ab9c2a857d4c77d58875bf76e142d2 -->
+<!-- translated-from: features/mail.md sha1:065fb946cd3accd3bfed2b8c0a7ce66730b2945f -->
 
 # Mail
 
@@ -553,11 +553,18 @@ Orange, Bernstein, Grün, Petrol, Blau, Violett oder Rosa — und wahlweise ein 
 Label, worüber die Verschachtelung läuft. Ein Label lässt sich aus der Seitenleiste ausblenden,
 ohne es zu löschen.
 
-Ein neu angelegtes Label ändert beim Anbieter nichts. Gmail bekommt es, sobald es das erste Mal
-wirklich auf eine Nachricht angewendet wird; bei einfachem IMAP wird nie ein Ordner dafür
-erzeugt, denn ein Ordner spielt erst dann eine Rolle, wenn eine Nachricht körperlich umzieht.
-Strukturelle Änderungen — Umbenennen und Löschen — nach außen zu spiegeln, ist abgeschaltet,
-solange du es nicht pro Konto einschaltest; siehe [Konten und Aliase](accounts.md).
+Ein Label anzulegen legt nie einen Ordner an. Gmail bekommt das Label, sobald es das erste Mal auf
+eine Nachricht angewendet wird, und Umbenennen und Löschen werden zu Gmail und Microsoft gespiegelt;
+siehe [Labels beim Anbieter](accounts.md#labels-beim-anbieter). Bei einem reinen IMAP-Konto bleibt
+ein Label, das du anlegst, in plMail: Setzt du es auf eine Nachricht, markiert das die Nachricht und
+verschiebt nichts.
+
+Die Ordner eines IMAP-Kontos erscheinen ebenfalls in der Seitenleiste — der Posteingang, Gesendet
+und jeder Ordner, den der Server hat. Das sind Orte, keine Markierungen: Jede Nachricht liegt in
+genau einem davon, und **Verschieben nach** in einen davon oder eine Konversation darauf zu ziehen verschiebt
+die Mail auf dem Server dorthin. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst
+sie dort um und löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
+[Ordner](accounts.md#ordner).
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
 Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem

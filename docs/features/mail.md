@@ -499,10 +499,16 @@ has a name, one of nine colours — gray, red, orange, amber, green, teal, blue,
 and optionally a parent, which is how nesting works. A label can be hidden from the sidebar
 without being deleted.
 
-Creating a label does nothing at the provider. Gmail gets it the first time the label is actually
-applied to a message; plain IMAP never gets a folder created for it, because a folder only matters
-when a message physically moves. Mirroring structural changes — renames and deletions — outward is
-off unless you switch it on per account; see [Accounts and aliases](accounts.md).
+Creating a label never creates a folder. Gmail gets the label the first time it is applied to a
+message, and renames and deletions are mirrored to Gmail and Microsoft; see
+[Labels at the provider](accounts.md#labels-at-the-provider). On a plain IMAP account a label you
+create stays in plMail: putting it on a message tags the message and moves nothing.
+
+An IMAP account's folders show in the sidebar as well — the inbox, Sent, and every folder the server
+has. Those are places rather than tags: each message is in exactly one of them, and **Move to** one
+of them, or dragging a conversation onto it, moves the mail there on the server. Folders are made,
+renamed and deleted in the account's own folder list, never by making or renaming a label; see
+[Folders](accounts.md#folders).
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
