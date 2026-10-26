@@ -3262,15 +3262,34 @@ settings:
         folders:
             always_synced: The inbox is always synced
             button: Choose which folders to sync
+            created: 'Folder %folder% created.'
             empty: No folders yet. They are listed after the first sync.
             intro: >-
                 Switch a folder off and plMail stops fetching it. Mail already
                 stored stays where it is, and switching the folder back on
                 resumes from where it stopped.
+            invalid:
+                control: 'A folder name cannot contain line breaks or other control characters.'
+                empty: 'Give the folder a name.'
+                reserved: 'INBOX is reserved for the inbox.'
+                separator: 'A folder name cannot contain “%separator%” on this server: it separates folders from the folders inside them.'
+                too_long: 'That name is too long for a folder.'
+                wildcard: 'A folder name cannot contain * or %.'
+            new:
+                button: 'New folder'
+                intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Create folder'
+                title: 'New folder — %account%'
+                top_level: 'Top level'
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
+            refused:
+                server: 'The mail server refused: %reason%'
             start_sync: 'Start syncing %folder%'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be reached, nothing was changed: %reason%'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'

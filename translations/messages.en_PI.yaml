@@ -3111,15 +3111,34 @@ settings:
         folders:
             always_synced: The inbox be always hauled aboard
             button: Pick which folders to haul aboard
+            created: 'Folder %folder% be built.'
             empty: No folders yet. They be listed after the first haul.
             intro: >-
                 Switch a folder off and plMail stops haulin it aboard. Post
                 already stowed stays where it lies, and switchin the folder back
                 on picks up where it left off.
+            invalid:
+                control: 'A folder name cannot carry line breaks or other strange marks.'
+                empty: 'Give the folder a name, matey.'
+                reserved: 'INBOX be reserved for the inbox.'
+                separator: 'A folder name cannot carry “%separator%” on this ship: it splits folders from the folders inside.'
+                too_long: 'That name be too long for a folder.'
+                wildcard: 'A folder name cannot carry * or %.'
+            new:
+                button: 'New folder'
+                intro: 'The folder be built on the mail server, so every mail app readin this account sees it. Makin a label never builds a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Build folder'
+                title: 'New folder — %account%'
+                top_level: 'Top deck'
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
+            refused:
+                server: 'The mail server said nay: %reason%'
             start_sync: 'Start haulin %folder%'
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be hailed, nothin changed: %reason%'
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'

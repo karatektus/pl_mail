@@ -1,0 +1,79 @@
+{# New folder, inside the folders modal.
+
+   A folder is a place on the account's server, so it is made here, in the
+   account's own tree, and never as a side effect of making a label (#221). The
+   parent is picked among the folders the server listed; "Top level" is the
+   server's personal namespace, which on a Courier-style server is under INBOX.
+   The person types a name and never a path: the separator and the encoding are
+   the server's business (ImapFolderName).
+
+   Variables:
+     account   Account
+     mode      'new'
+     rows      list<FolderTreeRow>  the account's tree, for the parent picker
+     parentId  int|null             the preselected parent
+     name      string               what was typed, kept across a refusal
+     error     string|null          why the last try did not work, in words #}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'settings.accounts.folders.new.title'|trans({ '%account%': account.displayAddress }) }}</template>
+
+    {# keep-open: a success answers with the folder list, which should stay up. #}
+    <form method="post"
+          action="{{ path('settings_account_folder_create', { id: account.id }) }}"
+          data-turbo-frame="modal"
+          data-ui--modal-keep-open
+          class="flex-1 min-h-0 flex flex-col">
+        <input type="hidden" name="_token" value="{{ csrf_token('account_folder_new_' ~ account.id) }}">
+
+        <div class="flex-1 min-h-0 px-6 pb-4 space-y-4 overflow-y-auto">
+            <p class="text-xs text-ink-muted leading-relaxed">{{ 'settings.accounts.folders.new.intro'|trans }}</p>
+
+            {% if error is not null %}
+                <div role="alert" data-folder-error class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+
+            <div class="space-y-1.5">
+                <label for="folder-name" class="block text-xs font-medium text-ink-soft">{{ 'settings.accounts.folders.new.name'|trans }}</label>
+                <input type="text" id="folder-name" name="name" value="{{ name }}" required maxlength="255" autofocus autocomplete="off"
+                       class="w-full h-9 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+            </div>
+
+            <div class="space-y-1.5">
+                <label for="folder-parent" class="block text-xs font-medium text-ink-soft">{{ 'settings.accounts.folders.new.parent'|trans }}</label>
+                <select id="folder-parent" name="parent" class="select-field w-full h-9 text-sm">
+                    <option value="" {{ parentId is null ? 'selected' : '' }}>{{ 'settings.accounts.folders.new.top_level'|trans }}</option>
+                    {% for row in rows %}
+                        {% set m = row.mailbox %}
+                        {# Indented with non-breaking spaces, the one way an
+                           <option> can show a tree. #}
+                        <option value="{{ m.id }}" {{ parentId == m.id ? 'selected' : '' }}>
+                            {%- if row.depth > 0 %}{% for i in 1..row.depth %}&nbsp;&nbsp;&nbsp;{% endfor %}{% endif -%}
+                            {{ m.label and m.specialUse ? m.label|label_name : m.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <a href="{{ path('settings_account_folders', { id: account.id }) }}"
+               data-turbo-frame="modal"
+               class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                      text-ink-soft bg-field border border-field hover:bg-hover
+                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                      transition-colors duration-100">{{ 'form.cancel'|trans }}</a>
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                           bg-accent hover:bg-accent-strong
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'settings.accounts.folders.new.submit'|trans }}</button>
+        </div>
+    </form>
+</turbo-frame>
+{% endblock %}

@@ -8,9 +8,11 @@
    The toggle answers with this same partial, so the frame replaces itself and
    nothing else on the page moves.
 
-   The name is the folder's label name, as the sidebar and the Labels list
-   print it, so a system folder reads "Drafts" or "Entwürfe" here exactly as it
-   does there; the stored name is only the fallback for a folder with no label.
+   A system folder reads by its label name, as the sidebar prints it, so it is
+   "Drafts" or "Entwürfe" here exactly as it is there. Every other folder reads
+   by its own name on the server (Mailbox::$name, decoded): this list mirrors
+   the account's tree, and a label renamed in plMail is a label, not the folder
+   (#221).
 
    The inbox gets the control but disabled and with no form behind it: it is
    always synced, and a switch that is simply absent would leave the row
@@ -45,7 +47,7 @@
 {% set ICON_HALF = 7 %}
 {% set isInbox = mailbox.specialUse is same as enum('App\\Domain\\Enum\\Mail\\MailboxSpecialUse').INBOX %}
 {% set isPlaceholder = false == mailbox.isSelectable %}
-{% set folderName = mailbox.label ? mailbox.label|label_name : mailbox.name %}
+{% set folderName = mailbox.label and mailbox.specialUse ? mailbox.label|label_name : mailbox.name %}
 {% set enabled = mailbox.isSyncEnabled and false == isPlaceholder %}
 {% set switchLabel = isInbox
     ? 'settings.accounts.folders.always_synced'|trans

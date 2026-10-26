@@ -6,17 +6,22 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\ImapFolderRefusedException;
+use App\Domain\Exception\InvalidFolderNameException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Imap\FolderTree;
+use App\Service\Imap\ImapFolderManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Throwable;
 
 /**
  * Which of an IMAP account's folders plMail fetches.
@@ -40,6 +45,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * Nor is a folder the server will not open (Mailbox::$isSelectable): it holds
  * no mail, and MailboxSyncer switches it off again on every folder sync.
+ *
+ * ## The folder actions (#221)
+ *
+ * The same list is where folders are made — a folder is a place on the
+ * account's server, so it is made where that account's tree is shown, never
+ * as a side effect of making a label. ImapFolderManager does the work; this
+ * only turns its answers into a sentence. Every answer re-renders the modal
+ * frame, so the list stays open on the result.
  */
 #[IsGranted('ROLE_USER')]
 final class AccountFoldersController extends AbstractController
@@ -50,6 +63,8 @@ final class AccountFoldersController extends AbstractController
         private readonly MailboxRepository      $mailboxes,
         private readonly FolderTree             $tree,
         private readonly EntityManagerInterface $em,
+        private readonly ImapFolderManager      $folders,
+        private readonly TranslatorInterface    $translator,
     ) {}
 
     #[Route('/settings/accounts/{id}/folders', name: 'settings_account_folders', methods: ['GET'])]
@@ -58,10 +73,64 @@ final class AccountFoldersController extends AbstractController
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $this->assertSyncsOverImap($account);
 
-        return $this->render('settings/accounts/_folders_modal.html.twig', [
-            'account' => $account,
-            'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
-        ]);
+        return $this->renderList($account);
+    }
+
+    /**
+     * The New folder form: a name, and where it goes among the folders the
+     * server listed. `?parent=` preselects one.
+     */
+    #[Route('/settings/accounts/{id}/folders/new', name: 'settings_account_folder_new', methods: ['GET'])]
+    public function new(Request $request, Account $account): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $this->assertSyncsOverImap($account);
+
+        return $this->renderNewForm($account, self::idOrNull($request->query->get('parent')), '', null);
+    }
+
+    #[Route('/settings/accounts/{id}/folders/new', name: 'settings_account_folder_create', methods: ['POST'])]
+    public function create(Request $request, Account $account): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $this->assertSyncsOverImap($account);
+        $this->assertCsrf($request, 'account_folder_new_' . $account->id);
+
+        $name     = (string) $request->request->get('name', '');
+        $parentId = self::idOrNull($request->request->get('parent'));
+        $parent   = null;
+
+        if (null !== $parentId) {
+            $parent = $this->mailboxes->find($parentId);
+
+            // Checked against THIS account for the reason toggle() gives.
+            if (null === $parent || $parent->account !== $account) {
+                throw $this->createNotFoundException();
+            }
+        }
+
+        try {
+            $mailbox = $this->folders->create($account, $parent, $name);
+        } catch (InvalidFolderNameException $e) {
+            return $this->renderNewForm($account, $parentId, $name, $this->invalidName($e));
+        } catch (ImapFolderRefusedException $e) {
+            return $this->renderNewForm($account, $parentId, $name, $this->translator->trans(
+                'settings.accounts.folders.refused.server',
+                ['%reason%' => $e->reason],
+            ));
+        } catch (Throwable $e) {
+            // The server could not be reached at all. Said as such, not as a
+            // 500: the person can try again, and nothing was changed.
+            return $this->renderNewForm($account, $parentId, $name, $this->translator->trans(
+                'settings.accounts.folders.unreachable',
+                ['%reason%' => $e->getMessage()],
+            ));
+        }
+
+        return $this->renderList($account, $this->translator->trans(
+            'settings.accounts.folders.created',
+            ['%folder%' => (string) $mailbox->name],
+        ));
     }
 
     #[Route('/settings/accounts/{id}/folders/{mailbox}/sync', name: 'settings_account_folder_sync_toggle', methods: ['POST'])]
@@ -101,6 +170,45 @@ final class AccountFoldersController extends AbstractController
             'account' => $account,
             'row'     => $this->tree->rowFor($mailbox, $this->mailboxes->findForAccountOrdered($account)),
         ]);
+    }
+
+    private function renderList(Account $account, ?string $notice = null): Response
+    {
+        return $this->render('settings/accounts/_folders_modal.html.twig', [
+            'account' => $account,
+            'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
+            'notice'  => $notice,
+        ]);
+    }
+
+    private function renderNewForm(Account $account, ?int $parentId, string $name, ?string $error): Response
+    {
+        return $this->render('settings/accounts/_folder_form.html.twig', [
+            'account'  => $account,
+            'mode'     => 'new',
+            'rows'     => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
+            'parentId' => $parentId,
+            'mailbox'  => null,
+            'name'     => $name,
+            'error'    => $error,
+        ], new Response(status: null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
+    }
+
+    private function invalidName(InvalidFolderNameException $e): string
+    {
+        return $this->translator->trans(
+            'settings.accounts.folders.invalid.' . $e->reason,
+            ['%separator%' => $e->separator],
+        );
+    }
+
+    /**
+     * The parent picker's value: an id, or "" for the top level. getInt()
+     * cannot be used, because it refuses "" outright with a 400.
+     */
+    private static function idOrNull(mixed $value): ?int
+    {
+        return is_string($value) && 1 === preg_match('/^[1-9]\d*$/', $value) ? (int) $value : null;
     }
 
     private function assertSyncsOverImap(Account $account): void

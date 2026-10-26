@@ -3283,15 +3283,34 @@ settings:
         folders:
             always_synced: La boîte de réception est toujours synchronisée
             button: Choisir les dossiers à synchroniser
+            created: 'Dossier %folder% créé.'
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
             intro: >-
                 Désactivez un dossier et plMail cesse de le récupérer. Le courrier
                 déjà stocké reste où il est, et réactiver le dossier reprend là où
                 cela s’était arrêté.
+            invalid:
+                control: 'Un nom de dossier ne peut pas contenir de saut de ligne ni d’autre caractère de contrôle.'
+                empty: 'Donnez un nom au dossier.'
+                reserved: 'INBOX est réservé à la boîte de réception.'
+                separator: 'Sur ce serveur, un nom de dossier ne peut pas contenir « %separator% » : il sépare les dossiers des dossiers qu’ils contiennent.'
+                too_long: 'Ce nom est trop long pour un dossier.'
+                wildcard: 'Un nom de dossier ne peut contenir ni * ni %.'
+            new:
+                button: 'Nouveau dossier'
+                intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'
+                name: 'Nom'
+                parent: 'Dans'
+                submit: 'Créer le dossier'
+                title: 'Nouveau dossier — %account%'
+                top_level: 'Premier niveau'
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
+            refused:
+                server: 'Le serveur de messagerie a refusé : %reason%'
             start_sync: 'Commencer à synchroniser %folder%'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'
+            unreachable: 'Le serveur de messagerie est injoignable, rien n’a été modifié : %reason%'
         heading: Comptes mail
         make_primary: Définir comme principal
         make_primary_explained: 'Envoyer les nouveaux messages depuis %account% par défaut'

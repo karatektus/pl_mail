@@ -3247,16 +3247,35 @@ settings:
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Zu synchronisierende Ordner wählen
+            created: 'Ordner %folder% angelegt.'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
                 Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
                 du den Ordner wieder einschaltest, geht es dort weiter, wo es
                 aufgehört hat.
+            invalid:
+                control: 'Ein Ordnername darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.'
+                empty: 'Gib dem Ordner einen Namen.'
+                reserved: 'INBOX ist für den Posteingang reserviert.'
+                separator: 'Auf diesem Server darf ein Ordnername kein „%separator%“ enthalten: Es trennt Ordner von den Ordnern darin.'
+                too_long: 'Dieser Name ist für einen Ordner zu lang.'
+                wildcard: 'Ein Ordnername darf kein * und kein % enthalten.'
+            new:
+                button: 'Neuer Ordner'
+                intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
+                name: 'Name'
+                parent: 'In'
+                submit: 'Ordner anlegen'
+                title: 'Neuer Ordner — %account%'
+                top_level: 'Oberste Ebene'
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            refused:
+                server: 'Der Mailserver hat abgelehnt: %reason%'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
+            unreachable: 'Der Mailserver war nicht erreichbar, es wurde nichts geändert: %reason%'
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
