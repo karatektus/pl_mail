@@ -17,7 +17,9 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\Folder;
+use Webklex\PHPIMAP\Connection\Protocols\Response;
+use Webklex\PHPIMAP\EncodingAliases;
+use Webklex\PHPIMAP\Exceptions\ImapServerErrorException;
 
 /**
  * Where a folder plMail creates on an IMAP server actually goes.
@@ -346,29 +348,90 @@ final class ImapFolderProvisionerTest extends KernelTestCase
         self::assertSame(['INBOX.Projekte'], $this->created, 'the server is asked for exactly what the row named');
     }
 
+    // ── the encoding ─────────────────────────────────────────────────────
+
+    /**
+     * A path off a Mailbox row is already modified UTF-7, and goes to the
+     * server byte for byte.
+     */
+    public function testAnEncodedPathIsSentExactlyOnce(): void
+    {
+        $this->folder('INBOX', 'INBOX', '.');
+        $this->folder('Work', 'INBOX.Work', '.');
+
+        $path = $this->provisioner->ensureExactPath($this->account, $this->client(), 'INBOX.K&APY-ln');
+
+        self::assertSame('INBOX.K&APY-ln', $path);
+        self::assertSame(['INBOX.K&APY-ln'], $this->created);
+    }
+
+    /**
+     * Why the provisioner does not call Client::createFolder(): pinned, because
+     * it is the library's behaviour and an upgrade could change it. The client
+     * encodes whatever it is handed, so an encoded path comes out encoded twice
+     * and the server makes a folder called "K&APY-ln" with the ampersand
+     * escaped — a new folder, next to the one that was meant.
+     */
+    public function testTheLibraryWouldHaveEncodedThePathASecondTime(): void
+    {
+        self::assertSame(
+            'INBOX.K&-APY-ln',
+            EncodingAliases::convert('INBOX.K&APY-ln', 'utf-8', 'UTF7-IMAP'),
+        );
+    }
+
+    /**
+     * The row it records reads as the folder does in every other client, and
+     * its label is the same one a sync would have made: the INBOX namespace
+     * dropped and the name decoded. It used to be built from the raw path, so
+     * a folder made under INBOX became a label "INBOX › K&APY-ln".
+     */
+    public function testARecordedFolderIsNamedAndLabelledAsASyncWouldName(): void
+    {
+        $this->folder('INBOX', 'INBOX', '.');
+        $this->folder('Work', 'INBOX.Work', '.');
+
+        $this->provisioner->ensureExactPath($this->account, $this->client(), 'INBOX.K&APY-ln');
+
+        $recorded = $this->em->getRepository(Mailbox::class)
+            ->findOneBy(['account' => $this->account, 'fullPath' => 'INBOX.K&APY-ln']);
+
+        self::assertNotNull($recorded);
+        self::assertSame('Köln', $recorded->name);
+        self::assertSame('Köln', $recorded->label?->name);
+        self::assertNull($recorded->label->parent, 'INBOX is a namespace, not a label');
+    }
+
     // ── fixture ───────────────────────────────────────────────────────────
 
     /**
-     * A client whose createFolder writes down what it was asked for, and
+     * A client whose connection writes down the CREATEs it was sent, and
      * refuses when the test says the server would.
+     *
+     * At the connection, because that is where the provisioner talks: the
+     * client's own createFolder() would encode the path a second time.
      */
     private function client(): Client
     {
-        $client = $this->createStub(Client::class);
+        $connection = $this->createStub(ProtocolInterface::class);
 
-        $client->method('createFolder')->willReturnCallback(
-            function (string $path): Folder {
+        $connection->method('createFolder')->willReturnCallback(
+            function (string $path): Response {
                 if (false === $this->serverAccepts) {
-                    throw new \RuntimeException($this->refusal);
+                    throw new ImapServerErrorException($this->refusal);
                 }
 
                 $this->created[] = $path;
 
-                return $this->createStub(Folder::class);
+                $response = $this->createStub(Response::class);
+                $response->method('validatedData')->willReturn(true);
+
+                return $response;
             },
         );
 
-        $client->method('getConnection')->willReturn($this->createStub(ProtocolInterface::class));
+        $client = $this->createStub(Client::class);
+        $client->method('getConnection')->willReturn($connection);
         $client->method('disconnect')->willReturnSelf();
 
         return $client;

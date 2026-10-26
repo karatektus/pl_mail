@@ -6,6 +6,7 @@ namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\ImapUtf7Helper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
@@ -152,7 +153,14 @@ readonly class ImapFolderProvisioner
         $created = true;
 
         try {
-            $client->createFolder($path, expunge: false);
+            // The connection, not Client::createFolder(). The path is already
+            // in modified UTF-7 — it came off a Mailbox row, or out of
+            // ImapFolderName — and the client would encode it a second time:
+            // "INBOX.Entw&APw-rfe" became a new folder "INBOX.Entw&-APw-rfe".
+            // The client also follows a CREATE with a full LIST to hand back a
+            // Folder nobody here reads, and with a plain EXPUNGE unless told
+            // not to.
+            $client->getConnection()->createFolder($path)->validatedData();
         } catch (Throwable $e) {
             // A FOLDER THAT IS ALREADY THERE IS NOT A FAILURE.
             //
@@ -229,7 +237,7 @@ readonly class ImapFolderProvisioner
     private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse, bool $empty): void
     {
         $separator = $this->separatorFor($account);
-        $segments  = explode($separator, $path);
+        $segments  = $this->labels->segmentsFromImapPath($path, $separator);
 
         // Reused rather than built, when there is already a row for this path.
         //
@@ -249,7 +257,9 @@ readonly class ImapFolderProvisioner
 
         $mailbox = new Mailbox();
         $mailbox->account       = $account;
-        $mailbox->name          = (string) end($segments);
+        // The leaf as a person reads it — "Köln", not "K&APY-ln" — which is
+        // what MailboxSyncer stores from webklex's decoded Folder::$name.
+        $mailbox->name          = self::leafName($path, $separator);
         $mailbox->fullPath      = $path;
         $mailbox->delimiter     = $separator;
         $mailbox->specialUse    = $specialUse;
@@ -302,6 +312,17 @@ readonly class ImapFolderProvisioner
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * The last segment of a raw path, decoded: "INBOX.K&APY-ln" is "Köln".
+     */
+    private static function leafName(string $path, string $separator): string
+    {
+        $cut  = '' === $separator ? false : strrpos($path, $separator);
+        $leaf = false === $cut ? $path : substr($path, $cut + strlen($separator));
+
+        return ImapUtf7Helper::decode($leaf);
     }
 
     /**
