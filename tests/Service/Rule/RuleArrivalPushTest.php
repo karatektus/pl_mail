@@ -6,6 +6,7 @@ namespace App\Tests\Service\Rule;
 
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -13,6 +14,7 @@ use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\MailBodySanitizer;
@@ -24,6 +26,7 @@ use App\Jmap\State\StateManager;
 use App\Service\Rule\MailRuleEngine;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -56,7 +59,6 @@ final class RuleArrivalPushTest extends KernelTestCase
 
         $this->account = $this->seedAccount();
         $this->mailbox = $this->seedMailbox();
-        $this->seedMarkReadRule();
     }
 
     protected function tearDown(): void
@@ -68,25 +70,65 @@ final class RuleArrivalPushTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function testMailARuleMarksReadIsNotAnArrival(): void
+    /**
+     * Every way a rule can deal with new mail before anybody sees it: read,
+     * filed out of the Inbox, or put where nobody looks for new mail.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function rulesThatDealWithIt(): iterable
     {
+        yield 'mark as read' => ['markRead'];
+        yield 'archive'      => ['archive'];
+        yield 'trash'        => ['trash'];
+        yield 'spam'         => ['markSpam'];
+    }
+
+    #[DataProvider('rulesThatDealWithIt')]
+    public function testMailARuleDealtWithIsNotAnArrival(string $action): void
+    {
+        $this->seedRule($action);
+
         $state = self::getContainer()->get(StateManager::class);
         $state->drainArrivals();
 
         $this->ingest($this->seedMessage('billing@example.test'));
 
-        self::assertSame([], $state->drainArrivals(), 'a rule read it before anybody saw it arrive');
+        self::assertSame([], $state->drainArrivals(), 'a rule dealt with it before anybody saw it arrive');
     }
 
-    /** The presence companion: the same pipeline, a sender no rule matches. */
-    public function testMailNoRuleMatchesIsStillAnArrival(): void
+    /**
+     * The presence companion: the same rules, a sender none of them matches.
+     */
+    #[DataProvider('rulesThatDealWithIt')]
+    public function testMailNoRuleMatchesIsStillAnArrival(string $action): void
     {
+        $this->seedRule($action);
+
         $state = self::getContainer()->get(StateManager::class);
         $state->drainArrivals();
 
         $this->ingest($this->seedMessage('friend@example.test'));
 
         self::assertSame([(int) $this->account->id], $state->drainArrivals());
+    }
+
+    /**
+     * Mail read on another device before this sync fetched it arrives \Seen.
+     * It is not news to anybody either, rule or no rule.
+     */
+    public function testMailThatArrivesAlreadyReadIsNotAnArrival(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        $message         = $this->seedMessage('friend@example.test');
+        $message->seenAt = new \DateTimeImmutable('-30 seconds');
+        $this->em->flush();
+
+        $this->ingest($message);
+
+        self::assertSame([], $state->drainArrivals());
     }
 
     // ── fixture ──────────────────────────────────────────────────────────────
@@ -130,19 +172,23 @@ final class RuleArrivalPushTest extends KernelTestCase
         $message->references     = [];
         $message->arrivedIn      = ArrivalPlace::Inbox;
 
+        // Labelled the way a sync labels Inbox mail, so archive and trash have
+        // an Inbox label to take away.
+        $message->addLabel(self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Inbox, $this->account));
+
         $this->em->persist($message);
         $this->em->flush();
 
         return $message;
     }
 
-    private function seedMarkReadRule(): void
+    private function seedRule(string $action): void
     {
         $rule             = new MailRule();
         $rule->usr        = $this->account->usr;
-        $rule->name       = 'Read invoices';
+        $rule->name       = 'Deal with invoices';
         $rule->conditions = ['from' => 'billing@example.test'];
-        $rule->actions    = [['type' => 'markRead']];
+        $rule->actions    = [['type' => $action]];
         $this->em->persist($rule);
         $this->em->flush();
     }

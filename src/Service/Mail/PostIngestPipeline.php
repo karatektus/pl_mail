@@ -187,7 +187,16 @@ final readonly class PostIngestPipeline
         // The rules have had their say. A message one of them marked read, or
         // took out of the Inbox (archive, Trash, Spam), is mail the user will
         // never see arrive: announcing it opens a "New mail" notification for
-        // something that is not there when they look.
+        // something that is not there when they look. Mail that came in
+        // already read — opened on the phone before this sync fetched it — is
+        // not news either, rule or no rule.
+        //
+        // "Left the Inbox" compares with the label it arrived with rather than
+        // asking isInInbox() alone. arrivedIn is the folder it was fetched
+        // from; the Inbox label is put on by the sync, and a message stored
+        // without one (a path that labels later, a test fixture) would
+        // otherwise never count as arriving at all. Only a label a rule took
+        // away is evidence that it left.
         foreach ($arrivals as [$arrived, $wasInInbox]) {
             $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
 
