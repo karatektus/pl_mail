@@ -35,6 +35,8 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
         private PushDispatcher $dispatcher,
         private MailChangeNotifier $browsers,
         private LoggerInterface $logger,
+        private ?\App\Service\Push\ObjectChangeNudges $nudges = null,
+        private ?\App\Service\Push\ObjectChangePusher $objectChanges = null,
     ) {
     }
 
@@ -65,6 +67,17 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
         // from the dirty set, and if it were left behind on an early return it
         // would be announced as new mail by whichever unit of work came next.
         $arrived = $this->stateManager->drainArrivals();
+
+        // Calendar and notes changes, told on their own (they are not mail
+        // account state). Drained every time for the same reason as above.
+        $nudges = $this->nudges?->drain() ?? [];
+        if ([] !== $nudges && null !== $this->objectChanges) {
+            try {
+                $this->objectChanges->push($nudges);
+            } catch (\Throwable $exception) {
+                $this->logger->error('Calendar/notes push failed', ['error' => $exception->getMessage()]);
+            }
+        }
 
         if (0 === count($changed)) {
             return;

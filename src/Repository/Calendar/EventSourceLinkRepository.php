@@ -256,6 +256,35 @@ class EventSourceLinkRepository extends ServiceEntityRepository
     }
 
     /**
+     * Which of these event ids came from an email — the link icon
+     * on the phone's calendar widget. One query for a whole CalendarEvent/get.
+     *
+     * @param list<int> $eventIds
+     *
+     * @return array<int, true>
+     */
+    public function eventIdsWithMessage(array $eventIds): array
+    {
+        if ([] === $eventIds) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('link')
+            ->select('DISTINCT IDENTITY(link.event) AS eventId')
+            ->where('link.event IN (:ids)')
+            ->setParameter('ids', $eventIds)
+            ->getQuery()
+            ->getScalarResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['eventId']] = true;
+        }
+
+        return $out;
+    }
+
+    /**
      * What this message put on the calendar — the "Added to …" chip in the
      * thread view, and the answer to "why is this on my calendar?".
      *
