@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { acceptConfirm } from "./support/confirm";
+import { choose } from "./support/select";
 
 /**
  * The account form's protocol choice (#289).
@@ -37,10 +38,14 @@ async function chooseProtocol(page: Page, name: "IMAP" | "POP3"): Promise<void> 
     await page.locator("#modal").getByRole("radiogroup").getByText(name, { exact: true }).click();
 }
 
-/** The delete mode is a TomSelect-enhanced select: picked as a person picks it. */
+/**
+ * The delete mode is a TomSelect-enhanced select: picked as a person picks it,
+ * through support/select.ts. Clicking the wrapper here used to be flaky: when
+ * the widget already had focus its panel was open, the click closed it again,
+ * and the option click then waited out the test.
+ */
 async function chooseDeleteMode(page: Page, option: string): Promise<void> {
-    await page.locator(`${DELETE_MODE} + .ts-wrapper`).click();
-    await page.locator(".ts-dropdown .option", { hasText: option }).click();
+    await choose(page.locator("#modal"), "After fetching", option);
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {

@@ -42,8 +42,13 @@ test.beforeAll(() => {
     seed("seed-bulk --clear");
 });
 
+// And the worker's own mail put back. Two tests below select the whole
+// unified Inbox and archive it, which takes this worker's seeded conversations
+// ("E2E Read Me" and the rest) with the bulk ones; clearing the bulk account
+// leaves those archived, and the next spec on this worker that opens one from
+// the Inbox found "No messages in this tab" (calendar-invite.spec.ts did).
 test.afterAll(() => {
-    seed("seed-bulk --clear");
+    seed("seed-bulk --clear", "seed-mail");
 });
 
 const TOOLBAR = '[data-controller="mail--list-toolbar"]';

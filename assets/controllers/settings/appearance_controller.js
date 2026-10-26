@@ -27,6 +27,7 @@ export default class extends Controller {
     connect() {
         this.root = document.documentElement;
         this.pending = null;
+        this.saving = null;
 
         // The choice the installed app's PNGs were last drawn for. The page's
         // own choice is the layout's business (core--app-icons draws it when it
@@ -1032,7 +1033,10 @@ export default class extends Controller {
             clearTimeout(this.pending);
         }
 
-        this.pending = setTimeout(() => this.save(), delay);
+        this.pending = setTimeout(() => {
+            this.pending = null;
+            this.saving = this.save();
+        }, delay);
     }
 
     async save() {
@@ -1265,6 +1269,18 @@ export default class extends Controller {
     }
 
     async reset() {
+        // A change made a moment ago is still waiting out its debounce, or on
+        // its way. Sent after the reset, it would put back what the reset just
+        // removed — a theme picked and then reset within 400 ms came back on
+        // the reload. So the queued one is dropped and one in flight is waited
+        // for: the reset has to be the last word.
+        if (this.pending) {
+            clearTimeout(this.pending);
+            this.pending = null;
+        }
+
+        await this.saving;
+
         let response;
 
         try {
