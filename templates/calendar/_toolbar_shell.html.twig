@@ -31,7 +31,8 @@ not part of a row whose shape must stay put.
 On a phone the four view names, the date and the paging controls came to more
 than the row had, and the row ran off its card. There the switcher shows the
 pane's icons, and the label takes a short form: the month without its year
-while it is this year, a week without its year, a day as day and month. The
+while it is this year, a week without its year, a day as day and month — and
+below 22rem a week that crosses a month names only its months. The
 short and the long label are both in the markup and a container query picks
 one, so nothing has to measure anything; `@container/toolbar` is on the row
 itself, because the same phone width is a page on a phone and the pane on a
@@ -211,12 +212,29 @@ Blocks:
                     '%month%': spanEnd|intl_date('MMM', false),
                 }) -}}
             {%- else -%}
+                <span class="@max-[22rem]/toolbar:hidden">
                 {{- 'calendar.toolbar.range_short'|trans({
                     '%start%': sameMonth
                         ? 'calendar.toolbar.range_day'|trans({ '%day%': spanStart|date('j', false) })
                         : spanStart|intl_date(sameYear ? 'dMMM' : 'dMMMy', false),
                     '%end%':   spanEnd|intl_date(sameYear and endThisYear ? 'dMMM' : 'dMMMy', false),
                 }) -}}
+                </span>
+                {#- On a 320px phone the label has about 68px, and every week
+                    that runs into the next month needs more: "Oct 26–Nov 1" is
+                    75, "Dec 28, 2026–Jan 3, 2027" 140, and truncated they kept
+                    the part that says least. There the week names its months
+                    alone ("Oct–Nov", "Dec–Jan") and the month of another year
+                    ("Oct 2027"): the days are in the grid's header right below
+                    it, which no label at this width can repeat. -#}
+                <span class="hidden @max-[22rem]/toolbar:inline">
+                {{- sameMonth
+                    ? spanEnd|intl_date('yMMM', false)
+                    : 'calendar.toolbar.range_short'|trans({
+                        '%start%': spanStart|intl_date('MMM', false),
+                        '%end%':   spanEnd|intl_date('MMM', false),
+                    }) -}}
+                </span>
             {%- endif -%}
         {%- elseif view.value == 'month' -%}
             {{ anchor|intl_date(thisYear ? 'MMMM' : 'yMMM', false) }}
