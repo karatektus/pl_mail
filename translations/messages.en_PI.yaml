@@ -2253,7 +2253,7 @@ encryption:
         retired: "replaced by a newer certificate"
         wrong_password: "That password opens not th' file."
         not_pkcs12: "That be no .p12 or .pfx file."
-        legacy: "This file be locked with old cipher (RC2 or 3DES) plMail can't open. Take it ashore again with AES — OpenSSL 3 does so by default, Windows with th' AES-256 option."
+        legacy: "This file be locked with a cipher plMail can't open. Take it ashore again with AES — OpenSSL 3 does so by default, Windows with th' AES256-SHA256 option."
         not_rsa: "Only certificates with an RSA key serve here."
         no_key: "Th' file holds no private key belongin' to one o' its certificates."
         no_match: "Th' certificate be fer none o' yer ports."

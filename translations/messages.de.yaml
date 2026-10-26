@@ -2375,7 +2375,7 @@ encryption:
         retired: "durch ein neueres Zertifikat ersetzt"
         wrong_password: "Mit diesem Passwort lässt sich die Datei nicht öffnen."
         not_pkcs12: "Das ist keine .p12- oder .pfx-Datei."
-        legacy: "Diese Datei nutzt eine alte Verschlüsselung (RC2 oder 3DES), die plMail nicht öffnen kann. Exportiere sie erneut mit AES – OpenSSL 3 macht das von sich aus, Windows mit der Option AES-256."
+        legacy: "Diese Datei ist mit einem Verfahren verschlüsselt, das plMail nicht öffnen kann. Exportiere sie erneut mit AES – OpenSSL 3 macht das von sich aus, Windows mit der Option AES256-SHA256."
         not_rsa: "Hier lassen sich nur Zertifikate mit RSA-Schlüssel verwenden."
         no_key: "Die Datei enthält keinen privaten Schlüssel, der zu einem ihrer Zertifikate gehört."
         no_match: "Das Zertifikat gilt für keine deiner Adressen."

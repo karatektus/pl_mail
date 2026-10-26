@@ -440,9 +440,11 @@ certificate you still have mail for, the old ones too; a removed certificate tak
 plMail does not ask the authority's revocation lists (CRL) or OCSP. A certificate revoked before it
 expires is still believed until it does.
 
-**Only `.p12` files locked with AES open.** Old files locked with RC2 or 3DES are refused: export them
-again with AES (OpenSSL 3 does so by default, Windows with the *AES256-SHA256* option). Certificates
-with an elliptic-curve key cannot be used.
+**Old `.p12` files open too.** A file locked the old way — with 3DES, RC2 or RC4, as Windows exports
+by default and some authorities hand them out — is read like one locked with AES; a file plMail
+exports is always AES. Only a file that uses the newer format with a cipher other than AES is
+refused: export it again with AES (OpenSSL 3 does so by default, Windows with the *AES256-SHA256*
+option). Certificates with an elliptic-curve key cannot be used.
 
 **S/MIME is not used when there are Bcc recipients.** An S/MIME message names every recipient's
 certificate on the outside, so everybody would see who else got it. Such a message goes out as

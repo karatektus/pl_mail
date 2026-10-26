@@ -2369,7 +2369,7 @@ encryption:
         retired: "replaced by a newer certificate"
         wrong_password: "That password does not open the file."
         not_pkcs12: "That is not a .p12 or .pfx file."
-        legacy: "This file uses an old encryption (RC2 or 3DES) that plMail cannot open. Export it again with AES — OpenSSL 3 does by default, Windows with the AES-256 option."
+        legacy: "This file is locked with a cipher plMail cannot open. Export it again with AES — OpenSSL 3 does by default, Windows with the AES256-SHA256 option."
         not_rsa: "Only certificates with an RSA key can be used here."
         no_key: "The file holds no private key that belongs to one of its certificates."
         no_match: "The certificate is not for any of your addresses."

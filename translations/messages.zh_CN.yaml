@@ -2066,7 +2066,7 @@ encryption:
         retired: "已被较新的证书替换"
         wrong_password: "该密码无法打开此文件。"
         not_pkcs12: "这不是 .p12 或 .pfx 文件。"
-        legacy: "此文件使用 plMail 无法打开的旧加密方式（RC2 或 3DES）。请使用 AES 重新导出：OpenSSL 3 默认使用 AES，Windows 中请选择 AES-256 选项。"
+        legacy: "此文件使用 plMail 无法打开的加密方式。请使用 AES 重新导出：OpenSSL 3 默认使用 AES，Windows 中请选择 AES256-SHA256 选项。"
         not_rsa: "此处仅支持使用 RSA 密钥的证书。"
         no_key: "文件中没有与其中任何证书匹配的私钥。"
         no_match: "此证书不对应你的任何地址。"

@@ -537,6 +537,13 @@ it never signs and is never encrypted to). The wrapped key sits under a user key
 change re-wraps nothing here, and removing a user key or the person removes it (`ON DELETE
 CASCADE`). The PKCS#12 password and the file never leave the browser.
 
+**PKCS#12 files.** PBES2 with AES is opened by PKI.js. The older PKCS#12 PBE schemes (RFC 7292
+Appendix C: 3DES, RC2, RC4, keys from the SHA-1 derivation of Appendix B), which Windows' export
+writes by default, are opened by `assets/crypto/pkcs12_legacy.js` — decryption only, handed to
+PKI.js as an engine for that one call, and imported only when a bag uses such a scheme. The MAC is
+checked by PKI.js first either way, so a wrong password fails before anything is decrypted. An
+exported file is always PBES2 with AES-256-CBC, PBKDF2-SHA-256 and an HMAC-SHA-256.
+
 **Contacts' certificates.** Kept only from a signature that checked out and names the sender:
 `SignatureVerifier` (OpenSSL, signed mail) and `POST /contact-keys/message/{id}/smime-signer` (the
 browser, for a signature inside encrypted mail, which it verified with PKI.js; the server judges only

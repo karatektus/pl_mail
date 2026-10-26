@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:ecdf4dc6cbc27301cd68ed4ef79b7c2148cc97f9 -->
+<!-- translated-from: internals/security-model.md sha1:c7f393a3d638a6c6b6f693758f682c20dcaf62f0 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -592,6 +592,14 @@ Verpackung ab, die nicht `v1.…` ist. Ein neueres Zertifikat, das dieselben Adr
 Schlüssel hängt an einem User-Key: Eine Passwortänderung verpackt hier nichts neu, und wird der
 User-Key oder die Person entfernt, geht er mit (`ON DELETE CASCADE`). Das PKCS#12-Passwort und die
 Datei verlassen den Browser nie.
+
+**PKCS#12-Dateien.** PBES2 mit AES öffnet PKI.js. Die älteren PKCS#12-PBE-Verfahren (RFC 7292
+Anhang C: 3DES, RC2, RC4, Schlüssel aus der SHA-1-Ableitung von Anhang B), die der Export von Windows
+von sich aus schreibt, öffnet `assets/crypto/pkcs12_legacy.js` — nur zum Entschlüsseln, PKI.js als
+Engine für diesen einen Aufruf übergeben und erst importiert, wenn ein Bag ein solches Verfahren
+nutzt. Den MAC prüft in jedem Fall zuerst PKI.js, ein falsches Passwort scheitert also, bevor etwas
+entschlüsselt wird. Eine exportierte Datei ist immer PBES2 mit AES-256-CBC, PBKDF2-SHA-256 und einem
+HMAC-SHA-256.
 
 **Zertifikate der Kontakte.** Behalten werden sie nur aus einer Signatur, die stimmt und den Absender
 nennt: `SignatureVerifier` (OpenSSL, signierte Mails) und `POST /contact-keys/message/{id}/smime-signer`

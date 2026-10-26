@@ -32,7 +32,7 @@ const CONTACT = "sender@e2e.test";
 const DOCK = "#compose_dock";
 const EDITOR = '[data-compose--compose-toolbar-target="editor"]';
 
-type Material = { dir: string; p12: Buffer; contactSigned: string };
+type Material = { dir: string; p12: Buffer; legacyP12: Buffer; contactSigned: string };
 
 let material: Material;
 
@@ -123,6 +123,8 @@ test.describe("S/MIME", () => {
     test("refuses a .p12 with the wrong password, and lists, exports and removes one", async ({ page }) => {
         await person(page);
 
+        const legacyCode = fetchesOf(page, /pkcs12_legacy/);
+
         await page.locator("[data-testid=smime-file]").setInputFiles({ name: "mine.p12", mimeType: "application/x-pkcs12", buffer: material.p12 });
         await page.locator("#encryption-smime-password").fill("not the password");
         await page.locator("form:has([data-testid=smime-file]) button[type=submit]").click();
@@ -131,6 +133,9 @@ test.describe("S/MIME", () => {
         await importP12(page);
         await expect(page.getByTestId("smime-certificate")).toHaveCount(1);
         await expect(page.getByTestId("smime-certificate")).toContainText(OWN);
+
+        // An AES file never fetches the code for the old ciphers.
+        expect(legacyCode).toEqual([]);
 
         await page.locator("#encryption-smime-export-password").fill("an-export-password");
 
@@ -147,6 +152,32 @@ test.describe("S/MIME", () => {
         await expect(page.locator("#confirm-dialog")).toBeVisible();
         await acceptConfirm(page);
         await expect(page.getByTestId("smime-certificate")).toHaveCount(0, { timeout: 15000 });
+    });
+
+    test("imports a .p12 locked the old way, with 3DES and RC2 (#372)", async ({ page }) => {
+        await person(page);
+
+        const legacyCode = fetchesOf(page, /pkcs12_legacy/);
+
+        await importP12(page, material.legacyP12);
+        await expect(page.getByTestId("smime-certificate")).toContainText(OWN);
+        expect(legacyCode).toHaveLength(1);
+
+        // The key that came out is the person's: exported again, with AES now,
+        // it is the key OpenSSL made.
+        await page.locator("#encryption-smime-export-password").fill("an-export-password");
+
+        const download = page.waitForEvent("download");
+
+        await page.getByTestId("smime-certificate").getByRole("button", { name: "Export as .p12" }).click();
+
+        const file = join(material.dir, "exported-legacy.p12");
+
+        await (await download).saveAs(file);
+
+        const exported = execFileSync("openssl", ["pkcs12", "-in", file, "-passin", "pass:an-export-password", "-nocerts", "-nodes"], { cwd: material.dir, encoding: "utf8" });
+
+        expect(openssl(["pkey", "-pubout"], exported)).toBe(execFileSync("openssl", ["pkey", "-in", "own.key", "-pubout"], { cwd: material.dir, encoding: "utf8" }));
     });
 });
 
@@ -166,10 +197,10 @@ async function person(page: Page): Promise<string> {
     return email;
 }
 
-async function importP12(page: Page): Promise<void> {
+async function importP12(page: Page, p12: Buffer = material.p12): Promise<void> {
     await page.goto("/settings?section=encryption");
     await expect(page.getByText("Set up, and unlocked in this browser.")).toBeVisible({ timeout: 15000 });
-    await page.locator("[data-testid=smime-file]").setInputFiles({ name: "mine.p12", mimeType: "application/x-pkcs12", buffer: material.p12 });
+    await page.locator("[data-testid=smime-file]").setInputFiles({ name: "mine.p12", mimeType: "application/x-pkcs12", buffer: p12 });
     await page.locator("#encryption-smime-password").fill(P12_PASSWORD);
     await page.locator("form:has([data-testid=smime-file]) button[type=submit]").click();
     await expect(page.getByTestId("smime-result")).toContainText(`Imported. It now signs and decrypts mail for ${OWN}.`, { timeout: 15000 });
@@ -199,6 +230,19 @@ type Held = {
 
 function held(email: string, subject: string): Held | null {
     return JSON.parse(consoleOutput(`app:test:dump-sealed-message --email=${email} --subject="${subject}"`).trim());
+}
+
+/** The URLs matching $pattern the page fetches from now on, filled in as it goes. */
+function fetchesOf(page: Page, pattern: RegExp): string[] {
+    const urls: string[] = [];
+
+    page.on("request", (request) => {
+        if (pattern.test(request.url())) {
+            urls.push(request.url());
+        }
+    });
+
+    return urls;
 }
 
 /** Runs openssl in the material's directory with $input on stdin. */
@@ -234,6 +278,9 @@ function makeCertificates(): Material {
     issue("own", OWN);
     issue("contact", CONTACT);
     run("pkcs12", "-export", "-in", "own.pem", "-inkey", "own.key", "-certfile", "ca.pem", "-out", "own.p12", "-passout", `pass:${P12_PASSWORD}`);
+    // The same, the way OpenSSL 1.x and Windows' export lock it: the key with
+    // 3DES, the certificates with RC2-40, a SHA-1 MAC.
+    run("pkcs12", "-export", "-legacy", "-in", "own.pem", "-inkey", "own.key", "-certfile", "ca.pem", "-out", "own-legacy.p12", "-passout", `pass:${P12_PASSWORD}`);
 
     writeFileSync(join(dir, "contact-body.txt"), "Content-Type: text/plain; charset=utf-8\r\n\r\nHello from the contact.\r\n");
     run("smime", "-sign", "-in", "contact-body.txt", "-signer", "contact.pem", "-inkey", "contact.key", "-from", CONTACT, "-to", OWN, "-subject", "Signed by the contact", "-out", "contact-signed.eml");
@@ -241,6 +288,7 @@ function makeCertificates(): Material {
     return {
         dir,
         p12: readFileSync(join(dir, "own.p12")),
+        legacyP12: readFileSync(join(dir, "own-legacy.p12")),
         contactSigned: readFileSync(join(dir, "contact-signed.eml"), "utf8").replace(/\r?\n/g, "\r\n"),
     };
 }

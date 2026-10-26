@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:72c880f5e72bc7fe9b311fa68d9b3fc9abcab91e -->
+<!-- translated-from: features/encryption.md sha1:b6adb03ac38443fff02f21f6fcd385283757dd5d -->
 
 # Verschlüsselung
 
@@ -486,9 +486,12 @@ nimmt seine Mails mit.
 es widerrufen ist.** plMail fragt weder Sperrlisten (CRL) noch OCSP ab. Ein Zertifikat, das vor
 seinem Ablauf widerrufen wurde, gilt weiter, bis es abläuft.
 
-**Nur `.p12`-Dateien mit AES lassen sich öffnen.** Alte Dateien mit RC2 oder 3DES werden abgelehnt:
-Exportiere sie erneut mit AES (OpenSSL 3 tut das von sich aus, Windows mit der Option
-*AES256-SHA256*). Zertifikate mit einem Schlüssel auf elliptischen Kurven lassen sich nicht nutzen.
+**Auch alte `.p12`-Dateien lassen sich öffnen.** Eine Datei, die auf die alte Art mit 3DES, RC2 oder
+RC4 verschlüsselt ist – so exportiert Windows von sich aus, und so geben manche Stellen ihre
+Zertifikate heraus –, wird gelesen wie eine mit AES; was plMail exportiert, ist immer AES. Abgelehnt
+wird nur eine Datei im neueren Format mit einem anderen Verfahren als AES: Exportiere sie erneut mit
+AES (OpenSSL 3 tut das von sich aus, Windows mit der Option *AES256-SHA256*). Zertifikate mit einem
+Schlüssel auf elliptischen Kurven lassen sich nicht nutzen.
 
 **S/MIME wird nicht genutzt, wenn es Bcc-Empfänger gibt.** Eine S/MIME-Nachricht nennt das
 Zertifikat jedes Empfängers außen, alle würden also sehen, wer sie sonst noch bekommen hat. Eine

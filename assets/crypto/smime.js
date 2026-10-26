@@ -126,9 +126,11 @@ export function derToPem(der) {
  * other certificates as its chain, and the key as PKCS#8.
  *
  * Read with the integrity check on: a wrong password fails there, before
- * anything is decrypted. PBES2 (AES) files only — what OpenSSL 3, Windows 10
- * and macOS write. The older RC2/3DES "PKCS#12 PBE" files are refused with
- * a reason the settings page explains (export them again with AES).
+ * anything is decrypted. PBES2 (AES), what OpenSSL 3 writes, through PKI.js;
+ * the older "PKCS#12 PBE" schemes (3DES, RC2, RC4) — what Windows' export
+ * writes by default, and some CAs' — through crypto/pkcs12_legacy.js, which
+ * is fetched only for such a file. What neither opens (a PBES2 file with a
+ * cipher other than AES) is refused with a reason the settings page explains.
  *
  * @param {Uint8Array} bytes
  * @param {string} password
@@ -138,6 +140,8 @@ export function derToPem(der) {
 export async function readPkcs12(bytes, password) {
     const { pkijs } = await libraries();
     const secret = toBuffer(encoder.encode(password));
+    const engine = withLegacyPbe(pkijs.getCrypto(true), password);
+    const reason = (error) => (/unsupported|unknown|not supported/i.test(String(error?.message)) ? "legacy_pkcs12" : "wrong_password");
     let pfx;
 
     try {
@@ -159,9 +163,9 @@ export async function readPkcs12(bytes, password) {
     }
 
     try {
-        await safe.parseInternalValues({ safeContents: safe.safeContents.map(() => ({ password: secret })) });
+        await safe.parseInternalValues({ safeContents: safe.safeContents.map(() => ({ password: secret })) }, engine);
     } catch (error) {
-        throw new Error(/unsupported|unknown|not supported/i.test(String(error?.message)) ? "legacy_pkcs12" : "wrong_password");
+        throw new Error(reason(error));
     }
 
     const keys = [];
@@ -170,8 +174,8 @@ export async function readPkcs12(bytes, password) {
     for (const content of safe.parsedValue.safeContents) {
         for (const bag of content.value.safeBags) {
             if (OID.pkcs8ShroudedKeyBag === bag.bagId) {
-                await bag.bagValue.parseInternalValues({ password: secret }).catch(() => {
-                    throw new Error("legacy_pkcs12");
+                await bag.bagValue.parseInternalValues({ password: secret }, engine).catch((error) => {
+                    throw new Error(reason(error));
                 });
                 keys.push(bag.bagValue.parsedValue);
             } else if ("1.2.840.113549.1.12.10.1.1" === bag.bagId) {
@@ -471,6 +475,38 @@ async function libraries() {
     loaded ??= Promise.all([import("asn1js"), import("pkijs")]).then(([asn1js, pkijs]) => ({ asn1js, pkijs }));
 
     return loaded;
+}
+
+/**
+ * PKI.js's crypto engine, which also opens what a PKCS#12 PBE scheme
+ * (pkcs-12PbeIds, 1.2.840.113549.1.12.1.*) locked. Handed to the one
+ * readPkcs12 call rather than set globally; crypto/pkcs12_legacy.js is
+ * imported only when a bag actually uses such a scheme.
+ */
+function withLegacyPbe(engine, password) {
+    return Object.create(engine, {
+        decryptEncryptedContentInfo: {
+            async value(parameters) {
+                const info = parameters.encryptedContentInfo;
+                const algorithm = info.contentEncryptionAlgorithm;
+
+                if (!algorithm.algorithmId.startsWith("1.2.840.113549.1.12.1.")) {
+                    return engine.decryptEncryptedContentInfo(parameters);
+                }
+
+                const { decryptLegacyPbe } = await import("./pkcs12_legacy.js");
+                const [salt, iterations] = algorithm.algorithmParams.valueBlock.value;
+
+                return toBuffer(decryptLegacyPbe(
+                    algorithm.algorithmId,
+                    new Uint8Array(salt.valueBlock.valueHexView),
+                    iterations.valueBlock.valueDec,
+                    password,
+                    new Uint8Array(info.getEncryptedContent()),
+                ));
+            },
+        },
+    });
 }
 
 async function contentInfo(type, content) {
