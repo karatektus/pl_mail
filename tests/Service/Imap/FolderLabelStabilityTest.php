@@ -110,6 +110,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
 
         $mailbox = $this->mailboxFor('INBOX.Clients');
         self::assertNotNull($mailbox);
+        $labelId = $mailbox->label?->id;
         $mailbox->uidValidity = 4242;
         $this->em->flush();
 
@@ -119,8 +120,45 @@ final class FolderLabelStabilityTest extends KernelTestCase
         $result = $this->sync($client);
 
         self::assertSame(1, $result['renamed']);
-        self::assertSame($mailbox->id, $this->mailboxFor('INBOX.Customers')?->id, 'the row and its mail are kept');
-        self::assertSame('Customers', $this->mailboxFor('INBOX.Customers')?->label?->name);
+        $renamed = $this->mailboxFor('INBOX.Customers');
+
+        self::assertSame($mailbox->id, $renamed?->id, 'the row and its mail are kept');
+
+        $label = $renamed?->label;
+
+        self::assertSame('Customers', $label?->name);
+        self::assertSame($labelId, $label->id, 'the same label, renamed: no empty "Clients" left behind');
+    }
+
+    /**
+     * A label other accounts have too is theirs as well: a folder renamed on
+     * one account gets a label of its new name, and the shared one keeps its
+     * name for the others.
+     */
+    public function testASharedLabelIsNotRenamedFromOneAccount(): void
+    {
+        $this->sync(new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+
+        $shared = $this->mailboxFor('INBOX.Clients')?->label;
+        self::assertNotNull($shared);
+
+        $other = $this->seedAccount($this->account->usr);
+        $this->syncAccount($other, new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+
+        $mailbox = $this->mailboxFor('INBOX.Clients');
+        self::assertNotNull($mailbox);
+        $mailbox->uidValidity = 4242;
+        $this->em->flush();
+
+        $this->sync((new FakeListingClient(['INBOX' => [], 'INBOX.Customers' => []]))
+            ->withStatus('INBOX.Customers', ['uidvalidity' => 4242]));
+
+        $label = $this->mailboxFor('INBOX.Customers')?->label;
+
+        self::assertNotNull($label);
+        self::assertSame('Customers', $label->name);
+        self::assertNotSame($shared->id, $label->id);
+        self::assertSame('Clients', $shared->name);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
@@ -129,6 +167,14 @@ final class FolderLabelStabilityTest extends KernelTestCase
      * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
      */
     private function sync(FakeListingClient $client): array
+    {
+        return $this->syncAccount($this->account, $client);
+    }
+
+    /**
+     * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
+     */
+    private function syncAccount(Account $account, FakeListingClient $client): array
     {
         $container = self::getContainer();
 
@@ -152,7 +198,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
             new NullLogger(),
         );
 
-        return $syncer->syncForAccount($this->account);
+        return $syncer->syncForAccount($account);
     }
 
     private function mailboxFor(string $fullPath): ?Mailbox
@@ -163,15 +209,17 @@ final class FolderLabelStabilityTest extends KernelTestCase
         ]);
     }
 
-    private function seedAccount(): Account
+    private function seedAccount(?User $user = null): Account
     {
-        $user = new User();
-        $user->email = 'folder-stability-' . uniqid('', true) . '@example.test';
-        $user->nameFirst = 'Folder';
-        $user->nameLast = 'Stability';
-        $user->roles = ['ROLE_USER'];
-        $user->password = 'x';
-        $this->em->persist($user);
+        if (null === $user) {
+            $user = new User();
+            $user->email = 'folder-stability-' . uniqid('', true) . '@example.test';
+            $user->nameFirst = 'Folder';
+            $user->nameLast = 'Stability';
+            $user->roles = ['ROLE_USER'];
+            $user->password = 'x';
+            $this->em->persist($user);
+        }
 
         $account = new Account();
         $account->usr = $user;

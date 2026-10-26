@@ -2869,6 +2869,10 @@ settings:
             always_synced: '收件箱始终保持同步'
             button: '选择要同步的文件夹'
             created: '已创建文件夹 %folder%。'
+            delete:
+                button: '删除文件夹 %folder%'
+                confirm: '要在邮件服务器上删除文件夹 %folder% 吗？它是空的；不会删除其他内容。'
+            deleted: '已删除文件夹 %folder%。'
             empty: '尚无文件夹。首次同步后会在此列出。'
             intro: '关闭某个文件夹的同步后，plMail 会停止获取其中的邮件。已保存的邮件会保留，重新开启后会从停止的位置继续同步。'
             invalid:
@@ -2888,7 +2892,16 @@ settings:
                 top_level: '顶层'
             placeholder: '此文件夹仅用于归组其他文件夹，本身没有可同步的内容'
             refused:
+                has_children: '此文件夹内还有文件夹。请先删除或移走它们。'
+                not_empty: '此文件夹中仍有邮件（%count%）。请先移走；删除文件夹会删除其中的邮件。'
                 server: '邮件服务器拒绝了：%reason%'
+                special_use: '收件箱、已发送、草稿、废纸篓、垃圾邮件和归档永远不会在 plMail 中被重命名或删除：其他邮件应用和 plMail 本身都依赖它们。'
+            rename:
+                button: '重命名文件夹 %folder%'
+                intro: '文件夹及其子文件夹会在邮件服务器上重命名，所有读取此账户的邮件应用都会看到新名称。'
+                submit: '重命名'
+                title: '重命名文件夹 — %folder%'
+            renamed: '文件夹已重命名为 %folder%。'
             start_sync: '开始同步 %folder%'
             stop_sync: '停止同步 %folder%'
             title: '文件夹 — %account%'

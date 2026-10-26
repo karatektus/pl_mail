@@ -47,6 +47,7 @@
 {% set ICON_HALF = 7 %}
 {% set isInbox = mailbox.specialUse is same as enum('App\\Domain\\Enum\\Mail\\MailboxSpecialUse').INBOX %}
 {% set isPlaceholder = false == mailbox.isSelectable %}
+{% set protected = isInbox or mailbox.specialUse is not null or mailbox.fullPath|upper == 'INBOX' %}
 {% set folderName = mailbox.label and mailbox.specialUse ? mailbox.label|label_name : mailbox.name %}
 {% set enabled = mailbox.isSyncEnabled and false == isPlaceholder %}
 {% set switchLabel = isInbox
@@ -83,6 +84,31 @@
           {% if isPlaceholder %}data-folder-placeholder{% endif %}>
         {{ folderName }}
     </span>
+
+    {# Rename and delete (#221), for the folders that are the person's own.
+       The inbox and the special-use folders get neither: plMail never renames
+       or deletes them (ImapFolderManager::isProtected()). Both answer with the
+       whole modal, so they target it rather than this row's frame. #}
+    {% if not protected %}
+        <a href="{{ path('settings_account_folder_rename_form', { id: account.id, mailbox: mailbox.id }) }}"
+           data-turbo-frame="modal" data-folder-rename
+           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors"
+           aria-label="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': folderName }) }}"
+           title="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': folderName }) }}">
+            <i class="fa-solid fa-pen text-[10px]" aria-hidden="true"></i>
+        </a>
+        <form method="post" action="{{ path('settings_account_folder_delete', { id: account.id, mailbox: mailbox.id }) }}"
+              class="contents" data-turbo-frame="modal" data-ui--modal-keep-open data-folder-delete
+              data-turbo-confirm="{{ 'settings.accounts.folders.delete.confirm'|trans({ '%folder%': folderName }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('account_folder_delete_' ~ mailbox.id) }}">
+            <button type="submit"
+                    class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-hover transition-colors cursor-pointer"
+                    aria-label="{{ 'settings.accounts.folders.delete.button'|trans({ '%folder%': folderName }) }}"
+                    title="{{ 'settings.accounts.folders.delete.button'|trans({ '%folder%': folderName }) }}">
+                <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
+            </button>
+        </form>
+    {% endif %}
 
     {% if isInbox or isPlaceholder %}
         <button type="button" disabled

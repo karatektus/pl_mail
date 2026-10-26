@@ -3263,6 +3263,10 @@ settings:
             always_synced: The inbox is always synced
             button: Choose which folders to sync
             created: 'Folder %folder% created.'
+            delete:
+                button: 'Delete folder %folder%'
+                confirm: 'Delete the folder %folder% on the mail server? It is empty; nothing else is deleted.'
+            deleted: 'Folder %folder% deleted.'
             empty: No folders yet. They are listed after the first sync.
             intro: >-
                 Switch a folder off and plMail stops fetching it. Mail already
@@ -3285,7 +3289,16 @@ settings:
                 top_level: 'Top level'
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
             refused:
+                has_children: 'This folder has folders inside it. Delete or move those first.'
+                not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
                 server: 'The mail server refused: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder is renamed on the mail server, with the folders inside it, so every mail app that reads this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to %folder%.'
             start_sync: 'Start syncing %folder%'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'

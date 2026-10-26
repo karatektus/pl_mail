@@ -10,7 +10,7 @@
    does for the calendar's read-only dialogs.
 
    Above the list, New folder (#221), and after a folder action the sentence
-   saying what it did (`notice`). #}
+   saying what it did (`notice`) or why it did not (`error`). #}
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
@@ -31,6 +31,13 @@
                     {{ 'settings.accounts.folders.new.button'|trans }}
                 </a>
             </div>
+
+            {% if error|default(null) is not null %}
+                <div role="alert" data-folder-error class="mx-6 mb-3 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-2 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
 
             {% if notice|default(null) is not null %}
                 <p role="status" data-folder-notice class="mx-6 mb-3 rounded-lg bg-success/10 px-3.5 py-2 text-sm text-success">

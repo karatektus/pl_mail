@@ -3112,6 +3112,10 @@ settings:
             always_synced: The inbox be always hauled aboard
             button: Pick which folders to haul aboard
             created: 'Folder %folder% be built.'
+            delete:
+                button: 'Scuttle folder %folder%'
+                confirm: 'Scuttle the folder %folder% on the mail server? She be empty; nothin else goes down.'
+            deleted: 'Folder %folder% scuttled.'
             empty: No folders yet. They be listed after the first haul.
             intro: >-
                 Switch a folder off and plMail stops haulin it aboard. Post
@@ -3134,7 +3138,16 @@ settings:
                 top_level: 'Top deck'
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
             refused:
+                has_children: 'This folder has folders inside her. Scuttle or move those first.'
+                not_empty: 'This folder still holds post (%count%). Move it elsewhere first; scuttlin a folder sinks its post.'
                 server: 'The mail server said nay: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk an Archive be never renamed or scuttled from plMail: other mail apps an plMail itself lean on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder be renamed on the mail server, with the folders inside her, so every mail app readin this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to %folder%.'
             start_sync: 'Start haulin %folder%'
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'

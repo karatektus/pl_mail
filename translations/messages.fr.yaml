@@ -3284,6 +3284,10 @@ settings:
             always_synced: La boîte de réception est toujours synchronisée
             button: Choisir les dossiers à synchroniser
             created: 'Dossier %folder% créé.'
+            delete:
+                button: 'Supprimer le dossier %folder%'
+                confirm: 'Supprimer le dossier %folder% sur le serveur de messagerie ? Il est vide ; rien d’autre n’est supprimé.'
+            deleted: 'Dossier %folder% supprimé.'
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
             intro: >-
                 Désactivez un dossier et plMail cesse de le récupérer. Le courrier
@@ -3306,7 +3310,16 @@ settings:
                 top_level: 'Premier niveau'
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
             refused:
+                has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
                 server: 'Le serveur de messagerie a refusé : %reason%'
+                special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
+            rename:
+                button: 'Renommer le dossier %folder%'
+                intro: 'Le dossier est renommé sur le serveur de messagerie, avec les dossiers qu’il contient, et toutes les applications qui lisent ce compte voient le nouveau nom.'
+                submit: 'Renommer'
+                title: 'Renommer le dossier — %folder%'
+            renamed: 'Dossier renommé en %folder%.'
             start_sync: 'Commencer à synchroniser %folder%'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'

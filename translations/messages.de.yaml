@@ -3248,6 +3248,10 @@ settings:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Zu synchronisierende Ordner wählen
             created: 'Ordner %folder% angelegt.'
+            delete:
+                button: 'Ordner %folder% löschen'
+                confirm: 'Den Ordner %folder% auf dem Mailserver löschen? Er ist leer; sonst wird nichts gelöscht.'
+            deleted: 'Ordner %folder% gelöscht.'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
@@ -3271,7 +3275,16 @@ settings:
                 top_level: 'Oberste Ebene'
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
             refused:
+                has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
                 server: 'Der Mailserver hat abgelehnt: %reason%'
+                special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
+            rename:
+                button: 'Ordner %folder% umbenennen'
+                intro: 'Der Ordner wird samt den Ordnern darin auf dem Mailserver umbenannt, also sieht jedes Mailprogramm, das dieses Konto liest, den neuen Namen.'
+                submit: 'Umbenennen'
+                title: 'Ordner umbenennen — %folder%'
+            renamed: 'Ordner in %folder% umbenannt.'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'

@@ -1,4 +1,4 @@
-{# New folder, inside the folders modal.
+{# New folder and Rename folder, inside the folders modal.
 
    A folder is a place on the account's server, so it is made here, in the
    account's own tree, and never as a side effect of making a label (#221). The
@@ -7,10 +7,14 @@
    The person types a name and never a path: the separator and the encoding are
    the server's business (ImapFolderName).
 
+   Rename keeps the folder where it is: only the name is asked for, and the
+   server renames the folders inside it along with it.
+
    Variables:
      account   Account
-     mode      'new'
-     rows      list<FolderTreeRow>  the account's tree, for the parent picker
+     mode      'new' | 'rename'
+     mailbox   Mailbox|null         the folder being renamed
+     rows      list<FolderTreeRow>  the account's tree, for the parent picker (new only)
      parentId  int|null             the preselected parent
      name      string               what was typed, kept across a refusal
      error     string|null          why the last try did not work, in words #}
@@ -18,18 +22,25 @@
 
 {% block body %}
 <turbo-frame id="modal">
-    <template data-ui--modal-frame-title>{{ 'settings.accounts.folders.new.title'|trans({ '%account%': account.displayAddress }) }}</template>
+    {% set renaming = 'rename' == mode %}
+    <template data-ui--modal-frame-title>
+        {{- renaming
+            ? 'settings.accounts.folders.rename.title'|trans({ '%folder%': mailbox.name })
+            : 'settings.accounts.folders.new.title'|trans({ '%account%': account.displayAddress }) -}}
+    </template>
 
     {# keep-open: a success answers with the folder list, which should stay up. #}
     <form method="post"
-          action="{{ path('settings_account_folder_create', { id: account.id }) }}"
+          action="{{ renaming
+              ? path('settings_account_folder_rename', { id: account.id, mailbox: mailbox.id })
+              : path('settings_account_folder_create', { id: account.id }) }}"
           data-turbo-frame="modal"
           data-ui--modal-keep-open
           class="flex-1 min-h-0 flex flex-col">
-        <input type="hidden" name="_token" value="{{ csrf_token('account_folder_new_' ~ account.id) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token(renaming ? 'account_folder_rename_' ~ mailbox.id : 'account_folder_new_' ~ account.id) }}">
 
         <div class="flex-1 min-h-0 px-6 pb-4 space-y-4 overflow-y-auto">
-            <p class="text-xs text-ink-muted leading-relaxed">{{ 'settings.accounts.folders.new.intro'|trans }}</p>
+            <p class="text-xs text-ink-muted leading-relaxed">{{ (renaming ? 'settings.accounts.folders.rename.intro' : 'settings.accounts.folders.new.intro')|trans }}</p>
 
             {% if error is not null %}
                 <div role="alert" data-folder-error class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
@@ -44,6 +55,7 @@
                        class="w-full h-9 rounded-pane border border-line bg-surface px-2 text-sm text-ink">
             </div>
 
+            {% if not renaming %}
             <div class="space-y-1.5">
                 <label for="folder-parent" class="block text-xs font-medium text-ink-soft">{{ 'settings.accounts.folders.new.parent'|trans }}</label>
                 <select id="folder-parent" name="parent" class="select-field w-full h-9 text-sm">
@@ -59,6 +71,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
         </div>
 
         <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
@@ -72,7 +85,7 @@
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
                            bg-accent hover:bg-accent-strong
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
-                           transition-colors duration-100">{{ 'settings.accounts.folders.new.submit'|trans }}</button>
+                           transition-colors duration-100">{{ (renaming ? 'settings.accounts.folders.rename.submit' : 'settings.accounts.folders.new.submit')|trans }}</button>
         </div>
     </form>
 </turbo-frame>

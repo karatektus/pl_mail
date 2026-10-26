@@ -286,8 +286,9 @@ final class LabelResolver
      *
      * So the path is read once, when the folder first arrives, and again only
      * when the folder itself moved ($previousPath differs: renamed on the
-     * server, by plMail or by another client). A folder whose path has not
-     * changed keeps the label it has. One exception, for a label that is the
+     * server, by plMail or by another client) — and a folder renamed where it
+     * stands keeps its label under the new name (renameInPlace()). A folder
+     * whose path has not changed keeps the label it has. One exception, for a label that is the
      * raw modified UTF-7 of its name ("B&APw-cher") — what syncs before
      * names were decoded left behind, and never what anybody typed.
      *
@@ -311,6 +312,12 @@ final class LabelResolver
             return;
         }
 
+        if (true === $moved && null !== $current && null === $current->role
+            && true === $this->renameInPlace($current, $mailbox, $account, (string) $previousPath)
+        ) {
+            return;
+        }
+
         $segments = $this->segmentsFromImapPath((string) $mailbox->fullPath, $mailbox->delimiter);
 
         if (count($segments) === 0) {
@@ -330,6 +337,55 @@ final class LabelResolver
         if (null !== $label) {
             $this->bindMailbox($label, $mailbox);
         }
+    }
+
+    /**
+     * A folder renamed where it stands takes its label along: same label, new
+     * name, so whatever was filed under it is still filed under it and the
+     * old name does not linger in the sidebar as an empty label.
+     *
+     * Only when the label is this folder's alone. A label other accounts have
+     * too is theirs as well, and renaming it from here would rename their
+     * folder in the sidebar; one whose new name a sibling already has would
+     * collide. Both, and a folder that moved to another parent, are linked
+     * afresh instead, the way a new folder is.
+     */
+    private function renameInPlace(Label $label, Mailbox $mailbox, Account $account, string $previousPath): bool
+    {
+        $delimiter = (string) $mailbox->delimiter;
+        $path      = (string) $mailbox->fullPath;
+
+        if ('' === $delimiter || self::parentOf($previousPath, $delimiter) !== self::parentOf($path, $delimiter)) {
+            return false;
+        }
+
+        foreach ($label->bindings as $binding) {
+            if ($binding->account !== $account) {
+                return false;
+            }
+        }
+
+        $segments = $this->segmentsFromImapPath($path, $delimiter);
+        $name     = (string) end($segments);
+        $sibling  = $this->labelRepository->findOneChildByName($account->usr, $label->parent, $name);
+
+        if ('' === trim($name) || (null !== $sibling && $sibling !== $label)) {
+            return false;
+        }
+
+        $label->name = $name;
+
+        // The id cache is keyed by the full name, which just changed.
+        unset($this->pathIdCache[(int) $account->usr->id]);
+
+        return true;
+    }
+
+    private static function parentOf(string $path, string $delimiter): string
+    {
+        $cut = strrpos($path, $delimiter);
+
+        return false === $cut ? '' : substr($path, 0, $cut);
     }
 
     /**

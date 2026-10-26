@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\FolderActionRefusedException;
 use App\Domain\Exception\ImapFolderRefusedException;
 use App\Domain\Exception\InvalidFolderNameException;
 use App\Entity\Mail\Account;
@@ -114,22 +115,81 @@ final class AccountFoldersController extends AbstractController
         } catch (InvalidFolderNameException $e) {
             return $this->renderNewForm($account, $parentId, $name, $this->invalidName($e));
         } catch (ImapFolderRefusedException $e) {
-            return $this->renderNewForm($account, $parentId, $name, $this->translator->trans(
-                'settings.accounts.folders.refused.server',
-                ['%reason%' => $e->reason],
-            ));
+            return $this->renderNewForm($account, $parentId, $name, $this->serverRefused($e));
         } catch (Throwable $e) {
-            // The server could not be reached at all. Said as such, not as a
-            // 500: the person can try again, and nothing was changed.
-            return $this->renderNewForm($account, $parentId, $name, $this->translator->trans(
-                'settings.accounts.folders.unreachable',
-                ['%reason%' => $e->getMessage()],
-            ));
+            return $this->renderNewForm($account, $parentId, $name, $this->unreachable($e));
         }
 
         return $this->renderList($account, $this->translator->trans(
             'settings.accounts.folders.created',
             ['%folder%' => (string) $mailbox->name],
+        ));
+    }
+
+    #[Route('/settings/accounts/{id}/folders/{mailbox}/rename', name: 'settings_account_folder_rename_form', methods: ['GET'])]
+    public function renameForm(Account $account, Mailbox $mailbox): Response
+    {
+        $this->assertOwnFolder($account, $mailbox);
+
+        return $this->renderRenameForm($account, $mailbox, (string) $mailbox->name, null);
+    }
+
+    /**
+     * Rename with IMAP RENAME, in the same place. The inbox and the other
+     * special-use folders are refused (FolderActionRefusedException says why),
+     * and the row offers no button for them in the first place.
+     */
+    #[Route('/settings/accounts/{id}/folders/{mailbox}/rename', name: 'settings_account_folder_rename', methods: ['POST'])]
+    public function rename(Request $request, Account $account, Mailbox $mailbox): Response
+    {
+        $this->assertOwnFolder($account, $mailbox);
+        $this->assertCsrf($request, 'account_folder_rename_' . $mailbox->id);
+
+        $name = (string) $request->request->get('name', '');
+
+        try {
+            $this->folders->rename($account, $mailbox, $name);
+        } catch (InvalidFolderNameException $e) {
+            return $this->renderRenameForm($account, $mailbox, $name, $this->invalidName($e));
+        } catch (FolderActionRefusedException $e) {
+            return $this->renderRenameForm($account, $mailbox, $name, $this->refused($e));
+        } catch (ImapFolderRefusedException $e) {
+            return $this->renderRenameForm($account, $mailbox, $name, $this->serverRefused($e));
+        } catch (Throwable $e) {
+            return $this->renderRenameForm($account, $mailbox, $name, $this->unreachable($e));
+        }
+
+        return $this->renderList($account, $this->translator->trans(
+            'settings.accounts.folders.renamed',
+            ['%folder%' => (string) $mailbox->name],
+        ));
+    }
+
+    /**
+     * Delete an empty folder with no folders inside it. Whatever stops it is
+     * said above the list, which stays as it was.
+     */
+    #[Route('/settings/accounts/{id}/folders/{mailbox}/delete', name: 'settings_account_folder_delete', methods: ['POST'])]
+    public function delete(Request $request, Account $account, Mailbox $mailbox): Response
+    {
+        $this->assertOwnFolder($account, $mailbox);
+        $this->assertCsrf($request, 'account_folder_delete_' . $mailbox->id);
+
+        $name = (string) $mailbox->name;
+
+        try {
+            $this->folders->delete($account, $mailbox);
+        } catch (FolderActionRefusedException $e) {
+            return $this->renderList($account, null, $this->refused($e));
+        } catch (ImapFolderRefusedException $e) {
+            return $this->renderList($account, null, $this->serverRefused($e));
+        } catch (Throwable $e) {
+            return $this->renderList($account, null, $this->unreachable($e));
+        }
+
+        return $this->renderList($account, $this->translator->trans(
+            'settings.accounts.folders.deleted',
+            ['%folder%' => $name],
         ));
     }
 
@@ -172,13 +232,71 @@ final class AccountFoldersController extends AbstractController
         ]);
     }
 
-    private function renderList(Account $account, ?string $notice = null): Response
+    /**
+     * The list, with what the last action did or why it did not.
+     *
+     * Always a 200, a refused delete included. The delete button sits inside
+     * its row's own frame and targets the modal; Turbo draws a failed (4xx)
+     * answer into the frame the form is IN, so a 422 replaced the row with
+     * itself and the reason never showed.
+     */
+    private function renderList(Account $account, ?string $notice = null, ?string $error = null): Response
     {
         return $this->render('settings/accounts/_folders_modal.html.twig', [
             'account' => $account,
             'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
             'notice'  => $notice,
+            'error'   => $error,
         ]);
+    }
+
+    private function renderRenameForm(Account $account, Mailbox $mailbox, string $name, ?string $error): Response
+    {
+        return $this->render('settings/accounts/_folder_form.html.twig', [
+            'account'  => $account,
+            'mode'     => 'rename',
+            'rows'     => [],
+            'parentId' => null,
+            'mailbox'  => $mailbox,
+            'name'     => $name,
+            'error'    => $error,
+        ], new Response(status: null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY));
+    }
+
+    private function refused(FolderActionRefusedException $e): string
+    {
+        return $this->translator->trans(
+            'settings.accounts.folders.refused.' . $e->reason,
+            ['%count%' => $e->count],
+        );
+    }
+
+    private function serverRefused(ImapFolderRefusedException $e): string
+    {
+        return $this->translator->trans('settings.accounts.folders.refused.server', ['%reason%' => $e->reason]);
+    }
+
+    /**
+     * The server could not be reached at all. Said as such, not as a 500: the
+     * person can try again, and nothing was changed.
+     */
+    private function unreachable(Throwable $e): string
+    {
+        return $this->translator->trans('settings.accounts.folders.unreachable', ['%reason%' => $e->getMessage()]);
+    }
+
+    /**
+     * The account is the caller's, plain IMAP, and the folder is ITS folder —
+     * the pair in the path has to agree with itself, as toggle() explains.
+     */
+    private function assertOwnFolder(Account $account, Mailbox $mailbox): void
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $this->assertSyncsOverImap($account);
+
+        if ($mailbox->account !== $account) {
+            throw $this->createNotFoundException();
+        }
     }
 
     private function renderNewForm(Account $account, ?int $parentId, string $name, ?string $error): Response

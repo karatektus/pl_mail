@@ -14,6 +14,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * The folder actions in the folders modal (#221): the parts a browser sees
@@ -121,6 +122,45 @@ final class AccountFolderActionsTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    /**
+     * Rename and delete are offered on the person's own folders and on no
+     * special-use folder — and a delete posted for one anyway is refused with
+     * the reason, the list left as it was.
+     */
+    public function testSpecialUseFoldersOfferNoRenameOrDeleteAndRefuseOne(): void
+    {
+        $sent    = $this->mailbox('Sent Items', 'Sent Items', MailboxSpecialUse::SENT);
+        $clients = $this->mailbox('Clients', 'Clients');
+
+        $crawler = $this->client->request('GET', $this->url());
+
+        self::assertCount(0, $crawler->filter('turbo-frame#account-folder-sync-' . $sent->id . ' [data-folder-rename], turbo-frame#account-folder-sync-' . $sent->id . ' [data-folder-delete]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#account-folder-sync-' . $clients->id . ' [data-folder-rename]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#account-folder-sync-' . $clients->id . ' form[data-folder-delete][data-turbo-confirm]'));
+
+        $token = (string) $crawler->filter('turbo-frame#account-folder-sync-' . $clients->id . ' form[data-folder-delete] input[name=_token]')->attr('value');
+        self::assertNotSame('', $token);
+
+        // The token is per folder, so Sent's is minted the same way the row
+        // would have, had it offered the button.
+        $this->client->request('POST', $this->url('/' . $sent->id . '/delete'), ['_token' => $this->tokenFor('account_folder_delete_' . $sent->id)]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-folder-error]', 'never renamed or deleted');
+        self::assertNotNull($this->em->find(Mailbox::class, $sent->id));
+    }
+
+    public function testTheRenameFormAsksOnlyForTheName(): void
+    {
+        $clients = $this->mailbox('Clients', 'Clients');
+
+        $this->client->request('GET', $this->url('/' . $clients->id . '/rename'));
+
+        self::assertResponseIsSuccessful();
+        self::assertInputValueSame('name', 'Clients');
+        self::assertSelectorNotExists('select[name=parent]');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function url(string $suffix = ''): string
@@ -137,6 +177,23 @@ final class AccountFolderActionsTest extends WebTestCase
         $token   = (string) $crawler->filter('form input[name=_token]')->attr('value');
 
         $this->client->request('POST', $this->url('/new'), [...$fields, '_token' => $token]);
+    }
+
+    private function tokenFor(string $id): string
+    {
+        $this->client->request('GET', $this->url());
+
+        $stack   = static::getContainer()->get('request_stack');
+        $carrier = new Request();
+        $carrier->setSession($this->client->getRequest()->getSession());
+        $stack->push($carrier);
+
+        try {
+            return static::getContainer()->get('security.csrf.token_manager')->getToken($id)->getValue();
+        } finally {
+            $this->client->getRequest()->getSession()->save();
+            $stack->pop();
+        }
     }
 
     private function imapAccount(User $owner): Account
