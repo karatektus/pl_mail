@@ -10,7 +10,7 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
-## v0.4.0 — 2026-10-25
+## v0.4.0 — 2026-10-26
 
 <!-- highlight screenshot=encryption -->
 **End-to-end encryption, with OpenPGP and S/MIME.** plMail now writes, reads and signs encrypted
@@ -142,6 +142,26 @@ Push in the handbook.
 **IDLE no longer stops after a few hours on servers that hang up early,** such as FranklyMail.
 [#360](https://github.com/karatektus/pl_mail/issues/360), by @phdelodder.
 
+**The "New mail" notification no longer fires for mail a rule has already read or filed away.**
+Only unread mail still in the Inbox once the rules have run is announced, which also leaves out mail
+already read on another device.
+[#368](https://github.com/karatektus/pl_mail/issues/368), by @phdelodder.
+
+**New mail lights up the sidebar and its category tab at the same moment.** While the assistant was
+still sorting a message, the Inbox showed its dot and count seconds before the tab did.
+[#371](https://github.com/karatektus/pl_mail/issues/371).
+
+**A partly deleted conversation shows the deleted part in Trash and the rest everywhere else.**
+Opened from the Inbox, it used to show its deleted messages among the others and offered **Delete
+forever** instead of **Delete**. Each list now shows its own part, with its own sender, preview,
+date and count, as the phone app has since 0.4.2. **Delete forever** on such a conversation deletes
+only its deleted part instead of being refused.
+[#378](https://github.com/karatektus/pl_mail/pull/378).
+
+**A week across two months is no longer cut off at the top of the calendar on a small phone.** On a
+320px screen the label now names just the months ("Oct–Nov").
+[#253](https://github.com/karatektus/pl_mail/issues/253), by @pmdevelopment.
+
 **Your keys, made in your browser and recoverable.** The first time you sign in after the update,
 your browser makes an OpenPGP key for every address you send from. Settings → Encryption gives you a
 recovery phrase, known devices that reopen your keys after a password reset, import and export (for
@@ -186,7 +206,9 @@ server lookups can be switched off there.
 **S/MIME certificates, beside OpenPGP.** Import your certificate (`.p12` or `.pfx`) under Settings →
 Encryption. S/MIME mail opens and is checked, contacts' certificates are kept from their signed
 mail, and plMail encrypts or signs with S/MIME when OpenPGP is not possible for everyone on a
-message. [#28](https://github.com/karatektus/pl_mail/issues/28), by @pmdevelopment.
+message. Old-style files locked with 3DES, RC2 or RC4, as Windows exports them, open too.
+[#28](https://github.com/karatektus/pl_mail/issues/28),
+[#372](https://github.com/karatektus/pl_mail/issues/372), by @pmdevelopment.
 
 **Publish your key, so others can find it.** Each key can be published to keys.openpgp.org from
 Settings → Encryption → *Show keys*, and the installation can publish everyone's key in its own Web
