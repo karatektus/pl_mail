@@ -112,6 +112,10 @@ moving something, not spam, not a draft or a copy of something you sent, and not
 imported. The notification says only "New mail"; it carries no sender or subject. A message whose
 arrival time plMail cannot work out from its headers is not announced.
 
+Mail counts as new only once your [filters](filters.md) have run. A message a filter marks as read,
+archives, or moves to Trash or Spam is not announced, and neither is mail that was already read when
+plMail fetched it — opened on your phone a moment earlier, say.
+
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is
 available. Apps that register through JMAP (`PushSubscription/set`), and an Android phone through
