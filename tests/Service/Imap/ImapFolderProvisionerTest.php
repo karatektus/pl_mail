@@ -6,6 +6,7 @@ namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\ImapFolderRefusedException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -328,6 +329,54 @@ final class ImapFolderProvisionerTest extends KernelTestCase
                 ->findOneBy(['account' => $this->account, 'fullPath' => 'Archive']),
             'and nothing is recorded for a folder that was never made',
         );
+    }
+
+    /**
+     * A folder somebody asked for by name is told why it was not made, in the
+     * server's own words, rather than null and a line in the worker log.
+     */
+    public function testAFolderAskedForByNameSaysWhyTheServerRefused(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = "NO [CANNOT] Permission denied\r\n ";
+
+        try {
+            $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+            self::fail('a refused CREATE was reported as made');
+        } catch (ImapFolderRefusedException $e) {
+            self::assertSame('Clients', $e->folder);
+            self::assertSame('[CANNOT] Permission denied', $e->reason);
+        }
+
+        self::assertNull(
+            $this->em->getRepository(Mailbox::class)->findOneBy(['account' => $this->account, 'fullPath' => 'Clients']),
+            'and nothing is recorded for it',
+        );
+    }
+
+    /** The library's own wrapper is unpacked to the cause the server gave. */
+    public function testTheLibrarysFramingIsTakenOffTheReason(): void
+    {
+        $e = ImapFolderRefusedException::fromServer(
+            'Clients',
+            new \RuntimeException("Command failed to process:\nCauses:\n\t- Mailbox name is not valid\nError occurred"),
+        );
+
+        self::assertSame('Mailbox name is not valid', $e->reason);
+    }
+
+    /** Asked for by name, a folder that is already there is still the answer. */
+    public function testAFolderAskedForThatAlreadyExistsIsReturned(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists';
+
+        $mailbox = $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+
+        self::assertSame('Clients', $mailbox->fullPath);
+        self::assertSame('Clients', $mailbox->label?->name);
     }
 
     // ── an exact path ────────────────────────────────────────────────────
