@@ -84,11 +84,6 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
 
 {% if isThread %}
     {% set type = 'thread' %}
-    {% set unread = item.unreadCount > 0 %}
-    {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
-    {% set starred = item.starredAt is not null %}
-    {% set date = item.lastMessageAt %}
-    {% set count = item.messageCount %}
 
     {# thread_row(), not item.messages: a list page fetches only the fields a
        row reads (App\Service\Mail\ThreadRows) rather than every message body
@@ -96,6 +91,16 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        isDraft, computed in the same order. #}
     {% set row = thread_row(item) %}
     {% set latest = row.latest %}
+
+    {# A conversation partly in the bin is drawn from one side of it — the
+       deleted messages in Trash, the others everywhere else (BinView) — and
+       its counters, which cover every message, would count the other side
+       too. `narrowed` says which applies. #}
+    {% set unread = row.narrowed ? row.unread : item.unreadCount > 0 %}
+    {% set subject = item.subject ?: ('thread_row.no_subject'|trans) %}
+    {% set starred = item.starredAt is not null %}
+    {% set date = row.narrowed ? row.lastAt : item.lastMessageAt %}
+    {% set count = row.narrowed ? row.count : item.messageCount %}
     {# Everyone who has written in the conversation, oldest first — not the
        newest sender, which made every thread you had answered look like it
        came from you. #}
@@ -126,7 +131,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        looked up by flag rather than assumed to be the last message. #}
     {% set draftMessage = row.draft %}
     {% set draft = draftMessage
-        and (draft_scope or item.messageCount == 1) %}
+        and (draft_scope or count == 1) %}
     {% set draftId = draft ? draftMessage.id : null %}
 
     {# In Drafts the who column asked the wrong question. Every draft is from
@@ -176,10 +181,14 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        thread), and the hold belongs to the draft either way. #}
     {% set scheduledId = scheduledAt is not null ? draftMessage.id : null %}
 
-    {% set hasAttachment = item.attachmentCount > 0 %}
+    {% set hasAttachment = row.narrowed ? row.hasAttachments : item.attachmentCount > 0 %}
     {% set senderSeed = latest ? (latest.fromAddress ?: sender) : sender %}
 
-    {% set href = path('app_mail_thread', { id: item.id }) %}
+    {# Opened from Trash, the conversation shows its deleted side; the thread
+       route has no list behind it, so the link says so. #}
+    {% set href = bin_view()
+        ? path('app_mail_thread', { id: item.id, bin: 1 })
+        : path('app_mail_thread', { id: item.id }) %}
     {% set rowId = item.id %}
 {% else %}
     {% set type = 'message' %}

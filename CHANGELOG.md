@@ -86,10 +86,6 @@ because they change everything on the page.
 like any other. Pictures in the body stay in the quote, and replies are unchanged.
 [#323](https://github.com/karatektus/pl_mail/issues/323), by @phdelodder.
 
-**A message in the bin is marked inside its conversation.** A conversation stays in the Inbox until
-all of it is deleted; a deleted message in it now carries an **In Trash** chip and a dimmed header.
-[#336](https://github.com/karatektus/pl_mail/issues/336), by @phdelodder.
-
 **The calendar follows your timezone.** After you changed your timezone, the clock moved but the
 calendar stayed on the old zone. The calendar is now always drawn on your own clock. A calendar's
 own time zone in Settings → Calendars only decides the zone new events on it are written in, and
@@ -450,8 +446,8 @@ labels, All Mail, Unread and search, because the conversation then carried the T
 that arrived in it afterwards, by its references or by its subject, was unread mail the phone app
 showed and the web did not. A conversation now leaves those lists only once every message of it is
 in the bin. One that you deleted whole still leaves its labels, as before. A partly deleted
-conversation is listed in Trash too, and opening it still shows the deleted messages with the rest.
-No schema change. [#268](https://github.com/karatektus/pl_mail/issues/268).
+conversation is listed in Trash too. No schema change.
+[#268](https://github.com/karatektus/pl_mail/issues/268).
 
 **A long message scrolls in the expanded compose window.** Expanded, the editor stayed 170px tall
 and cut a longer message off mid-line, with nothing to scroll. It now fills the window and grows

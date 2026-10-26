@@ -303,24 +303,37 @@ final class BulkStatusController extends AbstractController
         // once, in the bin or in Spam, because "delete forever" one click from
         // "archive" has no undo to catch the mistake.
         //
-        // Every message is checked before any is removed, so a selection that
-        // holds one conversation it should not is refused whole. Trimming it to
-        // the allowed part would delete mail the person was never told about,
-        // on the strength of a list the browser sent.
+        // Every conversation is checked before any is removed, so a selection
+        // that holds one with nothing thrown away is refused whole. Trimming it
+        // to the allowed part would delete mail on the strength of a list the
+        // browser sent that does not match what the person was shown.
+        //
+        // A conversation only part of which is thrown away gives up that part
+        // and keeps the rest: its row in the bin showed only the deleted side
+        // (BinView), as ThreadStatusController::purge() does for one row.
         if ('purge' === $action) {
-            foreach ($selected as $message) {
-                if (false === $this->placement->isDiscarded($message)) {
+            $doomed = [];
+
+            foreach ($threads as $thread) {
+                $discarded = array_values(array_filter(
+                    $thread->messages->toArray(),
+                    $this->placement->isDiscarded(...),
+                ));
+
+                if ([] === $discarded) {
                     throw $this->createAccessDeniedException(
                         'Only mail already in the trash or in spam can be deleted for good.',
                     );
                 }
+
+                array_push($doomed, ...$discarded);
             }
 
             // Before the purge, not after: a purged thread has no id left, and
             // the stream that removes its row is addressed by it.
             $threadIds = array_map(static fn ($thread): ?int => $thread->id, $threads);
 
-            $this->purger->purge($selected);
+            $this->purger->purge($doomed);
 
             return $this->renderTurboStream('thread/status/_bulk_purge.stream.html.twig', [
                 'threadIds' => $threadIds,

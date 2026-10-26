@@ -131,6 +131,12 @@ class ThreadStatusController extends AbstractController
      * inbox conversation is a click away from "archive" and there is no undo to
      * catch the mistake. The bin is the confirmation step the interface already
      * has; this route enforces what the templates already show.
+     *
+     * On a conversation only part of which is thrown away, the flame in Trash
+     * deletes that part and leaves the rest where it is. It was refused whole,
+     * as a request that named mail outside the bin; but the row it was pressed
+     * on shows only the deleted side (BinView), and that is all it promised.
+     * Only a conversation with nothing thrown away at all is refused.
      */
     #[Route('/purge', name: 'purge', methods: ['POST'])]
     public function purge(Request $request, string $type, int $id): Response
@@ -145,21 +151,23 @@ class ThreadStatusController extends AbstractController
             throw $this->createAccessDeniedException('Deleting for good is switched off in Settings → Mail → Disposal.');
         }
 
-        $messages = $this->resolveMessages($request, $type, $id);
+        $messages  = $this->resolveMessages($request, $type, $id);
+        $discarded = array_values(array_filter($messages, $this->placement->isDiscarded(...)));
 
-        foreach ($messages as $message) {
-            if (false === $this->placement->isDiscarded($message)) {
-                throw $this->createAccessDeniedException(
-                    'Only mail already in the trash or in spam can be deleted for good.',
-                );
-            }
+        if ([] === $discarded) {
+            throw $this->createAccessDeniedException(
+                'Only mail already in the trash or in spam can be deleted for good.',
+            );
         }
 
         // Captured before the purge: the row is about to stop existing, and the
-        // stream that removes it from the list is addressed by its id.
+        // stream that removes it from the list is addressed by its id. A
+        // conversation that keeps its live mail keeps its id as well, and its
+        // row still leaves the list it was purged from, which showed only the
+        // part that is gone.
         $target = 'message' === $type ? $messages[0]->id : $messages[0]->thread?->id;
 
-        $this->purger->purge($messages);
+        $this->purger->purge($discarded);
 
         return $this->renderTurboStream('thread/status/_purge.stream.html.twig', [
             'targetId' => $target,

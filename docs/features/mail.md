@@ -409,10 +409,12 @@ expanded. Each message has its own menu: **Star**, **Archive**, **Mark as unread
 **Delete this message**, **Print**, and **Show original**.
 
 Deleting one message of a conversation leaves the conversation where it is: it stays in the inbox
-and under its labels until every message of it is in the bin. Opened, it shows the deleted message
-among the others with an **In Trash** chip and a dimmed header, and without **Archive** and
-**Delete this message**, which mean nothing for mail that is already in the bin. In Trash itself
-every message is deleted, so nothing is marked there.
+and under its labels until every message of it is in the bin, and it is listed in Trash as well.
+Each list shows its own part of it. Opened from Trash, it shows only the deleted messages; opened
+from anywhere else, only the others. The row's sender, preview, date and message count are those of
+the same part, and so are its buttons: in the inbox it is live mail with **Delete**, in Trash it is
+deleted mail with **Move to inbox** and **Delete forever**. A conversation entirely in the bin is
+shown whole wherever it is opened.
 
 **Show original** reconstructs the message from the stored header map and the decoded body — no
 raw RFC 822 blob is kept — and prints the SPF, DKIM and DMARC verdicts alongside it where the
@@ -777,7 +779,8 @@ config backup carries it.
 With it on, each row in Spam and the bin has a **Delete forever** button (the flame) beside **Move
 to inbox**, and it asks first. Nothing else can be deleted for good: a conversation in the inbox or
 the archive has to be thrown away once before this is offered, because there is no Undo to catch a
-slip.
+slip. On a conversation only part of which is in the bin, it deletes that part, and the rest of the
+conversation stays where it is.
 
 In **Spam** and in the bin, the toolbar above a selection has the same **Delete forever** in place of
 **Delete**. In Spam that makes a page of spam one click and one question rather than a trip to the

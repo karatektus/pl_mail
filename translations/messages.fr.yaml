@@ -2875,7 +2875,6 @@ message:
         show_once: Afficher les images
         stop_trusting: Ne plus afficher
         trusted: 'Les images sont toujours affichées pour %sender%'
-    in_trash: À la corbeille
     original:
         copied: Copié
         copy: Copier dans le presse-papiers

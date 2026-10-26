@@ -2858,7 +2858,6 @@ message:
         show_once: Show images
         stop_trusting: Stop showing
         trusted: 'Images are always shown for %sender%'
-    in_trash: In Trash
     original:
         copied: Copied
         copy: Copy to clipboard

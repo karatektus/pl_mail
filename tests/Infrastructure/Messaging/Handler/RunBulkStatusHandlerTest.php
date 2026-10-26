@@ -328,7 +328,7 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
      * view and must survive it. There is no undo behind this one, so the
      * survivor is the assertion that matters.
      */
-    public function testEmptyingSpamDeletesOnlyConversationsThatAreWhollyInSpam(): void
+    public function testEmptyingSpamDeletesOnlyTheMailThatIsInSpam(): void
     {
         [$first, $second, $mixed] = $this->seedThreads(3);
 
@@ -359,6 +359,71 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
     }
 
     /**
+     * Emptying the bin deletes the deleted part of a conversation and leaves
+     * the rest of it alone.
+     *
+     * A conversation one message of which was trashed is listed in Trash by
+     * that message, and its row there shows only it (BinView). Emptying the
+     * bin skipped such a conversation whole, so the deleted message stayed;
+     * deleting the conversation would have taken live mail with it.
+     */
+    public function testEmptyingTheBinDeletesOnlyTheDeletedPartOfAConversation(): void
+    {
+        [$whole, $live] = $this->seedThreads(2);
+
+        $inbox = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
+        $trash = $this->labelResolver->systemLabel(LabelRole::Trash, $this->account);
+
+        $wholeMessage = $this->em->find(Message::class, $whole);
+        $liveMessage  = $this->em->find(Message::class, $live);
+
+        self::assertNotNull($wholeMessage?->thread);
+        self::assertNotNull($liveMessage?->thread);
+
+        $wholeMessage->removeLabel($inbox);
+        $wholeMessage->addLabel($trash);
+        $wholeMessage->thread->removeLabel($inbox);
+        $wholeMessage->thread->addLabel($trash);
+
+        $deleted                 = new Message();
+        $deleted->account        = $this->account;
+        $deleted->subject        = $liveMessage->subject;
+        $deleted->fromAddress    = 'sender@example.test';
+        $deleted->messageId      = 'bulk-deleted-' . uniqid('', true) . '@example.test';
+        $deleted->receivedAt     = new \DateTimeImmutable();
+        $deleted->sentAt         = $deleted->receivedAt;
+        $deleted->hasAttachments = false;
+        $deleted->flags          = [];
+        $deleted->mailbox        = $liveMessage->mailbox;
+        $deleted->imapUid        = 9900;
+        $deleted->addLabel($trash);
+        $liveMessage->thread->addMessage($deleted);
+        $liveMessage->thread->addLabel($trash);
+
+        $this->em->persist($deleted);
+        $this->em->flush();
+
+        $deletedId = (int) $deleted->id;
+
+        $this->user->deleteNowButtons = true;
+
+        $job = $this->purgeJob('trash');
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Done, $fresh->state, (string) $fresh->failureReason);
+
+        self::assertNull($this->em->find(Message::class, $whole), 'a conversation wholly in the bin is deleted');
+        self::assertNull($this->em->find(Message::class, $deletedId), 'and so is the deleted message of the other');
+        self::assertNotNull($this->em->find(Message::class, $live), 'whose live message stays');
+    }
+
+    /**
      * A job that waited in the queue while the switch was turned off deletes
      * nothing, and says it failed rather than that it finished.
      */
@@ -384,10 +449,10 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
 
     // ── fixtures ─────────────────────────────────────────────────────────────
 
-    private function purgeJob(): BackgroundJob
+    private function purgeJob(string $scope = 'spam'): BackgroundJob
     {
         $job       = new BackgroundJob($this->user, JobKind::Purge);
-        $job->view = ['scope' => 'spam', 'value' => '', 'unreadOnly' => false];
+        $job->view = ['scope' => $scope, 'value' => '', 'unreadOnly' => false];
 
         $this->em->persist($job);
         $this->em->flush();

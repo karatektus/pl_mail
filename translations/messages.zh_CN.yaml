@@ -2523,7 +2523,6 @@ message:
         show_once: '显示图片'
         stop_trusting: '停止自动显示'
         trusted: '始终显示来自 %sender% 的图片'
-    in_trash: '在废纸篓中'
     original:
         copied: '已复制'
         copy: '复制到剪贴板'

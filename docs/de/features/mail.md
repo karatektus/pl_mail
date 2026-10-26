@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:a67ea8b53805ea77511626f8e972c1c383eca7fe -->
+<!-- translated-from: features/mail.md sha1:e10e5d0559ab9c2a857d4c77d58875bf76e142d2 -->
 
 # Mail
 
@@ -454,10 +454,12 @@ Nachricht aufgeklappt. Jede Nachricht hat ihr eigenes Menü: **Markieren**, **Ar
 **Als ungelesen markieren**, **Diese Nachricht löschen**, **Drucken** und **Original anzeigen**.
 
 Wenn du eine Nachricht einer Konversation löschst, bleibt die Konversation, wo sie ist: Sie steht im
-Posteingang und unter ihren Labels, bis jede Nachricht darin im Papierkorb liegt. Geöffnet zeigt sie
-die gelöschte Nachricht zwischen den anderen mit dem Hinweis **Im Papierkorb** und einer abgeblendeten
-Kopfzeile, ohne **Archivieren** und **Diese Nachricht löschen**, die für Post im Papierkorb nichts
-bedeuten. Im Papierkorb selbst ist jede Nachricht gelöscht, deshalb wird dort nichts markiert.
+Posteingang und unter ihren Labels, bis jede Nachricht darin im Papierkorb liegt, und zusätzlich im
+Papierkorb. Jede Liste zeigt ihren Teil davon. Aus dem Papierkorb geöffnet zeigt sie nur die
+gelöschten Nachrichten, von überall sonst nur die anderen. Absender, Vorschau, Datum und Anzahl der
+Nachrichten in der Zeile gehören zum selben Teil, ebenso ihre Knöpfe: Im Posteingang ist sie Post mit
+**Löschen**, im Papierkorb gelöschte Post mit **In den Posteingang** und **Endgültig löschen**. Eine
+Konversation, die ganz im Papierkorb liegt, wird überall vollständig gezeigt.
 
 **Original anzeigen** setzt die Nachricht aus der gespeicherten Header-Zuordnung und dem
 dekodierten Text wieder zusammen — ein roher RFC-822-Blob wird nicht aufbewahrt — und stellt
@@ -856,7 +858,9 @@ eine Entscheidung für dein eigenes Konto, und eine Konfigurationssicherung enth
 Ist sie an, hat jede Zeile im Spam und im Papierkorb neben **In den Posteingang** einen Knopf
 **Endgültig löschen** (die Flamme), und er fragt vorher nach. Sonst lässt sich nichts endgültig
 löschen: Eine Konversation im Posteingang oder im Archiv muss erst einmal weggeworfen worden sein,
-bevor das angeboten wird, denn es gibt kein Rückgängig, das einen Fehlklick auffängt.
+bevor das angeboten wird, denn es gibt kein Rückgängig, das einen Fehlklick auffängt. Bei einer
+Konversation, von der nur ein Teil im Papierkorb liegt, löscht er diesen Teil, und der Rest der
+Konversation bleibt, wo er ist.
 
 Im **Spam** und im Papierkorb hat die Werkzeugleiste über einer Auswahl dasselbe **Endgültig
 löschen** anstelle von **Löschen**. Im Spam ist eine Seite voll Spam so ein Klick und eine Frage

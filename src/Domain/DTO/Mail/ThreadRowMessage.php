@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Helper\OwnAddressHelper;
 use App\Entity\Mail\Message;
@@ -46,6 +47,14 @@ final readonly class ThreadRowMessage
         public bool $filedAsSent = false,
         /** Why this draft's last send finally failed, or null — the row's warning (#125). */
         public ?SendFailure $sendFailure = null,
+        /**
+         * Whether the message carries Trash. A conversation can be partly in
+         * the bin, and its row in each list shows one side of it (BinView).
+         */
+        public bool $trashed = false,
+        /** Unread — what MessageThread::$unreadCount counts. */
+        public bool $unread = false,
+        public bool $hasAttachments = false,
     ) {
     }
 
@@ -68,6 +77,26 @@ final readonly class ThreadRowMessage
             true === ($message->account ?? null)?->catchesAddress($message->fromAddress)
                 && true === OwnAddressHelper::sentByAccount($message),
             $message->sendFailure,
+            self::wearsTrash($message),
+            null === $message->seenAt,
+            true === $message->hasAttachments,
         );
+    }
+
+    /** Arrival, else sending, else creation — the order the thread view uses. */
+    public function effectiveAt(): DateTimeImmutable
+    {
+        return $this->receivedAt ?? $this->sentAt ?? $this->createdAt;
+    }
+
+    private static function wearsTrash(Message $message): bool
+    {
+        foreach ($message->labels as $label) {
+            if (LabelRole::Trash === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

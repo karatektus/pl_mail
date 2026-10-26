@@ -440,26 +440,23 @@ final readonly class RunBulkStatusHandler
             return;
         }
 
-        // DELETE FOR GOOD. Conversation by conversation, and only one whose
-        // every message is still in Spam or the bin: the view was resolved when
-        // the job began, and mail moved back to the inbox since then — or a
-        // conversation with one message elsewhere — is left exactly where it
-        // is. Skipped rather than refused, unlike the inline path: that one
-        // answers a person who can read the refusal, and this one has already
-        // deleted the chunks before it.
+        // DELETE FOR GOOD. Conversation by conversation, and only the messages
+        // still in Spam or the bin: the view was resolved when the job began,
+        // and mail moved back to the inbox since then is left exactly where it
+        // is. So is the live part of a conversation only partly thrown away,
+        // which the bin listed by its deleted side alone (BinView). Skipped
+        // rather than refused, unlike the inline path: that one answers a
+        // person who can read the refusal, and this one has already deleted
+        // the chunks before it.
         if ('purge' === $action) {
             $doomed = [];
 
             foreach ($owned as $thread) {
-                $messages = array_values($thread->messages->toArray());
-
-                foreach ($messages as $message) {
-                    if (false === $this->placement->isDiscarded($message)) {
-                        continue 2;
+                foreach ($thread->messages as $message) {
+                    if ($this->placement->isDiscarded($message)) {
+                        $doomed[] = $message;
                     }
                 }
-
-                array_push($doomed, ...$messages);
             }
 
             // One call for the chunk, so the mail server is asked once per

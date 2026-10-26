@@ -39,6 +39,12 @@ use Symfony\Contracts\Service\ResetInterface;
  * assembled it — is read from the entities, because those are the truth for
  * this request and may hold a message not yet flushed.
  *
+ * ── One side of a partly deleted conversation ──────────────────────────────
+ * A thread with some of its messages in the bin is listed in Trash and in its
+ * other lists at once (#268). Each row is drawn from the messages on its side
+ * only (BinView): sender, snippet, draft, count and date. A side with nothing
+ * on it is a thread wholly on the other, which is drawn whole.
+ *
  * Resettable because FrankenPHP and the Messenger workers keep this alive
  * between requests, and a row answered from a previous one is stale.
  */
@@ -51,6 +57,7 @@ final class ThreadRows implements ResetInterface
         private readonly MessageThreadRepository $threads,
         private readonly MessageRepository $messages,
         private readonly MessageSnippet $snippet,
+        private readonly BinView $bin,
     ) {
     }
 
@@ -115,18 +122,44 @@ final class ThreadRows implements ResetInterface
 
     private function fromEntities(MessageThread $thread): ThreadRow
     {
-        $messages = array_values(array_map(
-            ThreadRowMessage::of(...),
-            $thread->messages->toArray(),
-        ));
+        $entities = array_values($thread->messages->toArray());
+        $all      = array_map(ThreadRowMessage::of(...), $entities);
+        $kept     = $this->side($all);
 
-        $latest = $thread->messages->last();
+        // The entity behind the side's latest, for the body its snippet needs.
+        $latest = null;
+
+        foreach ($entities as $index => $entity) {
+            if (in_array($all[$index], $kept, true)) {
+                $latest = $entity;
+            }
+        }
 
         return new ThreadRow(
-            $messages,
-            $this->snippet->of(false === $latest ? null : $latest),
-            false !== $latest && true === $latest->crypto?->isEncrypted(),
+            $kept,
+            $this->snippet->of($latest),
+            true === $latest?->crypto?->isEncrypted(),
+            count($kept) < count($all),
         );
+    }
+
+    /**
+     * The messages on the side being looked at: the deleted ones in Trash, the
+     * others anywhere else — or all of them, when that side has none.
+     *
+     * @param list<ThreadRowMessage> $messages
+     *
+     * @return list<ThreadRowMessage>
+     */
+    private function side(array $messages): array
+    {
+        $inBin = $this->bin->isOpen();
+        $kept  = array_values(array_filter(
+            $messages,
+            static fn (ThreadRowMessage $message): bool => $message->trashed === $inBin,
+        ));
+
+        return [] === $kept ? $messages : $kept;
     }
 
     /**
@@ -159,7 +192,19 @@ final class ThreadRows implements ResetInterface
                 self::dateOrNull($row['submissionSendAt']),
                 (int) ($row['filedAsSent'] ?? 0) > 0,
                 self::sendFailureOf($row['sendFailure'] ?? null),
+                (int) ($row['trashed'] ?? 0) > 0,
+                null === $row['seenAt'],
+                true === $row['hasAttachments'],
             );
+        }
+
+        /** @var array<int, bool> $narrowed thread id => whether a side was left out */
+        $narrowed = [];
+
+        foreach ($byThread as $threadId => $messages) {
+            $kept                = $this->side($messages);
+            $narrowed[$threadId] = count($kept) < count($messages);
+            $byThread[$threadId] = $kept;
         }
 
         $latestIds = [];
@@ -184,6 +229,7 @@ final class ThreadRows implements ResetInterface
                 // A thread with no messages has no body row at all, and the
                 // nullsafe operator guards the call, not the offset.
                 null !== $body && true === $body['crypto']?->isEncrypted(),
+                $narrowed[$threadId],
             );
         }
     }

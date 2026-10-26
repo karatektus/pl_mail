@@ -24,6 +24,7 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\ThreadSummariser;
 use App\Service\Ai\ThreadSummaryStore;
 use App\Service\Ai\ThreadTranscript;
+use App\Service\Mail\BinView;
 use App\Service\Mail\InboxTabs;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\NewMailMarkers;
@@ -66,6 +67,7 @@ final class MailController extends AbstractController
         private readonly ThreadRows $threadRows,
         private readonly ThreadSenderFacts $senderFacts,
         private readonly InboxTabs $inboxTabs,
+        private readonly BinView $bin,
     )
     {
     }
@@ -1067,7 +1069,7 @@ final class MailController extends AbstractController
         // the reply zone quotes and what opens expanded.
         // forThreadView(): the same list with each message's labels and parts
         // loaded alongside, so the pane does not lazy-load them one by one.
-        $messages = $this->messageRepository->forThreadView($thread);
+        $messages = $this->side($this->messageRepository->forThreadView($thread));
         $latest   = [] === $messages ? null : $messages[array_key_last($messages)];
 
         // The allowlist and correspondent checks every message's render asks,
@@ -1101,6 +1103,33 @@ final class MailController extends AbstractController
             'insights' => $insights,
             'summary'  => $summary,
         ]);
+    }
+
+    /**
+     * The side of the conversation being looked at: its deleted messages when
+     * it was opened from Trash, the others from anywhere else.
+     *
+     * A message moved to Trash stays in its conversation, and the conversation
+     * in its other lists until all of it is deleted (#268). Opened from the
+     * Inbox it showed the deleted drafts among the live mail; opened from
+     * Trash, the live mail it was not listed there for. Each list now opens
+     * what it listed, as the Android app does. A side with nothing on it is a
+     * conversation wholly on the other — reached by a link or a search hit —
+     * and is shown whole rather than empty.
+     *
+     * @param list<Message> $messages
+     *
+     * @return list<Message>
+     */
+    private function side(array $messages): array
+    {
+        $inBin = $this->bin->isOpen();
+        $kept  = array_values(array_filter(
+            $messages,
+            fn (Message $message): bool => (MailPlacement::TRASH === $this->placement->of($message)) === $inBin,
+        ));
+
+        return [] === $kept ? $messages : $kept;
     }
 
     /**

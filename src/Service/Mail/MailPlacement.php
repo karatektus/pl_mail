@@ -25,17 +25,29 @@ use App\Entity\Mail\MessageThread;
  * quietly back to offering the wrong controls in exactly those cases. What the
  * mail carries is true everywhere.
  *
+ * With one exception, a conversation only part of which is in the bin. Its
+ * labels are its messages' together, so it wears Trash beside Inbox, and its
+ * Inbox row offered Restore and Delete forever for mail that was mostly not
+ * deleted. That thread is listed in two places and is a different thing in
+ * each, so for it the side being looked at decides (BinView): in Trash it is
+ * trash, anywhere else it is what its live mail is. A thread wholly in the bin
+ * is trash from either side, so the cases above still get the bin's controls.
+ *
  * A service rather than only a Twig function, because the templates are not the
  * only thing that has to agree with it: /status/{type}/{id}/purge refuses
  * anything this does not call discarded, and an interface that hides a control
  * while the route behind it stays open is not a rule, it is a habit.
  */
-final class MailPlacement
+final readonly class MailPlacement
 {
     public const string TRASH   = 'trash';
     public const string SPAM    = 'spam';
     public const string ARCHIVE = 'archive';
     public const string NORMAL  = 'normal';
+
+    public function __construct(private BinView $bin)
+    {
+    }
 
     /**
      * Trash wins over Spam when something carries both, because deleting is the
@@ -58,7 +70,7 @@ final class MailPlacement
             }
         }
 
-        if (in_array(LabelRole::Trash, $roles, true)) {
+        if (in_array(LabelRole::Trash, $roles, true) && $this->showsTrash($entity)) {
             return self::TRASH;
         }
 
@@ -77,6 +89,25 @@ final class MailPlacement
         }
 
         return self::NORMAL;
+    }
+
+    /**
+     * Whether a Trash label on this decides where it is. Always on a message;
+     * on a conversation, unless it is only partly in the bin and the bin is not
+     * what is being looked at — see the class docblock.
+     *
+     * `binned` is the database's answer and is not re-read after a change in
+     * the same request (MessageThread::$binned). The two actions that change
+     * it, trash and restore, answer by removing the row rather than drawing
+     * it, so no control is drawn from the stale value.
+     */
+    private function showsTrash(Message|MessageThread $entity): bool
+    {
+        if ($entity instanceof Message || $entity->binned) {
+            return true;
+        }
+
+        return $this->bin->isOpen();
     }
 
     /**

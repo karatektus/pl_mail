@@ -2965,9 +2965,17 @@ class MessageRepository extends ServiceEntityRepository
                 '(SELECT COUNT(sentLabel.id) FROM ' . Message::class . ' filed
                     JOIN filed.labels sentLabel
                     WHERE filed.id = m.id AND sentLabel.role IN (:sentRoles)) AS filedAsSent',
+                // Whether it is in the bin, for the side of a partly deleted
+                // conversation the row shows (BinView). Counted the same way.
+                '(SELECT COUNT(trashLabel.id) FROM ' . Message::class . ' inBin
+                    JOIN inBin.labels trashLabel
+                    WHERE inBin.id = m.id AND trashLabel.role = :trashRole) AS trashed',
+                'm.seenAt',
+                'm.hasAttachments',
             )
             ->where('m.thread IN (:threads)')
             ->setParameter('sentRoles', [LabelRole::Sent, LabelRole::Drafts])
+            ->setParameter('trashRole', LabelRole::Trash)
             ->setParameter('threads', $threadIds)
             ->addOrderBy('m.receivedAt', 'ASC')
             ->addOrderBy('m.id', 'ASC')

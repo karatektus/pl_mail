@@ -158,8 +158,10 @@ self-contained: no {% extends %}, no block dependencies.
             <h1 class="text-xl font-semibold text-ink min-w-0 break-words" data-thread-subject>
                 {{ thread.subject ?: ('thread.no_subject'|trans) }}
             </h1>
-            {% if thread.messageCount > 1 %}
-                <span class="text-sm text-ink-faint flex-shrink-0">{{ thread.messageCount }}</span>
+            {# The messages shown, not thread.messageCount: a conversation
+               partly in the bin shows one side of itself (see below). #}
+            {% if messages|default(thread.messages)|length > 1 %}
+                <span class="text-sm text-ink-faint flex-shrink-0">{{ messages|default(thread.messages)|length }}</span>
             {% endif %}
 
             {# The offer to summarise, at the right-hand end of the subject and
@@ -205,27 +207,15 @@ self-contained: no {% extends %}, no block dependencies.
         {% endfor %}
         {% do address_book_prime(badgeAddresses) %}
 
-        {# Which messages are in the bin, when only some of them are. A
-           conversation stays in the Inbox and its labels until EVERY message of
-           it is deleted (#268), so opening one shows deleted messages among
-           live ones, and nothing said which was which. Where all of them are in
-           the bin — Trash itself — the mark would sit on every message and say
-           nothing, so it is drawn only for a mixed conversation. Read per
-           message by the same MailPlacement the actions use. #}
-        {% set binnedIds = [] %}
-        {% for message in messages %}
-            {% if mail_placement(message) == 'trash' %}
-                {% set binnedIds = binnedIds|merge([message.id]) %}
-            {% endif %}
-        {% endfor %}
-        {% set markBinned = binnedIds|length > 0 and binnedIds|length < messages|length %}
-
+        {# One side of a conversation that is partly in the bin: its deleted
+           messages when it was opened from Trash, the others from anywhere
+           else (MailController::side()). So the messages here are all deleted
+           or none of them is, and none needs marking as such. #}
         <div id="thread_messages_{{ thread.id }}" class="thread-messages" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,
                     expanded: loop.last or message.seenAt is null,
-                    binned:   markBinned and message.id in binnedIds,
                 } only %}
             {% endfor %}
         </div>

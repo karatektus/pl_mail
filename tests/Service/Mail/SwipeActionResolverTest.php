@@ -537,6 +537,13 @@ final class SwipeActionResolverTest extends KernelTestCase
         }
 
         $this->em->flush();
+
+        // MessageThread::$binned is written by the database, not by PHP: a
+        // thread wholly in the bin is placed in Trash only once it is read
+        // back (MailPlacement::showsTrash()).
+        if ($item instanceof MessageThread) {
+            $this->em->refresh($item);
+        }
     }
 
     private function seedThread(int $unreadCount, bool $draftMessage = false): MessageThread

@@ -2844,7 +2844,6 @@ message:
         show_once: Bilder anzeigen
         stop_trusting: Nicht mehr anzeigen
         trusted: 'Bilder von %sender% werden immer angezeigt'
-    in_trash: Im Papierkorb
     original:
         copied: Kopiert
         copy: In die Zwischenablage kopieren

@@ -9,11 +9,8 @@ Variables:
   expanded  bool   — render open (newest message / unread) or collapsed
   draft     bool   — override; a just-sent message still carries the DRAFT
                      flag for a moment, but belongs in the thread as a message
-  binned    bool   — this message is in the bin while others in the conversation
-                     are not (see _thread_content); marks and dims its header
 #}
 {% set expanded = expanded|default(false) %}
-{% set binned   = binned|default(false) %}
 {% set isDraft  = draft is defined ? draft : message.isDraft %}
 
 {# Both roots below carry `data-enter="rise"`, and this partial is the one place
@@ -95,7 +92,6 @@ Variables:
     id="thread_message_{{ message.id }}"
     data-enter="rise"
     class="border-b border-line last:border-b-0 reading-y first:pt-0"
-    {% if binned %}data-in-trash="true"{% endif %}
     data-controller="mail--thread-message"
     data-mail--thread-message-expanded-value="{{ expanded ? 'true' : 'false' }}"
     data-mail--thread-message-expand-label-value="{{ 'message.actions.expand'|trans }}"
@@ -132,7 +128,7 @@ Variables:
            hardcoded one-off that predated SenderAvatarExtension: every sender
            wore the same blue, and "<hello@…>" wore a bracket. #}
         <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-semibold select-none
-                    {{ (message.fromAddress ?: message.fromName)|avatar_tone }}{{ binned ? ' opacity-50' : '' }}">
+                    {{ (message.fromAddress ?: message.fromName)|avatar_tone }}">
             {{ message.fromName|avatar_initial(message.fromAddress) }}
         </div>
 
@@ -141,7 +137,7 @@ Variables:
             data-action="click->mail--thread-message#toggle"
         >
             <div class="flex items-baseline gap-2 flex-wrap">
-                <span class="text-sm font-semibold {{ binned ? 'text-ink-muted' : 'text-ink' }} truncate">
+                <span class="text-sm font-semibold text-ink truncate">
                     {{ message.fromName ?: message.fromAddress }}
                 </span>
                 {# The address is the one half of this line the sender cannot
@@ -181,18 +177,6 @@ Variables:
                     </span>
                 {% endif %}
 
-                {# A message in the bin inside a conversation that is not. Trash
-                   is a system label, so the chips above never draw it; this is
-                   its chip, outlined like theirs and with the bin beside it so
-                   it is not read as a label the user made. #}
-                {% if binned %}
-                    <span class="inline-flex items-center gap-1 px-2 py-px rounded-full border
-                                 border-danger/40 text-[11px] leading-[1.35] text-danger shrink-0"
-                          data-testid="message-in-trash">
-                        <i class="fa-solid fa-trash text-[9px]" aria-hidden="true"></i>
-                        {{ 'message.in_trash'|trans }}
-                    </span>
-                {% endif %}
             </div>
 
             {% include 'mail/_reply_to_elsewhere.html.twig' with { message: message } only %}
