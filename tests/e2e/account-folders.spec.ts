@@ -39,4 +39,32 @@ test.describe("account folders modal", () => {
 
         await expect(modal).toBeHidden();
     });
+
+    /**
+     * New folder (#221) as far as a browser can take it without a mail server:
+     * the form opens inside the modal, and a name with the server's separator
+     * in it is refused there, with the reason, before any server is asked —
+     * which is the only reason this works against an account whose host does
+     * not exist. The modal stays open on the form, keeping what was typed.
+     */
+    test("refuses a folder name with the separator in it, inside the modal", async ({ page }) => {
+        await page.goto("/settings?section=accounts");
+
+        await page
+            .locator("#settings-account-list li")
+            .filter({ hasText: ACCOUNT })
+            .getByRole("button", { name: "Choose which folders to sync" })
+            .click();
+
+        const modal = page.locator("#modal-backdrop");
+
+        await modal.getByRole("link", { name: "New folder" }).click();
+        await expect(modal).toContainText(`New folder — ${ACCOUNT}`);
+
+        await modal.getByLabel("Name").fill("v1/2");
+        await modal.getByRole("button", { name: "Create folder" }).click();
+
+        await expect(modal.locator("[data-folder-error]")).toContainText("cannot contain “/”");
+        await expect(modal.getByLabel("Name")).toHaveValue("v1/2");
+    });
 });

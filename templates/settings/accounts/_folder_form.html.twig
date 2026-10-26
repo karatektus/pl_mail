@@ -40,6 +40,14 @@
         <input type="hidden" name="_token" value="{{ csrf_token(renaming ? 'account_folder_rename_' ~ mailbox.id : 'account_folder_new_' ~ account.id) }}">
 
         <div class="flex-1 min-h-0 px-6 pb-4 space-y-4 overflow-y-auto">
+            {# Said in the body as well: the dialog's own title is the one its
+               trigger gave it ("Folders — …") and does not change when the
+               frame moves on to this form. #}
+            <h3 data-folder-form-title class="text-sm font-medium text-ink">
+                {{- renaming
+                    ? 'settings.accounts.folders.rename.title'|trans({ '%folder%': mailbox.name })
+                    : 'settings.accounts.folders.new.title'|trans({ '%account%': account.displayAddress }) -}}
+            </h3>
             <p class="text-xs text-ink-muted leading-relaxed">{{ (renaming ? 'settings.accounts.folders.rename.intro' : 'settings.accounts.folders.new.intro')|trans }}</p>
 
             {% if error is not null %}
