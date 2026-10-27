@@ -164,6 +164,7 @@ export default class extends Controller {
         const preset = this.presets[select.value];
 
         if (preset === undefined) {
+            this._offerProtocols(null);
             this._renderNote(null);
             return;
         }
@@ -247,9 +248,10 @@ export default class extends Controller {
 
     /**
      * An explicit choice: the chosen protocol's server where the preset has
-     * one, and otherwise IMAP, or JMAP for a preset that is JMAP alone — a
-     * POP3 session pointed at an IMAP host would only fail at the connection
-     * test.
+     * one, and otherwise IMAP, or JMAP for a preset that is JMAP alone. The
+     * protocols the preset does not offer are then disabled, so it cannot be
+     * pointed at a server it has not got; clearing the dropdown gives them
+     * back (apply()).
      */
     _fill(preset) {
         let protocol = this._currentProtocol();
@@ -259,38 +261,37 @@ export default class extends Controller {
             this._choose(protocol);
         }
 
+        // After the switch, never before: a disabled radio is not submitted,
+        // and the checked one has to be.
+        this._offerProtocols(preset);
         this._fillFor(preset, protocol, true);
+    }
+
+    /** Disables the protocols a preset has no server for; null enables all three. */
+    _offerProtocols(preset) {
+        this.element.querySelectorAll('[name$="[incomingProtocol]"]').forEach((radio) => {
+            radio.disabled = preset !== null && this._block(preset, radio.value) === null;
+        });
     }
 
     /**
      * The protocol was switched with a preset chosen: the preset's server for
      * the new one, so Fastmail's IMAP host is not left in the JMAP field. Only
      * while the host is still one the preset put there — a host somebody typed
-     * is theirs. A preset without the new protocol keeps its place in the
-     * dropdown but takes its host out, rather than switching the radio back
-     * under the user's finger — and switching back to a protocol it has
-     * fills it in again.
+     * is theirs. The protocols the preset lacks are disabled (_fill()), so the
+     * new one is always one it has.
      */
     _refill(protocol) {
         const select = this._field("preset");
         const preset = select === null ? undefined : this.presets[select.value];
 
-        if (preset === undefined) {
+        if (preset === undefined || this._block(preset, protocol) === null) {
             return;
         }
 
         const host = this._value("imapHost");
-        const presetsHost = host !== "" && this._isPresetHost(preset, host);
 
-        if (this._block(preset, protocol) === null) {
-            if (presetsHost) {
-                this._set("imapHost", "");
-            }
-
-            return;
-        }
-
-        if (host === "" || presetsHost) {
+        if (host === "" || this._isPresetHost(preset, host)) {
             this._fillFor(preset, protocol, false);
         }
     }

@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:ae471dfb6b1d3879ed0e15938aa6bc22d35dc845 -->
+<!-- translated-from: features/accounts.md sha1:8414250c1074612400a044104c29f66603383051 -->
 
 # Konten und Aliase
 
@@ -52,7 +52,8 @@ Manche Anbieter bieten POP3 und SMTP an, aber gar kein IMAP. Für diese wählst 
 Formular unter **Protokoll für eingehende Mail** die Option **POP3**; der Port für eingehende Mail
 startet dann bei 995, also POP3 über SSL. Wählst du einen Eintrag aus der Liste **Anbieter**,
 trägt plMail dessen POP3-Server ein, wo es einen kennt; ein Anbieter ohne, etwa iCloud, stellt das
-Formular wieder auf IMAP.
+Formular wieder auf IMAP, und POP3 bleibt ausgegraut, bis du den Anbieter leerst oder einen anderen
+wählst.
 
 POP3 kennt ein Postfach und sonst nichts: keine Ordner, keine Markierungen und keinen Weg, dem
 Server etwas anderes mitzuteilen als „lösch das“. Ein POP3-Konto ist in plMail deshalb ein
