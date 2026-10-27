@@ -1,6 +1,6 @@
 # Accounts and aliases
 
-A plMail account is one mailbox you have somewhere else — an IMAP or POP3 server, Gmail, or
+A plMail account is one mailbox you have somewhere else — an IMAP, POP3 or JMAP server, Gmail, or
 Outlook — that plMail signs into and syncs. You can connect as many as you like; they sync
 independently and read as one inbox.
 
@@ -63,6 +63,17 @@ You can switch an existing account between IMAP and POP3 on its edit form. Its m
 next sync recognises what plMail already holds and does not store it again — by its Message-ID, or
 for the rare message without one, by its sender, subject and date. Folders other than the inbox
 keep their mail when an account becomes POP3, and stop syncing.
+
+## Adding a JMAP account
+
+A server that speaks JMAP — Stalwart, Fastmail, Cyrus — is added on the same form: choose **JMAP**
+under **Incoming protocol** and give the server's host name and an app password, or an API token
+with **The password is an API token** ticked. One login brings the account's mail, and its
+calendars and contacts too where the server has them, and sending goes through the server unless it
+offers no submission. Changes on the server arrive as they happen. An existing account can be
+switched between IMAP and JMAP on its edit form, keeping its mail.
+
+See [JMAP](../providers/jmap.md) for the rest.
 
 ## Adding Gmail or Outlook
 

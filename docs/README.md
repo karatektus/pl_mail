@@ -67,6 +67,7 @@ Each page names the exact console, the exact checkboxes and the exact redirect U
 | [Google](providers/google.md) | Cloud project, OAuth client, scopes for mail and calendar, Pub/Sub for Gmail push, calendar watch channels and domain verification |
 | [Microsoft](providers/microsoft.md) | Azure app registration, redirect URIs, delegated permissions, tenant choice, Graph subscriptions |
 | [IMAP and SMTP](providers/imap-smtp.md) | Plain mailboxes, IDLE, and the settings servers disagree about |
+| [JMAP](providers/jmap.md) | Stalwart, Fastmail and other JMAP servers: mail, calendars and contacts over one login, sending through the server, and push |
 | [CalDAV](providers/caldav.md) | Discovery, app passwords, and the servers that have been tested |
 | [CardDAV](providers/carddav.md) | Address books from Nextcloud and other servers: suggestions while writing, editing, and two-way sync |
 | [ICS feeds](providers/ics-feeds.md) | Subscribing to a published calendar by URL, and why some addresses are refused |
