@@ -13,16 +13,19 @@ What plMail does with the account once it is connected — aliases, per-account 
 **Settings → Mail accounts → Add account**, on the **IMAP / SMTP** tab, and choose **JMAP** under
 **Incoming protocol**.
 
-1. **Email address** and **Username** as for IMAP. On Stalwart the username is usually the address.
+1. On Fastmail, pick it from the **Provider** dropdown: that fills in its JMAP server, its session
+   URL and the API-token box. Otherwise, **Email address** and **Username** as for IMAP. On Stalwart
+   the username is usually the address.
 2. **Password** is an app password. On Fastmail it is an API token instead: tick **The password is
    an API token**, and the username is then not sent.
 3. **Incoming — JMAP** takes the server's host name. The port starts at 443; plMail looks for the
    session at `https://host/.well-known/jmap`, which is where servers publish it. Fill in **Session
    URL** only if yours is somewhere else — behind a reverse proxy that forwards only `/jmap`, for
    example.
-4. **Outgoing — SMTP** can stay empty. A server that offers JMAP submission sends your mail itself;
-   the connection test says **Sending goes through the JMAP server** when it does. Fill in SMTP only
-   for a server that does not, and that server keeps its own copy of what you send.
+4. **Outgoing — JMAP** has nothing to fill in. A server that offers JMAP submission sends your mail
+   itself; the connection test says **Sending goes through the JMAP server** when it does. Only for a
+   server that does not, **My server does not send over JMAP — use SMTP** brings back the SMTP
+   fields, and that server keeps its own copy of what you send.
 5. **Test connection** fetches the session, counts the mailboxes and checks for submission.
 
 Save, and the first sync starts. The Inbox comes in first, newest mail first, then everything else;

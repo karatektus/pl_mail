@@ -1,7 +1,13 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Prefills IMAP/SMTP settings from a shipped provider preset.
+ * Prefills an account's servers from a shipped provider preset, for whichever
+ * incoming protocol is chosen: every preset is an IMAP server, and a provider
+ * whose POP3 or JMAP server is known carries that too (config/mail_presets.yaml).
+ *
+ * It also shapes the outgoing half to the protocol. A JMAP server sends mail
+ * itself (JmapApiSender), so under JMAP the SMTP fields fold away behind an
+ * offer, for the server that does not; SMTP filled in already stays in view.
  *
  * Fields are resolved by name suffix (account[imapHost] → imapHost) rather
  * than by Stimulus targets, so the controller does not depend on the form
@@ -11,7 +17,10 @@ import { Controller } from "@hotwired/stimulus";
  * the whole table is a couple of kilobytes, so no round-trip is needed.
  */
 export default class extends Controller {
-    static targets = ["note", "incomingLabel", "pop3Options", "jmapOptions"];
+    static targets = [
+        "note", "incomingLabel", "pop3Options", "jmapOptions",
+        "outgoingLabel", "smtpFields", "smtpOffer", "jmapOutgoing",
+    ];
 
     /**
      * Where each incoming protocol starts: its SSL port, and the shape of a
@@ -34,6 +43,7 @@ export default class extends Controller {
 
     connect() {
         this.presets = this._readPresets();
+        this.smtpWanted = false;
         this.protocolChanged();
     }
 
@@ -88,6 +98,19 @@ export default class extends Controller {
         if (this.hasJmapOptionsTarget) {
             this.jmapOptionsTarget.classList.toggle("hidden", protocol !== "jmap");
         }
+
+        if (this.filling !== true) {
+            this._refill(protocol);
+        }
+
+        this._shapeOutgoing(protocol);
+    }
+
+    /** "Send through SMTP instead": the server does not send over JMAP. */
+    useSmtp() {
+        this.smtpWanted = true;
+        this._shapeOutgoing(this._currentProtocol());
+        this._field("smtpHost")?.focus();
     }
 
     /** Which radio is checked, defaulting to IMAP like the entity does. */
@@ -189,25 +212,159 @@ export default class extends Controller {
         select.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
+    /**
+     * An explicit choice: the chosen protocol's server where the preset has
+     * one, and otherwise IMAP, which every preset has — a POP3 session
+     * pointed at an IMAP host would only fail at the connection test.
+     */
     _fill(preset) {
-        // Every preset is an IMAP server, so choosing one is choosing IMAP:
-        // its host and port would mean nothing to a POP3 session.
-        const imap = this.element.querySelector('[name$="[incomingProtocol]"][value="imap"]');
+        let protocol = this._currentProtocol();
 
-        if (imap !== null && imap.checked === false) {
-            imap.checked = true;
-            this.protocolChanged();
+        if (this._block(preset, protocol) === null) {
+            protocol = "imap";
+            this._choose(protocol);
         }
 
-        this._set("imapHost", preset.imap.host);
-        this._set("imapPort", preset.imap.port);
-        this._set("imapEncryption", preset.imap.encryption);
+        this._fillFor(preset, protocol, true);
+    }
 
-        this._set("smtpHost", preset.smtp.host);
-        this._set("smtpPort", preset.smtp.port);
-        this._set("smtpEncryption", preset.smtp.encryption);
+    /**
+     * The protocol was switched with a preset chosen: the preset's server for
+     * the new one, so Fastmail's IMAP host is not left in the JMAP field. Only
+     * while the host is still one the preset put there — a host somebody typed
+     * is theirs. A preset without the new protocol is let go of, and its host
+     * with it, rather than switching the radio back under the user's finger.
+     */
+    _refill(protocol) {
+        const select = this._field("preset");
+        const preset = select === null ? undefined : this.presets[select.value];
 
-        this._renderNote(preset.note);
+        if (preset === undefined) {
+            return;
+        }
+
+        const host = this._value("imapHost");
+        const presetHosts = ["imap", "pop3", "jmap"]
+            .map((name) => this._block(preset, name)?.host)
+            .filter((value) => value !== undefined);
+
+        if (host !== "" && presetHosts.includes(host) === false) {
+            return;
+        }
+
+        if (this._block(preset, protocol) !== null) {
+            this._fillFor(preset, protocol, false);
+            return;
+        }
+
+        if (host !== "") {
+            this._set("imapHost", "");
+        }
+
+        this._select(select, "");
+    }
+
+    /**
+     * Writes a preset's servers for one protocol. Explicit (the dropdown)
+     * overwrites SMTP; a protocol switch only fills it where it is empty.
+     * Under JMAP the preset's SMTP is taken out again where it is still the
+     * preset's: the server sends, and SMTP left filled would keep the
+     * fallback unfolded for nothing.
+     */
+    _fillFor(preset, protocol, explicit) {
+        const incoming = this._block(preset, protocol);
+
+        this._set("imapHost", incoming.host);
+
+        if (protocol === "jmap") {
+            this._set("imapPort", this.constructor.PROTOCOLS.jmap.port);
+            this._set("jmapSessionUrl", incoming.sessionUrl ?? "");
+            this._setChecked("jmapTokenAuth", incoming.tokenAuth === true);
+
+            if (this._value("smtpHost") === preset.smtp.host) {
+                this._set("smtpHost", "");
+                this._set("smtpPort", "");
+            }
+        } else {
+            this._set("imapPort", incoming.port);
+            this._set("imapEncryption", incoming.encryption);
+
+            if (explicit || this._value("smtpHost") === "") {
+                this._set("smtpHost", preset.smtp.host);
+                this._set("smtpPort", preset.smtp.port);
+                this._set("smtpEncryption", preset.smtp.encryption);
+            }
+        }
+
+        this._renderNote(protocol === "jmap" ? (incoming.note ?? preset.note) : preset.note);
+        this._shapeOutgoing(protocol);
+    }
+
+    /** A preset's server for one protocol, or null where it has none. */
+    _block(preset, protocol) {
+        if (protocol === "imap") {
+            return preset.imap;
+        }
+
+        return preset[protocol] ?? null;
+    }
+
+    /** Ticks a protocol radio without refilling from the preset again. */
+    _choose(protocol) {
+        const radio = this.element.querySelector(`[name$="[incomingProtocol]"][value="${protocol}"]`);
+
+        if (radio === null || radio.checked) {
+            return;
+        }
+
+        radio.checked = true;
+        this.filling = true;
+
+        try {
+            this.protocolChanged();
+        } finally {
+            this.filling = false;
+        }
+    }
+
+    /**
+     * The outgoing heading, and under JMAP the SMTP fields folded behind an
+     * offer — unless SMTP is filled in already, or was asked for.
+     */
+    _shapeOutgoing(protocol) {
+        const jmap = protocol === "jmap";
+        const smtpShown = jmap === false || this.smtpWanted || this._value("smtpHost") !== "";
+
+        if (this.hasOutgoingLabelTarget) {
+            const heading = this.outgoingLabelTarget.dataset[jmap ? "headingJmap" : "headingSmtp"];
+
+            if (heading) {
+                this.outgoingLabelTarget.textContent = heading;
+            }
+        }
+
+        if (this.hasJmapOutgoingTarget) {
+            this.jmapOutgoingTarget.classList.toggle("hidden", jmap === false);
+        }
+
+        if (this.hasSmtpFieldsTarget) {
+            this.smtpFieldsTarget.classList.toggle("hidden", smtpShown === false);
+        }
+
+        if (this.hasSmtpOfferTarget) {
+            this.smtpOfferTarget.classList.toggle("hidden", jmap === false || smtpShown);
+        }
+    }
+
+    _setChecked(name, checked) {
+        const field = this.element.querySelector(`input[type="checkbox"][name$="[${name}]"]`);
+
+        if (field === null || field.checked === checked) {
+            return;
+        }
+
+        field.checked = checked;
+        field.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     _set(name, value) {

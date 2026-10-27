@@ -12,10 +12,13 @@ account:
             host: Host
         jmap:
             heading: 'Incoming — JMAP'
+            outgoing_heading: 'Outgoing — JMAP'
+            outgoing_help: 'The JMAP server sends your mail itself and files the copy in Sent, so there is nothing to fill in here.'
             session_url: 'Session URL'
             session_url_help: 'Leave blank to use the address above. Fill it in only if your server''s JMAP session is not at /.well-known/jmap.'
             token_auth: 'The password is an API token'
             token_auth_help: 'Tick this for servers such as Fastmail that give you a token instead of an app password. The username is then not sent.'
+            use_smtp: 'My server does not send over JMAP — use SMTP'
         password: Password
         pop3:
             delete_help: 'Kept on the server, a message is recognised next time by its UIDL and never fetched twice. Deleting frees space on the server, but plMail''s copy is then the only one left.'

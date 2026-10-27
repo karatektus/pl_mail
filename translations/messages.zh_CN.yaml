@@ -12,10 +12,13 @@ account:
             host: 主机
         jmap:
             heading: '收件 — JMAP'
+            outgoing_heading: '发件 — JMAP'
+            outgoing_help: 'JMAP 服务器会自行发送邮件，并把副本存入“已发送”，这里无需填写。'
             session_url: '会话 URL'
             session_url_help: '留空则使用上面的地址。只有当服务器的 JMAP 会话不在 /.well-known/jmap 时才需要填写。'
             token_auth: '密码是 API 令牌'
             token_auth_help: '如果服务器（例如 Fastmail）提供的是令牌而不是应用专用密码，请勾选此项。此时不会发送用户名。'
+            use_smtp: '我的服务器不通过 JMAP 发信 — 改用 SMTP'
         password: 密码
         pop3:
             delete_help: '留在服务器上的邮件会在下次同步时按 UIDL 识别，不会重复收取。从服务器删除可以释放空间，但之后只剩 plMail 中的这一份。'

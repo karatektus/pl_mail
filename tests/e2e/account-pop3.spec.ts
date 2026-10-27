@@ -7,8 +7,10 @@ import { acceptConfirm } from "./support/confirm";
  * Only the browser shows the form changing under the toggle: the section
  * heading names the protocol, the port moves to where that protocol starts
  * unless somebody typed one, the
- * delete option appears for POP3 alone, and choosing a provider preset — all
- * of which are IMAP servers — puts the radio back on IMAP. The second test
+ * delete option appears for POP3 alone, and a provider preset fills the
+ * chosen protocol's server — or puts the radio back on IMAP, which every
+ * preset has, for a provider with no POP3 server. A JMAP test does the same
+ * for JMAP, and shows SMTP folding away under it. The last test
  * saves a POP3 account and switches it to IMAP on the edit form, which is the
  * path IncomingProtocolSwitchTest covers on the server side.
  *
@@ -33,7 +35,7 @@ async function openAddForm(page: Page): Promise<void> {
 }
 
 /** The segment of the protocol toggle; the radio behind it is visually hidden. */
-async function chooseProtocol(page: Page, name: "IMAP" | "POP3"): Promise<void> {
+async function chooseProtocol(page: Page, name: "IMAP" | "POP3" | "JMAP"): Promise<void> {
     await page.locator("#modal").getByRole("radiogroup").getByText(name, { exact: true }).click();
 }
 
@@ -96,19 +98,63 @@ test.describe("account form — incoming protocol", () => {
         await expect(page.locator(`${DELETE_MODE} + .ts-wrapper`)).toBeVisible();
         await expect(page.locator(DELETE_MODE)).toHaveValue("keep");
 
-        // Every preset is an IMAP server; choosing one is choosing IMAP.
+        // A provider with a POP3 server fills it, and POP3 stays chosen.
         const preset = page.locator('select[name="account[preset]"]');
-        const first = await preset.locator("option").nth(1).getAttribute("value");
-        await preset.selectOption(first as string);
+        await preset.selectOption("gmx");
+
+        await expect(modal.getByLabel("POP3", { exact: true })).toBeChecked();
+        await expect(page.locator(HOST)).toHaveValue("pop.gmx.net");
+        await expect(page.locator(PORT)).toHaveValue("995");
+
+        // One without — iCloud has none — puts the radio back on IMAP.
+        await preset.selectOption("icloud");
 
         await expect(modal.getByLabel("IMAP", { exact: true })).toBeChecked();
         await expect(modal.getByText("Incoming — IMAP")).toBeVisible();
+        await expect(page.locator(HOST)).toHaveValue("imap.mail.me.com");
         await expect(page.locator(`${DELETE_MODE} + .ts-wrapper`)).toBeHidden();
 
-        // A port somebody typed is theirs: switching protocol leaves it.
+        // A port somebody typed is theirs: switching protocol leaves it. The
+        // preset has no POP3 server, so it is let go of, and its IMAP host
+        // with it, rather than left in a POP3 field.
         await page.locator(PORT).fill("110");
         await chooseProtocol(page, "POP3");
         await expect(page.locator(PORT)).toHaveValue("110");
+        await expect(page.locator(HOST)).toHaveValue("");
+        await expect(preset).toHaveValue("");
+    });
+
+    test("JMAP fills a provider's JMAP server, and SMTP folds away until it is asked for", async ({ page }) => {
+        await openAddForm(page);
+
+        const modal = page.locator("#modal");
+        const smtpHost = page.locator('input[name="account[smtpHost]"]');
+
+        await chooseProtocol(page, "JMAP");
+
+        await expect(modal.getByText("Outgoing — JMAP")).toBeVisible();
+        await expect(smtpHost).toBeHidden();
+
+        await page.locator('select[name="account[preset]"]').selectOption("fastmail");
+
+        await expect(modal.getByLabel("JMAP", { exact: true })).toBeChecked();
+        await expect(page.locator(HOST)).toHaveValue("api.fastmail.com");
+        await expect(page.locator(PORT)).toHaveValue("443");
+        await expect(page.locator('input[name="account[jmapSessionUrl]"]')).toHaveValue("https://api.fastmail.com/jmap/session");
+        await expect(page.locator('input[name="account[jmapTokenAuth]"]')).toBeChecked();
+        await expect(smtpHost).toBeHidden();
+        await expect(smtpHost).toHaveValue("");
+
+        await modal.getByRole("button", { name: "My server does not send over JMAP — use SMTP" }).click();
+        await expect(smtpHost).toBeVisible();
+
+        // Back to IMAP: the provider's IMAP server, and its SMTP beside it.
+        await chooseProtocol(page, "IMAP");
+
+        await expect(modal.getByText("Outgoing — SMTP")).toBeVisible();
+        await expect(page.locator(HOST)).toHaveValue("imap.fastmail.com");
+        await expect(page.locator(PORT)).toHaveValue("993");
+        await expect(smtpHost).toHaveValue("smtp.fastmail.com");
     });
 
     test("a POP3 account saves its delete mode and can be switched to IMAP", async ({ page }) => {

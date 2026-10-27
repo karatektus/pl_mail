@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:39475bc049d182cc5f74f8a88adf539500ecf56d -->
+<!-- translated-from: features/accounts.md sha1:ae471dfb6b1d3879ed0e15938aa6bc22d35dc845 -->
 
 # Konten und Aliase
 
@@ -50,8 +50,9 @@ Server uneinig sind.
 
 Manche Anbieter bieten POP3 und SMTP an, aber gar kein IMAP. Für diese wählst du im selben
 Formular unter **Protokoll für eingehende Mail** die Option **POP3**; der Port für eingehende Mail
-startet dann bei 995, also POP3 über SSL. Die Liste **Anbieter** enthält IMAP-Einstellungen —
-wählst du dort einen Eintrag, stellt sich das Formular wieder auf IMAP.
+startet dann bei 995, also POP3 über SSL. Wählst du einen Eintrag aus der Liste **Anbieter**,
+trägt plMail dessen POP3-Server ein, wo es einen kennt; ein Anbieter ohne, etwa iCloud, stellt das
+Formular wieder auf IMAP.
 
 POP3 kennt ein Postfach und sonst nichts: keine Ordner, keine Markierungen und keinen Weg, dem
 Server etwas anderes mitzuteilen als „lösch das“. Ein POP3-Konto ist in plMail deshalb ein
@@ -82,7 +83,9 @@ Ein Server, der JMAP spricht — Stalwart, Fastmail, Cyrus —, wird im selben F
 Wähl unter **Protokoll für eingehende Mail** **JMAP** und gib den Hostnamen des Servers und ein
 App-Passwort an, oder ein API-Token mit gesetztem Haken bei **Das Passwort ist ein API-Token**. Eine
 Anmeldung bringt die Mail des Kontos, und wo der Server sie hat, auch seine Kalender und Kontakte;
-gesendet wird über den Server, sofern er Submission anbietet. Änderungen auf dem Server kommen an,
+gesendet wird über den Server, sofern er Submission anbietet — deshalb klappt das Formular unter
+JMAP die SMTP-Felder weg, hinter **Mein Server versendet nicht über JMAP — SMTP verwenden**.
+Fastmail steht mit seinem JMAP-Server in der Liste **Anbieter**. Änderungen auf dem Server kommen an,
 sobald sie passieren. Ein bestehendes Konto lässt sich im Bearbeiten-Formular zwischen IMAP und
 JMAP umstellen, und seine Mail bleibt erhalten.
 

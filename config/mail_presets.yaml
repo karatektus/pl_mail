@@ -1,5 +1,13 @@
-# IMAP/SMTP presets shown in the "Provider" dropdown on the account form.
+# Provider presets shown in the "Provider" dropdown on the account form.
 #
+# imap:       required; every preset is an IMAP server
+# pop3:       optional; the provider's POP3 server, filled when POP3 is chosen
+# jmap:       optional; host, and where needed session_url (when the session is
+#             not at https://host/.well-known/jmap), token_auth (the password
+#             is an API token, sent as Bearer) and a note for JMAP only
+#             A provider gets one only where the server could be confirmed:
+#             a guessed host fails at the connection test, after the user has
+#             typed their password, so a provider left without one stays IMAP.
 # encryption: ssl | starttls | none  (must match the form choice values)
 # domains:    used to auto-detect a preset from the email address the user types
 # note:       optional hint rendered under the dropdown (translation-free, short)
@@ -12,6 +20,7 @@ presets:
         domains: ['gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch']
         note: 'IMAP muss im GMX-Webinterface unter Einstellungen erst aktiviert werden.'
         imap: { host: imap.gmx.net, port: 993, encryption: ssl }
+        pop3: { host: pop.gmx.net, port: 995, encryption: ssl }
         smtp: { host: mail.gmx.net, port: 587, encryption: starttls }
 
     gmx-com:
@@ -19,6 +28,7 @@ presets:
         group: Deutschland
         domains: ['gmx.com', 'gmx.us']
         imap: { host: imap.gmx.com, port: 993, encryption: ssl }
+        pop3: { host: pop.gmx.com, port: 995, encryption: ssl }
         smtp: { host: mail.gmx.com, port: 587, encryption: starttls }
 
     web-de:
@@ -27,6 +37,7 @@ presets:
         domains: ['web.de']
         note: 'IMAP muss im WEB.DE-Webinterface erst freigeschaltet werden.'
         imap: { host: imap.web.de, port: 993, encryption: ssl }
+        pop3: { host: pop3.web.de, port: 995, encryption: ssl }
         smtp: { host: smtp.web.de, port: 587, encryption: starttls }
 
     t-online:
@@ -35,6 +46,7 @@ presets:
         domains: ['t-online.de', 'magenta.de']
         note: 'Es wird ein separates E-Mail-Passwort benötigt, nicht das Telekom-Login.'
         imap: { host: secureimap.t-online.de, port: 993, encryption: ssl }
+        pop3: { host: securepop.t-online.de, port: 995, encryption: ssl }
         smtp: { host: securesmtp.t-online.de, port: 587, encryption: starttls }
 
     freenet:
@@ -42,6 +54,7 @@ presets:
         group: Deutschland
         domains: ['freenet.de']
         imap: { host: mx.freenet.de, port: 993, encryption: ssl }
+        pop3: { host: mx.freenet.de, port: 995, encryption: ssl }
         smtp: { host: mx.freenet.de, port: 587, encryption: starttls }
 
     mailbox-org:
@@ -49,6 +62,7 @@ presets:
         group: Deutschland
         domains: ['mailbox.org']
         imap: { host: imap.mailbox.org, port: 993, encryption: ssl }
+        pop3: { host: pop3.mailbox.org, port: 995, encryption: ssl }
         smtp: { host: smtp.mailbox.org, port: 465, encryption: ssl }
 
     posteo:
@@ -56,6 +70,7 @@ presets:
         group: Deutschland
         domains: ['posteo.de', 'posteo.net']
         imap: { host: posteo.de, port: 993, encryption: ssl }
+        pop3: { host: posteo.de, port: 995, encryption: ssl }
         smtp: { host: posteo.de, port: 465, encryption: ssl }
 
     mail-de:
@@ -63,6 +78,7 @@ presets:
         group: Deutschland
         domains: ['mail.de']
         imap: { host: imap.mail.de, port: 993, encryption: ssl }
+        pop3: { host: pop.mail.de, port: 995, encryption: ssl }
         smtp: { host: smtp.mail.de, port: 465, encryption: ssl }
 
     vodafone-de:
@@ -70,6 +86,7 @@ presets:
         group: Deutschland
         domains: ['vodafone.de', 'vodafonemail.de', 'arcor.de', 'kabelmail.de']
         imap: { host: imap.vodafonemail.de, port: 993, encryption: ssl }
+        pop3: { host: pop3.vodafonemail.de, port: 995, encryption: ssl }
         smtp: { host: smtp.vodafonemail.de, port: 587, encryption: starttls }
 
     netcologne:
@@ -100,6 +117,7 @@ presets:
         domains: []
         note: 'Benutzername ist die vollständige E-Mail-Adresse.'
         imap: { host: mail.your-server.de, port: 993, encryption: ssl }
+        pop3: { host: mail.your-server.de, port: 995, encryption: ssl }
         smtp: { host: mail.your-server.de, port: 587, encryption: starttls }
 
     ionos:
@@ -107,6 +125,7 @@ presets:
         group: Hosting
         domains: ['ionos.de', 'online.de']
         imap: { host: imap.ionos.de, port: 993, encryption: ssl }
+        pop3: { host: pop.ionos.de, port: 995, encryption: ssl }
         smtp: { host: smtp.ionos.de, port: 587, encryption: starttls }
 
     strato:
@@ -114,6 +133,7 @@ presets:
         group: Hosting
         domains: []
         imap: { host: imap.strato.de, port: 993, encryption: ssl }
+        pop3: { host: pop3.strato.de, port: 995, encryption: ssl }
         smtp: { host: smtp.strato.de, port: 465, encryption: ssl }
 
     domainfactory:
@@ -122,6 +142,7 @@ presets:
         domains: []
         note: 'Gemeinsamer Mailpool-Host; Benutzername ist die volle Adresse.'
         imap: { host: sslmailpool.ispgateway.de, port: 993, encryption: ssl }
+        pop3: { host: sslmailpool.ispgateway.de, port: 995, encryption: ssl }
         smtp: { host: sslmailpool.ispgateway.de, port: 465, encryption: ssl }
 
     ovh:
@@ -129,6 +150,7 @@ presets:
         group: Hosting
         domains: []
         imap: { host: ssl0.ovh.net, port: 993, encryption: ssl }
+        pop3: { host: ssl0.ovh.net, port: 995, encryption: ssl }
         smtp: { host: ssl0.ovh.net, port: 465, encryption: ssl }
 
     infomaniak:
@@ -136,6 +158,7 @@ presets:
         group: Hosting
         domains: ['ik.me', 'etik.com']
         imap: { host: mail.infomaniak.com, port: 993, encryption: ssl }
+        pop3: { host: mail.infomaniak.com, port: 995, encryption: ssl }
         smtp: { host: mail.infomaniak.com, port: 465, encryption: ssl }
 
     migadu:
@@ -143,6 +166,7 @@ presets:
         group: Hosting
         domains: []
         imap: { host: imap.migadu.com, port: 993, encryption: ssl }
+        pop3: { host: pop.migadu.com, port: 995, encryption: ssl }
         smtp: { host: smtp.migadu.com, port: 465, encryption: ssl }
 
     rackspace:
@@ -150,6 +174,7 @@ presets:
         group: Hosting
         domains: []
         imap: { host: secure.emailsrvr.com, port: 993, encryption: ssl }
+        pop3: { host: secure.emailsrvr.com, port: 995, encryption: ssl }
         smtp: { host: secure.emailsrvr.com, port: 465, encryption: ssl }
 
     # ── International ─────────────────────────────────────────────────────
@@ -159,6 +184,7 @@ presets:
         domains: ['gmail.com', 'googlemail.com']
         note: 'Requires an app password; prefer the OAuth tab instead.'
         imap: { host: imap.gmail.com, port: 993, encryption: ssl }
+        pop3: { host: pop.gmail.com, port: 995, encryption: ssl }
         smtp: { host: smtp.gmail.com, port: 587, encryption: starttls }
 
     outlook:
@@ -167,6 +193,7 @@ presets:
         domains: ['outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.com', 'live.de', 'msn.com']
         note: 'Microsoft has disabled basic auth for most tenants — use the OAuth tab.'
         imap: { host: outlook.office365.com, port: 993, encryption: ssl }
+        pop3: { host: outlook.office365.com, port: 995, encryption: ssl }
         smtp: { host: smtp-mail.outlook.com, port: 587, encryption: starttls }
 
     icloud:
@@ -183,6 +210,7 @@ presets:
         domains: ['yahoo.com', 'yahoo.de', 'ymail.com', 'rocketmail.com']
         note: 'Requires an app password.'
         imap: { host: imap.mail.yahoo.com, port: 993, encryption: ssl }
+        pop3: { host: pop.mail.yahoo.com, port: 995, encryption: ssl }
         smtp: { host: smtp.mail.yahoo.com, port: 465, encryption: ssl }
 
     aol:
@@ -190,6 +218,7 @@ presets:
         group: International
         domains: ['aol.com', 'aol.de']
         imap: { host: imap.aol.com, port: 993, encryption: ssl }
+        pop3: { host: pop.aol.com, port: 995, encryption: ssl }
         smtp: { host: smtp.aol.com, port: 465, encryption: ssl }
 
     fastmail:
@@ -198,6 +227,8 @@ presets:
         domains: ['fastmail.com', 'fastmail.fm']
         note: 'Requires an app password.'
         imap: { host: imap.fastmail.com, port: 993, encryption: ssl }
+        pop3: { host: pop.fastmail.com, port: 995, encryption: ssl }
+        jmap: { host: api.fastmail.com, session_url: 'https://api.fastmail.com/jmap/session', token_auth: true, note: 'Needs an API token from Fastmail''s settings, not an app password.' }
         smtp: { host: smtp.fastmail.com, port: 465, encryption: ssl }
 
     protonmail-bridge:
@@ -213,6 +244,7 @@ presets:
         group: International
         domains: ['zoho.eu']
         imap: { host: imap.zoho.eu, port: 993, encryption: ssl }
+        pop3: { host: pop.zoho.eu, port: 995, encryption: ssl }
         smtp: { host: smtp.zoho.eu, port: 465, encryption: ssl }
 
     zoho-com:
@@ -220,6 +252,7 @@ presets:
         group: International
         domains: ['zoho.com', 'zohomail.com']
         imap: { host: imap.zoho.com, port: 993, encryption: ssl }
+        pop3: { host: pop.zoho.com, port: 995, encryption: ssl }
         smtp: { host: smtp.zoho.com, port: 465, encryption: ssl }
 
     mail-com:
@@ -227,6 +260,7 @@ presets:
         group: International
         domains: ['mail.com', 'email.com', 'usa.com']
         imap: { host: imap.mail.com, port: 993, encryption: ssl }
+        pop3: { host: pop.mail.com, port: 995, encryption: ssl }
         smtp: { host: smtp.mail.com, port: 587, encryption: starttls }
 
     mailfence:
@@ -234,6 +268,7 @@ presets:
         group: International
         domains: ['mailfence.com']
         imap: { host: imap.mailfence.com, port: 993, encryption: ssl }
+        pop3: { host: pop.mailfence.com, port: 995, encryption: ssl }
         smtp: { host: smtp.mailfence.com, port: 465, encryption: ssl }
 
     runbox:
@@ -241,6 +276,7 @@ presets:
         group: International
         domains: ['runbox.com']
         imap: { host: imap.runbox.com, port: 993, encryption: ssl }
+        pop3: { host: mail.runbox.com, port: 995, encryption: ssl }
         smtp: { host: smtp.runbox.com, port: 465, encryption: ssl }
 
     purelymail:
@@ -248,6 +284,7 @@ presets:
         group: International
         domains: ['purelymail.com']
         imap: { host: imap.purelymail.com, port: 993, encryption: ssl }
+        pop3: { host: pop3.purelymail.com, port: 995, encryption: ssl }
         smtp: { host: smtp.purelymail.com, port: 465, encryption: ssl }
 
     hushmail:
@@ -255,6 +292,7 @@ presets:
         group: International
         domains: ['hushmail.com']
         imap: { host: imap.hushmail.com, port: 993, encryption: ssl }
+        pop3: { host: pop.hushmail.com, port: 995, encryption: ssl }
         smtp: { host: smtp.hushmail.com, port: 465, encryption: ssl }
 
     yandex:
@@ -262,6 +300,7 @@ presets:
         group: International
         domains: ['yandex.com', 'yandex.ru', 'ya.ru']
         imap: { host: imap.yandex.com, port: 993, encryption: ssl }
+        pop3: { host: pop.yandex.com, port: 995, encryption: ssl }
         smtp: { host: smtp.yandex.com, port: 465, encryption: ssl }
 
     mail-ru:
@@ -269,6 +308,7 @@ presets:
         group: International
         domains: ['mail.ru', 'inbox.ru', 'bk.ru', 'list.ru']
         imap: { host: imap.mail.ru, port: 993, encryption: ssl }
+        pop3: { host: pop.mail.ru, port: 995, encryption: ssl }
         smtp: { host: smtp.mail.ru, port: 465, encryption: ssl }
 
     seznam:
@@ -276,6 +316,7 @@ presets:
         group: International
         domains: ['seznam.cz', 'email.cz']
         imap: { host: imap.seznam.cz, port: 993, encryption: ssl }
+        pop3: { host: pop3.seznam.cz, port: 995, encryption: ssl }
         smtp: { host: smtp.seznam.cz, port: 465, encryption: ssl }
 
     wp-pl:
@@ -283,6 +324,7 @@ presets:
         group: International
         domains: ['wp.pl']
         imap: { host: imap.wp.pl, port: 993, encryption: ssl }
+        pop3: { host: pop3.wp.pl, port: 995, encryption: ssl }
         smtp: { host: smtp.wp.pl, port: 465, encryption: ssl }
 
     orange-fr:
@@ -290,6 +332,7 @@ presets:
         group: International
         domains: ['orange.fr', 'wanadoo.fr']
         imap: { host: imap.orange.fr, port: 993, encryption: ssl }
+        pop3: { host: pop.orange.fr, port: 995, encryption: ssl }
         smtp: { host: smtp.orange.fr, port: 465, encryption: ssl }
 
     free-fr:
@@ -297,6 +340,7 @@ presets:
         group: International
         domains: ['free.fr']
         imap: { host: imap.free.fr, port: 993, encryption: ssl }
+        pop3: { host: pop.free.fr, port: 995, encryption: ssl }
         smtp: { host: smtp.free.fr, port: 465, encryption: ssl }
 
     libero:
@@ -311,6 +355,7 @@ presets:
         group: International
         domains: ['comcast.net']
         imap: { host: imap.comcast.net, port: 993, encryption: ssl }
+        pop3: { host: pop.comcast.net, port: 995, encryption: ssl }
         smtp: { host: smtp.comcast.net, port: 587, encryption: starttls }
 
     qq:
@@ -318,6 +363,7 @@ presets:
         group: International
         domains: ['qq.com', 'foxmail.com']
         imap: { host: imap.qq.com, port: 993, encryption: ssl }
+        pop3: { host: pop.qq.com, port: 995, encryption: ssl }
         smtp: { host: smtp.qq.com, port: 465, encryption: ssl }
 
     netease-163:
@@ -325,4 +371,5 @@ presets:
         group: International
         domains: ['163.com', '126.com']
         imap: { host: imap.163.com, port: 993, encryption: ssl }
+        pop3: { host: pop.163.com, port: 995, encryption: ssl }
         smtp: { host: smtp.163.com, port: 465, encryption: ssl }

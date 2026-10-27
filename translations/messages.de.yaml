@@ -12,10 +12,13 @@ account:
             host: Server
         jmap:
             heading: 'Eingehend — JMAP'
+            outgoing_heading: 'Ausgehend — JMAP'
+            outgoing_help: 'Der JMAP-Server verschickt deine Mail selbst und legt die Kopie unter „Gesendet“ ab, hier ist also nichts auszufüllen.'
             session_url: 'Session-URL'
             session_url_help: 'Lass das Feld leer, dann wird die Adresse oben verwendet. Füll es nur aus, wenn die JMAP-Session deines Servers nicht unter /.well-known/jmap liegt.'
             token_auth: 'Das Passwort ist ein API-Token'
             token_auth_help: 'Setz den Haken bei Servern wie Fastmail, die dir statt eines App-Passworts ein Token geben. Der Benutzername wird dann nicht mitgeschickt.'
+            use_smtp: 'Mein Server versendet nicht über JMAP — SMTP verwenden'
         password: Passwort
         pop3:
             delete_help: 'Bleibt eine Nachricht auf dem Server, erkennt plMail sie beim nächsten Abruf an ihrer UIDL und lädt sie nie doppelt. Löschen schafft Platz auf dem Server, dann gibt es aber nur noch die Kopie in plMail.'

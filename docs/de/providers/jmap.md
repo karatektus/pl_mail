@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:0681136530ac6c406a6cc8fc7e07b76df7834e09 -->
+<!-- translated-from: providers/jmap.md sha1:ce608e4352ce512ae822a91bb02cbf42a226f243 -->
 
 # JMAP
 
@@ -17,16 +17,18 @@ dich erwartet.
 **Einstellungen → E-Mail-Konten → Konto hinzufügen**, auf dem Reiter **IMAP / SMTP**, und unter
 **Protokoll für eingehende Mail** **JMAP** wählen.
 
-1. **E-Mail-Adresse** und **Benutzername** wie bei IMAP. Bei Stalwart ist der Benutzername meist die
-   Adresse.
+1. Bei Fastmail wähl es aus der Auswahlliste **Anbieter**: Das trägt seinen JMAP-Server, seine
+   Session-URL und den Haken für das API-Token ein. Sonst **E-Mail-Adresse** und **Benutzername** wie
+   bei IMAP. Bei Stalwart ist der Benutzername meist die Adresse.
 2. **Passwort** ist ein App-Passwort. Bei Fastmail ist es stattdessen ein API-Token: Setz den Haken
    bei **Das Passwort ist ein API-Token**, dann wird der Benutzername nicht mitgeschickt.
 3. **Eingehend — JMAP** nimmt den Hostnamen des Servers. Der Port startet bei 443; plMail sucht die
    Session unter `https://host/.well-known/jmap`, wo Server sie veröffentlichen. Füll **Session-URL**
    nur aus, wenn deine woanders liegt — etwa hinter einem Reverse Proxy, der nur `/jmap` weiterreicht.
-4. **Ausgehend — SMTP** kann leer bleiben. Ein Server, der JMAP-Submission anbietet, versendet deine
-   Mail selbst; der Verbindungstest sagt dann **Gesendet wird über den JMAP-Server**. Füll SMTP nur
-   für einen Server aus, der das nicht kann — und der behält selbst eine Kopie dessen, was du sendest.
+4. Unter **Ausgehend — JMAP** ist nichts auszufüllen. Ein Server, der JMAP-Submission anbietet,
+   versendet deine Mail selbst; der Verbindungstest sagt dann **Gesendet wird über den JMAP-Server**.
+   Nur für einen Server, der das nicht kann, holt **Mein Server versendet nicht über JMAP — SMTP
+   verwenden** die SMTP-Felder zurück — und der behält selbst eine Kopie dessen, was du sendest.
 5. **Verbindung testen** holt die Session, zählt die Postfächer und prüft auf Submission.
 
 Speichern, und die erste Synchronisation beginnt. Zuerst kommt der Posteingang, die neueste Mail

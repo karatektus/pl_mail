@@ -41,8 +41,9 @@ See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree
 ## Adding a POP3 mailbox
 
 Some providers serve POP3 and SMTP and no IMAP at all. For those, choose **POP3** under **Incoming
-protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. The
-**Provider** list is IMAP settings, so picking an entry there switches the form back to IMAP.
+protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. Picking a
+provider from the **Provider** list fills in its POP3 server where plMail knows one; a provider
+without one, such as iCloud, switches the form back to IMAP.
 
 POP3 has one mailbox and nothing else: no folders, no flags, and no way to tell the server
 anything but "delete this". So in plMail a POP3 account is a single inbox. Reading, starring,
@@ -70,8 +71,10 @@ A server that speaks JMAP — Stalwart, Fastmail, Cyrus — is added on the same
 under **Incoming protocol** and give the server's host name and an app password, or an API token
 with **The password is an API token** ticked. One login brings the account's mail, and its
 calendars and contacts too where the server has them, and sending goes through the server unless it
-offers no submission. Changes on the server arrive as they happen. An existing account can be
-switched between IMAP and JMAP on its edit form, keeping its mail.
+offers no submission — which is why the form folds the SMTP fields away under JMAP, behind **My
+server does not send over JMAP — use SMTP**. Fastmail is in the **Provider** list with its JMAP
+server. Changes on the server arrive as they happen. An existing account can be switched between
+IMAP and JMAP on its edit form, keeping its mail.
 
 See [JMAP](../providers/jmap.md) for the rest.
 

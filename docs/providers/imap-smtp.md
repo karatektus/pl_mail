@@ -14,10 +14,11 @@ connection to come up, and about the handful of settings providers genuinely dis
 **Settings → Mail accounts → Add account**, on the **IMAP / SMTP** tab.
 
 1. Pick your provider from the **Provider** dropdown if it is there. plMail ships a list of common
-   providers and fills in host, port and encryption for both directions from it; several entries also
-   carry a short note about something that provider requires. The list is matched against the domain
-   of the address you type, so for most mailboxes the settings arrive before you have touched the
-   dropdown at all.
+   providers and fills in host, port and encryption for both directions from it — the POP3 or JMAP
+   server instead of the IMAP one when that is the protocol chosen and plMail knows the provider's;
+   several entries also carry a short note about something that provider requires. The list is
+   matched against the domain of the address you type, so for most mailboxes the settings arrive
+   before you have touched the dropdown at all.
 2. **Email address** is what the account is called in plMail's own interface. **Username** is
    what the server knows you as, and is also what the provider detection reads. On most servers
    these are the same string; on some they are not, which is what the two fields are for.
