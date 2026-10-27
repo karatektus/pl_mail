@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:0788c424c68ae88a35af8ea5ee6cdf1273b90144 -->
+<!-- translated-from: providers/jmap.md sha1:034ecb80dfdb3cd907a263f2d9f8f0efd757d431 -->
 
 # JMAP
 
@@ -63,6 +63,15 @@ Ein Server, der beides spricht — Stalwart tut es —, lässt sich im Bearbeite
 von IMAP auf JMAP umstellen. Seine Mail bleibt: Die erste JMAP-Synchronisation erkennt jede
 Nachricht, die plMail schon hat, an ihrer Message-ID und speichert sie nicht noch einmal. Zurück
 geht es genauso.
+
+## Ein anderes plMail
+
+plMail ist selbst ein JMAP-Server, also kann ein plMail die Mail eines anderen als Konto führen. Lege
+auf der anderen Instanz unter **Einstellungen → App-Passwörter** ein App-Passwort an; füge auf dieser
+ein JMAP-Konto hinzu, mit deiner Adresse dort als Benutzername, dem App-Passwort als Passwort und dem
+Hostnamen der anderen Instanz. Mail, Labels, Senden und Push funktionieren wie bei jedem JMAP-Server.
+Kalender und Kontakte kommen noch nicht mit: plMail veröffentlicht sie unter eigenen Namen, die das
+JMAP-Konto hier nicht liest.
 
 ## Fallstricke
 

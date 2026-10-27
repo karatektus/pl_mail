@@ -55,6 +55,15 @@ A server that speaks both — Stalwart does — can be switched from IMAP to JMA
 form. Its mail stays: the first JMAP sync recognises every message plMail already holds by its
 Message-ID and does not store it again. Switching back works the same way.
 
+## Another plMail
+
+plMail is a JMAP server too, so one plMail can hold another's mail as an account. On the other
+instance, make an app password under **Settings → App passwords**; on this one, add a JMAP account
+with your address there as the username, that app password as the password, and the other
+instance's host name. Mail, labels, sending and push work as with any JMAP server. Calendars and
+contacts do not come across yet: plMail publishes them under names of its own, which the JMAP
+account here does not read.
+
 ## Things that bite
 
 **A JMAP server on your own network is refused until an administrator allows it.** JMAP is HTTP,

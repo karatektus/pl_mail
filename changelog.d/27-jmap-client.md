@@ -7,7 +7,8 @@ imported Inbox first. Sending goes through the server, which files the copy in S
 calendars and address books are offered under **Settings → Calendars** and **Settings → Contacts**
 like a Google or Microsoft account's, and changes on the server arrive within seconds over push. An
 IMAP account on a server that speaks both can be switched to JMAP on its edit form, keeping its
-mail. See [JMAP](docs/providers/jmap.md).
+mail. plMail is a JMAP server itself, so one plMail can hold another's mail as an account, with an
+app password from the other one. See [JMAP](docs/providers/jmap.md).
 [#27](https://github.com/karatektus/pl_mail/issues/27).
 
 **Migration:** adds `message.jmap_id` and `label_binding.jmap_mailbox_id`, both empty on every
