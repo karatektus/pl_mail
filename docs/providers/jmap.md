@@ -60,9 +60,8 @@ Message-ID and does not store it again. Switching back works the same way.
 plMail is a JMAP server too, so one plMail can hold another's mail as an account. On the other
 instance, make an app password under **Settings → App passwords**; on this one, add a JMAP account
 with your address there as the username, that app password as the password, and the other
-instance's host name. Mail, labels, sending and push work as with any JMAP server. Calendars and
-contacts do not come across yet: plMail publishes them under names of its own, which the JMAP
-account here does not read.
+instance's host name. Mail, labels, sending, calendars and push work as with any JMAP server.
+Contacts do not come across yet: the other plMail does not publish its address book over JMAP.
 
 ## Things that bite
 

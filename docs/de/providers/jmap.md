@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:034ecb80dfdb3cd907a263f2d9f8f0efd757d431 -->
+<!-- translated-from: providers/jmap.md sha1:5b0fe3b2afc1ba859a889bd21c43e24326271faa -->
 
 # JMAP
 
@@ -69,9 +69,9 @@ geht es genauso.
 plMail ist selbst ein JMAP-Server, also kann ein plMail die Mail eines anderen als Konto führen. Lege
 auf der anderen Instanz unter **Einstellungen → App-Passwörter** ein App-Passwort an; füge auf dieser
 ein JMAP-Konto hinzu, mit deiner Adresse dort als Benutzername, dem App-Passwort als Passwort und dem
-Hostnamen der anderen Instanz. Mail, Labels, Senden und Push funktionieren wie bei jedem JMAP-Server.
-Kalender und Kontakte kommen noch nicht mit: plMail veröffentlicht sie unter eigenen Namen, die das
-JMAP-Konto hier nicht liest.
+Hostnamen der anderen Instanz. Mail, Labels, Senden, Kalender und Push funktionieren wie bei jedem
+JMAP-Server. Kontakte kommen noch nicht mit: Das andere plMail veröffentlicht sein Adressbuch nicht
+über JMAP.
 
 ## Fallstricke
 
