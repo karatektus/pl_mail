@@ -289,11 +289,15 @@ final class JsContactMapper
             $relatedTo[$relation['name']] = ['relation' => [$relation['label'] => true]];
         }
 
+        // A stored contact always has a display name, but it can be blank —
+        // one made from an address alone — and a blank `full` is noise.
+        $name = array_filter([
+            'components' => $components,
+            'full'       => '' === trim($contact->displayName) ? null : $contact->displayName,
+        ], static fn (mixed $value): bool => null !== $value && [] !== $value);
+
         return [
-            'name'           => [] === $components && null === $contact->displayName ? null : array_filter([
-                'components' => $components,
-                'full'       => $contact->displayName,
-            ], static fn (mixed $value): bool => null !== $value && [] !== $value),
+            'name'           => [] === $name ? null : $name,
             'nicknames'      => null === $contact->nickname ? null : ['n' => ['name' => $contact->nickname]],
             'organizations'  => null === $contact->company && null === $contact->department ? null : ['o' => array_filter([
                 'name'  => $contact->company,

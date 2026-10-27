@@ -94,7 +94,7 @@ final class JmapWriteBackTest extends KernelTestCase
 
     public function testALabelMadeHereBecomesAMailboxThere(): void
     {
-        $label = static::getContainer()->get(LabelResolver::class)->customChain(['Receipts', '2026'], $this->freshAccount());
+        $label = static::getContainer()->get(LabelResolver::class)->customChain(['Receipts', 'Year 2026'], $this->freshAccount());
         $this->em->flush();
 
         $this->propagator()->attachLabel([$this->only()], $label);
@@ -103,9 +103,9 @@ final class JmapWriteBackTest extends KernelTestCase
         $byName = array_column($this->server->mailboxes, null, 'name');
 
         self::assertArrayHasKey('Receipts', $byName);
-        self::assertSame($byName['Receipts']['id'], $byName['2026']['parentId'], 'the parent is made first and the child under it');
-        self::assertArrayHasKey($byName['2026']['id'], $this->server->emails[$this->emailId]['mailboxIds']);
-        self::assertSame($byName['2026']['id'], $label->bindingFor($this->freshAccount())?->jmapMailboxId, 'and the binding remembers it');
+        self::assertSame($byName['Receipts']['id'], $byName['Year 2026']['parentId'], 'the parent is made first and the child under it');
+        self::assertArrayHasKey($byName['Year 2026']['id'], $this->server->emails[$this->emailId]['mailboxIds']);
+        self::assertSame($byName['Year 2026']['id'], $label->bindingFor($this->freshAccount())?->jmapMailboxId, 'and the binding remembers it');
     }
 
     public function testDiscardingADraftDestroysTheEmail(): void

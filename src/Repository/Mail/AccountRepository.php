@@ -20,15 +20,6 @@ class AccountRepository extends ServiceEntityRepository
     }
 
     /**
-     * QueryBuilder because the ordering is an expression, not a field:
-     * LOWER(COALESCE(email, username)) sorts an account that has no display
-     * address under the one it logs in with, case-insensitively. findBy()
-     * orders by mapped fields and can express neither the fallback nor the
-     * case folding.
-     *
-     * @return iterable<Account>
-     */
-    /**
      * Every account a JMAP push channel should be held open for.
      *
      * Active, JMAP, and push left on — the same switch the Gmail and Graph
@@ -46,6 +37,15 @@ class AccountRepository extends ServiceEntityRepository
         ], ['id' => 'ASC']);
     }
 
+    /**
+     * QueryBuilder because the ordering is an expression, not a field:
+     * LOWER(COALESCE(email, username)) sorts an account that has no display
+     * address under the one it logs in with, case-insensitively. findBy()
+     * orders by mapped fields and can express neither the fallback nor the
+     * case folding.
+     *
+     * @return iterable<Account>
+     */
     public function findForUserOrderedByName(UserInterface $user): array
     {
         return $this->createQueryBuilder('account')

@@ -36,7 +36,7 @@ final class FakeJmapServer
      */
     public array $emails = [];
 
-    /** @var list<array{type: string, kind: string, id: string, state: int}> */
+    /** @var list<array{type: string, kind: 'created'|'updated'|'destroyed', id: string, state: int}> */
     private array $log = [];
 
     /** @var array<string, int> type => current state */
@@ -562,6 +562,7 @@ final class FakeJmapServer
         ];
     }
 
+    /** @param 'created'|'updated'|'destroyed' $kind */
     private function changed(string $type, string $kind, string $id): void
     {
         $this->log[] = ['type' => $type, 'kind' => $kind, 'id' => $id, 'state' => ++$this->states[$type]];

@@ -133,12 +133,12 @@ final readonly class LabelStructurePropagator
 
     /**
      * The id of the thing this label IS at the provider — a Gmail label, an
-     * Exchange folder, or a JMAP mailbox. Deliberately not the master category id, which travels
-     * separately: a category is a tag rather than a place, and the handler must
-     * not be able to address one as the other.
+     * Exchange folder, or a JMAP mailbox. Deliberately not the master category
+     * id, which travels separately: a category is a tag rather than a place,
+     * and the handler must not be able to address one as the other.
      */
     private function remoteIdOf(?LabelBinding $binding): ?string
     {
-        return $binding?->gmailLabelId ?? $binding?->graphFolderId ?? $binding?->jmapMailboxId;
+        return null === $binding ? null : ($binding->gmailLabelId ?? $binding->graphFolderId ?? $binding->jmapMailboxId);
     }
 }

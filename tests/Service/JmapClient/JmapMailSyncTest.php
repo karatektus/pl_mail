@@ -125,7 +125,7 @@ final class JmapMailSyncTest extends KernelTestCase
         $this->importToTheEnd();
 
         $message = $this->only();
-        $names   = $message->labels->map(static fn ($label) => $label->role?->value ?? $label->name)->toArray();
+        $names   = $message->labels->map(static fn ($label) => null !== $label->role ? $label->role->value : $label->name)->toArray();
         sort($names);
 
         self::assertSame(['Invoices', LabelRole::Inbox->value], $names);
