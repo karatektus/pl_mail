@@ -194,6 +194,26 @@ address the default project, and `stop` against a project that does not exist re
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
 reseed their own fixtures, so tests are independent and re-runnable.
 
+### Against a real JMAP server
+
+The JMAP client's tests run against a fake server built from the RFCs (`tests/Support/Jmap`). One
+more, `StalwartRoundTripTest`, runs the client against a real one — imports a seeded message, marks
+it read and checks the server has it read, sends a message through submission and finds it in
+Sent. It is skipped unless three variables name an account on a JMAP server, such as a
+[Stalwart](https://stalw.art/docs/install/docker) container started for the purpose. Use an account
+that holds nothing worth keeping: the test writes to it.
+
+```bash
+docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-entrypoint \
+  -e JMAP_TEST_SESSION_URL=http://stalwart:8080/.well-known/jmap \
+  -e JMAP_TEST_USERNAME=test@example.test -e JMAP_TEST_PASSWORD=secret \
+  app sh bin/test-unit.sh --group stalwart
+```
+
+The server has to be reachable from the test container by that name — on the same Docker network,
+or by an address the container can resolve. The test lets the client reach a private address,
+which the app itself refuses unless the host is in `INTEGRATIONS_ALLOWED_HOSTS`.
+
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
 hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release

@@ -1959,6 +1959,28 @@ class MessageRepository extends ServiceEntityRepository
      * gone by anything, so leaving it marked would only give the reaper
      * questions it can never answer.
      */
+    /**
+     * Drop every JMAP Email id an account's rows carry, keeping the rows.
+     *
+     * The JMAP half of unlocateAll(), for an account that stops reading over
+     * JMAP: the ids name nothing to the protocol it switches to, and a row
+     * that kept one would go on being patched and destroyed by JMAP jobs
+     * still on the queue. Recognised again by Message-ID if it ever switches
+     * back — see JmapEmailSyncer.
+     */
+    public function forgetJmapIds(Account $account): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.jmapId', ':nothing')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->execute();
+    }
+
     public function unlocateAll(Mailbox $mailbox): int
     {
         return (int) $this->getEntityManager()->createQueryBuilder()

@@ -72,6 +72,24 @@ class LabelBindingRepository extends ServiceEntityRepository
     }
 
     /**
+     * Unbind every remote JMAP mailbox from an account's labels, keeping the
+     * labels: what a switch away from JMAP leaves behind. See
+     * MessageRepository::forgetJmapIds().
+     */
+    public function forgetJmapMailboxIds(Account $account): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(LabelBinding::class, 'b')
+            ->set('b.jmapMailboxId', ':nothing')
+            ->where('b.account = :account')
+            ->andWhere('b.jmapMailboxId IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * QueryBuilder for `graphFolderId IS NOT NULL`: findBy() can ask for null,
      * but not for its negation.
      *
