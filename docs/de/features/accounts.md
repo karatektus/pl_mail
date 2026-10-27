@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:1a281ae8e816ae02be468dfb6a22654da564254d -->
+<!-- translated-from: features/accounts.md sha1:9ce94b5f6ce1b620a82f6a50e5d730f35a397069 -->
 
 # Konten und Aliase
 
@@ -146,7 +146,7 @@ Jede Zeile bietet:
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
-| **Zu synchronisierende Ordner wählen** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
+| **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -238,12 +238,20 @@ werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werd
 
 ### Ordner
 
-**Zu synchronisierende Ordner wählen** öffnet die Ordner des Kontos so, wie der Server sie hat:
+**Ordner** öffnet die Ordner des Kontos so, wie der Server sie hat:
 derselbe Baum, genauso verschachtelt, wie auch immer er aussieht. Ein Ordner ist ein Ort — jede
 Nachricht liegt in genau einem Ordner ihres Kontos —, und in dieser Liste verwaltest du Ordner. Sie
 erscheint nur bei IMAP-Konten: Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
 Anbieters und hat hier keine Ordnerliste. Ein Ordner, den der Server nicht mehr auflistet, wird
 nicht angezeigt.
+
+Denselben Dialog erreichst du am Konto im Bereich KONTEN der Seitenleiste. Die Zeile eines
+IMAP-Kontos hat einen ⋯-Knopf, dessen Menü **Neuer Ordner …** anbietet, das das Formular für dieses
+Konto öffnet, und **Ordner …**, das die Liste öffnet. Klappst du das Konto auf, enden seine Ordner
+mit **+ Neuer Ordner**; fährst du dort mit der Maus über einen deiner eigenen Ordner, erscheint ein
+Stift, der seine Umbenennung öffnet. Im Bereich
+LABELS trägt ein Label, das ein Ordner auf einem IMAP-Konto ist, statt eines Punkts einen Ordner in
+seiner Farbe, und sein Tooltip nennt das Konto — so unterscheidest du Ordner und reine Labels.
 
 #### Synchronisieren
 
@@ -284,9 +292,10 @@ Ein Name wird abgelehnt, bevor der Server gefragt wird, wenn er dort kein Ordner
   Zeilenumbruch;
 - er heißt auf der obersten Ebene „INBOX“, was jeder Server für den Posteingang reserviert.
 
-Einen Namen, den der Server selbst ablehnt — einen, den er nicht erlaubt, einen Ordner, den es beim
-Umbenennen schon gibt, ein Kontingent —, zeigt plMail mit den Worten des Servers, und nichts
-ändert sich.
+Klappt es, schließt sich der Dialog, die übliche Meldung unten am Bildschirm sagt es, und der Ordner
+steht sofort in der Seitenleiste. Einen Namen, den der Server selbst ablehnt — einen, den er nicht
+erlaubt, einen Ordner, den es beim Umbenennen schon gibt, ein Kontingent —, zeigt plMail mit den
+Worten des Servers, und nichts ändert sich.
 
 #### Umbenennen und löschen
 

@@ -127,7 +127,7 @@ Each row offers:
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
-| **Choose which folders to sync** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
+| **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -210,11 +210,18 @@ folders instead, and nothing has to be re-tagged.
 
 ### Folders
 
-**Choose which folders to sync** opens the account's folders as the server has them: the same tree,
+**Folders** opens the account's folders as the server has them: the same tree,
 nested the same way, whatever it looks like. A folder is a place — each message is in exactly one
 folder of its account — and this list is where folders are managed. It appears only for IMAP
 accounts: a Gmail or Microsoft account syncs through its provider's API and has no folder list here.
 A folder the server has stopped listing is not shown.
+
+The same dialog is on the account in the sidebar's ACCOUNTS section. An IMAP account's row has a
+⋯ button whose menu offers **New folder…**, which opens the form for that account, and
+**Folders…**, which opens the list. Expand the account and its folders end with **+ New folder**;
+with a mouse, hovering one of your own folders there shows a pencil that opens its rename. In the LABELS section a label that is a folder on an
+IMAP account wears a folder in its colour instead of a dot, and its tooltip names the account, so a
+folder and a plain label can be told apart.
 
 #### Syncing
 
@@ -249,8 +256,10 @@ A name is refused before the server is asked when it cannot be a folder there:
 - it contains `*` or `%`, which other mail apps cannot list reliably, or a line break;
 - it is "INBOX" at the top level, which every server reserves for the inbox.
 
-A name the server itself refuses — one it does not allow, a folder that already exists when you
-rename, a quota — is shown with the server's own words, and nothing changes.
+When it works, the dialog closes, the usual notice at the bottom of the screen says so, and the
+folder is in the sidebar at once. A name the server itself refuses — one it does not allow, a folder
+that already exists when you rename, a quota — is shown with the server's own words, and nothing
+changes.
 
 #### Rename and delete
 

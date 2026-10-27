@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:065fb946cd3accd3bfed2b8c0a7ce66730b2945f -->
+<!-- translated-from: features/mail.md sha1:efce64b278c96ec8639ed07b33f591df6444f4e7 -->
 
 # Mail
 
@@ -560,7 +560,8 @@ ein Label, das du anlegst, in plMail: Setzt du es auf eine Nachricht, markiert d
 verschiebt nichts.
 
 Die Ordner eines IMAP-Kontos erscheinen ebenfalls in der Seitenleiste — der Posteingang, Gesendet
-und jeder Ordner, den der Server hat. Das sind Orte, keine Markierungen: Jede Nachricht liegt in
+und jeder Ordner, den der Server hat; im Bereich LABELS trägt einer davon statt eines Punkts einen
+Ordner. Das sind Orte, keine Markierungen: Jede Nachricht liegt in
 genau einem davon, und **Verschieben nach** in einen davon oder eine Konversation darauf zu ziehen verschiebt
 die Mail auf dem Server dorthin. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst
 sie dort um und löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe

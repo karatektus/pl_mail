@@ -505,7 +505,8 @@ message, and renames and deletions are mirrored to Gmail and Microsoft; see
 create stays in plMail: putting it on a message tags the message and moves nothing.
 
 An IMAP account's folders show in the sidebar as well — the inbox, Sent, and every folder the server
-has. Those are places rather than tags: each message is in exactly one of them, and **Move to** one
+has; in the LABELS section one of those wears a folder instead of a dot. Those are places rather than
+tags: each message is in exactly one of them, and **Move to** one
 of them, or dragging a conversation onto it, moves the mail there on the server. Folders are made,
 renamed and deleted in the account's own folder list, never by making or renaming a label; see
 [Folders](accounts.md#folders).

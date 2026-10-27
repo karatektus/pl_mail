@@ -84,7 +84,15 @@ needed; existing bindings are kept.
 
 ### The actions
 
-`ImapFolderManager`, behind the folder list in Settings → Accounts (`AccountFoldersController`).
+`ImapFolderManager`, behind the folder list (`AccountFoldersController`). The list opens from
+Settings → Accounts → **Folders** and, for a plain IMAP account, from the ⋯ menu on the account's
+row in the sidebar (**New folder…**, **Folders…**). The account's folder list in the sidebar ends
+with **+ New folder**, and a pencil on its own folder rows opens a rename. An action that works
+answers with a turbo-stream — the app's toast, and both copies of the sidebar drawn again, so the
+folder is under its account and under LABELS without a reload (`_folder_done.stream.html.twig`);
+one that is refused stays in the dialog with the reason. In
+the LABELS section a label that is a folder on a plain IMAP account wears a folder instead of a dot
+(`SidebarCounts::folderAccountsOf()`), the one visual difference step 1 makes between the two.
 
 - **Create** — `CREATE`, then `SUBSCRIBE`, then the `Mailbox` row and its label as a sync would make
   them. "Already exists" counts as success. Any other refusal is `ImapFolderRefusedException` with
