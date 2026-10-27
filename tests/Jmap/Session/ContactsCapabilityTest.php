@@ -42,16 +42,17 @@ final class ContactsCapabilityTest extends JmapTestCase
         $this->sessions = self::getContainer()->get(SessionBuilder::class);
     }
 
-    public function testTheSessionAdvertisesTheVendorContactsUrn(): void
+    /**
+     * Both: plMail's own for autocomplete, duplicates and merge, and RFC
+     * 9610's now that there are address books a client may write to — see
+     * Capability::IETF_CONTACTS.
+     */
+    public function testTheSessionAdvertisesTheVendorAndTheRfcContactsUrns(): void
     {
         $session = $this->sessions->build($this->user);
 
         self::assertArrayHasKey('urn:plmail:params:jmap:contacts', $session['capabilities']);
-        self::assertArrayNotHasKey(
-            'urn:ietf:params:jmap:contacts',
-            $session['capabilities'],
-            'the standard URN promises an address book a client may write to',
-        );
+        self::assertArrayHasKey('urn:ietf:params:jmap:contacts', $session['capabilities']);
     }
 
     /** A capability a client may not declare in "using" is a capability it cannot call. */

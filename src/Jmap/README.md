@@ -865,14 +865,20 @@ statement that creates the need for it.
   anyway. A client that lists a capability it depends on in `using` — the
   obvious thing to do — would otherwise have its whole request refused with
   `unknownCapability` rather than merely losing the extension.
-- **Contacts are advertised as `urn:plmail:params:jmap:contacts`, and there is
-  no `Contact/get`, `Contact/query` or `Contact/set`.** RFC 8621 has no Contacts
-  section, and the JMAP Contacts draft describes an AddressBook of ContactCards
-  a client may create, update and destroy. plMail's `contact` table is written
-  only by the header harvest (`HarvestContactsService`) and read by two
-  features; there is no address book to write to. The method is called
-  `autocomplete` rather than `query` for the same honesty: a `/query` returns
-  ids for a `/get` to resolve, and this returns objects.
+- **Contacts are served under two URNs.** `urn:ietf:params:jmap:contacts` is
+  RFC 9610 — `AddressBook/get` and `/changes`, `ContactCard/get`, `/changes`,
+  `/query` (by `inAddressBook`) and `/set`, cards in JSContact — from the one
+  account `ContactAccountResolver` names. plMail's own contacts are the book
+  `plmail`; each mirrored address book is another, by its row id. Cards are
+  written through `JsContactMapper` and `VCardMapper::apply()`, the same pair
+  every sync uses (`Contact/ContactCards`), and `contact_change_log`, written
+  by `ContactChangeLogListener` inside the flush, is their state. A destroy
+  bins the contact. `urn:plmail:params:jmap:contacts` is plMail's own surface:
+  `Contact/autocomplete`, duplicates, merge and reference emails, which have no
+  RFC equivalent, beside its older `Contact/get`, `/query` and `/set`, which
+  the phone apps are to move off. `Contact/autocomplete` is named so rather
+  than `query` because a `/query` returns ids for a `/get` to resolve, and this
+  returns objects.
 - **`Contact/autocomplete` ranks by `frequency DESC, last_seen_at DESC`**, and
   the order is entirely the database's — nothing sorts the page in PHP, which
   would produce a list ordered only within the window the client asked for.

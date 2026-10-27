@@ -109,6 +109,12 @@ final class SessionBuilder
             if ($accountId === $calendarAccountId) {
                 $accountCapabilities[Capability::CALENDARS] = $this->calendarAccountCapabilities();
                 $accountCapabilities[Capability::IETF_CALENDARS] = $this->ietfCalendarAccountCapabilities();
+                // From the same one account, for the same reason; see
+                // ContactAccountResolver.
+                $accountCapabilities[Capability::IETF_CONTACTS] = [
+                    'maxAddressBooksPerCard' => 1,
+                    'mayCreateAddressBook' => false,
+                ];
             }
 
             $accounts[$accountId] = [
@@ -135,6 +141,7 @@ final class SessionBuilder
         if (null !== $calendarAccountId) {
             $primaryAccounts[Capability::CALENDARS] = $calendarAccountId;
             $primaryAccounts[Capability::IETF_CALENDARS] = $calendarAccountId;
+            $primaryAccounts[Capability::IETF_CONTACTS] = $calendarAccountId;
         }
 
         // Empty JMAP maps must serialise as {} rather than [].
@@ -158,6 +165,7 @@ final class SessionBuilder
                 Capability::PUSH => $this->pushCapabilities(),
                 Capability::CALENDARS => new \stdClass(),
                 Capability::IETF_CALENDARS => new \stdClass(),
+                Capability::IETF_CONTACTS => new \stdClass(),
                 Capability::APPEARANCE => $this->appearanceCapabilities($user),
                 // Empty at the top level on purpose: backfill progress is a
                 // property of one account, and every value lives in that

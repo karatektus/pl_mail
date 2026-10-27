@@ -9,6 +9,7 @@ use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\Change\CalendarChangeReader;
+use App\Service\Contacts\Change\ContactChangeReader;
 
 /**
  * Builds the StateChange object (RFC 8620 §7.1) that both EventSource and
@@ -41,6 +42,7 @@ final class StateChangeBuilder
         private readonly StateManager $stateManager,
         private readonly CalendarChangeReader $calendarChanges,
         private readonly CalendarAccountResolver $calendarAccounts,
+        private readonly ContactChangeReader $contactChanges,
     ) {
     }
 
@@ -74,6 +76,10 @@ final class StateChangeBuilder
         if (null !== $calendarAccount) {
             $snapshot[(string) $calendarAccount->id]['CalendarEvent'] = $this->calendarChanges->stateForUser((int) $user->id);
             $snapshot[(string) $calendarAccount->id]['Calendar'] = $this->calendarChanges->stateForUserCollections((int) $user->id);
+            // Contacts, from the same account (ContactAccountResolver) and the
+            // contact change log, for the same reason.
+            $snapshot[(string) $calendarAccount->id]['ContactCard'] = $this->contactChanges->cardState((int) $user->id);
+            $snapshot[(string) $calendarAccount->id]['AddressBook'] = $this->contactChanges->bookState((int) $user->id);
         }
 
         return $snapshot;

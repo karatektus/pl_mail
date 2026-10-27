@@ -108,6 +108,19 @@ final class Capability
     public const string CONTACTS = 'urn:plmail:params:jmap:contacts';
 
     /**
+     * RFC 9610, JMAP for Contacts: AddressBook and ContactCard, cards in
+     * JSContact (RFC 9553). A published standard, unlike calendars, and what
+     * Fastmail and Stalwart speak — so any JMAP client reads plMail's contacts,
+     * another plMail's among them (see App\Jmap\Contact\ContactCards).
+     *
+     * Beside CONTACTS rather than instead of it: that one is plMail's own
+     * autocomplete, duplicate and merge surface, with no RFC equivalent, which
+     * the phone apps use. Its Contact/get, /query and /set overlap this one and
+     * are for the apps to move off.
+     */
+    public const string IETF_CONTACTS = 'urn:ietf:params:jmap:contacts';
+
+    /**
      * Email templates: the user's reusable messages, the folders they are
      * sorted into, and rendering one for insertion. Per user, like APPEARANCE,
      * so it appears at the top level of the Session and under no account.
@@ -159,6 +172,7 @@ final class Capability
         self::APPEARANCE,
         self::SYNC,
         self::CONTACTS,
+        self::IETF_CONTACTS,
         self::TEMPLATES,
         self::KEYS,
         self::INBOX_TABS,
