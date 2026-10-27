@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Enum\Integration\Capability;
-use App\Domain\Enum\Mail\CategoryFiling;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Rule\MailRule;
 use App\Entity\Mail\Message;
@@ -65,15 +64,9 @@ final readonly class RuleActionExecutor
         private RuleCategoryFiler       $categoryFiler,
     ) {}
 
-    /**
-     * @return bool whether a File in category action was refused because the
-     *              sender could not be verified — counted by "Apply to
-     *              existing mail", which otherwise reports a match as done
-     */
-    public function execute(MailRule $rule, Message $message): bool
+    public function execute(MailRule $rule, Message $message): void
     {
         $touchedLabels = false;
-        $unverified    = false;
 
         foreach ($rule->actions as $action) {
             if (false === is_array($action)) {
@@ -84,11 +77,9 @@ final readonly class RuleActionExecutor
 
             // A tab, not a label: nothing about the message's labels or its
             // place at the provider changes, so there is no propagator call
-            // and no thread label re-sync to ask for. Whether it is allowed
-            // to file at all is RuleCategoryFiler's decision.
+            // and no thread label re-sync to ask for.
             if (self::FILE_IN_CATEGORY === $type) {
-                $unverified = CategoryFiling::SenderNotVerified === $this->categoryFiler->file($rule, $message, $action)
-                    || $unverified;
+                $this->categoryFiler->file($rule, $message, $action);
 
                 continue;
             }
@@ -101,8 +92,6 @@ final readonly class RuleActionExecutor
         if (true === $touchedLabels && null !== $thread) {
             $this->threadSynchronizer->sync($thread);
         }
-
-        return $unverified;
     }
 
     /**

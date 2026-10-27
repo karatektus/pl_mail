@@ -104,6 +104,28 @@ class MessageThread
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $categoryPinnedAt = null;
 
+    /**
+     * When the received message that placed this conversation in its tab
+     * happened — the message $category and $userCategory were taken from.
+     *
+     * Null while nothing received has placed it: a conversation of your own
+     * sent mail and drafts, one held for the assistant, or one too new to have
+     * been resolved.
+     *
+     * A conversation follows its newest RECEIVED message, not its newest
+     * message (#405). Your own reply is categorised like anything else, and
+     * when it decided, answering the recruiter took the conversation out of the
+     * "Bewerbung" tab the recruiter's mail had been filed in — a tab follows
+     * what other people send you, not what you send back. lastMessageAt cannot
+     * answer "newer than what placed it" once sent mail moves it too, and
+     * asking the database instead misses messages of the same batch not yet
+     * flushed, so the instant is kept here. See MessageThreader::adoptCategory()
+     * and the recompute statements in MessageThreadRepository, which write it
+     * by the same rule.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $categoryDecidedAt = null;
+
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $starredAt = null;
 

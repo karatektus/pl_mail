@@ -2475,20 +2475,15 @@ message:
     filter_check:
         button: '用此邮件测试我的过滤器'
         hide: '隐藏过滤器测试'
-        sender: '收件服务器是否验证了发件人：'
-        verdict:
-            pass: '是'
-            fail: '否 — 服务器认为邮件并非来自其声称的域名'
-            unknown: '未知 — 没有 plMail 可以信任的验证结果'
         none: '此账户没有启用任何过滤器。'
         state:
             matches: '匹配'
             no_match: '不匹配'
             stopped: '未执行：“%rule%”匹配后停止'
             broken: '其条件无法读取，已跳过'
+            spam: '已跳过：此邮件在垃圾邮件中，而此过滤器未指定垃圾邮件文件夹'
         filing:
             Filed: '会将其归入 %category%'
-            SenderNotVerified: '不会将其归入 %category%：发件人未经验证'
             NoCategory: '无处归档：该标签页已不存在'
     details:
         categorised:
@@ -3324,7 +3319,6 @@ settings:
             failed: '运行中途停止，已处理 %count% 封邮件'
             queued: '排队中…'
             running: '应用中…目前已处理 %count% 封'
-        run_unfiled: '%count% 封未归入标签页：收件服务器未验证发件人|%count% 封未归入标签页：收件服务器未验证发件人'
         run_confirm: '要将“%name%”应用到现有邮件吗？这可能会一次移动大量邮件并更改标签。'
         saved: '过滤器已保存。'
         spam_rule_name: '垃圾邮件：%sender%'

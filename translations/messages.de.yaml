@@ -2796,20 +2796,15 @@ message:
     filter_check:
         button: 'Meine Filter an dieser Nachricht testen'
         hide: 'Filtertest ausblenden'
-        sender: 'Absender vom empfangenden Server bestätigt:'
-        verdict:
-            pass: 'ja'
-            fail: 'nein — er sagt, die Nachricht stammt nicht von der angegebenen Domain'
-            unknown: 'unbekannt — kein Urteil, dem plMail trauen kann'
         none: 'Für dieses Konto ist kein Filter eingeschaltet.'
         state:
             matches: 'trifft zu'
             no_match: 'trifft nicht zu'
             stopped: 'nicht erreicht: „%rule%“ hört nach sich auf'
             broken: 'seine Bedingungen sind nicht lesbar; er wird übersprungen'
+            spam: 'übersprungen: Die Nachricht liegt im Spam, und dieser Filter nennt den Spam-Ordner nicht'
         filing:
             Filed: 'würde sie in %category% ablegen'
-            SenderNotVerified: 'würde sie nicht in %category% ablegen: Der Absender ist nicht bestätigt'
             NoCategory: 'nichts zum Ablegen: Der Tab existiert nicht mehr'
     details:
         categorised:
@@ -3753,7 +3748,6 @@ settings:
             failed: 'Lauf vorzeitig gestoppt — %count% Nachrichten waren erledigt'
             queued: 'In der Warteschlange…'
             running: 'Wird angewendet… bisher %count%'
-        run_unfiled: '%count% nicht im Tab abgelegt: Der empfangende Server hat den Absender nicht bestätigt|%count% nicht im Tab abgelegt: Der empfangende Server hat den Absender nicht bestätigt'
         run_confirm: '"%name%" auf vorhandene Mail anwenden? Das kann viele Nachrichten auf einmal verschieben und neu beschriften.'
         saved: Filter gespeichert.
         spam_rule_name: 'Spam: %sender%'

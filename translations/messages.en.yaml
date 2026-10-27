@@ -2792,20 +2792,15 @@ message:
     filter_check:
         button: 'Test my filters on this message'
         hide: 'Hide the filter test'
-        sender: 'Sender verified by the receiving server:'
-        verdict:
-            pass: 'yes'
-            fail: 'no — it says the message does not come from the domain it claims'
-            unknown: 'unknown — no verdict plMail can trust'
         none: 'No filter is switched on for this account.'
         state:
             matches: 'matches'
             no_match: 'does not match'
             stopped: 'not reached: "%rule%" stops after itself'
             broken: 'its conditions cannot be read; it is skipped'
+            spam: 'skipped: the message is in Spam, and this filter does not name the Spam folder'
         filing:
             Filed: 'would file it in %category%'
-            SenderNotVerified: 'would not file it in %category%: the sender is not verified'
             NoCategory: 'nothing to file in: the tab is gone'
     details:
         categorised:
@@ -3758,7 +3753,6 @@ settings:
             failed: 'Run stopped partway — %count% messages were done'
             queued: 'Queued…'
             running: 'Applying… %count% so far'
-        run_unfiled: '%count% not filed in the tab: the receiving server did not verify the sender|%count% not filed in the tab: the receiving server did not verify the sender'
         run_confirm: 'Apply "%name%" to mail you already have? This can move and relabel a lot of messages at once.'
         saved: Filter saved.
         spam_rule_name: 'Spam: %sender%'

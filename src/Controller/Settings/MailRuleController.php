@@ -307,7 +307,6 @@ final class MailRuleController extends AbstractController
 
         $rule->runState = RuleRunState::Queued;
         $rule->runProcessed = 0;
-        $rule->runUnfiled = 0;
         $rule->runStartedAt = null;
         $rule->runFinishedAt = null;
         $this->em->flush();

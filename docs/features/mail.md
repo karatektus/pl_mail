@@ -272,8 +272,9 @@ one that decided marked — the three disagree more often than you would think, 
 won is the difference between changing a setting and changing nothing.
 
 Two things the panel will tell you that are easy to mistake for bugs. A conversation takes **one**
-category, from its newest message, so a reply can carry the whole thread out of the tab an earlier
-message belongs in; the panel says so when that has happened. And a category you set by dragging the
+category, from the newest message you received in it, so an answer can carry the whole thread out of
+the tab an earlier message belongs in; the panel says so when that has happened. Your own replies
+do not count. And a category you set by dragging the
 conversation onto a tab holds against everything else, which the panel also says.
 
 If it is simply wrong, **Report** at the bottom of the panel says where it should have gone. That

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Rule;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
@@ -14,6 +15,8 @@ use App\Infrastructure\Messaging\Handler\ApplyMailRuleHandler;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\LabelResolver;
+use App\Service\Rule\MailRuleEngine;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -122,7 +125,6 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
 
         self::assertSame(RuleRunState::Completed, $rule->runState);
         self::assertSame(7, $rule->runProcessed, 'Every matching message should be counted.');
-        self::assertSame(0, $rule->runUnfiled, 'A rule that files into no tab has nothing to leave unfiled.');
         self::assertNotNull($rule->runStartedAt);
         self::assertNotNull($rule->runFinishedAt);
 
@@ -136,6 +138,69 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         }
 
         self::assertSame(7, $labelled);
+    }
+
+    /**
+     * Spam is left out of every filter that does not name it (#405): forged
+     * mail ends up there, and a filter is the last word on where mail is
+     * listed. On arrival and in "Apply to existing mail" alike — both ask
+     * RuleConditions. A filter with "Has label: Spam" is about Spam and gets
+     * exactly that.
+     */
+    public function testMailInSpamIsLeftAloneUnlessTheFilterNamesSpam(): void
+    {
+        $spam = self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Spam, $this->account);
+        $caught = $this->message('Please walk me, I am spam');
+        $caught->addLabel($spam);
+        $this->em->flush();
+
+        $plain = $this->rule('Walkers', ['subject' => 'walk me']);
+        $named = $this->rule('Spam walkers', ['operator' => 'AND', 'conditions' => [['subject' => 'walk me'], ['hasLabel' => $spam->id]]]);
+
+        $handler = self::getContainer()->get(ApplyMailRuleHandler::class);
+        $handler(new ApplyMailRuleMessage((int) $plain->id));
+
+        self::assertSame(7, $this->em->getRepository(MailRule::class)->find($plain->id)?->runProcessed, 'a filter that does not name Spam was applied to mail in Spam');
+
+        $handler(new ApplyMailRuleMessage((int) $named->id));
+
+        self::assertSame(1, $this->em->getRepository(MailRule::class)->find($named->id)?->runProcessed, 'a filter naming Spam did not reach it');
+
+        // Arrival: the same message through the engine.
+        $this->em->clear();
+        $caught  = $this->em->getRepository(Message::class)->findOneBy(['subject' => 'Please walk me, I am spam']);
+        $account = $this->em->getRepository(Account::class)->find($this->account->id);
+        self::assertNotNull($caught);
+        self::assertNotNull($account);
+
+        foreach ($this->em->getRepository(MailRule::class)->findBy(['usr' => $account->usr]) as $rule) {
+            $rule->isEnabled = 'Walkers' === $rule->name;
+        }
+        $this->em->flush();
+
+        $caught->removeLabel($this->em->getRepository(Label::class)->find($this->label->id) ?? $this->label);
+        self::getContainer()->get(MailRuleEngine::class)->applyToBatch([$caught], $account);
+
+        self::assertFalse(
+            $caught->labels->exists(fn ($i, Label $l): bool => $l->id === $this->label->id),
+            'a filter that does not name Spam labelled arriving spam',
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $conditions
+     */
+    private function rule(string $name, array $conditions): MailRule
+    {
+        $rule = new MailRule();
+        $rule->usr = $this->user;
+        $rule->name = $name;
+        $rule->conditions = $conditions;
+        $rule->actions = [['type' => 'applyLabel', 'labelId' => $this->label->id]];
+        $this->em->persist($rule);
+        $this->em->flush();
+
+        return $rule;
     }
 
     /**
@@ -193,7 +258,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $this->em->flush();
     }
 
-    private function message(string $subject): void
+    private function message(string $subject): Message
     {
         $message = new Message();
         $message->account = $this->account;
@@ -205,5 +270,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $message->hasAttachments = false;
 
         $this->em->persist($message);
+
+        return $message;
     }
 }

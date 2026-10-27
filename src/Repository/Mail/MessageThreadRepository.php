@@ -2681,26 +2681,40 @@ class MessageThreadRepository extends ServiceEntityRepository
                 -- rule in the same pass — and to NULL when that message was
                 -- filed nowhere, which is how a conversation leaves it. See
                 -- MessageThread::$userCategory.
-                user_category_id = sub.rule_category_id
+                user_category_id = sub.rule_category_id,
+                category_decided_at = sub.decided_at
             FROM (
                 -- The filter's verdict as it stands, on Gmail mail too: a filter
                 -- the reader wrote outranks Google's categories whatever they
                 -- told plMail about Google's own sorting.
-                SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id
+                SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id,
+                       CASE WHEN own.filed THEN NULL ELSE COALESCE(m.received_at, m.sent_at, m.created_at) END AS decided_at
                 FROM message m
+                CROSS JOIN LATERAL (
+                    -- Your own mail: filed under Sent or Drafts. Message::isFiledAsSent().
+                    SELECT EXISTS (SELECT 1 FROM message_label ml JOIN label l ON l.id = ml.label_id
+                                   WHERE ml.message_id = m.id AND l.role IN ('sent', 'drafts')) AS filed
+                ) own
                 WHERE m.category IS NOT NULL
                   -- A message held for the assistant has no say yet: its
                   -- category is the rules' guess, and adopting it is the
                   -- flicker holding exists to prevent. Message::$categoryHeldAt.
                   AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
                   AND m.thread_id IN (:threadIds)
-                ORDER BY m.thread_id, m.received_at DESC NULLS LAST
+                -- Newest RECEIVED message first; your own mail only when the
+                -- conversation has nothing else. MessageThread::$categoryDecidedAt.
+                ORDER BY m.thread_id, own.filed ASC, COALESCE(m.received_at, m.sent_at, m.created_at) DESC
             ) sub
             WHERE t.id = sub.thread_id
               AND t.category_pinned_at IS NULL
-              -- Only what moves: a phone is told about every row returned.
+              -- Only what moves: a phone is told about every row returned. The
+              -- instant can move without the tab — a newer message filed the
+              -- same way — and is written then too, so that the threader
+              -- weighs the next arrival against the right message; those few
+              -- conversations changed anyway, a message just joined them.
               AND (t.category IS DISTINCT FROM sub.category
-                   OR t.user_category_id IS DISTINCT FROM sub.rule_category_id)
+                   OR t.user_category_id IS DISTINCT FROM sub.rule_category_id
+                   OR t.category_decided_at IS DISTINCT FROM sub.decided_at)
             RETURNING t.id, t.account_id
             SQL,
             ['threadIds' => $threadIds],
@@ -2745,23 +2759,31 @@ class MessageThreadRepository extends ServiceEntityRepository
         $sql = <<<'SQL'
         UPDATE message_thread t
         SET category = sub.category,
-            user_category_id = sub.rule_category_id
+            user_category_id = sub.rule_category_id,
+            category_decided_at = sub.decided_at
         FROM (
-            SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id
+            SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category, m.rule_category_id,
+                   CASE WHEN own.filed THEN NULL ELSE COALESCE(m.received_at, m.sent_at, m.created_at) END AS decided_at
             FROM message m
+            CROSS JOIN LATERAL (
+                -- Your own mail: filed under Sent or Drafts. Message::isFiledAsSent().
+                SELECT EXISTS (SELECT 1 FROM message_label ml JOIN label l ON l.id = ml.label_id
+                               WHERE ml.message_id = m.id AND l.role IN ('sent', 'drafts')) AS filed
+            ) own
             WHERE m.category IS NOT NULL
               AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
               -- This account's conversations only. Without it the DISTINCT ON
               -- sorted every message on the installation, every user's, once
               -- per account re-sorted — and switching a tab on or off re-sorts.
               AND m.thread_id IN (SELECT id FROM message_thread WHERE account_id = :accountId)
-            ORDER BY m.thread_id, m.received_at DESC NULLS LAST
+            ORDER BY m.thread_id, own.filed ASC, COALESCE(m.received_at, m.sent_at, m.created_at) DESC
         ) sub
         WHERE t.id = sub.thread_id
           AND t.account_id = :accountId
           AND t.category_pinned_at IS NULL
           AND (t.category IS DISTINCT FROM sub.category
-               OR t.user_category_id IS DISTINCT FROM sub.rule_category_id)
+               OR t.user_category_id IS DISTINCT FROM sub.rule_category_id
+               OR t.category_decided_at IS DISTINCT FROM sub.decided_at)
         RETURNING t.id
         SQL;
 

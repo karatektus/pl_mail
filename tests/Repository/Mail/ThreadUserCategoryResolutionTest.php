@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
@@ -12,6 +13,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Label\LabelResolver;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -105,6 +107,46 @@ final class ThreadUserCategoryResolutionTest extends KernelTestCase
         self::assertNull($this->userCategoryOf($left), 'a conversation whose newest message is not filed is still in the tab');
         self::assertSame($shipping->id, $this->userCategoryOf($joined), 'a conversation whose newest message is filed is not in the tab');
         self::assertSame(MessageCategory::Promotions->value, $this->builtInOf($joined), 'the built-in category stopped following the newest message');
+    }
+
+    /**
+     * A conversation follows its newest RECEIVED message (#405). Fixture:
+     *   - "answered" the recruiter's mail, filed under Bewerbung, then your
+     *              reply (Sent, Primary, filed nowhere) a day later → still
+     *              Bewerbung and Updates, placed by the recruiter's mail.
+     *   - "started" only your own mail → your newest one places it, and
+     *              nothing received has: no instant.
+     * Starts from the opposite of the answer, as above.
+     */
+    #[DataProvider('bothStatements')]
+    public function testYourOwnMailDoesNotDecideAConversationWithReceivedMail(string $which): void
+    {
+        $bewerbung = $this->category('Bewerbung');
+        $sent      = self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Sent, $this->account);
+
+        $answered = $this->thread('answered');
+        $this->message($answered, '2026-03-01 09:00', MessageCategory::Updates, $bewerbung);
+        $this->message($answered, '2026-03-02 09:00', MessageCategory::Primary, null)->addLabel($sent);
+        $answered->userCategory = null;
+        $answered->category     = MessageCategory::Primary;
+
+        $started = $this->thread('started');
+        $this->message($started, '2026-03-01 09:00', MessageCategory::Primary, null)->addLabel($sent);
+        $this->message($started, '2026-03-02 09:00', MessageCategory::Social, null)->addLabel($sent);
+        $started->category = MessageCategory::Updates;
+        $this->em->flush();
+
+        $this->resolve($which, [$answered, $started]);
+
+        self::assertSame($bewerbung->id, $this->userCategoryOf($answered), 'your own reply took the conversation out of its tab');
+        self::assertSame(MessageCategory::Updates->value, $this->builtInOf($answered));
+        self::assertSame(
+            '2026-03-01 09:00:00',
+            $this->connection->fetchOne('SELECT category_decided_at FROM message_thread WHERE id = :id', ['id' => $answered->id]),
+        );
+
+        self::assertSame(MessageCategory::Social->value, $this->builtInOf($started), 'a conversation of your own mail is placed by the newest of it');
+        self::assertNull($this->connection->fetchOne('SELECT category_decided_at FROM message_thread WHERE id = :id', ['id' => $started->id]));
     }
 
     /**

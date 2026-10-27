@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Enum\Mail\CategoryFiling;
-use App\Domain\Enum\Mail\SenderVerdict;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
-use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Rule\MailRuleRepository;
-use App\Service\Mail\SenderAuthentication;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -20,35 +17,32 @@ use Psr\Log\LoggerInterface;
  * in the order they run, and what each would do — without doing any of it.
  *
  * Written for the question nobody could answer from the screen: why a tab
- * stayed empty although the filter "applied". A match is not a filing — File
- * in category also needs the receiving server to vouch for the sender — so
- * that action says which way RuleCategoryFiler would decide, through the same
- * code (check(), the side-effect-free half of file()). And the sender verdict
- * is given once, plainly, since it is the reason most often.
+ * stayed empty although the filter "applied". File in category says which way
+ * RuleCategoryFiler would decide, through the same code (check(), the
+ * side-effect-free half of file()).
  *
  * It follows what MailRuleEngine does with arriving mail: enabled rules only,
- * in order, the ones scoped to another account left out, and nothing after a
- * matching rule with "Stop after this filter" — those are reported as stopped
- * rather than silently missing.
+ * in order, the ones scoped to another account left out, a message in Spam
+ * left out of every filter that does not name Spam (RuleConditions), and
+ * nothing after a matching rule with "Stop after this filter" — those are
+ * reported as skipped or stopped rather than silently missing.
  */
 final readonly class RuleMessageCheck
 {
     public function __construct(
         private MailRuleRepository      $rules,
         private MessageRepository       $messages,
-        private EmailFilterCompiler     $compiler,
+        private RuleConditions          $conditions,
         private RuleCategoryFiler       $categoryFiler,
         private InboxCategoryRepository $categories,
-        private SenderAuthentication    $authentication,
         private LoggerInterface         $logger,
     ) {}
 
     /**
      * @return array{
-     *     verdict: SenderVerdict,
      *     rules: list<array{
      *         rule: MailRule,
-     *         state: 'matches'|'no_match'|'stopped'|'broken',
+     *         state: 'matches'|'no_match'|'stopped'|'broken'|'spam',
      *         stoppedBy: ?MailRule,
      *         actions: list<array{type: string, filing: ?CategoryFiling, category: ?string}>,
      *     }>,
@@ -71,10 +65,16 @@ final readonly class RuleMessageCheck
                 continue;
             }
 
+            if (true === $message->isSpam() && true === $this->conditions->skipsSpam($rule)) {
+                $results[] = ['rule' => $rule, 'state' => 'spam', 'stoppedBy' => null, 'actions' => []];
+
+                continue;
+            }
+
             try {
                 $matches = [] !== $this->messages->matchingIds(
                     [(int) $message->id],
-                    $this->compiler->compile($rule->conditions),
+                    $this->conditions->compile($rule),
                 );
             } catch (\Throwable $e) {
                 // The engine skips a rule whose conditions no longer compile,
@@ -108,10 +108,7 @@ final readonly class RuleMessageCheck
             }
         }
 
-        return [
-            'verdict' => $this->authentication->verdict($message),
-            'rules'   => $results,
-        ];
+        return ['rules' => $results];
     }
 
     /**

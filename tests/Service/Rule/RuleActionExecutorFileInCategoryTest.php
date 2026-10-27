@@ -24,7 +24,6 @@ use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
@@ -67,7 +66,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
 
         $message = $this->message($owner);
 
-        self::assertFalse($this->executor($category)->execute($rule, $message), 'a filed message was reported as unfiled');
+        $this->executor($category)->execute($rule, $message);
 
         self::assertSame($category, $message->ruleCategory);
         self::assertSame($category, $message->thread?->userCategory);
@@ -84,21 +83,14 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
 
         $message = $this->message($owner);
 
-        self::assertFalse(
-            $this->executor(null)->execute($rule, $message),
-            'a deleted tab is the filter\'s problem, not the sender\'s — it must not be counted as unverified',
-        );
+        $this->executor(null)->execute($rule, $message);
 
         self::assertNull($message->ruleCategory);
         self::assertNull($message->thread?->userCategory);
     }
 
-    /**
-     * "Apply to existing mail" counts these. A run that matched 81 messages
-     * and filed none of them used to read "Applied to 81 messages" and leave
-     * an empty — so invisible — tab, with nothing to say why.
-     */
-    public function testAnUnverifiedSenderIsReportedBackToTheCaller(): void
+    /** No sender check on the message — your own sent mail — and it files all the same (#405). */
+    public function testAMessageWithoutASenderCheckIsFiled(): void
     {
         $owner          = new User();
         $category       = new InboxCategory();
@@ -112,8 +104,8 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
         $message          = $this->message($owner);
         $message->headers = [];
 
-        self::assertTrue($this->executor($category)->execute($rule, $message));
-        self::assertNull($message->ruleCategory);
+        $this->executor($category)->execute($rule, $message);
+        self::assertSame($category, $message->ruleCategory);
     }
 
     // ── fixture ──────────────────────────────────────────────────────────────
@@ -152,7 +144,6 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
             new NullLogger(),
             new RuleCategoryFiler(
                 $categories,
-                new SenderAuthentication(),
                 $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),

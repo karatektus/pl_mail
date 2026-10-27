@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:3d50d39448dfbac508b6da8e9c06a2145c197aa2 -->
+<!-- translated-from: internals/mail-ingest.md sha1:c31674cb0b803f3d468ae106f4ebff01e4cb6bc8 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -195,10 +195,18 @@ davon würde ein dort abgelegtes Urteil löschen. Das Urteil steht stattdessen i
 `Message::$ruleCategory`, das nichts neu berechnet, und `RuleCategoryFiler` lässt dann die
 Konversation über `MessageThreader::refreshCategory()` neu auflösen — neueste gewinnt, pin-bewusst,
 Hold-bewusst, wie bei der eingebauten Kategorie. `MessageThread::$userCategory` ist die Seite der
-Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Eine Nachricht
-wird nur abgelegt, wenn `SenderAuthentication` `Pass` sagt; wessen Urteil geglaubt wird, steht in
-dessen Docblock. Der Filter legt auch Mail mit Gmail-Labels ab: Die Kategorien des Anbieters haben
-Vorrang vor plMails eigener Sortierung, nicht vor einer Anweisung, die die Nutzerin geschrieben hat.
+Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Abgelegt wird,
+worauf der Filter zutrifft, was auch immer die Absenderprüfung sagt (#405); `RuleConditions` lässt
+Mail im Spam aus jedem Filter heraus, der ihn nicht nennt. Der Filter legt auch Mail mit
+Gmail-Labels ab: Die Kategorien des Anbieters haben Vorrang vor plMails eigener Sortierung, nicht
+vor einer Anweisung, die die Nutzerin geschrieben hat.
+
+„Neueste“ heißt die neueste **empfangene** Nachricht. Mail unter Gesendet oder Entwürfe
+(`Message::isFiledAsSent()`) legt eine Konversation nur ab, die nichts Empfangenes abgelegt hat;
+eine Antwort nimmt eine Konversation also nicht aus ihrem Tab. `MessageThread::$categoryDecidedAt`
+hält fest, wann die Nachricht geschah, die sie abgelegt hat. Der Threader misst Neuankömmlinge
+daran statt an `lastMessageAt`, das auch deine eigene Mail bewegt. Die Neuberechnungs-Statements
+sortieren deine eigene Mail ans Ende und schreiben denselben Zeitpunkt.
 
 Eine eingebaute Kategorie, die die Nutzerin ausgeschaltet hat (`CategorySorting::$disabled`),
 bekommt keine Mail. `MessageCategorizer::explain()` macht aus dem, was die Kaskade entschieden hat —

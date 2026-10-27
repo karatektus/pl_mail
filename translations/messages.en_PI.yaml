@@ -2674,20 +2674,15 @@ message:
     filter_check:
         button: 'Try me sortin'' orders on this yarn'
         hide: 'Stow the sortin'' trial'
-        sender: 'Sender vouched for by the harbour:'
-        verdict:
-            pass: 'aye'
-            fail: 'nay — the harbour says it sailed under false colours'
-            unknown: 'none can say — no word plMail can trust'
         none: 'No sortin'' order be hoisted for this ship.'
         state:
             matches: 'catches it'
             no_match: 'lets it pass'
             stopped: 'never reached: "%rule%" drops anchor after itself'
             broken: 'its orders be unreadable; it be skipped'
+            spam: 'passed over: she lies in the Spam bilge, an'' this sortin'' never names it'
         filing:
             Filed: 'would stow it in %category%'
-            SenderNotVerified: 'would not stow it in %category%: the sender be unvouched'
             NoCategory: 'nowhere to stow it: the hold be gone'
     details:
         categorised:
@@ -3599,7 +3594,6 @@ settings:
             failed: 'Run ran aground — %count% yarns were done'
             queued: 'Awaitin'' the crew…'
             running: 'Workin''… %count% so far'
-        run_unfiled: '%count% yarn left out o'' the tab: the harbour never vouched for the sender|%count% yarns left out o'' the tab: the harbour never vouched for the sender'
         run_confirm: 'Run "%name%" over the yarns already aboard? It can shift and re-flag a great many at once.'
         saved: Sieve saved.
         spam_rule_name: 'Bilge: %sender%'

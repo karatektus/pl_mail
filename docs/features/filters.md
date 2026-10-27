@@ -126,6 +126,13 @@ new mail, and a rule firing there would re-file mail you had already sorted by h
 A broken filter never fails a sync. A rule whose conditions no longer compile is skipped with a
 warning, and an action that throws is logged and the message left alone.
 
+### Spam is left alone
+
+Filters skip mail in **Spam**, as it arrives and when you apply a filter to existing mail. Forged
+mail ends up there, and a filter that lifted a fake "your parcel is waiting" out of Spam and into
+your Shipping tab would do the forger's work. A filter that is about Spam says so: add the condition
+**Has label** *Spam*, and that filter sees Spam and nothing else. Trash is not skipped.
+
 ## Applying a filter to mail that already arrived
 
 **Apply to existing mail** on a saved filter walks your whole mailbox and applies it to everything
@@ -137,11 +144,8 @@ the filter after every batch of 200, so the row reads **Applying… 1,400 so far
 that on a reload, on another device, or after you close the tab. It ends as **Applied to N
 messages**, or **Run stopped partway — N messages were done** if something failed.
 
-N counts the messages the filter **matched**. For a filter that files into a tab of your own, a
-second line says how many of them it could not file, because the receiving server did not verify
-their sender (see [Filing into your own tabs](#filing-into-your-own-tabs)): **12 not filed in the
-tab: the receiving server did not verify the sender**. Without that line, a run that filed nothing
-would read as done.
+N counts the messages the filter **matched**, in every folder: your Sent mail too, and Spam only
+if the filter names it (see [Spam is left alone](#spam-is-left-alone)).
 
 A filter already running refuses to start again: re-running mid-flight would double-count progress
 and race the handler's writes.
@@ -154,10 +158,10 @@ filter switched on for that message's account, in the order they run, and says o
 move.
 
 It is the place to look when a filter "applied" and nothing happened. **File in category** says
-whether it would file the message, and if not, why: the line above the list says whether the
-receiving server verified the sender, which is what that action needs (see below). A filter after
-one with **Stop after this filter** is shown as not reached, and one whose conditions can no longer
-be read as skipped, as arriving mail would treat them.
+whether it would file the message, and if not, why. A filter after one with **Stop after this
+filter** is shown as not reached, one whose conditions can no longer be read as skipped, and on a
+message in Spam every filter that does not name Spam as skipped too, as arriving mail would treat
+them.
 
 ## Filing into your own tabs
 
@@ -188,22 +192,25 @@ is easy to see there and hard to see afterwards.
 
 What the action will and will not file:
 
-- **Only mail whose sender passes authentication.** The receiving mail server records whether the
-  message really came from the domain in its From line, and plMail reads that verdict (the same one
-  that decides whether a calendar invitation may be applied without asking). A forged "your parcel
-  is waiting" from a carrier's domain is therefore not filed by this filter — it stays where the
-  ordinary rules put it, instead of sitting in your Shipping tab beside the real ones. Mail that
-  fails the check is not filed, and neither is mail plMail cannot check; see "Things that bite" for
-  what this does and does not guarantee.
+- **Everything the filter matches.** A filter outranks every other way mail is sorted: the
+  built-in rules, the language model and Google's categories. Whether the receiving server
+  verified the sender plays no part. It used to, and that left out your own sent mail, which has
+  no such verdict, and mail a platform sends on somebody's behalf, such as a job application
+  answered through a recruiting system. The verdict still decides whether a calendar invitation
+  may be applied without asking.
+- **Not mail in Spam**, unless the filter names Spam. See [Spam is left alone](#spam-is-left-alone).
 - **On Gmail accounts too.** Google's categories outrank plMail's own sorting unless you say
   otherwise, but a filter is an instruction you wrote, and it outranks both.
 - **Nothing but a tab.** The action does not touch labels, does not archive, does not move anything
   to Spam and does not mark anything read. The Android app shows your tabs; other mail apps that
   connect over JMAP keep seeing the five built-in categories.
 
-A conversation is in **one** tab. It is in yours when its newest message was filed there, so a
-newer message no filter claims takes it back out, the way a newer Promotions message takes a
-conversation out of Updates. A conversation you drag onto a tab stays there whatever a filter says.
+A conversation is in **one** tab. It is in yours when the newest message you **received** in it was
+filed there, so a newer message no filter claims takes it back out, the way a newer Promotions
+message takes a conversation out of Updates. Your own replies and drafts never move a conversation:
+answering a mail in your Applications tab leaves the conversation there. Only a conversation you
+started, with no answer yet, is placed by your own mail. A conversation you drag onto a tab stays
+there whatever a filter says.
 
 When two filters would file the same message, the one that runs **last** decides; **Stop after this
 filter** on the earlier one is how you keep its choice.
@@ -250,20 +257,11 @@ same pass; it is not a permanent mark on the message.
 construction** — the list only offers upload-capable connections. If the one you want is missing,
 that is why.
 
-**"File in category" files nothing on an account whose receiving server plMail cannot identify.**
-It trusts only the authentication verdict a server it can tell is yours wrote into the message — for
-an IMAP account, one whose name is on the same domain as the account's IMAP host. On a mailbox
-where that cannot be told (a host that stamps nothing, or stamps under another name), a filter
-that files into a tab matches, runs and files nothing. That is the price of a tab that cannot be
-filled with forgeries, and it is chosen, not a bug.
-
-**The check is about the message, and it only helps if the filter names the sender.** A filter whose
-conditions do not pin the sender — "Subject contains parcel", say — files any sender whose own
-domain passes authentication, a lookalike domain included: authentication proves a message came from
-the domain it claims, not that the domain is the one you meant. Pin the sender with **Sender's
-domain is**. And a tab holds conversations, not messages: a forged message that replies into a
-genuine conversation (the same sender address, a "Re:" subject) can join it, and a conversation you
-dragged into a tab stays there whatever joins it afterwards.
+**A tab does not vouch for its mail.** A filter files what its conditions match, and a From line is
+something anybody can write. What keeps a forged "your parcel is waiting" out of your Shipping tab
+is your mail server putting it in Spam, where filters do not look. One that gets past the server's
+spam check and matches the filter is filed like the real thing. Pin the sender with **Sender's
+domain is** rather than matching on the subject, which narrows it to forgeries of that domain.
 
 **A filing is remembered, and editing or deleting the filter does not undo it.** Like every other
 action, it acts on mail and leaves the result: mail a filter filed stays filed. To re-file, change

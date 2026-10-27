@@ -161,15 +161,6 @@ Variables:
                                 {% endif %}
                                 {{ ('settings.filters.run_state.' ~ rule.runState.value)|trans({ '%count%': rule.runProcessed }) }}
                             </p>
-                            {# A match is not a filing: without this a run that filed
-                               nothing read as done, and the tab stayed empty with
-                               nothing to say why. #}
-                            {% if rule.runUnfiled > 0 %}
-                                <p class="mt-0.5 text-[11px] flex items-center gap-1.5 text-warning">
-                                    <i class="fa-solid fa-triangle-exclamation text-[9px]" aria-hidden="true"></i>
-                                    {{ 'settings.filters.run_unfiled'|trans({ '%count%': rule.runUnfiled }) }}
-                                </p>
-                            {% endif %}
                         {% endif %}
                     </div>
 

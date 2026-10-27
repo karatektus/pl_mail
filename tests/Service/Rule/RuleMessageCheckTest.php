@@ -7,19 +7,21 @@ namespace App\Tests\Service\Rule;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Mail\CategoryFiling;
-use App\Domain\Enum\Mail\SenderVerdict;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
 use App\Jmap\Query\EmailFilterCompiler;
+use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Rule\MailRuleRepository;
-use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleCategoryFiler;
+use App\Service\Rule\RuleConditions;
 use App\Service\Rule\RuleMessageCheck;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;
@@ -31,8 +33,9 @@ use Psr\Log\NullLogger;
  *
  * Matching itself is Postgres's (MessageRepository::matchingIds), so it is
  * stubbed here by subject: what is under test is the walk — order, account
- * scope, stop-after — and the File in category verdict, which goes through
- * RuleCategoryFiler::check() and must agree with what file() would decide.
+ * scope, Spam, stop-after — and the File in category verdict, which goes
+ * through RuleCategoryFiler::check() and must agree with what file() would
+ * decide.
  */
 final class RuleMessageCheckTest extends TestCase
 {
@@ -42,10 +45,17 @@ final class RuleMessageCheckTest extends TestCase
 
     private User $owner;
     private InboxCategory $newsletter;
+    private Label $spam;
 
     protected function setUp(): void
     {
         $this->owner = new User();
+
+        $this->spam       = new Label();
+        $this->spam->usr  = $this->owner;
+        $this->spam->name = 'Spam';
+        $this->spam->role = LabelRole::Spam;
+        new \ReflectionProperty(Label::class, 'id')->setValue($this->spam, 9);
 
         $this->newsletter       = new InboxCategory();
         $this->newsletter->usr  = $this->owner;
@@ -61,7 +71,6 @@ final class RuleMessageCheckTest extends TestCase
             $this->rule('CyberLettre', 'CyberLettre', [['type' => 'fileInCategory', 'categoryId' => 7]]),
         ]);
 
-        self::assertSame(SenderVerdict::Pass, $result['verdict']);
         self::assertSame(['no_match', 'matches'], array_column($result['rules'], 'state'));
         self::assertSame([], $result['rules'][0]['actions'], 'a rule that does not match does nothing');
         self::assertSame(
@@ -71,16 +80,37 @@ final class RuleMessageCheckTest extends TestCase
         self::assertNull($message->ruleCategory, 'testing a filter filed the message');
     }
 
-    /** The case that started this: it matches, and still files nothing. */
-    public function testAMatchFromAnUnverifiedSenderSaysItWouldNotFile(): void
+    /** No sender check at all — your own sent mail — files like any other (#405). */
+    public function testAMatchFromAnUnverifiedSenderWouldStillFile(): void
     {
         $result = $this->check($this->message(null), [
             $this->rule('CyberLettre', 'CyberLettre', [['type' => 'fileInCategory', 'categoryId' => 7]]),
         ]);
 
-        self::assertSame(SenderVerdict::Unknown, $result['verdict']);
         self::assertSame('matches', $result['rules'][0]['state']);
-        self::assertSame(CategoryFiling::SenderNotVerified, $result['rules'][0]['actions'][0]['filing']);
+        self::assertSame(CategoryFiling::Filed, $result['rules'][0]['actions'][0]['filing']);
+    }
+
+    /**
+     * Mail in Spam is left out of every filter that does not name Spam, and
+     * the test says so rather than "does not match" — the conditions may well
+     * match, and the reader needs to know which of the two it was.
+     */
+    public function testAMessageInSpamIsSkippedUnlessTheFilterNamesSpam(): void
+    {
+        $message = $this->message(self::PASS);
+        $message->addLabel($this->spam);
+
+        $aboutSpam             = $this->rule('Spam newsletters', 'CyberLettre', [['type' => 'star']]);
+        $aboutSpam->conditions = ['operator' => 'AND', 'conditions' => [['subject' => 'CyberLettre'], ['hasLabel' => 9]]];
+
+        $result = $this->check($message, [
+            $this->rule('CyberLettre', 'CyberLettre', [['type' => 'fileInCategory', 'categoryId' => 7]]),
+            $aboutSpam,
+        ]);
+
+        self::assertSame(['spam', 'matches'], array_column($result['rules'], 'state'));
+        self::assertSame([], $result['rules'][0]['actions']);
     }
 
     public function testRulesAfterAStopAreReportedAsNotReached(): void
@@ -130,15 +160,17 @@ final class RuleMessageCheckTest extends TestCase
         $categories = $this->createStub(InboxCategoryRepository::class);
         $categories->method('find')->willReturn($this->newsletter);
 
-        $authentication = new SenderAuthentication();
+        $labels = $this->createStub(LabelRepository::class);
+        $labels->method('findBy')->willReturnCallback(
+            fn (array $criteria): array => in_array(9, (array) $criteria['id'], true) ? [$this->spam] : [],
+        );
 
         return new RuleMessageCheck(
             $ruleRepository,
             $messages,
-            new EmailFilterCompiler(),
-            new RuleCategoryFiler($categories, $authentication, $this->threaderWithoutDatabase(), new NullLogger()),
+            new RuleConditions(new EmailFilterCompiler(), $labels),
+            new RuleCategoryFiler($categories, $this->threaderWithoutDatabase(), new NullLogger()),
             $categories,
-            $authentication,
             new NullLogger(),
         )->check($message);
     }

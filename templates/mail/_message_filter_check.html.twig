@@ -4,18 +4,10 @@ mail/_message_filter_check.html.twig
 What the reader's filters make of one message, in the Details panel's frame.
 Nothing here was done — it is what would happen. See RuleMessageCheck.
 
-Variables: message, verdict (SenderVerdict), rules (see RuleMessageCheck::check)
+Variables: message, rules (see RuleMessageCheck::check)
 #}
 <turbo-frame id="message-filters-{{ message.id }}" class="block">
     <div class="px-4 py-3 text-xs space-y-2">
-        {# The sender verdict first: it is why a matching "File in category"
-           most often files nothing, and it belongs to the message, not to
-           any one filter. #}
-        <p class="text-ink-soft">
-            <span class="text-ink-faint">{{ 'message.filter_check.sender'|trans }}</span>
-            {{ ('message.filter_check.verdict.' ~ verdict.value)|trans }}
-        </p>
-
         {% if rules is empty %}
             <p class="text-ink-faint">{{ 'message.filter_check.none'|trans }}</p>
         {% else %}

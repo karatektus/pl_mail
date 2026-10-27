@@ -7,7 +7,6 @@ namespace App\Service\Rule;
 use App\Entity\Mail\Account;
 use App\Entity\Rule\MailRule;
 use App\Entity\Mail\Message;
-use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\Mail\MessageRepository;
 use Psr\Log\LoggerInterface;
@@ -52,7 +51,7 @@ final readonly class MailRuleEngine
     public function __construct(
         private MailRuleRepository  $ruleRepository,
         private MessageRepository   $messageRepository,
-        private EmailFilterCompiler $compiler,
+        private RuleConditions $conditions,
         private RuleActionExecutor  $executor,
         private LoggerInterface     $logger,
     ) {}
@@ -129,7 +128,7 @@ final readonly class MailRuleEngine
         try {
             return $this->messageRepository->matchingIds(
                 $candidateIds,
-                $this->compiler->compile($rule->conditions),
+                $this->conditions->compile($rule),
             );
         } catch (\Throwable $e) {
             // A stored rule whose conditions no longer compile — the

@@ -2809,20 +2809,15 @@ message:
     filter_check:
         button: 'Tester mes filtres sur ce message'
         hide: 'Masquer le test des filtres'
-        sender: 'Expéditeur vérifié par le serveur de réception :'
-        verdict:
-            pass: 'oui'
-            fail: 'non — il indique que le message ne vient pas du domaine annoncé'
-            unknown: 'inconnu — aucun verdict auquel plMail puisse se fier'
         none: 'Aucun filtre n’est activé pour ce compte.'
         state:
             matches: 'correspond'
             no_match: 'ne correspond pas'
             stopped: 'pas atteint : « %rule% » arrête après lui'
             broken: 'ses conditions sont illisibles ; il est ignoré'
+            spam: 'ignoré : le message est dans Spam, et ce filtre ne nomme pas le dossier Spam'
         filing:
             Filed: 'le classerait dans %category%'
-            SenderNotVerified: 'ne le classerait pas dans %category% : l’expéditeur n’est pas vérifié'
             NoCategory: 'rien où classer : l’onglet n’existe plus'
     details:
         categorised:
@@ -3808,7 +3803,6 @@ settings:
             failed: 'Exécution arrêtée en cours de route — %count% messages traités'
             queued: 'En file…'
             running: 'Application… %count% jusqu’ici'
-        run_unfiled: '%count% non classé dans l’onglet : le serveur de réception n’a pas vérifié l’expéditeur|%count% non classés dans l’onglet : le serveur de réception n’a pas vérifié l’expéditeur'
         run_confirm: 'Appliquer « %name% » au courrier que vous avez déjà ? Cela peut déplacer et réétiqueter beaucoup de messages d’un coup.'
         saved: Filtre enregistré.
         spam_rule_name: 'Spam : %sender%'

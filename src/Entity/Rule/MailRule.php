@@ -104,15 +104,6 @@ class MailRule
     #[ORM\Column(options: ['default' => 0])]
     public int $runProcessed = 0;
 
-    /**
-     * Of those, the ones a File in category action left where they were
-     * because the receiving server did not vouch for the sender. Without it a
-     * run reads "Applied to 81 messages" and the tab stays empty, with nothing
-     * on screen to say why.
-     */
-    #[ORM\Column(options: ['default' => 0])]
-    public int $runUnfiled = 0;
-
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $runStartedAt = null;
 

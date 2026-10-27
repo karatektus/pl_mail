@@ -131,7 +131,8 @@ test.describe("message details", () => {
 
         await details.getByRole("button", { name: "Test my filters on this message" }).click();
 
-        await expect(answer).toContainText("Sender verified by the receiving server");
+        // The frame starts empty; the answer is the first thing put in it.
+        await expect(answer.locator("turbo-frame > div")).toBeVisible();
         await expect(details.locator(PANEL)).toBeVisible();
         expect(page.url()).toBe(url);
 
@@ -154,7 +155,7 @@ test.describe("message details", () => {
         await details.getByRole("button").first().click();
         await details.getByRole("button", { name: /show all headers/i }).click();
         await details.getByRole("button", { name: "Test my filters on this message" }).click();
-        await expect(details.locator('[data-mail--message-details-target="filters"]')).toContainText("Sender verified");
+        await expect(details.locator('[data-mail--message-details-target="filters"] turbo-frame > div')).toBeVisible();
 
         const panel = await details.locator(PANEL).boundingBox();
 

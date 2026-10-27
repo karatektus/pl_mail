@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:cb68b1de223066af8afe5e44ab31e64ae2d3b508 -->
+<!-- translated-from: features/mail.md sha1:6833acf38c3883ae777865415d7b6257f7a81369 -->
 
 # Mail
 
@@ -306,8 +306,9 @@ Regeln und der Assistent jeweils gesagt haben, und welcher davon entschieden hat
 Einstellung ändern“ und „gar nichts ändern“.
 
 Zwei Dinge sagt dir der Bereich, die leicht wie Fehler aussehen. Eine Konversation hat **eine**
-Kategorie, die ihrer neuesten Nachricht — eine Antwort kann also die ganze Unterhaltung aus dem Tab
-tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich es. Und eine Kategorie,
+Kategorie, die der neuesten Nachricht, die du darin bekommen hast — eine Antwort kann also die ganze
+Unterhaltung aus dem Tab tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich
+es. Deine eigenen Antworten zählen nicht. Und eine Kategorie,
 die du per Drag auf einen Tab selbst gesetzt hast, hält gegen alles andere, was ebenfalls dort steht.
 
 Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehört hätte. Das landet

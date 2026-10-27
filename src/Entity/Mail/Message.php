@@ -841,6 +841,23 @@ class Message extends MessageModel
         return false;
     }
 
+    /**
+     * Whether the message is the account's own: filed under Sent or Drafts.
+     *
+     * The same test the thread list makes for its "filed as sent" rows
+     * (MessageRepository), and the one the category recomputes make in SQL.
+     */
+    public function isFiledAsSent(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Sent === $label->role || LabelRole::Drafts === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Whether the message is in Spam. See isSetAside(). */
     public function isSpam(): bool
     {

@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:e9cbf7836c6aab7cb10799942963f77109f3eaa9 -->
+<!-- translated-from: features/filters.md sha1:3b9dca54a193eed5fa2e7700671025a8d731e11e -->
 
 # Filter
 
@@ -141,6 +141,14 @@ Ein kaputter Filter bringt nie eine Synchronisierung zu Fall. Eine Regel, deren 
 sich nicht mehr übersetzen lassen, wird mit einer Warnung übersprungen, und eine Aktion, die
 eine Ausnahme wirft, wird protokolliert und die Nachricht in Ruhe gelassen.
 
+### Spam bleibt in Ruhe
+
+Filter überspringen Mail im **Spam**, beim Eintreffen wie beim Anwenden auf vorhandene Mail.
+Gefälschte Mail landet dort, und ein Filter, der ein falsches „Ihr Paket wartet“ aus dem Spam in
+deinen Sendungen-Tab holt, würde dem Fälscher die Arbeit abnehmen. Ein Filter, der vom Spam handelt,
+sagt das: Füge die Bedingung **Hat Label** *Spam* hinzu, dann sieht dieser Filter den Spam und
+nichts anderes. Der Papierkorb wird nicht übersprungen.
+
 ## Einen Filter auf bereits eingetroffene Mail anwenden
 
 **Auf vorhandene Mail anwenden** bei einem gespeicherten Filter geht dein gesamtes Postfach
@@ -155,11 +163,8 @@ einem anderen Gerät oder nachdem du den Tab geschlossen hast, weiterhin so. Sie
 N Nachrichten angewendet** oder als **Lauf vorzeitig gestoppt — N Nachrichten waren erledigt**,
 wenn etwas schiefging.
 
-N zählt die Nachrichten, auf die der Filter **zutrifft**. Bei einem Filter, der in einen eigenen
-Tab ablegt, sagt eine zweite Zeile, wie viele davon er nicht ablegen konnte, weil der empfangende
-Server ihren Absender nicht bestätigt hat (siehe [In eigene Tabs ablegen](#in-eigene-tabs-ablegen)):
-**12 nicht im Tab abgelegt: Der empfangende Server hat den Absender nicht bestätigt**. Ohne diese
-Zeile sähe ein Lauf, der nichts abgelegt hat, wie erledigt aus.
+N zählt die Nachrichten, auf die der Filter **zutrifft**, in jedem Ordner: auch deine gesendete
+Mail, und den Spam nur, wenn der Filter ihn nennt (siehe [Spam bleibt in Ruhe](#spam-bleibt-in-ruhe)).
 
 Ein bereits laufender Filter verweigert einen zweiten Start: Mitten im Lauf erneut zu starten
 würde den Fortschritt doppelt zählen und mit den Schreibvorgängen des Handlers ins Rennen
@@ -173,11 +178,10 @@ und sagt von jedem, ob er **zutrifft** — und bei denen, die zutreffen, was sie
 nichts: kein Label, kein Tab, kein Verschieben.
 
 Hier schaust du nach, wenn ein Filter „angewendet“ wurde und nichts passiert ist. **In Kategorie
-ablegen** sagt, ob es die Nachricht ablegen würde, und wenn nicht, warum: Die Zeile über der Liste
-sagt, ob der empfangende Server den Absender bestätigt hat, und genau das braucht diese Aktion (siehe
-unten). Ein Filter nach einem mit **Nach diesem Filter aufhören** erscheint als nicht erreicht, und
-einer, dessen Bedingungen sich nicht mehr lesen lassen, als übersprungen — so, wie eintreffende Mail
-sie behandeln würde.
+ablegen** sagt, ob es die Nachricht ablegen würde, und wenn nicht, warum. Ein Filter nach einem mit
+**Nach diesem Filter aufhören** erscheint als nicht erreicht, einer, dessen Bedingungen sich nicht
+mehr lesen lassen, als übersprungen, und bei einer Nachricht im Spam auch jeder Filter, der den Spam
+nicht nennt — so, wie eintreffende Mail sie behandeln würde.
 
 ## In eigene Tabs ablegen
 
@@ -210,14 +214,13 @@ hinterher kaum.
 
 Was die Aktion ablegt und was nicht:
 
-- **Nur Mail, deren Absender die Authentifizierung besteht.** Der empfangende Mailserver hält
-  fest, ob die Nachricht wirklich von der Domain in ihrer Absenderzeile kam, und plMail liest dieses
-  Urteil (dasselbe, das entscheidet, ob eine Kalendereinladung ohne Nachfrage übernommen werden
-  darf). Ein gefälschtes „Ihr Paket wartet“ von der Domain eines Paketdienstes wird deshalb von
-  diesem Filter nicht abgelegt — es bleibt, wo die gewöhnlichen Regeln es hinlegen, statt neben den
-  echten in deinem Sendungen-Tab zu sitzen. Mail, die die Prüfung nicht besteht, wird nicht
-  abgelegt, und Mail, die plMail nicht prüfen kann, ebenso wenig; siehe „Fallstricke“ dafür, was das
-  zusichert und was nicht.
+- **Alles, worauf der Filter zutrifft.** Ein Filter hat Vorrang vor jeder anderen Sortierung:
+  den eingebauten Regeln, dem Sprachmodell und Googles Kategorien. Ob der empfangende Server den
+  Absender bestätigt hat, spielt keine Rolle. Früher tat es das, und damit fehlten deine gesendete
+  Mail, die kein solches Urteil hat, und Mail, die eine Plattform im Auftrag von jemandem schickt,
+  etwa die Antwort auf eine Bewerbung aus einem Recruiting-System. Das Urteil entscheidet weiterhin,
+  ob eine Kalendereinladung ohne Nachfrage übernommen werden darf.
+- **Keine Mail im Spam**, es sei denn, der Filter nennt ihn. Siehe [Spam bleibt in Ruhe](#spam-bleibt-in-ruhe).
 - **Auch bei Gmail-Konten.** Googles Kategorien haben Vorrang vor plMails eigener Sortierung,
   solange du nichts anderes sagst, aber ein Filter ist eine Anweisung, die du geschrieben hast, und
   hat Vorrang vor beiden.
@@ -225,10 +228,14 @@ Was die Aktion ablegt und was nicht:
   in Spam und markiert nichts als gelesen. Die Android-App zeigt deine Tabs; andere Mail-Apps, die
   sich per JMAP verbinden, sehen weiterhin die fünf eingebauten Kategorien.
 
-Eine Konversation steckt in **einem** Tab. Sie steckt in deinem, wenn ihre neueste Nachricht dort
-abgelegt wurde; eine neuere Nachricht, die kein Filter beansprucht, nimmt sie also wieder heraus,
-so wie eine neuere Nachricht aus Werbung eine Konversation aus Benachrichtigungen herausnimmt. Eine Konversation,
-die du per Drag auf einen Tab gezogen hast, bleibt dort, was auch immer ein Filter sagt.
+Eine Konversation steckt in **einem** Tab. Sie steckt in deinem, wenn die neueste Nachricht, die du
+darin **bekommen** hast, dort abgelegt wurde; eine neuere Nachricht, die kein Filter beansprucht,
+nimmt sie also wieder heraus, so wie eine neuere Nachricht aus Werbung eine Konversation aus
+Benachrichtigungen herausnimmt. Deine eigenen Antworten und Entwürfe bewegen eine Konversation nie:
+Antwortest du auf eine Mail in deinem Bewerbungen-Tab, bleibt die Konversation dort. Nur eine
+Konversation, die du begonnen hast und auf die noch keine Antwort kam, legt deine eigene Mail ab.
+Eine Konversation, die du per Drag auf einen Tab gezogen hast, bleibt dort, was auch immer ein
+Filter sagt.
 
 Würden zwei Filter dieselbe Nachricht ablegen, entscheidet der, der **zuletzt** läuft; **Nach
 diesem Filter aufhören** beim früheren ist der Weg, seine Wahl zu behalten.
@@ -279,22 +286,12 @@ Nachricht.
 konstruktionsbedingt unmöglich** — die Liste bietet ausschließlich Verbindungen an, die
 hochladen können. Fehlt die gewünschte, ist das der Grund.
 
-**„In Kategorie ablegen“ legt in einem Konto nichts ab, dessen empfangenden Server plMail nicht
-erkennen kann.** Es vertraut nur dem Authentifizierungs-Urteil, das ein Server in die Nachricht
-geschrieben hat, von dem es weiß, dass er deiner ist — bei einem IMAP-Konto einer, dessen Name auf
-derselben Domain liegt wie der IMAP-Host des Kontos. Bei einem Postfach, wo sich das nicht sagen
-lässt (ein Host, der nichts einträgt oder unter anderem Namen einträgt), trifft ein Filter, der in
-einen Tab ablegt, zu, läuft und legt nichts ab. Das ist der Preis für einen Tab, der sich nicht
-mit Fälschungen füllen lässt, und er ist gewählt, kein Fehler.
-
-**Die Prüfung betrifft die Nachricht, und sie hilft nur, wenn der Filter den Absender nennt.** Ein
-Filter, dessen Bedingungen den Absender nicht festlegen — etwa „Betreff enthält Paket“ —, legt jeden
-Absender ab, dessen eigene Domain die Authentifizierung besteht, auch eine ähnlich klingende Domain:
-Authentifizierung belegt, dass eine Nachricht von der Domain kam, die sie angibt, nicht dass es die
-Domain ist, die du meintest. Lege den Absender mit **Absender-Domain ist** fest. Und ein Tab enthält
-Konversationen, nicht Nachrichten: Eine gefälschte Nachricht, die in eine echte Konversation
-antwortet (dieselbe Absenderadresse, ein „Re:“-Betreff), kann ihr beitreten, und eine Konversation,
-die du in einen Tab gezogen hast, bleibt dort, was auch immer ihr danach beitritt.
+**Ein Tab bürgt nicht für seine Mail.** Ein Filter legt ab, worauf seine Bedingungen zutreffen, und
+eine Absenderzeile kann jeder schreiben. Was ein gefälschtes „Ihr Paket wartet“ aus deinem
+Sendungen-Tab heraushält, ist dein Mailserver, der es in den Spam legt, wo Filter nicht hinschauen.
+Eine Fälschung, die an seiner Spamprüfung vorbeikommt und auf den Filter zutrifft, wird abgelegt wie
+die echte. Lege den Absender mit **Absender-Domain ist** fest statt über den Betreff; das engt es
+auf Fälschungen genau dieser Domain ein.
 
 **Ein Ablegen wird gemerkt, und den Filter zu ändern oder zu löschen macht es nicht rückgängig.**
 Wie jede andere Aktion wirkt sie auf Mail und lässt das Ergebnis stehen: Was ein Filter abgelegt

@@ -5,59 +5,42 @@ declare(strict_types=1);
 namespace App\Service\Rule;
 
 use App\Domain\Enum\Mail\CategoryFiling;
-use App\Domain\Enum\Mail\SenderVerdict;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Rule\MailRule;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Service\Imap\MessageThreader;
-use App\Service\Mail\SenderAuthentication;
 use Psr\Log\LoggerInterface;
 
 /**
  * Files a message under one of the reader's own categories, when a filter's
- * "File in category" action says to — and refuses when filing it would put
- * something where it must not be.
+ * "File in category" action says to.
  *
- * THE REFUSALS ARE THE POINT
- * ──────────────────────────
- * A filter names a sender, and a sender is a line anybody can write. A reader
- * who builds a "Shipping" tab from "sender's domain is mondialrelay.fr" has
- * made somewhere that parcel-delivery phishing, sent from a forged
- * mondialrelay.fr, would sit beside the real notices looking exactly as
- * legitimate as they do. The only thing that tells the two apart is the
- * receiving server's authentication verdict, so this files a message only when
- * SenderAuthentication says Pass. Not Fail, and — a decision, not an accident —
- * not Unknown: an account whose receiving server plMail cannot identify files
- * nothing, because "we could not tell" is exactly what a forgery relies on. The
- * cost is that such an account cannot use the feature; docs/features/filters.md
- * says so.
+ * A FILTER IS THE LAST WORD
+ * ─────────────────────────
+ * The reader wrote it, naming the mail it is for, so it outranks every other
+ * way a conversation gets a tab: the built-in rules, the language model and
+ * Gmail's own categories (whatever CategorySorting::$overrideProvider says
+ * about the latter two — both are guesses, and a filter is not).
  *
- * WHAT THIS DOES NOT COVER, because its blind spots will be assumed covered
- * otherwise:
- *  - A Pass that a believed server gave wrongly — see SenderAuthentication for
- *    whose word counts.
- *  - The filter's own conditions. Authentication proves a message came from the
- *    domain it claims, not that the domain is the one the reader meant, so a
- *    filter that does not pin the sender ("subject contains parcel") files a
- *    lookalike domain that authenticates for itself.
- *  - The conversation. This gates the MESSAGE being filed, and a tab holds
- *    conversations: a forged message that replies into a genuine conversation
- *    (same sender address, a "Re:" subject) can join it, and a conversation the
- *    reader pinned into a tab keeps it whatever joins it. Unpinned, such a
- *    message is the newest and so takes the conversation OUT of the tab, unless
- *    a genuine message lands after it in the same provider conversation.
+ * It used to file only when the receiving server vouched for the sender
+ * (SenderAuthentication), so that a forged "mondialrelay.fr" could not sit in a
+ * "Shipping" tab beside the real notices. That made the feature fail where it
+ * is needed most, silently: the reader's own sent mail has no verdict at all,
+ * and an application sent through a recruiting platform is signed by the
+ * platform, not by the company in its From line. A filter applied to existing
+ * mail filed two thirds of what it matched (#405). The verdict still guards the
+ * calendar (EventReconciler), where mail acts without being asked; a tab only
+ * decides where mail is listed, and forged mail is what Spam is for — a filter
+ * leaves Spam alone unless it names it (RuleConditions).
  *
- * What a refusal does is nothing: the message is left to the ordinary rules,
- * which is where it would have been had no filter matched. Filing only ever
- * chooses a tab — it never touches labels, the Spam folder, read state or the
- * authentication warning the message view shows.
+ * What it does not cover: the conversation. A tab holds conversations, and a
+ * conversation follows its newest received message (MessageThreader), so a
+ * newer message no filter claimed takes the conversation out of the tab again.
+ * The reader's own replies do not: see MessageThreader::adoptCategory().
  *
- * Gmail's own categories do not stand in the way. They outrank plMail's own
- * sorting unless the reader says otherwise (CategorySorting::$overrideProvider),
- * because both are guesses and Google's was there first. A filter is not a
- * guess: the reader wrote it, naming the mail it is for, and it files Gmail
- * mail like any other.
+ * Filing only ever chooses a tab — it never touches labels, the Spam folder,
+ * read state or the authentication warning the message view shows.
  *
  * Two filters matching one message: the one that runs last decides, because the
  * column is single-valued and this overwrites. "Stop after this filter" is the
@@ -67,7 +50,6 @@ final readonly class RuleCategoryFiler
 {
     public function __construct(
         private InboxCategoryRepository $categories,
-        private SenderAuthentication    $authentication,
         private MessageThreader         $threader,
         private LoggerInterface         $logger,
     ) {}
@@ -136,10 +118,6 @@ final readonly class RuleCategoryFiler
             }
 
             return [CategoryFiling::NoCategory, null];
-        }
-
-        if (SenderVerdict::Pass !== $this->authentication->verdict($message)) {
-            return [CategoryFiling::SenderNotVerified, $category];
         }
 
         return [CategoryFiling::Filed, $category];

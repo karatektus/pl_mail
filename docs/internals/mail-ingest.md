@@ -170,9 +170,17 @@ release, Gmail enrichment), and every one would erase a verdict kept there. The 
 `Message::$ruleCategory` instead, which nothing recomputes, and `RuleCategoryFiler` then has the
 thread re-resolve through `MessageThreader::refreshCategory()` — most-recent-wins, pin-aware, hold-aware,
 like the built-in category. `MessageThread::$userCategory` is the thread's side, resolved by the same
-two recompute statements as `category`. A message is filed only when `SenderAuthentication` says
-`Pass`; see its docblock for whose verdict is believed. The filter files Gmail-labelled mail too:
-the provider's categories outrank plMail's own sorting, not an instruction the reader wrote.
+two recompute statements as `category`. Whatever the filter matches is filed, whatever the sender
+check says (#405); `RuleConditions` leaves mail in Spam out of every filter that does not name it.
+The filter files Gmail-labelled mail too: the provider's categories outrank plMail's own sorting,
+not an instruction the reader wrote.
+
+"Most-recent" means the newest **received** message. Mail filed under Sent or Drafts
+(`Message::isFiledAsSent()`) only places a conversation nothing received has placed, so a reply
+does not take a conversation out of its tab. `MessageThread::$categoryDecidedAt` records when the
+message that placed it happened. The threader compares arrivals against it rather than
+`lastMessageAt`, which your own mail moves too. The recompute statements order your own mail last
+and write the same instant.
 
 A built-in category the reader switched off (`CategorySorting::$disabled`) takes no mail.
 `MessageCategorizer::explain()` maps whatever the cascade decided — header rule, Gmail label or

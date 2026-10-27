@@ -15,29 +15,20 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Mail\InboxCategoryRepository;
-use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 /**
- * When a filter's "File in category" action is allowed to file a message, and
- * what filing one changes.
+ * When a filter's "File in category" action files a message, and what filing
+ * one changes.
  *
- * THE CONSTRAINT THIS CLASS EXISTS TO HOLD: a category the reader made, by a
- * sender they named, must not become somewhere a forgery can sit looking
- * legitimate. "Sender's domain is mondialrelay.fr" reads the From line, which
- * anybody can write, so a parcel-delivery phishing mail would otherwise land in
- * a tab called Shipping next to the real ones. The only thing standing between
- * the two is the receiving server's own authentication verdict, so the action
- * files nothing that is not a Pass — not a Fail, and not an Unknown either
- * (an account whose receiving server plMail cannot identify files nothing,
- * which is the price of the guarantee and is documented as such).
- *
- * Every refusal below is paired with a case that files, on the same fixture
- * with one thing changed, so "never files anything" cannot pass for "refuses
- * what it should".
+ * A filter is the last word on a message's tab, whatever the receiving server
+ * said about the sender (#405): it used to file only a verified sender, which
+ * left the reader's own sent mail and anything sent through a platform on
+ * somebody's behalf where the built-in sorting put it. What it still refuses
+ * is a tab that is not the rule owner's, or not there any more.
  */
 final class RuleCategoryFilerTest extends TestCase
 {
@@ -57,7 +48,7 @@ final class RuleCategoryFilerTest extends TestCase
         $this->shipping->name = 'Shipping';
     }
 
-    public function testAMessageFromAnAuthenticatedSenderIsFiledAndTheThreadFollows(): void
+    public function testAMatchedMessageIsFiledAndTheThreadFollows(): void
     {
         $message = $this->message(self::PASS);
 
@@ -72,26 +63,21 @@ final class RuleCategoryFilerTest extends TestCase
         );
     }
 
-    public function testAForgedSenderIsNotFiled(): void
+    /**
+     * A failed check and no check at all file alike. The second is every
+     * message you sent yourself; the first is how an application sent through
+     * a recruiting platform often reads, signed by the platform rather than by
+     * the company in its From line.
+     */
+    public function testTheSenderCheckDoesNotStandInTheWay(): void
     {
-        $message = $this->message(self::FAIL);
+        foreach (['failed' => self::FAIL, 'absent' => null] as $case => $results) {
+            $message = $this->message($results);
 
-        self::assertSame(CategoryFiling::SenderNotVerified, $this->file($message));
-
-        self::assertNull($message->ruleCategory, 'a message that FAILED authentication was filed under a reader-made category');
-        self::assertNull($message->thread?->userCategory);
-    }
-
-    public function testASenderPlMailCannotVerifyIsNotFiledEither(): void
-    {
-        // No Authentication-Results at all: the verdict is Unknown, and the
-        // reader decided that Unknown is not good enough.
-        $message = $this->message(null);
-
-        self::assertSame(CategoryFiling::SenderNotVerified, $this->file($message));
-
-        self::assertNull($message->ruleCategory);
-        self::assertNull($message->thread?->userCategory);
+            self::assertSame(CategoryFiling::Filed, $this->file($message), "a message whose sender check is {$case} was refused");
+            self::assertSame($this->shipping, $message->ruleCategory);
+            self::assertSame($this->shipping, $message->thread?->userCategory);
+        }
     }
 
     public function testACategoryBelongingToSomebodyElseIsNotFiled(): void
@@ -145,16 +131,34 @@ final class RuleCategoryFilerTest extends TestCase
         self::assertNull($message->thread->userCategory, 'a conversation the reader dragged somewhere was moved by a filter');
     }
 
-    public function testAnOlderMessageDoesNotMoveAConversationItsNewestMessageIsNotIn(): void
+    public function testAnOlderMessageDoesNotMoveAConversationANewerReceivedMessagePlaced(): void
     {
         $message = $this->message(self::PASS, receivedAt: '2026-07-28 09:00:00');
-        // Newer than this message, so the thread's tab is decided by that one.
-        $message->thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+        // A newer received message placed the conversation, so that one decides.
+        $message->thread->categoryDecidedAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+        $message->thread->lastMessageAt     = new \DateTimeImmutable('2026-07-28 12:00:00');
 
         self::assertSame(CategoryFiling::Filed, $this->file($message));
 
         self::assertSame($this->shipping, $message->ruleCategory);
         self::assertNull($message->thread->userCategory);
+    }
+
+    /**
+     * Your reply is newer than the message being filed, and it does not count:
+     * a conversation follows what other people send you (#405). This is "Apply
+     * to existing mail" on an application you have since answered.
+     */
+    public function testANewerReplyOfYourOwnDoesNotKeepTheConversationOutOfTheTab(): void
+    {
+        $message = $this->message(self::PASS, receivedAt: '2026-07-28 09:00:00');
+        $message->thread->categoryDecidedAt = new \DateTimeImmutable('2026-07-28 09:00:00');
+        // Your reply, at noon, moved the conversation up the list.
+        $message->thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+
+        self::assertSame(CategoryFiling::Filed, $this->file($message));
+
+        self::assertSame($this->shipping, $message->thread->userCategory, 'a reply of your own kept the conversation out of the filter\'s tab');
     }
 
     /**
@@ -184,15 +188,13 @@ final class RuleCategoryFilerTest extends TestCase
      */
     public function testCheckAnswersAsFileWouldAndFilesNothing(): void
     {
-        $verified   = $this->message(self::PASS);
-        $unverified = $this->message(self::FAIL);
+        $message = $this->message(self::FAIL);
 
-        self::assertSame(CategoryFiling::Filed, $this->file($verified, check: true));
-        self::assertSame(CategoryFiling::SenderNotVerified, $this->file($unverified, check: true));
-        self::assertSame(CategoryFiling::NoCategory, $this->file($verified, category: null, check: true));
+        self::assertSame(CategoryFiling::Filed, $this->file($message, check: true));
+        self::assertSame(CategoryFiling::NoCategory, $this->file($message, category: null, check: true));
 
-        self::assertNull($verified->ruleCategory, 'check() filed the message');
-        self::assertNull($verified->thread?->userCategory);
+        self::assertNull($message->ruleCategory, 'check() filed the message');
+        self::assertNull($message->thread?->userCategory);
     }
 
     // ── fixture ──────────────────────────────────────────────────────────────
@@ -210,7 +212,6 @@ final class RuleCategoryFilerTest extends TestCase
 
         $filer = new RuleCategoryFiler(
             $repository,
-            new SenderAuthentication(),
             $this->threaderWithoutDatabase(),
             new NullLogger(),
         );
