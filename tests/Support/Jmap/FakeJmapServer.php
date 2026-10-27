@@ -63,6 +63,13 @@ final class FakeJmapServer
     /** A SetError type EmailSubmission/set answers with, or null to accept. */
     public ?string $refuseSubmission = null;
 
+    /**
+     * Whether an Email/query `header` condition matches anything. RFC 8621
+     * says it should; Stalwart 0.16 answers it with no ids at all, for any
+     * header and any value, so false is how a test plays that server.
+     */
+    public bool $headerFilterMatches = true;
+
     /** @var list<string> capabilities the session declares, beyond core */
     public array $capabilities = [JmapCapability::MAIL, JmapCapability::SUBMISSION];
 
@@ -265,6 +272,14 @@ final class FakeJmapServer
             }
 
             $object = $objects[$id];
+
+            // messageId is parsed from the message, as a server does, and
+            // without the angle brackets (RFC 8621 §4.1.3).
+            if ('Email' === $type) {
+                preg_match('/^Message-ID:\s*<?([^>\r\n]+)>?/im', (string) $object['raw'], $found);
+                $object['messageId'] = true === isset($found[1]) ? [$found[1]] : null;
+            }
+
             unset($object['raw']);
 
             $list[] = null === $properties ? $object : array_intersect_key($object, array_flip([...$properties, 'id']));
@@ -320,17 +335,48 @@ final class FakeJmapServer
     }
 
     /**
+     * The filter conditions the client sends: inMailbox, a header condition
+     * (a case-insensitive substring of the header value, RFC 8621 §4.4.1),
+     * and an AND of those. Anything else matches, as the fake always has.
+     *
+     * @param array<string, mixed> $email
+     * @param array<string, mixed> $filter
+     */
+    private function matches(array $email, array $filter): bool
+    {
+        if ('AND' === ($filter['operator'] ?? null)) {
+            foreach ($filter['conditions'] ?? [] as $condition) {
+                if (false === $this->matches($email, $condition)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (true === isset($filter['inMailbox']) && false === isset($email['mailboxIds'][$filter['inMailbox']])) {
+            return false;
+        }
+
+        if (true === isset($filter['header'])) {
+            [$name, $value] = $filter['header'] + [1 => ''];
+
+            return true === $this->headerFilterMatches
+                && 1 === preg_match('/^' . preg_quote((string) $name, '/') . ':[^\r\n]*' . preg_quote((string) $value, '/') . '/im', (string) $email['raw']);
+        }
+
+        return true;
+    }
+
+    /**
      * @param array<string, mixed> $arguments
      *
      * @return array{0: string, 1: array<string, mixed>}
      */
     private function query(array $arguments): array
     {
-        $inMailbox = $arguments['filter']['inMailbox'] ?? null;
-        $emails    = array_filter(
-            $this->emails,
-            static fn (array $email): bool => null === $inMailbox || true === isset($email['mailboxIds'][$inMailbox]),
-        );
+        $filter = is_array($arguments['filter'] ?? null) ? $arguments['filter'] : [];
+        $emails = array_filter($this->emails, fn (array $email): bool => $this->matches($email, $filter));
 
         uasort($emails, static fn (array $a, array $b): int => [$b['receivedAt'], $b['id']] <=> [$a['receivedAt'], $a['id']]);
 

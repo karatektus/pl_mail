@@ -60,6 +60,14 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
         'invalidProperties', 'forbidden',
     ];
 
+    /**
+     * How many of Sent's newest messages isInSent() reads when the header
+     * filter finds nothing. The question is asked minutes after the attempt,
+     * so the message, if it was sent, is among the newest; a mailbox that
+     * gained this many since is not one an unknown outcome is settled in.
+     */
+    private const int SENT_SCAN = 50;
+
     public function __construct(
         private readonly JmapClient        $jmap,
         private readonly JmapMailboxSyncer $mailboxes,
@@ -211,9 +219,15 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
     /**
      * Whether the account's Sent mailbox holds a message with this Message-ID.
      *
-     * Email/query with a header filter, which RFC 8621 matches as a
+     * Email/query with a header filter first, which RFC 8621 matches as a
      * substring of the header value — the bracket-less id is inside the
-     * bracketed one, so either spelling on the server is found.
+     * bracketed one, so either spelling on the server is found. Fastmail
+     * answers it.
+     *
+     * Stalwart does not: up to 0.16 a header condition matches nothing, for
+     * any header and any value, and "not in Sent" is the answer that sends a
+     * mail a second time. So an empty answer is not taken as no — Sent's
+     * newest messages are read instead and their Message-IDs compared here.
      */
     public function isInSent(Account $account, string $messageId): bool
     {
@@ -229,7 +243,49 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
             ['Email/query', ['accountId' => $accountId, 'filter' => $filter, 'limit' => 1], 'q'],
         ])->get('q', 'Email/query');
 
-        return [] !== ($result['ids'] ?? []);
+        if ([] !== ($result['ids'] ?? []) || null === $sent) {
+            return [] !== ($result['ids'] ?? []);
+        }
+
+        return $this->isAmongNewestSent($account, $accountId, $sent, $messageId);
+    }
+
+    /**
+     * The comparison isInSent() falls back to: Sent's newest messages, by
+     * their parsed messageId, which a server gives without brackets.
+     */
+    private function isAmongNewestSent(Account $account, string $accountId, string $sent, string $messageId): bool
+    {
+        $newest = $this->jmap->call($account, [JmapCapability::MAIL], [
+            ['Email/query', [
+                'accountId' => $accountId,
+                'filter'    => ['inMailbox' => $sent],
+                'sort'      => [['property' => 'receivedAt', 'isAscending' => false]],
+                'limit'     => self::SENT_SCAN,
+            ], 'q'],
+        ])->get('q', 'Email/query');
+
+        $ids = array_values(array_filter($newest['ids'] ?? [], is_string(...)));
+
+        if ([] === $ids) {
+            return false;
+        }
+
+        $emails = $this->jmap->call($account, [JmapCapability::MAIL], [
+            ['Email/get', ['accountId' => $accountId, 'ids' => $ids, 'properties' => ['messageId']], 'g'],
+        ])->get('g', 'Email/get');
+
+        $wanted = strtolower(trim($messageId, '<> '));
+
+        foreach ($emails['list'] ?? [] as $email) {
+            foreach (is_array($email['messageId'] ?? null) ? $email['messageId'] : [] as $id) {
+                if (true === is_string($id) && $wanted === strtolower(trim($id, '<> '))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

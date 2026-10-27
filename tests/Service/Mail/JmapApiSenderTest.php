@@ -74,6 +74,26 @@ final class JmapApiSenderTest extends KernelTestCase
         $this->sender()->deliver($email, $this->freshAccount());
 
         self::assertTrue($this->sender()->isInSent($this->freshAccount(), 'sent-once@example.test'));
+        self::assertFalse($this->sender()->isInSent($this->freshAccount(), 'never-sent@example.test'), 'and only that one');
+    }
+
+    /**
+     * Stalwart answers a header condition with nothing, for any value. "Not
+     * in Sent" would send the mail again, so the newest of Sent are compared
+     * by their Message-ID instead.
+     */
+    public function testOnAServerWhoseHeaderFilterMatchesNothingTheSentCopyIsStillFound(): void
+    {
+        $this->server->headerFilterMatches = false;
+
+        $email = $this->email('me@example.test');
+        $email->getHeaders()->addIdHeader('Message-ID', 'sent-on-stalwart@example.test');
+
+        $this->sender()->deliver($email, $this->freshAccount());
+
+        self::assertTrue($this->sender()->isInSent($this->freshAccount(), 'sent-on-stalwart@example.test'));
+        self::assertTrue($this->sender()->isInSent($this->freshAccount(), '<sent-on-stalwart@example.test>'), 'in either spelling');
+        self::assertFalse($this->sender()->isInSent($this->freshAccount(), 'never-sent@example.test'));
     }
 
     /**
