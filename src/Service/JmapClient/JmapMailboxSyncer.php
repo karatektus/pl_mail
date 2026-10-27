@@ -114,6 +114,9 @@ final readonly class JmapMailboxSyncer
         $bound = [];
 
         foreach ($mailboxes as $id => $mailbox) {
+            // A key, so PHP has made "1" the int 1 — and plMail's own server
+            // numbers its mailboxes. Back to the string an id is (RFC 8620).
+            $id      = (string) $id;
             $binding = $this->bindingFor($account, $mailbox, $mailboxes);
 
             if (null === $binding) {

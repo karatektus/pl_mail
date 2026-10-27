@@ -137,6 +137,22 @@ final class JmapMailSyncTest extends KernelTestCase
         self::assertNull($message->mailbox, 'a JMAP Email lives in labels, not in a folder');
     }
 
+    /**
+     * An id is a string (RFC 8620 §1.2), but one made of digits comes back
+     * from a PHP array key as an int. plMail's own server numbers its
+     * mailboxes, so syncing one plMail from another failed on the first.
+     */
+    public function testAMailboxWhoseIdIsAllDigitsIsBound(): void
+    {
+        $this->server->addMailbox('7', 'Numbered');
+        $this->server->deliver('Filed by number', ['mb-inbox', '7']);
+
+        $this->syncer()->sync($this->account);
+        $this->importToTheEnd();
+
+        self::assertSame('7', $this->labelNamed($this->only(), 'Numbered')->bindingFor($this->account)?->jmapMailboxId);
+    }
+
     public function testAChangeOnTheServerReachesTheRow(): void
     {
         $id = $this->server->deliver('Read me later');

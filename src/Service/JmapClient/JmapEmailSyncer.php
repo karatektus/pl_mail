@@ -416,7 +416,7 @@ final readonly class JmapEmailSyncer
             return $missing;
         }
 
-        foreach ($this->get($account, $accountId, array_keys($rows), self::CHANGE_PROPERTIES) as $email) {
+        foreach ($this->get($account, $accountId, array_map(strval(...), array_keys($rows)), self::CHANGE_PROPERTIES) as $email) {
             $row = $rows[(string) ($email['id'] ?? '')] ?? null;
 
             if (null !== $row) {
