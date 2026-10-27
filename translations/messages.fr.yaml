@@ -4859,10 +4859,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Ajouter un compte
-        heading: Comptes
-        none: Aucun compte pour l’instant
         colour: 'Marquage de couleur de %account%'
         colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        folders: 'Dossiers…'
+        heading: Comptes
+        menu: 'Dossiers de %account%'
+        new_folder: 'Nouveau dossier…'
+        none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
     badge:

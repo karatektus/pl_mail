@@ -1,4 +1,6 @@
 import { test, expect } from "./support/test";
+import { type Page } from "@playwright/test";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * The folders modal on an IMAP account's row.
@@ -67,4 +69,120 @@ test.describe("account folders modal", () => {
         await expect(modal.locator("[data-folder-error]")).toContainText("cannot contain “/”");
         await expect(modal.getByLabel("Name")).toHaveValue("v1/2");
     });
+
+    /**
+     * The same dialog from the sidebar: the account's ⋯ menu offers New
+     * folder… as words, and it opens the form for exactly that account. The
+     * button is there without a hover, which is what makes it reachable on a
+     * phone at all.
+     */
+    test("opens New folder from the account's menu in the sidebar", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const menu = page.getByRole("button", { name: `Folders of ${ACCOUNT}` }).first();
+
+        await expect(menu).toBeVisible();
+        await menu.click();
+        await page.getByRole("menuitem", { name: "New folder…" }).first().click();
+
+        const modal = page.locator("#modal-backdrop");
+
+        await expect(modal).toContainText(`New folder — ${ACCOUNT}`);
+        await expect(modal.getByLabel("Name")).toBeVisible();
+    });
+
+    /**
+     * With two IMAP accounts, one account's menu covers the row below it, and
+     * that row must not show through or beside it: the menu spans its own
+     * row's width, is opaque, sits above the next row's ⋯, and is named for
+     * its account (found by that name above). Opening the other account's ⋯ closes the first; Escape and a
+     * click elsewhere close it too.
+     */
+    test("an account menu covers the next account's row and closes cleanly", async ({ page }) => {
+        const stamp = Date.now();
+        const second = `Second ${stamp}`;
+
+        await addAccount(page, second, stamp);
+
+        try {
+            await page.goto("/mail/inbox");
+
+            const first = page.getByRole("button", { name: `Folders of ${ACCOUNT}` }).first();
+            const other = page.getByRole("button", { name: `Folders of ${second}` }).first();
+            const firstMenu = page.getByRole("menu", { name: `Folders of ${ACCOUNT}` }).first();
+            const otherMenu = page.getByRole("menu", { name: `Folders of ${second}` }).first();
+
+            await first.click();
+            await expect(firstMenu).toBeVisible();
+
+            // As wide as the account row it hangs from, and on top of whatever
+            // is under its middle — never the other account's ⋯.
+            const row = await first.locator("xpath=ancestor::div[contains(@class,'nav-item')][1]").boundingBox();
+            const box = await firstMenu.boundingBox();
+            expect(Math.abs((box?.width ?? 0) - (row?.width ?? 0))).toBeLessThan(2);
+
+            const otherBox = await other.boundingBox();
+            if (otherBox && box && otherBox.y < box.y + box.height && otherBox.y + otherBox.height > box.y) {
+                const onTop = await page.evaluate(
+                    ([x, y]) => document.elementFromPoint(x, y)?.closest('[role="menu"]')?.getAttribute("aria-label") ?? null,
+                    [otherBox.x + otherBox.width / 2, otherBox.y + otherBox.height / 2],
+                );
+                expect(onTop).toBe(`Folders of ${ACCOUNT}`);
+            }
+
+            await page.keyboard.press("Escape");
+            await expect(firstMenu).toBeHidden();
+
+            await first.click();
+            await expect(firstMenu).toBeVisible();
+            await page.locator("main, #main, body").first().click({ position: { x: 900, y: 500 } });
+            await expect(firstMenu).toBeHidden();
+
+            await first.click();
+            await page.keyboard.press("Escape");
+            await other.click();
+            await expect(otherMenu).toBeVisible();
+            await first.click();
+            await expect(firstMenu).toBeVisible();
+            await expect(otherMenu).toBeHidden();
+        } finally {
+            await removeAccount(page, second);
+        }
+    });
 });
+
+/** Adds a password IMAP account through the settings modal, as accounts-sidebar.spec.ts does. */
+async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
+    await page.goto("/settings?section=accounts");
+
+    await page
+        .locator("section")
+        .filter({ has: page.locator("#settings-account-list") })
+        .getByRole("button", { name: "Add account" })
+        .click();
+
+    const imapHost = page.locator('input[name="account[imapHost]"]');
+    await expect(imapHost).toBeVisible();
+
+    await page.locator('input[name="account[email]"]').fill(label);
+    await page.locator('input[name="account[username]"]').fill(`folders-${stamp}@example.test`);
+    await page.locator('input[name="account[password]"]').fill("hunter2");
+    await imapHost.fill(`folders-${stamp}.example.test`);
+    await page.locator('input[name="account[imapPort]"]').fill("993");
+    await page.locator('select[name="account[imapEncryption]"]').selectOption("ssl");
+    await page.locator("#modal button[type=submit]").click();
+
+    await expect(page.getByText("Account added successfully")).toBeVisible();
+}
+
+async function removeAccount(page: Page, label: string): Promise<void> {
+    await page.goto("/settings?section=accounts");
+
+    const row = page.locator("#settings-account-list li").filter({ hasText: new RegExp(label, "i") });
+
+    for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
+        await row.getByRole("button", { name: "Remove account" }).first().click();
+        await acceptConfirm(page);
+        await expect(row).toHaveCount(remaining - 1);
+    }
+}

@@ -4127,10 +4127,13 @@ shortcuts:
 sidebar:
     accounts:
         add: '添加账户'
-        heading: '账户'
-        none: '暂无账户'
         colour: '%account% 的颜色标记'
         colour_disabled: '%account% 的颜色标记，该账户已停用'
+        folders: '文件夹…'
+        heading: '账户'
+        menu: '%account% 的文件夹'
+        new_folder: '新建文件夹…'
+        none: '暂无账户'
         open: '打开 %account%'
         toggle: '显示或隐藏 %account% 中的文件夹'
     badge:

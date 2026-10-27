@@ -4624,10 +4624,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Sign on a crew member
-        heading: Th' crew
-        none: No crew yet
         colour: 'Colours flown by %account%'
         colour_disabled: 'Colours flown by %account%, laid up in port'
+        folders: 'Folders…'
+        heading: Th' crew
+        menu: 'Folders o'' %account%'
+        new_folder: 'New folder…'
+        none: No crew yet
         open: 'Board %account%'
         toggle: 'Open or close the lockers in %account%'
     badge:

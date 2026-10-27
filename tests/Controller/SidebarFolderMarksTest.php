@@ -18,11 +18,15 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * The sidebar tells a folder from a label (#221).
+ * The sidebar tells a folder from a label, and offers the folder actions on
+ * the account they belong to (#221).
  *
  * - under LABELS, a label that is a folder on a plain IMAP account wears a
  *   folder and names the account; a label that is not keeps its dot, and so
- *   does one that is "a folder" only on Gmail, where a label is a label.
+ *   does one that is "a folder" only on Gmail, where a label is a label;
+ * - under ACCOUNTS, a plain IMAP account's row has a ⋯ menu offering New folder
+ *   and Folders, pointing at THAT account's dialog; a Gmail account's row has
+ *   no menu.
  */
 final class SidebarFolderMarksTest extends WebTestCase
 {
@@ -62,7 +66,7 @@ final class SidebarFolderMarksTest extends WebTestCase
         parent::tearDown();
     }
 
-    public function testAFolderIsMarkedAndAPlainLabelIsNot(): void
+    public function testAFolderIsMarkedAndTheImapAccountOffersItsFolderActions(): void
     {
         $imap  = $this->account('folder-marks-imap');
         $gmail = $this->account('folder-marks-gmail', gmail: true);
@@ -88,6 +92,14 @@ final class SidebarFolderMarksTest extends WebTestCase
         self::assertStringContainsString($imap->displayAddress, (string) $markOf('Folder Marks Folder')->attr('title'));
         self::assertCount(0, $markOf('Folder Marks Tag'), 'a plain label keeps its dot');
         self::assertCount(0, $markOf('Folder Marks Gmail'), 'Gmail is untouched');
+
+        $html = (string) $this->client->getResponse()->getContent();
+
+        self::assertStringContainsString('data-ui--modal-src-value="/settings/accounts/' . $imap->id . '/folders/new"', $html);
+        self::assertStringContainsString('data-ui--modal-src-value="/settings/accounts/' . $imap->id . '/folders"', $html);
+        self::assertStringNotContainsString('/settings/accounts/' . $gmail->id . '/folders', $html);
+        self::assertStringContainsString('aria-label="Folders of ' . $imap->displayAddress . '"', $html, 'one ⋯ menu, named for its account');
+        self::assertStringNotContainsString('aria-label="Folders of ' . $gmail->displayAddress . '"', $html);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

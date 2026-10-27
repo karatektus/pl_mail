@@ -4823,10 +4823,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
-        heading: Accounts
-        none: No accounts yet
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, which is switched off'
+        folders: 'Folders…'
+        heading: Accounts
+        menu: 'Folders of %account%'
+        new_folder: 'New folder…'
+        none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
     badge:

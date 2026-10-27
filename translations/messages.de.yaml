@@ -4852,10 +4852,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
-        heading: Konten
-        none: Noch keine Konten
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        folders: 'Ordner …'
+        heading: Konten
+        menu: 'Ordner von %account%'
+        new_folder: 'Neuer Ordner …'
+        none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
     badge:

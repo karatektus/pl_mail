@@ -31,7 +31,7 @@
            Open or closed is rendered, not applied on connect — see
            App\Twig\SidebarRowStateExtension. #}
         {% set _href = path('app_mail_account', { account: account.id }) %}
-        <div class="nav-item flex items-center transition-colors {{ sidebar_row_state(_href) }}">
+        <div class="nav-item relative flex items-center transition-colors {{ sidebar_row_state(_href) }}">
             {# Named explicitly rather than by the address inside it: that span
                is `truncate`, and a name a screen reader reads as "kontakt@…"
                because CSS ran out of room is not a name. #}
@@ -85,6 +85,65 @@
                controls a screen-reader user cannot tell apart — the list of
                buttons on the page reads the same word three times and none of
                them says which mailbox it opens. #}
+            {# Folders and New folder (#221), on the account they belong to: a
+               folder is a place on ONE account's server, so this is where it is
+               made — the LABELS section makes labels, which never make folders.
+
+               One quiet "⋯" that is always there, opening a menu of words,
+               rather than icons that only appear on hover: hover does not exist
+               on a phone, and two near-identical folder glyphs said nothing a
+               word would not say better. Narrow, so the address keeps its room.
+               Both items open the dialog Settings → Accounts → Folders opens;
+               New folder opens it on the form for exactly this account. Plain
+               IMAP only. #}
+            {% if account.plainImap %}
+                {# -mr-2 tucks it into the chevron's own left padding, which
+                   is empty: the address keeps the room it had before there was
+                   a menu (at the default width "tester@folders.test" fits).
+
+                   The wrapper is deliberately NOT positioned, so the menu hangs
+                   from the account row (made `relative` below) and spans its
+                   full width: right-aligned to the narrow ⋯ it was narrower
+                   than the row, and the next account's ⋯ and chevron showed
+                   beside it. No z-index on the button either — a z-index there
+                   made each row a stacking context, and the next row's painted
+                   over this row's menu. #}
+                <div class="shrink-0 -mr-2" data-controller="ui--dropdown">
+                    <button type="button"
+                            data-action="click->ui--dropdown#toggle"
+                            aria-haspopup="menu"
+                            data-account-menu
+                            data-nav-tier="row"
+                            aria-label="{{ 'sidebar.accounts.menu'|trans({ '%account%': account.displayAddress }) }}"
+                            title="{{ 'sidebar.accounts.menu'|trans({ '%account%': account.displayAddress }) }}"
+                            class="relative w-4 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover cursor-pointer transition-colors">
+                        <i class="fa-solid fa-ellipsis-vertical text-[11px]" aria-hidden="true"></i>
+                    </button>
+                    {# Opaque whatever the theme's glass, so nothing under it
+                       shows through. It hangs straight under its own account
+                       row, so the account is named for screen readers only. #}
+                    <div data-ui--dropdown-target="menu" hidden role="menu"
+                         aria-label="{{ 'sidebar.accounts.menu'|trans({ '%account%': account.displayAddress }) }}"
+                         class="absolute top-full inset-x-0 mt-0.5 z-40 popover [--popover-alpha:1] [--pane-blur:0px] py-1 text-sm">
+                        {% for _item in [
+                            { route: 'settings_account_folder_new', icon: 'fa-folder-plus', label: 'sidebar.accounts.new_folder'|trans, marker: 'data-account-folder-new' },
+                            { route: 'settings_account_folders', icon: 'fa-folder-open', label: 'sidebar.accounts.folders'|trans, marker: 'data-account-folders' },
+                        ] %}
+                            <button type="button" role="menuitem"
+                                    data-controller="ui--modal"
+                                    data-action="click->ui--dropdown#close click->ui--modal#open {{ _drawerClose }}"
+                                    data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
+                                    data-ui--modal-src-value="{{ path(_item.route, { id: account.id }) }}"
+                                    data-ui--modal-size-value="narrow"
+                                    {{ _item.marker }}
+                                    class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-ink-soft hover:bg-hover hover:text-ink cursor-pointer">
+                                <i class="fa-solid {{ _item.icon }} w-4 text-xs text-ink-faint" aria-hidden="true"></i>
+                                <span>{{ _item.label }}</span>
+                            </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
             <button
                 type="button"
                 aria-label="{{ 'sidebar.accounts.toggle'|trans({ '%account%': account.displayAddress }) }}"
