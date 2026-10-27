@@ -4872,6 +4872,7 @@ sidebar:
     compose: Nouveau message
     labels:
         add: Créer un libellé
+        folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
     new_mail_here: 'Nouveau courrier dans %where%'

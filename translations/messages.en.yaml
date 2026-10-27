@@ -4836,6 +4836,7 @@ sidebar:
     compose: Compose
     labels:
         add: Create label
+        folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
     new_mail_here: 'New mail in %where%'

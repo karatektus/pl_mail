@@ -106,6 +106,42 @@ which kind of number it is, because to a screen reader they were both the word
 {% endmacro %}
 
 {#
+What sits before a label's name: its colour dot, or, when the label is a folder
+on an IMAP account, a folder in that colour (#221).
+
+A folder and a label do different things — dropping mail on a folder files it
+there, a label only tags — and in this section they looked exactly alike. The
+mark says which, and the tooltip on which account, without changing anything
+else about the row. SidebarCounts::folderAccountsOf() answers for the whole
+tree in one read.
+#}
+{% macro label_mark(label) %}
+    {% import _self as macros %}
+    {% set _folderOn = sidebarCounts.folderAccountsOf(label) %}
+    {% if _folderOn is empty %}
+        {{ macros.label_dot(label.color) }}
+    {% else %}
+        {% set _where = 'sidebar.labels.folder_on'|trans({ '%accounts%': _folderOn|map(a => a.displayAddress)|join(', ') }) %}
+        <i class="fa-solid fa-folder w-2.5 text-[10px] text-center shrink-0
+            {{ {
+            'gray':   'text-ink-faint',
+            'red':    'text-red-500',
+            'orange': 'text-orange-500',
+            'amber':  'text-amber-500',
+            'green':  'text-green-500',
+            'teal':   'text-teal-500',
+            'blue':   'text-blue-500',
+            'violet': 'text-violet-500',
+            'pink':   'text-pink-500',
+        }[label.color ?? 'gray'] ?? 'text-ink-faint' }}"
+           data-label-folder
+           role="img"
+           title="{{ _where }}"
+           aria-label="{{ _where }}"></i>
+    {% endif %}
+{% endmacro %}
+
+{#
 Takes a Label directly — labels are user-scoped, so there is no per-account
 merging left to do and no view model between the entity and the template.
 #}
@@ -213,7 +249,7 @@ account inside ThreadStatusUpdater.
                      style="--label-depth: {{ depth * 14 }}px">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
-                {{ macros.label_dot(label.color) }}
+                {{ macros.label_mark(label) }}
                 <a href="{{ _href }}"
                    {{ macros.list_frame() }}
                    class="flex-1 flex items-center justify-between gap-2 truncate"
@@ -245,7 +281,7 @@ account inside ThreadStatusUpdater.
              {{ macros.drop_target(label.id) }}
              data-nav-tier="tree"
              style="--label-depth: {{ depth * 14 + 16 }}px">
-            {{ macros.label_dot(label.color) }}
+            {{ macros.label_mark(label) }}
             <a href="{{ _href }}"
                {{ macros.list_frame() }}
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"

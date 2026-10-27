@@ -4140,6 +4140,7 @@ sidebar:
     compose: '写邮件'
     labels:
         add: '创建标签'
+        folder_on: '%accounts% 上的文件夹'
         heading: '标签'
         none: '暂无标签'
     new_mail_here: '%where% 中有新邮件'

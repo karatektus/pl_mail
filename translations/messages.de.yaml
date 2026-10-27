@@ -4865,6 +4865,7 @@ sidebar:
     compose: Schreiben
     labels:
         add: Label erstellen
+        folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
     new_mail_here: 'Neue Nachrichten in %where%'

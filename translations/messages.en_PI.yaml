@@ -4637,6 +4637,7 @@ sidebar:
     compose: Scribble
     labels:
         add: Hoist a new flag
+        folder_on: 'Folder aboard %accounts%'
         heading: Flags
         none: No flags yet
     new_mail_here: 'Fresh bottles washed up in %where%'
