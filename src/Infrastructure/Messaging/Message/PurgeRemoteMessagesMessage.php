@@ -36,24 +36,33 @@ namespace App\Infrastructure\Messaging\Message;
 final class PurgeRemoteMessagesMessage
 {
     /**
+     * JMAP Email ids. Declared outside the constructor, with a default of its
+     * own, because a job queued before JMAP existed is unserialized without
+     * the constructor running: a promoted property would come off the queue
+     * uninitialized and the first read would throw, where this one reads [].
+     *
+     * @var list<string>
+     */
+    public array $jmapIds = [];
+
+    /**
      * @param array<string, list<int>> $imapUids folder path => UIDs in it
      * @param list<string>             $gmailIds
      * @param list<string>             $graphIds
-     * @param list<string>             $jmapIds  JMAP Email ids. Read with `??`:
-     *                                           a job queued before JMAP existed
-     *                                           comes off the queue without one
+     * @param list<string>             $jmapIds
      */
     public function __construct(
         public int   $accountId,
         public array $imapUids = [],
         public array $gmailIds = [],
         public array $graphIds = [],
-        public array $jmapIds = [],
+        array $jmapIds = [],
     ) {
+        $this->jmapIds = $jmapIds;
     }
 
     public function isEmpty(): bool
     {
-        return [] === $this->imapUids && [] === $this->gmailIds && [] === $this->graphIds && [] === ($this->jmapIds ?? []);
+        return [] === $this->imapUids && [] === $this->gmailIds && [] === $this->graphIds && [] === $this->jmapIds;
     }
 }

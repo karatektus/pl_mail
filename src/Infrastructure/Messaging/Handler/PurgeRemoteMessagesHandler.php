@@ -91,10 +91,8 @@ final readonly class PurgeRemoteMessagesHandler
             $this->purgeGraph($account, $message->graphIds);
         }
 
-        $jmapIds = $message->jmapIds ?? [];
-
-        if ([] !== $jmapIds) {
-            $this->purgeJmap($account, $jmapIds);
+        if ([] !== $message->jmapIds) {
+            $this->purgeJmap($account, $message->jmapIds);
         }
     }
 
