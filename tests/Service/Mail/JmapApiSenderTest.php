@@ -53,6 +53,24 @@ final class JmapApiSenderTest extends KernelTestCase
         self::assertStringContainsString('Bcc: hidden@example.test', $email['raw'], 'Bcc reaches the server, which reads recipients from the MIME');
     }
 
+    /**
+     * Another plMail lists Drafts and Sent only once something has used
+     * them. With neither, the send was refused before it was tried.
+     */
+    public function testAServerWithNeitherDraftsNorSentGetsASentMailbox(): void
+    {
+        $this->server->removeMailbox('mb-drafts');
+        $this->server->removeMailbox('mb-sent');
+
+        $this->sender()->deliver($this->email('me@example.test'), $this->freshAccount());
+
+        $sent = array_values(array_filter($this->server->mailboxes, static fn (array $box): bool => 'sent' === $box['role']));
+
+        self::assertCount(1, $sent, 'a sent mailbox was made, once');
+        self::assertCount(1, $this->server->submissions);
+        self::assertSame([$sent[0]['id']], array_keys($this->server->emails[$this->server->submissions[0]['emailId']]['mailboxIds']));
+    }
+
     public function testARefusedSendLeavesNoDraftBehind(): void
     {
         $this->server->refuseSubmission = 'forbiddenFrom';

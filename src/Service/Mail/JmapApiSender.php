@@ -20,6 +20,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Service\JmapClient\JmapMailboxSyncer;
+use App\Service\JmapClient\JmapMailboxWriter;
 use App\Service\Label\LabelResolver;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mime\Address;
@@ -71,6 +72,7 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
     public function __construct(
         private readonly JmapClient        $jmap,
         private readonly JmapMailboxSyncer $mailboxes,
+        private readonly JmapMailboxWriter $writer,
         private readonly LabelResolver     $labels,
         private readonly LoggerInterface   $logger,
     ) {
@@ -134,7 +136,10 @@ class JmapApiSender implements MailDeliveryInterface, SentCopyLookupInterface
             $accountId  = $this->mailboxes->mailAccountId($account);
             $submitter  = $this->jmap->session($account)->accountFor(JmapCapability::SUBMISSION) ?? $accountId;
             $drafts     = $this->mailboxId($account, LabelRole::Drafts);
-            $sent       = $this->mailboxId($account, LabelRole::Sent);
+            // Made when the server has none, as an archive is: another
+            // plMail lists Sent only once something has used it, and without
+            // a mailbox to file the copy in the send is refused outright.
+            $sent       = $this->writer->ensureRole(LabelRole::Sent, $account);
             $identityId = $this->identityFor($account, $submitter, $email);
             $blobId     = $this->jmap->upload($account, $accountId, $mime, 'message/rfc822');
         } catch (JmapApiException $e) {

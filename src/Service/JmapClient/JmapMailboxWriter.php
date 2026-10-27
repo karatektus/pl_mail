@@ -32,6 +32,15 @@ final readonly class JmapMailboxWriter
     /** The name a server-side archive is created under when there is none. */
     private const string ARCHIVE_NAME = 'Archive';
 
+    /** The system labels ensure() may create, by LabelRole case: the JMAP role each is made with. */
+    private const array CREATABLE_ROLES = [
+        'Archive' => 'archive',
+        'Trash'   => 'trash',
+        'Spam'    => 'junk',
+        'Sent'    => 'sent',
+        'Drafts'  => 'drafts',
+    ];
+
     public function __construct(
         private JmapClient             $jmap,
         private JmapMailboxSyncer      $mailboxes,
@@ -44,13 +53,15 @@ final readonly class JmapMailboxWriter
      * The remote mailbox id a label is filed under, made on the server if it
      * has none yet. Null for a label that has no place on a JMAP server.
      *
-     * A system label is never created, with one exception: Archive. The
-     * other roles are the server's own (a JMAP server has an Inbox, a Sent
-     * and a Trash), and Snoozed, Unread and All Mail are plMail's alone. A
-     * server without an archive mailbox is common, and archiving there would
-     * otherwise remove a message from its only mailbox — which RFC 8621
-     * refuses, so the archive would never reach the server and the next sync
-     * would put the message back in the Inbox.
+     * A system label is created only for a role RFC 8621 names — Archive,
+     * Trash, Junk, Sent, Drafts; Snoozed, Unread and All Mail are plMail's
+     * alone. A server without an archive mailbox is common, and archiving
+     * there would otherwise remove a message from its only mailbox — which
+     * RFC 8621 refuses, so the archive would never reach the server and the
+     * next sync would put the message back in the Inbox. Trash and the rest
+     * were assumed to exist, and on Stalwart and Fastmail they do; another
+     * plMail lists a role's mailbox only once something has used it, so
+     * deleting here filed nothing there and the next sync undid it.
      *
      * @throws JmapApiException
      */
@@ -63,18 +74,22 @@ final readonly class JmapMailboxWriter
         }
 
         if (true === $label->isSystem) {
-            if (LabelRole::Archive !== $label->role) {
+            $jmapRole = self::CREATABLE_ROLES[$label->role->name ?? ''] ?? null;
+
+            if (null === $jmapRole) {
                 return null;
             }
 
+            $name = LabelRole::Archive === $label->role ? self::ARCHIVE_NAME : (string) $label->name;
+
             try {
-                return $this->create($label, $account, self::ARCHIVE_NAME, null, 'archive');
+                return $this->create($label, $account, $name, null, $jmapRole);
             } catch (JmapApiException $refused) {
-                // A top-level "Archive" with no role is the usual reason: a
-                // client made one as a plain folder, and a sibling may not
-                // share its name. That folder is what the user calls the
-                // archive, so it is the one used.
-                return $this->adopt($label, $account, self::ARCHIVE_NAME) ?? throw $refused;
+                // A top-level folder of that name with no role is the usual
+                // reason: a client made one as a plain folder, and a sibling
+                // may not share its name. That folder is what the user calls
+                // it, so it is the one used.
+                return $this->adopt($label, $account, $name) ?? throw $refused;
             }
         }
 
@@ -88,7 +103,7 @@ final readonly class JmapMailboxWriter
     }
 
     /**
-     * The remote id of a role's mailbox, made on the server for Archive.
+     * The remote id of a role's mailbox, made on the server when it has none.
      *
      * @throws JmapApiException
      */

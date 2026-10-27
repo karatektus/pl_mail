@@ -92,6 +92,25 @@ final class JmapWriteBackTest extends KernelTestCase
         self::assertSame(['mb-trash'], array_keys($this->server->emails[$this->emailId]['mailboxIds']));
     }
 
+    /**
+     * Another plMail lists a role's mailbox only once something has used it,
+     * so its Trash may not be there yet. Trash used to be assumed present:
+     * the job filed the Email nowhere and the next sync put it back.
+     */
+    public function testTrashMakesTheTrashMailboxWhenTheServerHasNone(): void
+    {
+        $this->server->removeMailbox('mb-trash');
+        $this->syncAndImport();
+
+        $this->propagator()->trash([$this->only()]);
+        $this->apply();
+
+        $trash = array_values(array_filter($this->server->mailboxes, static fn (array $box): bool => 'trash' === $box['role']));
+
+        self::assertCount(1, $trash, 'a trash mailbox was made, once');
+        self::assertSame([$trash[0]['id']], array_keys($this->server->emails[$this->emailId]['mailboxIds']));
+    }
+
     public function testALabelMadeHereBecomesAMailboxThere(): void
     {
         $label = static::getContainer()->get(LabelResolver::class)->customChain(['Receipts', 'Year 2026'], $this->freshAccount());
