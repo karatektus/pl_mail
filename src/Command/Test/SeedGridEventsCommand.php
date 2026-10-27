@@ -166,13 +166,19 @@ final class SeedGridEventsCommand extends Command
 
         // Midnight to midnight, which is what an all-day event is stored as.
         // The flag is what lifts it out of the hours; the times are only what
-        // makes it land on the right day.
+        // makes it land on the right day. Midnight in UTC, of today's date
+        // here: an all-day event is floating (CalendarTimeResolver::eventZone),
+        // which is what the editor stores. Midnight in this zone was 23:00 the
+        // day before in UTC, and anything reading the event by the rule —
+        // plMail's JMAP server publishing it, for one — put it on that day.
+        $day = new DateTimeImmutable($timed->format('Y-m-d') . ' 00:00:00', new DateTimeZone('UTC'));
+
         $this->write(
             $user,
             $calendar,
             self::ALL_DAY,
-            $timed->setTime(0, 0),
-            $timed->setTime(0, 0)->modify('+1 day'),
+            $day,
+            $day->modify('+1 day'),
             $zone,
             isAllDay: true,
         );
