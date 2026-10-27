@@ -231,6 +231,13 @@ on. Switching one off stops plMail fetching it: the mail already stored stays wh
 switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
 that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
 
+Two kinds of folder start off: **Starred**, and **All Mail** on an account that also has an Archive
+folder — Proton Mail Bridge has both. They are the server's view of mail it keeps in your other
+folders, and fetching them would show every message twice. The copies of mail kept elsewhere that
+plMail stored from them before are removed over the next syncs; mail only they hold stays. On Gmail
+over IMAP All Mail stays on, because archived mail lives there and nowhere else. Switching
+either back on fetches the copies it had removed again.
+
 Nested folders are indented under their parent. A folder that only groups others and holds no mail
 of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
 the server will not open it, so there is nothing to fetch.

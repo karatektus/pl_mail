@@ -101,6 +101,17 @@ readonly class MailboxSyncer
     ];
 
     /**
+     * How many copies a mirror folder loses in one folder sync — see
+     * dropMirrorCopies().
+     *
+     * An account's All Mail is every message it has, and erasing one is a few
+     * deletes and a thread recount. A cap keeps the first sync after the
+     * change from holding the account's sync for the length of the whole
+     * mailbox; the rest goes over the next polls.
+     */
+    private const int MIRROR_ERASE_BATCH = 500;
+
+    /**
      * How many listings in a row have to leave a folder out, and for how long,
      * before its row — and with it, by cascade, every message in it — goes.
      *
@@ -173,6 +184,7 @@ readonly class MailboxSyncer
 
             $specialUses  = self::assignSpecialUses($serverFolders);
             $unselectable = self::unselectablePaths($serverFolders);
+            $mirrors      = self::mirrorPaths($serverFolders, $specialUses);
             $existing     = $this->mailboxRepository->findIndexedByFullPath($account);
             $unmatched    = [];
 
@@ -187,7 +199,7 @@ readonly class MailboxSyncer
 
                 unset($existing[$folder->path]);
                 $selectable = false === isset($unselectable[$folder->path]);
-                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable);
+                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable, isset($mirrors[$folder->path]));
                 $this->clearMissing($mailbox);
                 $result['updated']++;
             }
@@ -198,10 +210,11 @@ readonly class MailboxSyncer
             foreach ($unmatched as $folder) {
                 $specialUse = $specialUses[$folder->path] ?? null;
                 $selectable = false === isset($unselectable[$folder->path]);
+                $mirror     = isset($mirrors[$folder->path]);
                 $source     = $this->findRenameSource($client, $folder, $specialUse, $existing);
 
                 if (null === $source) {
-                    $this->create($account, $folder, $specialUse, $selectable);
+                    $this->create($account, $folder, $specialUse, $selectable, $mirror);
                     $result['created']++;
 
                     continue;
@@ -214,7 +227,7 @@ readonly class MailboxSyncer
                 ]);
 
                 unset($existing[(string) $source->fullPath]);
-                $this->update($source, $folder, $specialUse, $account, $selectable);
+                $this->update($source, $folder, $specialUse, $account, $selectable, $mirror);
                 $this->clearMissing($source);
                 $result['renamed']++;
             }
@@ -224,6 +237,8 @@ readonly class MailboxSyncer
             }
 
             $this->em->flush();
+
+            $this->dropMirrorCopies($account);
         } finally {
             $client->disconnect();
         }
@@ -456,6 +471,82 @@ readonly class MailboxSyncer
     }
 
     /**
+     * The folders that are the server's view of mail it keeps elsewhere — see
+     * Mailbox::$mirrorsOtherFolders for which, and why \All only beside an
+     * Archive.
+     *
+     * By attribute, and for \All by the name "All Mail" too, the same fallback
+     * SPECIAL_USE_NAMES gives the other roles for servers that do not say.
+     * "Starred" gets no such fallback: on a server that does not mark it, it
+     * is as likely to be a folder somebody made.
+     *
+     * Public and static for the same reason as assignSpecialUses().
+     *
+     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param array<string, MailboxSpecialUse>                       $specialUses what assignSpecialUses() made of the same listing
+     *
+     * @return array<string, true> keyed by the folder's raw path
+     */
+    public static function mirrorPaths(array $folders, array $specialUses): array
+    {
+        $hasArchive = in_array(MailboxSpecialUse::ARCHIVE, $specialUses, true);
+        $paths      = [];
+
+        foreach ($folders as ['folder' => $folder, 'attributes' => $attributes]) {
+            $attributes = array_map('strtolower', $attributes);
+
+            $all = in_array('\\all', $attributes, true)
+                || 'all mail' === mb_strtolower(trim($folder->name));
+
+            if (in_array('\\flagged', $attributes, true) || ($all && $hasArchive)) {
+                $paths[$folder->path] = true;
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Erase what the account's switched-off mirror folders stored while they
+     * were synced: the copies whose email a real folder also keeps (#414).
+     *
+     * Every folder sync and not once, so the work is spread over polls
+     * (MIRROR_ERASE_BATCH) and nothing has to remember where it stopped. Only
+     * while the folder is off: somebody who switches it back on has asked for
+     * its copies, and gets them.
+     *
+     * A copy that is the email's only one stays — on a server where All Mail
+     * holds something no other folder does, erasing it would lose mail — and
+     * so does its folder's label on it. Local only: MessageEraser never tells
+     * the server, which is right, as the server never had a second message.
+     */
+    private function dropMirrorCopies(Account $account): void
+    {
+        $mirrors = $this->mailboxRepository->findBy([
+            'account'             => $account,
+            'mirrorsOtherFolders' => true,
+            'isSyncEnabled'       => false,
+        ]);
+
+        foreach ($mirrors as $mirror) {
+            $copies = $this->messageRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
+
+            if ([] === $copies) {
+                continue;
+            }
+
+            $erased = $this->eraser->eraseAll($copies);
+            $this->em->flush();
+
+            $this->logger->info('Erased copies a mirror folder stored of mail kept elsewhere', [
+                'accountId' => $account->id,
+                'folder'    => $mirror->fullPath,
+                'erased'    => $erased,
+            ]);
+        }
+    }
+
+    /**
      * @param list<string> $attributes
      */
     private static function specialUseFromAttributes(array $attributes): ?MailboxSpecialUse
@@ -482,12 +573,13 @@ readonly class MailboxSyncer
         return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name))] ?? null;
     }
 
-    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse, bool $selectable): void
+    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, bool $mirror): void
     {
         $mailbox = new Mailbox();
         $mailbox->account = $account;
-        $mailbox->isSyncEnabled = $selectable;
+        $mailbox->isSyncEnabled = $selectable && false === $mirror;
         $mailbox->isSelectable  = $selectable;
+        $mailbox->mirrorsOtherFolders = $mirror;
         $mailbox->isIdleEnabled = in_array(
             $specialUse?->value,
             ['\\Inbox', '\\Junk'],
@@ -501,8 +593,17 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable): void
+    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, bool $mirror): void
     {
+        // Off when the folder is first seen to be a mirror, and only then. A
+        // folder synced before this rule existed is healed on its next sync;
+        // one somebody switched back on afterwards is theirs to keep on.
+        if ($mirror && false === $mailbox->mirrorsOtherFolders) {
+            $mailbox->isSyncEnabled = false;
+        }
+
+        $mailbox->mirrorsOtherFolders = $mirror;
+
         // Switches off, never on: a folder somebody turned off stays off, and a
         // row created enabled before this rule existed is healed here. The
         // other direction is deliberately not handled — nothing records whether

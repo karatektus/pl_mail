@@ -21,10 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 /**
  * Which of an IMAP account's folders plMail fetches.
  *
- * Every folder starts switched on, and a switch here is Mailbox::$isSyncEnabled
- * — the flag the syncers, the IDLE supervisor and the remote-deletion check
- * already read. Nothing else is touched: mail already stored stays where it is,
- * and switching a folder back on resumes from where it stopped.
+ * Every folder starts switched on but the mirrors (Mailbox::$mirrorsOtherFolders),
+ * and a switch here is Mailbox::$isSyncEnabled — the flag the syncers, the IDLE
+ * supervisor and the remote-deletion check already read. Mail already stored
+ * stays where it is, and switching a folder back on resumes from where it
+ * stopped. A mirror is the one exception, in both halves: see toggle().
  *
  * IMAP only. A Gmail or Microsoft account syncs over its provider's API and has
  * no folder rows to choose between, so neither route exists for it — the same
@@ -92,6 +93,19 @@ final class AccountFoldersController extends AbstractController
         }
 
         $mailbox->isSyncEnabled = false === $mailbox->isSyncEnabled;
+
+        // A mirror that was off has had copies erased from below its
+        // lastSeenUid (MailboxSyncer::dropMirrorCopies()), and neither a poll
+        // (lastSeenUid+1:*) nor a finished import (floor 0) reads there again.
+        // Unplanned, the folder is planned afresh on its next sync, the way a
+        // UIDVALIDITY rebuild re-reads one: the importer fetches only the UIDs
+        // that are not stored, which are the erased copies. Every time, not
+        // only after an erase happened: on a folder with nothing missing it
+        // costs one SEARCH.
+        if (true === $mailbox->isSyncEnabled && $mailbox->mirrorsOtherFolders) {
+            $mailbox->importFloorUid = null;
+        }
+
         $this->em->flush();
 
         // The row alone, but with its place in the tree: it draws the lines
