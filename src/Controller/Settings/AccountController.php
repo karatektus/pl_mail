@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
@@ -316,6 +317,13 @@ final class AccountController extends AbstractController
         $account->smtpHost = (string) ($payload['smtpHost'] ?? '');
         $account->smtpPort = (int) ($payload['smtpPort'] ?? 587);
         $account->smtpEncryption = (string) ($payload['smtpEncryption'] ?? 'starttls');
+
+        // The protocol decides what is probed: without it every account is
+        // tested as IMAP, and a JMAP host on 443 reads as unreachable with
+        // sending "disabled". Missing or unknown is IMAP, as on the form.
+        $account->incomingProtocol = IncomingProtocol::tryFrom((string) ($payload['incomingProtocol'] ?? '')) ?? IncomingProtocol::Imap;
+        $account->jmapSessionUrl   = (string) ($payload['jmapSessionUrl'] ?? '');
+        $account->jmapTokenAuth    = true === ($payload['jmapTokenAuth'] ?? false);
 
         // A second password for sending, only when the form says it wants one
         // — the same flag-then-value the form itself submits. See AccountType.
