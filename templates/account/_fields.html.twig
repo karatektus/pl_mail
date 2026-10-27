@@ -84,7 +84,11 @@ genuinely needed, merge onto form.<field>.vars.attr.
         {{ form_row(form.imapHost, { label: 'account.form.imap.host'|trans }) }}
         {{ form_row(form.imapPort, { label: 'account.form.port'|trans }) }}
     </div>
-    {{ form_row(form.imapEncryption, { label: 'account.form.encryption'|trans }) }}
+    {# Not under JMAP, which is HTTPS and nothing else: the server reads only
+       the port for a JMAP account. Hidden, so the value still goes back. #}
+    <div data-settings--imap-preset-target="incomingEncryption">
+        {{ form_row(form.imapEncryption, { label: 'account.form.encryption'|trans }) }}
+    </div>
 
     {# POP3 only. Hidden — not removed — when IMAP is chosen, so a radio
        switched back and forth keeps whatever the user picked. The server
@@ -97,13 +101,24 @@ genuinely needed, merge onto form.<field>.vars.attr.
     </div>
 
     {# JMAP only, hidden the same way and for the same reason. The session
-       URL is for a server that does not answer at the well-known path; the
-       box is for a server whose password is an API token. #}
+       URL is for a server that does not answer at the well-known path, which
+       nearly every one does, so it waits behind an offer until it is asked
+       for or has a value; the box is for a server whose password is an API
+       token. #}
     <div data-settings--imap-preset-target="jmapOptions" class="hidden space-y-3">
-        {{ form_row(form.jmapSessionUrl, {
-            label: 'account.form.jmap.session_url'|trans,
-            help:  'account.form.jmap.session_url_help'|trans,
-        }) }}
+        <button type="button"
+                data-settings--imap-preset-target="sessionUrlOffer"
+                data-action="click->settings--imap-preset#useSessionUrl"
+                class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
+            <i class="fa-solid fa-link text-[10px]" aria-hidden="true"></i>
+            {{ 'account.form.jmap.session_url_offer'|trans }}
+        </button>
+        <div data-settings--imap-preset-target="sessionUrl" class="hidden">
+            {{ form_row(form.jmapSessionUrl, {
+                label: 'account.form.jmap.session_url'|trans,
+                help:  'account.form.jmap.session_url_help'|trans,
+            }) }}
+        </div>
         {{ form_row(form.jmapTokenAuth, {
             label: 'account.form.jmap.token_auth'|trans,
             help:  'account.form.jmap.token_auth_help'|trans,
@@ -113,58 +128,78 @@ genuinely needed, merge onto form.<field>.vars.attr.
 
 <div class="border-t border-line"></div>
 
-{# ── Outgoing — SMTP ──────────────────────────────────────────────────── #}
+{# ── Outgoing — SMTP, or the JMAP server ─────────────────────────────────
+   A JMAP server that offers submission sends the mail itself, and SMTP is
+   only for one that does not (JmapApiSender, SmtpMailSender beneath it). So
+   under JMAP the heading says so and the SMTP fields fold behind an offer —
+   hidden, not removed, like the POP3 and JMAP options above, so SMTP that is
+   filled in already is still sent and still shown. #}
 <div class="space-y-3">
-    <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+    <p data-settings--imap-preset-target="outgoingLabel"
+       data-heading-smtp="{{ 'account.form.smtp.heading'|trans }}"
+       data-heading-jmap="{{ 'account.form.jmap.outgoing_heading'|trans }}"
+       class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
         {{ 'account.form.smtp.heading'|trans }}
     </p>
-    <div class="grid grid-cols-[1fr_100px] gap-3">
-        {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans }) }}
-        {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
-    </div>
-    {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}
-
-    {# ── A different password for sending ──
-       Nearly every server takes one password for both directions, so this is
-       one line of text until somebody asks for more: a button, which ticks
-       the (unseen) box and reveals the field. See AccountType for why the box
-       and not the field is what the server believes.
-
-       The box is rendered by the form and hidden with the `hidden` attribute,
-       not left out and recreated by script: after a failed validation the
-       form comes back with the box as it was submitted, and the controller
-       reads its state from there on connect, so the second field does not
-       fold itself away with what was typed in it. #}
-    <div data-controller="settings--smtp-password">
-        {{ form_widget(form.separateSmtpPassword, { attr: {
-            hidden: 'hidden',
-            tabindex: '-1',
-            'data-settings--smtp-password-target': 'separate',
-        } }) }}
-
+    <div data-settings--imap-preset-target="jmapOutgoing" class="hidden space-y-2">
+        <p class="text-xs leading-snug text-ink-muted">{{ 'account.form.jmap.outgoing_help'|trans }}</p>
         <button type="button"
-                data-settings--smtp-password-target="offer"
-                data-action="click->settings--smtp-password#separate"
+                data-settings--imap-preset-target="smtpOffer"
+                data-action="click->settings--imap-preset#useSmtp"
                 class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
-            <i class="fa-solid fa-key text-[10px]" aria-hidden="true"></i>
-            {{ 'account.form.smtp.separate'|trans }}
+            <i class="fa-solid fa-paper-plane text-[10px]" aria-hidden="true"></i>
+            {{ 'account.form.jmap.use_smtp'|trans }}
         </button>
+    </div>
+    <div data-settings--imap-preset-target="smtpFields" class="space-y-3">
+        <div class="grid grid-cols-[1fr_100px] gap-3">
+            {{ form_row(form.smtpHost, { label: 'account.form.smtp.host'|trans }) }}
+            {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
+        </div>
+        {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}
 
-        <div data-settings--smtp-password-target="fields" hidden class="space-y-2">
-            {{ form_row(form.smtpPassword, {
-                label: 'account.form.smtp.password'|trans,
-                help: mode == 'edit' and form.separateSmtpPassword.vars.checked ? 'settings.accounts.password_help'|trans : null,
-                attr: form.smtpPassword.vars.attr|merge({
-                    placeholder: '••••••••',
-                    'data-settings--smtp-password-target': 'password',
-                })
-            }) }}
+        {# ── A different password for sending ──
+           Nearly every server takes one password for both directions, so this is
+           one line of text until somebody asks for more: a button, which ticks
+           the (unseen) box and reveals the field. See AccountType for why the box
+           and not the field is what the server believes.
+
+           The box is rendered by the form and hidden with the `hidden` attribute,
+           not left out and recreated by script: after a failed validation the
+           form comes back with the box as it was submitted, and the controller
+           reads its state from there on connect, so the second field does not
+           fold itself away with what was typed in it. #}
+        <div data-controller="settings--smtp-password">
+            {{ form_widget(form.separateSmtpPassword, { attr: {
+                hidden: 'hidden',
+                tabindex: '-1',
+                'data-settings--smtp-password-target': 'separate',
+            } }) }}
+
             <button type="button"
-                    data-action="click->settings--smtp-password#same"
+                    data-settings--smtp-password-target="offer"
+                    data-action="click->settings--smtp-password#separate"
                     class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
-                <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
-                {{ 'account.form.smtp.same'|trans }}
+                <i class="fa-solid fa-key text-[10px]" aria-hidden="true"></i>
+                {{ 'account.form.smtp.separate'|trans }}
             </button>
+
+            <div data-settings--smtp-password-target="fields" hidden class="space-y-2">
+                {{ form_row(form.smtpPassword, {
+                    label: 'account.form.smtp.password'|trans,
+                    help: mode == 'edit' and form.separateSmtpPassword.vars.checked ? 'settings.accounts.password_help'|trans : null,
+                    attr: form.smtpPassword.vars.attr|merge({
+                        placeholder: '••••••••',
+                        'data-settings--smtp-password-target': 'password',
+                    })
+                }) }}
+                <button type="button"
+                        data-action="click->settings--smtp-password#same"
+                        class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
+                    <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                    {{ 'account.form.smtp.same'|trans }}
+                </button>
+            </div>
         </div>
     </div>
 </div>

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:5335652d9a9068ad87eafb41deda04a22278acba -->
+<!-- translated-from: providers/imap-smtp.md sha1:50bd39139cfba3551b35a1fe92934c3bf5f73b53 -->
 
 # IMAP und SMTP
 
@@ -17,10 +17,12 @@ Anbieter tatsächlich uneins sind.
 **Einstellungen → E-Mail-Konten → Konto hinzufügen**, im Reiter **IMAP / SMTP**.
 
 1. Wähl deinen Anbieter aus der Auswahlliste **Anbieter**, wenn er dort steht. plMail bringt eine
-   Liste gängiger Anbieter mit und füllt daraus Server, Port und Verschlüsselung für beide Richtungen
-   aus; bei etlichen Einträgen steht zusätzlich ein kurzer Hinweis auf etwas, das dieser Anbieter
-   verlangt. Die Liste wird gegen die Domain der eingetippten Adresse abgeglichen, für die meisten
-   Postfächer sind die Einstellungen also da, bevor du die Auswahlliste überhaupt berührt hast.
+   Liste gängiger Anbieter mit und füllt daraus Server, Port und Verschlüsselung für beide
+   Richtungen aus — den POP3- oder JMAP-Server statt des IMAP-Servers, wenn das gewählte Protokoll
+   eines davon ist und plMail den des Anbieters kennt; bei etlichen Einträgen steht zusätzlich ein
+   kurzer Hinweis auf etwas, das dieser Anbieter verlangt. Die Liste wird gegen die Domain der
+   eingetippten Adresse abgeglichen, für die meisten Postfächer sind die Einstellungen also da,
+   bevor du die Auswahlliste überhaupt berührt hast.
 2. **E-Mail-Adresse** ist der Name, unter dem das Konto in plMails eigener Oberfläche erscheint.
    **Benutzername** ist das, als was der Server dich kennt, und ist auch das, was die
    Anbietererkennung liest. Auf den meisten Servern sind beide dieselbe Zeichenfolge; auf manchen
