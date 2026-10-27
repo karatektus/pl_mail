@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:8414250c1074612400a044104c29f66603383051 -->
+<!-- translated-from: features/accounts.md sha1:91b57d2ce0f4be624689b7c776c7f1fe5f31927e -->
 
 # Konten und Aliase
 
@@ -259,6 +259,14 @@ Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nich
 bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
 weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
 Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+
+Zwei Arten von Ordnern beginnen ausgeschaltet: **Markiert** (Starred) und **Alle Nachrichten** (All
+Mail), wenn das Konto auch einen Archiv-Ordner hat — Proton Mail Bridge hat beide. Sie sind die
+Sicht des Servers auf Mail, die er in deinen anderen Ordnern aufbewahrt, und sie abzurufen zeigte
+jede Nachricht doppelt. Die Kopien von Mail, die anderswo liegt und die plMail vorher aus ihnen
+gespeichert hat, werden über die nächsten Synchronisierungen entfernt; Mail, die nur sie enthalten,
+bleibt. Bei Gmail über IMAP bleibt All Mail eingeschaltet, denn archivierte Mail liegt dort und
+nirgends sonst. Du kannst beide wieder einschalten.
 
 Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
 zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der

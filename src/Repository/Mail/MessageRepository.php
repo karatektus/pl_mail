@@ -2586,6 +2586,45 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Rows in a mirror folder (Mailbox::$mirrorsOtherFolders) whose email the
+     * server also keeps in a real folder — the second copies #414 is about.
+     *
+     * "Keeps" means a row with an address the server has confirmed: a folder,
+     * a UID, and no vanish mark. A row waiting for its copy after a move has
+     * none of those yet, and erasing the mirror copy beside it would leave the
+     * email with no confirmed address at all. Nor does a copy in another
+     * mirror count: a message in both Starred and All Mail and nowhere else is
+     * in neither for good, and erasing by this rule would take it from both.
+     *
+     * By Message-ID, the only key two folder copies share. Rows without one
+     * are never matched, so they stay.
+     *
+     * @return list<Message>
+     */
+    public function findMirrorCopiesKeptElsewhere(Mailbox $mirror, int $limit): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mirror')
+            ->andWhere('message.messageId IS NOT NULL')
+            ->andWhere(
+                'EXISTS (SELECT kept.id FROM ' . Message::class . ' kept'
+                . ' JOIN kept.mailbox keptIn'
+                . ' WHERE kept.account = message.account'
+                . ' AND kept.messageId = message.messageId'
+                . ' AND kept.mailbox <> message.mailbox'
+                . ' AND kept.imapUid IS NOT NULL'
+                . ' AND kept.vanishedAt IS NULL'
+                . ' AND keptIn.mirrorsOtherFolders = false)',
+            )
+            ->setParameter('mirror', $mirror)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Rows in a Sent folder that were written by the send path before it minted
      * Message-IDs: sent (so not a draft), filed into this folder, but carrying
      * neither an IMAP UID nor an RFC Message-ID.
