@@ -70,6 +70,42 @@ final class MailboxSetStructureTest extends JmapTestCase
     }
 
     /**
+     * A role named on create is the user's system label for it, put on this
+     * account — not a custom label of that name with the role dropped. System
+     * labels are made lazily, so a client syncing this server (another plMail,
+     * say) finds no Trash until it makes one.
+     */
+    public function testCreateWithARoleBindsTheSystemLabel(): void
+    {
+        $result = $this->handle(['create' => ['t' => ['name' => 'Bin', 'role' => 'trash']]]);
+
+        $created = ((array) $result['created'])['t'];
+
+        self::assertSame('trash', $created['role']);
+
+        $fetched = $this->get->handle(['accountId' => $this->accountId(), 'ids' => [$created['id']]], $this->context());
+
+        self::assertSame('trash', $fetched['list'][0]['role']);
+        self::assertSame(LabelRole::Trash, $this->labelResolver->userSystemLabel(LabelRole::Trash, $this->user)->bindingFor($this->account)?->label->role);
+    }
+
+    public function testCreateWithARoleTheAccountHasOrDoesNotKnowIsRefused(): void
+    {
+        $this->mailboxIdFor(LabelRole::Trash);
+
+        $result = $this->handle(['create' => [
+            'again'   => ['name' => 'Trash', 'role' => 'trash'],
+            'unknown' => ['name' => 'Odd', 'role' => 'subscribed'],
+        ]]);
+
+        $notCreated = (array) $result['notCreated'];
+
+        self::assertSame(['role'], $notCreated['again']['properties']);
+        self::assertSame(['role'], $notCreated['unknown']['properties']);
+        self::assertSame([], (array) $result['created']);
+    }
+
+    /**
      * Gmail encodes hierarchy in the name, so a slash in a leaf name would
      * silently create a nested label on the provider that plMail believes is
      * flat — two trees that disagree, from one accepted character.
