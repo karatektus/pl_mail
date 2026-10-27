@@ -618,6 +618,16 @@
                         {{ 'whats_new.feedback.title'|trans }}
                     </button>
                 {% endif %}
+                {# Where to get the phone app (#402): the Play listing, whose
+                   page links the free GitHub build too. #}
+                <a href="https://play.google.com/store/apps/details?id=de.pluetzner.plmail"
+                   target="_blank" rel="noopener noreferrer" role="menuitem"
+                   data-action="click->ui--user-menu#toggle"
+                   class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors">
+                    <i class="fa-brands fa-android w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1">{{ 'whats_new.menu.android'|trans }}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-ink-faint" aria-hidden="true"></i>
+                </a>
                 <div class="my-1 border-t border-line"></div>
                 <p class="px-3 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
             </div>
@@ -890,6 +900,14 @@
                             {{ 'whats_new.feedback.title'|trans }}
                         </button>
                     {% endif %}
+                    <a href="https://play.google.com/store/apps/details?id=de.pluetzner.plmail"
+                       target="_blank" rel="noopener noreferrer"
+                       data-action="click->ui--user-menu#toggle"
+                       class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left">
+                        <i class="fa-brands fa-android w-4 text-gray-400" aria-hidden="true"></i>
+                        <span class="flex-1">{{ 'whats_new.menu.android'|trans }}</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-ink-faint" aria-hidden="true"></i>
+                    </a>
                     <p class="px-4 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
                 </div>
             </div>

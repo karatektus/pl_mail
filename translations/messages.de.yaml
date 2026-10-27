@@ -3377,6 +3377,12 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    native_apps:
+        android_hint: "Danach koppelst du sie mit dem Button unten. Der Kauf der App bei Google Play ist im Moment der wichtigste Weg, wie sich dieses Projekt trägt."
+        android_title: "Installiere zuerst plMail für Android"
+        github: "oder kostenlos von GitHub"
+        play_alt: "Jetzt bei Google Play"
+        play_badge: images/badges/google-play-de.png
     app_passwords:
         copy: Kopieren
         copy_now: Hier ist dein neues App-Passwort
@@ -5103,6 +5109,7 @@ whats_new:
         where: 'Geht per Mail an %address%, mit deiner plMail-Version. Eine Kopie bleibt in deinem Ordner „Gesendet“.'
     highlights: 'Highlights'
     menu:
+        android: 'plMail für Android'
         label: 'Hilfe und Feedback'
         unseen: 'Es gibt Versionshinweise, die du noch nicht gesehen hast'
         version: 'plMail %version%'

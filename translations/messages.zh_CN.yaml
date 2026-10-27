@@ -2965,6 +2965,12 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    native_apps:
+        android_hint: '然后用下面的按钮完成配对。目前，在 Google Play 上购买这个应用是支持本项目的主要方式。'
+        android_title: '请先安装 Android 版 plMail'
+        github: '或从 GitHub 免费下载'
+        play_alt: '下载应用，请到 Google Play'
+        play_badge: images/badges/google-play-zh_CN.png
     app_passwords:
         copy: '复制'
         copy_now: '这是你的新应用密码'
@@ -4355,6 +4361,7 @@ whats_new:
         where: '将通过邮件发送至 %address%，并附上你的 plMail 版本。副本会保存在已发送文件夹中。'
     highlights: '更新亮点'
     menu:
+        android: 'Android 版 plMail'
         label: '帮助与反馈'
         unseen: '有你尚未查看的版本说明'
         version: 'plMail %version%'

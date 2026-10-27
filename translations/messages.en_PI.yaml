@@ -3233,6 +3233,12 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    native_apps:
+        android_hint: "Then sign it on with th' button below. Buyin' th' app on Google Play be, fer now, the main way this crew keeps afloat."
+        android_title: "Fetch plMail fer Android first"
+        github: "or take it free from GitHub"
+        play_alt: "Get it on Google Play"
+        play_badge: images/badges/google-play-en.png
     app_passwords:
         copy: Copy
         copy_now: Here be yer new spare key
@@ -4872,6 +4878,7 @@ whats_new:
         where: 'Goes by bottle to %address%, with yer plMail version. A copy stays in yer Sent hold.'
     highlights: 'Treasures'
     menu:
+        android: 'plMail fer Android'
         label: 'Help an'' word'
         unseen: 'There be ship''s log entries ye haven''t seen'
         version: 'plMail %version%'

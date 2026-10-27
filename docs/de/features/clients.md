@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:e08e0c778097638bb9172b46a2136343942b0428 -->
+<!-- translated-from: features/clients.md sha1:7572727e02295e1e0c6cb23f8c03ef55a4df9326 -->
 
 # Andere Clients
 
@@ -6,6 +6,17 @@ plMail spricht JMAP, eine Mail-App eines Drittanbieters kann also darüber lesen
 ohne den Zugangsdaten deines Anbieters nahezukommen. Es ist außerdem eine Progressive Web App,
 der Browser, den du ohnehin benutzt, kann sich also wie ein installierter Client verhalten und
 dich über neue Mail benachrichtigen, während der Tab geschlossen ist.
+
+## Die plMail-App für Android
+
+Die native App gibt es bei [Google Play](https://play.google.com/store/apps/details?id=de.pluetzner.plmail)
+als kostenpflichtige App im Vorabzugriff. Dieselbe App gibt es kostenlos bei den
+[GitHub-Releases](https://github.com/karatektus/pl_mail_android/releases/latest), dort auch als
+Build ganz ohne Google-Code (Push über UnifiedPush statt Firebase). Der Kauf bei Google Play ist im
+Moment der wichtigste Weg, wie sich dieses Projekt trägt.
+
+Zum Verbinden öffnest du **Einstellungen → App-Passwörter → Gerät koppeln** und scannst den QR-Code
+mit der App. Dasselbe Panel verlinkt beide Downloads.
 
 ## Einen JMAP-Client verbinden
 

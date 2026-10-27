@@ -3434,6 +3434,12 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    native_apps:
+        android_hint: "Associez-la ensuite avec le bouton ci-dessous. Acheter l’application sur Google Play est, pour l’instant, le principal moyen de soutenir ce projet."
+        android_title: "Installez d’abord plMail pour Android"
+        github: "ou gratuitement depuis GitHub"
+        play_alt: "Disponible sur Google Play"
+        play_badge: images/badges/google-play-fr.png
     app_passwords:
         copy: Copier
         copy_now: Voici votre nouveau mot de passe d’application
@@ -5134,6 +5140,7 @@ whats_new:
         where: 'Part par courrier à %address%, avec votre version de plMail. Une copie reste dans votre dossier Envoyés.'
     highlights: 'À la une'
     menu:
+        android: 'plMail pour Android'
         label: 'Aide et avis'
         unseen: 'Des notes de version que vous n’avez pas encore vues'
         version: 'plMail %version%'
