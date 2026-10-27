@@ -3283,11 +3283,11 @@ settings:
         folders:
             always_synced: La boîte de réception est toujours synchronisée
             button: Choisir les dossiers à synchroniser
-            created: 'Dossier %folder% créé.'
+            created: 'Dossier « %folder% » créé'
             delete:
                 button: 'Supprimer le dossier %folder%'
                 confirm: 'Supprimer le dossier %folder% sur le serveur de messagerie ? Il est vide ; rien d’autre n’est supprimé.'
-            deleted: 'Dossier %folder% supprimé.'
+            deleted: 'Dossier « %folder% » supprimé'
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
             intro: >-
                 Désactivez un dossier et plMail cesse de le récupérer. Le courrier
@@ -3319,7 +3319,7 @@ settings:
                 intro: 'Le dossier est renommé sur le serveur de messagerie, avec les dossiers qu’il contient, et toutes les applications qui lisent ce compte voient le nouveau nom.'
                 submit: 'Renommer'
                 title: 'Renommer le dossier — %folder%'
-            renamed: 'Dossier renommé en %folder%.'
+            renamed: 'Dossier renommé en « %folder% »'
             start_sync: 'Commencer à synchroniser %folder%'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'

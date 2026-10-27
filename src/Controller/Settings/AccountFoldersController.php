@@ -120,7 +120,7 @@ final class AccountFoldersController extends AbstractController
             return $this->renderNewForm($account, $parentId, $name, $this->unreachable($e));
         }
 
-        return $this->renderList($account, $this->translator->trans(
+        return $this->done($account, $this->translator->trans(
             'settings.accounts.folders.created',
             ['%folder%' => (string) $mailbox->name],
         ));
@@ -159,7 +159,7 @@ final class AccountFoldersController extends AbstractController
             return $this->renderRenameForm($account, $mailbox, $name, $this->unreachable($e));
         }
 
-        return $this->renderList($account, $this->translator->trans(
+        return $this->done($account, $this->translator->trans(
             'settings.accounts.folders.renamed',
             ['%folder%' => (string) $mailbox->name],
         ));
@@ -180,17 +180,17 @@ final class AccountFoldersController extends AbstractController
         try {
             $this->folders->delete($account, $mailbox);
         } catch (FolderActionRefusedException $e) {
-            return $this->renderList($account, null, $this->refused($e));
+            return $this->renderList($account, $this->refused($e));
         } catch (ImapFolderRefusedException $e) {
-            return $this->renderList($account, null, $this->serverRefused($e));
+            return $this->renderList($account, $this->serverRefused($e));
         } catch (Throwable $e) {
-            return $this->renderList($account, null, $this->unreachable($e));
+            return $this->renderList($account, $this->unreachable($e));
         }
 
-        return $this->renderList($account, $this->translator->trans(
+        return $this->done($account, $this->translator->trans(
             'settings.accounts.folders.deleted',
             ['%folder%' => $name],
-        ));
+        ), keepList: true);
     }
 
     #[Route('/settings/accounts/{id}/folders/{mailbox}/sync', name: 'settings_account_folder_sync_toggle', methods: ['POST'])]
@@ -233,21 +233,44 @@ final class AccountFoldersController extends AbstractController
     }
 
     /**
-     * The list, with what the last action did or why it did not.
+     * The list, with why the last action did not work when it did not.
      *
      * Always a 200, a refused delete included. The delete button sits inside
      * its row's own frame and targets the modal; Turbo draws a failed (4xx)
      * answer into the frame the form is IN, so a 422 replaced the row with
      * itself and the reason never showed.
      */
-    private function renderList(Account $account, ?string $notice = null, ?string $error = null): Response
+    private function renderList(Account $account, ?string $error = null): Response
     {
         return $this->render('settings/accounts/_folders_modal.html.twig', [
             'account' => $account,
             'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
-            'notice'  => $notice,
             'error'   => $error,
         ]);
+    }
+
+    /**
+     * A folder action that worked: the app's toast, and both sidebars drawn
+     * again so the folder is where it now is — under its account and under
+     * LABELS — without a reload. A turbo-stream, so the New folder and rename
+     * forms' modal closes on it like any other form's. A delete, pressed inside
+     * the list, keeps the list open: it gets the list back without the folder,
+     * with the same stream inside it.
+     */
+    private function done(Account $account, string $toast, bool $keepList = false): Response
+    {
+        $stream = $this->renderView('settings/accounts/_folder_done.stream.html.twig', ['toast' => $toast]);
+
+        if (true === $keepList) {
+            return $this->render('settings/accounts/_folders_modal.html.twig', [
+                'account' => $account,
+                'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
+                'error'   => null,
+                'done'    => $stream,
+            ]);
+        }
+
+        return new Response($stream, headers: ['Content-Type' => 'text/vnd.turbo-stream.html']);
     }
 
     private function renderRenameForm(Account $account, Mailbox $mailbox, string $name, ?string $error): Response

@@ -9,8 +9,9 @@
    work the moment it is pressed, and the modal's own header closes it, as it
    does for the calendar's read-only dialogs.
 
-   Above the list, New folder (#221), and after a folder action the sentence
-   saying what it did (`notice`) or why it did not (`error`). #}
+   Above the list, New folder (#221), and after a folder action that did not
+   work, why (`error`); one that worked is said by the app's toast
+   (_folder_done.stream.html.twig). #}
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
@@ -39,12 +40,7 @@
                 </div>
             {% endif %}
 
-            {% if notice|default(null) is not null %}
-                <p role="status" data-folder-notice class="mx-6 mb-3 rounded-lg bg-success/10 px-3.5 py-2 text-sm text-success">
-                    <i class="fa-solid fa-check mr-1" aria-hidden="true"></i>{{ notice }}
-                </p>
-            {% endif %}
-
+    
             {% if rows is empty %}
                 <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
                     {{ 'settings.accounts.folders.empty'|trans }}
@@ -69,5 +65,11 @@
                 </ul>
             {% endif %}
         </div>
+
+        {# After a delete that worked: the toast and both sidebars drawn again
+           (_folder_done.stream.html.twig). Turbo carries out a <turbo-stream>
+           wherever it lands, so riding inside the frame that puts the list
+           back is enough. #}
+        {% if done|default(null) is not null %}{{ done|raw }}{% endif %}
     </turbo-frame>
 {% endblock %}

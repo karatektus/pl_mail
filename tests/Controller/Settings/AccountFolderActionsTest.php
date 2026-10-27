@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\User\UserRepository;
+use App\Tests\Service\Imap\FakeFolderServer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -73,7 +75,8 @@ final class AccountFolderActionsTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->url('/new?parent=' . $clients->id));
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('form[data-ui--modal-keep-open] input[name=name]');
+        self::assertSelectorExists('form input[name=name]');
+        self::assertSelectorNotExists('form[data-ui--modal-keep-open] input[name=name]', 'the modal closes when the folder is made');
         self::assertSame('', $crawler->filter('select[name=parent] option')->first()->attr('value'), 'the top level comes first');
         self::assertSame((string) $clients->id, $crawler->filter('select[name=parent] option[selected]')->attr('value'));
         self::assertSame(['Top level', 'INBOX', 'Clients', 'Acme'], array_map(
@@ -161,7 +164,72 @@ final class AccountFolderActionsTest extends WebTestCase
         self::assertSelectorNotExists('select[name=parent]');
     }
 
+    /**
+     * A folder made from the form answers with a turbo-stream, not with the
+     * list: the app's toast says it, both sidebars are drawn again with the
+     * folder in them, and the modal closes on it like on any form. Against
+     * the in-memory server of ImapFolderManagerTest.
+     */
+    public function testANewFolderAnswersWithTheToastAndTheRedrawnSidebar(): void
+    {
+        $server = new FakeFolderServer('', '/');
+        $this->serve($server);
+        $this->mailbox('INBOX', 'INBOX', MailboxSpecialUse::INBOX);
+
+        $this->submit(['name' => 'Kine', 'parent' => '']);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringStartsWith('text/vnd.turbo-stream.html', (string) $this->client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('CREATE Kine', $server->commands[0] ?? null);
+
+        $body = (string) $this->client->getResponse()->getContent();
+
+        self::assertStringContainsString('target="toast-region"', $body);
+        self::assertStringContainsString('Folder “Kine” created', $body);
+        self::assertStringContainsString('<turbo-stream action="replace" target="sidebar">', $body);
+        self::assertStringContainsString('<turbo-stream action="replace" target="sidebar-drawer-inner">', $body);
+        self::assertStringNotContainsString('target="modal"', $body, 'the modal closes rather than showing the list');
+    }
+
+    /** A delete, pressed inside the open list, gets the list back without the folder. */
+    public function testADeleteKeepsTheListOpenWithoutTheFolder(): void
+    {
+        $server = new FakeFolderServer('', '/');
+        $this->serve($server);
+        $empty = $this->mailbox('Empty', 'Empty');
+        $this->mailbox('Other', 'Other');
+
+        $crawler = $this->client->request('GET', $this->url());
+        $token   = (string) $crawler->filter('turbo-frame#account-folder-sync-' . $empty->id . ' form[data-folder-delete] input[name=_token]')->attr('value');
+
+        $crawler = $this->client->request('POST', $this->url('/' . $empty->id . '/delete'), ['_token' => $token]);
+
+        self::assertResponseIsSuccessful();
+        self::assertContains('DELETE Empty', $server->commands);
+
+        $body = (string) $this->client->getResponse()->getContent();
+
+        // The list again, in the modal's frame, without the folder…
+        self::assertSelectorExists('turbo-frame#modal ul');
+        self::assertCount(0, $crawler->filter('turbo-frame#account-folder-sync-' . $empty->id));
+        self::assertStringContainsString('Other', $crawler->filter('turbo-frame#modal ul')->text());
+
+        // …and the toast and the redrawn sidebars riding inside it.
+        self::assertStringContainsString('Folder “Empty” deleted', $body);
+        self::assertCount(1, $crawler->filter('turbo-frame#modal turbo-stream[target="toast-region"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#modal turbo-stream[action="replace"][target="sidebar"]'));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /** Every IMAP connection the actions open goes to this in-memory server. */
+    private function serve(FakeFolderServer $server): void
+    {
+        $factory = $this->createStub(ImapConnectionFactory::class);
+        $factory->method('connect')->willReturn($server->client());
+
+        static::getContainer()->set(ImapConnectionFactory::class, $factory);
+    }
 
     private function url(string $suffix = ''): string
     {

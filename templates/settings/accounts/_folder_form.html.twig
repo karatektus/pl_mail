@@ -29,13 +29,14 @@
             : 'settings.accounts.folders.new.title'|trans({ '%account%': account.displayAddress }) -}}
     </template>
 
-    {# keep-open: a success answers with the folder list, which should stay up. #}
+    {# No keep-open: a success answers with a turbo-stream (toast, sidebars)
+       and the modal closes on it like on any form; a refusal answers 422 and
+       the form stays, with the reason. #}
     <form method="post"
           action="{{ renaming
               ? path('settings_account_folder_rename', { id: account.id, mailbox: mailbox.id })
               : path('settings_account_folder_create', { id: account.id }) }}"
           data-turbo-frame="modal"
-          data-ui--modal-keep-open
           class="flex-1 min-h-0 flex flex-col">
         <input type="hidden" name="_token" value="{{ csrf_token(renaming ? 'account_folder_rename_' ~ mailbox.id : 'account_folder_new_' ~ account.id) }}">
 

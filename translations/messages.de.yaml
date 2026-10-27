@@ -3247,11 +3247,11 @@ settings:
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Zu synchronisierende Ordner wählen
-            created: 'Ordner %folder% angelegt.'
+            created: 'Ordner „%folder%“ angelegt'
             delete:
                 button: 'Ordner %folder% löschen'
                 confirm: 'Den Ordner %folder% auf dem Mailserver löschen? Er ist leer; sonst wird nichts gelöscht.'
-            deleted: 'Ordner %folder% gelöscht.'
+            deleted: 'Ordner „%folder%“ gelöscht'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
@@ -3284,7 +3284,7 @@ settings:
                 intro: 'Der Ordner wird samt den Ordnern darin auf dem Mailserver umbenannt, also sieht jedes Mailprogramm, das dieses Konto liest, den neuen Namen.'
                 submit: 'Umbenennen'
                 title: 'Ordner umbenennen — %folder%'
-            renamed: 'Ordner in %folder% umbenannt.'
+            renamed: 'Ordner in „%folder%“ umbenannt'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
