@@ -51,16 +51,20 @@ final readonly class JmapPushFanout
      * Queue what a StateChange asks for, and say how many syncs that was.
      *
      * @param array<string, mixed> $stateChange the decoded StateChange object
-     * @param list<string>         $accountIds  the JMAP account ids that are
+     * @param list<string>|null    $accountIds  the JMAP account ids that are
      *                                          this plMail account's: its mail,
-     *                                          calendar and contacts accounts
+     *                                          calendar and contacts accounts.
+     *                                          Null takes every account the
+     *                                          change names — the webhook's
+     *                                          case, which knows the
+     *                                          subscription and not the session
      */
-    public function dispatch(Account $account, array $stateChange, array $accountIds): int
+    public function dispatch(Account $account, array $stateChange, ?array $accountIds): int
     {
         $changed = is_array($stateChange['changed'] ?? null) ? $stateChange['changed'] : [];
         $types   = [];
 
-        foreach ($accountIds as $accountId) {
+        foreach ($accountIds ?? array_map(strval(...), array_keys($changed)) as $accountId) {
             foreach (is_array($changed[$accountId] ?? null) ? array_keys($changed[$accountId]) : [] as $type) {
                 $types[(string) $type] = true;
             }

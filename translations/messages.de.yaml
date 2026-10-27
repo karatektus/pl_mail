@@ -3310,6 +3310,7 @@ settings:
                     Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
                     oder zeigt woanders hin. E-Mails werden weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ist an, aber es kommt nichts an. Prüf, ob der JMAP-Server erreichbar ist; das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Das Push-Abonnement ist abgelaufen und es kommt nichts mehr
                     an. Registriere es neu, um die sofortige Zustellung
@@ -3323,6 +3324,7 @@ settings:
                     gmail-api-push@system.gserviceaccount.com die Rolle
                     „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ließ sich nicht einschalten. Das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Push konnte nicht aktiviert werden — Microsoft muss diesen
                     Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
@@ -3340,6 +3342,7 @@ settings:
             off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
             on_hint:
                 gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
+                jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen

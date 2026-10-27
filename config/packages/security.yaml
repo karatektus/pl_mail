@@ -185,6 +185,10 @@ security:
         # Google itself and holds no session. Authenticity is the channel token
         # in X-Goog-Channel-Token; see App\Controller\Webhook\GoogleCalendarPushController.
         - { path: ^/webhook/google/calendar$, roles: PUBLIC_ACCESS }
+        # A JMAP server's PushSubscription callback. The caller is the mail
+        # server and holds no session; what proves a POST is the token in its
+        # path. See App\Controller\Webhook\JmapPushController.
+        - { path: ^/webhook/jmap/, roles: PUBLIC_ACCESS }
         # RFC 6764's signpost, and public where its JMAP neighbour below is
         # not. The difference is what each returns: /.well-known/jmap answers
         # with the session object, which is the user's own data, while this

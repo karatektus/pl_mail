@@ -3344,6 +3344,7 @@ settings:
                     L’abonnement push Pub/Sub dans Google Cloud est peut-être absent ou
                     pointe ailleurs. Le courrier est toujours synchronisé selon le
                     calendrier.
+                jmap: 'Le push est activé mais rien n''arrive. Vérifiez que le serveur JMAP est joignable ; le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     L’abonnement push a expiré et rien n’arrive. Réenregistrez-le pour
                     retrouver la livraison instantanée. Le courrier est toujours
@@ -3355,6 +3356,7 @@ settings:
                     sujet Pub/Sub existant et que ce sujet accorde à
                     gmail-api-push@system.gserviceaccount.com le rôle Éditeur Pub/Sub.
                     Le compte est toujours synchronisé selon le calendrier.
+                jmap: 'Le push n''a pas pu être activé. Le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     Le push n’a pas pu être activé — Microsoft doit pouvoir joindre ce
                     serveur en HTTPS. Vérifiez votre proxy inverse et APP_PUBLIC_URL.
@@ -3370,6 +3372,7 @@ settings:
             off_hint: Le courrier est vérifié selon un calendrier. Activez le push pour une livraison instantanée.
             on_hint:
                 gmail: Le nouveau courrier arrive immédiatement via les notifications push de Gmail.
+                jmap: 'Les changements arrivent immédiatement : le serveur JMAP les envoie à plMail, par webhook quand il peut joindre ce serveur, sinon par une connexion maintenue ouverte.'
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
         reorder: Faites glisser pour réorganiser

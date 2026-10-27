@@ -1195,10 +1195,12 @@ class Account extends AccountModel
      * `verified` is whether the server has proved it can reach plMail's
      * callback — RFC 8620 §7.2.2 has it POST a verification code first, and
      * nothing is pushed until the client echoes it back. `expires` is a Unix
-     * timestamp. Virtual, out of the settings bag: one small record that only
-     * the subscription manager writes.
+     * timestamp. `token` is the secret in the callback URL, which is how the
+     * callback knows a POST came from the server it was given to. Virtual,
+     * out of the settings bag: one small record that only the subscription
+     * manager writes.
      *
-     * @var array{id: string, verified: bool, expires: int}|null
+     * @var array{id: string, verified: bool, expires: int, token: string}|null
      */
     public ?array $jmapPushSubscription {
         get {
@@ -1212,6 +1214,7 @@ class Account extends AccountModel
                 'id'       => $subscription['id'],
                 'verified' => true === ($subscription['verified'] ?? false),
                 'expires'  => (int) ($subscription['expires'] ?? 0),
+                'token'    => (string) ($subscription['token'] ?? ''),
             ];
         }
         set (?array $subscription) {

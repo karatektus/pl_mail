@@ -3322,6 +3322,7 @@ settings:
                     Push is registered but nothing has arrived recently. The
                     Pub/Sub push subscription in Google Cloud may be missing or
                     pointing elsewhere. Mail is still syncing on a schedule.
+                jmap: 'Push is on but nothing is arriving. Check that the JMAP server is reachable; the account is still syncing on a schedule.'
                 microsoft: >-
                     The push subscription has lapsed and nothing is arriving.
                     Re-register it to resume instant delivery. Mail is still
@@ -3333,6 +3334,7 @@ settings:
                     existing Pub/Sub topic and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. The account is still syncing on a schedule.
+                jmap: 'Push couldn''t be turned on. The account is still syncing on a schedule.'
                 microsoft: >-
                     Push couldn't be enabled — Microsoft needs to reach this
                     server over HTTPS. Check your reverse proxy and
@@ -3348,6 +3350,7 @@ settings:
             off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
             on_hint:
                 gmail: New mail arrives immediately via Gmail push notifications.
+                jmap: 'Changes arrive immediately: the JMAP server pushes them to plMail, over a webhook when it can reach this server and over a held-open connection when it cannot.'
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
         reorder: Drag to reorder
