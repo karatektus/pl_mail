@@ -16,6 +16,7 @@ account:
             outgoing_help: 'Le serveur JMAP envoie lui-même votre courrier et en range la copie dans Envoyés : il n''y a rien à remplir ici.'
             session_url: 'URL de session'
             session_url_help: 'Laissez vide pour utiliser l''adresse ci-dessus. À renseigner seulement si la session JMAP de votre serveur ne se trouve pas à /.well-known/jmap.'
+            session_url_offer: 'La session JMAP de mon serveur se trouve ailleurs'
             token_auth: 'Le mot de passe est un jeton d''API'
             token_auth_help: 'Cochez cette case pour les serveurs comme Fastmail qui fournissent un jeton plutôt qu''un mot de passe d''application. Le nom d''utilisateur n''est alors pas envoyé.'
             use_smtp: 'Mon serveur n''envoie pas par JMAP — utiliser SMTP'

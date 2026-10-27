@@ -2,8 +2,14 @@ import { Controller } from "@hotwired/stimulus";
 
 /**
  * Prefills an account's servers from a shipped provider preset, for whichever
- * incoming protocol is chosen: every preset is an IMAP server, and a provider
- * whose POP3 or JMAP server is known carries that too (config/mail_presets.yaml).
+ * incoming protocol is chosen: nearly every preset is an IMAP server, and a
+ * provider whose POP3 or JMAP server is known carries that too
+ * (config/mail_presets.yaml). plMail's own preset is JMAP alone, and has no
+ * host — every instance has its own — so it fills in all but that.
+ *
+ * Fields that mean nothing for the protocol stay out of the way: under JMAP
+ * the encryption select (it is HTTPS), and the session URL until it is asked
+ * for, since nearly every server answers at the well-known path.
  *
  * It also shapes the outgoing half to the protocol. A JMAP server sends mail
  * itself (JmapApiSender), so under JMAP the SMTP fields fold away behind an
@@ -20,6 +26,7 @@ export default class extends Controller {
     static targets = [
         "note", "incomingLabel", "pop3Options", "jmapOptions",
         "outgoingLabel", "smtpFields", "smtpOffer", "jmapOutgoing",
+        "incomingEncryption", "sessionUrl", "sessionUrlOffer",
     ];
 
     /**
@@ -44,6 +51,7 @@ export default class extends Controller {
     connect() {
         this.presets = this._readPresets();
         this.smtpWanted = false;
+        this.sessionUrlWanted = false;
         this.protocolChanged();
     }
 
@@ -99,11 +107,36 @@ export default class extends Controller {
             this.jmapOptionsTarget.classList.toggle("hidden", protocol !== "jmap");
         }
 
+        if (this.hasIncomingEncryptionTarget) {
+            this.incomingEncryptionTarget.classList.toggle("hidden", protocol === "jmap");
+        }
+
         if (this.filling !== true) {
             this._refill(protocol);
         }
 
         this._shapeOutgoing(protocol);
+        this._shapeSessionUrl();
+    }
+
+    /** The JMAP session is not at the well-known path. */
+    useSessionUrl() {
+        this.sessionUrlWanted = true;
+        this._shapeSessionUrl();
+        this._field("jmapSessionUrl")?.focus();
+    }
+
+    /** The session URL field, where it is asked for or has a value. */
+    _shapeSessionUrl() {
+        const shown = this.sessionUrlWanted || this._value("jmapSessionUrl") !== "";
+
+        if (this.hasSessionUrlTarget) {
+            this.sessionUrlTarget.classList.toggle("hidden", shown === false);
+        }
+
+        if (this.hasSessionUrlOfferTarget) {
+            this.sessionUrlOfferTarget.classList.toggle("hidden", shown);
+        }
     }
 
     /** "Send through SMTP instead": the server does not send over JMAP. */
@@ -214,14 +247,15 @@ export default class extends Controller {
 
     /**
      * An explicit choice: the chosen protocol's server where the preset has
-     * one, and otherwise IMAP, which every preset has — a POP3 session
-     * pointed at an IMAP host would only fail at the connection test.
+     * one, and otherwise IMAP, or JMAP for a preset that is JMAP alone — a
+     * POP3 session pointed at an IMAP host would only fail at the connection
+     * test.
      */
     _fill(preset) {
         let protocol = this._currentProtocol();
 
         if (this._block(preset, protocol) === null) {
-            protocol = "imap";
+            protocol = ["imap", "jmap", "pop3"].find((name) => this._block(preset, name) !== null);
             this._choose(protocol);
         }
 
@@ -244,24 +278,25 @@ export default class extends Controller {
         }
 
         const host = this._value("imapHost");
-        const presetHosts = ["imap", "pop3", "jmap"]
-            .map((name) => this._block(preset, name)?.host)
-            .filter((value) => value !== undefined);
+        const presetsHost = host !== "" && this._isPresetHost(preset, host);
 
-        if (host !== "" && presetHosts.includes(host) === false) {
+        if (this._block(preset, protocol) === null) {
+            if (presetsHost) {
+                this._set("imapHost", "");
+            }
+
+            this._select(select, "");
             return;
         }
 
-        if (this._block(preset, protocol) !== null) {
+        if (host === "" || presetsHost) {
             this._fillFor(preset, protocol, false);
-            return;
         }
+    }
 
-        if (host !== "") {
-            this._set("imapHost", "");
-        }
-
-        this._select(select, "");
+    /** Whether a host is one this preset would have put in the field. */
+    _isPresetHost(preset, host) {
+        return ["imap", "pop3", "jmap"].some((name) => this._block(preset, name)?.host === host);
     }
 
     /**
@@ -274,14 +309,20 @@ export default class extends Controller {
     _fillFor(preset, protocol, explicit) {
         const incoming = this._block(preset, protocol);
 
-        this._set("imapHost", incoming.host);
+        if (incoming.host) {
+            this._set("imapHost", incoming.host);
+        } else if (this._isAnyPresetHost(this._value("imapHost"))) {
+            // A server with no one host: the field is the user's to fill, and
+            // another provider's host left in it would only mislead.
+            this._set("imapHost", "");
+        }
 
         if (protocol === "jmap") {
             this._set("imapPort", this.constructor.PROTOCOLS.jmap.port);
             this._set("jmapSessionUrl", incoming.sessionUrl ?? "");
             this._setChecked("jmapTokenAuth", incoming.tokenAuth === true);
 
-            if (this._value("smtpHost") === preset.smtp.host) {
+            if (this._isAnyPresetSmtpHost(this._value("smtpHost"))) {
                 this._set("smtpHost", "");
                 this._set("smtpPort", "");
             }
@@ -289,24 +330,35 @@ export default class extends Controller {
             this._set("imapPort", incoming.port);
             this._set("imapEncryption", incoming.encryption);
 
-            if (explicit || this._value("smtpHost") === "") {
+            if (preset.smtp && (explicit || this._value("smtpHost") === "")) {
                 this._set("smtpHost", preset.smtp.host);
                 this._set("smtpPort", preset.smtp.port);
                 this._set("smtpEncryption", preset.smtp.encryption);
             }
         }
 
+        if (incoming.host === null || incoming.host === undefined) {
+            this._field("imapHost")?.focus();
+        }
+
         this._renderNote(protocol === "jmap" ? (incoming.note ?? preset.note) : preset.note);
         this._shapeOutgoing(protocol);
+        this._shapeSessionUrl();
     }
 
     /** A preset's server for one protocol, or null where it has none. */
     _block(preset, protocol) {
-        if (protocol === "imap") {
-            return preset.imap;
-        }
-
         return preset[protocol] ?? null;
+    }
+
+    /** Whether any preset would have put this host in the incoming field. */
+    _isAnyPresetHost(host) {
+        return host !== "" && Object.values(this.presets).some((preset) => this._isPresetHost(preset, host));
+    }
+
+    /** Whether any preset would have put this host in the SMTP field. */
+    _isAnyPresetSmtpHost(host) {
+        return host !== "" && Object.values(this.presets).some((preset) => preset.smtp?.host === host);
     }
 
     /** Ticks a protocol radio without refilling from the preset again. */

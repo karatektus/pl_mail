@@ -18,10 +18,11 @@ What plMail does with the account once it is connected — aliases, per-account 
    the username is usually the address.
 2. **Password** is an app password. On Fastmail it is an API token instead: tick **The password is
    an API token**, and the username is then not sent.
-3. **Incoming — JMAP** takes the server's host name. The port starts at 443; plMail looks for the
-   session at `https://host/.well-known/jmap`, which is where servers publish it. Fill in **Session
-   URL** only if yours is somewhere else — behind a reverse proxy that forwards only `/jmap`, for
-   example.
+3. **Incoming — JMAP** takes the server's host name. The port starts at 443, and there is no
+   encryption to choose: JMAP is HTTPS. plMail looks for the session at
+   `https://host/.well-known/jmap`, which is where servers publish it; only if yours is somewhere
+   else — behind a reverse proxy that forwards only `/jmap`, for example — does **My server's JMAP
+   session is somewhere else** bring up the **Session URL** field.
 4. **Outgoing — JMAP** has nothing to fill in. A server that offers JMAP submission sends your mail
    itself; the connection test says **Sending goes through the JMAP server** when it does. Only for a
    server that does not, **My server does not send over JMAP — use SMTP** brings back the SMTP
@@ -61,9 +62,10 @@ Message-ID and does not store it again. Switching back works the same way.
 ## Another plMail
 
 plMail is a JMAP server too, so one plMail can hold another's mail as an account. On the other
-instance, make an app password under **Settings → App passwords**; on this one, add a JMAP account
-with your address there as the username, that app password as the password, and the other
-instance's host name. Mail, labels, sending, calendars, contacts and push work as with any JMAP
+instance, make an app password under **Settings → App passwords**; on this one, add an account and
+pick **plMail** from the **Provider** dropdown, which chooses JMAP and leaves the host to you. Give
+your address there as the username, that app password as the password, and the other instance's
+host name. Mail, labels, sending, calendars, contacts and push work as with any JMAP
 server. The other plMail's own contacts are offered as the address book **plMail (your address
 there)**, beside any it mirrors from elsewhere.
 

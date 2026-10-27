@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:ce608e4352ce512ae822a91bb02cbf42a226f243 -->
+<!-- translated-from: providers/jmap.md sha1:a61b6617b8c76795f138a98a09e616af81c7e219 -->
 
 # JMAP
 
@@ -22,9 +22,11 @@ dich erwartet.
    bei IMAP. Bei Stalwart ist der Benutzername meist die Adresse.
 2. **Passwort** ist ein App-Passwort. Bei Fastmail ist es stattdessen ein API-Token: Setz den Haken
    bei **Das Passwort ist ein API-Token**, dann wird der Benutzername nicht mitgeschickt.
-3. **Eingehend — JMAP** nimmt den Hostnamen des Servers. Der Port startet bei 443; plMail sucht die
-   Session unter `https://host/.well-known/jmap`, wo Server sie veröffentlichen. Füll **Session-URL**
-   nur aus, wenn deine woanders liegt — etwa hinter einem Reverse Proxy, der nur `/jmap` weiterreicht.
+3. **Eingehend — JMAP** nimmt den Hostnamen des Servers. Der Port startet bei 443, und eine
+   Verschlüsselung gibt es nicht zu wählen: JMAP ist HTTPS. plMail sucht die Session unter
+   `https://host/.well-known/jmap`, wo Server sie veröffentlichen; nur wenn deine woanders liegt —
+   etwa hinter einem Reverse Proxy, der nur `/jmap` weiterreicht —, holt **Die JMAP-Session meines
+   Servers liegt woanders** das Feld **Session-URL** hervor.
 4. Unter **Ausgehend — JMAP** ist nichts auszufüllen. Ein Server, der JMAP-Submission anbietet,
    versendet deine Mail selbst; der Verbindungstest sagt dann **Gesendet wird über den JMAP-Server**.
    Nur für einen Server, der das nicht kann, holt **Mein Server versendet nicht über JMAP — SMTP
@@ -70,8 +72,9 @@ geht es genauso.
 
 plMail ist selbst ein JMAP-Server, also kann ein plMail die Mail eines anderen als Konto führen. Lege
 auf der anderen Instanz unter **Einstellungen → App-Passwörter** ein App-Passwort an; füge auf dieser
-ein JMAP-Konto hinzu, mit deiner Adresse dort als Benutzername, dem App-Passwort als Passwort und dem
-Hostnamen der anderen Instanz. Mail, Labels, Senden, Kalender, Kontakte und Push funktionieren wie
+ein Konto hinzu und wähl **plMail** aus der Auswahlliste **Anbieter**, das stellt auf JMAP und
+überlässt dir den Host. Gib deine Adresse dort als Benutzername an, das App-Passwort als Passwort und
+den Hostnamen der anderen Instanz. Mail, Labels, Senden, Kalender, Kontakte und Push funktionieren wie
 bei jedem JMAP-Server. Die eigenen Kontakte des anderen plMail erscheinen als Adressbuch **plMail
 (deine Adresse dort)**, neben allen, die es von anderswo spiegelt.
 

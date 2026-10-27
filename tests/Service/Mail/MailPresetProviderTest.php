@@ -11,8 +11,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * The shipped provider presets, read from config/mail_presets.yaml.
  *
- * Every preset is an IMAP server; POP3 and JMAP are there only for a provider
- * whose server could be confirmed. What can rot is the file itself — a block
+ * Nearly every preset is an IMAP server, with POP3 and JMAP only where the
+ * provider's server could be confirmed; plMail's own is JMAP alone, with no
+ * host of its own. What can rot is the file itself — a block
  * missing its port, an encryption the form has no choice for — and that fails
  * in a browser, after somebody has picked the provider, rather than here.
  */
@@ -27,16 +28,48 @@ final class MailPresetProviderTest extends TestCase
         $this->provider = new MailPresetProvider(dirname(__DIR__, 3) . '/config/mail_presets.yaml');
     }
 
-    public function testEveryPresetIsAnImapServerWithSmtp(): void
+    /**
+     * Something to receive with, and SMTP beside IMAP or POP3: only a JMAP
+     * server sends without it.
+     */
+    public function testEveryPresetCanReceiveAndSend(): void
     {
         self::assertNotEmpty($this->provider->all());
 
         foreach ($this->provider->all() as $key => $preset) {
-            self::assertNotSame('', $preset->imapHost, $key);
-            self::assertContains($preset->imapEncryption, self::ENCRYPTIONS, $key);
-            self::assertNotSame('', $preset->smtpHost, $key);
-            self::assertContains($preset->smtpEncryption, self::ENCRYPTIONS, $key);
+            self::assertTrue(null !== $preset->imapHost || null !== $preset->pop3Host || $preset->hasJmap, $key);
+
+            if (null !== $preset->imapHost) {
+                self::assertContains($preset->imapEncryption, self::ENCRYPTIONS, $key);
+                self::assertGreaterThan(0, $preset->imapPort, $key);
+            }
+
+            if (null !== $preset->imapHost || null !== $preset->pop3Host) {
+                self::assertNotNull($preset->smtpHost, $key);
+                self::assertContains($preset->smtpEncryption, self::ENCRYPTIONS, $key);
+            }
         }
+    }
+
+    /**
+     * plMail is JMAP alone, and every instance has its own host: the preset
+     * carries neither a host nor IMAP and SMTP, only how to sign in.
+     */
+    public function testPlmailIsJmapWithNoHostOfItsOwn(): void
+    {
+        $plmail = $this->provider->get('plmail');
+
+        self::assertNotNull($plmail);
+
+        $client = $plmail->toClientArray();
+
+        self::assertNull($client['imap']);
+        self::assertNull($client['pop3']);
+        self::assertNull($client['smtp']);
+        self::assertNull($client['jmap']['host']);
+        self::assertNull($client['jmap']['sessionUrl'], 'plMail answers at the well-known path');
+        self::assertFalse($client['jmap']['tokenAuth'], 'an app password, sent with the username');
+        self::assertNotNull($client['jmap']['note']);
     }
 
     /** A POP3 block is whole or absent: a host without its port is a form half filled in. */

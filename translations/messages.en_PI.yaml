@@ -16,6 +16,7 @@ account:
             outgoing_help: 'The JMAP harbour sends yer letters itself an'' stows the copy in Sent, so there be nothin'' to fill in here.'
             session_url: 'Session URL'
             session_url_help: 'Leave it empty an'' the port above be used. Fill it in only if yer server''s JMAP session don''t be moored at /.well-known/jmap.'
+            session_url_offer: 'Me harbour''s JMAP session be moored elsewhere'
             token_auth: 'The password be an API token'
             token_auth_help: 'Tick this fer harbours like Fastmail that hand ye a token instead o'' an app password. The username then stays ashore.'
             use_smtp: 'Me harbour don''t send o''er JMAP — use SMTP'

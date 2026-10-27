@@ -1,10 +1,12 @@
 # Provider presets shown in the "Provider" dropdown on the account form.
 #
-# imap:       required; every preset is an IMAP server
+# imap:       the provider's IMAP server; every preset has one but a JMAP-only
+#             server, which has no smtp either
 # pop3:       optional; the provider's POP3 server, filled when POP3 is chosen
-# jmap:       optional; host, and where needed session_url (when the session is
-#             not at https://host/.well-known/jmap), token_auth (the password
-#             is an API token, sent as Bearer) and a note for JMAP only
+# jmap:       optional; host (left out for a server with no one host, such as
+#             another plMail), and where needed session_url (when the session
+#             is not at https://host/.well-known/jmap), token_auth (the
+#             password is an API token, sent as Bearer) and a note for JMAP only
 #             A provider gets one only where the server could be confirmed:
 #             a guessed host fails at the connection test, after the user has
 #             typed their password, so a provider left without one stays IMAP.
@@ -109,6 +111,14 @@ presets:
         domains: ['bluewin.ch']
         imap: { host: imap.bluewin.ch, port: 993, encryption: ssl }
         smtp: { host: smtp.bluewin.ch, port: 465, encryption: ssl }
+
+    # ── Self-hosted ────────────────────────────────────────────────────────
+    # A server you run yourself has no one host, so the host is yours to type.
+    plmail:
+        name: plMail
+        group: Self-hosted
+        domains: []
+        jmap: { note: 'Another plMail: its host name, your address there as the username, and an app password made under Settings → App passwords there.' }
 
     # ── Hosting-Provider ──────────────────────────────────────────────────
     hetzner:

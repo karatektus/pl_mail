@@ -16,6 +16,7 @@ account:
             outgoing_help: 'Der JMAP-Server verschickt deine Mail selbst und legt die Kopie unter „Gesendet“ ab, hier ist also nichts auszufüllen.'
             session_url: 'Session-URL'
             session_url_help: 'Lass das Feld leer, dann wird die Adresse oben verwendet. Füll es nur aus, wenn die JMAP-Session deines Servers nicht unter /.well-known/jmap liegt.'
+            session_url_offer: 'Die JMAP-Session meines Servers liegt woanders'
             token_auth: 'Das Passwort ist ein API-Token'
             token_auth_help: 'Setz den Haken bei Servern wie Fastmail, die dir statt eines App-Passworts ein Token geben. Der Benutzername wird dann nicht mitgeschickt.'
             use_smtp: 'Mein Server versendet nicht über JMAP — SMTP verwenden'
