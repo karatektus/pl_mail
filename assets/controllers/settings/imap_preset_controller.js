@@ -237,7 +237,14 @@ export default class extends Controller {
     /** Sets the dropdown, going through Tom Select when it is active. */
     _select(select, key) {
         if (select.tomselect !== undefined) {
-            select.tomselect.setValue(key, false);
+            // setValue("") leaves the old choice standing; clearing is its
+            // own call. Not silent, so the change still reaches apply().
+            if (key === "") {
+                select.tomselect.clear(false);
+            } else {
+                select.tomselect.setValue(key, false);
+            }
+
             return;
         }
 
