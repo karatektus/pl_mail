@@ -42,9 +42,11 @@ async function chooseProtocol(page: Page, name: "IMAP" | "POP3"): Promise<void> 
  *
  * By the combobox's accessible name rather than support/select.ts's
  * getByLabel: this field is required, so its label reads "After fetching *"
- * and an exact label match finds nothing. And the open is retried rather than
- * clicked once: when the widget already has focus its panel is open, and a
- * click closes it again — the option click then waited out the test.
+ * and an exact label match finds nothing. And the open and the pick are
+ * retried together rather than clicked once: when the widget already has
+ * focus its panel is open, and a click closes it again. Retrying only the
+ * open was not enough — on the v0.4.0 release PR's run the panel read as open,
+ * shut before the option was clicked, and that click waited out the test.
  */
 async function chooseDeleteMode(page: Page, option: string): Promise<void> {
     const control = page.locator("#modal").getByRole("combobox", { name: "After fetching", exact: true });
@@ -54,13 +56,11 @@ async function chooseDeleteMode(page: Page, option: string): Promise<void> {
             await control.click();
         }
 
-        await expect(control).toHaveAttribute("aria-expanded", "true", { timeout: 1000 });
-    }).toPass({ timeout: 10_000 });
+        const listbox = await control.getAttribute("aria-controls");
 
-    const listbox = await control.getAttribute("aria-controls");
-
-    await page.locator(`[id="${listbox}"]`).getByRole("option", { name: option, exact: true }).click();
-    await expect(control).toHaveText(option);
+        await page.locator(`[id="${listbox}"]`).getByRole("option", { name: option, exact: true }).click({ timeout: 1000 });
+        await expect(control).toHaveText(option, { timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
 }
 
 async function removeAccount(page: Page, label: string): Promise<void> {

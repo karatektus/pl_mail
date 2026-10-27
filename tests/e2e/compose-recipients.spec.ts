@@ -495,6 +495,27 @@ test.describe("clicking out of the To field", () => {
     });
 
     /**
+     * 1c. Moving on straight after Enter. Tom Select refreshes the panel 300ms
+     * after the last keystroke, and that refresh opens the panel and focuses
+     * the field — wherever the caret had gone by then. Writing the message at
+     * 40ms a key spans that moment, and before the fix the caret jumped back
+     * into To after "The eng"; the rest became a refused address.
+     */
+    test("a refresh still pending when To is left does not pull the caret back", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, OTHER);
+
+        const editor = page.locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`);
+        await editor.press("Control+Home");
+        await editor.pressSequentially("The engine works, quietly.", { delay: 40 });
+
+        await expect(editor).toContainText("The engine works, quietly.");
+        await expect(toInput(page)).toHaveValue("");
+        await expect(chips(page)).toHaveCount(1);
+    });
+
+    /**
      * 1b. The mis-addressing one: a suggestion that is merely HIGHLIGHTED is not
      * a suggestion that was CHOSEN, and clicking elsewhere must not enrol it. In
      * the report this silently added `Paul Lützner <mail@pluetzner.de>` to a

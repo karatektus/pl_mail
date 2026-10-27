@@ -474,9 +474,23 @@ export default class extends Controller {
             select.plmailTyped = input.value;
         });
 
+        // Tom Select does not refresh the panel on each keystroke: it waits
+        // `refreshThrottle` (300ms) after the last one, then opens the panel —
+        // and opening it focuses the field. Nothing cancels that wait when the
+        // field is left. Type an address, press Enter and start writing the
+        // message within 300ms, and the caret jumped back into To mid-word:
+        // the rest of the sentence became a refused "address", commas and all
+        // eaten as delimiters (seen as compose-signature-sent.spec.ts and
+        // compose-recipients.spec.ts failing on the v0.4.0 tag's run, where the
+        // tests type faster than anybody, and reproduced at 40ms a key). A
+        // refresh for a field nobody is in any more has nobody to show it to.
+        input?.addEventListener('blur', () => this._cancelPanelRefresh(select));
+
         select.on('item_add', () => {
             // The query that produced this chip is spent. Left in place it is
-            // what the reopened panel searches for.
+            // what the reopened panel searches for — and its refresh still
+            // pending is what reopened it (see the blur listener above).
+            this._cancelPanelRefresh(select);
             select.setTextboxValue('');
             select.plmailTyped = '';
             select.close();
@@ -494,6 +508,22 @@ export default class extends Controller {
         });
 
         this._reserveRoomForPanel(select, input);
+    }
+
+    /**
+     * Drop the panel refresh Tom Select has queued for the last keystroke.
+     *
+     * `refreshTimeout` is Tom Select's own field, not an API: there is no
+     * public way to cancel the throttle. If a later version renames it, this
+     * clears nothing and the focus test in compose-recipients.spec.ts fails.
+     */
+    _cancelPanelRefresh(select) {
+        if (null === select.refreshTimeout || undefined === select.refreshTimeout) {
+            return;
+        }
+
+        window.clearTimeout(select.refreshTimeout);
+        select.refreshTimeout = null;
     }
 
     /**

@@ -333,6 +333,11 @@ test.describe("subscribing to remote calendars", () => {
     });
 
     test("a CalDAV server that cannot be reached is reported, not saved silently", async ({ page }) => {
+        // A name of its own per run. A run that fails after the connect has
+        // already stored the connection, so a retry under the same name met
+        // that leftover instead of the unreachable server.
+        const name = `E2E unreachable server ${Date.now()}`;
+
         await page.getByRole("button", { name: "Connect a CalDAV server" }).click();
 
         const modal = page.locator("#modal-backdrop");
@@ -346,7 +351,7 @@ test.describe("subscribing to remote calendars", () => {
         // field ends in the theme's "*" — so { exact: true } never matches and
         // an unanchored "Name" also claims "Username". The accessible name has
         // the asterisk hidden, so it is exactly "Name".
-        await modal.getByRole("textbox", { name: "Name", exact: true }).fill("E2E unreachable server");
+        await modal.getByRole("textbox", { name: "Name", exact: true }).fill(name);
         await modal.getByRole("textbox", { name: "Username" }).fill("e2e");
         await modal.getByLabel("App password").fill("not-a-real-password");
         await modal.getByRole("button", { name: "Connect and find calendars" }).click();
@@ -354,13 +359,19 @@ test.describe("subscribing to remote calendars", () => {
         // The dialog stays open carrying the reason. It is marked
         // data-ui--modal-keep-open precisely so a successful connect can hand
         // straight over to the subscribe list; a failure has to stay put too.
-        await expect(modal.getByRole("alert")).toBeVisible();
+        //
+        // Twenty seconds, not the default five: the answer waits on DNS saying
+        // `.invalid` does not exist, once for /.well-known/caldav and once for
+        // the origin. A lost query costs the resolver's 5s timeout — the
+        // connect took 5.06s on the v0.4.0 release PR's run and the default
+        // gave up just before it.
+        await expect(modal.getByRole("alert")).toBeVisible({ timeout: 20_000 });
 
         // The connection is stored carrying its failure, the way every other
         // connect path stores one — so it has to be disconnectable from here.
         await page.goto("/settings?section=calendars");
-        await page.getByRole("button", { name: 'Disconnect "E2E unreachable server"' }).click();
+        await page.getByRole("button", { name: `Disconnect "${name}"` }).click();
         await acceptConfirm(page);
-        await expect(page.getByText("E2E unreachable server", { exact: true })).toHaveCount(0);
+        await expect(page.getByText(name, { exact: true })).toHaveCount(0);
     });
 });
