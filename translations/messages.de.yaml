@@ -3246,7 +3246,7 @@ settings:
         enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
-            button: Zu synchronisierende Ordner wählen
+            button: Ordner
             created: 'Ordner „%folder%“ angelegt'
             delete:
                 button: 'Ordner %folder% löschen'

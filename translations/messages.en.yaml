@@ -3261,7 +3261,7 @@ settings:
         enable: Enable account
         folders:
             always_synced: The inbox is always synced
-            button: Choose which folders to sync
+            button: Folders
             created: 'Folder “%folder%” created'
             delete:
                 button: 'Delete folder %folder%'

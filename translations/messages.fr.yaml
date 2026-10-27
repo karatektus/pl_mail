@@ -3282,7 +3282,7 @@ settings:
         enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
-            button: Choisir les dossiers à synchroniser
+            button: Dossiers
             created: 'Dossier « %folder% » créé'
             delete:
                 button: 'Supprimer le dossier %folder%'

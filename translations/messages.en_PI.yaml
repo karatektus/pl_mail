@@ -3110,7 +3110,7 @@ settings:
         enable: Restore the papers
         folders:
             always_synced: The inbox be always hauled aboard
-            button: Pick which folders to haul aboard
+            button: Folders
             created: 'Folder “%folder%” be built'
             delete:
                 button: 'Scuttle folder %folder%'

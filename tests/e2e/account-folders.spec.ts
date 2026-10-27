@@ -28,7 +28,7 @@ test.describe("account folders modal", () => {
             .filter({ hasText: ACCOUNT });
 
         await row
-            .getByRole("button", { name: "Choose which folders to sync" })
+            .getByRole("button", { name: "Folders", exact: true })
             .click();
 
         const modal = page.locator("#modal-backdrop");
@@ -55,7 +55,7 @@ test.describe("account folders modal", () => {
         await page
             .locator("#settings-account-list li")
             .filter({ hasText: ACCOUNT })
-            .getByRole("button", { name: "Choose which folders to sync" })
+            .getByRole("button", { name: "Folders", exact: true })
             .click();
 
         const modal = page.locator("#modal-backdrop");

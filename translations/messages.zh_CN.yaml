@@ -2867,7 +2867,7 @@ settings:
         enable: '启用账户'
         folders:
             always_synced: '收件箱始终保持同步'
-            button: '选择要同步的文件夹'
+            button: '文件夹'
             created: '已创建文件夹“%folder%”'
             delete:
                 button: '删除文件夹 %folder%'
