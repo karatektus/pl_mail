@@ -104,7 +104,7 @@ final readonly class MessagePurger
      *
      * Grouped by account because an envelope authenticates as one account, and
      * split by the coordinate each provider understands: IMAP wants a folder
-     * and a UID, Gmail its own message id, Graph its own. A message with none
+     * and a UID, Gmail its own message id, Graph and JMAP theirs. A message with none
      * of them — a draft that never reached a server, or one whose account has
      * gone — simply contributes nothing, and the job is not sent at all if the
      * whole batch is like that.
@@ -113,7 +113,7 @@ final readonly class MessagePurger
      */
     private function dispatchRemotePurge(array $messages): void
     {
-        /** @var array<int, array{imap: array<string, list<int>>, gmail: list<string>, graph: list<string>}> $byAccount */
+        /** @var array<int, array{imap: array<string, list<int>>, gmail: list<string>, graph: list<string>, jmap: list<string>}> $byAccount */
         $byAccount = [];
 
         foreach ($messages as $message) {
@@ -124,7 +124,7 @@ final readonly class MessagePurger
             }
 
             $accountId             = (int) $account->id;
-            $byAccount[$accountId] ??= ['imap' => [], 'gmail' => [], 'graph' => []];
+            $byAccount[$accountId] ??= ['imap' => [], 'gmail' => [], 'graph' => [], 'jmap' => []];
 
             $folder = $message->mailbox?->fullPath;
 
@@ -139,6 +139,10 @@ final readonly class MessagePurger
             if (null !== $message->graphId && '' !== $message->graphId) {
                 $byAccount[$accountId]['graph'][] = $message->graphId;
             }
+
+            if (null !== $message->jmapId && '' !== $message->jmapId && true === $account->isJmap()) {
+                $byAccount[$accountId]['jmap'][] = $message->jmapId;
+            }
         }
 
         foreach ($byAccount as $accountId => $coordinates) {
@@ -147,6 +151,7 @@ final readonly class MessagePurger
                 $coordinates['imap'],
                 $coordinates['gmail'],
                 $coordinates['graph'],
+                $coordinates['jmap'],
             );
 
             if (false === $job->isEmpty()) {

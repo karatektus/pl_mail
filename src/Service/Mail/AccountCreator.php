@@ -62,6 +62,12 @@ final readonly class AccountCreator
         $account->isActive = true;
         $account->usr = $user;
 
+        // A JMAP server pushes over the connection the account already has,
+        // with nothing to register first — so its push starts on, as a
+        // connected Gmail or Microsoft account's does. Plain IMAP has IDLE
+        // per folder instead, which this switch does not govern.
+        $account->pushEnabled = $account->isJmap();
+
         $existing = $this->accounts->findForUserOrdered($user);
 
         // The colour is picked BEFORE the account joins the list, from the

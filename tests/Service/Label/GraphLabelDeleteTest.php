@@ -237,6 +237,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
+            $container->get('App\Service\JmapClient\JmapMailboxWriter'),
         );
     }
 
@@ -253,6 +254,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
+            $container->get('App\Service\JmapClient\JmapMailboxWriter'),
         );
     }
 

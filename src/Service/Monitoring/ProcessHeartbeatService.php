@@ -21,6 +21,7 @@ final class ProcessHeartbeatService
     public const string TYPE_IMAP_IDLE        = 'imap-idle';
     public const string TYPE_IMAP_SUPERVISE   = 'imap-supervise';
     public const string TYPE_MESSENGER_WORKER = 'messenger-worker';
+    public const string TYPE_JMAP_LISTEN      = 'jmap-listen';
 
     /**
      * Not a process at all: the last time `app:push:renew` finished a run.
@@ -38,6 +39,7 @@ final class ProcessHeartbeatService
         self::TYPE_IMAP_IDLE        => 2100, // just over the 29-min IDLE reissue
         self::TYPE_IMAP_SUPERVISE   => 300,
         self::TYPE_MESSENGER_WORKER => 120,  // listener beats every 30s
+        self::TYPE_JMAP_LISTEN      => 300,  // beats every 30s between stream chunks
     ];
 
     /**

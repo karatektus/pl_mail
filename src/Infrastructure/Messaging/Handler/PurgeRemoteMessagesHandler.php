@@ -8,9 +8,12 @@ use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\ImapFolderLocator;
 use App\Entity\Mail\Account;
+use App\Infrastructure\JmapClient\JmapCapability;
+use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Imap\ImapQuery;
+use App\Service\JmapClient\JmapMailboxSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Psr\Log\LoggerInterface;
@@ -52,6 +55,8 @@ final readonly class PurgeRemoteMessagesHandler
         private GmailApiClient        $gmail,
         private GraphApiClient        $graph,
         private LoggerInterface       $logger,
+        private JmapClient            $jmap,
+        private JmapMailboxSyncer     $jmapMailboxes,
     ) {
     }
 
@@ -84,6 +89,10 @@ final readonly class PurgeRemoteMessagesHandler
 
         if ([] !== $message->graphIds) {
             $this->purgeGraph($account, $message->graphIds);
+        }
+
+        if ([] !== $message->jmapIds) {
+            $this->purgeJmap($account, $message->jmapIds);
         }
     }
 
@@ -159,6 +168,47 @@ final readonly class PurgeRemoteMessagesHandler
     }
 
     /** @param list<string> $graphIds */
+    /**
+     * Email/set destroy, in one call: JMAP takes the whole list at once and
+     * answers for each id, and an id it no longer has is notFound — already
+     * the end state wanted, so not reported.
+     *
+     * @param list<string> $jmapIds
+     */
+    private function purgeJmap(Account $account, array $jmapIds): void
+    {
+        if (false === $account->isJmap()) {
+            return;
+        }
+
+        try {
+            $result = $this->jmap->call($account, [JmapCapability::MAIL], [
+                ['Email/set', ['accountId' => $this->jmapMailboxes->mailAccountId($account), 'destroy' => $jmapIds], 's'],
+            ])->get('s', 'Email/set');
+        } catch (Throwable $e) {
+            $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: JMAP destroy failed', [
+                'accountId' => $account->id,
+                'count'     => count($jmapIds),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return;
+        }
+
+        foreach (is_array($result['notDestroyed'] ?? null) ? $result['notDestroyed'] : [] as $id => $error) {
+            $type = is_array($error) && is_string($error['type'] ?? null) ? $error['type'] : 'unknown';
+
+            if ('notFound' !== $type) {
+                $this->logger->warning('PurgeRemoteMessages: JMAP refused to destroy an Email', [
+                    'accountId' => $account->id,
+                    'emailId'   => $id,
+                    'type'      => $type,
+                ]);
+            }
+        }
+    }
+
     private function purgeGraph(Account $account, array $graphIds): void
     {
         foreach ($graphIds as $graphId) {

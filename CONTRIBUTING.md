@@ -194,6 +194,29 @@ address the default project, and `stop` against a project that does not exist re
 The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT`). Individual specs
 reseed their own fixtures, so tests are independent and re-runnable.
 
+### Against a real JMAP server
+
+The JMAP client's tests run against a fake server built from the RFCs (`tests/Support/Jmap`). One
+more, `StalwartRoundTripTest`, runs the client against a real one — imports a seeded message, marks
+it read and checks the server has it read, sends a message through submission and finds it in
+Sent. It is skipped unless three variables name an account on a JMAP server, such as a
+[Stalwart](https://stalw.art/docs/install/docker) container started for the purpose. Use an account
+that holds nothing worth keeping: the test writes to it.
+
+```bash
+docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-entrypoint \
+  -e JMAP_TEST_SESSION_URL=http://stalwart:8080/.well-known/jmap \
+  -e JMAP_TEST_USERNAME=test@example.test -e JMAP_TEST_PASSWORD=secret \
+  app sh bin/test-unit.sh --group stalwart
+```
+
+For a hosted account whose password is an API token — Fastmail's, with
+`JMAP_TEST_SESSION_URL=https://api.fastmail.com/jmap/session` — add `-e JMAP_TEST_TOKEN_AUTH=1`.
+
+The server has to be reachable from the test container by that name — on the same Docker network,
+or by an address the container can resolve. The test lets the client reach a private address,
+which the app itself refuses unless the host is in `INTEGRATIONS_ALLOWED_HOSTS`.
+
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
 runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
 hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release
@@ -962,8 +985,9 @@ php bin/mirror-wiki.php --check
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
-| `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
+| `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox, and `app:jmap:listen` while there is a JMAP account |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
+| `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:imap:supervise` |
 | `app:push:renew` | Renew Gmail watches and Graph subscriptions nearing expiry |
 | `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |

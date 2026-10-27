@@ -284,6 +284,12 @@ final readonly class ConfigBackupUsers
         // (pop3_uidl) and is not part of the backup, so the target fetches
         // everything before it deletes anything.
         Account::SETTING_POP3_DELETE_MODE,
+        // Carried: where a JMAP account's session lives and whether its
+        // password is a bearer token are how it connects at all, as much as
+        // its host and port are. Without them a restored Fastmail account
+        // looks for a session at the well-known path and signs in with Basic.
+        Account::SETTING_JMAP_SESSION_URL,
+        Account::SETTING_JMAP_TOKEN_AUTH,
     ];
 
     /**
@@ -323,6 +329,9 @@ final readonly class ConfigBackupUsers
         Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
         Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
         Account::SETTING_POP3_ADOPTING => 'a pass over the OTHER host\'s POP3 mailbox that had still to finish; the target keeps no UIDLs from the file and fetches the mailbox afresh',
+        Account::SETTING_JMAP_STATES => 'the server states the OTHER host had synced up to; carried, the target would ask only for changes since then and never import the mail it does not have',
+        Account::SETTING_JMAP_IMPORT => 'where the other host\'s first import had got to, by Email ids for rows this host does not have; the target plans its own',
+        Account::SETTING_JMAP_PUSH_SUBSCRIPTION => 'a PushSubscription the server holds for the OTHER host\'s webhook; the target registers its own at its own APP_PUBLIC_URL',
     ];
 
     public function __construct(

@@ -1959,6 +1959,28 @@ class MessageRepository extends ServiceEntityRepository
      * gone by anything, so leaving it marked would only give the reaper
      * questions it can never answer.
      */
+    /**
+     * Drop every JMAP Email id an account's rows carry, keeping the rows.
+     *
+     * The JMAP half of unlocateAll(), for an account that stops reading over
+     * JMAP: the ids name nothing to the protocol it switches to, and a row
+     * that kept one would go on being patched and destroyed by JMAP jobs
+     * still on the queue. Recognised again by Message-ID if it ever switches
+     * back — see JmapEmailSyncer.
+     */
+    public function forgetJmapIds(Account $account): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.jmapId', ':nothing')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->execute();
+    }
+
     public function unlocateAll(Mailbox $mailbox): int
     {
         return (int) $this->getEntityManager()->createQueryBuilder()
@@ -2344,6 +2366,56 @@ class MessageRepository extends ServiceEntityRepository
             ->setParameter('account', $account)
             ->getQuery()
             ->toIterable();
+    }
+
+    /**
+     * The rows behind a set of JMAP Email ids on one account.
+     *
+     * Scoped to the account and not the user, unlike the Gmail lookups: a
+     * JMAP Email id is the server's name for a message in one mailbox store,
+     * and nothing attributes a JMAP message to a sibling account.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<Message>
+     */
+    public function findByJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Which of these JMAP Email ids the account already has, as ids only:
+     * what a page of a listing asks before it fetches anything.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<string>
+     */
+    public function findStoredJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.jmapId')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getSingleColumnResult());
     }
 
     /**

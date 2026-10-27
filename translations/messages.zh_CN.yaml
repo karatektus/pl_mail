@@ -10,6 +10,12 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
+        jmap:
+            heading: '收件 — JMAP'
+            session_url: '会话 URL'
+            session_url_help: '留空则使用上面的地址。只有当服务器的 JMAP 会话不在 /.well-known/jmap 时才需要填写。'
+            token_auth: '密码是 API 令牌'
+            token_auth_help: '如果服务器（例如 Fastmail）提供的是令牌而不是应用专用密码，请勾选此项。此时不会发送用户名。'
         password: 密码
         pop3:
             delete_help: '留在服务器上的邮件会在下次同步时按 UIDL 识别，不会重复收取。从服务器删除可以释放空间，但之后只剩 plMail 中的这一份。'
@@ -24,6 +30,7 @@ account:
         protocol:
             help: '以后更改也会保留已有邮件：下次同步会识别已经存在的邮件。'
             imap: IMAP
+            jmap: 'JMAP'
             label: '收件协议'
             pop3: POP3
         smtp:
@@ -56,9 +63,13 @@ account:
             failed: 连接失败，请检查主机、端口及加密方式。
             host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
             imap_ok: '已连接，可见 %count% 个文件夹。'
+            jmap_no_mail: '服务器支持 JMAP，但没有为此账户提供邮件。'
+            jmap_ok: '已连接，可见 %count% 个邮箱。'
+            jmap_submission: '通过 JMAP 服务器发送。'
             missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
+            private_network: '该服务器位于私有网络中。必须先由管理员在 INTEGRATIONS_ALLOWED_HOSTS 中允许其主机，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
             smtp_ok: 已连接并登录。
             timeout: 服务器未及时响应，请检查主机、端口以及是否受到防火墙阻拦。
@@ -2904,9 +2915,11 @@ settings:
             lapsed_hint: '推送注册已过期且未续期，因此无法接收推送。续期任务每天自动运行；若持续出现此问题，说明计划任务 worker 已停止。邮件仍会定时同步。'
             degraded_hint:
                 gmail: '推送已注册，但近期未收到通知。Google Cloud 中的 Pub/Sub 推送订阅可能缺失或指向其他地址。邮件仍会定时同步。'
+                jmap: '推送已开启，但没有收到任何内容。请检查 JMAP 服务器是否可访问；此账户仍会按计划同步。'
                 microsoft: '推送订阅已失效，无法接收通知。请重新注册以恢复即时收取。邮件仍会定时同步。'
             failed:
                 gmail: '无法启用推送：Google 拒绝了监视注册。请检查 GMAIL_PUBSUB_TOPIC 是否指向现有的 Pub/Sub 主题，以及该主题是否已向 gmail-api-push@system.gserviceaccount.com 授予 Pub/Sub Publisher 角色。此账户仍会定时同步。'
+                jmap: '无法开启推送。此账户仍会按计划同步。'
                 microsoft: '无法启用推送：Microsoft 需要通过 HTTPS 访问此服务器。请检查反向代理和 APP_PUBLIC_URL。此账户仍会定时同步。'
             health:
                 active: '推送'
@@ -2917,6 +2930,7 @@ settings:
             off_hint: '正在定时检查邮件。开启推送即可即时收取。'
             on_hint:
                 gmail: '通过 Gmail 推送通知即时收取新邮件。'
+                jmap: '更改会立即到达：JMAP 服务器把它们推送给 plMail——能访问本服务器时通过 webhook，否则通过保持打开的连接。'
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
         reorder: '拖动以排序'

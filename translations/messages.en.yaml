@@ -10,6 +10,12 @@ account:
         imap:
             heading: Incoming — IMAP
             host: Host
+        jmap:
+            heading: 'Incoming — JMAP'
+            session_url: 'Session URL'
+            session_url_help: 'Leave blank to use the address above. Fill it in only if your server''s JMAP session is not at /.well-known/jmap.'
+            token_auth: 'The password is an API token'
+            token_auth_help: 'Tick this for servers such as Fastmail that give you a token instead of an app password. The username is then not sent.'
         password: Password
         pop3:
             delete_help: 'Kept on the server, a message is recognised next time by its UIDL and never fetched twice. Deleting frees space on the server, but plMail''s copy is then the only one left.'
@@ -24,6 +30,7 @@ account:
         protocol:
             help: 'Changing this later keeps the mail you have: the next sync recognises what is already here.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Incoming protocol'
             pop3: POP3
         smtp:
@@ -56,9 +63,13 @@ account:
             failed: 'The connection did not work. Check the host, port and encryption.'
             host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
             imap_ok: 'Connected — %count% folders visible.'
+            jmap_no_mail: 'The server speaks JMAP but offers no mail for this account.'
+            jmap_ok: 'Connected — %count% mailboxes visible.'
+            jmap_submission: 'Sending goes through the JMAP server.'
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
+            private_network: 'This server is on a private network. An administrator has to allow its host in INTEGRATIONS_ALLOWED_HOSTS before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
             smtp_ok: 'Connected and signed in.'
             timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'
@@ -3311,6 +3322,7 @@ settings:
                     Push is registered but nothing has arrived recently. The
                     Pub/Sub push subscription in Google Cloud may be missing or
                     pointing elsewhere. Mail is still syncing on a schedule.
+                jmap: 'Push is on but nothing is arriving. Check that the JMAP server is reachable; the account is still syncing on a schedule.'
                 microsoft: >-
                     The push subscription has lapsed and nothing is arriving.
                     Re-register it to resume instant delivery. Mail is still
@@ -3322,6 +3334,7 @@ settings:
                     existing Pub/Sub topic and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. The account is still syncing on a schedule.
+                jmap: 'Push couldn''t be turned on. The account is still syncing on a schedule.'
                 microsoft: >-
                     Push couldn't be enabled — Microsoft needs to reach this
                     server over HTTPS. Check your reverse proxy and
@@ -3337,6 +3350,7 @@ settings:
             off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
             on_hint:
                 gmail: New mail arrives immediately via Gmail push notifications.
+                jmap: 'Changes arrive immediately: the JMAP server pushes them to plMail, over a webhook when it can reach this server and over a held-open connection when it cannot.'
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
         reorder: Drag to reorder

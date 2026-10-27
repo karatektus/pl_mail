@@ -392,6 +392,15 @@ class MessageSendService
      */
     public function appendToSentFolder(Email $email, Account $account): void
     {
+        // A JMAP account that sends over SMTP — its server offers no
+        // submission — leaves the Sent copy to the server, which files what
+        // its own SMTP relay sent. It has no IMAP to append over in any case,
+        // and the Sent folder row an account switched from IMAP still holds
+        // would only lead the connection factory to refuse it.
+        if (true === $account->isJmap()) {
+            return;
+        }
+
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
 
         if (null === $sentMailbox) {

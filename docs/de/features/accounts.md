@@ -1,8 +1,8 @@
-<!-- translated-from: features/accounts.md sha1:1089d79f26ee0fc5d02fb1ecfb99314e7ce21530 -->
+<!-- translated-from: features/accounts.md sha1:39475bc049d182cc5f74f8a88adf539500ecf56d -->
 
 # Konten und Aliase
 
-Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP- oder POP3-Server,
+Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP-, POP3- oder JMAP-Server,
 bei Gmail oder bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst
 so viele verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als
 ein einziger Posteingang.
@@ -75,6 +75,18 @@ Seine Mail bleibt: Der nächste Abruf erkennt, was plMail schon hat, und legt es
 ab — an der Message-ID oder, bei der seltenen Nachricht ohne eine, an Absender, Betreff und Datum.
 Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden nicht mehr
 synchronisiert.
+
+## Ein JMAP-Konto hinzufügen
+
+Ein Server, der JMAP spricht — Stalwart, Fastmail, Cyrus —, wird im selben Formular hinzugefügt:
+Wähl unter **Protokoll für eingehende Mail** **JMAP** und gib den Hostnamen des Servers und ein
+App-Passwort an, oder ein API-Token mit gesetztem Haken bei **Das Passwort ist ein API-Token**. Eine
+Anmeldung bringt die Mail des Kontos, und wo der Server sie hat, auch seine Kalender und Kontakte;
+gesendet wird über den Server, sofern er Submission anbietet. Änderungen auf dem Server kommen an,
+sobald sie passieren. Ein bestehendes Konto lässt sich im Bearbeiten-Formular zwischen IMAP und
+JMAP umstellen, und seine Mail bleibt erhalten.
+
+Den Rest findest du unter [JMAP](../providers/jmap.md).
 
 ## Gmail oder Outlook hinzufügen
 

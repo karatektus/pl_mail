@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Mail;
 
 use App\Domain\Enum\Mail\LabelColor;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
@@ -122,6 +123,11 @@ final class MailboxSetMethod implements JmapMethod
                 continue;
             }
 
+            if (null !== ($properties['role'] ?? null)) {
+                $this->createWithRole($account, $creationId, $properties['role'], $context, $created, $notCreated);
+                continue;
+            }
+
             try {
                 $name = $this->requireName($properties['name'] ?? null);
                 $parent = $this->resolveParent($account, $properties['parentId'] ?? null, $context);
@@ -179,6 +185,74 @@ final class MailboxSetMethod implements JmapMethod
                 'unreadThreads' => 0,
             ];
         }
+    }
+
+    /**
+     * A create that names a role: the user's system label for it, put on this
+     * account.
+     *
+     * System labels are made lazily, so an account has no Trash mailbox until
+     * something needs one — and a JMAP client that finds none and creates it
+     * is something needing one. Another plMail does exactly that when it
+     * syncs this one over JMAP. A custom label called "Trash" would be the
+     * wrong answer: the role would be dropped, the client told it got what it
+     * asked for, and the next delete filed nowhere. So the role is honoured
+     * or refused, never ignored, as `color` is above.
+     *
+     * The name is the role's own, whatever the client sent: a system label's
+     * name is not the client's to choose, and the response says which role
+     * it got so the client can bind it.
+     *
+     * @param array<string,mixed> $created
+     * @param array<string,mixed> $notCreated
+     */
+    private function createWithRole(
+        Account $account,
+        string $creationId,
+        mixed $jmapRole,
+        JmapContext $context,
+        array &$created,
+        array &$notCreated,
+    ): void {
+        $role = match ($jmapRole) {
+            'inbox'   => LabelRole::Inbox,
+            'sent'    => LabelRole::Sent,
+            'drafts'  => LabelRole::Drafts,
+            'trash'   => LabelRole::Trash,
+            'junk'    => LabelRole::Spam,
+            'archive' => LabelRole::Archive,
+            default   => null,
+        };
+
+        if (null === $role) {
+            $notCreated[$creationId] = ['type' => 'invalidProperties', 'properties' => ['role'], 'description' => 'This server makes mailboxes only for the roles inbox, sent, drafts, trash, junk and archive.'];
+
+            return;
+        }
+
+        $label = $this->labelResolver->userSystemLabel($role, $account->usr);
+
+        if (null !== $label->bindingFor($account)) {
+            $notCreated[$creationId] = ['type' => 'invalidProperties', 'properties' => ['role'], 'description' => sprintf('This account already has a mailbox with the role "%s".', (string) $jmapRole)];
+
+            return;
+        }
+
+        $binding = $this->labelResolver->binding($label, $account);
+        $this->entityManager->flush();
+
+        $context->recordCreatedId($creationId, (string) $binding->id);
+
+        $created[$creationId] = [
+            'id' => (string) $binding->id,
+            'name' => $label->name,
+            'role' => $jmapRole,
+            'sortOrder' => $label->sortOrder ?? 0,
+            'totalEmails' => 0,
+            'unreadEmails' => 0,
+            'totalThreads' => 0,
+            'unreadThreads' => 0,
+        ];
     }
 
     /**

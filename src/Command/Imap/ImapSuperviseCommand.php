@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Imap;
 
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Monitoring\WorkerRestartSignal;
@@ -19,7 +20,7 @@ use Symfony\Component\Process\Process;
 
 #[AsCommand(
     name: 'app:imap:supervise',
-    description: 'Spawns and supervises one app:imap:idle process per IDLE-enabled mailbox',
+    description: 'Spawns and supervises one app:imap:idle process per IDLE-enabled mailbox, and the JMAP push listener',
 )]
 final class ImapSuperviseCommand extends Command
 {
@@ -27,6 +28,12 @@ final class ImapSuperviseCommand extends Command
     private const int MIN_BACKOFF_SECONDS = 1;
     private const int MAX_BACKOFF_SECONDS = 30;
     private const int BACKOFF_RESET_AFTER_UPTIME_SECONDS = 120;
+
+    /**
+     * The process key of the JMAP listener: 0, which no mailbox id is, so the
+     * one table of children, backoffs and restart times serves both kinds.
+     */
+    private const int JMAP_LISTENER = 0;
 
     /** @var array<int, Process> */
     private array $processes = [];
@@ -44,6 +51,7 @@ final class ImapSuperviseCommand extends Command
 
     public function __construct(
         private readonly MailboxRepository $mailboxRepository,
+        private readonly AccountRepository $accountRepository,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly WorkerRestartSignal $restartSignal,
         private readonly LoggerInterface $logger,
@@ -168,14 +176,30 @@ final class ImapSuperviseCommand extends Command
             }
         }
 
+        // The JMAP listener, under the key no mailbox has. One process for
+        // every JMAP account — see JmapListenCommand — started while there
+        // is any account for it to listen for, and supervised like an IDLE
+        // child: restarted with the same backoff when it dies.
+        $jmapActive = [] !== $this->accountRepository->findJmapForPush();
+
+        if (true === $jmapActive) {
+            $activeMailboxIds[] = self::JMAP_LISTENER;
+
+            if (array_key_exists(self::JMAP_LISTENER, $this->processes) === false) {
+                $this->startChild($io, self::JMAP_LISTENER);
+            }
+        }
+
         foreach (array_keys($this->processes) as $trackedMailboxId) {
             if (in_array($trackedMailboxId, $activeMailboxIds, true) === false) {
-                $io->text('Mailbox ' . $trackedMailboxId . ' no longer IDLE-enabled, stopping process');
+                $io->text(self::JMAP_LISTENER === $trackedMailboxId
+                    ? 'No JMAP account to listen for, stopping the listener'
+                    : 'Mailbox ' . $trackedMailboxId . ' no longer IDLE-enabled, stopping process');
                 $this->stopChild($trackedMailboxId);
             }
         }
 
-        $this->reapHeartbeats($io, $activeMailboxIds);
+        $this->reapHeartbeats($io, array_values(array_diff($activeMailboxIds, [self::JMAP_LISTENER])));
     }
 
     /**
@@ -246,14 +270,15 @@ final class ImapSuperviseCommand extends Command
     {
         $currentBackoff = $this->backoff[$mailboxId] ?? self::MIN_BACKOFF_SECONDS;
 
-        $process = new Process(
-            ['php', 'bin/console', 'app:imap:idle', (string) $mailboxId],
-            $this->projectDir,
-        );
+        $command = self::JMAP_LISTENER === $mailboxId
+            ? ['php', 'bin/console', 'app:jmap:listen']
+            : ['php', 'bin/console', 'app:imap:idle', (string) $mailboxId];
+
+        $process = new Process($command, $this->projectDir);
         $process->setTimeout(null);
 
         $process->start(function (string $type, string $buffer) use ($mailboxId): void {
-            $prefix = sprintf('[mailbox %d] ', $mailboxId);
+            $prefix = self::JMAP_LISTENER === $mailboxId ? '[jmap] ' : sprintf('[mailbox %d] ', $mailboxId);
             $lines  = explode("\n", rtrim($buffer, "\n"));
 
             foreach ($lines as $line) {
@@ -300,7 +325,7 @@ final class ImapSuperviseCommand extends Command
         unset($this->restartNotBefore[$mailboxId]);
 
         // The child was told to stop, so its row is not "stale", it is done.
-        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
+        $this->clearHeartbeat($mailboxId);
     }
 
     private function shutdownAllChildren(SymfonyStyle $io): void
@@ -312,9 +337,20 @@ final class ImapSuperviseCommand extends Command
 
         foreach ($this->processes as $mailboxId => $process) {
             $process->wait();
-            $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
+            $this->clearHeartbeat($mailboxId);
         }
 
         $this->processes = [];
+    }
+
+    private function clearHeartbeat(int $mailboxId): void
+    {
+        if (self::JMAP_LISTENER === $mailboxId) {
+            $this->heartbeats->clear(ProcessHeartbeatService::TYPE_JMAP_LISTEN, 'main');
+
+            return;
+        }
+
+        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_IDLE, (string) $mailboxId);
     }
 }

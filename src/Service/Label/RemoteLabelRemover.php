@@ -8,6 +8,8 @@ use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Domain\Exception\JmapApiException;
+use App\Domain\Exception\JmapThrottledException;
 use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
@@ -17,6 +19,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Service\JmapClient\JmapMailboxWriter;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +28,8 @@ use Throwable;
 
 /**
  * Removes what one label binding is on its mail server — an IMAP folder, an
- * Exchange folder, a Gmail label, an Exchange category — and forgets it here.
+ * Exchange folder, a JMAP mailbox, a Gmail label, an Exchange category — and
+ * forgets it here.
  *
  * ## A folder is only deleted empty
  *
@@ -71,6 +75,7 @@ readonly class RemoteLabelRemover
         private LabelResolver          $labels,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private JmapMailboxWriter      $jmapWriter,
     ) {
     }
 
@@ -114,6 +119,43 @@ readonly class RemoteLabelRemover
             }
 
             $binding->graphFolderId = null;
+            $this->em->flush();
+        }
+
+        // A JMAP mailbox is asked to go without its mail, and the server's
+        // refusal while it still holds some is the wait: RFC 8621 answers
+        // mailboxHasEmail rather than deleting, which is the check the folder
+        // branches above make by counting first. The mail is in other
+        // mailboxes too by then — the detach jobs took this one off it.
+        if (null !== $binding->jmapMailboxId) {
+            $mailboxId = $binding->jmapMailboxId;
+
+            try {
+                $this->jmapWriter->destroy($account, $mailboxId);
+            } catch (JmapThrottledException $e) {
+                throw $e;
+            } catch (JmapApiException $e) {
+                if (true === in_array($e->getType(), ['mailboxHasEmail', 'mailboxHasChild'], true)) {
+                    $this->logger->info('RemoteLabelRemover: JMAP mailbox still holds mail or mailboxes, waiting', [
+                        'accountId' => $account->id,
+                        'mailboxId' => $mailboxId,
+                        'type'      => $e->getType(),
+                    ]);
+
+                    return false;
+                }
+
+                // Already gone on the server is the end state wanted.
+                if ('notFound' !== $e->getType()) {
+                    if (500 <= $e->getStatus() || (0 === $e->getStatus() && null === $e->getType())) {
+                        throw $e;
+                    }
+
+                    throw new LabelDeleteRefusedException((string) $binding->label?->fullName, $e);
+                }
+            }
+
+            $binding->jmapMailboxId = null;
             $this->em->flush();
         }
 

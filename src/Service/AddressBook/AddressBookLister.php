@@ -57,7 +57,10 @@ final readonly class AddressBookLister
 
         $accounts = array_values(array_filter(
             $this->accounts->findForUserOrdered($user),
-            static fn (Account $account): bool => true === $account->isGmail() || true === $account->isMicrosoft(),
+            // JMAP too: its contacts ride the same session as its mail. Its
+            // grant has no scopes to judge, so contactAccountsGranted reads
+            // null for it below, which is "nothing to say".
+            static fn (Account $account): bool => true === $account->isGmail() || true === $account->isMicrosoft() || true === $account->isJmap(),
         ));
 
         $byConnection = [];

@@ -15,6 +15,14 @@ namespace App\Domain\Enum\Account;
  * reconciler, the Sent copy — reads this and takes a different road or none
  * at all.
  *
+ * JMAP is the third, and the odd one out in a different way: it is not a
+ * socket protocol at all but JSON over HTTPS, and a message is addressed by an
+ * id that survives moves, sits in any number of mailboxes at once and carries
+ * keywords rather than flags. That is the Gmail model, not the IMAP one, so
+ * JMAP answers false to isImap() even though its server has every capability
+ * that method describes: every caller of isImap() goes on to open an IMAP
+ * connection, and a JMAP account must never reach one.
+ *
  * Stored in its own column rather than inferred from the host. Misk is the
  * account that made this a column: it serves both protocols on the same
  * domain, so there is nothing about `mail.example.com:995` that says which one
@@ -24,6 +32,7 @@ enum IncomingProtocol: string
 {
     case Imap = 'imap';
     case Pop3 = 'pop3';
+    case Jmap = 'jmap';
 
     /**
      * Whether the provider's server can describe a folder tree, hold flags and
@@ -43,6 +52,11 @@ enum IncomingProtocol: string
         return self::Pop3 === $this;
     }
 
+    public function isJmap(): bool
+    {
+        return self::Jmap === $this;
+    }
+
     /**
      * The port clients use when the form has not been told one.
      *
@@ -50,9 +64,17 @@ enum IncomingProtocol: string
      * the form's encryption choices are the same list for both protocols and
      * "None" is what a server on 110 would need, so that stays available —
      * this is a default, not a restriction.
+     *
+     * JMAP's is HTTPS's. The session resource is found at a well-known path on
+     * the web port, and a server that serves it elsewhere is reached through
+     * the session URL override rather than a different port here.
      */
     public function defaultPort(): int
     {
-        return self::Pop3 === $this ? 995 : 993;
+        return match ($this) {
+            self::Imap => 993,
+            self::Pop3 => 995,
+            self::Jmap => 443,
+        };
     }
 }

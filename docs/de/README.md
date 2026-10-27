@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:a8c9f5d8656dce4c9bbde6a6c70f874fb7d87ce8 -->
+<!-- translated-from: README.md sha1:73831dfc59c1fc884717d0faa2a11c28ae36208d -->
 
 # plMail-Dokumentation
 
@@ -69,6 +69,7 @@ Jede Seite nennt die genaue Konsole, die genauen Häkchen und die genauen Redire
 | [Google](providers/google.md) | Cloud-Projekt, OAuth-Client, Scopes für Mail und Kalender, Pub/Sub für Gmail-Push, Watch-Kanäle für den Kalender und Domain-Verifizierung |
 | [Microsoft](providers/microsoft.md) | App-Registrierung in Azure, Redirect-URIs, delegierte Berechtigungen, Wahl des Tenants, Graph-Abonnements |
 | [IMAP und SMTP](providers/imap-smtp.md) | Gewöhnliche Postfächer, IDLE, und die Einstellungen, über die sich die Server uneinig sind |
+| [JMAP](providers/jmap.md) | Stalwart, Fastmail und andere JMAP-Server: Mail, Kalender und Kontakte mit einer Anmeldung, Senden über den Server, und Push |
 | [CalDAV](providers/caldav.md) | Discovery, App-Passwörter, und die Server, die getestet wurden |
 | [CardDAV](providers/carddav.md) | Adressbücher von Nextcloud und anderen Servern: Vorschläge beim Schreiben, Bearbeiten, und Synchronisation in beide Richtungen |
 | [ICS-Feeds](providers/ics-feeds.md) | Einen veröffentlichten Kalender per URL abonnieren, und warum manche Adressen abgelehnt werden |

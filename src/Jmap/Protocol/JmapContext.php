@@ -27,12 +27,25 @@ final class JmapContext
 
     /**
      * @param array<string,string> $createdIds
+     * @param list<string>         $using      the capabilities the request declared
      */
     public function __construct(
         public readonly User $user,
         array $createdIds = [],
+        public readonly array $using = [],
     ) {
         $this->createdIds = $createdIds;
+    }
+
+    /**
+     * Whether the request declared this capability.
+     *
+     * For a method two capabilities share and answer in different shapes —
+     * the calendar methods, under plMail's URN and the IETF draft's.
+     */
+    public function uses(string $capability): bool
+    {
+        return true === in_array($capability, $this->using, true);
     }
 
     /**

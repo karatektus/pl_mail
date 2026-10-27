@@ -10,6 +10,12 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
+        jmap:
+            heading: 'Eingehend — JMAP'
+            session_url: 'Session-URL'
+            session_url_help: 'Lass das Feld leer, dann wird die Adresse oben verwendet. Füll es nur aus, wenn die JMAP-Session deines Servers nicht unter /.well-known/jmap liegt.'
+            token_auth: 'Das Passwort ist ein API-Token'
+            token_auth_help: 'Setz den Haken bei Servern wie Fastmail, die dir statt eines App-Passworts ein Token geben. Der Benutzername wird dann nicht mitgeschickt.'
         password: Passwort
         pop3:
             delete_help: 'Bleibt eine Nachricht auf dem Server, erkennt plMail sie beim nächsten Abruf an ihrer UIDL und lädt sie nie doppelt. Löschen schafft Platz auf dem Server, dann gibt es aber nur noch die Kopie in plMail.'
@@ -24,6 +30,7 @@ account:
         protocol:
             help: 'Wenn du das später änderst, bleibt deine Mail erhalten: Der nächste Abruf erkennt, was schon da ist.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Protokoll für eingehende Mail'
             pop3: POP3
         smtp:
@@ -56,9 +63,13 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            jmap_no_mail: 'Der Server spricht JMAP, bietet für dieses Konto aber keine Mail an.'
+            jmap_ok: 'Verbunden — %count% Postfächer sichtbar.'
+            jmap_submission: 'Gesendet wird über den JMAP-Server.'
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -3299,6 +3310,7 @@ settings:
                     Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
                     oder zeigt woanders hin. E-Mails werden weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ist an, aber es kommt nichts an. Prüf, ob der JMAP-Server erreichbar ist; das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Das Push-Abonnement ist abgelaufen und es kommt nichts mehr
                     an. Registriere es neu, um die sofortige Zustellung
@@ -3312,6 +3324,7 @@ settings:
                     gmail-api-push@system.gserviceaccount.com die Rolle
                     „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ließ sich nicht einschalten. Das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Push konnte nicht aktiviert werden — Microsoft muss diesen
                     Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
@@ -3329,6 +3342,7 @@ settings:
             off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
             on_hint:
                 gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
+                jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen

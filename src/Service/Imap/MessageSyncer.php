@@ -12,6 +12,7 @@ use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\RepeatedHeaderHelper;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -1020,11 +1021,26 @@ class MessageSyncer
      */
     public function buildMessageFromParsed(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
+        return $this->buildFromParsed($imapMessage, $mailbox->account, $mailbox);
+    }
+
+    /**
+     * The same, for a message that lives in no folder.
+     *
+     * JMAP is the caller: its server hands over the RFC 822 bytes of an Email
+     * as a blob, so the bytes go through the parser IMAP and POP3 use and
+     * come out as the same row — but a JMAP Email is in any number of
+     * mailboxes at once, which a Mailbox row cannot say. Its placement is
+     * labels, as a Gmail message's is, and the caller applies them; there is
+     * no folder label to add here and no folder to point the row at.
+     */
+    public function buildFromParsed(ImapMessage $imapMessage, Account $account, ?Mailbox $mailbox): Message
+    {
         $message = new Message();
-        $message->account = $mailbox->account;
+        $message->account = $account;
         $message->mailbox = $mailbox;
 
-        $mailboxLabel = $mailbox->label;
+        $mailboxLabel = $mailbox?->label;
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);
@@ -1141,7 +1157,7 @@ class MessageSyncer
         }
 
         foreach ($remaining as $attachment) {
-            if (false === $this->persistAttachment($attachment, $message, $accountId)) {
+            if (false === $this->persistAttachment($attachment, $message, (int) $account->id)) {
                 $hasAttachments = true;
             }
         }
@@ -1290,10 +1306,15 @@ class MessageSyncer
         $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
         $content  = $attachment->getContent();
 
+        // Zero for the folder and the uid of a message that has neither — a
+        // JMAP one, see buildFromParsed(). The path only has to be somewhere
+        // the file can be written: parts are found and deleted by their own
+        // storagePath, never by the directory they are in, and a name that
+        // repeats there is given a suffix by the store.
         $storagePath = $this->attachmentStorage->store(
             $accountId,
-            $message->mailbox->id,
-            $message->imapUid,
+            (int) ($message->mailbox->id ?? 0),
+            (int) ($message->imapUid ?? 0),
             $filename,
             $content,
         );

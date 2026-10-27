@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Exception\GmailThrottledException;
+use App\Domain\Exception\JmapThrottledException;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
@@ -18,6 +19,7 @@ use App\Service\Graph\GraphApiSyncer;
 use App\Service\Graph\GraphImportStep;
 use App\Service\Imap\ImapImportOutcome;
 use App\Service\Imap\ImapMailboxImporter;
+use App\Service\JmapClient\JmapImporter;
 use App\Service\Job\JobNotifier;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
@@ -104,6 +106,7 @@ final readonly class MailImporter
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
         private GmailQuotaPacer         $pacer,
+        private JmapImporter            $jmap,
     ) {}
 
     /** Whether this account still has history that this class would fetch. */
@@ -119,6 +122,10 @@ final readonly class MailImporter
 
         if (true === $account->isGmail()) {
             return $account->needsBackfill();
+        }
+
+        if (true === $account->isJmap()) {
+            return $account->needsJmapImport();
         }
 
         // POP3 has no history to page through: each sync brings in what the
@@ -191,9 +198,24 @@ final readonly class MailImporter
                 $wait = match (true) {
                     $account->isGmail()     => $this->gmailPage($account),
                     $account->isMicrosoft() => GraphImportStep::Waiting === $this->graph->importPage($account),
+                    $account->isJmap()      => $this->jmapPage($account),
                     default                 => $this->imapPage($account),
                 };
             });
+        } catch (JmapThrottledException $throttled) {
+            // The server asked for patience. The plan only moves when a page
+            // goes through, so the same page is asked for again when it said.
+            $this->bus->dispatch(
+                new ImportMailMessage($accountId),
+                [new DelayStamp($throttled->getRetryDelay())],
+            );
+
+            $this->logger->info('Import: waiting for the JMAP server', [
+                'accountId'    => $accountId,
+                'delaySeconds' => intdiv($throttled->getRetryDelay(), 1000),
+            ]);
+
+            return;
         } catch (GmailThrottledException) {
             // Where the listing has got to is on the account and only moves
             // when a page goes through, so the same page is asked for again.
@@ -265,6 +287,20 @@ final readonly class MailImporter
         }
 
         return GmailBackfillStep::More !== $this->gmail->backfillPage($account);
+    }
+
+    /**
+     * Never a reason to wait: a JMAP page lists the whole account, so there is
+     * no closed folder to step around, and a finished import ends the chain
+     * through hasWork() rather than through a wait.
+     *
+     * @return bool whether asking again at once would only repeat this
+     */
+    private function jmapPage(Account $account): bool
+    {
+        $this->jmap->importPage($account);
+
+        return false;
     }
 
     /** @return bool whether asking again at once would only repeat this */

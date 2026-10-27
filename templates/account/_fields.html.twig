@@ -68,14 +68,15 @@ genuinely needed, merge onto form.<field>.vars.attr.
 
 <div class="border-t border-line"></div>
 
-{# ── Incoming — IMAP or POP3 ────────────────────────────────────────────
-   One block, both protocols: the host, port and encryption fields are the
+{# ── Incoming — IMAP, POP3 or JMAP ──────────────────────────────────────
+   One block, every protocol: the host, port and encryption fields are the
    same three either way, and only the heading and the port differ. The
    Stimulus controller swaps both when the radio changes. #}
 <div class="space-y-3">
     <p data-settings--imap-preset-target="incomingLabel"
        data-heading-imap="{{ 'account.form.imap.heading'|trans }}"
        data-heading-pop3="{{ 'account.form.pop3.heading'|trans }}"
+       data-heading-jmap="{{ 'account.form.jmap.heading'|trans }}"
        class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
         {{ 'account.form.imap.heading'|trans }}
     </p>
@@ -92,6 +93,20 @@ genuinely needed, merge onto form.<field>.vars.attr.
         {{ form_row(form.pop3DeleteMode, {
             label: 'account.form.pop3.delete_label'|trans,
             help:  'account.form.pop3.delete_help'|trans,
+        }) }}
+    </div>
+
+    {# JMAP only, hidden the same way and for the same reason. The session
+       URL is for a server that does not answer at the well-known path; the
+       box is for a server whose password is an API token. #}
+    <div data-settings--imap-preset-target="jmapOptions" class="hidden space-y-3">
+        {{ form_row(form.jmapSessionUrl, {
+            label: 'account.form.jmap.session_url'|trans,
+            help:  'account.form.jmap.session_url_help'|trans,
+        }) }}
+        {{ form_row(form.jmapTokenAuth, {
+            label: 'account.form.jmap.token_auth'|trans,
+            help:  'account.form.jmap.token_auth_help'|trans,
         }) }}
     </div>
 </div>

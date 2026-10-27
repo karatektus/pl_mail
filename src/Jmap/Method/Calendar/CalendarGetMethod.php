@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Calendar;
 
 use App\Jmap\Account\CalendarAccountResolver;
+use App\Jmap\Calendar\IetfCalendarShape;
 use App\Jmap\Mapper\CalendarMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarRepository;
@@ -33,6 +35,7 @@ final class CalendarGetMethod implements JmapMethod
         private readonly CalendarRepository $calendars,
         private readonly CalendarMapper $mapper,
         private readonly CalendarChangeReader $changes,
+        private readonly IetfCalendarShape $ietf,
     ) {
     }
 
@@ -81,8 +84,11 @@ final class CalendarGetMethod implements JmapMethod
 
         $list = [];
 
+        $ietf = $context->uses(Capability::IETF_CALENDARS);
+
         foreach ($calendars as $calendar) {
-            $list[] = $this->mapper->toJmap($calendar, $properties);
+            $object = $this->mapper->toJmap($calendar, $properties);
+            $list[] = true === $ietf ? $this->ietf->calendar($object) : $object;
         }
 
         return [

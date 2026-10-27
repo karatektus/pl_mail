@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Exception\JmapApiException;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
+use App\Infrastructure\JmapClient\JmapCapability;
+use App\Infrastructure\JmapClient\JmapClient;
+use App\Infrastructure\JmapClient\JmapSession;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport;
@@ -21,6 +25,11 @@ use Throwable;
  *
  * The account passed in may be a transient entity built from unsaved form
  * input — nothing here touches the entity manager.
+ *
+ * A JMAP account answers both halves from one session: the incoming half is
+ * the session and its mailboxes, and the outgoing half is whether that
+ * session offers submission. Only a JMAP server without submission falls
+ * through to the SMTP probe, because only then is SMTP what will send.
  */
 final class ConnectionTester
 {
@@ -32,15 +41,23 @@ final class ConnectionTester
         private readonly TranslatorInterface   $translator,
         private readonly LoggerInterface       $logger,
         private readonly Pop3ConnectionFactory $pop3,
+        private readonly JmapClient            $jmap,
     ) {
     }
 
     public function test(Account $account): ConnectionTestResult
     {
-        [$imapOk, $imapMessage] = true === $account->isPop3()
-            ? $this->probePop3($account)
-            : $this->probeImap($account);
-        [$smtpOk, $smtpMessage] = $this->probeSmtp($account);
+        $session = null;
+
+        [$imapOk, $imapMessage] = match (true) {
+            $account->isPop3() => $this->probePop3($account),
+            $account->isJmap() => $this->probeJmap($account, $session),
+            default            => $this->probeImap($account),
+        };
+
+        [$smtpOk, $smtpMessage] = null !== $session && true === $session->has(JmapCapability::SUBMISSION)
+            ? [true, $this->translator->trans('account.test.result.jmap_submission')]
+            : $this->probeSmtp($account);
 
         return new ConnectionTestResult(
             $imapOk,
@@ -120,6 +137,59 @@ final class ConnectionTester
             // POP3 account shares, and POP3's failures are the same set — bad
             // certificate, refused login, wrong port. The port hints know
             // 110 and 995 as well as IMAP's pair.
+            return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
+        }
+    }
+
+    /**
+     * The JMAP probe: fetch the session and list the mailboxes.
+     *
+     * The same two questions again — can we sign in, and how much is there —
+     * answered by the session (which is where a refused credential shows) and
+     * by Mailbox/get. A session without the mail capability is a failure
+     * rather than an empty success: a server that publishes JMAP only for its
+     * calendars is not one this account can read mail from.
+     *
+     * The session is handed back so test() can answer the outgoing half from
+     * it without a second request.
+     *
+     * @param-out JmapSession|null $session
+     *
+     * @return array{0: bool, 1: string}
+     */
+    private function probeJmap(Account $account, ?JmapSession &$session): array
+    {
+        $this->jmap->forget($account);
+
+        try {
+            $session   = $this->jmap->session($account);
+            $accountId = $session->accountFor(JmapCapability::MAIL);
+
+            if (null === $accountId) {
+                $session = null;
+
+                return [false, $this->translator->trans('account.test.result.jmap_no_mail')];
+            }
+
+            $mailboxes = $this->jmap->call($account, [JmapCapability::MAIL], [
+                ['Mailbox/get', ['accountId' => $accountId, 'properties' => ['id']], 'm'],
+            ])->get('m', 'Mailbox/get');
+
+            return [true, $this->translator->trans('account.test.result.jmap_ok', [
+                '%count%' => count(is_array($mailboxes['list'] ?? null) ? $mailboxes['list'] : []),
+            ])];
+        } catch (JmapApiException $e) {
+            $session = null;
+
+            // Read off the status rather than sorted by the words: the
+            // message is plMail's own sentence, which says "refused" for a
+            // wrong password and for a missing path alike.
+            if (true === $e->isAuthenticationFailure()) {
+                $this->logger->info('Connection test failed', ['protocol' => 'jmap', 'detail' => $e->getMessage()]);
+
+                return [false, $this->translator->trans('account.test.result.auth')];
+            }
+
             return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
         }
     }
@@ -220,6 +290,10 @@ final class ConnectionTester
         $text = strtolower($chain);
 
         return match (true) {
+            // UserUrlHttpClient refusing a private address. Ahead of the rest
+            // because the sentence also says "host", and because nothing the
+            // user changes in this form will fix it — an administrator has to.
+            $this->mentions($text, ['is blocked for'])                                                         => 'private_network',
             $this->mentions($text, ['timed out', 'timeout'])                                                   => 'timeout',
             $this->mentions($text, ['certificate', 'ssl operation', 'crypto', 'handshake', 'openssl'])         => 'tls',
             $this->mentions($text, ['auth', 'login', 'credential', 'password', '535 ', 'invalid user'])         => 'auth',

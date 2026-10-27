@@ -11,18 +11,26 @@ import { Controller } from "@hotwired/stimulus";
  * the whole table is a couple of kilobytes, so no round-trip is needed.
  */
 export default class extends Controller {
-    static targets = ["note", "incomingLabel", "pop3Options"];
+    static targets = ["note", "incomingLabel", "pop3Options", "jmapOptions"];
 
     /**
      * Where each incoming protocol starts: its SSL port, and the shape of a
      * host name to hint at. The heading is not here: it is translated, so the
-     * template hands both wordings to the heading element as
-     * data-heading-imap / data-heading-pop3.
+     * template hands every wording to the heading element as
+     * data-heading-imap / data-heading-pop3 / data-heading-jmap.
+     *
+     * JMAP's port is HTTPS's: the session is found at a well-known path on
+     * the web server, and the encryption select is left alone because there
+     * is no plaintext JMAP to choose.
      */
     static PROTOCOLS = {
         imap: { port: "993", host: "imap.example.com" },
         pop3: { port: "995", host: "pop.example.com" },
+        jmap: { port: "443", host: "mail.example.com" },
     };
+
+    /** The data-heading-* attribute each protocol's heading is read from. */
+    static HEADINGS = { imap: "headingImap", pop3: "headingPop3", jmap: "headingJmap" };
 
     connect() {
         this.presets = this._readPresets();
@@ -34,7 +42,8 @@ export default class extends Controller {
      *
      * Three things follow, and all three are the same fact stated three ways:
      * the section heading names the protocol, the port follows,
-     * and the POP3 delete option appears only where it means something.
+     * and the POP3 delete option and the JMAP session options appear only
+     * where they mean something.
      * Nothing already typed is cleared — switching back and forth should not
      * cost the user their host name.
      */
@@ -42,7 +51,7 @@ export default class extends Controller {
         const protocol = this._currentProtocol();
 
         if (this.hasIncomingLabelTarget) {
-            const heading = this.incomingLabelTarget.dataset[protocol === "pop3" ? "headingPop3" : "headingImap"];
+            const heading = this.incomingLabelTarget.dataset[this.constructor.HEADINGS[protocol] ?? "headingImap"];
 
             if (heading) {
                 this.incomingLabelTarget.textContent = heading;
@@ -74,6 +83,10 @@ export default class extends Controller {
 
         if (this.hasPop3OptionsTarget) {
             this.pop3OptionsTarget.classList.toggle("hidden", protocol !== "pop3");
+        }
+
+        if (this.hasJmapOptionsTarget) {
+            this.jmapOptionsTarget.classList.toggle("hidden", protocol !== "jmap");
         }
     }
 

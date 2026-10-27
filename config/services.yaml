@@ -258,6 +258,9 @@ services:
     App\Service\Graph\GraphSubscriptionManager:
         tags: ['app.push_subscription_manager']
 
+    App\Service\JmapClient\JmapPushSubscriptionManager:
+        tags: ['app.push_subscription_manager']
+
     # Above every real sender, and it claims accounts only when demo mode is
     # on. That ordering is the whole guarantee: a demo instance cannot reach an
     # SMTP relay because the sender that would have done it is never asked.
@@ -265,6 +268,11 @@ services:
         tags: [{ name: app.mail_sender, priority: 100 }]
 
     App\Service\Mail\GmailApiSender:
+        tags: [{ name: app.mail_sender, priority: 10 }]
+
+    # Above SMTP, and claiming only JMAP accounts whose server submits mail;
+    # one without submission falls through to SmtpMailSender below.
+    App\Service\Mail\JmapApiSender:
         tags: [{ name: app.mail_sender, priority: 10 }]
 
     App\Service\Mail\SmtpMailSender:

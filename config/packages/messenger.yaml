@@ -373,7 +373,10 @@ framework:
             App\Infrastructure\Messaging\Message\CollectContactKeysMessage: enrich
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
+            App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export
+            App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage: export
+            App\Infrastructure\Messaging\Message\ConfirmJmapPushMessage: export
             App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: export
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             # Taking decrypted mail back off the server when an account stops

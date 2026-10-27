@@ -10,6 +10,12 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
+        jmap:
+            heading: 'Réception — JMAP'
+            session_url: 'URL de session'
+            session_url_help: 'Laissez vide pour utiliser l''adresse ci-dessus. À renseigner seulement si la session JMAP de votre serveur ne se trouve pas à /.well-known/jmap.'
+            token_auth: 'Le mot de passe est un jeton d''API'
+            token_auth_help: 'Cochez cette case pour les serveurs comme Fastmail qui fournissent un jeton plutôt qu''un mot de passe d''application. Le nom d''utilisateur n''est alors pas envoyé.'
         password: Mot de passe
         pop3:
             delete_help: 'Laissé sur le serveur, un message est reconnu à la relève suivante par son UIDL et n''est jamais relevé deux fois. Le supprimer libère de la place sur le serveur, mais la copie de plMail devient alors la seule.'
@@ -24,6 +30,7 @@ account:
         protocol:
             help: 'Le changer plus tard conserve vos messages : la synchronisation suivante reconnaît ce qui est déjà là.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Protocole de réception'
             pop3: POP3
         smtp:
@@ -56,9 +63,13 @@ account:
             failed: 'La connexion n’a pas fonctionné. Vérifiez le serveur, le port et le chiffrement.'
             host_invalid: 'Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.'
             imap_ok: 'Connecté — %count% dossiers visibles.'
+            jmap_no_mail: 'Le serveur parle JMAP mais ne propose aucun courrier pour ce compte.'
+            jmap_ok: 'Connecté — %count% boîtes visibles.'
+            jmap_submission: 'L''envoi passe par le serveur JMAP.'
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
+            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord autoriser son hôte dans INTEGRATIONS_ALLOWED_HOSTS avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -3333,6 +3344,7 @@ settings:
                     L’abonnement push Pub/Sub dans Google Cloud est peut-être absent ou
                     pointe ailleurs. Le courrier est toujours synchronisé selon le
                     calendrier.
+                jmap: 'Le push est activé mais rien n''arrive. Vérifiez que le serveur JMAP est joignable ; le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     L’abonnement push a expiré et rien n’arrive. Réenregistrez-le pour
                     retrouver la livraison instantanée. Le courrier est toujours
@@ -3344,6 +3356,7 @@ settings:
                     sujet Pub/Sub existant et que ce sujet accorde à
                     gmail-api-push@system.gserviceaccount.com le rôle Éditeur Pub/Sub.
                     Le compte est toujours synchronisé selon le calendrier.
+                jmap: 'Le push n''a pas pu être activé. Le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     Le push n’a pas pu être activé — Microsoft doit pouvoir joindre ce
                     serveur en HTTPS. Vérifiez votre proxy inverse et APP_PUBLIC_URL.
@@ -3359,6 +3372,7 @@ settings:
             off_hint: Le courrier est vérifié selon un calendrier. Activez le push pour une livraison instantanée.
             on_hint:
                 gmail: Le nouveau courrier arrive immédiatement via les notifications push de Gmail.
+                jmap: 'Les changements arrivent immédiatement : le serveur JMAP les envoie à plMail, par webhook quand il peut joindre ce serveur, sinon par une connexion maintenue ouverte.'
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
         reorder: Faites glisser pour réorganiser

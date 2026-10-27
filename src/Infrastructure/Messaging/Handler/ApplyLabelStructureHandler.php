@@ -15,6 +15,7 @@ use App\Domain\Enum\Mail\LabelColor;
 use App\Service\Gmail\GmailLabelColorMapper;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\Graph\GraphLabelPolicy;
+use App\Service\JmapClient\JmapMailboxWriter;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
@@ -24,7 +25,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Mirrors a label create/rename/delete onto Gmail or Microsoft.
+ * Mirrors a label create/rename/delete onto Gmail, Microsoft or JMAP.
  *
  * Runs after the local write has already committed, so a provider failure
  * never rolls back what the user saw succeed. The remote id is written back
@@ -57,6 +58,7 @@ final readonly class ApplyLabelStructureHandler
         private LabelResolver          $labelResolver,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private JmapMailboxWriter      $jmapWriter,
     ) {}
 
     public function __invoke(ApplyLabelStructureMessage $message): void
@@ -83,6 +85,12 @@ final readonly class ApplyLabelStructureHandler
 
             if (true === $account->isMicrosoft()) {
                 $this->applyGraph($account, $message);
+
+                return;
+            }
+
+            if (true === $account->isJmap()) {
+                $this->applyJmap($account, $message);
             }
         } catch (\Throwable $e) {
             // Let messenger retry: provider throttling and transient 5xx are
@@ -127,6 +135,35 @@ final readonly class ApplyLabelStructureHandler
             ),
         );
         $this->storeRemoteId($account, $message->labelId, (string) ($created['id'] ?? ''), true);
+    }
+
+    /**
+     * A JMAP mailbox nests by parentId, as an Exchange folder does, so only
+     * the leaf name is sent. Creation goes through JmapMailboxWriter, which
+     * makes the parent first when it has never been pushed and binds the new
+     * id at once — the same path a message filed under a new label takes.
+     */
+    private function applyJmap(Account $account, ApplyLabelStructureMessage $message): void
+    {
+        if (ApplyLabelStructureMessage::ACTION_DELETE === $message->action) {
+            if (null !== $message->remoteId) {
+                $this->jmapWriter->destroy($account, $message->remoteId);
+            }
+
+            return;
+        }
+
+        if (ApplyLabelStructureMessage::ACTION_RENAME === $message->action && null !== $message->remoteId) {
+            $this->jmapWriter->rename($account, $message->remoteId, $this->leafOf($message->fullName), $message->parentRemoteId);
+
+            return;
+        }
+
+        $label = null === $message->labelId ? null : $this->labelRepository->find($message->labelId);
+
+        if (null !== $label) {
+            $this->jmapWriter->ensure($label, $account);
+        }
     }
 
     private function applyGraph(Account $account, ApplyLabelStructureMessage $message): void

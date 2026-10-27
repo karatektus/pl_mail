@@ -6,12 +6,14 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
+use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\SmtpDsnFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\Mailer\Transport\Dsn;
 use Symfony\Component\Translation\IdentityTranslator;
 
@@ -66,7 +68,7 @@ final class MailServerHostTest extends TestCase
             new \RuntimeException('* OK Dovecot (Ubuntu) 2.3.16 ready, AUTHENTICATIONFAILED Authentication failed.'),
         ));
 
-        $result = new ConnectionTester($imap, new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger(), new Pop3ConnectionFactory(new ImapDeadline(new NullLogger())))->test($account);
+        $result = new ConnectionTester($imap, new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger(), new Pop3ConnectionFactory(new ImapDeadline(new NullLogger())), new JmapClient(new MockHttpClient()))->test($account);
 
         self::assertFalse($result->imapOk);
         self::assertSame('account.test.result.auth', $result->imapMessage);

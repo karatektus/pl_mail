@@ -85,6 +85,18 @@ class ImapConnectionFactory
             ));
         }
 
+        // JMAP for the same reason, and with more at stake: its host is a web
+        // server, so IMAP spoken at it does not fail on a greeting — it hangs
+        // on a TLS socket that is waiting for an HTTP request, for as long as
+        // the timeout allows.
+        if (true === $account->isJmap()) {
+            throw new \LogicException(sprintf(
+                'Account %d (%s) reads its mail over JMAP and must not be opened over IMAP.',
+                $account->id,
+                $account->email,
+            ));
+        }
+
         $host = $account->imapHost;
 
         if (null === $host || '' === $host) {

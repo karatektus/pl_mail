@@ -10,6 +10,12 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
+        jmap:
+            heading: 'Incomin'' — JMAP'
+            session_url: 'Session URL'
+            session_url_help: 'Leave it empty an'' the port above be used. Fill it in only if yer server''s JMAP session don''t be moored at /.well-known/jmap.'
+            token_auth: 'The password be an API token'
+            token_auth_help: 'Tick this fer harbours like Fastmail that hand ye a token instead o'' an app password. The username then stays ashore.'
         password: Secret word
         pop3:
             delete_help: 'Left in port, a message be spotted next time by its UIDL and never hauled in twice. Scuttlin'' it frees the harbour''s space, but then plMail''s copy be the only one afloat.'
@@ -24,6 +30,7 @@ account:
         protocol:
             help: 'Change this later and ye keep yer haul: the next voyage knows what be aboard already.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Incomin'' protocol'
             pop3: POP3
         smtp:
@@ -56,9 +63,13 @@ account:
             failed: 'The line didn''t hold. Check the host, port an'' encryption.'
             host_invalid: 'A host name or IP address only, sailor — no slashes, question marks nor @.'
             imap_ok: 'Aboard — %count% holds in sight.'
+            jmap_no_mail: 'The server speaks JMAP but offers no mail fer this account.'
+            jmap_ok: 'Aboard — %count% holds in sight.'
+            jmap_submission: 'Messages sail out through the JMAP server.'
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
+            private_network: 'This server lies in private waters. The captain must allow its host in INTEGRATIONS_ALLOWED_HOSTS afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
@@ -3159,6 +3170,7 @@ settings:
                     The cannon be loaded but naught has been heard lately. The
                     Pub/Sub push subscription in Google Cloud may be missin' or
                     aimed elsewhere. Mail still comes aboard on the watch bell.
+                jmap: 'Push be on but nothin'' comes aboard. Check the JMAP server can be reached; the account still sails on schedule.'
                 microsoft: >-
                     The push subscription has run out and naught be arrivin'.
                     Load the cannon again to bring word back. Mail still comes
@@ -3170,6 +3182,7 @@ settings:
                     that truly exists, and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. Mail still comes aboard on the watch bell.
+                jmap: 'Push couldn''t be hoisted. The account still sails on schedule.'
                 microsoft: >-
                     The cannon couldn't be readied — Microsoft must reach this
                     ship over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL.
@@ -3185,6 +3198,7 @@ settings:
             off_hint: Mail comes aboard on the watch bell. Load the cannon for word the moment it lands.
             on_hint:
                 gmail: New mail lands the instant Gmail fires the cannon.
+                jmap: 'Changes come aboard at once: the JMAP server sends ''em to plMail, by webhook when it can reach this port an'' over a line held open when it can''t.'
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
         reorder: Drag to reorder the line

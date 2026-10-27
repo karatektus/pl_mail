@@ -22,13 +22,14 @@ use Doctrine\DBAL\Types\Types;
 use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
-// Remote-id uniqueness per account: one row per Gmail/Graph message. The
+// Remote-id uniqueness per account: one row per Gmail/Graph/JMAP message. The
 // batch handlers dedup in PHP before inserting, but that check is a read on
 // stale data — this is the guard that actually holds when batches overlap
 // across runs or retries. Provider id leads the column list so the indexes
 // also serve the provider-id lookups (graph by account, gmail by owning user).
 #[ORM\UniqueConstraint(name: 'uniq_message_gmail_id_account', columns: ['gmail_id', 'account_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_message_graph_id_account', columns: ['graph_id', 'account_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_message_jmap_id_account', columns: ['jmap_id', 'account_id'])]
 // IMAP UIDs are unique within a mailbox, so this is the guard for the sync
 // path. Mailbox leads: it matches how the syncer reads them back (all UIDs
 // for one mailbox), and no query looks up a bare UID.
@@ -130,8 +131,20 @@ class Message extends MessageModel
     public ?string $graphId = null;
 
     /**
-     * Gmail threadId / Graph conversationId, carried from the sync payload so the
-     * threader can group without a second API call. Null for IMAP.
+     * The JMAP Email id on the account's server.
+     *
+     * Unlike an IMAP UID it survives moves — RFC 8621 makes an Email's id
+     * immutable and the mailboxes it is in a property of it — so one id names
+     * the message wherever it is filed, as a Gmail id does. 255 because that
+     * is the RFC 8620 ceiling for any JMAP id.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $jmapId = null;
+
+    /**
+     * Gmail threadId / Graph conversationId / JMAP threadId, carried from the
+     * sync payload so the threader can group without a second API call. Null
+     * for IMAP.
      */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $providerThreadKey = null;
