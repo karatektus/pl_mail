@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Criteria;
@@ -27,6 +28,24 @@ class AccountRepository extends ServiceEntityRepository
      *
      * @return iterable<Account>
      */
+    /**
+     * Every account a JMAP push channel should be held open for.
+     *
+     * Active, JMAP, and push left on — the same switch the Gmail and Graph
+     * subscriptions honour. Fetched whole: the listener needs the credentials
+     * on each to open its stream.
+     *
+     * @return list<Account>
+     */
+    public function findJmapForPush(): array
+    {
+        return $this->findBy([
+            'isActive'         => true,
+            'incomingProtocol' => IncomingProtocol::Jmap,
+            'pushEnabled'      => true,
+        ], ['id' => 'ASC']);
+    }
+
     public function findForUserOrderedByName(UserInterface $user): array
     {
         return $this->createQueryBuilder('account')

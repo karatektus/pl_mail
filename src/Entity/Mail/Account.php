@@ -546,6 +546,9 @@ class Account extends AccountModel
     /** Where a JMAP account's first import has got to. See $jmapImport. */
     public const string SETTING_JMAP_IMPORT = 'sync.jmap.import';
 
+    /** A JMAP account's PushSubscription on its server. See $jmapPushSubscription. */
+    public const string SETTING_JMAP_PUSH_SUBSCRIPTION = 'sync.jmap.push_subscription';
+
     /** Unfetched messages the listing under way has found so far. */
     public const string SETTING_BACKFILL_PENDING = 'sync.backfill_pending';
 
@@ -1184,6 +1187,53 @@ class Account extends AccountModel
     public function needsJmapImport(): bool
     {
         return null !== $this->jmapImport;
+    }
+
+    /**
+     * The PushSubscription this account holds on its JMAP server, or null.
+     *
+     * `verified` is whether the server has proved it can reach plMail's
+     * callback — RFC 8620 §7.2.2 has it POST a verification code first, and
+     * nothing is pushed until the client echoes it back. `expires` is a Unix
+     * timestamp. Virtual, out of the settings bag: one small record that only
+     * the subscription manager writes.
+     *
+     * @var array{id: string, verified: bool, expires: int}|null
+     */
+    public ?array $jmapPushSubscription {
+        get {
+            $subscription = $this->getSetting(self::SETTING_JMAP_PUSH_SUBSCRIPTION);
+
+            if (false === is_array($subscription) || false === is_string($subscription['id'] ?? null)) {
+                return null;
+            }
+
+            return [
+                'id'       => $subscription['id'],
+                'verified' => true === ($subscription['verified'] ?? false),
+                'expires'  => (int) ($subscription['expires'] ?? 0),
+            ];
+        }
+        set (?array $subscription) {
+            $this->setSetting(self::SETTING_JMAP_PUSH_SUBSCRIPTION, $subscription);
+        }
+    }
+
+    /**
+     * Whether the server is pushing to plMail's callback right now, so the
+     * EventSource stream app:jmap:listen would otherwise hold is not needed.
+     *
+     * Verified and not yet expired: an unverified subscription is one the
+     * server could not reach, and that is exactly the install the stream is
+     * for.
+     */
+    public function hasLiveJmapPushSubscription(?DateTimeImmutable $now = null): bool
+    {
+        $subscription = $this->jmapPushSubscription;
+
+        return null !== $subscription
+            && true === $subscription['verified']
+            && $subscription['expires'] > ($now ?? new DateTimeImmutable())->getTimestamp();
     }
 
     /**

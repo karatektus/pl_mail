@@ -12,6 +12,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
+use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -213,9 +214,22 @@ final class JmapClient implements ResetInterface
      */
     public function open(Account $account, string $url, array $options): ResponseInterface
     {
-        return $this->httpClient->request('GET', $url, $options + [
-            'headers' => ['Authorization' => $this->authorization($account)],
-        ]);
+        $options['headers'] = ['Authorization' => $this->authorization($account)] + ($options['headers'] ?? []);
+
+        return $this->httpClient->request('GET', $url, $options);
+    }
+
+    /**
+     * Wait on several open() responses at once, for the push channel.
+     *
+     * The same HTTP client's stream(): a response is only ever streamed by the
+     * client that made it, and the push listener holds one per account.
+     *
+     * @param iterable<ResponseInterface> $responses
+     */
+    public function stream(iterable $responses, float $timeout): ResponseStreamInterface
+    {
+        return $this->httpClient->stream($responses, $timeout);
     }
 
     /**
