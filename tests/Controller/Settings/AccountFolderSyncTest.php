@@ -349,6 +349,46 @@ final class AccountFolderSyncTest extends WebTestCase
 
     // ── Fixtures ──────────────────────────────────────────────────────────
 
+    /**
+     * A mirror (#414) had copies erased while it was off, below where a poll
+     * reads. Switched back on, its import is planned again so the importer
+     * fetches what is missing; an ordinary folder resumes where it stopped.
+     */
+    public function testSwitchingAMirrorBackOnPlansItsImportAgain(): void
+    {
+        $allMail = $this->mailbox($this->account, 'All Mail');
+        $allMail->mirrorsOtherFolders = true;
+        $allMail->isSyncEnabled       = false;
+        $allMail->lastSeenUid         = 500;
+        $allMail->importFloorUid      = 0;
+
+        $drafts = $this->mailbox($this->account, 'Drafts');
+        $drafts->isSyncEnabled  = false;
+        $drafts->lastSeenUid    = 40;
+        $drafts->importFloorUid = 0;
+        $this->em->flush();
+
+        $allMailId = (int) $allMail->id;
+        $draftsId  = (int) $drafts->id;
+
+        $this->post($this->account, $allMailId, $this->csrfToken($allMailId));
+        $this->post($this->account, $draftsId, $this->csrfToken($draftsId));
+
+        $this->em->clear();
+        $allMail = $this->mailboxes->find($allMailId);
+        $drafts  = $this->mailboxes->find($draftsId);
+        self::assertNotNull($allMail);
+        self::assertNotNull($drafts);
+
+        self::assertTrue($allMail->isSyncEnabled);
+        self::assertNull($allMail->importFloorUid, 'the mirror is planned again');
+        self::assertSame(500, $allMail->lastSeenUid, 'and new mail still starts where it did');
+
+        // The contrast: an ordinary folder keeps its finished import.
+        self::assertTrue($drafts->isSyncEnabled);
+        self::assertSame(0, $drafts->importFloorUid);
+    }
+
     private function foldersUrl(Account $account): string
     {
         return '/settings/accounts/' . $account->id . '/folders';

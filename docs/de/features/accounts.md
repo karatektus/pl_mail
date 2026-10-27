@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:91b57d2ce0f4be624689b7c776c7f1fe5f31927e -->
+<!-- translated-from: features/accounts.md sha1:e9173d595210dba54af18c10d5e388e88ed12c90 -->
 
 # Konten und Aliase
 
@@ -266,7 +266,8 @@ Sicht des Servers auf Mail, die er in deinen anderen Ordnern aufbewahrt, und sie
 jede Nachricht doppelt. Die Kopien von Mail, die anderswo liegt und die plMail vorher aus ihnen
 gespeichert hat, werden über die nächsten Synchronisierungen entfernt; Mail, die nur sie enthalten,
 bleibt. Bei Gmail über IMAP bleibt All Mail eingeschaltet, denn archivierte Mail liegt dort und
-nirgends sonst. Du kannst beide wieder einschalten.
+nirgends sonst. Schaltest du einen wieder ein, holt plMail die entfernten
+Kopien erneut ab.
 
 Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
 zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der
