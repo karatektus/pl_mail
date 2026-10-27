@@ -147,6 +147,27 @@ final class JmapClientTest extends TestCase
         self::assertSame('https://mail.example.test/.well-known/download/u1/B%2F1/m.eml?type=message%2Frfc822', $session->downloadUrlFor('u1', 'B/1', 'message/rfc822', 'm.eml'));
     }
 
+    /**
+     * A capability the server names no primary account for is the account's
+     * that declares it — the mail account first. plMail's own server left
+     * submission out of primaryAccounts, so the connection test promised JMAP
+     * sending and the send went to SMTP.
+     */
+    public function testACapabilityWithoutAPrimaryAccountIsTheDeclaringAccounts(): void
+    {
+        $session = $this->client([$this->session([
+            'capabilities' => [JmapCapability::CORE => [], JmapCapability::MAIL => [], JmapCapability::SUBMISSION => []],
+            'accounts'     => [
+                '1' => ['name' => 'other', 'accountCapabilities' => [JmapCapability::SUBMISSION => []]],
+                '2' => ['name' => 'ada@example.test', 'accountCapabilities' => [JmapCapability::MAIL => [], JmapCapability::SUBMISSION => []]],
+            ],
+            'primaryAccounts' => [JmapCapability::MAIL => '2'],
+        ])])->session($this->account());
+
+        self::assertSame('2', $session->accountFor(JmapCapability::SUBMISSION));
+        self::assertNull($session->accountFor(JmapCapability::CALENDARS), 'and none for a capability the server does not have');
+    }
+
     public function testARefusedPasswordIsReportedAsAnAuthenticationFailure(): void
     {
         try {

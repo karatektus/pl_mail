@@ -122,6 +122,11 @@ final class SessionBuilder
 
         if (null !== $primaryId) {
             $primaryAccounts[Capability::MAIL] = $primaryId;
+            // Every account lists submission, so the primary one is the mail
+            // one. Left out, a client that asks primaryAccounts which account
+            // sends — plMail's own JMAP client does — finds none, and falls
+            // back to SMTP while the capability says it need not.
+            $primaryAccounts[Capability::SUBMISSION] = $primaryId;
             $primaryAccounts[Capability::CONTACTS] = $primaryId;
             $primaryAccounts[Capability::INBOX_TABS] = $primaryId;
         }

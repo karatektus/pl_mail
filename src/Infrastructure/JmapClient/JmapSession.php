@@ -61,6 +61,28 @@ final readonly class JmapSession
             }
         }
 
+        // A capability with no primary account is still the account's that
+        // declares it. RFC 8620 has the server name one for every capability
+        // it has, but a server that leaves submission out — plMail's own did
+        // — would otherwise read as having none, though its session says
+        // otherwise: the connection test promised sending over JMAP and the
+        // send went to SMTP. The mail account first, since that is where
+        // submission is sent from; then the first that declares it.
+        $declaring = [];
+
+        foreach (is_array($json['accounts'] ?? null) ? $json['accounts'] : [] as $accountId => $account) {
+            foreach (array_keys(is_array($account['accountCapabilities'] ?? null) ? $account['accountCapabilities'] : []) as $capability) {
+                $declaring[(string) $capability][] = (string) $accountId;
+            }
+        }
+
+        foreach ($declaring as $capability => $accountIds) {
+            if (false === isset($primary[$capability])) {
+                $mail                 = $primary[JmapCapability::MAIL] ?? null;
+                $primary[$capability] = null !== $mail && in_array($mail, $accountIds, true) ? $mail : $accountIds[0];
+            }
+        }
+
         $eventSource = $json['eventSourceUrl'] ?? null;
 
         return new self(
