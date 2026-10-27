@@ -45,6 +45,35 @@ final class BackgroundProcessesTest extends TestCase
     }
 
     /**
+     * All in one container (Unraid): the web server is a child too, started
+     * right after the hub, and the hub gets out of its way, off :80 and
+     * without the admin API both Caddy servers would otherwise bind.
+     */
+    public function testAllInOneAddsTheWebServerAndMovesTheHubAside(): void
+    {
+        $processes = new BackgroundProcesses(self::IDENTIFIER, hubSecret: 's', allInOne: true);
+
+        self::assertSame(
+            ['mercure', 'web', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            $processes->names(),
+        );
+
+        $all = $processes->all();
+
+        self::assertSame(['frankenphp', 'run', '--config', '/etc/frankenphp/Caddyfile'], $all[1]->command, 'the image\'s own CMD, so the web server starts as it does in a container of its own');
+        self::assertSame(':3000', $all[0]->env['SERVER_NAME']);
+        self::assertSame("grace_period 5s\nadmin off", $all[0]->env['GLOBAL_OPTIONS']);
+    }
+
+    public function testWithoutAllInOneTheHubKeepsPort80AndItsAdminApi(): void
+    {
+        $hub = new BackgroundProcesses(self::IDENTIFIER, hubSecret: 's')->all()[0];
+
+        self::assertSame(':80', $hub->env['SERVER_NAME']);
+        self::assertSame('grace_period 5s', $hub->env['GLOBAL_OPTIONS'], 'compose and TrueNAS run the hub alone in its container, exactly as before');
+    }
+
+    /**
      * The hub never hears about the `__Secure-` prefix.
      *
      * Whether the browser's cookie carries it follows the public address, and

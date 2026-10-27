@@ -14,7 +14,34 @@ load_generated_secrets() {
 	done <"$1"
 }
 
+# True when this container is to run everything itself (APP_ALL_IN_ONE), and
+# this start is the image's own CMD rather than a console command somebody ran
+# in it. Spelled the way Symfony's bool: processor reads it, so the shell and PHP
+# cannot disagree about whether it is on.
+all_in_one() {
+	[ "$1" = 'frankenphp' ] || return 1
+
+	case "$(printf '%s' "${APP_ALL_IN_ONE:-}" | tr '[:upper:]' '[:lower:]')" in
+		1 | true | yes | on) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
 if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
+	# ── All in one ─────────────────────────────────────────────────────────
+	# Web server, workers and hub in this one container (Unraid; see
+	# docs/install/unraid.md). The hub is a sibling process here rather than a
+	# container called `mercure`, so the web server's proxy is pointed at the
+	# port it listens on instead (BackgroundProcesses), and the web server
+	# answers plain HTTP on :80 behind the platform's reverse proxy. The
+	# application's own MERCURE_URL is set in config/bootstrap_generated_secrets.php,
+	# where a `docker exec` session sees it too. Each only where nothing was set:
+	# an operator's own value still wins.
+	if all_in_one "$@"; then
+		[ -n "${SERVER_NAME:-}" ] || export SERVER_NAME=':80'
+		[ -n "${MERCURE_UPSTREAM:-}" ] || export MERCURE_UPSTREAM='127.0.0.1:3000'
+	fi
+
 	# ── Generated secrets ──────────────────────────────────────────────────
 	# A fresh install must not come up on the secrets committed to the repo.
 	# APP_ENCRYPTION_KEY in particular is all that stands between a stolen
@@ -262,6 +289,14 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	# var/log; now nothing. If a platform ever needs a grant here, make it in
 	# the Dockerfile, where it is paid once at build and not on every start.
 	mkdir -p var/cache var/log
+fi
+
+# All in one: everything above ran as it does for the web server, the fatal key
+# check included, and app:work starts the web server as one of its children.
+# The image's CMD is not lost, it is the same command line BackgroundProcesses
+# gives that child.
+if all_in_one "$@"; then
+	set -- php bin/console app:work
 fi
 
 exec docker-php-entrypoint "$@"

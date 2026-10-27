@@ -189,6 +189,21 @@ final class GeneratedSecretsBootstrapTest extends TestCase
     }
 
     /**
+     * All in one container, the hub is a local process, and a `docker exec`
+     * session (which never runs the entrypoint) has to publish there too.
+     */
+    public function testAllInOnePublishesToTheLocalHub(): void
+    {
+        self::assertSame('http://127.0.0.1:3000/.well-known/mercure', $this->seenBy('MERCURE_URL', ['APP_ALL_IN_ONE' => '1']));
+        self::assertSame('(unset)', $this->seenBy('MERCURE_URL', ['APP_ALL_IN_ONE' => '0']), 'off, .env\'s `mercure` container address applies as before');
+        self::assertSame(
+            'http://hub.example/.well-known/mercure',
+            $this->seenBy('MERCURE_URL', ['APP_ALL_IN_ONE' => 'true', 'MERCURE_URL' => 'http://hub.example/.well-known/mercure']),
+            'an operator\'s own address wins',
+        );
+    }
+
+    /**
      * @param array<string, string> $env
      */
     private function mercurePublicUrlSeenBy(array $env): string

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Monitoring;
 
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
 
@@ -40,8 +41,9 @@ use Symfony\Component\HttpKernel\Event\TerminateEvent;
  * the process is asked to go away. Killing from the controller would hand the
  * browser a dead socket instead of the confirmation it is waiting for.
  *
- * PID 1 is only ever signalled when this process IS PID 1, and only from a web
- * SAPI. Being PID 1 alone is not enough, which is not a theoretical objection:
+ * PID 1 is only ever signalled when this process IS PID 1 (or, in an
+ * all-in-one container, when PID 1 is the app:work that started it; see
+ * isSupported()), and only from a web SAPI. Being PID 1 alone is not enough, which is not a theoretical objection:
  * `docker compose run --entrypoint docker-php-entrypoint app php …` execs PHP
  * directly, so a console command — the whole test suite included — is PID 1 of
  * its own container and would have passed a check that only asked about the
@@ -70,6 +72,8 @@ final class WebProcessRestart implements EventSubscriberInterface
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        #[Autowire('%env(bool:APP_ALL_IN_ONE)%')]
+        private readonly bool            $allInOne = false,
     ) {
     }
 
@@ -85,13 +89,21 @@ final class WebProcessRestart implements EventSubscriberInterface
      *
      * Callers must ask before promising a restart in a page they render —
      * see the honest-degradation note on request().
+     *
+     * In an all-in-one container this process is not PID 1 and is not meant to
+     * be: app:work is, or the init in front of it, and the web server is one of
+     * its children. Signalling PID 1 there stops the whole container, which the
+     * platform's restart policy then starts again, and that is the restart this
+     * is for. Ending only this process would not be: app:work would start the
+     * web server again with its own environment, the secrets it was started
+     * with, and the rotated one would still not be read.
      */
     public function isSupported(): bool
     {
         return false === in_array(PHP_SAPI, self::CONSOLE_SAPIS, true)
             && function_exists('posix_kill')
             && function_exists('posix_getpid')
-            && 1 === posix_getpid();
+            && (1 === posix_getpid() || true === $this->allInOne);
     }
 
     /**

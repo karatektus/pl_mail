@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:e74800675769609c1c1f2dc59dc3323156666c70 -->
+<!-- translated-from: README.md sha1:a8c9f5d8656dce4c9bbde6a6c70f874fb7d87ce8 -->
 
 # plMail-Dokumentation
 
@@ -51,6 +51,7 @@ wo der Mechanismus dahinter steht.
 |---|---|
 | [Docker Compose](install/docker.md) | Der unterstützte Weg, von Anfang bis Ende |
 | [Hinweise zu den Plattformen](install/platforms.md) | Linux, Windows über WSL2, macOS und NAS-Geräte |
+| [Unraid](install/unraid.md) | Ein plMail-Container neben einem Postgres-Container, aus Community Applications |
 | [Hinter einem Reverse Proxy](install/reverse-proxy.md) | TLS, `APP_PUBLIC_URL`, `TRUSTED_PROXIES` — und was ohne sie kaputtgeht |
 | [Konfigurationsreferenz](install/configuration.md) | Jede Umgebungsvariable, was sie tut und was passiert, wenn sie falsch steht |
 | [Sichern und Wiederherstellen](install/backup-restore.md) | Was zu sichern ist, der Verschlüsselungsschlüssel und die Wiederherstellung auf einem neuen Host |
