@@ -8,10 +8,13 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Jmap\Account\CalendarAccountResolver;
+use App\Jmap\Calendar\IetfCalendarShape;
 use App\Jmap\Calendar\JmapEventWriter;
+use App\Jmap\Mapper\CalendarEventMapper;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventRepository;
@@ -63,6 +66,8 @@ final class CalendarEventSetMethod implements JmapMethod
         private readonly MessageBusInterface $bus,
         private readonly EntityManagerInterface $entityManager,
         private readonly CalendarChangeReader $changes,
+        private readonly IetfCalendarShape $ietf,
+        private readonly CalendarEventMapper $mapper,
     ) {
     }
 
@@ -145,6 +150,10 @@ final class CalendarEventSetMethod implements JmapMethod
             }
 
             try {
+                if (true === $context->uses(Capability::IETF_CALENDARS)) {
+                    $properties = $this->ietf->write($properties);
+                }
+
                 $event = $this->jmapWriter->create($context->user, $properties);
             } catch (MethodException $exception) {
                 $notCreated[$creationId] = $exception->toError();
@@ -175,6 +184,10 @@ final class CalendarEventSetMethod implements JmapMethod
                 'isRecurring' => $event->isRecurring,
                 'sequence' => $event->sequence,
             ];
+
+            if (true === $context->uses(Capability::IETF_CALENDARS)) {
+                $created[$creationId] = $this->ietf->event($created[$creationId]);
+            }
         }
     }
 
@@ -225,6 +238,12 @@ final class CalendarEventSetMethod implements JmapMethod
             $from = $event->calendar;
 
             try {
+                // What a draft client echoes back is judged against what this
+                // server published, so an unchanged privacy is not a change.
+                if (true === $context->uses(Capability::IETF_CALENDARS)) {
+                    $patch = $this->ietf->write($patch, $this->mapper->toJmap($event, null));
+                }
+
                 $this->jmapWriter->update($context->user, $event, $patch);
             } catch (MethodException $exception) {
                 $notUpdated[$id] = $exception->toError();

@@ -108,6 +108,7 @@ final class SessionBuilder
 
             if ($accountId === $calendarAccountId) {
                 $accountCapabilities[Capability::CALENDARS] = $this->calendarAccountCapabilities();
+                $accountCapabilities[Capability::IETF_CALENDARS] = $this->ietfCalendarAccountCapabilities();
             }
 
             $accounts[$accountId] = [
@@ -133,6 +134,7 @@ final class SessionBuilder
 
         if (null !== $calendarAccountId) {
             $primaryAccounts[Capability::CALENDARS] = $calendarAccountId;
+            $primaryAccounts[Capability::IETF_CALENDARS] = $calendarAccountId;
         }
 
         // Empty JMAP maps must serialise as {} rather than [].
@@ -155,6 +157,7 @@ final class SessionBuilder
                 Capability::SUBMISSION => new \stdClass(),
                 Capability::PUSH => $this->pushCapabilities(),
                 Capability::CALENDARS => new \stdClass(),
+                Capability::IETF_CALENDARS => new \stdClass(),
                 Capability::APPEARANCE => $this->appearanceCapabilities($user),
                 // Empty at the top level on purpose: backfill progress is a
                 // property of one account, and every value lives in that
@@ -215,6 +218,27 @@ final class SessionBuilder
             // patch for naming a property it cannot update — and the patch is
             // an autosave. Clients ignore keys they do not know.
             'draftIdentity' => true,
+        ];
+    }
+
+    /**
+     * The draft's account capability for calendars (draft-ietf-jmap-calendars
+     * §1.5): the same limits, under the draft's names. One calendar per event,
+     * because plMail files an event in exactly one; no expanded query longer
+     * than the materialised horizon, for the reason calendarAccountCapabilities()
+     * states it.
+     *
+     * @return array<string,mixed>
+     */
+    private function ietfCalendarAccountCapabilities(): array
+    {
+        return [
+            'maxCalendarsPerEvent' => 1,
+            'minDateTime' => '0001-01-01T00:00:00Z',
+            'maxDateTime' => '9999-12-31T23:59:59Z',
+            'maxExpandedQueryDuration' => 'P1Y',
+            'maxParticipantsPerEvent' => 0,
+            'mayCreateCalendar' => false,
         ];
     }
 

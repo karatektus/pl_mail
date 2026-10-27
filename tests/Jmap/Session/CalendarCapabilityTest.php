@@ -37,16 +37,22 @@ final class CalendarCapabilityTest extends JmapTestCase
         $this->sessions = self::getContainer()->get(SessionBuilder::class);
     }
 
-    public function testTheSessionAdvertisesTheVendorCalendarUrn(): void
+    /**
+     * Both URNs, for the same calendars: plMail's for the apps written
+     * against it, the draft's for every other JMAP client — another plMail's
+     * among them. See Capability::IETF_CALENDARS.
+     */
+    public function testTheSessionAdvertisesTheCalendarsUnderBothUrns(): void
     {
         $session = $this->sessions->build($this->user);
 
-        self::assertArrayHasKey('urn:plmail:params:jmap:calendars', $session['capabilities']);
-        self::assertArrayNotHasKey(
-            'urn:ietf:params:jmap:calendars',
-            $session['capabilities'],
-            'the draft URN promises a shape that is still moving',
-        );
+        foreach ([Capability::CALENDARS, Capability::IETF_CALENDARS] as $urn) {
+            self::assertArrayHasKey($urn, $session['capabilities']);
+            self::assertSame($this->accountId(), $session['primaryAccounts'][$urn]);
+            self::assertArrayHasKey($urn, $session['accounts'][$this->accountId()]['accountCapabilities']);
+        }
+
+        self::assertContains(Capability::IETF_CALENDARS, Capability::SUPPORTED);
     }
 
     /** A capability a client may not declare in "using" is a capability it cannot call. */

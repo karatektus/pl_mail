@@ -40,6 +40,21 @@ final class Capability
     public const string CALENDARS = 'urn:plmail:params:jmap:calendars';
 
     /**
+     * The same calendars under the IETF draft's URN (draft-ietf-jmap-calendars),
+     * in the draft's shape: an event's `calendarIds` map, one `recurrenceRule`,
+     * a full read without a window — what Stalwart speaks, and what plMail's
+     * own JMAP client reads from any server, another plMail included.
+     *
+     * Advertised beside CALENDARS, as that docblock foresaw: the draft is still
+     * moving, but the alternative turned out to be worse — no client but
+     * plMail's own apps could read these calendars at all. The methods are the
+     * same ones; a request that lists this URN in `using` is answered in the
+     * draft's shape (IetfCalendarShape), one that lists CALENDARS in plMail's.
+     * CALENDARS is to go once the Android and iOS apps read this one.
+     */
+    public const string IETF_CALENDARS = 'urn:ietf:params:jmap:calendars';
+
+    /**
      * Vendor extension: Appearance/get and Appearance/set — the theme the user
      * picked, so a phone paints what the browser paints.
      *
@@ -140,6 +155,7 @@ final class Capability
         self::MAIL,
         self::SUBMISSION,
         self::CALENDARS,
+        self::IETF_CALENDARS,
         self::APPEARANCE,
         self::SYNC,
         self::CONTACTS,

@@ -765,16 +765,22 @@ statement that creates the need for it.
   the tags. A client may render these strings as HTML; a sender's own markup
   inside one arrives escaped and is displayed rather than parsed. See
   `App\Service\Search\SearchHighlighter`, which the web search page shares.
-- **Calendars are advertised as `urn:plmail:params:jmap:calendars`, not
-  `urn:ietf:params:jmap:calendars`.** JMAP for Calendars is an unratified draft
-  whose object shape is still moving; claiming its URN would promise a contract
-  no client could rely on. Same call `urn:plmail:params:jmap:push` already made.
-- `CalendarEvent/query` **requires** `after` and `before`. Occurrences are
-  materialised only to `RecurrenceMaterialiser`'s horizon, so an unbounded query
-  would answer from a partial index and look complete. `inCalendar` is the only
-  other condition; a FilterOperator and a `sort` are refused rather than ignored.
-  With `expandRecurrences`, a window past the horizon and a `timeZone` argument
-  are refused too — see the load-bearing fact above.
+- **Calendars are advertised under two URNs**, `urn:plmail:params:jmap:calendars`
+  and `urn:ietf:params:jmap:calendars`, for the same methods. A request whose
+  `using` names the IETF one is answered and read in the draft's shape —
+  `calendarIds`, one `recurrenceRule`, the draft's `myRights` — by
+  `Calendar/IetfCalendarShape`; under plMail's URN nothing changed. The IETF
+  URN is what Stalwart speaks and what plMail's own JMAP client reads, so one
+  plMail syncs another's calendars. The plMail URN goes once the Android and
+  iOS apps read the IETF one.
+- `CalendarEvent/query` without `after` and `before` names every event in the
+  calendars, from the event rows (`CalendarEventRepository::findIdsInCalendars`).
+  **Expanding** still requires the window: occurrences are materialised only to
+  `RecurrenceMaterialiser`'s horizon, so an unbounded expansion would answer from
+  a partial index and look complete. `inCalendar` is the only other condition; a
+  FilterOperator and a `sort` are refused rather than ignored. With
+  `expandRecurrences`, a window past the horizon and a `timeZone` argument are
+  refused too — see the load-bearing fact above.
 - `CalendarEvent/set` cannot write ONE instance of a series. An instance id from
   an expanded query is refused by name (`invalidArguments`, naming `seriesId`)
   rather than answered `notFound`; the draft expects `/set` to resolve those ids
