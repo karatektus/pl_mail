@@ -124,6 +124,59 @@ final class JmapCalendarSyncDriverTest extends TestCase
         self::assertSame('local@plmail.test', $create['uid']);
     }
 
+    /**
+     * The draft's single recurrenceRule on the wire, RFC 8984's list in
+     * storage. Stalwart refuses `recurrenceRules` and `excludedRecurrenceRules`
+     * in any form, null included, and an update clears what it does not set:
+     * sent as they were, every edit was refused and the event given up.
+     */
+    public function testAnUpdateClearsTheRuleInTheDraftsShape(): void
+    {
+        $this->on('CalendarEvent/set', static fn (): array => ['updated' => ['ev1' => null]]);
+
+        $event             = new CalendarEvent();
+        $event->remoteId   = 'ev1';
+        $event->jscalendar = ['@type' => 'Event', 'title' => 'Dentist', 'start' => '2026-07-02T09:00:00', 'timeZone' => 'UTC', 'duration' => 'PT30M'];
+
+        $this->driver()->push($this->calendar(), $event);
+
+        $update = $this->calls[0][1]['update']['ev1'];
+
+        self::assertArrayHasKey('recurrenceRule', $update);
+        self::assertNull($update['recurrenceRule']);
+        self::assertArrayNotHasKey('recurrenceRules', $update);
+        self::assertArrayNotHasKey('excludedRecurrenceRules', $update);
+    }
+
+    public function testARepeatingEventIsSentWithOneRuleAndReadBackAsTheList(): void
+    {
+        $rule = ['@type' => 'RecurrenceRule', 'frequency' => 'weekly'];
+
+        $this->on('CalendarEvent/set', static fn (): array => ['created' => ['e' => ['id' => 'new1']]]);
+
+        $event             = new CalendarEvent();
+        $event->uid        = 'weekly@plmail.test';
+        $event->jscalendar = ['@type' => 'Event', 'title' => 'Stand-up', 'start' => '2026-07-06T09:00:00', 'timeZone' => 'UTC', 'duration' => 'PT15M', 'recurrenceRules' => [$rule]];
+
+        $this->driver()->push($this->calendar(), $event);
+
+        $create = $this->calls[0][1]['create']['e'];
+
+        self::assertSame($rule, $create['recurrenceRule']);
+        self::assertArrayNotHasKey('recurrenceRules', $create);
+
+        $this->on('CalendarEvent/query', static fn (): array => ['ids' => ['new1']]);
+        $this->on('CalendarEvent/get', static fn (): array => ['state' => 's7', 'list' => [[
+            'id' => 'new1', 'calendarIds' => ['cal1' => true], 'uid' => 'weekly@plmail.test',
+            'start' => '2026-07-06T09:00:00', 'timeZone' => 'UTC', 'duration' => 'PT15M', 'recurrenceRule' => $rule,
+        ]]]);
+
+        $pulled = $this->driver()->pull($this->calendar(), null)->events[0]->jscalendar;
+
+        self::assertSame([$rule], $pulled['recurrenceRules']);
+        self::assertArrayNotHasKey('recurrenceRule', $pulled);
+    }
+
     public function testAnAccountThatIsNotJmapIsNotThisDriversToAnswer(): void
     {
         $account = new Account();

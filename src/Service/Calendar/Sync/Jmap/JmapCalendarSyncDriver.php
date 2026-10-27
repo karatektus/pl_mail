@@ -78,8 +78,8 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
      * does not model is left as the server has it.
      */
     private const array CLEARABLE = [
-        'description', 'locations', 'virtualLocations', 'links', 'recurrenceRules',
-        'excludedRecurrenceRules', 'recurrenceOverrides', 'participants', 'alerts', 'keywords',
+        'description', 'locations', 'virtualLocations', 'links', 'recurrenceRule',
+        'recurrenceOverrides', 'participants', 'alerts', 'keywords',
     ];
 
     public function __construct(
@@ -227,7 +227,7 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
     {
         $account   = $this->accountOf(CalendarSource::ofCalendar($calendar)?->account);
         $accountId = $this->calendarAccountId($account) ?? throw new CalendarSyncPermanentException('The JMAP server no longer offers calendars for this account.');
-        $object    = array_diff_key($event->jscalendar, array_flip(self::ENVELOPE));
+        $object    = self::toWire(array_diff_key($event->jscalendar, array_flip(self::ENVELOPE)));
         $remoteId  = $event->remoteId;
 
         $object['@type'] = 'Event';
@@ -398,7 +398,7 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
             return null;
         }
 
-        $jscalendar          = array_diff_key($object, array_flip(self::ENVELOPE));
+        $jscalendar          = self::fromWire(array_diff_key($object, array_flip(self::ENVELOPE)));
         $jscalendar['@type'] = 'Event';
 
         return new RemoteEvent(
@@ -409,6 +409,63 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
             startsAt:   $instants[0],
             endsAt:     $instants[1],
         );
+    }
+
+    /**
+     * The JSCalendar plMail stores, in the shape the JMAP Calendars draft
+     * sends: one `recurrenceRule` object where RFC 8984 has a
+     * `recurrenceRules` list, and no excluded rules at all.
+     *
+     * The draft is built on JSCalendar's revision, which made the change.
+     * Stalwart 0.16 follows it and refuses `recurrenceRules` and
+     * `excludedRecurrenceRules` in any form, null and [] included — and since
+     * an update clears what it does not set, every edit made here was
+     * refused, and the engine gave the event up. plMail stores one rule at
+     * most (CalendarEventWriter), so the first is the whole of it. Excluded
+     * rules are dropped: nothing here writes one, and no form of them is one
+     * this server accepts.
+     *
+     * A server still on RFC 8984's list would refuse `recurrenceRule` the
+     * same way. None is known to offer JMAP calendars: Fastmail's session
+     * has no calendars capability.
+     *
+     * @param array<string, mixed> $jscalendar
+     *
+     * @return array<string, mixed>
+     */
+    private static function toWire(array $jscalendar): array
+    {
+        if (true === array_key_exists('recurrenceRules', $jscalendar)) {
+            $rules = $jscalendar['recurrenceRules'];
+
+            $jscalendar['recurrenceRule'] = is_array($rules) && is_array($rules[0] ?? null) ? $rules[0] : null;
+        }
+
+        unset($jscalendar['recurrenceRules'], $jscalendar['excludedRecurrenceRules']);
+
+        return $jscalendar;
+    }
+
+    /**
+     * The server's event in the shape plMail stores, RFC 8984's: the draft's
+     * single `recurrenceRule` back as a one-rule `recurrenceRules`. An event
+     * that already has the list — a server on RFC 8984 — keeps it.
+     *
+     * @param array<string, mixed> $jscalendar
+     *
+     * @return array<string, mixed>
+     */
+    private static function fromWire(array $jscalendar): array
+    {
+        if (true === array_key_exists('recurrenceRule', $jscalendar)) {
+            if (false === isset($jscalendar['recurrenceRules']) && is_array($jscalendar['recurrenceRule'])) {
+                $jscalendar['recurrenceRules'] = [$jscalendar['recurrenceRule']];
+            }
+
+            unset($jscalendar['recurrenceRule']);
+        }
+
+        return $jscalendar;
     }
 
     /**
