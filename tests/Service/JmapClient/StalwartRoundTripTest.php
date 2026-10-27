@@ -30,8 +30,10 @@ use Symfony\Component\Mime\Email;
  *
  * Opt-in, because a real server is not part of the suite: it runs when
  * JMAP_TEST_SESSION_URL, JMAP_TEST_USERNAME and JMAP_TEST_PASSWORD name an
- * account on a JMAP server — a Stalwart started for the purpose, see
- * CONTRIBUTING.md — and is skipped otherwise. The account's mail is changed:
+ * account on a JMAP server — a Stalwart started for the purpose, or a hosted
+ * account such as Fastmail's, see CONTRIBUTING.md — and is skipped otherwise.
+ * JMAP_TEST_TOKEN_AUTH=1 sends the password as a bearer token, which is what
+ * a Fastmail API token is. The account's mail is changed:
  * use one that holds nothing worth keeping.
  *
  * The fake server the other JMAP tests use is built from the RFCs; this is
@@ -81,6 +83,7 @@ final class StalwartRoundTripTest extends KernelTestCase
         $account->imapHost         = (string) parse_url($sessionUrl, PHP_URL_HOST);
         $account->imapPort         = 443;
         $account->jmapSessionUrl   = $sessionUrl;
+        $account->jmapTokenAuth    = '1' === getenv('JMAP_TEST_TOKEN_AUTH');
         $account->authType         = 'password';
         $account->isActive         = true;
         $this->em->persist($account);

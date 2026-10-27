@@ -210,6 +210,9 @@ docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-e
   app sh bin/test-unit.sh --group stalwart
 ```
 
+For a hosted account whose password is an API token — Fastmail's, with
+`JMAP_TEST_SESSION_URL=https://api.fastmail.com/jmap/session` — add `-e JMAP_TEST_TOKEN_AUTH=1`.
+
 The server has to be reachable from the test container by that name — on the same Docker network,
 or by an address the container can resolve. The test lets the client reach a private address,
 which the app itself refuses unless the host is in `INTEGRATIONS_ALLOWED_HOSTS`.
