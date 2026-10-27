@@ -475,7 +475,7 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
      * so an hour-long meeting on the night the clocks change is still an hour
      * long. A floating event — no timeZone — is read in the calendar's zone,
      * which is what RFC 8984 leaves to the client and what a person reading
-     * the calendar expects.
+     * the calendar expects; an all-day one in UTC, for the reason below.
      *
      * @param array<string, mixed> $object
      *
@@ -489,7 +489,16 @@ final readonly class JmapCalendarSyncDriver implements CalendarSyncDriverInterfa
             return null;
         }
 
-        $zoneName = is_string($object['timeZone'] ?? null) && '' !== $object['timeZone'] ? $object['timeZone'] : $fallbackZone;
+        // An all-day event is floating at midnight UTC, whatever the
+        // calendar's zone — plMail's own rule (CalendarTimeResolver::
+        // eventZone()), and the one every view draws it by. Read in the
+        // calendar's zone, Berlin's midnight was stored as 23:00 the day
+        // before, and the event was drawn across two days.
+        $zoneName = match (true) {
+            is_string($object['timeZone'] ?? null) && '' !== $object['timeZone'] => $object['timeZone'],
+            true === ($object['showWithoutTime'] ?? false)                        => 'UTC',
+            default                                                               => $fallbackZone,
+        };
 
         try {
             $zone     = new \DateTimeZone($zoneName);

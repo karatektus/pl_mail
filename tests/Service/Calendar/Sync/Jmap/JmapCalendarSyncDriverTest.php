@@ -77,6 +77,19 @@ final class JmapCalendarSyncDriverTest extends TestCase
         self::assertSame(3600, $end->getTimestamp() - $start->getTimestamp());
     }
 
+    /** All-day is floating at midnight UTC here, so its day is the day it says. */
+    public function testAnAllDayEventIsMidnightUtcOfItsDate(): void
+    {
+        [$start, $end] = JmapCalendarSyncDriver::instants([
+            'start'           => '2026-10-27T00:00:00',
+            'showWithoutTime' => true,
+            'duration'        => 'P1D',
+        ], 'Europe/Berlin');
+
+        self::assertSame('2026-10-27T00:00:00+00:00', $start->format('c'));
+        self::assertSame('2026-10-28T00:00:00+00:00', $end->format('c'));
+    }
+
     public function testAnEventMovedToAnotherCalendarIsATombstoneHere(): void
     {
         $this->on('CalendarEvent/changes', static fn (): array => [
