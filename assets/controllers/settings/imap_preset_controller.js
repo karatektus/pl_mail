@@ -237,14 +237,7 @@ export default class extends Controller {
     /** Sets the dropdown, going through Tom Select when it is active. */
     _select(select, key) {
         if (select.tomselect !== undefined) {
-            // setValue("") leaves the old choice standing; clearing is its
-            // own call. Not silent, so the change still reaches apply().
-            if (key === "") {
-                select.tomselect.clear(false);
-            } else {
-                select.tomselect.setValue(key, false);
-            }
-
+            select.tomselect.setValue(key, false);
             return;
         }
 
@@ -273,8 +266,10 @@ export default class extends Controller {
      * The protocol was switched with a preset chosen: the preset's server for
      * the new one, so Fastmail's IMAP host is not left in the JMAP field. Only
      * while the host is still one the preset put there — a host somebody typed
-     * is theirs. A preset without the new protocol is let go of, and its host
-     * with it, rather than switching the radio back under the user's finger.
+     * is theirs. A preset without the new protocol keeps its place in the
+     * dropdown but takes its host out, rather than switching the radio back
+     * under the user's finger — and switching back to a protocol it has
+     * fills it in again.
      */
     _refill(protocol) {
         const select = this._field("preset");
@@ -292,7 +287,6 @@ export default class extends Controller {
                 this._set("imapHost", "");
             }
 
-            this._select(select, "");
             return;
         }
 

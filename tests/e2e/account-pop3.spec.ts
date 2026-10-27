@@ -115,13 +115,15 @@ test.describe("account form — incoming protocol", () => {
         await expect(page.locator(`${DELETE_MODE} + .ts-wrapper`)).toBeHidden();
 
         // A port somebody typed is theirs: switching protocol leaves it. The
-        // preset has no POP3 server, so it is let go of, and its IMAP host
-        // with it, rather than left in a POP3 field.
+        // preset has no POP3 server, so its IMAP host comes out rather than
+        // being left in a POP3 field, and back on IMAP it is filled in again.
         await page.locator(PORT).fill("110");
         await chooseProtocol(page, "POP3");
         await expect(page.locator(PORT)).toHaveValue("110");
         await expect(page.locator(HOST)).toHaveValue("");
-        await expect(preset).toHaveValue("");
+
+        await chooseProtocol(page, "IMAP");
+        await expect(page.locator(HOST)).toHaveValue("imap.mail.me.com");
     });
 
     test("JMAP fills a provider's JMAP server, and SMTP folds away until it is asked for", async ({ page }) => {
