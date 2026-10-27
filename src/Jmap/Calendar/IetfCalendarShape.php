@@ -26,6 +26,13 @@ use App\Jmap\Protocol\Exception\MethodException;
  * default, or what this server published). Anything else is left in for the
  * writer to refuse by name — a client that set alerts must hear they were not
  * kept.
+ *
+ * `isRecurring` is the one plMail-only property that keeps a place, under a
+ * vendor name (RFC 8984 §3.3: a domain, a colon, the name). The draft has
+ * nothing to say it with, and the rule is not the same answer: a rule plMail
+ * cannot convert is stored verbatim and expands to one occurrence, so an event
+ * can carry a rule and not recur. plMail's apps read it; any other client
+ * ignores a property it does not know.
  */
 final class IetfCalendarShape
 {
@@ -34,15 +41,20 @@ final class IetfCalendarShape
         'calendarId'      => 'calendarIds',
         'recurrenceRules' => 'recurrenceRule',
         'seriesId'        => 'baseEventId',
+        'isRecurring'     => self::IS_RECURRING,
     ];
 
+    /** `isRecurring` under the draft's URN; see the class comment. */
+    public const string IS_RECURRING = 'plmail.org:isRecurring';
+
     /** Published by plMail beside JSCalendar, with nothing in the draft to match. */
-    private const array PLMAIL_ONLY = ['isRecurring', 'kind', 'source', 'recurrenceIdTimeZone'];
+    private const array PLMAIL_ONLY = ['kind', 'source', 'recurrenceIdTimeZone'];
 
     /** Set by the server; a client echoes them back, and they mean nothing on a write. */
     private const array SERVER_SET = [
         'id', 'created', 'updated', 'sequence', 'isDraft', 'isOrigin', 'utcStart', 'utcEnd',
-        'baseEventId', 'blobId', 'prodId', 'isRecurring', 'kind', 'source', 'recurrenceIdTimeZone',
+        'baseEventId', 'blobId', 'prodId', 'isRecurring', self::IS_RECURRING, 'kind', 'source',
+        'recurrenceIdTimeZone',
     ];
 
     /** What plMail does not store, by what it means when absent. Absent, null and these say nothing. */
@@ -92,6 +104,11 @@ final class IetfCalendarShape
         if (true === array_key_exists('seriesId', $event)) {
             $event['baseEventId'] = $event['seriesId'];
             unset($event['seriesId']);
+        }
+
+        if (true === array_key_exists('isRecurring', $event)) {
+            $event[self::IS_RECURRING] = $event['isRecurring'];
+            unset($event['isRecurring']);
         }
 
         return array_diff_key($event, array_flip(self::PLMAIL_ONLY));

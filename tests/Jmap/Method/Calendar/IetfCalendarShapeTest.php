@@ -58,6 +58,30 @@ final class IetfCalendarShapeTest extends CalendarMethodTestCase
         self::assertArrayNotHasKey('calendarId', $event);
         self::assertArrayNotHasKey('recurrenceRules', $event);
         self::assertArrayNotHasKey('isRecurring', $event, 'plMail-only, and not JSCalendar');
+        self::assertTrue($event['plmail.org:isRecurring'], 'so it is published under a vendor name');
+    }
+
+    /**
+     * A rule plMail could not convert is kept verbatim and expands to one
+     * occurrence: the event carries a rule and does not recur. Only
+     * isRecurring says so, which is why it stays under the draft's URN.
+     */
+    public function testAnEventWithARuleThatDoesNotRecurSaysSo(): void
+    {
+        $this->weekly->isRecurring = false;
+        $this->em->flush();
+
+        $event = $this->published();
+
+        self::assertSame('weekly', $event['recurrenceRule']['frequency']);
+        self::assertFalse($event['plmail.org:isRecurring']);
+    }
+
+    public function testThePropertyIsAskedForByItsVendorName(): void
+    {
+        $event = $this->get->handle(['accountId' => $this->accountId(), 'ids' => [(string) $this->weekly->id], 'properties' => ['id', 'plmail.org:isRecurring']], $this->ietf())['list'][0];
+
+        self::assertTrue($event['plmail.org:isRecurring']);
     }
 
     public function testUnderPlmailsUrnNothingChanges(): void
@@ -114,6 +138,7 @@ final class IetfCalendarShapeTest extends CalendarMethodTestCase
         $created = ((array) $result['created'])['e'];
 
         self::assertSame([(string) $this->calendar->id => true], $created['calendarIds']);
+        self::assertFalse($created['plmail.org:isRecurring']);
         self::assertSame('Planning', $this->events->find((int) $created['id'])?->title);
     }
 

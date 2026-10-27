@@ -772,7 +772,10 @@ statement that creates the need for it.
   `Calendar/IetfCalendarShape`; under plMail's URN nothing changed. The IETF
   URN is what Stalwart speaks and what plMail's own JMAP client reads, so one
   plMail syncs another's calendars. The plMail URN goes once the Android and
-  iOS apps read the IETF one.
+  iOS apps read the IETF one. `isRecurring` stays under the IETF URN as
+  `plmail.org:isRecurring` (RFC 8984's vendor property names): the rule is not
+  the same answer, because a rule this server could not convert is stored
+  verbatim and expands to one occurrence. The Android app reads it.
 - `CalendarEvent/query` without `after` and `before` names every event in the
   calendars, from the event rows (`CalendarEventRepository::findIdsInCalendars`).
   **Expanding** still requires the window: occurrences are materialised only to
