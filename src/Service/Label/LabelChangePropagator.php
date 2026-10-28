@@ -21,7 +21,6 @@ use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Translates a semantic mail operation into provider-appropriate async
@@ -51,8 +50,6 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
  */
 final readonly class LabelChangePropagator
 {
-    /** See dispatchKeywords(). */
-    private const int KEYWORD_DELAY_MS = 2000;
 
     public function __construct(
         private MessageBusInterface $bus,
@@ -295,8 +292,13 @@ final readonly class LabelChangePropagator
      * row's own folder. Whether a folder actually keeps keywords is the
      * handler's question; it has the connection to ask it.
      *
-     * The echo guard is set as for star and read, so the inbound pass does
-     * not take the label off again before the server has it.
+     * The echo guard (Message::$flagsTouchedAt) is deliberately NOT set. It
+     * is one timestamp per row, shared with star and read, and the keyword
+     * handler lifting it would lift theirs too. Keywords do not need it: the
+     * inbound side reads a keyword CHANGE in the row's flag mirror, and the
+     * mirror only gains or loses this keyword when the handler has written it
+     * (KeywordLabelFollower), so a pass that reads the server before the job
+     * runs sees no change and leaves the label as the person set it.
      *
      * @param iterable<Message> $messages
      */
@@ -310,7 +312,6 @@ final readonly class LabelChangePropagator
 
         /** @var array<int, list<array{message: int, mailbox: int, uid: int}>> $byAccount */
         $byAccount = [];
-        $touched   = [];
 
         foreach ($messages as $message) {
             $account = $message->account;
@@ -329,7 +330,6 @@ final readonly class LabelChangePropagator
                     'mailbox' => (int) $copy->mailbox->id,
                     'uid'     => $copy->uid,
                 ];
-                $touched[] = $message;
             }
         }
 
@@ -337,20 +337,13 @@ final readonly class LabelChangePropagator
             return;
         }
 
-        $this->markFlagsInFlight($touched);
-
-        // Two seconds late, on purpose. The guard set above is written by the
-        // caller's flush, which comes after this dispatch; a worker that took
-        // the job at once could lift the guard before the flush put it down,
-        // and the flush would then leave it standing for the whole grace
-        // period — an hour in which no keyword another client sets is read.
         foreach ($byAccount as $accountId => $copies) {
             $this->bus->dispatch(new ApplyImapKeywordsMessage(
                 $accountId,
                 $copies,
                 true === $add ? [$keyword] : [],
                 true === $add ? [] : [$keyword],
-            ), [new DelayStamp(self::KEYWORD_DELAY_MS)]);
+            ));
         }
     }
 

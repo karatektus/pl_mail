@@ -134,8 +134,9 @@ message copy like `\Seen`. Off by default per account (`Account::$labelsAsKeywor
   label that is a tag on that account — not a system label, not a folder there — with the address of
   every server copy, taken from `MessageCopies::of()`. The handler SELECTs each folder and sends
   `UID STORE ±FLAGS.SILENT` through the connection (webklex's `setFlag()` would prefix a backslash),
-  then updates the row's flag mirror and lifts the echo guard. The job is delayed two seconds so the
-  guard the caller's flush writes cannot land after the handler lifted it.
+  then updates the row's flag mirror. It does not use the echo guard (`Message::$flagsTouchedAt`),
+  which is one timestamp shared with star and read: reading is change-based on the mirror, and the
+  mirror only moves when the handler has written the keyword, so a pass before the job sees no change.
 - **Reading.** At import, a message wears the labels its keywords stand for (`MessageSyncer`). After
   that, both inbound flag doors — the folder listing (`ImapFlagReconciler`) and the line IDLE pushes
   (`ApplyRemoteFlagsMessageHandler`) — call `KeywordLabelFollower`, which reads a **change**: the
