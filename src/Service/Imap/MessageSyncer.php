@@ -3,6 +3,7 @@
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
@@ -1031,18 +1032,13 @@ class MessageSyncer
 
         // Dates. A draft has not been sent, whatever its Date header says (see
         // Message::$sentAt). Decided by the same test the rest of the app uses
-        // on the stored flags, so a row is never "not a draft, never sent":
-        // webklex strips the backslash, so a server's `\Draft` is stored as
-        // `Draft` here and is not a draft to the app yet.
+        // on the stored flags, so a row is never "not a draft, never sent".
         $receivedAt = $this->receivedAtOf($imapMessage);
 
         $message->sentAt = true === $message->isDraft() ? null : $receivedAt;
         $message->receivedAt = $receivedAt;
 
-        if (
-            true === in_array('Seen', $flagNames, true)
-            || true === in_array('\\Seen', $flagNames, true)
-        ) {
+        if (true === $message->hasFlag(MessageFlag::SEEN)) {
             $message->seenAt = new DateTimeImmutable();
         }
 

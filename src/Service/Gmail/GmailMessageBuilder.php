@@ -6,6 +6,7 @@ namespace App\Service\Gmail;
 
 use App\Domain\DTO\Gmail\ExtractedBody;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
@@ -140,7 +141,7 @@ final class GmailMessageBuilder
             $flags[] = '\\Draft';
         }
 
-        $message->flags = $flags;
+        $message->flags = MessageFlag::canonicalList($flags);
 
         // ── Headers ──────────────────────────────────────────────────────────
 

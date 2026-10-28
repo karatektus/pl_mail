@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
@@ -170,7 +171,7 @@ final class GraphMessageBuilder
             $flags[] = '\\Draft';
         }
 
-        $message->flags = $flags;
+        $message->flags = MessageFlag::canonicalList($flags);
 
         // ── Labels ────────────────────────────────────────────────────────────
         // Exchange messages live in exactly one folder, so there is exactly one

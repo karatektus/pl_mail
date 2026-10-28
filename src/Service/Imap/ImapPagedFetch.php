@@ -36,10 +36,9 @@ use Webklex\PHPIMAP\Support\FlagCollection;
  * WHAT A MESSAGE CARRIES
  * ──────────────────────
  * Its UID, and its flags in the app's own spelling (MessageFlag::canonicalList:
- * `\Seen`, keywords kept, \Recent dropped). Webklex, which fetched these
- * before, stored `Seen` and dropped every keyword; every comparison since has
- * been written to accept either, and an IMAP draft stored as `Draft` was not a
- * draft to the app.
+ * `\Seen`, keywords kept, \Recent dropped), the form every stored list is
+ * in. Webklex, which fetched these before, stored `Seen` and dropped every
+ * keyword, so an IMAP draft stored as `Draft` was not a draft to the app.
  */
 final readonly class ImapPagedFetch
 {
