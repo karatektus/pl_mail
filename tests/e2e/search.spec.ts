@@ -69,7 +69,9 @@ test.describe("search", () => {
         await page.locator(BOX).click();
         await expect(page.locator(BOX)).toHaveValue("");
 
+        // Typed over: the scope is the reader's to delete.
         await page.goto("/mail/trash");
+        await page.locator(BOX).click();
         await page.locator(BOX).fill("invoice");
         await page.locator(BOX).blur();
         await page.locator(BOX).click();
