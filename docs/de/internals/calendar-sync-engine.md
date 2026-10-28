@@ -1,4 +1,4 @@
-<!-- translated-from: internals/calendar-sync-engine.md sha1:1c2e68dbb04935a3d6cc2432fb52874d14be1e68 -->
+<!-- translated-from: internals/calendar-sync-engine.md sha1:886154dc51eada286b95a385fb76ccd30736ffd2 -->
 # Die Sync-Engine
 
 Der Treibervertrag, den jeder Anbieter erfüllt, die Reihenfolge, in der die Engine vorgeht, was
@@ -354,10 +354,12 @@ Erlaubnis bitten könnte.
   Fehler, und Schweigen an dieser Stelle sähe aus wie Änderungen, die beim nächsten Durchlauf
   spurlos verschwinden.
 
-`REMOTE_ID` ist buchstäblich `'feed'` und nicht die URL, und das gleich doppelt:
-`Calendar::$remoteId` fasst 255 Zeichen, und eine signierte Feed-Adresse überschreitet das
-regelmäßig; außerdem würde eine Adresse, die die Nutzerin später korrigiert, den Kalender
-verwaisen lassen, der sie spiegelt. Die Adresse liegt an der `Integration`. Siehe
+Die Remote-ID ist der SHA-256 der Adresse, so wie sie an der `Integration` gespeichert ist,
+nicht die Adresse selbst: `Calendar::$remoteId` fasst 255 Zeichen, und eine signierte
+Feed-Adresse überschreitet das regelmäßig; außerdem ist die Adresse das Zugangsmerkmal eines
+veröffentlichten Kalenders, und der Abo-Dialog würde sie sonst als Wert einer Checkbox wieder
+ausgeben. Früher war sie buchstäblich `'feed'`, wodurch jeder Feed nach dem ersten als „bereits
+über ihn gespiegelt" galt und keiner davon je abonniert wurde (#424). Siehe
 [ICS-Feeds](../providers/ics-feeds.md).
 
 ## Instanzidentität und der nackte Tombstone

@@ -92,12 +92,23 @@ final readonly class IcsFeedConnector
         $this->em->flush();
 
         try {
-            $this->subscriber->subscribeAll(CalendarSource::ofIntegration($integration));
+            $change = $this->subscriber->subscribeAll(CalendarSource::ofIntegration($integration));
         } catch (CalendarSyncException $e) {
             $this->em->remove($integration);
             $this->em->flush();
 
             return $e->getMessage();
+        }
+
+        // A feed's remote id is its address, hashed, so an address this user
+        // already subscribes to is "mirrored elsewhere" and subscribeAll()
+        // passes it over. Kept, the row would be a second subscription with no
+        // calendar under it — the same dead row the failure above removes.
+        if (0 === $change->subscribed) {
+            $this->em->remove($integration);
+            $this->em->flush();
+
+            return 'You already subscribe to this address.';
         }
 
         $integration->recordSuccess();
