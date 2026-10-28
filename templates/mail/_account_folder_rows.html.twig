@@ -78,7 +78,7 @@
            the fetch's URL, come out closed, and ui--sidebar marks the open one
            as they arrive. #}
         {% set _href = path('app_mail_label', { id: label.id, account: account.id }) %}
-        <div class="nav-item flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}"
+        <div class="nav-item group/folder flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}"
              {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, true) }}{% endif %}
              data-nav-tier="tree"
              style="--label-depth: {{ 12 + label.depth * 12 }}px">
@@ -129,6 +129,51 @@
                     path('app_mail_label', { id: label.id, account: account.id, unread: 1 }),
                 ) }}
             {% endif %}
+            {# Rename, from the folder itself (#221): the same dialog as in
+               Settings → Accounts → Folders, opened here so a folder can be
+               managed where it is seen. Plain IMAP only, and never on the inbox
+               or a special-use folder, which plMail does not rename. Quiet until
+               the row is hovered or focused, like the label tree's pencil, and
+               not drawn at all where nothing hovers: a pencil on every row of a
+               phone's drawer is clutter, and Folders… in the account's menu
+               renames there. #}
+            {% set _folder = account.plainImap ? sidebarCounts.folderOf(label, account) : null %}
+            {% if _folder is not null and _folder.specialUse is null and _folder.fullPath|upper != 'INBOX' %}
+                <button type="button"
+                        data-controller="ui--modal"
+                        data-action="click->ui--modal#open"
+                        data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
+                        data-ui--modal-src-value="{{ path('settings_account_folder_rename_form', { id: account.id, mailbox: _folder.id }) }}"
+                        data-ui--modal-size-value="narrow"
+                        data-folder-rename
+                        class="shrink-0 w-5 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-hover
+                               [@media(hover:hover)]:opacity-0 group-hover/folder:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer
+                               [@media(hover:none)]:hidden"
+                        aria-label="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': _folder.name }) }}"
+                        title="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': _folder.name }) }}">
+                    <i class="fa-solid fa-pen text-[9px]" aria-hidden="true"></i>
+                </button>
+            {% endif %}
         </div>
     {% endfor %}
+
+    {# "+ New folder" as the last row of the account's folders (#221): the
+       place a tree is added to, the way "Create new label" ends a label list
+       elsewhere. It opens New folder for this account, at the top level; the
+       form's own picker chooses anywhere else. Plain IMAP only. #}
+    {% if account.plainImap %}
+        <div class="nav-item flex items-center text-xs" data-nav-tier="tree" style="--label-depth: 12px">
+            <button type="button"
+                    data-controller="ui--modal"
+                    data-action="click->ui--modal#open"
+                    data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
+                    data-ui--modal-src-value="{{ path('settings_account_folder_new', { id: account.id }) }}"
+                    data-ui--modal-size-value="narrow"
+                    data-folder-tree-new
+                    class="flex-1 min-w-0 flex items-center gap-1.5 text-left text-ink-faint hover:text-ink cursor-pointer">
+                <i class="fa-solid fa-plus text-[9px]" aria-hidden="true"></i>
+                <span class="truncate">{{ 'settings.accounts.folders.new.button'|trans }}</span>
+            </button>
+        </div>
+    {% endif %}
 </nav>

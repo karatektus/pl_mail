@@ -9,6 +9,7 @@ use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @extends ServiceEntityRepository<LabelBinding>
@@ -18,6 +19,24 @@ class LabelBindingRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, LabelBinding::class);
+    }
+
+    /**
+     * Every binding of this user's that IS an IMAP folder, with its account,
+     * in one read — for the sidebar's folder marks (SidebarCounts::folderAccountsOf()).
+     *
+     * @return list<LabelBinding>
+     */
+    public function findFolderBindingsForUser(UserInterface $user): array
+    {
+        return $this->createQueryBuilder('b')
+            ->addSelect('a', 'm')
+            ->join('b.account', 'a')
+            ->join('b.mailbox', 'm')
+            ->where('a.usr = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
     }
 
     public function findOneForLabelAndAccount(Label $label, Account $account): ?LabelBinding

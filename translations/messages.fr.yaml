@@ -3313,7 +3313,12 @@ settings:
         enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
-            button: Choisir les dossiers à synchroniser
+            button: Dossiers
+            created: 'Dossier « %folder% » créé'
+            delete:
+                button: 'Supprimer le dossier %folder%'
+                confirm: 'Supprimer le dossier %folder% sur le serveur de messagerie ? Il est vide ; rien d’autre n’est supprimé.'
+            deleted: 'Dossier « %folder% » supprimé'
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
             idle_needs_sync: '%folder% n’est pas synchronisé, il ne peut donc pas être surveillé'
             intro: >-
@@ -3322,12 +3327,39 @@ settings:
                 cela s’était arrêté. Un dossier à l’éclair allumé est
                 surveillé : le nouveau courrier y apparaît aussitôt ; les autres
                 sont relevés à l’intervalle du compte.
+            invalid:
+                control: 'Un nom de dossier ne peut pas contenir de saut de ligne ni d’autre caractère de contrôle.'
+                empty: 'Donnez un nom au dossier.'
+                reserved: 'INBOX est réservé à la boîte de réception.'
+                separator: 'Sur ce serveur, un nom de dossier ne peut pas contenir « %separator% » : il sépare les dossiers des dossiers qu’ils contiennent.'
+                too_long: 'Ce nom est trop long pour un dossier.'
+                wildcard: 'Un nom de dossier ne peut contenir ni * ni %.'
+            new:
+                button: 'Nouveau dossier'
+                intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'
+                name: 'Nom'
+                parent: 'Dans'
+                submit: 'Créer le dossier'
+                title: 'Nouveau dossier — %account%'
+                top_level: 'Premier niveau'
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
+            refused:
+                has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
+                server: 'Le serveur de messagerie a refusé : %reason%'
+                special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
+            rename:
+                button: 'Renommer le dossier %folder%'
+                intro: 'Le dossier est renommé sur le serveur de messagerie, avec les dossiers qu’il contient, et toutes les applications qui lisent ce compte voient le nouveau nom.'
+                submit: 'Renommer'
+                title: 'Renommer le dossier — %folder%'
+            renamed: 'Dossier renommé en « %folder% »'
             start_idle: 'Surveiller %folder% pour recevoir le nouveau courrier dès son arrivée'
             start_sync: 'Commencer à synchroniser %folder%'
             stop_idle: 'Ne plus surveiller %folder% — le relever à l’intervalle du compte'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'
+            unreachable: 'Le serveur de messagerie est injoignable, rien n’a été modifié : %reason%'
         heading: Comptes mail
         make_primary: Définir comme principal
         make_primary_explained: 'Envoyer les nouveaux messages depuis %account% par défaut'
@@ -4876,10 +4908,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Ajouter un compte
-        heading: Comptes
-        none: Aucun compte pour l’instant
         colour: 'Marquage de couleur de %account%'
         colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        folders: 'Dossiers…'
+        heading: Comptes
+        menu: 'Dossiers de %account%'
+        new_folder: 'Nouveau dossier…'
+        none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
     badge:
@@ -4889,6 +4924,7 @@ sidebar:
     compose: Nouveau message
     labels:
         add: Créer un libellé
+        folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
     new_mail_here: 'Nouveau courrier dans %where%'

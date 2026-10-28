@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:e9173d595210dba54af18c10d5e388e88ed12c90 -->
+<!-- translated-from: features/accounts.md sha1:6ed9e5bed073ecc8f868e3d9a170e8bda9b2c343 -->
 
 # Konten und Aliase
 
@@ -162,7 +162,7 @@ Jede Zeile bietet:
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
-| **Zu synchronisierende Ordner wählen** | Schaltet einzelne IMAP-Ordner ein oder aus — nur bei IMAP-Konten; siehe [Zu synchronisierende Ordner](#zu-synchronisierende-ordner) |
+| **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -184,8 +184,8 @@ Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte
 
 ## Einstellungen pro Konto
 
-Unter jeder Kontozeile sitzen drei Bedienelemente. Jedes zeichnet sich für sich neu, statt die
-ganze Liste neu zu laden.
+Die Bedienelemente unter jeder Kontozeile zeichnen sich jeweils für sich neu, statt die ganze
+Liste neu zu laden.
 
 ### Sofortige Zustellung
 
@@ -226,19 +226,19 @@ welchen der beiden Fälle du vor dir hast, und zeigt die Daten, nach denen entsc
 Wo Push auf diesem Server überhaupt nicht zur Verfügung steht, sagt das Bedienelement das,
 statt einen Schalter anzubieten, der nicht funktionieren kann.
 
-### Labels zum Anbieter synchronisieren
+### Labels beim Anbieter
 
-Standardmäßig aus. Ist es an, werden Labels, die du anlegst, umbenennst oder löschst, zu diesem
-Anbieter gespiegelt — gleich, ob die Änderung aus der Weboberfläche oder aus einem JMAP-Client
-kam.
+Bei Gmail und Microsoft werden Labels, die du anlegst, umbenennst oder löschst, zum Anbieter
+gespiegelt — gleich, ob die Änderung aus der Weboberfläche oder aus einem JMAP-Client kam. Einen
+Schalter dafür gibt es nicht: Früher gab es einen, standardmäßig aus, und er brachte nur eine
+Ordnung, die allein in plMail existierte und verschwand, sobald du Gmail geöffnet hast. Es wirkt
+sich immer nur auf Änderungen ab dann aus; bereits vorhandene Labels werden nicht rückwirkend
+übertragen.
 
-Nur Gmail und Microsoft bieten das an. Bei einfachem IMAP ist ein Label ein physischer Ordner;
-Labels anzulegen und zu löschen würde also echte Mail auf dem Server verschieben — eine andere
-und riskantere Operation, als der Schalter verspricht.
-
-Es wirkt sich immer nur auf Änderungen ab jetzt aus. Bereits vorhandene Labels werden nicht
-rückwirkend übertragen, denn das hieße, deinen gesamten lokalen Baum mit einem Klick beim
-Anbieter anzulegen.
+Bei einem reinen IMAP-Konto bleibt ein Label, das du in plMail anlegst, in plMail. Es legt auf dem
+Server nie einen Ordner an, benennt keinen um, löscht keinen und verschiebt nie Mail. Ordner legst
+du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und löschst sie dort — siehe
+[Ordner](#ordner).
 
 **Bei Microsoft sind die meisten Labels Outlook-Kategorien und keine Ordner**, und eine Kategorie
 hat dort keine Identität außer ihrem Namen — der Name ist das, was an jeder Nachricht steht. Eine
@@ -252,13 +252,30 @@ Aktualisierungen, die im Hintergrund laufen.
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
-### Zu synchronisierende Ordner
+### Ordner
 
-**Zu synchronisierende Ordner wählen** öffnet die Ordner des Kontos, jeweils mit einem Schalter.
-Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nicht mehr ab: Die
-bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
-weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
-Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+**Ordner** öffnet die Ordner des Kontos so, wie der Server sie hat:
+derselbe Baum, genauso verschachtelt, wie auch immer er aussieht. Ein Ordner ist ein Ort — jede
+Nachricht liegt in genau einem Ordner ihres Kontos —, und in dieser Liste verwaltest du Ordner. Sie
+erscheint nur bei IMAP-Konten: Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
+Anbieters und hat hier keine Ordnerliste. Ein Ordner, den der Server nicht mehr auflistet, wird
+nicht angezeigt.
+
+Denselben Dialog erreichst du am Konto im Bereich KONTEN der Seitenleiste. Die Zeile eines
+IMAP-Kontos hat einen ⋯-Knopf, dessen Menü **Neuer Ordner …** anbietet, das das Formular für dieses
+Konto öffnet, und **Ordner …**, das die Liste öffnet. Klappst du das Konto auf, enden seine Ordner
+mit **+ Neuer Ordner**; fährst du dort mit der Maus über einen deiner eigenen Ordner, erscheint ein
+Stift, der seine Umbenennung öffnet. Im Bereich
+LABELS trägt ein Label, das ein Ordner auf einem IMAP-Konto ist, statt eines Punkts einen Ordner in
+seiner Farbe, und sein Tooltip nennt das Konto — so unterscheidest du Ordner und reine Labels.
+
+#### Synchronisieren
+
+Jeder Ordner hat einen Schalter, und jeder Ordner beginnt eingeschaltet. Schaltest du einen aus,
+ruft plMail ihn nicht mehr ab: Die bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du
+den Ordner wieder ein, geht es dort weiter, wo es aufgehört hat. Der Posteingang hat keinen
+Schalter, denn ein Client, der seinen Posteingang nicht mehr abruft, ist kein Client — um ein Konto
+ganz anzuhalten, deaktiviere es.
 
 Zwei Arten von Ordnern beginnen ausgeschaltet: **Markiert** (Starred) und **Alle Nachrichten** (All
 Mail), wenn das Konto auch einen Archiv-Ordner hat — Proton Mail Bridge hat beide. Sie sind die
@@ -274,9 +291,63 @@ zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, s
 Liste, sein Schalter aus und gesperrt: Der Server lässt ihn nicht öffnen, also gibt es nichts
 abzurufen.
 
-Es erscheint nur bei IMAP-Konten. Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
-Anbieters und hat keine Ordner zur Auswahl. Ein Ordner, den der Server nicht mehr auflistet, wird
-nicht angezeigt.
+Die Liste nennt einen Ordner so, wie der Server ihn nennt. Der Posteingang und die anderen
+Systemordner heißen wie in der Seitenleiste („Entwürfe“, „Papierkorb“), damit derselbe Ordner nicht
+zwei Namen trägt.
+
+#### Neuer Ordner
+
+**Neuer Ordner** fragt nach einem Namen und danach, wohin der Ordner kommt: **Oberste Ebene** oder in
+einen beliebigen Ordner, den der Server aufgelistet hat. plMail legt den Ordner auf dem Server an,
+damit er in jedem Mailprogramm erscheint, das dieses Konto liest, abonniert ihn und zeigt ihn in der
+Seitenleiste wie die anderen Ordner des Kontos.
+
+Du tippst einen Namen, nie einen Pfad. Wo die oberste Ebene liegt und welches Zeichen einen Ordner
+von den Ordnern darin trennt, bestimmt der Server, und plMail fragt ihn: Bei den meisten Servern ist
+die oberste Ebene ganz oben, und bei Servern, die alles unter dem Posteingang ablegen
+(`INBOX.Name`), kommt ein Ordner der obersten Ebene ebenfalls dorthin, wo deine anderen
+Mailprogramme ihn erwarten. Namen in jeder Schrift funktionieren, „Bücher“ oder „Café“. Liegt auf
+dem Server schon ein Ordner dieses Namens, ist das kein Fehler: plMail nimmt ihn als angelegt.
+
+Ein Name wird abgelehnt, bevor der Server gefragt wird, wenn er dort kein Ordner sein kann:
+
+- er enthält das Trennzeichen des Servers — `/` bei den meisten Servern, `.` bei manchen. Ein
+  Ordner „v1.2“ würde auf einem `.`-Server stillschweigend zu einem Ordner „2“ in einem Ordner „v1“;
+- er enthält `*` oder `%`, die andere Mailprogramme nicht zuverlässig auflisten können, oder einen
+  Zeilenumbruch;
+- er heißt auf der obersten Ebene „INBOX“, was jeder Server für den Posteingang reserviert.
+
+Klappt es, schließt sich der Dialog, die übliche Meldung unten am Bildschirm sagt es, und der Ordner
+steht sofort in der Seitenleiste. Einen Namen, den der Server selbst ablehnt — einen, den er nicht
+erlaubt, einen Ordner, den es beim Umbenennen schon gibt, ein Kontingent —, zeigt plMail mit den
+Worten des Servers, und nichts ändert sich.
+
+#### Umbenennen und löschen
+
+Deine eigenen Ordner haben neben ihrem Schalter einen Stift (**Ordner … umbenennen**) und einen
+Papierkorb (**Ordner … löschen**).
+
+**Umbenennen** gibt dem Ordner einen neuen Namen an seinem Platz. Der Server benennt die Ordner darin mit
+um, und plMail zieht sofort nach: Seine Mail bleibt, wo sie war, und sein Label in der Seitenleiste
+behält alles, was darunter abgelegt ist, unter dem neuen Namen. Ein Label, das ein Ordner auf einem
+deiner anderen Konten mitbenutzt, wird von hier aus nicht umbenannt, denn es ist auch der Name jenes
+Ordners; der umbenannte Ordner bekommt stattdessen ein Label mit seinem neuen Namen. Manche Server
+geben einem umbenannten Ordner eine neue Identität, deshalb synchronisiert plMail das Konto gleich
+danach.
+
+**Löschen** entfernt einen Ordner vom Server, und nur einen leeren: keine Mail darin, weder in plMail
+noch auf dem Server, und keine Ordner darin. Alles andere wird mit Begründung abgelehnt — verschiebe
+die Mail oder die Ordner zuerst. Einen Ordner zu löschen löscht nie Mail. Sein Label verschwindet
+mit ihm, wenn sonst nichts mehr an dem Label hängt.
+
+Posteingang, **Gesendet**, **Entwürfe**, **Papierkorb**, **Spam** und **Archiv** haben keinen der
+beiden Knöpfe. plMail benennt sie nie um und löscht sie nie: Deine anderen Mailprogramme und plMails
+eigenes Senden, Archivieren und die Spam-Behandlung finden sie über ihren Namen oder über die Rolle,
+die der Server ihnen gibt, und in einen umbenannten Gesendet-Ordner legt niemand mehr etwas ab.
+
+Ein Ordner, den du in einem anderen Mailprogramm anlegst, umbenennst oder löschst, erscheint hier
+nach der nächsten Synchronisierung. Ein anderswo umbenannter Ordner behält seine Mail und, sofern
+kein anderes Konto es mitbenutzt, sein Label, unter dem neuen Namen.
 
 ## Absendeadressen
 
@@ -447,6 +518,19 @@ Lösung ist, erneut zu verbinden und das Häkchen gesetzt zu lassen.
 **Ein fehlgeschlagener Push ist kein Fehlerzustand.** Eine selbst gehostete Installation hat
 womöglich überhaupt keine öffentlich erreichbare HTTPS-Adresse. Eine gescheiterte Registrierung
 heißt „bleib beim Abrufen“, und der Durchlauf alle fünfzehn Minuten bleibt davon unberührt.
+
+**Bei manchen Servern kommt ein in einem anderen Mailprogramm umbenannter Ordner als neuer Ordner
+zurück.** plMail erkennt eine Umbenennung an der UIDVALIDITY des Ordners, die eine Umbenennung
+behält. Stalwart 0.11 beantwortet STATUS mit einer anderen Zahl als der, die es beim Öffnen des
+Ordners nennt; ein dort in einem anderen Programm umbenannter Ordner kommt deshalb als neuer Ordner
+an, seine Mail wird erneut abgerufen, und der alte wird entfernt, sobald er drei Synchronisierungen
+und einen Tag lang gefehlt hat. Eine Umbenennung in plMail betrifft das nicht.
+
+**Welche Ordner Systemordner sind, entscheidet der Server, und nicht jeder Server sagt es.** Ein
+Ordner, den der Server als Gesendet, Papierkorb, Spam, Entwürfe oder Archiv kennzeichnet, oder einer
+mit einem bekannten Namen wie „Sent Items“ oder „Gesendet“, ist vor Umbenennen und Löschen
+geschützt. Ein Ordner, dessen Namen plMail nicht kennt und den der Server nicht kennzeichnet —
+Stalwarts „Junk Mail“ —, gilt als dein eigener.
 
 **Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
 sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte

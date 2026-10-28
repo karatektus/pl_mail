@@ -1,0 +1,30 @@
+{# What a folder action that worked answers with (#221): New folder, rename,
+   delete.
+
+   The toast is the app's own, the one sent mail and label changes use, so the
+   result is said where every other result is said. Both copies of the sidebar
+   are re-rendered whole, as LabelController's refreshSidebar does: a folder
+   lives in two places there — under its account, and as a label under LABELS —
+   and a list only one of them refreshed would contradict the other until the
+   next page load. A stream whose target is absent (Settings has no sidebar
+   drawer open, say) is a no-op.
+
+   New folder and rename answer with this alone, as a turbo-stream, and the
+   modal closes on them like on any form. Delete is pressed inside the folder
+   list, which stays open: it answers with the list, and this rides inside it
+   (_folders_modal.html.twig, `done`).
+
+   Variables:
+     toast    string  already translated #}
+{% include '_partials/_toast.stream.html.twig' with { message: toast, type: 'success' } only %}
+
+<turbo-stream action="replace" target="sidebar">
+    <template>
+        {% include '_partials/_sidebar.html.twig' only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="replace" target="sidebar-drawer-inner">
+    <template>
+        {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } only %}
+    </template>
+</turbo-stream>

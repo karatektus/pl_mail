@@ -142,7 +142,7 @@ Each row offers:
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
-| **Choose which folders to sync** | Switches individual IMAP folders on or off — IMAP accounts only; see [Folders to sync](#folders-to-sync) |
+| **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -163,8 +163,8 @@ On the edit form, leaving the password field blank keeps the stored one.
 
 ## Per-account settings
 
-Three controls sit under each account row. Each re-renders on its own rather than reloading the
-whole list.
+The controls under each account row each re-render on their own rather than reloading the whole
+list.
 
 ### Instant delivery
 
@@ -200,18 +200,17 @@ two you are looking at and shows the dates it decided from.
 Where push is not available on this server at all, the control says so rather than offering a
 switch that cannot work.
 
-### Sync labels to provider
+### Labels at the provider
 
-Off by default. With it on, labels you create, rename or delete are mirrored to that provider,
-whether the change came from the web UI or from a JMAP client.
+On Gmail and Microsoft, labels you create, rename or delete are mirrored to the provider, whether
+the change came from the web UI or from a JMAP client. There is no switch for it: it used to be one,
+off by default, and all it bought was an organisation that existed only in plMail and vanished the
+moment you opened Gmail. It only ever affects changes made from then on; labels that already exist
+are not pushed retroactively.
 
-Only Gmail and Microsoft offer it. On plain IMAP a label is a physical folder, so creating and
-deleting labels would move real mail on the server — a different and riskier operation than the
-switch promises.
-
-It only ever affects changes made from now on. Labels that already exist are not pushed
-retroactively, because that would mean bulk-creating your entire local tree at the provider from
-one click.
+On a plain IMAP account a label you create in plMail stays in plMail. It never creates, renames or
+deletes a folder on the server, and it never moves mail. Folders are made, renamed and deleted in
+the account's own folder list — see [Folders](#folders).
 
 **On Microsoft, most labels are Outlook categories rather than folders**, and a category there has
 no identity but its name — the name is what is written onto each message. So renaming one does two
@@ -224,12 +223,27 @@ therefore means thousands of updates, sent in the background.
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
 
-### Folders to sync
+### Folders
 
-**Choose which folders to sync** opens the account's folders, each with a switch. Every folder starts
-on. Switching one off stops plMail fetching it: the mail already stored stays where it is, and
-switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
-that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
+**Folders** opens the account's folders as the server has them: the same tree,
+nested the same way, whatever it looks like. A folder is a place — each message is in exactly one
+folder of its account — and this list is where folders are managed. It appears only for IMAP
+accounts: a Gmail or Microsoft account syncs through its provider's API and has no folder list here.
+A folder the server has stopped listing is not shown.
+
+The same dialog is on the account in the sidebar's ACCOUNTS section. An IMAP account's row has a
+⋯ button whose menu offers **New folder…**, which opens the form for that account, and
+**Folders…**, which opens the list. Expand the account and its folders end with **+ New folder**;
+with a mouse, hovering one of your own folders there shows a pencil that opens its rename. In the LABELS section a label that is a folder on an
+IMAP account wears a folder in its colour instead of a dot, and its tooltip names the account, so a
+folder and a plain label can be told apart.
+
+#### Syncing
+
+Each folder has a switch, and every folder starts on. Switching one off stops plMail fetching it:
+the mail already stored stays where it is, and switching the folder back on resumes from where it
+stopped. The inbox has no switch, because a client that has stopped fetching its inbox is not a
+client — to stop an account altogether, disable it.
 
 Two kinds of folder start off: **Starred**, and **All Mail** on an account that also has an Archive
 folder — Proton Mail Bridge has both. They are the server's view of mail it keeps in your other
@@ -242,8 +256,58 @@ Nested folders are indented under their parent. A folder that only groups others
 of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
 the server will not open it, so there is nothing to fetch.
 
-It appears only for IMAP accounts. A Gmail or Microsoft account syncs through its provider's API and
-has no folders to choose between. A folder the server has stopped listing is not shown.
+The list names a folder the way the server does. The inbox and the other system folders read as
+they do in the sidebar ("Drafts", "Trash"), so the same folder is not called two things.
+
+#### New folder
+
+**New folder** asks for a name and for where it goes: **Top level**, or inside any folder the
+server listed. plMail makes the folder on the server, so it appears in every mail app that reads the
+account, subscribes to it, and shows it in the sidebar like the account's other folders.
+
+You type a name, never a path. Where the top level is and which character separates a folder from
+the folders inside it are the server's to say, and plMail asks it: on most servers the top level is
+the top, and on servers that keep everything under the inbox (`INBOX.Name`) a top-level folder goes
+there too, where your other mail apps expect it. Names in any script work, "Bücher" or "Café". A
+folder that is already on the server under that name is not an error: plMail takes it as made.
+
+A name is refused before the server is asked when it cannot be a folder there:
+
+- it contains the server's separator — `/` on most servers, `.` on some. A folder called "v1.2" on a
+  `.` server would silently become a folder "2" inside a folder "v1";
+- it contains `*` or `%`, which other mail apps cannot list reliably, or a line break;
+- it is "INBOX" at the top level, which every server reserves for the inbox.
+
+When it works, the dialog closes, the usual notice at the bottom of the screen says so, and the
+folder is in the sidebar at once. A name the server itself refuses — one it does not allow, a folder
+that already exists when you rename, a quota — is shown with the server's own words, and nothing
+changes.
+
+#### Rename and delete
+
+Your own folders have a pencil (**Rename folder …**) and a bin (**Delete folder …**) beside their
+switch.
+
+**Rename** gives the folder a new name where it is. The server renames the folders inside it along
+with it, and plMail follows at once: its mail stays where it was, and its label in the sidebar keeps
+everything filed under it, under the new name. A label that a folder on another of your accounts
+shares is not renamed from here, because it is that folder's name as well; the renamed folder gets a
+label of its new name instead. Some servers give a renamed folder a new identity, so plMail syncs the
+account straight afterwards.
+
+**Delete** removes a folder from the server, and only an empty one: no mail in it, neither in plMail
+nor on the server, and no folders inside it. Anything else is refused with the reason — move the mail
+or the folders out first. Deleting a folder never deletes mail. Its label goes with it when nothing
+else is left on the label.
+
+The inbox, **Sent**, **Drafts**, **Trash**, **Junk** and **Archive** have neither button. plMail
+never renames or deletes them: your other mail apps and plMail's own sending, archiving and spam
+handling find them by name, or by the role the server gives them, and a renamed Sent folder is one
+nothing files into.
+
+A folder made, renamed or deleted in another mail app shows up here after the next sync. A folder
+renamed elsewhere keeps its mail and, unless another account shares it, its label, under the new
+name.
 
 ## Sending aliases
 
@@ -398,6 +462,17 @@ connects, mail works, and no calendars appear. Reconnecting with the box left ti
 **Push failing is not an error state.** A self-hosted install may have no publicly reachable HTTPS
 address at all. Registration failing means "stay on polling", and the fifteen-minute sweep is
 unaffected.
+
+**On some servers a folder renamed in another mail app comes back as a new folder.** plMail
+recognises a rename by the folder's UIDVALIDITY, which a rename keeps. Stalwart 0.11 answers STATUS
+with a different number from the one it gives when the folder is opened, so a folder renamed there
+in another app arrives as a new folder, its mail is fetched again, and the old one is removed once
+it has been missing for three syncs and a day. A rename made in plMail is not affected.
+
+**The server decides which folders are system folders, and not every server says.** A folder the
+server marks as Sent, Trash, Junk, Drafts or Archive, or one with a well-known name such as "Sent
+Items" or "Gesendet", is protected from rename and delete. A folder whose name plMail does not know
+and that the server does not mark — Stalwart's "Junk Mail" — is treated as your own.
 
 **A message moved in another mail client into a folder that is switched off looks, to plMail, like
 one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only

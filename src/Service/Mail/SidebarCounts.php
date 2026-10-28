@@ -9,7 +9,9 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
@@ -72,6 +74,12 @@ class SidebarCounts implements ResetInterface
     /** See changeSequence(). */
     private ?int $changeSequence = null;
 
+    /** @var array<int, list<Account>>|null label id => the IMAP accounts it is a folder on */
+    private ?array $folderAccounts = null;
+
+    /** @var array<int, array<int, Mailbox>> account id => (label id => its folder there) */
+    private array $folders = [];
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -95,6 +103,8 @@ class SidebarCounts implements ResetInterface
 
         $this->roleLabelIdsLoaded = false;
         $this->changeSequence     = null;
+        $this->folderAccounts     = null;
+        $this->folders            = [];
     }
 
     public function __construct(
@@ -103,6 +113,7 @@ class SidebarCounts implements ResetInterface
         private readonly Security                $security,
         private readonly ChangeLogRepository     $changeLog,
         private readonly MessageRepository       $messages,
+        private readonly LabelBindingRepository  $bindings,
     ) {}
 
     /**
@@ -157,6 +168,59 @@ class SidebarCounts implements ResetInterface
             $this->labelRepository->findBoundToAccount($account),
             static fn (Label $label): bool => true === $label->isVisible,
         ));
+    }
+
+    /**
+     * The plain IMAP accounts on which this label is a folder — empty when it
+     * is a tag only.
+     *
+     * For the sidebar's LABELS section, where a folder and a label otherwise
+     * look exactly alike (#221): a folder is marked as one and says on which
+     * account. Plain IMAP only; a Gmail label is a label, and an Exchange
+     * folder is not in step 1's scope. One read for the whole tree, not one
+     * per label: the bindings are a lazy collection.
+     *
+     * @return list<Account>
+     */
+    public function folderAccountsOf(Label $label): array
+    {
+        $this->loadFolders();
+
+        return $this->folderAccounts[(int) $label->id] ?? [];
+    }
+
+    /**
+     * The IMAP folder this label is on one plain IMAP account, or null — for
+     * the rename shortcut on the account's folder rows.
+     */
+    public function folderOf(Label $label, Account $account): ?Mailbox
+    {
+        $this->loadFolders();
+
+        return $this->folders[(int) $account->id][(int) $label->id] ?? null;
+    }
+
+    private function loadFolders(): void
+    {
+        if (null !== $this->folderAccounts) {
+            return;
+        }
+
+        $this->folderAccounts = [];
+        $this->folders        = [];
+        $user                 = $this->security->getUser();
+
+        foreach (null === $user ? [] : $this->bindings->findFolderBindingsForUser($user) as $binding) {
+            $account = $binding->account;
+            $label   = $binding->label;
+
+            if (null === $account || null === $label || null === $binding->mailbox || false === $account->isPlainImap()) {
+                continue;
+            }
+
+            $this->folderAccounts[(int) $label->id][]              = $account;
+            $this->folders[(int) $account->id][(int) $label->id] = $binding->mailbox;
+        }
     }
 
     /**

@@ -3292,7 +3292,12 @@ settings:
         enable: Enable account
         folders:
             always_synced: The inbox is always synced
-            button: Choose which folders to sync
+            button: Folders
+            created: 'Folder “%folder%” created'
+            delete:
+                button: 'Delete folder %folder%'
+                confirm: 'Delete the folder %folder% on the mail server? It is empty; nothing else is deleted.'
+            deleted: 'Folder “%folder%” deleted'
             empty: No folders yet. They are listed after the first sync.
             idle_needs_sync: '%folder% is not synced, so it cannot be watched'
             intro: >-
@@ -3301,12 +3306,39 @@ settings:
                 resumes from where it stopped. A folder with the bolt lit is
                 watched, so new mail in it shows up at once; the others are
                 checked at the account's interval.
+            invalid:
+                control: 'A folder name cannot contain line breaks or other control characters.'
+                empty: 'Give the folder a name.'
+                reserved: 'INBOX is reserved for the inbox.'
+                separator: 'A folder name cannot contain “%separator%” on this server: it separates folders from the folders inside them.'
+                too_long: 'That name is too long for a folder.'
+                wildcard: 'A folder name cannot contain * or %.'
+            new:
+                button: 'New folder'
+                intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Create folder'
+                title: 'New folder — %account%'
+                top_level: 'Top level'
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
+            refused:
+                has_children: 'This folder has folders inside it. Delete or move those first.'
+                not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
+                server: 'The mail server refused: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder is renamed on the mail server, with the folders inside it, so every mail app that reads this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to “%folder%”'
             start_idle: 'Watch %folder% for new mail as it arrives'
             start_sync: 'Start syncing %folder%'
             stop_idle: 'Stop watching %folder% — check it at the account''s interval instead'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be reached, nothing was changed: %reason%'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'
@@ -4840,10 +4872,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
-        heading: Accounts
-        none: No accounts yet
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, which is switched off'
+        folders: 'Folders…'
+        heading: Accounts
+        menu: 'Folders of %account%'
+        new_folder: 'New folder…'
+        none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
     badge:
@@ -4853,6 +4888,7 @@ sidebar:
     compose: Compose
     labels:
         add: Create label
+        folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
     new_mail_here: 'New mail in %where%'

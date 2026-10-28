@@ -3277,7 +3277,12 @@ settings:
         enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
-            button: Zu synchronisierende Ordner wählen
+            button: Ordner
+            created: 'Ordner „%folder%“ angelegt'
+            delete:
+                button: 'Ordner %folder% löschen'
+                confirm: 'Den Ordner %folder% auf dem Mailserver löschen? Er ist leer; sonst wird nichts gelöscht.'
+            deleted: 'Ordner „%folder%“ gelöscht'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
             idle_needs_sync: '%folder% wird nicht synchronisiert und kann deshalb nicht beobachtet werden'
             intro: >-
@@ -3287,12 +3292,39 @@ settings:
                 aufgehört hat. Ein Ordner mit leuchtendem Blitz wird
                 beobachtet, neue Mail darin erscheint sofort; die anderen
                 werden im Intervall des Kontos abgerufen.
+            invalid:
+                control: 'Ein Ordnername darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.'
+                empty: 'Gib dem Ordner einen Namen.'
+                reserved: 'INBOX ist für den Posteingang reserviert.'
+                separator: 'Auf diesem Server darf ein Ordnername kein „%separator%“ enthalten: Es trennt Ordner von den Ordnern darin.'
+                too_long: 'Dieser Name ist für einen Ordner zu lang.'
+                wildcard: 'Ein Ordnername darf kein * und kein % enthalten.'
+            new:
+                button: 'Neuer Ordner'
+                intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
+                name: 'Name'
+                parent: 'In'
+                submit: 'Ordner anlegen'
+                title: 'Neuer Ordner — %account%'
+                top_level: 'Oberste Ebene'
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            refused:
+                has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
+                server: 'Der Mailserver hat abgelehnt: %reason%'
+                special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
+            rename:
+                button: 'Ordner %folder% umbenennen'
+                intro: 'Der Ordner wird samt den Ordnern darin auf dem Mailserver umbenannt, also sieht jedes Mailprogramm, das dieses Konto liest, den neuen Namen.'
+                submit: 'Umbenennen'
+                title: 'Ordner umbenennen — %folder%'
+            renamed: 'Ordner in „%folder%“ umbenannt'
             start_idle: '%folder% auf neue Mail beobachten, sobald sie eintrifft'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_idle: '%folder% nicht mehr beobachten — stattdessen im Intervall des Kontos abrufen'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
+            unreachable: 'Der Mailserver war nicht erreichbar, es wurde nichts geändert: %reason%'
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
@@ -4869,10 +4901,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
-        heading: Konten
-        none: Noch keine Konten
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        folders: 'Ordner …'
+        heading: Konten
+        menu: 'Ordner von %account%'
+        new_folder: 'Neuer Ordner …'
+        none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
     badge:
@@ -4882,6 +4917,7 @@ sidebar:
     compose: Schreiben
     labels:
         add: Label erstellen
+        folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
     new_mail_here: 'Neue Nachrichten in %where%'

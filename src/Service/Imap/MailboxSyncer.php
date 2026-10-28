@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -23,7 +22,9 @@ use Psr\Log\LoggerInterface;
  * Mirrors the IMAP folder tree into Mailbox rows (pure sync infrastructure)
  * and ensures every mailbox is linked to its Label:
  *   - special-use folders → system role labels
- *   - everything else → nested custom label chains from the folder path
+ *   - everything else → a nested custom label chain from the folder path,
+ *     made when the folder first arrives or moves, and left alone after that
+ *     (LabelResolver::linkFolder())
  *
  * This is also the incoming half of best-effort label sync-back: a folder
  * created by another client shows up here and gets its label chain created.
@@ -631,40 +632,17 @@ readonly class MailboxSyncer
 
     private function hydrate(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
     {
+        $previousPath = $mailbox->fullPath;
+
         $mailbox->name = $folder->name();
         $mailbox->fullPath = $folder->path;
         $mailbox->delimiter = $folder->delimiter;
         $mailbox->specialUse = $specialUse;
 
-        $this->linkLabel($mailbox, $account);
-    }
-
-    private function linkLabel(Mailbox $mailbox, Account $account): void
-    {
-        $specialUse = $mailbox->specialUse;
-
-        if (null !== $specialUse) {
-            $this->labelResolver->bindMailbox(
-                $this->labelResolver->systemLabel(LabelRole::fromSpecialUse($specialUse), $account),
-                $mailbox,
-            );
-
-            return;
-        }
-
-        $segments = $this->labelResolver->segmentsFromImapPath(
-            (string) $mailbox->fullPath,
-            $mailbox->delimiter,
-        );
-
-        if (count($segments) === 0) {
-            $segments = [(string) $mailbox->name];
-        }
-
-        $label = $this->labelResolver->customChain($segments, $account);
-
-        if (null !== $label) {
-            $this->labelResolver->bindMailbox($label, $mailbox);
-        }
+        // The previous path is what tells LabelResolver whether the folder
+        // moved. Only then is its label read off the path again; a folder that
+        // stayed put keeps the label it has. See linkFolder() for why the
+        // sync stopped deriving it every time.
+        $this->labelResolver->linkFolder($mailbox, $account, $previousPath);
     }
 }
