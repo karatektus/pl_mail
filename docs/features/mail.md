@@ -501,8 +501,10 @@ without being deleted.
 
 Creating a label never creates a folder. Gmail gets the label the first time it is applied to a
 message, and renames and deletions are mirrored to Gmail and Microsoft; see
-[Labels at the provider](accounts.md#labels-at-the-provider). On a plain IMAP account a label you
-create stays in plMail: putting it on a message tags the message and moves nothing.
+[Labels at the provider](accounts.md#labels-at-the-provider). On a plain IMAP account putting a
+label on a message tags the message and moves nothing: the label stays in plMail, or, with
+[Labels as keywords](accounts.md#labels-as-keywords) switched on, becomes an IMAP keyword other mail
+apps see.
 
 An IMAP account's folders show in the sidebar as well — the inbox, Sent, and every folder the server
 has; in the LABELS section one of those wears a folder instead of a dot. Those are places rather than

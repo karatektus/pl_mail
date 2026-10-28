@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:9ce94b5f6ce1b620a82f6a50e5d730f35a397069 -->
+<!-- translated-from: features/accounts.md sha1:0bf9988e850f484875443d1087aa6575cfbf81f5 -->
 
 # Konten und Aliase
 
@@ -219,10 +219,41 @@ Ordnung, die allein in plMail existierte und verschwand, sobald du Gmail geöffn
 sich immer nur auf Änderungen ab dann aus; bereits vorhandene Labels werden nicht rückwirkend
 übertragen.
 
-Bei einem reinen IMAP-Konto bleibt ein Label, das du in plMail anlegst, in plMail. Es legt auf dem
-Server nie einen Ordner an, benennt keinen um, löscht keinen und verschiebt nie Mail. Ordner legst
-du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und löschst sie dort — siehe
-[Ordner](#ordner).
+Bei einem reinen IMAP-Konto legt ein Label auf dem Server nie einen Ordner an, benennt keinen um,
+löscht keinen und verschiebt nie Mail. Ordner legst du in der eigenen Ordnerliste des Kontos an,
+benennst sie dort um und löschst sie dort — siehe [Ordner](#ordner). Wohin ein Label stattdessen
+geht, steht im nächsten Abschnitt.
+
+### Labels als Schlüsselwörter
+
+IMAP hat eigene Markierungen: Schlüsselwörter, die ein Server neben `\Seen` und `\Flagged` an jeder
+Nachricht speichert und die andere Mailprogramme zeigen — Thunderbird etwa als seine Schlagwörter.
+**Labels als Schlüsselwörter** oben in der Ordnerliste eines IMAP-Kontos legt deine Labels dort ab.
+Standardmäßig ist es aus, und dann bleibt ein Label an IMAP-Mail in plMail, wie bisher.
+
+Ist es an, schreibt ein Label, das du auf eine Konversation setzt, ein Schlüsselwort auf dem Server
+an jede ihrer Nachrichten, und nimmst du es ab, verschwindet es dort. Ein Schlüsselwort, das in
+einem anderen Mailprogramm gesetzt oder entfernt wird, setzt das Label hier oder nimmt es ab —
+binnen Sekunden, wenn plMail den Ordner per IDLE beobachtet, sonst bei der nächsten
+Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Labels
+verschieben weiterhin nie Mail, und ein Label, das auf dem Konto ein Ordner ist, bleibt ein Ordner.
+
+Beim Einschalten fragt plMail jeden Ordner, ob der Server dort Schlüsselwörter speichert, und die
+Liste sagt, was er geantwortet hat: **Dieser Server speichert Schlüsselwörter**, **Dieser Server
+speichert keine Schlüsselwörter** (dann bleiben Labels auf diesem Konto in plMail) oder noch nicht
+gefragt. Der Dialog jedes Labels sagt pro IMAP-Konto, wo es liegt: ein Ordner, ein Schlüsselwort
+oder nur in plMail, und warum.
+
+Der Name eines Labels wird, wenn es geht, unverändert zum Schlüsselwort — „Work“, „Invoices/2025“ —,
+damit er zu dem passt, was andere Mailprogramme schreiben. Ein Name mit Leerzeichen oder anderen
+Zeichen, die ein Schlüsselwort nicht enthalten kann, wird in der Kodierung geschrieben, die IMAP für
+Ordnernamen verwendet („Follow up“ wird `Follow&ACA-up`), und plMail liest ihn als denselben Namen
+zurück. Schlüsselwörter, die für Mailprogramme etwas bedeuten — `$Junk`, `$NotJunk`, `$Forwarded`,
+`$MDNSent`, `$Phishing`, `$Important`, Thunderbirds `$label1`–`$label5` —, werden nie als Labels
+gelesen.
+
+Geschrieben werden nur Änderungen nach dem Einschalten; Labels, die schon an Mail hängen, werden
+nicht in einem Rutsch übertragen.
 
 **Bei Microsoft sind die meisten Labels Outlook-Kategorien und keine Ordner**, und eine Kategorie
 hat dort keine Identität außer ihrem Namen — der Name ist das, was an jeder Nachricht steht. Eine
@@ -506,6 +537,16 @@ Ordner, den der Server als Gesendet, Papierkorb, Spam, Entwürfe oder Archiv ken
 mit einem bekannten Namen wie „Sent Items“ oder „Gesendet“, ist vor Umbenennen und Löschen
 geschützt. Ein Ordner, dessen Namen plMail nicht kennt und den der Server nicht kennzeichnet —
 Stalwarts „Junk Mail“ —, gilt als dein eigener.
+
+**Ein Label umzubenennen oder zu löschen ändert keine Schlüsselwörter, die schon auf dem Server
+liegen.** Die Mail eines umbenannten Labels behält das alte Schlüsselwort, und das Schlüsselwort
+eines gelöschten Labels bleibt, wo es ist, in plMail wie in anderen Mailprogrammen. Setzt du das
+umbenannte Label erneut, wird das neue Schlüsselwort geschrieben; das alte kannst du in einem anderen
+Mailprogramm entfernen, was hier auch das alte Label abnimmt.
+
+**Welche Schlüsselwörter andere Mailprogramme zeigen, entscheiden sie selbst.** Thunderbird zeigt
+ein Schlüsselwort erst als Schlagwort, wenn es dort ein Schlagwort dieses Namens gibt; bis dahin
+hängt es an der Nachricht, ist aber nicht zu sehen.
 
 **Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
 sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte
