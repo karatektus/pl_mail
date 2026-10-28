@@ -32,7 +32,10 @@ use Symfony\Component\HttpFoundation\Request;
  * - the inbox cannot be switched off, because a client that stops fetching its
  *   inbox is not a client;
  * - accounts that sync over a provider API have no IMAP folders to choose, so
- *   neither the list nor the toggle exists for them.
+ *   neither the list nor the toggle exists for them;
+ * - the IDLE bolt beside each switch (#202) turns watching on and off, on the
+ *   inbox too, and cannot be pressed on a folder that is not synced, where the
+ *   listener would ignore it.
  *
  * Skips itself without the seeded users, as the other controller tests do.
  */
@@ -347,6 +350,95 @@ final class AccountFolderSyncTest extends WebTestCase
         self::assertStringNotContainsString($this->foldersUrl($gmail), $html);
     }
 
+    // ── IDLE (#202) ───────────────────────────────────────────────────────
+
+    public function testTheOwnerSwitchesIdleOnAndOffAgain(): void
+    {
+        $id = (int) $this->mailbox($this->account, 'Receipts')->id;
+
+        $this->postIdle($id, $this->csrfToken($id, 'account_folder_idle_'));
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#account-folder-sync-' . $id . ' [data-idle-switch="on"]');
+        self::assertTrue($this->idleFlag($id), 'the folder is watched');
+        self::assertTrue($this->flag($id), 'and its sync is left alone');
+
+        $this->postIdle($id, $this->csrfToken($id, 'account_folder_idle_'));
+
+        self::assertSelectorExists('turbo-frame#account-folder-sync-' . $id . ' [data-idle-switch="off"]');
+        self::assertFalse($this->idleFlag($id), 'and no longer');
+    }
+
+    /**
+     * The inbox's SYNC is fixed; whether it is watched is not. Switching it
+     * off is how an account becomes polling-only.
+     */
+    public function testTheInboxCanStopBeingWatched(): void
+    {
+        $inbox                = $this->mailbox($this->account, 'INBOX', MailboxSpecialUse::INBOX);
+        $inbox->isIdleEnabled = true;
+        $this->em->flush();
+        $id = (int) $inbox->id;
+
+        $this->postIdle($id, $this->csrfToken($id, 'account_folder_idle_'));
+
+        self::assertResponseIsSuccessful();
+        self::assertFalse($this->idleFlag($id));
+    }
+
+    /**
+     * The listener watches folders that are synced AND IDLE-enabled, so the
+     * bolt on an unsynced folder would do nothing. It is drawn disabled and
+     * the route refuses it — both ways, so the setting survives for when the
+     * folder is synced again.
+     */
+    public function testAFolderThatIsNotSyncedCannotBeWatched(): void
+    {
+        $archive                = $this->mailbox($this->account, 'Archive');
+        $archive->isSyncEnabled = false;
+        $archive->isIdleEnabled = true;
+        $this->em->flush();
+        $id = (int) $archive->id;
+
+        $this->client->request('GET', $this->foldersUrl($this->account));
+        self::assertSelectorExists('turbo-frame#account-folder-sync-' . $id . ' button[disabled][data-idle-switch="unavailable"]');
+
+        $this->postIdle($id, $this->csrfToken($id, 'account_folder_idle_'));
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertTrue($this->idleFlag($id), 'kept for when the folder is synced again');
+    }
+
+    public function testAnIdleSwitchWithoutAValidTokenChangesNothing(): void
+    {
+        $id = (int) $this->mailbox($this->account, 'Receipts')->id;
+
+        $this->postIdle($id, 'not-a-token');
+
+        self::assertFalse($this->client->getResponse()->isSuccessful());
+        self::assertFalse($this->idleFlag($id));
+    }
+
+    private function postIdle(int $mailboxId, string $token): void
+    {
+        $this->client->request(
+            'POST',
+            $this->foldersUrl($this->account) . '/' . $mailboxId . '/idle',
+            ['_token' => $token],
+        );
+    }
+
+    private function idleFlag(int $mailboxId): bool
+    {
+        $this->em->clear();
+
+        $mailbox = $this->mailboxes->find($mailboxId);
+
+        self::assertNotNull($mailbox);
+
+        return $mailbox->isIdleEnabled;
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
@@ -424,7 +516,7 @@ final class AccountFolderSyncTest extends WebTestCase
      * lives on is fetched and its session pushed onto the stack, exactly as
      * PushDeviceRemovalTest does it.
      */
-    private function csrfToken(int $mailboxId): string
+    private function csrfToken(int $mailboxId, string $intention = 'account_folder_sync_'): string
     {
         $this->client->request('GET', '/settings?section=accounts');
 
@@ -436,7 +528,7 @@ final class AccountFolderSyncTest extends WebTestCase
         try {
             return static::getContainer()
                 ->get('security.csrf.token_manager')
-                ->getToken('account_folder_sync_' . $mailboxId)
+                ->getToken($intention . $mailboxId)
                 ->getValue();
         } finally {
             $this->client->getRequest()->getSession()->save();

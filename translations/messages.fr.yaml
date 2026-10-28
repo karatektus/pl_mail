@@ -51,6 +51,7 @@ account:
         microsoft: Continuer avec Microsoft
     primary_set: Compte principal modifié
     removed: Compte supprimé
+    sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -3314,12 +3315,17 @@ settings:
             always_synced: La boîte de réception est toujours synchronisée
             button: Choisir les dossiers à synchroniser
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
+            idle_needs_sync: '%folder% n’est pas synchronisé, il ne peut donc pas être surveillé'
             intro: >-
                 Désactivez un dossier et plMail cesse de le récupérer. Le courrier
                 déjà stocké reste où il est, et réactiver le dossier reprend là où
-                cela s’était arrêté.
+                cela s’était arrêté. Un dossier à l’éclair allumé est
+                surveillé : le nouveau courrier y apparaît aussitôt ; les autres
+                sont relevés à l’intervalle du compte.
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
+            start_idle: 'Surveiller %folder% pour recevoir le nouveau courrier dès son arrivée'
             start_sync: 'Commencer à synchroniser %folder%'
+            stop_idle: 'Ne plus surveiller %folder% — le relever à l’intervalle du compte'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'
         heading: Comptes mail
@@ -3384,6 +3390,10 @@ settings:
             active: Actif
             disabled: Désactivé
         subheading: Ajoutez, modifiez, activez ou supprimez les boîtes que vous synchronisez.
+        sync_interval:
+            change: 'Relevé toutes les %minutes% min — changer la fréquence pour %account%'
+            every: 'Toutes les %minutes% min'
+            heading: 'Relever le courrier toutes les … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'

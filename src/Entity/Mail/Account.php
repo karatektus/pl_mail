@@ -236,6 +236,53 @@ class Account extends AccountModel
     public ?DateTimeImmutable $lastSyncedAt = null;
 
     /**
+     * How often, in minutes, the scheduled poll syncs this account (#202).
+     *
+     * One of SYNC_INTERVALS. Per account rather than one setting for the
+     * install, because the account that needs it short is the one without a
+     * faster path: an IMAP account whose folders have IDLE switched off, or a
+     * POP3 one. The rest keep the old quarter hour, which is the default, so an
+     * upgrade changes nothing until somebody picks another value.
+     *
+     * The scheduler asks every minute (`app:mail:sync --due`) and dispatches
+     * only the accounts this has run out for; see $lastPolledAt.
+     */
+    #[ORM\Column(options: ['default' => 15])]
+    public int $syncIntervalMinutes = 15;
+
+    /** The choices the account list offers for $syncIntervalMinutes. */
+    public const array SYNC_INTERVALS = [1, 5, 15, 30, 60];
+
+    /**
+     * When the scheduled poll last dispatched a sync for this account.
+     *
+     * Not $lastSyncedAt. That one is when a sync FINISHED cleanly, and it is
+     * also written by syncs nobody scheduled (IDLE, push, the refresh button),
+     * so measuring the interval from it would let a busy account go unpolled
+     * and a failing one be re-polled every minute. This is written by the poll
+     * alone, at dispatch, which is the moment the interval is about.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $lastPolledAt = null;
+
+    /**
+     * Whether the scheduled poll should sync this account at $now.
+     *
+     * Thirty seconds early counts as due. The scheduler fires on the minute
+     * and the dispatch is stamped a moment later, so an account polled at
+     * 10:00:02 is asked again at 10:05:00, 2 seconds short of five minutes;
+     * without the slack every interval would come out one minute long.
+     */
+    public function isPollDue(DateTimeImmutable $now): bool
+    {
+        if (null === $this->lastPolledAt) {
+            return true;
+        }
+
+        return $now->getTimestamp() - $this->lastPolledAt->getTimestamp() >= $this->syncIntervalMinutes * 60 - 30;
+    }
+
+    /**
      * Why this account's last sync failed, or null when it did not.
      *
      * A mail account recorded NOTHING about failing. Calendar has had a full

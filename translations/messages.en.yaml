@@ -51,6 +51,7 @@ account:
         microsoft: Continue with Microsoft
     primary_set: Primary account changed
     removed: Account removed
+    sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -3293,12 +3294,17 @@ settings:
             always_synced: The inbox is always synced
             button: Choose which folders to sync
             empty: No folders yet. They are listed after the first sync.
+            idle_needs_sync: '%folder% is not synced, so it cannot be watched'
             intro: >-
                 Switch a folder off and plMail stops fetching it. Mail already
                 stored stays where it is, and switching the folder back on
-                resumes from where it stopped.
+                resumes from where it stopped. A folder with the bolt lit is
+                watched, so new mail in it shows up at once; the others are
+                checked at the account's interval.
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
+            start_idle: 'Watch %folder% for new mail as it arrives'
             start_sync: 'Start syncing %folder%'
+            stop_idle: 'Stop watching %folder% — check it at the account''s interval instead'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
         heading: Mail accounts
@@ -3362,6 +3368,10 @@ settings:
             active: Active
             disabled: Disabled
         subheading: Add, edit, enable, or remove the mailboxes you sync.
+        sync_interval:
+            change: 'Checked for new mail every %minutes% min — change how often for %account%'
+            every: 'Every %minutes% min'
+            heading: 'Check for new mail every … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'

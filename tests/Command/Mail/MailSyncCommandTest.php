@@ -117,6 +117,70 @@ final class MailSyncCommandTest extends KernelTestCase
         );
     }
 
+    // ── --due: each account at its own interval (#202) ────────────────────
+
+    /**
+     * The scheduler runs `--due` every minute. An account never polled is due,
+     * one polled within its interval is not, and one whose interval ran out is
+     * — measured from the account's own interval, not the default.
+     */
+    public function testDueDispatchesOnlyTheAccountsWhoseIntervalRanOut(): void
+    {
+        $never   = $this->account();
+        $recent  = $this->polled(minutesAgo: 3, interval: 5);
+        $overdue = $this->polled(minutesAgo: 6, interval: 5);
+        $slow    = $this->polled(minutesAgo: 20, interval: 30);
+
+        $this->tester()->execute(['--due' => true]);
+
+        $ids = $this->dispatchedAccountIds();
+
+        self::assertContains($never->id, $ids);
+        self::assertContains($overdue->id, $ids);
+        self::assertNotContains($recent->id, $ids);
+        self::assertNotContains($slow->id, $ids, 'twenty minutes is not due on a thirty-minute interval');
+    }
+
+    /**
+     * The scheduler fires on the minute and the stamp lands a moment after, so
+     * a poll is asked again a few seconds short of its interval. That has to
+     * count, or every interval comes out a minute longer than chosen.
+     */
+    public function testAPollAFewSecondsShortOfItsIntervalIsDue(): void
+    {
+        $account = $this->account();
+        $account->syncIntervalMinutes = 5;
+        $account->lastPolledAt        = new \DateTimeImmutable('-298 seconds');
+        $this->em->flush();
+
+        $this->tester()->execute(['--due' => true]);
+
+        self::assertContains($account->id, $this->dispatchedAccountIds());
+    }
+
+    /** What makes the next tick skip it. */
+    public function testADispatchStampsTheAccountAsPolled(): void
+    {
+        $account = $this->account();
+
+        $this->tester()->execute(['--due' => true]);
+        $this->dispatched = [];
+        $this->tester()->execute(['--due' => true]);
+
+        self::assertNotNull($account->lastPolledAt);
+        self::assertNotContains($account->id, $this->dispatchedAccountIds(), 'polled a moment ago, so not due again');
+    }
+
+    private function polled(int $minutesAgo, int $interval): Account
+    {
+        $account                      = $this->account();
+        $account->syncIntervalMinutes = $interval;
+        $account->lastPolledAt        = new \DateTimeImmutable(sprintf('-%d minutes', $minutesAgo));
+        $this->em->flush();
+
+        return $account;
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** @return list<int> */
@@ -146,14 +210,14 @@ final class MailSyncCommandTest extends KernelTestCase
     private function tester(bool $demo = false): CommandTester
     {
         return new CommandTester(
-            new MailSyncCommand($this->repository(), $this->bus(), new DemoMode($demo, 'PT2H')),
+            new MailSyncCommand($this->repository(), $this->bus(), new DemoMode($demo, 'PT2H'), $this->em),
         );
     }
 
     /**
      * A demo instance's accounts point at documentation domains, so every
      * dispatch would be a worker spending its full retry ladder on a host that
-     * does not resolve. The scheduler runs this every fifteen minutes, so this
+     * does not resolve. The scheduler runs this every minute, so this
      * branch is what actually keeps a demo's queue clean.
      */
     public function testItDispatchesNothingOnADemoInstall(): void

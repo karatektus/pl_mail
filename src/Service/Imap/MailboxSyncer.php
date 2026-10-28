@@ -561,11 +561,11 @@ readonly class MailboxSyncer
         $mailbox->isSyncEnabled = $selectable && false === $mirror;
         $mailbox->isSelectable  = $selectable;
         $mailbox->mirrorsOtherFolders = $mirror;
-        $mailbox->isIdleEnabled = in_array(
-            $specialUse?->value,
-            ['\\Inbox', '\\Junk'],
-            true,
-        );
+        // The inbox alone (#202). Junk used to be watched as well, which cost
+        // an IDLE connection per account for mail nobody waits on; it is
+        // polled like every other folder now, and the folders dialog switches
+        // IDLE on for any folder somebody does want to hear from at once.
+        $mailbox->isIdleEnabled = MailboxSpecialUse::INBOX === $specialUse;
         // Persist before hydrate: hydrate() binds the folder to a label, and
         // LabelResolver flushes to mint the binding id — the mailbox has to be
         // managed by then or the binding's FK points at nothing. Every
