@@ -19,6 +19,7 @@ use App\Repository\Mail\MailboxRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 /**
  * Translates a semantic mail operation into provider-appropriate async
@@ -45,6 +46,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class LabelChangePropagator
 {
+    /** See dispatchKeywords(). */
+    private const int KEYWORD_DELAY_MS = 2000;
+
     public function __construct(
         private MessageBusInterface $bus,
         private MailboxRepository   $mailboxRepository,
@@ -309,13 +313,18 @@ final readonly class LabelChangePropagator
 
         $this->markFlagsInFlight($touched);
 
+        // Two seconds late, on purpose. The guard set above is written by the
+        // caller's flush, which comes after this dispatch; a worker that took
+        // the job at once could lift the guard before the flush put it down,
+        // and the flush would then leave it standing for the whole grace
+        // period — an hour in which no keyword another client sets is read.
         foreach ($byAccount as $accountId => $copies) {
             $this->bus->dispatch(new ApplyImapKeywordsMessage(
                 $accountId,
                 $copies,
                 true === $add ? [$keyword] : [],
                 true === $add ? [] : [$keyword],
-            ));
+            ), [new DelayStamp(self::KEYWORD_DELAY_MS)]);
         }
     }
 

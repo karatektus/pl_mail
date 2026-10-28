@@ -9,6 +9,8 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Handler\ApplyRemoteFlagsMessageHandler;
+use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
 use App\Service\Imap\ImapFlagReconciler;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -91,6 +93,19 @@ final class ImapKeywordReadTest extends KernelTestCase
         $this->reconcile([7 => ['\\Seen', 'Work']]);
 
         self::assertSame([], $this->labelNames($message));
+    }
+
+    /** The line an idling connection is pushed follows the same rule. */
+    public function testAKeywordPushedOverIdleBecomesTheLabel(): void
+    {
+        $this->account->labelsAsKeywords = true;
+        $message = $this->message(['\\Seen']);
+
+        (self::getContainer()->get(ApplyRemoteFlagsMessageHandler::class))(
+            new ApplyRemoteFlagsMessage((int) $this->inbox->id, 7, ['\\Seen', 'Work']),
+        );
+
+        self::assertSame(['Work'], $this->labelNames($message));
     }
 
     // ── fixtures ─────────────────────────────────────────────────────────
