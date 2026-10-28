@@ -45,8 +45,9 @@ shell's `after_fields` slot, and an include cannot fill a block.
         dropped by the browser.
         #}
         {% block after_fields %}
-            {# Where this label is kept on each IMAP account (#221 step 2): a
-               folder there, a keyword the server keeps, or plMail's alone —
+            {# Where this label is kept on each IMAP and Microsoft account (#221
+               steps 2 and 4): a folder there, a keyword the server keeps, an
+               Outlook category, or plMail's alone —
                so that "only in plMail" is never found out in another mail
                app. LabelPlaces decides. #}
             {% if places is not empty and not label.isSystem %}
@@ -54,7 +55,7 @@ shell's `after_fields` slot, and an include cannot fill a block.
                     <p class="text-xs font-medium text-ink-soft">{{ 'label.form.places.title'|trans }}</p>
                     <ul class="space-y-1">
                         {% for place in places %}
-                            {% set _icon = { folder: 'fa-folder', keyword: 'fa-tag', keyword_unasked: 'fa-tag', local_off: 'fa-house', local_server: 'fa-house' }[place.state] %}
+                            {% set _icon = { folder: 'fa-folder', keyword: 'fa-tag', keyword_unasked: 'fa-tag', local_off: 'fa-house', local_server: 'fa-house', category: 'fa-tags', category_followed: 'fa-tags' }[place.state] %}
                             <li class="flex items-start gap-2 text-[13px] leading-snug text-ink-muted" data-label-place="{{ place.state }}">
                                 <i class="fa-solid {{ _icon }} w-3.5 mt-0.5 text-[11px] text-ink-faint" aria-hidden="true"></i>
                                 <span>{{ ('label.form.places.' ~ place.state)|trans({ '%account%': place.account.displayAddress }) }}</span>

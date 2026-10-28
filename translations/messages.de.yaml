@@ -2689,6 +2689,8 @@ label:
         no_parent: '— oberste Ebene —'
         parent: Einordnen unter
         places:
+            category: 'Eine Outlook-Kategorie auf %account% (Änderungen in Outlook werden nicht übernommen)'
+            category_followed: 'Eine Outlook-Kategorie auf %account%'
             folder: 'Ein Ordner auf %account%'
             keyword: 'Ein Schlüsselwort auf %account%'
             keyword_unasked: 'Ein Schlüsselwort auf %account%, wo seine Ordner Schlüsselwörter speichern'
@@ -3234,6 +3236,10 @@ settings:
             off: 'Aus'
             on: 'An'
     accounts:
+        categories:
+            off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
+            on_hint: 'An: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, setzt hier das Label oder nimmt es ab.'
+            title: 'Outlook-Kategorien folgen'
         colour:
             change: 'Farbe von %account% ändern'
             swatch:
