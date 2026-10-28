@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Exception\GraphApiException;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
@@ -230,13 +231,65 @@ final readonly class ApplyLabelStructureHandler
             return;
         }
 
-        $this->graphApiClient->patchMasterCategory($account, $categoryId, $message->fullName);
+        try {
+            $this->graphApiClient->patchMasterCategory($account, $categoryId, $message->fullName);
+        } catch (GraphApiException $e) {
+            if (false === in_array($e->getCode(), [400, 405], true)) {
+                throw $e;
+            }
+
+            $categoryId = $this->replaceCategory($account, $message, $categoryId);
+        }
 
         // Recorded now if it was only just discovered, so the next rename does
         // not have to go looking.
         $this->storeCategoryId($account, $message->labelId, $categoryId);
 
         $this->retagMessages($account, $message->labelId);
+    }
+
+    /**
+     * A rename Exchange refused, done the way Outlook can do it (#221 step 4).
+     *
+     * Graph documents an outlookCategory's displayName as fixed once created,
+     * and only its colour as changeable; whether Exchange Online refuses the
+     * PATCH or quietly accepts it is not something this code could try against
+     * a real mailbox. So the PATCH is still tried first, and a 400 (or 405) is
+     * answered with the same outcome by other means: a master category under
+     * the new name — the existing one if there is one, else a new one in the
+     * label's colour — and the old one deleted. Deleting a master category
+     * leaves its name on every message as loose text, exactly what renaming it
+     * would have done; the re-tag after this replaces it on every message
+     * plMail holds. Mail plMail never synced keeps the old name, as it would
+     * after an accepted PATCH too. No message is touched here that the rename
+     * itself would not have touched.
+     */
+    private function replaceCategory(Account $account, ApplyLabelStructureMessage $message, string $oldId): string
+    {
+        $newId = $this->categoryIdByName($account, $message->fullName);
+
+        if (null === $newId) {
+            $label   = null === $message->labelId ? null : $this->labelRepository->find($message->labelId);
+            $created = $this->graphApiClient->createMasterCategory(
+                $account,
+                $message->fullName,
+                $this->colorMapper->toPreset(LabelColor::tryFrom((string) $label?->color)),
+            );
+            $newId = (string) ($created['id'] ?? '');
+        }
+
+        if ($newId !== $oldId) {
+            try {
+                $this->graphApiClient->deleteMasterCategory($account, $oldId);
+            } catch (GraphApiException $e) {
+                // Already gone is the outcome wanted; anything else is retried.
+                if (404 !== $e->getCode()) {
+                    throw $e;
+                }
+            }
+        }
+
+        return $newId;
     }
 
     /**
