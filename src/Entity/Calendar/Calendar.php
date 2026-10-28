@@ -54,12 +54,11 @@ use Doctrine\ORM\Mapping as ORM;
 // subscribe a remote it is mirroring; this is what makes that a fact rather than
 // a convention a race or a restored backup can walk past.
 //
-// Keyed on the SOURCE and the id, never on the user and the id.
-// IcsUrlCalendarDriver::REMOTE_ID is the constant `feed` for every subscribed
-// address — a feed is one calendar, so it has nothing to distinguish — and a
-// user with two of those is ordinary. What tells them apart is the Integration
-// each hangs off. NULLs are distinct in a PostgreSQL unique index, which is what
-// leaves the ordinary state of both columns unconstrained; see the note above.
+// Keyed on the SOURCE and the id, never on the user and the id: one remote
+// reached through two connections is two rows, and refusing the second is
+// CalendarDiscoverer's call, made where it can tell the user why. NULLs are
+// distinct in a PostgreSQL unique index, which is what leaves the ordinary
+// state of both columns unconstrained; see the note above.
 #[ORM\UniqueConstraint(name: 'uniq_calendar_account_remote', columns: ['account_id', 'remote_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_calendar_integration_remote', columns: ['integration_id', 'remote_id'])]
 class Calendar

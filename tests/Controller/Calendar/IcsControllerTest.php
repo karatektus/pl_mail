@@ -270,6 +270,58 @@ final class IcsControllerTest extends WebTestCase
         );
     }
 
+    /**
+     * #424. Every feed used to answer the remote id `feed`, so the second one
+     * read as "already mirrored through" the first and no calendar was made
+     * for it: the connection showed, its events never did.
+     */
+    public function testASecondFeedIsMirroredBesideTheFirst(): void
+    {
+        $client = $this->signIn();
+
+        foreach ([self::FEED_URL, 'https://feeds.example.test/school-terms.ics'] as $url) {
+            $this->scriptFeed($this->feedDocument());
+
+            $client->request('POST', '/calendar/ics/subscribe', [
+                '_token' => $this->token($client, '/calendar/ics/subscribe'),
+                'url'    => $url,
+            ]);
+
+            self::assertResponseIsSuccessful();
+        }
+
+        $connections = $this->integrations->findBy(['usr' => $this->user, 'provider' => Provider::Ics]);
+
+        self::assertCount(2, $connections);
+
+        foreach ($connections as $connection) {
+            self::assertCount(1, $this->calendars->findMirroredForIntegration($connection), $connection->name . ' has its calendar');
+        }
+    }
+
+    /**
+     * The other side of the same id: one address is one calendar, so pasting it
+     * again is refused rather than kept as a subscription with nothing under it.
+     */
+    public function testTheSameAddressTwiceIsRefusedAndLeavesOneSubscription(): void
+    {
+        $client = $this->signIn();
+
+        foreach ([200, 422] as $expected) {
+            $this->scriptFeed($this->feedDocument());
+
+            $client->request('POST', '/calendar/ics/subscribe', [
+                '_token' => $this->token($client, '/calendar/ics/subscribe'),
+                'url'    => self::FEED_URL,
+            ]);
+
+            self::assertResponseStatusCodeSame($expected);
+        }
+
+        self::assertStringContainsString('already subscribe', (string) $client->getResponse()->getContent());
+        self::assertCount(1, $this->integrations->findBy(['usr' => $this->user, 'provider' => Provider::Ics]));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private function importFile(KernelBrowser $client, string $contents, ?Calendar $calendar = null): void

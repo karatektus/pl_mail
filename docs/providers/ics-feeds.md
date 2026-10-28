@@ -29,6 +29,9 @@ broken row with nothing to correct but the address itself. Which is the most lik
 distance: a **Subscribe** button copies a link to a *web page* about as often as it copies a link to
 an `.ics`, and the two are indistinguishable until something tries to parse one.
 
+An address you already subscribe to is refused the same way: one address is one calendar, and a
+second subscription to it would only draw every event twice.
+
 ## `webcal://` is https under another name
 
 Apple registered the scheme; no client has ever spoken a protocol by that name. A `webcal://` URL is
