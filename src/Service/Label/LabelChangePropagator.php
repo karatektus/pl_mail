@@ -11,7 +11,10 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
+use App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage;
 use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
+use App\Service\Imap\ImapKeyword;
+use App\Service\Mail\MessageCopies;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
@@ -185,8 +188,9 @@ final readonly class LabelChangePropagator
     }
 
     /**
-     * Attach a custom label. IMAP: DB-only — the message keeps its physical
-     * location as long as the location label stays attached.
+     * Attach a custom label. IMAP: the message keeps its physical location —
+     * a label never moves mail. Written to the server as a keyword where the
+     * account has that switched on (dispatchKeywords()), plMail-only otherwise.
      *
      * @param iterable<Message> $messages
      */
@@ -194,6 +198,7 @@ final readonly class LabelChangePropagator
     {
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
         $this->dispatchJmap($messages, add: [self::entryFor($label)]);
+        $this->dispatchKeywords($messages, $label, true);
 
         // Graph: a folder-backed label is a move into that folder; a plain
         // (category) label is derived from DB state by the handler. Folder
@@ -222,6 +227,7 @@ final readonly class LabelChangePropagator
         $this->dispatchGmail($messages, ['add' => [], 'remove' => [(string) $label->id]]);
         $this->dispatchGraph($messages);
         $this->dispatchJmap($messages, remove: [self::entryFor($label)]);
+        $this->dispatchKeywords($messages, $label, false);
 
         // ── IMAP location handling ────────────────────────────────────────
         /** @var array<string, array<int,int>> $moves  destinationPath → messageId => sourceMailboxId */
@@ -273,6 +279,71 @@ final readonly class LabelChangePropagator
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * A label as an IMAP keyword on every server copy of these messages, where
+     * the account writes labels as keywords (#221 step 2).
+     *
+     * Only for a label that is a tag on that account: not a system label, and
+     * not one that is a folder there — that one is where the mail IS, and
+     * taking it off is the move detachLabel() makes, not a keyword. The
+     * copies come from MessageCopies, the seam #415 changes, never from the
+     * row's own folder. Whether a folder actually keeps keywords is the
+     * handler's question; it has the connection to ask it.
+     *
+     * The echo guard is set as for star and read, so the inbound pass does
+     * not take the label off again before the server has it.
+     *
+     * @param iterable<Message> $messages
+     */
+    private function dispatchKeywords(iterable $messages, Label $label, bool $add): void
+    {
+        if (null !== $label->role) {
+            return;
+        }
+
+        $keyword = ImapKeyword::encode($label->fullName);
+
+        /** @var array<int, list<array{message: int, mailbox: int, uid: int}>> $byAccount */
+        $byAccount = [];
+        $touched   = [];
+
+        foreach ($messages as $message) {
+            $account = $message->account;
+
+            if (null === $account || false === $account->labelsAsKeywords) {
+                continue;
+            }
+
+            if (null !== $label->bindingFor($account)?->mailbox) {
+                continue;
+            }
+
+            foreach (MessageCopies::of($message) as $copy) {
+                $byAccount[(int) $account->id][] = [
+                    'message' => (int) $message->id,
+                    'mailbox' => (int) $copy->mailbox->id,
+                    'uid'     => $copy->uid,
+                ];
+                $touched[] = $message;
+            }
+        }
+
+        if ([] === $byAccount) {
+            return;
+        }
+
+        $this->markFlagsInFlight($touched);
+
+        foreach ($byAccount as $accountId => $copies) {
+            $this->bus->dispatch(new ApplyImapKeywordsMessage(
+                $accountId,
+                $copies,
+                true === $add ? [$keyword] : [],
+                true === $add ? [] : [$keyword],
+            ));
+        }
+    }
 
     /**
      * Rule 2 resolution: system Trash/Spam first, then folder-backed custom
