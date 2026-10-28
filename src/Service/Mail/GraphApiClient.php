@@ -809,7 +809,8 @@ final class GraphApiClient
     /**
      * Rename a category. Graph keys category membership on displayName, so a
      * rename here does NOT re-tag existing messages — the sync layer reconciles
-     * them on the next pass.
+     * them on the next pass. Graph documents displayName as fixed once created;
+     * ApplyLabelStructureHandler::replaceCategory() answers a refusal.
      */
     public function patchMasterCategory(Account $account, string $categoryId, string $displayName): void
     {
