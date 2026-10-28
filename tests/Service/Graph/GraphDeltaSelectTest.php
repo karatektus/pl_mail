@@ -30,8 +30,11 @@ final class GraphDeltaSelectTest extends KernelTestCase
 {
     private const string FOLDER = 'AAMkAD-inbox';
 
-    /** What the entries of a chain have to carry for a read or a star to be heard. */
-    private const array MUST_CARRY = ['isRead', 'flag'];
+    /**
+     * What the entries of a chain have to carry for a read, a star or a
+     * category set in Outlook (#221 step 4) to be heard.
+     */
+    private const array MUST_CARRY = ['isRead', 'flag', 'categories'];
 
     /** And what the syncer has always needed, so a rewrite of the list cannot drop it. */
     private const array ALWAYS_CARRIED = ['id', 'internetMessageId', 'parentFolderId'];

@@ -278,6 +278,9 @@ final readonly class ConfigBackupUsers
         // step 2): a standing choice its owner made, and the same server keeps
         // the keywords wherever plMail reads it from.
         Account::SETTING_LABELS_AS_KEYWORDS,
+        // Whether category changes made in Outlook are followed (#221 step 4):
+        // a choice, carried like the one above.
+        Account::SETTING_FOLLOW_OUTLOOK_CATEGORIES,
         // Carried, unlike the ledger below: whether an account deletes from
         // the server after fetching is a standing instruction its owner gave
         // on purpose, and a restore that silently turned it back to Keep
