@@ -208,9 +208,35 @@ off by default, and all it bought was an organisation that existed only in plMai
 moment you opened Gmail. It only ever affects changes made from then on; labels that already exist
 are not pushed retroactively.
 
-On a plain IMAP account a label you create in plMail stays in plMail. It never creates, renames or
-deletes a folder on the server, and it never moves mail. Folders are made, renamed and deleted in
-the account's own folder list — see [Folders](#folders).
+On a plain IMAP account a label never creates, renames or deletes a folder on the server, and it
+never moves mail. Folders are made, renamed and deleted in the account's own folder list — see
+[Folders](#folders). Where a label goes instead is the next section.
+
+### Labels as keywords
+
+IMAP has tags of its own: keywords, which a server keeps on each message beside `\Seen` and
+`\Flagged`, and which other mail apps show — Thunderbird as its tags, for one. **Labels as keywords**,
+at the top of an IMAP account's folder list, puts your labels there. It is off by default, and then
+a label on IMAP mail stays in plMail, as it always has.
+
+Switched on, putting a label on a conversation writes it to the server as a keyword on each of its
+messages, and taking it off removes it. A keyword set or cleared in another mail app puts the label
+on or takes it off here, within seconds when plMail is idling on the folder and at the next sync
+otherwise; a keyword plMail has not seen before becomes a new label. Labels still never move mail,
+and a label that is a folder on the account stays a folder.
+
+Switching it on asks each folder whether the server keeps keywords there, and the list says what it
+answered: **This server keeps keywords**, **This server keeps no keywords** (labels then stay in
+plMail on that account), or not asked yet. Every label's dialog says, per IMAP account, where it is
+kept: a folder, a keyword, or only in plMail, and why.
+
+A label's name becomes a keyword as it is when it can — "Work", "Invoices/2025" — so it matches what
+other mail apps write. A name with spaces or other characters a keyword cannot hold is written in
+the encoding IMAP uses for folder names ("Follow up" is `Follow&ACA-up`), which plMail reads back as
+the same name. Keywords that mean something to mail apps — `$Junk`, `$NotJunk`, `$Forwarded`,
+`$MDNSent`, `$Phishing`, `$Important`, Thunderbird's `$label1`–`$label5` — are never read as labels.
+
+Only changes made after switching it on are written; labels already on mail are not pushed in bulk.
 
 **On Microsoft, most labels are Outlook categories rather than folders**, and a category there has
 no identity but its name — the name is what is written onto each message. So renaming one does two
@@ -473,6 +499,14 @@ it has been missing for three syncs and a day. A rename made in plMail is not af
 server marks as Sent, Trash, Junk, Drafts or Archive, or one with a well-known name such as "Sent
 Items" or "Gesendet", is protected from rename and delete. A folder whose name plMail does not know
 and that the server does not mark — Stalwart's "Junk Mail" — is treated as your own.
+
+**Renaming or deleting a label does not touch keywords already on the server.** A renamed label's
+mail keeps the old keyword, and a deleted label's keyword stays where it is, in plMail and in other
+mail apps. Putting the renamed label on again writes the new keyword; the old one can be removed in
+another mail app, which takes the old label off here too.
+
+**Other mail apps decide which keywords they show.** Thunderbird shows a keyword as a tag only once
+a tag of that name exists there; until then the keyword is on the message and not on screen.
 
 **A message moved in another mail client into a folder that is switched off looks, to plMail, like
 one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:fc1bde9f5df63bdbb40f58c13d4e9bf07cca84d9 -->
+<!-- translated-from: features/mail.md sha1:f12856ce76c8b750af5d4839a048f981a9b4dd6e -->
 
 # Mail
 
@@ -556,9 +556,10 @@ ohne es zu löschen.
 
 Ein Label anzulegen legt nie einen Ordner an. Gmail bekommt das Label, sobald es das erste Mal auf
 eine Nachricht angewendet wird, und Umbenennen und Löschen werden zu Gmail und Microsoft gespiegelt;
-siehe [Labels beim Anbieter](accounts.md#labels-beim-anbieter). Bei einem reinen IMAP-Konto bleibt
-ein Label, das du anlegst, in plMail: Setzt du es auf eine Nachricht, markiert das die Nachricht und
-verschiebt nichts.
+siehe [Labels beim Anbieter](accounts.md#labels-beim-anbieter). Bei einem reinen IMAP-Konto
+markiert ein Label, das du auf eine Nachricht setzt, die Nachricht und verschiebt nichts: Es bleibt
+in plMail oder wird, wenn [Labels als Schlüsselwörter](accounts.md#labels-als-schlüsselwörter) an
+ist, ein IMAP-Schlüsselwort, das andere Mailprogramme sehen.
 
 Die Ordner eines IMAP-Kontos erscheinen ebenfalls in der Seitenleiste — der Posteingang, Gesendet
 und jeder Ordner, den der Server hat; im Bereich LABELS trägt einer davon statt eines Punkts einen

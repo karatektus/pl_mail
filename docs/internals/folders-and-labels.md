@@ -115,15 +115,51 @@ the LABELS section a label that is a folder on a plain IMAP account wears a fold
 
 None of the folder actions expunges anything.
 
+## Step 2: labels as IMAP keywords (built)
+
+A label is a tag, and IMAP's tag is the keyword: a flag of the client's own choosing, kept per
+message copy like `\Seen`. Off by default per account (`Account::$labelsAsKeywords`, settings key
+`labels.imap_keywords`); off, a label on IMAP mail stays in plMail, as before.
+
+- **Capability.** A folder keeps new keywords when its `SELECT` answer carries `\*` in
+  `PERMANENTFLAGS` (RFC 9051 §7.1). `ImapPermanentFlags` asks — SELECT, because Dovecot answers a
+  read-only EXAMINE with an empty list — and records it on `Mailbox::$keywordsAllowed` (null until
+  asked). Asked for every fetched folder when the switch goes on, and again before every write.
+- **Names.** `ImapKeyword` maps a label's full name to an atom and back, exactly: printable ASCII an
+  atom can hold passes through ("Work", "Invoices/2025", what other clients write), anything else
+  is a modified-UTF-7-style `&…-` run ("Follow up" → `Follow&ACA-up`). Keywords starting with `$`,
+  and the few older clients write without it (`Junk`, `NonJunk`, `Forwarded`, …), never decode to a
+  label; a label spelt like one is encoded so the two cannot collide.
+- **Writing.** `LabelChangePropagator::dispatchKeywords()` queues `ApplyImapKeywordsMessage` for a
+  label that is a tag on that account — not a system label, not a folder there — with the address of
+  every server copy, taken from `MessageCopies::of()`. The handler SELECTs each folder and sends
+  `UID STORE ±FLAGS.SILENT` through the connection (webklex's `setFlag()` would prefix a backslash),
+  then updates the row's flag mirror and lifts the echo guard. The job is delayed two seconds so the
+  guard the caller's flush writes cannot land after the handler lifted it.
+- **Reading.** At import, a message wears the labels its keywords stand for (`MessageSyncer`). After
+  that, both inbound flag doors — the folder listing (`ImapFlagReconciler`) and the line IDLE pushes
+  (`ApplyRemoteFlagsMessageHandler`) — call `KeywordLabelFollower`, which reads a **change**: the
+  keywords in the row's mirror before the update against after it. Never "the server's set is the
+  truth", which would strip every label given while the switch was off. A new keyword makes a plain
+  label with no binding (`KeywordLabels`).
+- **The indicator.** `LabelPlaces` says per IMAP account whether a label is a folder there, a
+  keyword, or plMail-only and why; the label dialog shows it.
+
+### The seam for #415
+
+[#415](https://github.com/karatektus/pl_mail/issues/415) splits `Message` into the email and its
+locations (`MessageLocation(message, mailbox, imap_uid)`), so one email can be in several folders.
+Keywords live on each copy, so the keyword code never reads `$message->mailbox` / `imapUid`: it
+asks `MessageCopies::of()`, which today answers the row's one address and after #415 answers every
+location. The read side works per folder listing and is unchanged by it; what #415 has to decide is
+what a label means when two copies' keywords disagree (its decision 2).
+
 ## Later steps (not built)
 
 In the order agreed in #221:
 
 1. ~~Mirror the folder tree as folders, with New folder, rename and delete~~ — this page.
-2. **IMAP keywords as the label backend**, detected per account from `PERMANENTFLAGS`, with the
-   plMail-only label as the fallback and an indicator of which it is. Keywords are atoms, so names
-   with spaces, `/` or non-ASCII need an encoding; registry keywords and `$label1`–`$label5` are left
-   alone.
+2. ~~IMAP keywords as the label backend~~ — above.
 3. **Move to separate from Assign label in the interface**: one picker with two sections, folders and
    labels, so assigning a label can no longer move mail and Move to always does. Gmail, which has no
    folders, keeps Move to for its system labels only (Inbox, Spam, Trash, archive).
@@ -142,6 +178,11 @@ of its own instead. A sidebar that draws each account's folders as their own tre
 **A server that does not mark its system folders gets them protected only by name.** Stalwart
 answers a plain `LIST` without special-use attributes, so its "Sent Items", "Deleted Items" and
 "Drafts" are recognised by name and its "Junk Mail" is not, and is treated as an ordinary folder.
+
+**Keywords are not rewritten when a label is renamed or deleted.** The old keyword stays on the
+server; it is only an issue the next time another client changes it, when it reads back as a label
+of the old name. Rewriting every message on a rename is what Outlook categories need too (step 4),
+and would be built with it.
 
 **UIDVALIDITY from STATUS is not always the one SELECT reports.** Stalwart 0.11 gives two different
 numbers, so `MailboxSyncer::findRenameSource()` cannot recognise a rename made in another client
