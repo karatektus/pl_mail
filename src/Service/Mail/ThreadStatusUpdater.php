@@ -745,15 +745,12 @@ final readonly class ThreadStatusUpdater
 
             $storedFlags = $state->storedFlags();
 
-            // Both sides canonicalised, so that a mirror captured from a server
-            // that writes `Seen` is not read as differing from a listing that
-            // writes `\Seen`. Without it the first pass over a folder would
-            // rewrite every row and log a JMAP change for each — see
-            // MessageFlag::canonicalList().
+            // Stored lists are already in MessageFlag::canonicalList() form,
+            // and storedFlags() puts the server's in it.
             if (
                 $wasSeen === $state->seen
                 && $wasFlagged === $state->flagged
-                && MessageFlag::canonicalList($message->flags) === $storedFlags
+                && $message->flags === $storedFlags
             ) {
                 continue;
             }

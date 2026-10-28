@@ -7,8 +7,9 @@ Sync, import, flags, moves, deletes, the Sent copy and the connection test speak
 the same client instead of webklex/php-imap, which now only parses mail (#82 replaces that).
 
 What you may notice: a draft another client left in an IMAP Drafts folder is now a draft in
-plMail (it was stored as `Draft` without the backslash and not recognised), and keywords other
-clients set (`$Forwarded`, `$Junk`) are kept on new mail. A message the server lists but does not
+plMail and opens in the editor (it was stored as `Draft` without the backslash and not
+recognised); the upgrade fixes the ones already stored. Keywords other clients set
+(`$Forwarded`, `$Junk`) are kept on new mail. A message the server lists but does not
 hand over is asked for again a few times before it is passed over, instead of being skipped at
 once. `app:imap:test` no longer writes a test message into the Sent folder unless given
 `--append`.
@@ -16,5 +17,6 @@ once. `app:imap:test` no longer writes a test message into the Sent folder unles
 The worker runs `imap-listener` and `jmap-listener` itself; the `imap-supervisor` process is
 gone, and `--without=imap-supervisor` (or `--only`) still means both listeners. It also stops in
 a few seconds on shutdown, where the per-folder processes could outlast the grace period and be
-killed. No schema change; nothing to do on upgrade.
+killed. A migration rewrites every stored flag list into the new spelling; nothing else to do
+on upgrade.
 [#421](https://github.com/karatektus/pl_mail/issues/421).

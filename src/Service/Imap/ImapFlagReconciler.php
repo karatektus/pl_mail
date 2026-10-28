@@ -118,9 +118,9 @@ final readonly class ImapFlagReconciler
                 continue;
             }
 
-            $seen     = $this->hasFlag($flags, 'seen');
-            $flagged  = $this->hasFlag($flags, 'flagged');
             $canonical = MessageFlag::canonicalList($flags);
+            $seen      = in_array(MessageFlag::SEEN->value, $canonical, true);
+            $flagged   = in_array(MessageFlag::FLAGGED->value, $canonical, true);
 
             // A PRE-FILTER, and deliberately a conservative one: it decides
             // which rows are worth loading, and ThreadStatusUpdater still makes
@@ -130,15 +130,11 @@ final readonly class ImapFlagReconciler
             // whatever it says, because a pending mark means the updater has
             // something to do (honour the guard, or clear an expired one) and
             // the grace period that decides which is its business, not ours.
-            //
-            // Both sides canonicalised for the same reason applyRemoteFlags()
-            // canonicalises: a mirror captured from a server that writes `Seen`
-            // must not read as differing from a listing that writes `\Seen`.
             if (
                 false === $current['pending']
                 && $seen === $current['seen']
                 && $flagged === $current['flagged']
-                && MessageFlag::canonicalList($current['flags']) === $canonical
+                && $current['flags'] === $canonical
             ) {
                 continue;
             }
@@ -181,27 +177,4 @@ final readonly class ImapFlagReconciler
 
         return $changed;
     }
-
-    /**
-     * Whether a flag list contains one flag, whatever the server called it.
-     *
-     * The backslash is part of the IMAP wire syntax for a system flag rather
-     * than part of its name, and servers are inconsistent about whether it
-     * survives into a parsed response — webklex hands back `Seen` from some and
-     * `\Seen` from others. Comparing on the bare lower-cased name is the only
-     * comparison that is right on both.
-     *
-     * @param list<string> $flags
-     */
-    private function hasFlag(array $flags, string $wanted): bool
-    {
-        foreach ($flags as $flag) {
-            if ($wanted === strtolower(ltrim($flag, '\\'))) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
 }
