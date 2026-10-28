@@ -105,6 +105,19 @@ class Mailbox
     public bool $isSelectable = true;
 
     /**
+     * Whether the server keeps keywords of our choosing on this folder's mail —
+     * a `\*` in the PERMANENTFLAGS it answers SELECT with (RFC 9051 §7.1).
+     * Null until asked; see ImapPermanentFlags.
+     *
+     * Per folder because that is where IMAP says it, and servers do differ per
+     * folder: a shared or read-only folder answers without `\*` on the same
+     * account whose own folders take keywords. Where it is false or null a
+     * label stays in plMail on this folder's mail (#221 step 2).
+     */
+    #[ORM\Column(nullable: true)]
+    public ?bool $keywordsAllowed = null;
+
+    /**
      * Which label this folder feeds is recorded on LabelBinding, alongside the
      * Gmail and Graph ids for the same label — one row per (label, account)
      * describes every provider. Mailbox reads through it and does not carry a

@@ -274,6 +274,10 @@ final readonly class ConfigBackupUsers
         // anything the other host did: restored, the target files the mail it
         // imports the way the user asked for.
         Account::SETTING_GMAILIFY,
+        // Whether labels on this IMAP account are written as keywords (#221
+        // step 2): a standing choice its owner made, and the same server keeps
+        // the keywords wherever plMail reads it from.
+        Account::SETTING_LABELS_AS_KEYWORDS,
         // Carried, unlike the ledger below: whether an account deletes from
         // the server after fetching is a standing instruction its owner gave
         // on purpose, and a restore that silently turned it back to Keep
