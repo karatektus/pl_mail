@@ -289,7 +289,11 @@ class MessageSyncer
                 throw $refused;
             }
 
-            $this->logger->warning('The database refused a batch; storing its messages one at a time', [
+            // A notice, not a warning: this line only says the run changes
+            // strategy. Most refusals are the race described below and lose
+            // nothing, and a message that really cannot be stored is logged
+            // as an error of its own by the one-at-a-time pass (#352).
+            $this->logger->notice('The database refused a batch; storing its messages one at a time', [
                 'mailboxId' => $mailboxId,
                 'error'     => $refused->getMessage(),
                 'exception' => $refused,

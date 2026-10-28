@@ -576,7 +576,9 @@ whose body only ever says `help.wirhub.de`.
 `from:"Ada Lovelace"` works.
 
 Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
-as the lists do. The suggestions as you type leave both out.
+as the lists do. The suggestions as you type leave both out. Clicking into the search box while
+you are in Spam or the bin writes `in:spam` or `in:trash` in for you, so a search from there
+searches that folder. Delete it to search everywhere else instead.
 
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview

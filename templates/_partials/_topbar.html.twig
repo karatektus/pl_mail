@@ -196,9 +196,12 @@
                 aria-expanded="false"
                 aria-controls="search-listbox"
                 aria-haspopup="listbox"
-                {# "list", not "both": nothing is ever written into the box on
-                   the user's behalf, and claiming inline completion would have
-                   a screen reader expect selected text that is not there. #}
+                {# "list", not "both": no completion is written into the box as
+                   you type, and claiming inline completion would have a screen
+                   reader expect selected text that is not there. (The in:trash
+                   or in:spam that focusing the box in that folder puts there is
+                   not a completion: it is there before anything is typed, and
+                   is not selected. See SCOPE_BY_PATH, #341.) #}
                 aria-autocomplete="list"
                 aria-label="{{ 'header.search.placeholder'|trans }}"
                 data-mail--search-target="input"

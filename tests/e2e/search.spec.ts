@@ -50,6 +50,34 @@ test.describe("search", () => {
         await page.goto("/mail/inbox");
     });
 
+    /**
+     * Trash and Spam are left out of a search unless it asks for them, and
+     * the folder on screen did not count as asking (#341). The box asks for
+     * it instead, where it can be seen and deleted.
+     */
+    test("focusing the box in Trash or Spam writes that folder into it", async ({ page }) => {
+        for (const [path, scope] of [["/mail/trash", "in:trash "], ["/mail/spam", "in:spam "]]) {
+            await page.goto(path);
+            await page.locator(BOX).click();
+
+            await expect(page.locator(BOX)).toHaveValue(scope);
+        }
+
+        // Anywhere else an empty box stays empty, and a query already typed is
+        // never overwritten.
+        await page.goto("/mail/inbox");
+        await page.locator(BOX).click();
+        await expect(page.locator(BOX)).toHaveValue("");
+
+        // Typed over: the scope is the reader's to delete.
+        await page.goto("/mail/trash");
+        await page.locator(BOX).click();
+        await page.locator(BOX).fill("invoice");
+        await page.locator(BOX).blur();
+        await page.locator(BOX).click();
+        await expect(page.locator(BOX)).toHaveValue("invoice");
+    });
+
     test("suggests the operators it understands, narrowing as you type", async ({ page }) => {
         await type(page, "fr");
 
