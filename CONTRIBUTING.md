@@ -984,8 +984,8 @@ php bin/mirror-wiki.php --check
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
-| `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
-| `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox, and `app:jmap:listen` while there is a JMAP account |
+| `app:imap:listen` | Hold IMAP IDLE on every IDLE-enabled folder, in one process, and queue the syncs each change asks for. Started and restarted by `app:imap:supervise` |
+| `app:imap:supervise` | Keep `app:imap:listen` running while a folder has IDLE on, and `app:jmap:listen` while there is a JMAP account |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
 | `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:imap:supervise` |
 | `app:push:renew` | Renew Gmail watches and Graph subscriptions nearing expiry |

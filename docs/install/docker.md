@@ -137,7 +137,7 @@ crashed.
 | Process | What it runs | What it is for |
 |---|---|---|
 | `mercure` | The Mercure hub, 1.x | Live updates — the mail list refreshing by itself |
-| `imap-supervisor` | `app:imap:supervise` | Spawns and watches one `app:imap:idle` process per IDLE-enabled mailbox, so standard IMAP mail arrives the moment it lands, and one `app:jmap:listen` process that holds the push connection for every JMAP account |
+| `imap-supervisor` | `app:imap:supervise` | Keeps two listeners running: `app:imap:listen`, which holds IMAP IDLE on every IDLE-enabled folder in one process, so standard IMAP mail arrives the moment it lands, and `app:jmap:listen`, which holds the push connection for every JMAP account |
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
 | `worker-ingest` | `messenger:consume ingest` | Fetching mail that is arriving now, and only that |
 | `worker-backlog` | `messenger:consume ingest_backlog` | A mailbox's history on first import, a page at a time. On its own process so mail arriving now is never behind it |

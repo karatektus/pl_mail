@@ -1,18 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to an undefined method Webklex\\PHPIMAP\\Connection\\Protocols\\ProtocolInterface\:\:nextLine\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Command/Imap/ImapIdleCommand.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 2
-			path: src/Command/Imap/ImapIdleCommand.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1

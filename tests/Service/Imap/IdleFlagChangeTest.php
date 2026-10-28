@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Command\Imap;
+namespace App\Tests\Service\Imap;
 
-use App\Command\Imap\ImapIdleCommand;
+use App\Domain\DTO\Mail\ImapFlagNotice;
+use App\Infrastructure\ImapClient\ImapResponseReader;
+use App\Service\Imap\ImapIdleListener;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Which lines off the IDLE socket mean "a flag changed".
  *
- * The supervisor answers three untagged responses now: EXISTS for an arrival,
+ * The IDLE listener answers three untagged responses: EXISTS for an arrival,
  * EXPUNGE for a deletion, and FETCH-with-FLAGS for a flag another client
  * changed. All three are triggers rather than authorities — none of them
  * resolves the sequence number it carries into a UID, and each simply makes the
@@ -21,23 +23,23 @@ use PHPUnit\Framework\TestCase;
  * which describe what the folder permits and say nothing about any message. A
  * matcher that woke on those would re-list a folder every time one was opened.
  */
-final class IdleFlagTriggerTest extends TestCase
+final class IdleFlagChangeTest extends TestCase
 {
     /** The shape the server actually sends when another client marks mail read. */
     public function testAnUntaggedFetchCarryingFlagsIsAFlagChange(): void
     {
-        self::assertTrue(ImapIdleCommand::announcesFlagChange('* 4 FETCH (FLAGS (\\Seen))'));
+        self::assertNotNull(self::read('* 4 FETCH (FLAGS (\\Seen))'));
     }
 
     public function testAFetchCarryingFlagsAndAUidIsOneToo(): void
     {
-        self::assertTrue(ImapIdleCommand::announcesFlagChange('* 12 FETCH (UID 5001 FLAGS (\\Seen \\Flagged))'));
+        self::assertNotNull(self::read('* 12 FETCH (UID 5001 FLAGS (\\Seen \\Flagged))'));
     }
 
     /** A star set elsewhere is the same announcement. */
     public function testAStarSetElsewhereAnnouncesItself(): void
     {
-        self::assertTrue(ImapIdleCommand::announcesFlagChange('* 7 FETCH (FLAGS (\\Flagged))'));
+        self::assertNotNull(self::read('* 7 FETCH (FLAGS (\\Flagged))'));
     }
 
     /**
@@ -46,33 +48,29 @@ final class IdleFlagTriggerTest extends TestCase
      */
     public function testTheFoldersOwnFlagsLineIsNotAFlagChange(): void
     {
-        self::assertFalse(
-            ImapIdleCommand::announcesFlagChange('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)'),
-        );
+        self::assertNull(self::read('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)'));
     }
 
     public function testThePermanentFlagsLineIsNotOneEither(): void
     {
-        self::assertFalse(
-            ImapIdleCommand::announcesFlagChange('* OK [PERMANENTFLAGS (\\Answered \\Flagged \\Seen \\*)] Limited'),
-        );
+        self::assertNull(self::read('* OK [PERMANENTFLAGS (\\Answered \\Flagged \\Seen \\*)] Limited'));
     }
 
     /** An arrival is EXISTS, and it has its own branch. */
     public function testAnExistsLineIsNotAFlagChange(): void
     {
-        self::assertFalse(ImapIdleCommand::announcesFlagChange('* 23 EXISTS'));
+        self::assertNull(self::read('* 23 EXISTS'));
     }
 
     /** So is a deletion. */
     public function testAnExpungeLineIsNotAFlagChange(): void
     {
-        self::assertFalse(ImapIdleCommand::announcesFlagChange('* 4 EXPUNGE'));
+        self::assertNull(self::read('* 4 EXPUNGE'));
     }
 
     public function testTheIdleContinuationIsNotAFlagChange(): void
     {
-        self::assertFalse(ImapIdleCommand::announcesFlagChange('+ idling'));
+        self::assertNull(self::read('+ idling'));
     }
 
     /**
@@ -85,7 +83,7 @@ final class IdleFlagTriggerTest extends TestCase
      */
     public function testAFlagChangeCarryingAUidIsReadRatherThanRecognised(): void
     {
-        $notice = ImapIdleCommand::readFlagChange('* 12 FETCH (UID 5001 FLAGS (\\Seen \\Flagged))');
+        $notice = self::read('* 12 FETCH (UID 5001 FLAGS (\\Seen \\Flagged))');
 
         self::assertNotNull($notice);
         self::assertTrue($notice->isResolvable());
@@ -103,7 +101,7 @@ final class IdleFlagTriggerTest extends TestCase
      */
     public function testAFlagChangeWithoutAUidIsNotResolvable(): void
     {
-        $notice = ImapIdleCommand::readFlagChange('* 4 FETCH (FLAGS (\\Seen))');
+        $notice = self::read('* 4 FETCH (FLAGS (\\Seen))');
 
         self::assertNotNull($notice);
         self::assertFalse($notice->isResolvable());
@@ -118,7 +116,7 @@ final class IdleFlagTriggerTest extends TestCase
      */
     public function testAnEmptyFlagListIsAChangeAndNotAnAbsence(): void
     {
-        $notice = ImapIdleCommand::readFlagChange('* 9 FETCH (UID 77 FLAGS ())');
+        $notice = self::read('* 9 FETCH (UID 77 FLAGS ())');
 
         self::assertNotNull($notice);
         self::assertTrue($notice->isResolvable());
@@ -134,8 +132,14 @@ final class IdleFlagTriggerTest extends TestCase
      */
     public function testTheFolderCapabilityLinesAreStillNotFlagChanges(): void
     {
-        self::assertNull(ImapIdleCommand::readFlagChange('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen)'));
-        self::assertNull(ImapIdleCommand::readFlagChange('* OK [PERMANENTFLAGS (\\Answered \\Seen \\*)] Limited'));
-        self::assertNull(ImapIdleCommand::readFlagChange('* 23 EXISTS'));
+        self::assertNull(self::read('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen)'));
+        self::assertNull(self::read('* OK [PERMANENTFLAGS (\\Answered \\Seen \\*)] Limited'));
+        self::assertNull(self::read('* 23 EXISTS'));
+    }
+
+    /** A line as the server sends it, read the way the listener reads it. */
+    private static function read(string $line): ?ImapFlagNotice
+    {
+        return ImapIdleListener::flagChange(ImapResponseReader::parse($line . "\r\n"));
     }
 }

@@ -28,7 +28,7 @@ use Throwable;
  * Holds a JMAP EventSource stream open for every JMAP account, and queues the
  * syncs each change asks for.
  *
- * The JMAP counterpart of app:imap:idle, and run the same way: as a child of
+ * The JMAP counterpart of app:imap:listen, and run the same way: as a child of
  * app:imap:supervise, which starts it when there is a JMAP account to listen
  * for and restarts it with backoff when it dies. So it needs no container of
  * its own and no deployment change — the supervisor every install already runs

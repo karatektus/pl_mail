@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:175da857f04f107ea49a919d1f63ffa54f70d3cd -->
+<!-- translated-from: install/docker.md sha1:246feca1ec10d8e5a462a7edc9cc740e35c9e99c -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -151,7 +151,7 @@ bis zu dreißig Sekunden, wenn er abgestürzt ist.
 | Prozess | Was darin läuft | Wofür er da ist |
 |---|---|---|
 | `mercure` | Der Mercure-Hub, 1.x | Live-Aktualisierungen — die Mailliste, die sich von selbst auffrischt |
-| `imap-supervisor` | `app:imap:supervise` | Startet und überwacht je einen `app:imap:idle`-Prozess pro IDLE-fähigem Postfach, damit gewöhnliche IMAP-Mail in dem Moment ankommt, in dem sie eintrifft, und einen `app:jmap:listen`-Prozess, der die Push-Verbindung für alle JMAP-Konten hält |
+| `imap-supervisor` | `app:imap:supervise` | Hält zwei Listener am Laufen: `app:imap:listen`, der IMAP IDLE auf allen IDLE-fähigen Ordnern in einem einzigen Prozess hält, damit gewöhnliche IMAP-Mail in dem Moment ankommt, in dem sie eintrifft, und `app:jmap:listen`, der die Push-Verbindung für alle JMAP-Konten hält |
 | `worker-export` | `messenger:consume export` | Alles, was plMail verlässt, und die einzige Warteschlange, auf die jemand wartet. In einem eigenen Prozess, damit ein Versand nie hinter einem Abgleich steht |
 | `worker-ingest` | `messenger:consume ingest` | Mail abholen, die gerade ankommt, und nur das |
 | `worker-backlog` | `messenger:consume ingest_backlog` | Die Vorgeschichte eines Postfachs beim ersten Import, Seite für Seite. In einem eigenen Prozess, damit gerade ankommende Mail nie dahinter steht |

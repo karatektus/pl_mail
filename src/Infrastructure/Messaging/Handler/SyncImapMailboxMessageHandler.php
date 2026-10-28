@@ -26,7 +26,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * against a 1832-message inbox, feeding itself: the listing provoked the
  * notification that queued the next listing.
  *
- * ImapIdleCommand now debounces at the dispatching end, which is where the fix
+ * ImapIdleListener now debounces at the dispatching end, which is where the fix
  * belongs. This is the second line, and it is here because the first one is a
  * property of ONE caller: a future dispatcher — a retry, a command, a
  * webhook — would reintroduce the pile-up with nothing to stop it, and the
@@ -42,7 +42,7 @@ final readonly class SyncImapMailboxMessageHandler
      *
      * Deliberately far below any cadence that dispatches on purpose — the
      * scheduler's is minutes — so this can only ever collapse a burst. It is
-     * also below SYNC_MIN_GAP in ImapIdleCommand, so a debounced dispatch from
+     * also below SYNC_MIN_GAP in ImapIdleListener, so a debounced dispatch from
      * there is never the thing this refuses; only genuine duplicates are.
      *
      * The risk it accepts, stated plainly: a real change landing in the same

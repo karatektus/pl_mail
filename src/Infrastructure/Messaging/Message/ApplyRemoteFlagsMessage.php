@@ -18,7 +18,7 @@ namespace App\Infrastructure\Messaging\Message;
  * A sequence number is a position, and positions move under every expunge, so
  * one carried in a queue is a stale pointer by the time it is read — and the
  * failure is silent: flags applied to whichever message happens to be sitting
- * at that position now. ImapIdleCommand refuses to dispatch this without a
+ * at that position now. ImapIdleListener refuses to dispatch this without a
  * UID and falls back to the listing instead. See ImapFlagNotice.
  *
  * THE FLAG LIST IS COMPLETE, NOT A DELTA

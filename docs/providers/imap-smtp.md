@@ -58,7 +58,8 @@ server reaches plMail in seconds.
 
 There is nothing to switch on. When plMail discovers an account's folders it marks the ones the
 server flags as the inbox and the junk folder as IDLE-enabled, and the IMAP supervisor (one of the
-worker container's processes) runs one connection per such folder, restarting any that drop with a short backoff. Other folders
+worker container's processes) keeps one connection per such folder, all of them in a single process, replacing any that drop
+with a short backoff. A server that is slow to answer holds up only its own folders. Other folders
 are synced but not watched, which is a deliberate economy: an IDLE connection is a held TCP socket,
 and holding thirty of them per account to learn about mail moving into an archive folder costs more
 than it is worth.

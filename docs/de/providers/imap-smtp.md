@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:50bd39139cfba3551b35a1fe92934c3bf5f73b53 -->
+<!-- translated-from: providers/imap-smtp.md sha1:ef35c22152a1088e79e6cb8346b518a632a5c7a2 -->
 
 # IMAP und SMTP
 
@@ -65,8 +65,8 @@ nachzufragen. Eine Nachricht, die auf dem Server eintrifft, erreicht plMail in S
 
 Es gibt nichts einzuschalten. Wenn plMail die Ordner eines Kontos entdeckt, markiert es die, die der
 Server als Posteingang und als Spam-Ordner kennzeichnet, als IDLE-fähig, und der IMAP-Supervisor
-(einer der Prozesse des Worker-Containers) betreibt eine Verbindung pro solchem Ordner und startet abgebrochene mit einem
-kurzen Backoff neu. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das ist eine
+(einer der Prozesse des Worker-Containers) hält eine Verbindung pro solchem Ordner, alle in einem einzigen Prozess, und
+ersetzt abgebrochene mit einem kurzen Backoff. Ein Server, der langsam antwortet, hält nur seine eigenen Ordner auf. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das ist eine
 bewusste Sparsamkeit: Eine IDLE-Verbindung ist ein gehaltener TCP-Socket, und dreißig davon pro Konto
 zu halten, um von Mail zu erfahren, die in einen Archivordner wandert, kostet mehr, als es wert ist.
 
