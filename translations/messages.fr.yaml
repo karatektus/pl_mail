@@ -2719,6 +2719,8 @@ label:
         no_parent: '— premier niveau —'
         parent: Imbriquer sous
         places:
+            category: 'Une catégorie Outlook sur %account% (les changements faits dans Outlook ne sont pas suivis)'
+            category_followed: 'Une catégorie Outlook sur %account%'
             folder: 'Un dossier sur %account%'
             keyword: 'Un mot-clé sur %account%'
             keyword_unasked: 'Un mot-clé sur %account%, là où ses dossiers conservent les mots-clés'
@@ -3301,6 +3303,10 @@ settings:
             off: 'Désactivé'
             on: 'Activé'
     accounts:
+        categories:
+            off_hint: 'Désactivé : une catégorie posée ou retirée dans Outlook ne change pas les libellés ici. L’activer relit une fois chaque dossier de ce compte.'
+            on_hint: 'Activé : une catégorie posée ou retirée dans Outlook pose ou retire le libellé ici.'
+            title: 'Suivre les catégories Outlook'
         colour:
             change: 'Changer la couleur de %account%'
             swatch:

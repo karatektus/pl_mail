@@ -2388,6 +2388,8 @@ label:
         no_parent: '— 顶层 —'
         parent: '嵌套于'
         places:
+            category: '%account% 上的 Outlook 类别（不跟随在 Outlook 中所做的更改）'
+            category_followed: '%account% 上的 Outlook 类别'
             folder: '%account% 上的文件夹'
             keyword: '%account% 上的关键字'
             keyword_unasked: '%account% 上的关键字（在其文件夹保存关键字的地方）'
@@ -2886,6 +2888,10 @@ settings:
             off: '关闭'
             on: '开启'
     accounts:
+        categories:
+            off_hint: '关闭：在 Outlook 中添加或移除的类别不会更改这里的标签。开启时会重新列出此账户的每个文件夹一次。'
+            on_hint: '开启：在 Outlook 中添加或移除类别，会在这里添加或移除对应标签。'
+            title: '跟随 Outlook 类别'
         colour:
             change: '更改 %account% 的颜色'
             swatch:

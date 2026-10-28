@@ -100,6 +100,56 @@ final class LabelPlacesTest extends WebTestCase
         self::assertSame('folder', $state($folderOn));
     }
 
+    /**
+     * On Microsoft a label that is not a folder is an Outlook category, and
+     * the dialog says whether Outlook's changes to it are followed (#221 step 4).
+     */
+    public function testAMicrosoftAccountSaysCategory(): void
+    {
+        $quiet  = $this->microsoft('places-ms-off', follows: false);
+        $follow = $this->microsoft('places-ms-on', follows: true);
+
+        $label = new Label();
+        $label->usr  = $this->user;
+        $label->name = 'Places Category Fixture';
+        $this->em->persist($label);
+        $this->em->flush();
+
+        $crawler = $this->client->request('GET', '/labels/' . $label->id . '/edit');
+
+        $state = static fn (Account $a): string => (string) $crawler
+            ->filter('[data-label-place]')
+            ->reduce(static fn ($li): bool => str_contains($li->text(), (string) $a->displayAddress))
+            ->attr('data-label-place');
+
+        self::assertSame('category', $state($quiet));
+        self::assertSame('category_followed', $state($follow));
+    }
+
+    private function microsoft(string $name, bool $follows): Account
+    {
+        $account                   = new Account();
+        $account->usr              = $this->user;
+        $account->email            = $name . '-' . uniqid('', true) . '@example.test';
+        $account->username         = $account->email;
+        $account->imapHost         = 'outlook.office365.com';
+        $account->imapPort         = 993;
+        $account->imapEncryption  = 'ssl';
+        $account->authType         = \App\Domain\Enum\Account\AuthType::OAuth2->value;
+        $account->oauthProvider    = 'microsoft';
+        $account->oauthAccessToken = 'x';
+        $account->oauthTokenExpiry = new \DateTimeImmutable('+1 day');
+        $account->isActive         = true;
+        $account->followsOutlookCategories = $follows;
+        $this->em->persist($account);
+        $this->em->flush();
+
+        $this->user->addAccount($account);
+        $this->em->flush();
+
+        return $account;
+    }
+
     private function account(string $name, bool $keywords, bool $allows): Account
     {
         $account = new Account();

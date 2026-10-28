@@ -2702,6 +2702,8 @@ label:
         no_parent: '— top level —'
         parent: Nest under
         places:
+            category: 'An Outlook category on %account% (changes made in Outlook are not followed)'
+            category_followed: 'An Outlook category on %account%'
             folder: 'A folder on %account%'
             keyword: 'A keyword on %account%'
             keyword_unasked: 'A keyword on %account%, where its folders keep keywords'
@@ -3280,6 +3282,10 @@ settings:
             off: 'Off'
             on: 'On'
     accounts:
+        categories:
+            off_hint: 'Off: a category put on or taken off in Outlook does not change labels here. Turning it on lists every folder of this account once more.'
+            on_hint: 'On: a category put on or taken off in Outlook puts the label on or takes it off here.'
+            title: 'Follow Outlook categories'
         colour:
             change: 'Change the colour of %account%'
             swatch:

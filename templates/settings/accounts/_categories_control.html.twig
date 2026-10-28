@@ -1,0 +1,22 @@
+{# Follow Outlook categories, a switch on a Microsoft account's row (#221 step 4).
+
+   The push control's shape: an icon button in its own frame that answers with
+   itself (AccountCategoriesController). `contents` on the frame for the same
+   reason as there: a block frame breaks the row's flex layout. The tooltip says
+   what it does and what turning it on costs; aria-pressed says the state. #}
+{% set _on = account.followsOutlookCategories %}
+{% set _hint = (_on ? 'settings.accounts.categories.on_hint' : 'settings.accounts.categories.off_hint')|trans %}
+<turbo-frame id="account-categories-{{ account.id }}" class="contents">
+    <form method="post" action="{{ path('settings_account_categories_toggle', { id: account.id }) }}" class="contents">
+        <input type="hidden" name="_token" value="{{ csrf_token('account_categories_' ~ account.id) }}">
+        <button type="submit"
+                data-account-categories
+                aria-pressed="{{ _on ? 'true' : 'false' }}"
+                aria-label="{{ 'settings.accounts.categories.title'|trans }}"
+                title="{{ 'settings.accounts.categories.title'|trans }} — {{ _hint }}"
+                class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-hover
+                       {{ _on ? 'text-success' : 'text-ink-faint hover:text-ink' }}">
+            <i class="fa-solid fa-tags text-xs" aria-hidden="true"></i>
+        </button>
+    </form>
+</turbo-frame>

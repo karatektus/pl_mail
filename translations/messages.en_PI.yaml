@@ -2584,6 +2584,8 @@ label:
         no_parent: '— top o'' the mast —'
         parent: Fly beneath
         places:
+            category: 'An Outlook category aboard %account% (changes made in Outlook be not followed)'
+            category_followed: 'An Outlook category aboard %account%'
             folder: 'A folder aboard %account%'
             keyword: 'A keyword aboard %account%'
             keyword_unasked: 'A keyword aboard %account%, where its folders keep keywords'
@@ -3129,6 +3131,10 @@ settings:
             off: 'Nay'
             on: 'Aye'
     accounts:
+        categories:
+            off_hint: 'Off: a category hoisted or struck in Outlook changes no flags here. Turning it on charts every folder of this account once more.'
+            on_hint: 'On: a category hoisted or struck in Outlook hoists or strikes the flag here.'
+            title: 'Follow Outlook categories'
         colour:
             change: 'Change the colours o'' %account%'
             swatch:
