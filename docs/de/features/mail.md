@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:6833acf38c3883ae777865415d7b6257f7a81369 -->
+<!-- translated-from: features/mail.md sha1:adb342d108f7734a108833febc05714573867d45 -->
 
 # Mail
 
@@ -635,7 +635,9 @@ deren Text nur `help.wirhub.de` steht.
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
 Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
-verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus. Klickst du im Spam
+oder im Papierkorb in das Suchfeld, steht dort schon `in:spam` oder `in:trash`, und die Suche
+durchsucht diesen Ordner. Löschst du es, suchst du stattdessen überall sonst.
 
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
