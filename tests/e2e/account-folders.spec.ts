@@ -71,6 +71,32 @@ test.describe("account folders modal", () => {
     });
 
     /**
+     * Labels as IMAP keywords (#221 step 2): off by default, switched in the
+     * folder list, and with the server not asked yet (this account's host does
+     * not exist) the list says so rather than claiming either answer.
+     */
+    test("switches labels as keywords on and off in the folder list", async ({ page }) => {
+        await page.goto("/settings?section=accounts");
+
+        await page
+            .locator("#settings-account-list li")
+            .filter({ hasText: ACCOUNT })
+            .getByRole("button", { name: "Folders", exact: true })
+            .click();
+
+        const modal = page.locator("#modal-backdrop");
+        const toggle = modal.getByRole("switch", { name: "Labels as keywords" });
+
+        await expect(toggle).toHaveAttribute("aria-checked", "false");
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-checked", "true");
+        await expect(modal.locator("[data-folder-keywords-state]")).toContainText("Not asked yet");
+
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-checked", "false");
+    });
+
+    /**
      * The same dialog from the sidebar: the account's ⋯ menu offers New
      * folder… as words, and it opens the form for exactly that account. The
      * button is there without a hover, which is what makes it reachable on a

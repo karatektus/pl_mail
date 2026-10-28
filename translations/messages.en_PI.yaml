@@ -2583,6 +2583,13 @@ label:
         no_color: '— none —'
         no_parent: '— top o'' the mast —'
         parent: Fly beneath
+        places:
+            folder: 'A folder aboard %account%'
+            keyword: 'A keyword aboard %account%'
+            keyword_unasked: 'A keyword aboard %account%, where its folders keep keywords'
+            local_off: 'Only aboard plMail on %account% (flags as keywords be off)'
+            local_server: 'Only aboard plMail on %account% (the server keeps no keywords)'
+            title: 'Where this flag be kept'
     menu:
         create: Hoist a new one
         empty: No flags yet.
@@ -3162,6 +3169,12 @@ settings:
                 separator: 'A folder name cannot carry “%separator%” on this ship: it splits folders from the folders inside.'
                 too_long: 'That name be too long for a folder.'
                 wildcard: 'A folder name cannot carry * or %.'
+            keywords:
+                allowed: 'This server keeps keywords.'
+                intro: 'Stitch flags onto this account’s post as IMAP keywords, so mail apps that show keywords (Thunderbird’s tags, say) see them, and keywords set there sail in here as flags. Flags never move post. Off: flags stay aboard plMail.'
+                refused: 'This server keeps no keywords, so flags stay aboard plMail on this account.'
+                title: 'Flags as keywords'
+                unknown: 'Not asked yet: plMail hails each folder the first time it writes a keyword there.'
             new:
                 button: 'New folder'
                 intro: 'The folder be built on the mail server, so every mail app readin this account sees it. Makin a label never builds a folder; this does.'

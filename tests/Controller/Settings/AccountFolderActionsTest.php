@@ -227,6 +227,37 @@ final class AccountFolderActionsTest extends WebTestCase
         self::assertCount(1, $crawler->filter('turbo-frame#modal turbo-stream[action="replace"][target="sidebar"]'));
     }
 
+    /**
+     * Labels as keywords: off by default, switched on from the list, and on
+     * the way on every fetched folder is asked whether it keeps keywords, so
+     * the list can say so at once (#221 step 2).
+     */
+    public function testLabelsAsKeywordsIsOffAndSwitchingItOnAsksTheFolders(): void
+    {
+        $server = new FakeFolderServer('', '/');
+        $server->keywordFolders['INBOX'] = true;
+        $this->serve($server);
+        $inbox = $this->mailbox('INBOX', 'INBOX', MailboxSpecialUse::INBOX);
+        $this->mailbox('Clients', 'Clients');
+
+        $crawler = $this->client->request('GET', $this->url());
+
+        self::assertSame('false', $crawler->filter('form[data-folder-keywords] button[role=switch]')->attr('aria-checked'));
+        self::assertFalse($this->account->labelsAsKeywords, 'off by default');
+
+        $token = (string) $crawler->filter('form[data-folder-keywords] input[name=_token]')->attr('value');
+        $crawler = $this->client->request('POST', $this->url('/keywords'), ['_token' => $token]);
+
+        self::assertResponseIsSuccessful();
+        $account = $this->em->find(Account::class, $this->account->id);
+        $inbox   = $this->em->find(Mailbox::class, $inbox->id);
+        self::assertTrue($account?->labelsAsKeywords);
+        self::assertEqualsCanonicalizing(['SELECT INBOX', 'SELECT Clients'], $server->commands);
+        self::assertTrue($inbox?->keywordsAllowed);
+        self::assertSame('true', $crawler->filter('form[data-folder-keywords] button[role=switch]')->attr('aria-checked'));
+        self::assertStringContainsString('This server keeps keywords.', $crawler->filter('[data-folder-keywords-state]')->text());
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** Every IMAP connection the actions open goes to this in-memory server. */

@@ -2701,6 +2701,13 @@ label:
         no_color: '— none —'
         no_parent: '— top level —'
         parent: Nest under
+        places:
+            folder: 'A folder on %account%'
+            keyword: 'A keyword on %account%'
+            keyword_unasked: 'A keyword on %account%, where its folders keep keywords'
+            local_off: 'Only in plMail on %account% (labels as keywords is off)'
+            local_server: 'Only in plMail on %account% (the server keeps no keywords)'
+            title: 'Where this label is kept'
     menu:
         create: Create new
         empty: No labels yet.
@@ -3313,6 +3320,12 @@ settings:
                 separator: 'A folder name cannot contain “%separator%” on this server: it separates folders from the folders inside them.'
                 too_long: 'That name is too long for a folder.'
                 wildcard: 'A folder name cannot contain * or %.'
+            keywords:
+                allowed: 'This server keeps keywords.'
+                intro: 'Put labels on this account’s mail as IMAP keywords, so mail apps that show keywords (Thunderbird’s tags, for one) see them, and keywords set there arrive here as labels. Labels never move mail. Off: labels stay in plMail.'
+                refused: 'This server keeps no keywords, so labels stay in plMail on this account.'
+                title: 'Labels as keywords'
+                unknown: 'Not asked yet: plMail asks each folder the first time it writes a keyword there.'
             new:
                 button: 'New folder'
                 intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'

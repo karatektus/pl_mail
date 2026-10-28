@@ -2387,6 +2387,13 @@ label:
         no_color: '— 无 —'
         no_parent: '— 顶层 —'
         parent: '嵌套于'
+        places:
+            folder: '%account% 上的文件夹'
+            keyword: '%account% 上的关键字'
+            keyword_unasked: '%account% 上的关键字（在其文件夹保存关键字的地方）'
+            local_off: '在 %account% 上只保存在 plMail 中（以关键字保存标签已关闭）'
+            local_server: '在 %account% 上只保存在 plMail 中（服务器不保存关键字）'
+            title: '此标签保存在哪里'
     menu:
         create: '新建'
         empty: '暂无标签。'
@@ -2914,6 +2921,12 @@ settings:
                 separator: '在此服务器上，文件夹名称不能包含“%separator%”：它用于分隔文件夹及其子文件夹。'
                 too_long: '这个名称对文件夹来说太长了。'
                 wildcard: '文件夹名称不能包含 * 或 %。'
+            keywords:
+                allowed: '此服务器会保存关键字。'
+                intro: '将此账户邮件上的标签写为 IMAP 关键字，这样能显示关键字的邮件应用（例如 Thunderbird 的标记）也能看到它们，在那里设置的关键字也会作为标签出现在这里。标签从不移动邮件。关闭时：标签只保存在 plMail 中。'
+                refused: '此服务器不保存关键字，因此此账户上的标签只保存在 plMail 中。'
+                title: '以关键字保存标签'
+                unknown: '尚未询问：plMail 首次在某个文件夹写入关键字时会询问该文件夹。'
             new:
                 button: '新建文件夹'
                 intro: '文件夹会在邮件服务器上创建，因此会出现在所有读取此账户的邮件应用中。创建标签从不会创建文件夹；这里会。'
