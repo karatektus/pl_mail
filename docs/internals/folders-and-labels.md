@@ -155,16 +155,99 @@ asks `MessageCopies::of()`, which today answers the row's one address and after 
 location. The read side works per folder listing and is unchanged by it; what #415 has to decide is
 what a label means when two copies' keywords disagree (its decision 2).
 
-## Later steps (not built)
+## Step 4: labels as Outlook categories (built)
 
-In the order agreed in #221:
+A label on a Microsoft account was already an Outlook category before #221: `GraphLabelPolicy` makes
+a label a folder only when it came from one (a role or a `graphFolderId`), `ApplyGraphChangesHandler`
+PATCHes each message's whole `categories` array derived from its labels and creates master
+categories on demand, `GraphCategorySyncer` imports the master list as labels, `GraphMessageBuilder`
+maps categories to labels at import, and `ApplyLabelStructureHandler` / `RemoteLabelRemover` rename
+and delete the master category. The gap was the way back: the delta query did not select
+`categories`, so a category put on or taken off in Outlook after import was never seen.
+
+- **Mirror.** `Message::$graphCategories` (JSON, null until known) is what Exchange last held: set at
+  import from the payload, and after every successful PATCH to the array that was sent. It is the
+  "before" for reading a change, the way the flag mirror is for keywords.
+- **Reading.** `GraphApiClient::DELTA_SELECT` now carries `categories`. A delta link remembers the
+  `$select` it began with, so the field only arrives on chains started after that.
+  `GraphApiSyncer::followCategories()` runs for an existing message in a delta page when the account
+  follows categories: the server's list against the mirror; added names put the label on (an unknown
+  name makes a plain label, `GraphFolderResolver::categoryLabel()`), removed names take off labels
+  that are categories there, never a folder-backed one. A null mirror only learns. Never "the server's
+  list is the truth", which would strip every label plMail gave that Exchange never had.
+- **Echo.** The PATCH handler moves the mirror to what it sent, so the delta that reports plMail's
+  own write sees no change. No timestamp guard.
+- **The switch.** `Account::$followsOutlookCategories` (settings key `labels.outlook_categories`),
+  off by default, an icon toggle on a Microsoft account's row (`AccountCategoriesController`, the push
+  control's shape). Turning it on empties `graphDeltaLinks`, like migration `Version20261014110000`
+  did for `flag`, so every folder's chain restarts with `categories`; existing mail is recognised by
+  `graphId` and not fetched again. Writing was never switched and is unchanged.
+- **Rename.** Unchanged in intent: the master category gets the new name and every message plMail
+  holds with the label is re-pushed (`retagMessages()`), as Outlook's own rename dialog offers. Graph
+  documents `outlookCategory.displayName` as fixed after creation, so a 400/405 on the PATCH now falls
+  back to `replaceCategory()`: take or create the category under the new name, delete the old one,
+  re-tag. Deleting a master category leaves its name on each message as text — the same end state as
+  a rename — so the fallback touches no message the rename would not.
+- **Delete.** Unchanged: the master category is deleted; the name stays on messages as uncoloured
+  text until the next push for that message derives the array without it.
+- **The indicator.** `LabelPlaces` now lists Microsoft accounts: `folder`, `category` (not
+  followed) or `category_followed`.
+
+What stays for step 3: putting a folder-backed label on a Graph conversation still moves it (that
+label IS the folder there); the separate Move to / Assign label picker removes the ambiguity.
+
+### Not verified against Exchange
+
+Everything above is tested with mocked Graph HTTP only. Not known: that a delta page reports
+`categories` for a message whose only change was a category (Graph says a delta reports any property
+change of the selected set); whether a push notification follows a category-only change; whether
+Exchange accepts or refuses a PATCH of `displayName`; how long re-listing a large mailbox takes after
+the switch goes on.
+
+### Test guide for the maintainer (Outlook)
+
+On this branch, with migrations run and a Microsoft account connected. "Sync" below means **Sync
+now** on the account, or waiting for the next scheduled run.
+
+1. **Off by default.** Settings → Accounts. The Microsoft account's row has a grey tags icon; its
+   tooltip starts "Follow Outlook categories — Off". Open any label's dialog (Labels → a label →
+   edit): "Where this label is kept" says "An Outlook category on … (changes made in Outlook are not
+   followed)".
+2. **Writing, unchanged.** In plMail put a new label "Step4 A" on a conversation. In Outlook on the
+   web the messages carry the category "Step4 A", and it is in the category list. Sync: the label
+   stays on in plMail.
+3. **Off ignores Outlook.** In Outlook, add the category "Step4 B" to a message plMail already has,
+   and remove "Step4 A" from another. Sync: nothing changes in plMail.
+4. **Turn it on.** Click the tags icon: it turns green, tooltip "On". The account syncs every folder
+   once more; no conversation appears twice. The label dialog now says "An Outlook category on …".
+5. **Follow a new category.** In Outlook add the category "Step4 C" (new to plMail) to a message.
+   Sync: the conversation has the label "Step4 C" in plMail, and the label exists in the sidebar.
+6. **Follow a removal.** In Outlook remove "Step4 C" from that message. Sync: the label is off the
+   conversation in plMail.
+7. **No echo.** In plMail put "Step4 A" on another conversation, then sync twice: it stays on, and
+   Outlook shows it.
+8. **Rename.** In plMail rename "Step4 A" to "Step4 Renamed". In Outlook the category list has
+   "Step4 Renamed" and not "Step4 A", and the messages plMail holds carry the new name. Please note
+   whether the old category kept its colour (PATCH accepted) or the new one was made fresh in the
+   label's colour (fallback), and that `php bin/console messenger:failed:show` is empty.
+9. **Delete.** Delete the label "Step4 Renamed" in plMail. It leaves Outlook's category list; the
+   messages show the name without a colour. Sync: the label does not come back.
+10. **Turn it off.** Click the icon: grey again. Add or remove a category in Outlook; sync: nothing
+    changes in plMail.
+
+With **Instant delivery** on, steps 5 and 6 should land without a manual sync; whether they do is
+one of the unverified points above.
+
+## Later steps
+
+In the order agreed in #221 (step 3 is not built yet):
 
 1. ~~Mirror the folder tree as folders, with New folder, rename and delete~~ — this page.
 2. ~~IMAP keywords as the label backend~~ — above.
 3. **Move to separate from Assign label in the interface**: one picker with two sections, folders and
    labels, so assigning a label can no longer move mail and Move to always does. Gmail, which has no
    folders, keeps Move to for its system labels only (Inbox, Spam, Trash, archive).
-4. **Outlook categories** as Outlook's label backend, with folders as folders.
+4. ~~Outlook categories as Outlook's label backend~~ — above.
 
 After those: a move-to-folder filter action, an `in:folder` search, and an opt-in "convert folders
 to labels" wizard, which stays out of #221.
@@ -182,8 +265,8 @@ answers a plain `LIST` without special-use attributes, so its "Sent Items", "Del
 
 **Keywords are not rewritten when a label is renamed or deleted.** The old keyword stays on the
 server; it is only an issue the next time another client changes it, when it reads back as a label
-of the old name. Rewriting every message on a rename is what Outlook categories need too (step 4),
-and would be built with it.
+of the old name. Outlook categories do re-tag on a rename (`retagMessages()`); keywords could reuse
+that shape later.
 
 **UIDVALIDITY from STATUS is not always the one SELECT reports.** Stalwart 0.11 gives two different
 numbers, so `MailboxSyncer::findRenameSource()` cannot recognise a rename made in another client

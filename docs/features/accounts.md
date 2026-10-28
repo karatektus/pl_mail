@@ -128,6 +128,7 @@ Each row offers:
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
 | **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
+| **Follow Outlook categories** (tags icon) | Off by default; on, a category put on or taken off in Outlook puts the label on or takes it off here — Microsoft accounts only; see [Labels as Outlook categories](#labels-as-outlook-categories) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -223,13 +224,44 @@ the same name. Keywords that mean something to mail apps — `$Junk`, `$NotJunk`
 
 Only changes made after switching it on are written; labels already on mail are not pushed in bulk.
 
-**On Microsoft, most labels are Outlook categories rather than folders**, and a category there has
-no identity but its name — the name is what is written onto each message. So renaming one does two
-things: the master category is renamed, and every message carrying the old name is pushed again so
-it carries the new one. That second half is the same question Outlook's own rename dialog asks; here
-it is answered yes, because the alternative is a mailbox where the label exists twice — once as a
-category and once as loose text on the mail that used to have it. A label on thousands of messages
-therefore means thousands of updates, sent in the background.
+### Labels as Outlook categories
+
+On a Microsoft account a label is an Outlook category, unless it came from an Exchange folder, in
+which case it is that folder. Putting a label on a conversation puts the category on each of its
+messages in Exchange, and taking it off takes it off; creating a label here creates the category in
+Outlook's category list, in the label's colour. Labels never move mail,
+and a label that is a folder stays a folder.
+
+What comes back from Outlook is the other half, and it depends on **Follow Outlook categories**,
+the tags icon on a Microsoft account's row. It is off by default, and then plMail behaves as it
+always has: categories are read when a message first arrives, and a category put on or taken off
+in Outlook afterwards changes nothing here. Switched on, such a change puts the label on or takes
+it off in plMail at the next sync, and a category plMail has not seen before becomes a new label.
+Only changes count: plMail remembers which categories Exchange last held for each message, and a
+message is changed here only where Exchange's list differs from that. A label you put on in plMail
+and Exchange never had is therefore left alone, not taken off.
+
+Turning it on makes plMail list every folder of that account once more, because the record of where
+each folder's sync had got to was started without categories and cannot be widened. Nothing is
+fetched twice — mail already here is recognised — but on a large mailbox that first pass takes a
+while. Turning it off again costs nothing.
+
+The label dialog says, per Microsoft account, where the label is kept: a folder, or an Outlook
+category, and whether Outlook's changes to it are followed.
+
+**A category has no identity but its name** — the name is what is written onto each message. So
+renaming a label does two things: the category in Outlook's list gets the new name, and every
+message plMail holds that carries the old name is pushed again so it carries the new one. That
+second half is the same question Outlook's own rename dialog asks; here it is answered yes, because
+the alternative is a mailbox where the label exists twice — once as a category and once as loose
+text on the mail that used to have it. A label on thousands of messages therefore means thousands of
+updates, sent in the background. Microsoft documents a category's name as fixed once made; where
+Exchange refuses the rename, plMail makes the category under the new name and deletes the old one,
+which ends in the same place.
+
+Deleting a label deletes the category from Outlook's list. Exchange leaves the name on each message
+as plain text, which Outlook shows without a colour, until something next changes that message's
+labels in plMail.
 
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
@@ -485,6 +517,15 @@ another mail app, which takes the old label off here too.
 
 **Other mail apps decide which keywords they show.** Thunderbird shows a keyword as a tag only once
 a tag of that name exists there; until then the keyword is on the message and not on screen.
+
+**Mail plMail never synced keeps an Outlook category's old name.** Renaming a label re-tags the
+messages plMail holds; anything Exchange has that plMail does not carries the old name as plain
+text, which Outlook shows without a colour.
+
+**Follow Outlook categories reads only changes.** Mail that already had a category in Outlook when
+it arrived here has that label; a category added in Outlook before the switch was turned on, to
+mail already here, is not picked up afterwards. Put it on in plMail, or take it off and on again in
+Outlook.
 
 **A message moved in another mail client into a folder that is switched off looks, to plMail, like
 one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only

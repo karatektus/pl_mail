@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:3411c6c03f2aff68560c43643d1fb624abe99d83 -->
+<!-- translated-from: features/mail.md sha1:e9c5a8480bdac43190648ded0234158a50b74eeb -->
 
 # Mail
 
@@ -558,7 +558,8 @@ eine Nachricht angewendet wird, und Umbenennen und Löschen werden zu Gmail und 
 siehe [Labels beim Anbieter](accounts.md#labels-beim-anbieter). Bei einem reinen IMAP-Konto
 markiert ein Label, das du auf eine Nachricht setzt, die Nachricht und verschiebt nichts: Es bleibt
 in plMail oder wird, wenn [Labels als Schlüsselwörter](accounts.md#labels-als-schlüsselwörter) an
-ist, ein IMAP-Schlüsselwort, das andere Mailprogramme sehen.
+ist, ein IMAP-Schlüsselwort, das andere Mailprogramme sehen. Bei einem Microsoft-Konto ist ein Label eine
+Outlook-Kategorie; siehe [Labels als Outlook-Kategorien](accounts.md#labels-als-outlook-kategorien).
 
 Die Ordner eines IMAP-Kontos erscheinen ebenfalls in der Seitenleiste — der Posteingang, Gesendet
 und jeder Ordner, den der Server hat; im Bereich LABELS trägt einer davon statt eines Punkts einen
