@@ -30,7 +30,7 @@ not a way into a mailbox.
               class="ml-auto flex items-center gap-2">
             <input type="search" name="search" value="{{ table_search }}"
                    placeholder="{{ 'admin.users.search'|trans }}"
-                   class="h-8 w-48 px-3 rounded-lg text-sm bg-field border border-field
+                   class="h-8 w-48 px-3 rounded-lg text-sm bg-field border border-field-border
                           text-ink placeholder:text-ink-faint focus:outline-none
                           focus:ring-2 focus:ring-accent transition-colors">
         </form>
@@ -41,7 +41,7 @@ not a way into a mailbox.
                 data-ui--modal-title-value="{{ 'admin.users.add'|trans }}"
                 data-action="click->ui--modal#open"
                 class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
-                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                       text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
             <i class="fa-solid fa-user-plus text-xs" aria-hidden="true"></i>
             {{ 'admin.users.add'|trans }}
         </button>
@@ -100,7 +100,7 @@ not a way into a mailbox.
                         data-ui--modal-title-value="{{ user.name }}"
                         data-action="click->ui--modal#open"
                         class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-soft
-                               bg-field border border-field hover:bg-hover transition-colors"
+                               bg-field border border-field-border hover:bg-hover transition-colors"
                         aria-label="{{ 'admin.users.edit'|trans }}">
                     <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                 </button>
@@ -126,7 +126,7 @@ not a way into a mailbox.
                         <input type="hidden" name="_token" value="{{ csrf_token('admin-user-active-' ~ user.id) }}">
                         <button type="submit"
                                 class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-faint
-                                       bg-field border border-field hover:bg-hover hover:text-ink transition-colors"
+                                       bg-field border border-field-border hover:bg-hover hover:text-ink transition-colors"
                                 aria-label="{{ (user.isDeactivated ? 'admin.users.reactivate' : 'admin.users.deactivate')|trans }}">
                             <i class="fa-solid {{ user.isDeactivated ? 'fa-lock-open' : 'fa-lock' }} text-xs" aria-hidden="true"></i>
                         </button>
@@ -147,7 +147,7 @@ not a way into a mailbox.
                         <input type="hidden" name="_token" value="{{ csrf_token('admin-user-delete-' ~ user.id) }}">
                         <button type="submit"
                                 class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-faint
-                                       bg-field border border-field hover:bg-hover hover:text-danger transition-colors"
+                                       bg-field border border-field-border hover:bg-hover hover:text-danger transition-colors"
                                 aria-label="{{ 'admin.users.delete'|trans }}">
                             <i class="fa-solid fa-user-slash text-xs" aria-hidden="true"></i>
                         </button>

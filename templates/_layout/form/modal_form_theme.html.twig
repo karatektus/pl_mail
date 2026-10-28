@@ -114,7 +114,7 @@ a collection row — is one field to the reader and should stay tight.
 {# ── Number ──────────────────────────────────────────────────────────────── #}
 {% block number_widget %}
     {% set attr = attr|merge({
-        class: 'block w-full h-9 rounded-lg border border-field
+        class: 'block w-full h-9 rounded-lg border border-field-border
             bg-field
             px-3 text-sm text-ink
             placeholder:text-ink-faint
@@ -209,7 +209,7 @@ a collection row — is one field to the reader and should stay tight.
     {% set attr = attr|merge({ class: 'sr-only ' ~ (attr.class ?? '') }) %}
     <label
         data-controller="ui--file-field"
-        class="flex items-center gap-3 rounded-lg border border-dashed border-field
+        class="flex items-center gap-3 rounded-lg border border-dashed border-field-border
                bg-field px-3.5 py-3 text-sm text-ink-muted
                hover:bg-hover hover:border-accent/40 cursor-pointer transition-colors"
     >
@@ -252,7 +252,7 @@ a collection row — is one field to the reader and should stay tight.
 
 {% block radio_widget %}
     {% set attr = attr|merge({
-        class: 'size-4 border-field
+        class: 'size-4 border-field-border
             accent-accent
             bg-field
             focus:ring-2 focus:ring-accent focus:ring-offset-0

@@ -138,7 +138,7 @@ drift into looking like different features.
                 <div class="px-6 pb-3 shrink-0">
                     <a href="{{ path('app_integration_browse', browseArgs) }}"
                        class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium
-                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                              text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                         <i class="fa-solid fa-rotate-left text-[10px]" aria-hidden="true"></i>
                         {{ 'integration.destination.start_over'|trans }}
                     </a>
@@ -253,11 +253,11 @@ drift into looking like different features.
                                 </label>
                                 <input type="text" id="new-destination-name" name="name" required
                                        placeholder="{{ ('integration.destination.' ~ kind.value ~ '_name')|trans }}"
-                                       class="flex-1 min-w-0 h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                                       class="flex-1 min-w-0 h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                 <button type="submit"
                                         class="shrink-0 inline-flex items-center h-9 px-3 rounded-lg text-sm font-medium
-                                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                               text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                                     {{ 'integration.destination.create'|trans }}
                                 </button>
                             </form>
@@ -273,7 +273,7 @@ drift into looking like different features.
 
                 <button type="button" data-action="click->ui--modal#close"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                               text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                     {{ 'form.cancel'|trans }}
                 </button>
 

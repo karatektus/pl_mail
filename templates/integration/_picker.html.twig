@@ -79,12 +79,12 @@ gap under the shortcuts row.
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint" aria-hidden="true"></i>
                             <input type="search" name="q" value="{{ query }}"
                                    placeholder="{{ ('integration.picker.search_placeholder.' ~ integration.provider.value)|trans }}"
-                                   class="w-full h-9 pl-8 pr-3 rounded-lg text-sm bg-field border border-field text-ink
+                                   class="w-full h-9 pl-8 pr-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         </div>
                         <button type="submit"
                                 class="shrink-0 inline-flex items-center h-9 px-3 rounded-lg text-sm font-medium
-                                       text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                       text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                             {{ 'integration.picker.search'|trans }}
                         </button>
                     </form>
@@ -110,7 +110,7 @@ gap under the shortcuts row.
                     {% for shortcut in listing.shortcuts %}
                         <a href="{{ path('app_integration_browse', navArgs|merge({ folder: shortcut.id })) }}"
                            class="{{ loop.first ? 'ml-auto' : '' }} inline-flex items-center h-7 px-2.5 rounded-lg
-                                  text-xs font-medium text-ink-soft bg-field border border-field
+                                  text-xs font-medium text-ink-soft bg-field border border-field-border
                                   hover:bg-hover transition-colors">
                             {{ shortcut.name }}
                         </a>
@@ -230,7 +230,7 @@ gap under the shortcuts row.
                                    })) }}"
                                    data-action="integration--integration-picker#loadMore"
                                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
-                                          text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                          text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                                     {{ 'integration.picker.more'|trans }}
                                     <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
                                 </a>
@@ -257,7 +257,7 @@ gap under the shortcuts row.
 
                 <button type="button" data-action="click->ui--modal#close"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                               text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                               text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                     {{ 'form.cancel'|trans }}
                 </button>
                 <button type="button"

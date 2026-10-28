@@ -104,7 +104,7 @@ export default class extends Controller {
         head.className = "flex flex-wrap items-center gap-2 px-3 py-2 border-b border-line"
 
         const seg = document.createElement("div")
-        seg.className = "inline-flex rounded-lg border border-field overflow-hidden"
+        seg.className = "inline-flex rounded-lg border border-field-border overflow-hidden"
 
         for (const op of OPERATORS) {
             const b = document.createElement("button")
@@ -518,7 +518,7 @@ export default class extends Controller {
         const browse = document.createElement("button")
         browse.type = "button"
         browse.className =
-            "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-field bg-field " +
+            "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-field-border bg-field " +
             "text-xs font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer"
         browse.innerHTML = '<i class="fa-solid fa-folder-open text-[10px]" aria-hidden="true"></i>'
         browse.append(document.createTextNode(this._t("folder.choose")))
@@ -743,7 +743,7 @@ export default class extends Controller {
     }
 
     _inputClass() {
-        return "h-8 rounded-lg border border-field bg-field px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+        return "h-8 rounded-lg border border-field-border bg-field px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
     }
 
     /**

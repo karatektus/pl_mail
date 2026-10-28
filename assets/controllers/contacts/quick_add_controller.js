@@ -230,7 +230,7 @@ export default class extends Controller {
             text.className = "flex-1 basis-56 min-w-0 text-sm font-mono text-ink break-words"
             text.textContent = line
             const select = document.createElement("select")
-            select.className = "h-8 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0"
+            select.className = "h-8 rounded-lg border border-field-border bg-field px-2 text-sm text-ink shrink-0"
             select.setAttribute("aria-label", `${this.stringsValue.useAs}: ${line}`)
             select.add(new Option(this.stringsValue.useAs, ""))
             for (const type of ["company", "jobTitle", "department", "notes"]) select.add(new Option(this.stringsValue.kinds[type], type))

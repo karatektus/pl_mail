@@ -134,7 +134,7 @@ Variables:
                     data-ui--modal-title-value="{{ provider.label }}"
                     data-action="click->ui--modal#open"
                     class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
-                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                           text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                 <i class="fa-solid fa-sliders text-xs" aria-hidden="true"></i>
                 {{ 'admin.integrations.configure'|trans }}
             </button>
@@ -153,7 +153,7 @@ Variables:
                            value="{{ csrf_token('admin-integration-inherit-' ~ provider.value) }}">
                     <button type="submit"
                             class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
-                                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                                   text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                         <i class="fa-solid fa-clone text-xs" aria-hidden="true"></i>
                         {{ 'admin.integrations.inherit'|trans({
                             '%name%': ('admin.integrations.mail.' ~ mailSource)|trans,
