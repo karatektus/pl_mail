@@ -198,7 +198,7 @@ network, and a per-account flag would move that promise into every outbound path
 where it holds until the first one that forgets to ask.
 
 **Turning it on stops mail syncing, and nothing says so on the page.** The scheduler still fires
-`app:mail:sync` every fifteen minutes and it returns immediately. If mail has quietly stopped
+`app:mail:sync --due` every minute and it returns immediately. If mail has quietly stopped
 arriving on an install you thought was normal, check this variable first.
 
 **Sent mail on a demo is not sent.** It lands in Sent and looks exactly like mail that left. This

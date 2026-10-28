@@ -51,6 +51,7 @@ account:
         microsoft: Weiter mit Microsoft
     primary_set: Primäres Konto geändert
     removed: Konto entfernt
+    sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -3278,13 +3279,18 @@ settings:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Zu synchronisierende Ordner wählen
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
+            idle_needs_sync: '%folder% wird nicht synchronisiert und kann deshalb nicht beobachtet werden'
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
                 Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
                 du den Ordner wieder einschaltest, geht es dort weiter, wo es
-                aufgehört hat.
+                aufgehört hat. Ein Ordner mit leuchtendem Blitz wird
+                beobachtet, neue Mail darin erscheint sofort; die anderen
+                werden im Intervall des Kontos abgerufen.
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            start_idle: '%folder% auf neue Mail beobachten, sobald sie eintrifft'
             start_sync: 'Synchronisierung von %folder% starten'
+            stop_idle: '%folder% nicht mehr beobachten — stattdessen im Intervall des Kontos abrufen'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
         heading: E-Mail-Konten
@@ -3354,6 +3360,10 @@ settings:
             active: Aktiv
             disabled: Deaktiviert
         subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
+        sync_interval:
+            change: 'Alle %minutes% Min. auf neue Mail geprüft — ändern, wie oft %account% abgerufen wird'
+            every: 'Alle %minutes% Min.'
+            heading: 'Auf neue Mail prüfen alle … Min.'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'

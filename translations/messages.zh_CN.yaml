@@ -51,6 +51,7 @@ account:
         microsoft: '使用 Microsoft 继续'
     primary_set: 主账户已更改
     removed: 账户已移除
+    sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
         oauth: OAuth
@@ -2899,9 +2900,12 @@ settings:
             always_synced: '收件箱始终保持同步'
             button: '选择要同步的文件夹'
             empty: '尚无文件夹。首次同步后会在此列出。'
-            intro: '关闭某个文件夹的同步后，plMail 会停止获取其中的邮件。已保存的邮件会保留，重新开启后会从停止的位置继续同步。'
+            idle_needs_sync: '%folder% 未同步，因此无法监听'
+            intro: '关闭某个文件夹的同步后，plMail 会停止获取其中的邮件。已保存的邮件会保留，重新开启后会从停止的位置继续同步。闪电图标点亮的文件夹会被监听，新邮件会立即出现；其他文件夹按账户的同步间隔检查。'
             placeholder: '此文件夹仅用于归组其他文件夹，本身没有可同步的内容'
+            start_idle: '监听 %folder%，新邮件到达时立即获取'
             start_sync: '开始同步 %folder%'
+            stop_idle: '停止监听 %folder%，改为按账户的同步间隔检查'
             stop_sync: '停止同步 %folder%'
             title: '文件夹 — %account%'
         heading: '邮件账户'
@@ -2942,6 +2946,10 @@ settings:
             active: '已启用'
             disabled: '已停用'
         subheading: '添加、编辑、启用或移除要同步的邮箱。'
+        sync_interval:
+            change: '每 %minutes% 分钟检查一次新邮件 — 更改 %account% 的检查频率'
+            every: '每 %minutes% 分钟'
+            heading: '每隔 … 分钟检查新邮件'
         type:
             imap: 'IMAP'
             oauth: '%provider% (OAuth)'

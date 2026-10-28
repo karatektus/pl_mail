@@ -149,6 +149,49 @@
                         </form>
                     </div>
 
+                    {# How often the scheduled poll syncs this account (#202).
+                       Built like the colour menu above and for its reason: every
+                       account has one, OAuth ones included, and edit() is
+                       closed to those. One submit button per choice; the
+                       current one carries aria-pressed and the tick. Opens
+                       upward, as the colour menu does. #}
+                    {% set intervalLabel = 'settings.accounts.sync_interval.change'|trans({ '%account%': account.displayAddress, '%minutes%': account.syncIntervalMinutes }) %}
+                    <div class="relative" data-controller="ui--dropdown">
+                        <button
+                            type="button"
+                            data-action="click->ui--dropdown#toggle"
+                            aria-haspopup="true"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            aria-label="{{ intervalLabel }}" title="{{ intervalLabel }}"
+                        >
+                            <i class="fa-regular fa-clock text-xs" aria-hidden="true"></i>
+                        </button>
+
+                        {# A row of chips under one heading, not a list: the
+                           menu opens upward inside the card, and five rows were
+                           taller than a card holding a single account. #}
+                        <form method="post" action="{{ path('app_account_sync_interval', { id: account.id }) }}"
+                              data-ui--dropdown-target="menu" hidden data-enter="rise"
+                              role="group" aria-label="{{ intervalLabel }}"
+                              class="absolute bottom-full mb-1 right-0 z-30 popover p-2"
+                              data-sync-interval-menu>
+                            <input type="hidden" name="_token" value="{{ csrf_token('account-sync-interval' ~ account.id) }}">
+                            <p class="px-1 pb-1.5 text-xs text-ink-faint whitespace-nowrap">{{ 'settings.accounts.sync_interval.heading'|trans }}</p>
+                            <div class="flex gap-1">
+                                {% for minutes in constant('App\\Entity\\Mail\\Account::SYNC_INTERVALS') %}
+                                    {% set chosen = minutes == account.syncIntervalMinutes %}
+                                    {% set choiceLabel = 'settings.accounts.sync_interval.every'|trans({ '%minutes%': minutes }) %}
+                                    <button
+                                        type="submit" name="minutes" value="{{ minutes }}"
+                                        aria-pressed="{{ chosen ? 'true' : 'false' }}"
+                                        aria-label="{{ choiceLabel }}" title="{{ choiceLabel }}"
+                                        class="min-w-9 h-8 px-2 rounded-md text-sm tabular-nums cursor-pointer transition-colors {{ chosen ? 'bg-accent text-accent-ink' : 'text-ink hover:bg-hover' }}"
+                                    >{{ minutes }}</button>
+                                {% endfor %}
+                            </div>
+                        </form>
+                    </div>
+
                     {% if isPassword %}
                         <button
                             type="button"

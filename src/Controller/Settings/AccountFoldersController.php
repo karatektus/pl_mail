@@ -41,6 +41,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * Nor is a folder the server will not open (Mailbox::$isSelectable): it holds
  * no mail, and MailboxSyncer switches it off again on every folder sync.
+ *
+ * Each row has a second switch, IDLE (#202): Mailbox::$isIdleEnabled, which
+ * the IMAP listener reads on its next reconcile to hold or let go of that
+ * folder's connection. Only the inbox has it on by default. It is offered on
+ * the inbox too, since the inbox's sync is fixed but how fast it hears about
+ * mail is not, and only on a folder that is synced: the listener watches
+ * folders that are both, so IDLE on an unsynced folder would be a switch that
+ * does nothing.
  */
 #[IsGranted('ROLE_USER')]
 final class AccountFoldersController extends AbstractController
@@ -115,6 +123,46 @@ final class AccountFoldersController extends AbstractController
             'account' => $account,
             'row'     => $this->tree->rowFor($mailbox, $this->mailboxes->findForAccountOrdered($account)),
         ]);
+    }
+
+    #[Route('/settings/accounts/{id}/folders/{mailbox}/idle', name: 'settings_account_folder_idle_toggle', methods: ['POST'])]
+    public function toggleIdle(Request $request, Account $account, Mailbox $mailbox): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $this->assertSyncsOverImap($account);
+
+        // The pair has to agree with itself, as in toggle().
+        if ($mailbox->account !== $account) {
+            throw $this->createNotFoundException();
+        }
+
+        $this->assertCsrf($request, 'account_folder_idle_' . $mailbox->id);
+
+        // Refused both ways on a folder that is not synced. Its switch is kept
+        // as it was, and the listener ignores it until the folder is synced
+        // again, when the folder is watched or not as it was before.
+        if (false === $this->canIdle($mailbox)) {
+            throw $this->createAccessDeniedException('Only a folder that is synced can be watched.');
+        }
+
+        $mailbox->isIdleEnabled = false === $mailbox->isIdleEnabled;
+
+        $this->em->flush();
+
+        return $this->render('settings/accounts/_folder_row.html.twig', [
+            'account' => $account,
+            'row'     => $this->tree->rowFor($mailbox, $this->mailboxes->findForAccountOrdered($account)),
+        ]);
+    }
+
+    /**
+     * Whether IDLE on this folder would do anything: the listener watches
+     * folders that are synced and IDLE-enabled both
+     * (MailboxRepository::findIdleEnabledAndSyncEnabled()).
+     */
+    private function canIdle(Mailbox $mailbox): bool
+    {
+        return true === $mailbox->isSyncEnabled && $mailbox->isSelectable;
     }
 
     private function assertSyncsOverImap(Account $account): void
