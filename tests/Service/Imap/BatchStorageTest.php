@@ -11,6 +11,7 @@ use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
 use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use App\Tests\Support\Log\RecordingLogger;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -258,6 +259,34 @@ final class BatchStorageTest extends KernelTestCase
         self::assertNull($mailbox['failed_uid'], 'a message the folder already holds was held back as a failure');
         self::assertSame(0, (int) $mailbox['failed_uid_attempts']);
         self::assertSame(103, (int) $mailbox['last_seen_uid'], 'the mark must pass a UID that is already stored');
+    }
+
+    /**
+     * The same race, as the log tells it: the batch-level line is a notice.
+     *
+     * It was a warning with a full stack trace, so a refusal that lost
+     * nothing read as something broken. What a refusal costs shows in the
+     * one-at-a-time pass, which logs each message it cannot store as an error
+     * (#352).
+     */
+    public function testARefusedBatchIsANoticeAndTheRaceLogsNothingWorse(): void
+    {
+        $logger = new RecordingLogger();
+        static::getContainer()->set('logger', $logger);
+
+        $this->storeBatch($this->mail(102));
+        $this->storeBatch($this->mail(101), $this->mail(102), $this->mail(103));
+
+        $levels = array_column(array_filter(
+            $logger->records,
+            static fn (array $record): bool => str_contains($record['message'], 'refused a batch'),
+        ), 'level');
+
+        self::assertSame(['notice'], $levels, 'the refusal is logged once, as a notice');
+        self::assertSame([], array_filter(
+            $logger->records,
+            static fn (array $record): bool => in_array($record['level'], ['warning', 'error'], true),
+        ), 'a refusal that lost nothing logs nothing above a notice');
     }
 
     /**
