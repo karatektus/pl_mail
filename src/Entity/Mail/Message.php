@@ -141,6 +141,20 @@ class Message extends MessageModel
      */
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $gmailLabelIds = null;
+
+    /**
+     * The Outlook categories this message had on Exchange the last time
+     * plMail and Exchange agreed: as imported, or as plMail last pushed them
+     * (#221 step 4). Null on rows stored before this existed: not known.
+     *
+     * A mirror, read only to tell a change made in Outlook from one plMail
+     * made itself — the same job Message::$flags does for IMAP keywords. The
+     * labels are the truth; this says what Exchange was last seen to hold.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $graphCategories = null;
     /**
      * @var array<string,string|list<string>>|null
      */
