@@ -6,6 +6,7 @@ namespace App\Service\Monitoring;
 
 use App\Entity\Mail\Account;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Repository\Monitoring\LogEntryRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Repository\Monitoring\ProcessHeartbeatRepository;
@@ -41,6 +42,7 @@ final class AdminMonitoringService
     public function __construct(
         private readonly ProcessHeartbeatRepository $heartbeatRepository,
         private readonly AccountRepository          $accountRepository,
+        private readonly MailboxRepository          $mailboxRepository,
         private readonly LogEntryRepository         $logRepository,
         private readonly PostgresStatusRepository   $databaseStatus,
         private readonly PushSubscriptionRegistry   $pushRegistry,
@@ -83,6 +85,92 @@ final class AdminMonitoringService
         }
 
         return $rows;
+    }
+
+    /**
+     * The heartbeats as the Processes card shows them: one row per process.
+     *
+     * Since #421 one `app:imap:listen` holds IDLE on every folder, but it
+     * still beats one `imap-idle` row per folder, so a folder whose connection
+     * is down goes stale on its own while the others keep listening. Shown as
+     * rows of their own, those read as a process each, all with the listener's
+     * PID. They are folded into the listener's row here instead, as `folders`,
+     * and the card draws each as a folder icon that is green or red.
+     *
+     * Folded only when the listener's own row is there. Without it (a listener
+     * killed hard and its row already reaped, say) the folder rows stay rows,
+     * because hiding them would hide the only sign that IDLE has stopped.
+     *
+     * heartbeats() keeps the flat shape: /health judges every row the same way
+     * and has no use for the grouping.
+     *
+     * @return list<array{type: string, key: string, pid: int|null, lastBeatAt: \DateTimeImmutable|null, meta: array<string,mixed>|null, ageSeconds: int|null, age: string, healthy: bool, folders: list<array{label: string, age: string, healthy: bool}>}>
+     */
+    public function processes(): array
+    {
+        $rows    = [];
+        $folders = [];
+        $listen  = null;
+
+        foreach ($this->heartbeats() as $row) {
+            if (ProcessHeartbeatService::TYPE_IMAP_IDLE === $row['type']) {
+                $folders[] = $row;
+
+                continue;
+            }
+
+            if (ProcessHeartbeatService::TYPE_IMAP_LISTEN === $row['type'] && null === $listen) {
+                $listen = count($rows);
+            }
+
+            $rows[] = $row + ['folders' => []];
+        }
+
+        if (null === $listen) {
+            foreach ($folders as $folder) {
+                $rows[] = $folder + ['folders' => []];
+            }
+
+            return $rows;
+        }
+
+        $labels = $this->folderLabels(array_map(static fn (array $row): string => $row['key'], $folders));
+
+        foreach ($folders as $folder) {
+            $rows[$listen]['folders'][] = [
+                'label'   => $labels[$folder['key']] ?? '#' . $folder['key'],
+                'age'     => $folder['age'],
+                'healthy' => $folder['healthy'],
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * "account · folder" for each mailbox id an `imap-idle` row is keyed by,
+     * in one query. A row whose folder has been deleted since gets no label;
+     * the caller falls back to the id.
+     *
+     * @param list<string> $keys
+     *
+     * @return array<string, string>
+     */
+    private function folderLabels(array $keys): array
+    {
+        $ids = array_values(array_filter(array_map(intval(...), $keys), static fn (int $id): bool => $id > 0));
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $labels = [];
+
+        foreach ($this->mailboxRepository->findBy(['id' => $ids]) as $mailbox) {
+            $labels[(string) $mailbox->id] = ($mailbox->account->email ?? '?') . ' · ' . ($mailbox->name ?? $mailbox->fullPath ?? '?');
+        }
+
+        return $labels;
     }
 
     /**

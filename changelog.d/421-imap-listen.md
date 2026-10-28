@@ -17,6 +17,8 @@ once. `app:imap:test` no longer writes a test message into the Sent folder unles
 The worker runs `imap-listener` and `jmap-listener` itself; the `imap-supervisor` process is
 gone, and `--without=imap-supervisor` (or `--only`) still means both listeners. It also stops in
 a few seconds on shutdown, where the per-folder processes could outlast the grace period and be
-killed. A migration rewrites every stored flag list into the new spelling; nothing else to do
+killed. In Admin → Processes the folders are a row of folder icons on the
+`imap-listen` row, green while IDLE holds and red when a folder has gone quiet, instead of an
+`imap-idle` row each. A migration rewrites every stored flag list into the new spelling; nothing else to do
 on upgrade.
 [#421](https://github.com/karatektus/pl_mail/issues/421).

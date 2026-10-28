@@ -114,7 +114,7 @@ final class AdminDashboardController extends AbstractController
                 ? null
                 : (int) (microtime(true) - $restartRequestedAt),
             'collapsedPanels' => $this->collapsedPanels(),
-            'heartbeats'      => $this->monitoring->heartbeats(),
+            'processes'       => $this->monitoring->processes(),
             'webhooks'        => $this->monitoring->gmailWebhooks(),
             'pushDiagnostics' => $this->monitoring->gmailPushDiagnostics(),
             'tokenHealth'     => $this->monitoring->tokenHealth(),
