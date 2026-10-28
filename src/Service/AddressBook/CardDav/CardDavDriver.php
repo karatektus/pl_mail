@@ -473,12 +473,20 @@ final readonly class CardDavDriver implements VerifiableDriverInterface, Address
     /**
      * Every card, unfiltered — a filter would make the listing a lie the sync
      * service then acts on by deleting what it did not mention.
+     *
+     * Unfiltered still needs a <card:filter>: RFC 6352 (10.3) requires one,
+     * and go-webdav servers (Meerkat CRM) answered a query without it with an
+     * empty 207, which read as a book with no cards (#350). The filter is
+     * "allof" with no tests, which every card passes. The default "anyof"
+     * with no tests is what go-webdav evaluates as matching nothing, so an
+     * empty <card:filter/> on its own would not have helped there.
      */
     private function queryReportBody(): string
     {
         return '<?xml version="1.0" encoding="utf-8"?>'
             . '<card:addressbook-query xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">'
             . '<d:prop><d:getetag/><card:address-data/></d:prop>'
+            . '<card:filter test="allof"/>'
             . '</card:addressbook-query>';
     }
 
