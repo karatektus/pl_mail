@@ -2688,6 +2688,13 @@ label:
         no_color: '— keine —'
         no_parent: '— oberste Ebene —'
         parent: Einordnen unter
+        places:
+            folder: 'Ein Ordner auf %account%'
+            keyword: 'Ein Schlüsselwort auf %account%'
+            keyword_unasked: 'Ein Schlüsselwort auf %account%, wo seine Ordner Schlüsselwörter speichern'
+            local_off: 'Nur in plMail auf %account% (Labels als Schlüsselwörter ist aus)'
+            local_server: 'Nur in plMail auf %account% (der Server speichert keine Schlüsselwörter)'
+            title: 'Wo dieses Label liegt'
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
@@ -3265,6 +3272,12 @@ settings:
                 separator: 'Auf diesem Server darf ein Ordnername kein „%separator%“ enthalten: Es trennt Ordner von den Ordnern darin.'
                 too_long: 'Dieser Name ist für einen Ordner zu lang.'
                 wildcard: 'Ein Ordnername darf kein * und kein % enthalten.'
+            keywords:
+                allowed: 'Dieser Server speichert Schlüsselwörter.'
+                intro: 'Setzt Labels auf die Mail dieses Kontos als IMAP-Schlüsselwörter, damit Mailprogramme, die Schlüsselwörter zeigen (etwa die Schlagwörter in Thunderbird), sie sehen, und dort gesetzte Schlüsselwörter hier als Labels ankommen. Labels verschieben nie Mail. Aus: Labels bleiben in plMail.'
+                refused: 'Dieser Server speichert keine Schlüsselwörter, deshalb bleiben Labels auf diesem Konto in plMail.'
+                title: 'Labels als Schlüsselwörter'
+                unknown: 'Noch nicht gefragt: plMail fragt jeden Ordner, wenn es dort zum ersten Mal ein Schlüsselwort schreibt.'
             new:
                 button: 'Neuer Ordner'
                 intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'

@@ -18,6 +18,7 @@ use App\Repository\Label\LabelRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
 use App\Service\Label\LabelNotifier;
+use App\Service\Label\LabelPlaces;
 use App\Service\Label\LabelStructurePropagator;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -61,6 +62,7 @@ final class LabelController extends AbstractController
         private readonly LabelDeletion          $deletion,
         private readonly BackgroundJobRepository $jobs,
         private readonly MessageBusInterface    $bus,
+        private readonly LabelPlaces            $places,
     ) {}
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -504,8 +506,9 @@ final class LabelController extends AbstractController
         }
 
         return $this->render('label/_form.html.twig', [
-            'form'  => $form,
-            'label' => $label,
+            'form'   => $form,
+            'label'  => $label,
+            'places' => null === $label->id ? [] : $this->places->of($label, $this->currentUser()),
         ], new Response(status: $status));
     }
 

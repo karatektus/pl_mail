@@ -2701,6 +2701,13 @@ label:
         no_color: '— aucune —'
         no_parent: '— premier niveau —'
         parent: Imbriquer sous
+        places:
+            folder: 'Un dossier sur %account%'
+            keyword: 'Un mot-clé sur %account%'
+            keyword_unasked: 'Un mot-clé sur %account%, là où ses dossiers conservent les mots-clés'
+            local_off: 'Seulement dans plMail sur %account% (libellés en mots-clés désactivé)'
+            local_server: 'Seulement dans plMail sur %account% (le serveur ne conserve pas de mots-clés)'
+            title: 'Où ce libellé est conservé'
     menu:
         create: Créer
         empty: Aucun libellé pour l’instant.
@@ -3300,6 +3307,12 @@ settings:
                 separator: 'Sur ce serveur, un nom de dossier ne peut pas contenir « %separator% » : il sépare les dossiers des dossiers qu’ils contiennent.'
                 too_long: 'Ce nom est trop long pour un dossier.'
                 wildcard: 'Un nom de dossier ne peut contenir ni * ni %.'
+            keywords:
+                allowed: 'Ce serveur conserve les mots-clés.'
+                intro: 'Pose les libellés sur le courrier de ce compte comme mots-clés IMAP, pour que les applications qui affichent les mots-clés (les étiquettes de Thunderbird, par exemple) les voient, et que les mots-clés posés là-bas arrivent ici comme libellés. Les libellés ne déplacent jamais le courrier. Désactivé : les libellés restent dans plMail.'
+                refused: 'Ce serveur ne conserve pas de mots-clés : les libellés restent dans plMail sur ce compte.'
+                title: 'Libellés en mots-clés'
+                unknown: 'Pas encore demandé : plMail interroge chaque dossier la première fois qu’il y écrit un mot-clé.'
             new:
                 button: 'Nouveau dossier'
                 intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'

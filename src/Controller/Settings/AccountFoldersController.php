@@ -15,6 +15,9 @@ use App\Repository\Mail\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Imap\FolderTree;
 use App\Service\Imap\ImapFolderManager;
+use App\Service\Imap\ImapPermanentFlags;
+use App\Service\Label\LabelPlaces;
+use App\Domain\Helper\ImapConnectionFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -66,6 +69,9 @@ final class AccountFoldersController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ImapFolderManager      $folders,
         private readonly TranslatorInterface    $translator,
+        private readonly ImapConnectionFactory  $connections,
+        private readonly ImapPermanentFlags     $permanentFlags,
+        private readonly LabelPlaces            $places,
     ) {}
 
     #[Route('/settings/accounts/{id}/folders', name: 'settings_account_folders', methods: ['GET'])]
@@ -193,6 +199,34 @@ final class AccountFoldersController extends AbstractController
         ), keepList: true);
     }
 
+    /**
+     * Labels as IMAP keywords on this account, on or off (#221 step 2).
+     *
+     * Switching it on asks each folder plMail fetches whether it keeps
+     * keywords, so the list and the label dialog can say so at once instead of
+     * after the first label is written. A server that cannot be reached does
+     * not stop the switch: the folders are asked again as keywords are written.
+     * Only changes made from now on are written; labels that are already on
+     * mail are not pushed in bulk.
+     */
+    #[Route('/settings/accounts/{id}/folders/keywords', name: 'settings_account_folder_keywords', methods: ['POST'])]
+    public function keywords(Request $request, Account $account): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $this->assertSyncsOverImap($account);
+        $this->assertCsrf($request, 'account_folder_keywords_' . $account->id);
+
+        $account->labelsAsKeywords = false === $account->labelsAsKeywords;
+
+        if (true === $account->labelsAsKeywords) {
+            $this->askFolders($account);
+        }
+
+        $this->em->flush();
+
+        return $this->renderList($account);
+    }
+
     #[Route('/settings/accounts/{id}/folders/{mailbox}/sync', name: 'settings_account_folder_sync_toggle', methods: ['POST'])]
     public function toggle(Request $request, Account $account, Mailbox $mailbox): Response
     {
@@ -243,9 +277,10 @@ final class AccountFoldersController extends AbstractController
     private function renderList(Account $account, ?string $error = null): Response
     {
         return $this->render('settings/accounts/_folders_modal.html.twig', [
-            'account' => $account,
-            'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
-            'error'   => $error,
+            'account'         => $account,
+            'rows'            => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
+            'error'           => $error,
+            'keywordsAllowed' => $this->places->inboxAllows($account),
         ]);
     }
 
@@ -267,6 +302,7 @@ final class AccountFoldersController extends AbstractController
                 'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
                 'error'   => null,
                 'done'    => $stream,
+                'keywordsAllowed' => $this->places->inboxAllows($account),
             ]);
         }
 
@@ -350,6 +386,28 @@ final class AccountFoldersController extends AbstractController
     private static function idOrNull(mixed $value): ?int
     {
         return is_string($value) && 1 === preg_match('/^[1-9]\d*$/', $value) ? (int) $value : null;
+    }
+
+    private function askFolders(Account $account): void
+    {
+        try {
+            $client = $this->connections->connect($account);
+        } catch (Throwable) {
+            return;
+        }
+
+        try {
+            foreach ($this->mailboxes->findForAccountOrdered($account) as $mailbox) {
+                if (true === $mailbox->isSelectable && true === $mailbox->isSyncEnabled) {
+                    $this->permanentFlags->probe($client, $mailbox);
+                }
+            }
+        } finally {
+            try {
+                $client->disconnect();
+            } catch (Throwable) {
+            }
+        }
     }
 
     private function assertSyncsOverImap(Account $account): void
