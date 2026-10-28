@@ -80,7 +80,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
         self::assertInstanceOf(ApplyImapKeywordsMessage::class, $sent[0]);
         self::assertSame(['Follow&ACA-up'], $sent[0]->add);
         self::assertSame([['message' => (int) $message->id, 'mailbox' => (int) $this->inbox->id, 'uid' => 17]], $sent[0]->copies);
-        self::assertNotNull($message->flagsTouchedAt, 'the echo guard is up until the server has it');
+        self::assertNull($message->flagsTouchedAt, 'the shared echo guard is not the keyword path\'s to set');
     }
 
     /** Off by default: nothing leaves plMail. */
@@ -117,7 +117,9 @@ final class ImapKeywordWriteTest extends KernelTestCase
         $server = new FakeFolderServer();
         $server->keywordFolders['INBOX'] = true;
         $message = $this->message(17);
-        $message->flagsTouchedAt = new \DateTimeImmutable();
+        // A star the server has not confirmed yet, on the same row.
+        $starPending = new \DateTimeImmutable('-1 minute');
+        $message->flagsTouchedAt = $starPending;
         $this->em->flush();
 
         $this->handler($server)(new ApplyImapKeywordsMessage(
@@ -129,7 +131,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
         self::assertSame(['SELECT INBOX', 'STORE 17 +FLAGS (Follow&ACA-up)'], $server->commands);
         self::assertTrue($this->inbox->keywordsAllowed);
         self::assertContains('Follow&ACA-up', $message->flags, 'the mirror says what the server has');
-        self::assertNull($message->flagsTouchedAt, 'and the inbound pass may read the row again');
+        self::assertEquals($starPending, $message->flagsTouchedAt, 'the star in flight keeps its echo guard');
     }
 
     public function testAKeywordIsTakenOffAgain(): void

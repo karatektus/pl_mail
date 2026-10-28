@@ -34,9 +34,12 @@ use Webklex\PHPIMAP\IMAP;
  * backslash in front of every flag, which makes a keyword a system flag the
  * server refuses.
  *
- * Afterwards the row's stored flags say what the server now has, and the
- * echo guard (Message::$flagsTouchedAt) is lifted — the inbound pass may read
- * the row again. A server that cannot be reached is retried, as for any flag.
+ * Afterwards the row's stored flags say what the server now has, which is
+ * what lets the inbound pass tell this change from one another client made
+ * (KeywordLabelFollower). The echo guard (Message::$flagsTouchedAt) is left
+ * alone: it belongs to star and read, which may be in flight on the same row,
+ * and the keyword path never set it. A server that cannot be reached is
+ * retried, as for any flag.
  */
 #[AsMessageHandler]
 final readonly class ApplyImapKeywordsHandler
@@ -141,14 +144,13 @@ final readonly class ApplyImapKeywordsHandler
 
     /**
      * The row's mirror of the server's flags, so the inbound pass sees no
-     * difference to act on, and the echo guard lifted.
+     * difference to act on. Only the keywords; the echo guard is not ours.
      */
     private function recordFlags(Message $message, ApplyImapKeywordsMessage $job): void
     {
         $flags  = array_values(array_diff($message->flags, $job->remove));
         $flags  = array_values(array_unique([...$flags, ...$job->add]));
 
-        $message->flags          = $flags;
-        $message->flagsTouchedAt = null;
+        $message->flags = $flags;
     }
 }
