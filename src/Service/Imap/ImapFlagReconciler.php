@@ -8,7 +8,7 @@ use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MessageRepository;
-use App\Service\Label\KeywordLabels;
+use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
@@ -76,7 +76,7 @@ final readonly class ImapFlagReconciler
         private MessageRepository   $messages,
         private ThreadStatusUpdater $status,
         private LoggerInterface     $logger,
-        private KeywordLabels       $keywordLabels,
+        private KeywordLabelFollower $keywords,
     ) {
     }
 
@@ -193,7 +193,8 @@ final readonly class ImapFlagReconciler
         // see its applyRemoteFlags() docblock.
         $changed = $this->status->applyRemoteFlags($states, $readAt);
 
-        $this->followKeywords($mailbox, $messages, $before);
+        // Keywords another client changed, as labels (#221 step 2).
+        $this->keywords->follow($mailbox, $messages, $before);
 
         if ($changed > 0) {
             $this->logger->info('Refreshed message flags from the server', [
@@ -204,63 +205,5 @@ final readonly class ImapFlagReconciler
         }
 
         return $changed;
-    }
-
-    /**
-     * Keywords another client put on or took off, as labels (#221 step 2).
-     *
-     * Read as a CHANGE — the keywords of the row's flag mirror before this pass
-     * against after it — and never as "the server's set is the truth": a label
-     * the person gave a message while keywords were off, or in a folder that
-     * keeps none, has no keyword and must not be taken off for lacking one.
-     * A row the echo guard held back still has its old mirror, so it shows no
-     * change and is left for the next pass.
-     *
-     * Only where the account keeps labels as keywords. Only tags: a keyword
-     * whose label is a folder on this account is not a place, and changes
-     * nothing here.
-     *
-     * @param iterable<\App\Entity\Mail\Message> $messages
-     * @param array<int, list<string>>            $before message id => flags before the pass
-     */
-    private function followKeywords(Mailbox $mailbox, iterable $messages, array $before): void
-    {
-        $account = $mailbox->account;
-        $owner   = $account?->usr;
-
-        if (null === $account || null === $owner || false === $account->labelsAsKeywords) {
-            return;
-        }
-
-        $touched = [];
-
-        foreach ($messages as $message) {
-            $old = KeywordLabels::namesIn($before[(int) $message->id] ?? []);
-            $new = KeywordLabels::namesIn($message->flags);
-
-            if ($old === $new) {
-                continue;
-            }
-
-            foreach (array_diff($new, $old) as $name) {
-                $label = $this->keywordLabels->label($name, $owner, true);
-
-                if (null !== $label && null === $label->bindingFor($account)?->mailbox) {
-                    $message->addLabel($label);
-                    $touched[(int) $message->id] = $message;
-                }
-            }
-
-            foreach (array_diff($old, $new) as $name) {
-                $label = $this->keywordLabels->label($name, $owner, false);
-
-                if (null !== $label && null === $label->role && null === $label->bindingFor($account)?->mailbox) {
-                    $message->removeLabel($label);
-                    $touched[(int) $message->id] = $message;
-                }
-            }
-        }
-
-        $this->status->labelsChangedOnServer(array_values($touched));
     }
 }
