@@ -187,6 +187,13 @@ final class GraphMessageBuilder
 
         $categories = array_values(array_map('strval', $payload['categories'] ?? []));
 
+        // What Exchange holds now, for telling a later change made in Outlook
+        // from one plMail made (#221 step 4). Only when the payload said: a
+        // listing without `categories` is not "none".
+        if (true === array_key_exists('categories', $payload)) {
+            $message->graphCategories = $categories;
+        }
+
         foreach ($this->folderResolver->resolveCategories($categories, $account) as $categoryLabel) {
             $message->addLabel($categoryLabel);
         }
