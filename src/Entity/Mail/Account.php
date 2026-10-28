@@ -696,6 +696,23 @@ class Account extends AccountModel
      */
     public const string SETTING_LABELS_AS_KEYWORDS = 'labels.imap_keywords';
 
+    /**
+     * Whether a category put on or taken off a message in Outlook puts the
+     * label on or takes it off in plMail (#221 step 4). Microsoft only, off by
+     * default: until it is on, categories are read at import and pushed from
+     * plMail, as they always were, and a change made in Outlook to mail
+     * already here is not followed.
+     */
+    public const string SETTING_FOLLOW_OUTLOOK_CATEGORIES = 'labels.outlook_categories';
+
+    /** Virtual, out of the settings bag — see SETTING_FOLLOW_OUTLOOK_CATEGORIES. */
+    public bool $followsOutlookCategories {
+        get => true === $this->isMicrosoft() && true === $this->getSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, $on ? true : null);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_LABELS_AS_KEYWORDS. */
     public bool $labelsAsKeywords {
         get => true === $this->isPlainImap() && true === $this->getSetting(self::SETTING_LABELS_AS_KEYWORDS, false);
