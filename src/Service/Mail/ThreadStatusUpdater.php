@@ -442,6 +442,22 @@ final readonly class ThreadStatusUpdater
     }
 
     /**
+     * Labels the server put on or took off, already changed on the rows: the
+     * threads catch up and JMAP hears of it, and nothing goes back out — the
+     * server is where the change came from (#221 step 2, keywords read back).
+     *
+     * @param list<Message> $messages
+     */
+    public function labelsChangedOnServer(array $messages): void
+    {
+        if ([] === $messages) {
+            return;
+        }
+
+        $this->finish($messages);
+    }
+
+    /**
      * Make each message carry exactly the labels it is given, in the database
      * and nowhere else.
      *

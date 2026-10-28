@@ -18,6 +18,7 @@ use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Crypto\MessageCryptoDetector;
+use App\Service\Label\KeywordLabels;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
@@ -63,6 +64,7 @@ class MessageSyncer
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly MessageCryptoDetector $cryptoDetector,
+        private readonly KeywordLabels $keywordLabels,
     ) {}
 
     /**
@@ -1051,6 +1053,21 @@ class MessageSyncer
         // Flags
         $flagNames = array_values($imapMessage->getFlags()->toArray());
         $message->flags = $flagNames;
+
+        // Keywords that are labels, where the account keeps labels as keywords
+        // (#221 step 2): the mail arrives wearing them. Off, and they stay in
+        // the flag mirror and nowhere else, as before.
+        $owner = $mailbox->account?->usr;
+
+        if (true === $mailbox->account?->labelsAsKeywords && null !== $owner) {
+            foreach (KeywordLabels::namesIn($flagNames) as $name) {
+                $label = $this->keywordLabels->label($name, $owner, true);
+
+                if (null !== $label) {
+                    $message->addLabel($label);
+                }
+            }
+        }
 
         // Dates. A draft has not been sent, whatever its Date header says (see
         // Message::$sentAt). Decided by the same test the rest of the app uses
