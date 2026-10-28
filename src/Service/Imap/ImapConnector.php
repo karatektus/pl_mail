@@ -13,15 +13,16 @@ use App\Infrastructure\ImapClient\ImapCredentials;
 use App\Infrastructure\ImapClient\ImapEndpoint;
 use App\Infrastructure\ImapClient\ImapLoop;
 use App\Infrastructure\ImapClient\ImapSecurity;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Service\OAuth\OAuthTokenManager;
 
 /**
  * Opens a logged-in connection on plMail's own IMAP client for an account.
  *
- * The counterpart of ImapConnectionFactory, which does the same for webklex,
- * and it turns away the same accounts for the same reasons. The two live side
- * by side while the client replaces the library one caller at a time; IDLE is
- * the first caller.
+ * Every IMAP conversation starts here, so this is where the accounts that do
+ * not speak IMAP are turned away: a POP3 account's server sits in the same
+ * columns, and a JMAP account's host is a web server that would hang on an
+ * IMAP greeting for as long as the timeout allowed.
  *
  * The one step here that can block the loop is an OAuth token refresh, an
  * HTTP request to Google or Microsoft with its own timeout. That is not the
@@ -31,7 +32,24 @@ final readonly class ImapConnector
 {
     public function __construct(
         private OAuthTokenManager $tokenManager,
+        private ImapLoop          $loop,
+        private ?ImapDeadline     $deadline = null,
     ) {
+    }
+
+    /**
+     * A logged-in session for the ordinary, blocking callers: sync, import,
+     * write-back. On the process's one loop, and watched by the handler
+     * deadline (ImapDeadline), so a server that trickles a fetch for twenty
+     * minutes is cut off at five, as it was before this client.
+     */
+    public function session(Account $account, float $timeoutSeconds = ImapConnection::DEFAULT_TIMEOUT_SECONDS): ImapSession
+    {
+        $connection = $this->open($this->loop, $account, $timeoutSeconds);
+
+        $this->deadline?->watchSession($connection);
+
+        return new ImapSession($connection);
     }
 
     public function endpoint(Account $account): ImapEndpoint

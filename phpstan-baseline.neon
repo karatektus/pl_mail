@@ -1,18 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Parameter \#2 \$options of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects array\|null, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Command/Imap/ImapTestCommand.php
-
-		-
-			message: '#^Parameter \#3 \$internal_date of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects Carbon\\Carbon\|string\|null, DateTimeImmutable given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Command/Imap/ImapTestCommand.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1

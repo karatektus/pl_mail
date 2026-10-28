@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:c31674cb0b803f3d468ae106f4ebff01e4cb6bc8 -->
+<!-- translated-from: internals/mail-ingest.md sha1:1927bac8825b9243d8259ebb3392b88707813017 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -27,8 +27,9 @@ Fehler.
 `ImapAccountSyncer` lässt `MailboxSyncer` vor `MessageSyncer` laufen, damit Ordner, die ein
 anderer Client angelegt hat, erst auftauchen und ihre Labelketten bekommen, bevor eine
 Nachricht versucht, sich in eine davon aufzulösen. `MessageSyncer` holt in Stapeln zu 50 und
-reicht die rohen RFC822-Bytes weiter, weil webklex sie nach dem Parsen behält — deshalb ist
-IMAP der einzige Weg, auf dem das Original gratis gespeichert wird.
+reicht die rohen RFC822-Bytes weiter, weil jede Nachricht als Ganzes geholt (`BODY.PEEK[]`) und
+aus diesen Bytes geparst wird — deshalb ist IMAP der einzige Weg, auf dem das Original gratis
+gespeichert wird.
 
 **Gmail hat überhaupt keine `Mailbox`-Zeilen.** `GmailApiSyncer` plant die Arbeit direkt auf dem
 Konto und fächert `SyncGmailMessageBatchMessage`-Jobs zu je 100 Ids auf, während er mit der

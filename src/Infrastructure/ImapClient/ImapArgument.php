@@ -45,6 +45,16 @@ final readonly class ImapArgument
         return new self('string', $value);
     }
 
+    /**
+     * Text sent as a literal whatever it holds: a message for APPEND, which
+     * is lines, and which a server may limit as a quoted string but not as a
+     * literal.
+     */
+    public static function literal(string $value): self
+    {
+        return new self('literal', $value);
+    }
+
     /** @param list<self> $items */
     public static function list(array $items): self
     {
@@ -86,7 +96,7 @@ final readonly class ImapArgument
         // Quoted strings cannot carry a line break or a NUL, and RFC 9051
         // keeps them to seven bits unless UTF8=ACCEPT is enabled; anything
         // else goes as a literal, which carries any byte.
-        if (1 !== preg_match('~[\x00\r\n\x80-\xff]~', $this->text)) {
+        if ('literal' !== $this->kind && 1 !== preg_match('~[\x00\r\n\x80-\xff]~', $this->text)) {
             $command->append('"' . addcslashes($this->text, '"\\') . '"');
 
             return;

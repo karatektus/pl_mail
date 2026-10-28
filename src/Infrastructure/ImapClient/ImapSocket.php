@@ -190,6 +190,26 @@ final class ImapSocket
         }
     }
 
+    public function isOpen(): bool
+    {
+        return true === is_resource($this->stream) && false === feof($this->stream);
+    }
+
+    /**
+     * End the conversation under whoever is reading it, from a signal handler.
+     *
+     * Shut down rather than closed: the reader is somewhere inside this class
+     * holding the resource, and closing it there would make its next call a
+     * TypeError on a closed resource instead of the end-of-file every reader
+     * here already handles. See ImapDeadline.
+     */
+    public function shutDown(): void
+    {
+        if (true === is_resource($this->stream)) {
+            @stream_socket_shutdown($this->stream, STREAM_SHUT_RDWR);
+        }
+    }
+
     private function drain(): string
     {
         $bytes = '';

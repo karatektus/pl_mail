@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -413,9 +414,9 @@ final class BatchStorageTest extends KernelTestCase
     {
         // The run-wide lowest held UID: a run of one batch starts with none.
         $lowest   = null;
+        // Asked nothing: no message here claims a Message-ID stored elsewhere.
         $presence = new ImapUidPresence(
-            $this->account,
-            static::getContainer()->get(ImapConnectionFactory::class),
+            new FakeImapServer(static::getContainer()->get(ImapLoop::class))->session(),
             new NullLogger(),
         );
 
@@ -451,7 +452,7 @@ final class BatchStorageTest extends KernelTestCase
         ]))->setUid($uid);
     }
 
-    /** Parsed through the decoder ImapConnectionFactory installs, not the default. */
+    /** Parsed through the decoder MessageParser::config() installs, not the default. */
     private function mail(int $uid, ?string $attachment = null, ?string $html = null): ImapMessage
     {
         $raw = "From: Sender <sender@example.test>\r\n"

@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\ImapFolder;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Imap\ImapConnector;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,20 +15,31 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-#[AsCommand(name: 'app:imap:test', description: 'Test IMAP connection and folder listing')]
-class ImapTestCommand extends Command
+/**
+ * What an account's IMAP server says, for someone debugging it: whether the
+ * login works, what it offers, which folders it lists and with which
+ * attributes, and where it keeps sent mail.
+ *
+ * Read-only unless asked. The append test writes a message into the Sent
+ * folder, which is not something a diagnostic should do to somebody's mailbox
+ * without being told to; it was unconditional while this command drove
+ * webklex.
+ */
+#[AsCommand(name: 'app:imap:test', description: 'Test an IMAP connection and folder listing')]
+final class ImapTestCommand extends Command
 {
     public function __construct(
         private readonly AccountRepository $accounts,
-        private readonly ImapConnectionFactory $imapConnectionFactory,
-    )
-    {
+        private readonly ImapConnector     $connector,
+    ) {
         parent::__construct();
     }
 
     protected function configure(): void
     {
-        $this->addOption('account', 'a', InputOption::VALUE_OPTIONAL, 'Account ID to test (defaults to first active account)');
+        $this
+            ->addOption('account', 'a', InputOption::VALUE_OPTIONAL, 'Account ID to test (defaults to first active account)')
+            ->addOption('append', null, InputOption::VALUE_NONE, 'Also append a test message to the Sent folder');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -33,98 +47,98 @@ class ImapTestCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $accountId = $input->getOption('account');
-        $account = $accountId
+        $account   = null !== $accountId
             ? $this->accounts->find($accountId)
             : $this->accounts->findOneBy(['isActive' => true]);
 
-        if (!$account instanceof Account) {
+        if (false === $account instanceof Account) {
             $io->error('No active account found.');
+
             return Command::FAILURE;
         }
 
         $io->title(sprintf('Testing IMAP for: %s (%s)', $account->name, $account->email));
 
-// 1. Connect
-        $io->section('1. Connecting…');
+        $io->section('1. Connecting and logging in');
+
         try {
-            $client = $this->imapConnectionFactory->connect($account);
-            $io->success('Connected.');
+            $session = $this->connector->session($account);
         } catch (\Throwable $e) {
-            $io->error('Connection failed: ' . $e->getMessage());
+            $io->error(sprintf('Connection failed: %s', $e->getMessage()));
+
             return Command::FAILURE;
         }
 
-// 2. List all folders flat
-        $io->section('2. All folders (getFolders(false) — flat)');
+        $io->success(sprintf('Logged in to %s.', $session->connection->endpoint->host));
+        $io->writeln(sprintf('  Capabilities: %s', implode(' ', $session->connection->capabilities)));
+
         try {
-            $folders = $client->getFolders(false);
+            $io->section('2. Folders (LIST "" "*")');
+
+            $folders = $session->folders();
+
             foreach ($folders as $folder) {
-                $io->writeln(sprintf('  path="%s"  name="%s"  delimiter="%s"',
+                $io->writeln(sprintf(
+                    '  path="%s"  name="%s"  delimiter="%s"  %s',
                     $folder->path,
-                    $folder->name,
-                    $folder->delimiter ?? '/',
+                    $folder->fullName(),
+                    $folder->delimiter,
+                    implode(' ', $folder->attributes),
                 ));
             }
+
             $io->success(sprintf('%d folders found.', count($folders)));
-        } catch (\Throwable $e) {
-            $io->error('getFolders(false) failed: ' . $e->getMessage());
-        }
 
-// 3. List all folders hierarchical
-        $io->section('3. All folders (getFolders(true) — hierarchical)');
-        try {
-            $folders = $client->getFolders(true);
-            $this->printFolderTree($folders, $io);
-        } catch (\Throwable $e) {
-            $io->error('getFolders(true) failed: ' . $e->getMessage());
-        }
+            $io->section('3. The Sent folder');
 
-// 4. Try getFolder() with common Sent folder names
-        $io->section('4. Probing common Sent folder names via getFolder()');
-        $candidates = ['Sent', 'Sent Items', 'Sent Messages', 'INBOX.Sent', '[Gmail]/Sent Mail'];
-        foreach ($candidates as $candidate) {
-            try {
-                $folder = $client->getFolder($candidate);
-                $io->writeln(sprintf('  <info>✓ Found:</info> "%s" → path="%s"', $candidate, $folder->path));
-            } catch (\Throwable) {
-                $io->writeln(sprintf('  <comment>✗ Not found:</comment> "%s"', $candidate));
+            $sent = self::sentFolder($folders);
+
+            if (null === $sent) {
+                $io->warning('No folder carries \Sent, and none is named like a Sent folder.');
+            } else {
+                $io->writeln(sprintf('  "%s" (path="%s")', $sent->fullName(), $sent->path));
             }
-        }
 
-// 5. Try appendMessage to the first successful candidate
-        $io->section('5. Testing appendMessage on first working Sent folder');
-        foreach ($candidates as $candidate) {
-            try {
-                $folder = $client->getFolder($candidate);
-                $folder->appendMessage(
-                    "From: test\r\nTo: test\r\nSubject: IMAP append test\r\n\r\nThis is a test.",
-                    '\\Seen',
+            if (true === $input->getOption('append') && null !== $sent) {
+                $io->section('4. Appending a test message to it');
+
+                $uid = $session->append(
+                    $sent->path,
+                    "From: test\r\nTo: test\r\nSubject: IMAP append test\r\n\r\nThis is a test.\r\n",
+                    ['\\Seen'],
                     new \DateTimeImmutable(),
                 );
-                $io->success(sprintf('appendMessage succeeded on "%s"', $candidate));
-                break;
-            } catch (\Throwable $e) {
-                $io->writeln(sprintf('  <comment>✗ appendMessage failed on "%s": %s</comment>', $candidate, $e->getMessage()));
-            }
-        }
 
-        $client->disconnect();
-        $io->success('Done.');
+                $io->success(null === $uid ? 'Appended; the server did not say under which UID.' : sprintf('Appended as UID %d.', $uid));
+            }
+        } catch (\Throwable $e) {
+            $io->error($e->getMessage());
+
+            return Command::FAILURE;
+        } finally {
+            $session->logout();
+        }
 
         return Command::SUCCESS;
     }
 
-    private function printFolderTree(iterable $folders, SymfonyStyle $io, int $depth = 0): void
+    /**
+     * @param list<ImapFolder> $folders
+     */
+    private static function sentFolder(array $folders): ?ImapFolder
     {
         foreach ($folders as $folder) {
-            $io->writeln(sprintf('%s<info>%s</info>  (path="%s")',
-                str_repeat('  ', $depth),
-                $folder->name,
-                $folder->path,
-            ));
-            if (!empty($folder->children)) {
-                $this->printFolderTree($folder->children, $io, $depth + 1);
+            if (true === $folder->hasAttribute('\\Sent')) {
+                return $folder;
             }
         }
+
+        foreach ($folders as $folder) {
+            if (true === in_array(mb_strtolower($folder->name()), ['sent', 'sent items', 'sent messages', 'sent mail', 'gesendet'], true)) {
+                return $folder;
+            }
+        }
+
+        return null;
     }
 }

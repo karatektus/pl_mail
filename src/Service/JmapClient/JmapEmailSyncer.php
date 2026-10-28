@@ -10,7 +10,6 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Exception\JmapApiException;
 use App\Domain\Exception\JmapResyncRequiredException;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MessageParser;
 use App\Entity\Mail\Account;
@@ -451,7 +450,7 @@ final readonly class JmapEmailSyncer
 
         try {
             $raw    = $this->jmap->download($account, $accountId, $blobId, 'message/rfc822', 'message.eml');
-            $parsed = MessageParser::fromString($raw, ImapConnectionFactory::config());
+            $parsed = MessageParser::fromString($raw, MessageParser::config());
 
             // Already here under another name: a copy this account sent, or
             // a row the IMAP sync stored before the account switched to JMAP.

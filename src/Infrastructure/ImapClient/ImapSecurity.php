@@ -24,10 +24,10 @@ enum ImapSecurity: string
     case None = 'none';
 
     /**
-     * The account's imapEncryption column, as ImapConnectionFactory has always
-     * read it: 'ssl' and 'tls' both mean TLS from the start (webklex opens
-     * either with a TLS socket), 'starttls' means STARTTLS, anything else
-     * nothing.
+     * The account's imapEncryption column, read as it always has been: 'ssl'
+     * and 'tls' both mean TLS from the start (webklex, which read it before
+     * this client, opened either with a TLS socket), 'starttls' means
+     * STARTTLS, anything else nothing.
      */
     public static function fromAccountSetting(?string $setting): self
     {

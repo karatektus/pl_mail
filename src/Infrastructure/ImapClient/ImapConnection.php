@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\ImapClient;
 
+use App\Domain\Interface\DeadlineClosable;
 use App\Infrastructure\ImapClient\Exception\ImapAuthenticationException;
 use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
@@ -34,7 +35,7 @@ use App\Infrastructure\ImapClient\Exception\ImapTimeoutException;
  * answer is missing or unreadable, the two sides no longer agree on where the
  * conversation is, and nothing said after that can be trusted.
  */
-final class ImapConnection
+final class ImapConnection implements DeadlineClosable
 {
     public const float DEFAULT_TIMEOUT_SECONDS = 30.0;
 
@@ -134,7 +135,8 @@ final class ImapConnection
     /**
      * Send one command and wait for it to finish.
      *
-     * @throws ImapCommandException when the server answers NO or BAD
+     * @throws ImapCommandException    when the server answers NO or BAD; the connection is still usable
+     * @throws ImapConnectionException when the connection fails, times out or loses the thread; it is closed
      */
     public function command(string $name, ImapArgument ...$arguments): ImapResult
     {
@@ -212,6 +214,16 @@ final class ImapConnection
         $this->isClosed = true;
         $this->busy     = false;
         $this->socket->close();
+    }
+
+    public function closeForDeadline(): void
+    {
+        $this->socket->shutDown();
+    }
+
+    public function isOpen(): bool
+    {
+        return false === $this->isClosed && true === $this->socket->isOpen();
     }
 
     // ---------------------------------------------------------------- for ImapIdle

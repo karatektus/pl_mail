@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -20,6 +19,7 @@ use App\Service\Crypto\AutocryptHeader;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
 use App\Service\Crypto\SendingKey;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
@@ -32,7 +32,6 @@ use App\Service\Mail\RawMessageResolver;
 use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
-use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mime\Email as SymfonyEmail;
 
@@ -115,8 +114,9 @@ final class SendMessageHandlerNoDuplicateTest extends KernelTestCase
             }
         };
 
-        $imap = $this->createStub(ImapConnectionFactory::class);
-        $imap->method('connect')->willThrowException(new RuntimeException('IMAP server unreachable'));
+        // The account's IMAP server is localhost:993, where nothing listens:
+        // the APPEND's connection is refused, after the provider took the mail.
+        $imap = $container->get(ImapConnector::class);
 
         $service = new MessageSendService(
             $container->get(MailboxRepository::class),

@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Helper\ThrowableSeverity;
-use App\Domain\Helper\ImapConnectionFactory;
-use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
+use App\Infrastructure\ImapClient\ImapSession;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * "Is this UID still in that folder?" — asked of the server, once per question.
@@ -23,38 +21,28 @@ use Webklex\PHPIMAP\Folder;
  * SentCopyReconciler for why that question is the one worth asking.
  *
  * Three answers, and the third is the important one. True and false are the
- * server's. Null means the server did not answer — an unreachable host, a
- * folder that has been renamed, a fetch that threw — and null must never be
- * read as "gone", because the caller's response to "gone" is to delete rows.
+ * server's. Null means the server did not answer — a folder that has been
+ * renamed, a connection that dropped — and null must never be read as
+ * "gone", because the caller's response to "gone" is to delete rows.
  * Anything that cannot be established is left alone.
  *
- * ## Its own connection, deliberately
- *
- * The syncer asks this from inside a chunked() iteration, and chunked() runs
- * one search over the folder it is on and then pages through the result. Every
- * probe SELECTs a different folder on the connection it borrows, in the middle
- * of that paging. Rather than reason about how much of the library's state
- * survives having the selected mailbox changed underneath it, this opens a
- * second connection and leaves the syncer's alone.
- *
- * Lazily, and that is what makes the cost acceptable: a healthy account never
- * has two rows claiming one Message-ID, so it never asks a question, so it
- * never opens the connection. The accounts that do pay for one connection per
- * sync, which is what repairing them is worth.
+ * On the sync's own session. It used to open a second connection, because
+ * the library's paging held state about the selected folder that a probe in
+ * between would have pulled out from under it. ImapSession selects whatever
+ * folder a command is for, so a probe between two pages costs the next page
+ * one SELECT and nothing else.
  */
 final class ImapUidPresence
 {
     /** @var array<string, bool|null> memoised answers, "mailboxId:uid" keyed */
     private array $answers = [];
 
-    private ?Client $client = null;
-
+    /** Set once the connection has failed: nothing more will be answered on it. */
     private bool $unavailable = false;
 
     public function __construct(
-        private readonly Account               $account,
-        private readonly ImapConnectionFactory $connections,
-        private readonly LoggerInterface       $logger,
+        private readonly ImapSession     $session,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -72,38 +60,33 @@ final class ImapUidPresence
         return $this->answers[$key] = $this->ask($mailbox, $uid);
     }
 
-    public function close(): void
-    {
-        try {
-            $this->client?->disconnect();
-        } catch (Throwable) {
-            // Closing a connection that is already gone is not a failure.
-        }
-
-        $this->client = null;
-    }
-
     private function ask(Mailbox $mailbox, int $uid): ?bool
     {
-        $client = $this->client();
-
-        if (null === $client) {
+        if (true === $this->unavailable) {
             return null;
         }
 
         try {
-            $folder = ImapFolderLocator::of($client, $mailbox);
+            return self::holds($this->session, $mailbox->serverPath(), $uid);
+        } catch (ImapCommandException $refused) {
+            // Most likely the folder itself is gone. Every row claiming an
+            // address in it is stale, but "the folder was deleted" is a
+            // different event from "the message moved", with different
+            // consequences, and this is not the place to conflate them.
+            $this->logger->info('Could not establish whether a UID is still on the server', [
+                'mailbox' => $mailbox->fullPath,
+                'uid'     => $uid,
+                'error'   => $refused->getMessage(),
+            ]);
 
-            if (null === $folder) {
-                // The folder itself is gone. Every row claiming an address in
-                // it is stale, but "the folder was deleted" is a different
-                // event from "the message moved", with different consequences,
-                // and this is not the place to conflate them.
-                return null;
+            return null;
+        } catch (Throwable $e) {
+            // Once, not once per question: a connection that has failed will
+            // fail the next fifty just as slowly.
+            if ($e instanceof ImapConnectionException) {
+                $this->unavailable = true;
             }
 
-            return self::holds($folder, $uid);
-        } catch (Throwable $e) {
             $this->logger->log(ThrowableSeverity::level($e), 'Could not establish whether a UID is still on the server', [
                 'mailbox'   => $mailbox->fullPath,
                 'uid'       => $uid,
@@ -118,49 +101,12 @@ final class ImapUidPresence
     /**
      * Whether the folder lists the UID, by UID SEARCH alone.
      *
-     * Not a fetch of the message, which is what this was until #357: the
-     * question is whether the UID exists, and building a message to answer it
-     * put the header parser in the way. A message with its Date header three
-     * times made webklex hand preg_match() an array, the TypeError came out of
-     * the fetch, and the answer was null — on every sync, for a message that
-     * was there all along, so the duplicate it was asked about was never
-     * repaired. SEARCH returns numbers and parses nothing.
-     *
-     * Not ImapQuery either, which repairs such a header and drops a message it
-     * still cannot read: dropped would come back here as "not found", and
-     * "not found" is the answer that deletes rows.
+     * Not a fetch of the message: the question is whether the UID exists, and
+     * building a message to answer it put the header parser in the way (#357).
+     * SEARCH returns numbers and parses nothing.
      */
-    public static function holds(Folder $folder, int $uid): bool
+    public static function holds(ImapSession $session, string $path, int $uid): bool
     {
-        $found = $folder->messages()->where(MessageSyncer::uidSetCriteria([$uid]))->search();
-
-        return in_array($uid, array_map('intval', $found->all()), true);
-    }
-
-    private function client(): ?Client
-    {
-        if (null !== $this->client) {
-            return $this->client;
-        }
-
-        if (true === $this->unavailable) {
-            return null;
-        }
-
-        try {
-            return $this->client = $this->connections->connect($this->account);
-        } catch (Throwable $e) {
-            // Once, not once per question: a server that refused the second
-            // connection will refuse the next fifty just as slowly.
-            $this->unavailable = true;
-
-            $this->logger->log(ThrowableSeverity::level($e), 'No second IMAP connection for move reconciliation', [
-                'account'   => $this->account->id,
-                'error'     => $e->getMessage(),
-                'exception' => $e,
-            ]);
-
-            return null;
-        }
+        return true === in_array($uid, $session->uidSearch($path, sprintf('UID %d', $uid)), true);
     }
 }

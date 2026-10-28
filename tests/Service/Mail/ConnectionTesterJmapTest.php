@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Service\Mail;
 
 use App\Domain\Enum\Account\IncomingProtocol;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\SmtpDsnFactory;
-use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -29,7 +29,7 @@ use Symfony\Component\Translation\IdentityTranslator;
  * that is "sending is disabled for this account" — true of IMAP, false here,
  * and the first thing a person would read after connecting.
  */
-final class ConnectionTesterJmapTest extends TestCase
+final class ConnectionTesterJmapTest extends KernelTestCase
 {
     public function testAWorkingServerWithSubmissionPassesBothHalves(): void
     {
@@ -102,8 +102,11 @@ final class ConnectionTesterJmapTest extends TestCase
      */
     private function tester(array $responses, ?MockHttpClient $http = null): ConnectionTester
     {
+        self::bootKernel();
+
+        // Never asked anything: a JMAP account is not opened over IMAP.
         return new ConnectionTester(
-            $this->createStub(ImapConnectionFactory::class),
+            static::getContainer()->get(ImapConnector::class),
             new SmtpDsnFactory(),
             new IdentityTranslator(),
             new NullLogger(),

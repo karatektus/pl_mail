@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -144,14 +146,14 @@ final class ImapAccountSyncerTest extends KernelTestCase
             ['created' => 0, 'updated' => 0, 'deleted' => 0, 'renamed' => 0, 'missing' => 0],
         );
 
-        $connections = $this->createStub(ImapConnectionFactory::class);
-        $connections->method('connect')->willReturn(new FakeListingClient([]));
+        // Only logged in to: the folder sync above is a stand-in.
+        new FakeImapServer(static::getContainer()->get(ImapLoop::class))->pointAt($this->account);
 
         $syncer = new ImapAccountSyncer(
             static::getContainer()->get(MailboxRepository::class),
             $structure,
             $folders,
-            $connections,
+            static::getContainer()->get(ImapConnector::class),
             new NullLogger(),
             $this->em,
             static::getContainer()->get(ManagerRegistry::class),

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Messaging\Handler;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -16,13 +20,9 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use ReflectionProperty;
-use Throwable;
-use Webklex\PHPIMAP\Exceptions\AuthFailedException;
-use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
 
 /**
  * What an outgoing IMAP push does when the server will not take it.
@@ -39,7 +39,7 @@ use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
  * wrong does not — five more rejected logins is how a mailbox gets locked or
  * a host banned.
  */
-final class ApplyImapFlagsHandlerTest extends TestCase
+final class ApplyImapFlagsHandlerTest extends KernelTestCase
 {
     /** @var list<array{level: string, message: string}> */
     private array $logged = [];
@@ -51,20 +51,20 @@ final class ApplyImapFlagsHandlerTest extends TestCase
 
     public function testAnUnreachableServerEscapesTheHandlerSoMessengerRetriesIt(): void
     {
-        $handler = $this->handler(new ConnectionFailedException('connection setup failed'));
+        $handler = $this->handler(false);
 
-        $this->expectException(ConnectionFailedException::class);
+        $this->expectException(ImapConnectionException::class);
 
         $handler(new ApplyImapFlagsMessage([1 => 10], 'seen'));
     }
 
     public function testTheUnreachableServerIsAnnouncedBeforeItPropagates(): void
     {
-        $handler = $this->handler(new ConnectionFailedException('connection setup failed'));
+        $handler = $this->handler(false);
 
         try {
             $handler(new ApplyImapFlagsMessage([1 => 10], 'seen'));
-        } catch (ConnectionFailedException) {
+        } catch (ImapConnectionException) {
             // The propagation is the previous test's business.
         }
 
@@ -80,12 +80,12 @@ final class ApplyImapFlagsHandlerTest extends TestCase
      */
     public function testABadPasswordIsLoggedAndNotRetried(): void
     {
-        $handler = $this->handler(new AuthFailedException('authentication failed'));
+        $handler = $this->handler(true);
 
         $handler(new ApplyImapFlagsMessage([1 => 10], 'seen'));
 
         self::assertSame(
-            [['level' => 'error', 'message' => 'ApplyImapFlagsHandler: IMAP error']],
+            [['level' => 'error', 'message' => 'ApplyImapFlagsHandler: login refused']],
             $this->logged,
         );
     }
@@ -93,16 +93,34 @@ final class ApplyImapFlagsHandlerTest extends TestCase
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     /**
-     * A handler whose IMAP connection always fails with $failure.
+     * A handler whose IMAP connection fails: refused outright, or — with
+     * $answers — by a server that is there and turns the password down.
      *
-     * Nothing past connect() is reached, which is the whole point: these are
+     * Nothing past the login is reached, which is the whole point: these are
      * about the batch never leaving the building, not about what happens to an
      * individual UID once it has.
      */
-    private function handler(Throwable $failure): ApplyImapFlagsHandler
+    private function handler(bool $answers): ApplyImapFlagsHandler
     {
+        self::bootKernel();
+
         $account = new Account();
         $account->usr = new User();
+
+        if (true === $answers) {
+            new FakeImapServer(self::getContainer()->get(ImapLoop::class))->pointAt($account);
+            $account->password = 'not the password';
+        } else {
+            $closed = stream_socket_server('tcp://127.0.0.1:0');
+            self::assertIsResource($closed);
+
+            $account->imapHost = '127.0.0.1';
+            $account->imapPort = (int) substr((string) strrchr((string) stream_socket_get_name($closed, false), ':'), 1);
+            $account->username = 'user';
+            $account->password = 'x';
+            $account->authType = 'password';
+            fclose($closed);
+        }
 
         $mailbox = new Mailbox();
         $mailbox->account = $account;
@@ -119,14 +137,11 @@ final class ApplyImapFlagsHandlerTest extends TestCase
         $mailboxRepository = $this->createStub(MailboxRepository::class);
         $mailboxRepository->method('find')->willReturn($mailbox);
 
-        $connectionFactory = $this->createStub(ImapConnectionFactory::class);
-        $connectionFactory->method('connect')->willThrowException($failure);
-
         return new ApplyImapFlagsHandler(
             $messageRepository,
             $mailboxRepository,
             $this->logger(),
-            $connectionFactory,
+            self::getContainer()->get(ImapConnector::class),
             $this->createStub(EntityManagerInterface::class),
             $this->createStub(ImapFolderProvisioner::class),
             $this->createStub(AccountRepository::class),

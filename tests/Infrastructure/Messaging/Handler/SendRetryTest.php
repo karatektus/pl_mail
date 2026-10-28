@@ -10,7 +10,6 @@ use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Exception\SendDeferredException;
 use App\Domain\Exception\SendOutcomeUnknownException;
 use App\Domain\Exception\SendRefusedException;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\MailDeliveryInterface;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
@@ -27,6 +26,7 @@ use App\Service\Crypto\AutocryptHeader;
 use App\Service\Crypto\SealedDrafts;
 use App\Service\Crypto\SealGuard;
 use App\Service\Crypto\SendingKey;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
@@ -393,7 +393,7 @@ final class SendRetryTest extends KernelTestCase
     private function handler(MailSenderInterface $sender): SendMessageHandler
     {
         $container = self::getContainer();
-        $imap      = $this->createStub(ImapConnectionFactory::class);
+        $imap      = $container->get(ImapConnector::class);
 
         $service = new MessageSendService(
             $container->get(MailboxRepository::class),

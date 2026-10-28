@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\ThrowableSeverity;
-use App\Domain\Helper\ImapConnectionFactory;
-use App\Domain\Helper\ImapFolderLocator;
 use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
-use App\Service\Imap\ImapQuery;
+use App\Service\Imap\ImapConnector;
 use App\Service\JmapClient\JmapMailboxSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
@@ -51,7 +51,7 @@ final readonly class PurgeRemoteMessagesHandler
 {
     public function __construct(
         private AccountRepository     $accountRepository,
-        private ImapConnectionFactory $imapConnectionFactory,
+        private ImapConnector         $connector,
         private GmailApiClient        $gmail,
         private GraphApiClient        $graph,
         private LoggerInterface       $logger,
@@ -99,71 +99,52 @@ final readonly class PurgeRemoteMessagesHandler
     /**
      * \Deleted plus an EXPUNGE, folder by folder.
      *
-     * Expunged per folder rather than per message: EXPUNGE renumbers, and doing
-     * it once at the end of each folder is both fewer round trips and the
-     * ordering the protocol is happiest with.
+     * One STORE and one EXPUNGE per folder rather than per message: EXPUNGE
+     * renumbers, and doing it once at the end of each folder is both fewer
+     * round trips and the ordering the protocol is happiest with. A UID that
+     * is already gone is the common case and a success — the end state wanted
+     * is that the message does not exist — and UID STORE passes over a UID
+     * the folder no longer has without complaint.
+     *
+     * UID EXPUNGE where the server has UIDPLUS, so only these messages go and
+     * not whatever else another client has marked \Deleted and may still
+     * undelete. Without it, the folder's EXPUNGE, as before.
      *
      * @param array<string, list<int>> $byFolder
      */
     private function purgeImap(Account $account, array $byFolder): void
     {
-        $client = $this->imapConnectionFactory->connect($account);
+        $session = $this->connector->session($account);
 
-        foreach ($byFolder as $path => $uids) {
-            // A Mailbox row's path, UTF-7 as stored. getFolder() re-encoded it,
-            // so a folder with a non-ASCII name was "not found on the server"
-            // and nothing in it was ever purged there.
-            $folder = ImapFolderLocator::atPath($client, (string) $path);
-
-            if (null === $folder) {
-                $this->logger->warning('PurgeRemoteMessages: folder not found on the server', [
-                    'accountId' => $account->id,
-                    'folder'    => $path,
-                ]);
-
-                continue;
+        try {
+            foreach ($byFolder as $path => $uids) {
+                $this->purgeFolder($session, $account, (string) $path, $uids);
             }
+        } finally {
+            $session->logout();
+        }
+    }
 
-            foreach ($uids as $uid) {
-                try {
-                    // setFetchBody(false): the body is about to stop existing,
-                    // and fetching it to mark it deleted would download every
-                    // attachment of every message being purged. ImapQuery,
-                    // so a header that repeats a once-only line does not
-                    // keep the message from being deleted (#357).
-                    ImapQuery::of($folder)
-                        ->whereUid($uid)
-                        ->setFetchBody(false)
-                        ->get()
-                        ->first()
-                        ?->delete(expunge: false);
-                } catch (Throwable $e) {
-                    // Already gone is the common case, and it is a success:
-                    // the end state this job wants is that the message does
-                    // not exist.
-                    $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: could not delete by UID', [
-                        'accountId' => $account->id,
-                        'folder'    => $path,
-                        'uid'       => $uid,
-                        'error'     => $e->getMessage(),
-                        'exception' => $e,
-                    ]);
-                }
-            }
+    /** @param list<int> $uids */
+    private function purgeFolder(ImapSession $session, Account $account, string $path, array $uids): void
+    {
+        if ([] === $uids) {
+            return;
+        }
 
-            // Once per folder, after the whole batch. EXPUNGE renumbers, so
-            // expunging per message would be both more round trips and a
-            // sequence the server is entitled to reorder underneath us.
-            try {
-                $client->expunge();
-            } catch (Throwable $e) {
-                $this->logger->warning('PurgeRemoteMessages: expunge failed', [
-                    'accountId' => $account->id,
-                    'folder'    => $path,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
-            }
+        $set = ImapSession::uidSet($uids);
+
+        try {
+            $session->uidStore($path, $set, '+', ['\\Deleted']);
+            $session->expunge($path, $set);
+        } catch (ImapCommandException $e) {
+            // The folder is gone, or the server will not let it be changed.
+            // Either way not this job's to retry: the rows are gone already.
+            $this->logger->warning('PurgeRemoteMessages: could not purge a folder', [
+                'accountId' => $account->id,
+                'folder'    => $path,
+                'error'     => $e->getMessage(),
+            ]);
         }
     }
 

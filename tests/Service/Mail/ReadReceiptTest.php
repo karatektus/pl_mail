@@ -10,7 +10,7 @@ use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Enum\Mail\ReadReceiptMode;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Interface\MailSenderInterface;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Mail\Mailbox;
@@ -766,7 +766,7 @@ final class ReadReceiptTest extends KernelTestCase
             $container->get(MailboxRepository::class),
             $this->em,
             new MailSenderRegistry([$this->capturingSender()]),
-            $container->get(ImapConnectionFactory::class),
+            $container->get(ImapConnector::class),
             $container->get(AttachmentResolver::class),
             $this->labelResolver,
             $container->get(LabelRepository::class),

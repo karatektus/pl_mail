@@ -55,7 +55,7 @@ this is what keeps an unreviewed commit off running installs.
 |---|---|
 | Backend | Symfony 8, Doctrine ORM, PHP 8.4+ |
 | Database | PostgreSQL 18 |
-| IMAP | webklex/php-imap |
+| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); webklex/php-imap still parses MIME (#82) |
 | Gmail | Gmail REST + Batch API, OAuth2 (league/oauth2-client) |
 | Microsoft | Microsoft Graph API, OAuth2 |
 | Async | Symfony Messenger, Doctrine transport |
@@ -985,7 +985,7 @@ php bin/mirror-wiki.php --check
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
 | `app:imap:listen` | Hold IMAP IDLE on every IDLE-enabled folder, in one process, and queue the syncs each change asks for. Started and restarted by `app:work` as `imap-listener` |
-| `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
+| `app:imap:test [--account=ID] [--append]` | Test an IMAP connection and folder listing; `--append` also puts a test message in the Sent folder |
 | `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:work` as `jmap-listener` |
 | `app:push:renew` | Renew Gmail watches and Graph subscriptions nearing expiry |
 | `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |

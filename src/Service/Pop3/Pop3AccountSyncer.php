@@ -7,7 +7,6 @@ namespace App\Service\Pop3;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MessageParser;
 use App\Domain\Interface\AccountSyncerInterface;
@@ -81,8 +80,8 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  *    not undo them, because it only ever inserts messages it has never stored
  *    and never revisits a row it has.
  *  - Pushing changes back: nothing that talks IMAP is reachable for these
- *    rows, because they have no imapUid, and ImapConnectionFactory refuses a
- *    POP3 account outright.
+ *    rows, because they have no imapUid, and ImapConnector refuses a POP3
+ *    account outright.
  *  - Deletion in the UI deletes the local row only. The server's copy goes
  *    only if the account's delete mode says so, and only because it is stored.
  */
@@ -295,7 +294,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
             try {
                 $message = $this->messageSyncer->buildMessageFromParsed(
-                    MessageParser::fromString($raw, ImapConnectionFactory::config()),
+                    MessageParser::fromString($raw, MessageParser::config()),
                     $mailbox,
                     $accountId,
                 );
@@ -421,7 +420,7 @@ final readonly class Pop3AccountSyncer implements AccountSyncerInterface
 
         if ('' === $messageId) {
             try {
-                $fingerprint = $this->messageSyncer->fingerprintOf(MessageParser::fromString($head, ImapConnectionFactory::config()));
+                $fingerprint = $this->messageSyncer->fingerprintOf(MessageParser::fromString($head, MessageParser::config()));
             } catch (Throwable) {
                 // A header not even the repair makes readable cannot be
                 // recognised, and is fetched like any message that cannot be.

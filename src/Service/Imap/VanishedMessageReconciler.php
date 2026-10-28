@@ -12,7 +12,7 @@ use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Client;
+use App\Infrastructure\ImapClient\ImapSession;
 
 /**
  * Mail that left the server, and what plMail is allowed to conclude from that.
@@ -153,7 +153,7 @@ final readonly class VanishedMessageReconciler
      *
      * @return bool whether the folder was actually listed and compared
      */
-    public function sweep(Mailbox $mailbox, Client $client, ?DateTimeImmutable $now = null): bool
+    public function sweep(Mailbox $mailbox, ImapSession $session, ?DateTimeImmutable $now = null): bool
     {
         $now = $now ?? new DateTimeImmutable();
 
@@ -161,7 +161,7 @@ final readonly class VanishedMessageReconciler
             return false;
         }
 
-        $listing = $this->listing->read($client, $mailbox);
+        $listing = $this->listing->read($session, $mailbox);
 
         if (null === $listing) {
             // No answer is not an answer. sweptAt stays where it was, so this

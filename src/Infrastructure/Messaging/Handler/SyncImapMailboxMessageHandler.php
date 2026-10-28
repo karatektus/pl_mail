@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
@@ -56,7 +56,7 @@ final readonly class SyncImapMailboxMessageHandler
     public function __construct(
         private MailboxRepository     $mailboxRepository,
         private MessageSyncer         $messageSyncer,
-        private ImapConnectionFactory $imapConnectionFactory,
+        private ImapConnector         $connector,
         private SyncNotifier          $syncNotifier,
         private LoggerInterface       $logger,
         private SyncOrigin            $origin,
@@ -91,12 +91,12 @@ final readonly class SyncImapMailboxMessageHandler
             return;
         }
 
-        $client = $this->imapConnectionFactory->connect($mailbox->account);
+        $session = $this->connector->session($mailbox->account);
 
         try {
-            $this->messageSyncer->syncMailbox($mailbox, $client);
+            $this->messageSyncer->syncMailbox($mailbox, $session);
         } finally {
-            $client->disconnect();
+            $session->logout();
         }
 
         // MessageSyncer clears the EntityManager mid-run, so reload before notifying.

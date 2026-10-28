@@ -15,7 +15,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\ThreadingMethod;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
@@ -415,7 +415,7 @@ final class SentCopyReconcilerTest extends KernelTestCase
             $container->get(MailboxRepository::class),
             $this->em,
             new MailSenderRegistry([$sender]),
-            $container->get(ImapConnectionFactory::class),
+            $container->get(ImapConnector::class),
             $container->get(AttachmentResolver::class),
             $container->get(LabelResolver::class),
             $container->get(LabelRepository::class),
