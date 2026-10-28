@@ -75,6 +75,17 @@ final class JmapListenCommand extends Command
      */
     private const int IDLE_TIMEOUT_SECONDS = 3 * self::PING_SECONDS;
 
+    /**
+     * Seconds a stream must have held before its end counts as the server's.
+     *
+     * Long-held connections get cut: Fastmail closes its EventSource streams
+     * now and then without a TLS close_notify, which reaches here as "unexpected
+     * eof" rather than as the clean last chunk a restart would send. A stream
+     * that held this long was working, and its end is the same weather as that
+     * last chunk. One that dies sooner is a stream that does not work.
+     */
+    private const int HELD_SECONDS = self::PING_SECONDS;
+
     /** Seconds one wait on the streams lasts before the loop looks up. */
     private const float WAIT_SECONDS = 5.0;
 
@@ -84,7 +95,7 @@ final class JmapListenCommand extends Command
     private const int MIN_BACKOFF_SECONDS = 5;
     private const int MAX_BACKOFF_SECONDS = 300;
 
-    /** @var array<int, array{response: ResponseInterface, parser: JmapEventStream, accountIds: list<string>}> */
+    /** @var array<int, array{response: ResponseInterface, parser: JmapEventStream, accountIds: list<string>, openedAt: float}> */
     private array $streams = [];
 
     /** @var array<int, int> account id → seconds to wait after the next failure */
@@ -230,7 +241,7 @@ final class JmapListenCommand extends Command
             return;
         }
 
-        $this->streams[$accountId] = ['response' => $response, 'parser' => new JmapEventStream(), 'accountIds' => $accountIds];
+        $this->streams[$accountId] = ['response' => $response, 'parser' => new JmapEventStream(), 'accountIds' => $accountIds, 'openedAt' => microtime(true)];
 
         $io->text(sprintf('Listening for account %d', $accountId));
     }
@@ -325,13 +336,25 @@ final class JmapListenCommand extends Command
 
     private function failed(int $accountId, Throwable $e): void
     {
-        $wait = $this->backoff[$accountId] ?? self::MIN_BACKOFF_SECONDS;
+        $wait     = $this->backoff[$accountId] ?? self::MIN_BACKOFF_SECONDS;
+        $openedAt = $this->streams[$accountId]['openedAt'] ?? null;
 
-        $this->logger->warning('JmapListen: the stream failed, retrying later', [
-            'accountId'    => $accountId,
-            'error'        => $e->getMessage(),
-            'retryInSecs'  => $wait,
-        ]);
+        // The backoff still applies either way: a server that keeps cutting
+        // streams after a minute is asked again more slowly, only not loudly.
+        if (null !== $openedAt && microtime(true) - $openedAt >= self::HELD_SECONDS) {
+            $this->logger->info('JmapListen: the server dropped the stream, reconnecting', [
+                'accountId'   => $accountId,
+                'error'       => $e->getMessage(),
+                'heldSecs'    => (int) (microtime(true) - $openedAt),
+                'retryInSecs' => $wait,
+            ]);
+        } else {
+            $this->logger->warning('JmapListen: the stream failed, retrying later', [
+                'accountId'    => $accountId,
+                'error'        => $e->getMessage(),
+                'retryInSecs'  => $wait,
+            ]);
+        }
 
         $this->close($accountId, true);
 
