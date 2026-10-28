@@ -204,9 +204,13 @@
                 data-mail--search-target="input"
                 data-ui--mobile-search-target="field"
                 data-action="keydown->mail--search#onKeydown focus->mail--search#onFocus input->mail--search#onInput"
+                {# The field border, not a transparent one: the box sits on the
+                   page, and a sunken fill on a pale page gradient was all but
+                   flush with it (#303). The border is held to 3:1 on every
+                   page stop for this. #}
                 class="w-full pl-10 pr-4 py-2 text-sm
                        bg-sunken
-                       border border-transparent rounded-xl
+                       border border-field-border rounded-xl focus:border-transparent
                        text-ink
                        placeholder:text-ink-faint
                        focus:outline-none focus:ring-2 focus:ring-accent
@@ -346,7 +350,7 @@
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
                    {{ clockOnSoon
-                       ? 'gap-1.5 justify-center min-w-9 max-sm:min-w-8 sm:px-2.5 sm:bg-sunken' ~ (soonest ? '' : ' max-sm:hidden')
+                       ? 'gap-1.5 justify-center min-w-9 max-sm:min-w-8 sm:px-2.5 sm:bg-sunken sm:border sm:border-field-border' ~ (soonest ? '' : ' max-sm:hidden')
                        : 'justify-center w-9 max-sm:w-8' }}"
             aria-label="{{ 'calendar.soon.open'|trans }}"
             title="{{ soonest
