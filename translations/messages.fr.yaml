@@ -760,8 +760,8 @@ admin:
             nouvelle valeur. Environ deux secondes d’interruption, et cette page revient
             d’elle-même.
         restart_app_title: 'Redémarrer le conteneur web'
-        restart_confirm: 'Redémarrer les workers, le planificateur et le superviseur IMAP ? Le travail en cours se termine d’abord.'
-        restart_help: 'Arrête les workers, le planificateur et le superviseur IMAP pour qu’ils redémarrent à neuf. Les processus de longue durée gardent les mappings de base de données en cache toute leur vie : il faut donc ceci après une migration.'
+        restart_confirm: 'Redémarrer les workers, le planificateur et les écouteurs push ? Le travail en cours se termine d’abord.'
+        restart_help: 'Arrête les workers, le planificateur et les écouteurs push pour qu’ils redémarrent à neuf. Les processus de longue durée gardent les mappings de base de données en cache toute leur vie : il faut donc ceci après une migration.'
         restart_pending: 'Redémarrage demandé il y a %seconds% s — les processus terminent leur travail en cours, puis réapparaissent ici d’ici une minute ou deux.'
         restart_title: 'Redémarrer les processus de longue durée'
         run_help: 'Mis en file pour un worker, pas exécuté ici. Ce sont les mêmes passages que ceux que le planificateur lance tout seul.'

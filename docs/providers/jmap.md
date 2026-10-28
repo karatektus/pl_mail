@@ -78,8 +78,8 @@ named in `INTEGRATIONS_ALLOWED_HOSTS` — the same rule as for a CalDAV server o
 connection test says so in as many words. IMAP has no such rule, because an IMAP connection cannot
 be used to fetch anything else.
 
-**Without the IMAP supervisor, nothing holds the push connection.** It runs `app:jmap:listen` as
-well as IMAP IDLE. Mail still arrives on the schedule, so the symptom is "changes are always a few
+**Without the JMAP listener, nothing holds the push connection.** It is `app:jmap:listen`, one of
+the worker container's processes. Mail still arrives on the schedule, so the symptom is "changes are always a few
 minutes late" rather than anything that looks broken.
 
 **A shared mailbox another account lets you see is not synced.** plMail syncs the login's own

@@ -1,12 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Command/Imap/ImapSuperviseCommand.php
-
-		-
 			message: '#^Parameter \#2 \$options of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects array\|null, string given\.$#'
 			identifier: argument.type
 			count: 1

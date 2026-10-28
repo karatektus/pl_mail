@@ -752,8 +752,8 @@ admin:
             running web container never picks up a new value. About two seconds of
             downtime, and this page comes back on its own.
         restart_app_title: 'Restart the web container'
-        restart_confirm: 'Restart the workers, scheduler and IMAP supervisor? In-flight work finishes first.'
-        restart_help: 'Stops the workers, scheduler and IMAP supervisor so they start again fresh. Long-running processes cache database mappings for their whole lifetime, so they need this after a migration.'
+        restart_confirm: 'Restart the workers, scheduler and push listeners? In-flight work finishes first.'
+        restart_help: 'Stops the workers, scheduler and push listeners so they start again fresh. Long-running processes cache database mappings for their whole lifetime, so they need this after a migration.'
         restart_pending: 'Restart requested %seconds%s ago — processes finish their current work, then reappear here within a minute or two.'
         restart_title: 'Restart long-running processes'
         run_help: 'Queued for a worker, not run here. These are the same sweeps the scheduler runs unattended.'

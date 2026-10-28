@@ -152,6 +152,15 @@ final class ImapIdleListener
             $wanted[(int) $mailbox->id] = true;
         }
 
+        // A folder let go below clears its own heartbeat, but not if this
+        // process was killed hard; the rows of folders that are gone are
+        // cleared here as well. A wanted folder whose connection is down keeps
+        // its row, which goes stale on the dashboard — that is the point of it.
+        $this->heartbeats->clearOrphans(
+            ProcessHeartbeatService::TYPE_IMAP_IDLE,
+            array_map(strval(...), array_keys($wanted)),
+        );
+
         foreach ($this->watches as $mailboxId => $watch) {
             if (false === isset($wanted[$mailboxId])) {
                 $watch->stopRequested = true;

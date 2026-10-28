@@ -19,9 +19,20 @@ final class BackgroundProcessesTest extends TestCase
     public function testEveryProcessKeepsTheNameItsContainerHad(): void
     {
         self::assertSame(
-            ['mercure', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            ['mercure', 'imap-listener', 'jmap-listener', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
             new BackgroundProcesses(self::IDENTIFIER)->names(),
         );
+    }
+
+    /**
+     * The process that ran both push listeners is gone (#421), and an override
+     * that names it — the demo stack's `--without=imap-supervisor`, or an
+     * operator's polling-only setup — still leaves both of them out.
+     */
+    public function testTheOldSupervisorsNameStillMeansBothListeners(): void
+    {
+        self::assertSame(['imap-listener', 'jmap-listener', 'worker-bulk'], BackgroundProcesses::expand(['imap-supervisor', 'worker-bulk']));
+        self::assertSame(['imap-listener'], BackgroundProcesses::expand(['imap-listener', 'imap-listener']));
     }
 
     public function testTheHubIsConfiguredAsItsContainerWas(): void
@@ -54,7 +65,7 @@ final class BackgroundProcessesTest extends TestCase
         $processes = new BackgroundProcesses(self::IDENTIFIER, hubSecret: 's', allInOne: true);
 
         self::assertSame(
-            ['mercure', 'web', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            ['mercure', 'web', 'imap-listener', 'jmap-listener', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
             $processes->names(),
         );
 

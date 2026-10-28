@@ -2,8 +2,8 @@
 
 On Unraid, plMail runs as **one container** next to a **Postgres container**, the way Unraid apps
 usually come: Community Applications installs one container per template, and a database is its
-own app. Everything else plMail runs (the web server, the queue workers, the scheduler, the IMAP
-supervisor and the Mercure hub) lives in the plMail container. That is the image's all-in-one
+own app. Everything else plMail runs (the web server, the queue workers, the scheduler, the push
+listeners and the Mercure hub) lives in the plMail container. That is the image's all-in-one
 mode, switched on with `APP_ALL_IN_ONE=1`. The image and the tags are the same as for
 [Docker Compose](docker.md); only how it is started differs.
 
@@ -43,7 +43,7 @@ docker run -d --name plmail \
 
 `app:work` is the container's main process and keeps everything else running: the web server
 (FrankenPHP, plain HTTP on port 80 inside the container), the queue workers, the scheduler, the
-IMAP supervisor and the Mercure hub. A child that exits is started again: at once after a clean
+push listeners and the Mercure hub. A child that exits is started again: at once after a clean
 exit, after a backoff of one second doubling to thirty after a crash. If `app:work` itself ends,
 so does the container, and Docker's restart policy starts it again.
 
@@ -59,8 +59,8 @@ the only way a rotated secret reaches the web server, and the restart policy bri
 The template adds `--init --restart=unless-stopped --stop-timeout=35` under Extra Parameters.
 Each of them matters:
 
-- `--init` puts a minimal init in front of `app:work`, which cleans up the processes the IMAP
-  supervisor leaves behind. Compose does the same with `init: true`.
+- `--init` puts a minimal init in front of `app:work`, which cleans up whatever a child that dies
+  hard leaves behind. Compose does the same with `init: true`.
 - `--restart=unless-stopped` is what brings the container back after "Restart app" or a crash.
 - `--stop-timeout=35` gives the workers time to finish: `app:work` waits up to 25 seconds for its
   children when stopped. Docker's own default is 10 seconds, after which it kills them in the

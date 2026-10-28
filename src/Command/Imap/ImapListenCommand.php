@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Imap;
 
 use App\Service\Imap\ImapIdleListener;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Monitoring\WorkerRestartSignal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,11 +16,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Holds IMAP IDLE on every folder that has it on, in this one process.
  *
- * Run as a child of app:imap:supervise, which starts it while there is a
- * folder to listen on and restarts it when it dies — the same arrangement as
- * app:jmap:listen. The work is ImapIdleListener's; this is the loop around it:
- * the folder set read again every RECONCILE_SECONDS, an administrator's
- * restart honoured, and a clean stop on SIGTERM.
+ * A child of app:work (`imap-listener`), which restarts it when it dies, next
+ * to app:jmap:listen. It runs whether or not any folder wants IDLE: with none,
+ * it reads the folder set once a minute and otherwise sleeps, which is cheaper
+ * than the supervisor that used to decide whether to start it.
+ *
+ * The work is ImapIdleListener's; this is the loop around it: the folder set
+ * read again every RECONCILE_SECONDS, a heartbeat of its own, an
+ * administrator's restart honoured, and a clean stop on SIGTERM.
  */
 #[AsCommand(
     name: 'app:imap:listen',
@@ -36,11 +40,15 @@ final class ImapListenCommand extends Command
      */
     private const float RUN_SECONDS = 1.0;
 
+    /** Seconds between heartbeats. Matches the Messenger listener's. */
+    private const int BEAT_SECONDS = 30;
+
     private bool $shouldStop = false;
 
     public function __construct(
-        private readonly ImapIdleListener    $listener,
-        private readonly WorkerRestartSignal $restartSignal,
+        private readonly ImapIdleListener        $listener,
+        private readonly WorkerRestartSignal     $restartSignal,
+        private readonly ProcessHeartbeatService $heartbeats,
     ) {
         parent::__construct();
     }
@@ -53,6 +61,7 @@ final class ImapListenCommand extends Command
 
         $startedAt     = microtime(true);
         $nextReconcile = 0.0;
+        $nextBeat      = 0.0;
         $listening     = -1;
 
         while (false === $this->shouldStop) {
@@ -67,6 +76,11 @@ final class ImapListenCommand extends Command
                 $nextReconcile = microtime(true) + self::RECONCILE_SECONDS;
             }
 
+            if (microtime(true) >= $nextBeat) {
+                $this->heartbeats->beat(ProcessHeartbeatService::TYPE_IMAP_LISTEN, 'main', ['folders' => $this->listener->activeCount()]);
+                $nextBeat = microtime(true) + self::BEAT_SECONDS;
+            }
+
             $this->listener->run(self::RUN_SECONDS);
 
             if ($listening !== $this->listener->activeCount()) {
@@ -76,6 +90,7 @@ final class ImapListenCommand extends Command
         }
 
         $this->listener->stop();
+        $this->heartbeats->clear(ProcessHeartbeatService::TYPE_IMAP_LISTEN, 'main');
 
         return Command::SUCCESS;
     }
