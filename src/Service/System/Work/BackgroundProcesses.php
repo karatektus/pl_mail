@@ -21,7 +21,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * The names are the containers' old ones, deliberately. Each child gets its
  * name as APP_CONTAINER_NAME, which is what the heartbeats are keyed by and
  * what the admin log viewer shows, so the admin dashboard, /healthz and the log
- * filters read exactly as before.
+ * filters read exactly as before. The two push listeners are the exception:
+ * they replaced the imap-supervisor (#421), whose name is kept as an alias,
+ * see ALIASES.
  *
  * ── The hub ─────────────────────────────────────────────────────────────────
  * The Mercure hub is the one child that is not PHP: the 1.x hub binary the
@@ -51,6 +53,21 @@ final readonly class BackgroundProcesses
     public const string HUB = 'mercure';
 
     public const string WEB = 'web';
+
+    /**
+     * Names that stand for others in --only and --without.
+     *
+     * `imap-supervisor` was the process that ran both push listeners, one IDLE
+     * process per folder under it (#421). The listeners are children of their
+     * own now, and an override written for the old name — the demo stack's,
+     * or an operator's polling-only `--without=imap-supervisor` — still means
+     * what it meant.
+     *
+     * @var array<string, list<string>>
+     */
+    public const array ALIASES = [
+        'imap-supervisor' => ['imap-listener', 'jmap-listener'],
+    ];
 
     /** Where the hub listens when it shares a container with the web server. */
     public const int HUB_LOCAL_PORT = 3000;
@@ -92,7 +109,8 @@ final readonly class BackgroundProcesses
         return [
             $this->hub(),
             ...(true === $this->allInOne ? [$this->web()] : []),
-            new BackgroundProcess('imap-supervisor', ['php', 'bin/console', 'app:imap:supervise']),
+            new BackgroundProcess('imap-listener', ['php', 'bin/console', 'app:imap:listen']),
+            new BackgroundProcess('jmap-listener', ['php', 'bin/console', 'app:jmap:listen']),
             ...$this->consumerProcesses(),
         ];
     }
@@ -144,6 +162,25 @@ final readonly class BackgroundProcesses
         }
 
         return $processes;
+    }
+
+    /**
+     * The process names a list given on the command line stands for, aliases
+     * expanded.
+     *
+     * @param list<string> $names
+     *
+     * @return list<string>
+     */
+    public static function expand(array $names): array
+    {
+        $expanded = [];
+
+        foreach ($names as $name) {
+            array_push($expanded, ...(self::ALIASES[$name] ?? [$name]));
+        }
+
+        return array_values(array_unique($expanded));
     }
 
     /** @return list<string> */

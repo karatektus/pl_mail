@@ -6,13 +6,13 @@ namespace App\Service\Mail;
 
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Exception\JmapApiException;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Infrastructure\JmapClient\JmapCapability;
 use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\JmapClient\JmapSession;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
@@ -36,7 +36,7 @@ final class ConnectionTester
     private const int TIMEOUT_SECONDS = 10;
 
     public function __construct(
-        private readonly ImapConnectionFactory $imapFactory,
+        private readonly ImapConnector         $imapConnector,
         private readonly SmtpDsnFactory        $dsnFactory,
         private readonly TranslatorInterface   $translator,
         private readonly LoggerInterface       $logger,
@@ -87,23 +87,18 @@ final class ConnectionTester
      */
     private function probeImap(Account $account): array
     {
-        $client = null;
+        $session = null;
 
         try {
-            $client  = $this->imapFactory->connect($account, self::TIMEOUT_SECONDS);
-            $folders = $client->getFolders(false);
+            $session = $this->imapConnector->session($account, self::TIMEOUT_SECONDS);
+            $folders = $session->folders();
 
             return [true, $this->translator->trans('account.test.result.imap_ok', ['%count%' => count($folders)])];
         } catch (Throwable $e) {
             return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
         } finally {
-            if (null !== $client) {
-                try {
-                    $client->disconnect();
-                } catch (Throwable) {
-                    // Nothing useful to do — the probe result already stands.
-                }
-            }
+            // Best effort: the probe result already stands.
+            $session?->logout();
         }
     }
 
@@ -248,9 +243,8 @@ final class ConnectionTester
      * address the server can reach. The chain still matters to whoever fixes
      * the problem, so it goes to the log (redacted), where an admin can read it.
      *
-     * Webklex wraps the real cause in a generic ConnectionFailedException, and
-     * Symfony's mailer nests transport exceptions the same way — so the useful
-     * signal is one or two levels down, and the whole chain is what is sorted.
+     * Symfony's mailer nests transport exceptions, so the useful signal can be
+     * a level or two down, and the whole chain is what is sorted.
      */
     private function describe(Throwable $e, Account $account, string $protocol, ?string $encryption, ?int $port): string
     {

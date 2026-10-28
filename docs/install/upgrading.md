@@ -86,7 +86,7 @@ from **Admin → System**. A worker caches Doctrine metadata for its whole lifet
 migration it can keep querying columns that no longer exist until something restarts it. That
 button writes a timestamp into a cache pool shared across containers; every Messenger worker
 compares it against its own start time on each loop and exits, and `restart: unless-stopped` brings
-it back. The IMAP supervisor is not a Messenger worker and reads the same signal itself.
+it back. The push listeners are not Messenger workers and read the same signal themselves.
 
 **The failure mode is upgrading one service.** All of them share the image and all of them migrate;
 a stack where only `php` was recreated has workers running yesterday's code against today's schema.

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -25,7 +24,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
         private MailboxRepository     $mailboxRepository,
         private MailboxSyncer         $mailboxSyncer,
         private MessageSyncer         $messageSyncer,
-        private ImapConnectionFactory $imapConnectionFactory,
+        private ImapConnector         $connector,
         private LoggerInterface       $logger,
         private EntityManagerInterface $em,
         private ManagerRegistry       $registry,
@@ -78,7 +77,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
         }
 
         $mailboxIds       = array_map(static fn (Mailbox $mailbox): int => (int) $mailbox->id, $mailboxes);
-        $client           = $this->imapConnectionFactory->connect($account);
+        $session          = $this->connector->session($account);
         $syncedMailboxIds = [];
 
         try {
@@ -97,7 +96,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                 }
 
                 try {
-                    $this->messageSyncer->syncMailbox($mailbox, $client);
+                    $this->messageSyncer->syncMailbox($mailbox, $session);
                     $syncedMailboxIds[] = $mailboxId;
                 } catch (\Throwable $e) {
                     $this->logger->error('ImapAccountSyncer: mailbox sync failed', [
@@ -127,7 +126,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                 }
             }
         } finally {
-            $client->disconnect();
+            $session->logout();
         }
 
         return $syncedMailboxIds;

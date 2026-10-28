@@ -5,630 +5,422 @@ declare(strict_types=1);
 namespace App\Tests\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\AbstractLogger;
 use ReflectionProperty;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
-use Webklex\PHPIMAP\Connection\Protocols\Response;
-use Webklex\PHPIMAP\Folder;
-use Webklex\PHPIMAP\Message as ImapMessage;
-use App\Service\Imap\ImapQuery;
-use Webklex\PHPIMAP\Query\WhereQuery;
-use Webklex\PHPIMAP\Support\FlagCollection;
-use Webklex\PHPIMAP\Support\MessageCollection;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * What a local action actually asks the IMAP server to do.
+ * What a change made in plMail does to the mailbox on the server.
  *
- * The outgoing half of the lifecycle had tests for its failure modes — an
- * unreachable server, a bad password, a UID that had already moved — and none
- * at all for the thing it exists to do. Every one of the six actions was
- * asserted only by reading the `match` in applyToMessage() and believing it,
- * which is how `delete` came to be the one action whose meaning nobody had
- * pinned: it is an expunge, not a move to Trash, and those differ in whether
- * the mail still exists afterwards.
+ * Against the test stack's Dovecot, so every claim is about what the server
+ * holds afterwards — the flag set, the message gone, the copy in Trash under
+ * the UID the row now names — rather than about which methods were called.
+ * The rows and repositories are in memory, since the claim is the server's
+ * side and the row's address; the folder provisioner is a stand-in that
+ * makes the folder on the server, since its own decisions are
+ * ImapFolderProvisionerTest's.
  *
- * So this states each action as an operation on a server, and asserts on what
- * that server was told. It also pins the two halves of the write-back, which is
- * the part of a move that keeps the row addressable: webklex learns the
- * destination UID by predicting the folder's UIDNEXT, and a prediction adopted
- * unchecked points the row at whatever else happened to land there in the
- * meantime.
+ * Covered here too, from what used to be a test of its own: a UID that has
+ * left the source folder is re-resolved, not reported (the vanished-UID
+ * report), and a move a previous attempt got halfway through is not copied
+ * twice.
  */
-final class ApplyImapFlagsOutboundOperationsTest extends TestCase
+final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
 {
-    /** @var list<string> what the handler asked the provisioner to create */
+    use UsesDovecot;
+
+    /** The Message-ID of the message every test puts on the server. */
+    private const string MESSAGE_ID = 'outbound@example.test';
+
+    /** The test's own view of the mailbox: the same user, another session. */
+    private ImapSession $server;
+
+    private string $user;
+
+    /** @var list<string> what the handler asked the provisioner for */
     private array $provisioned = [];
 
-    /** Whether the stand-in provisioner succeeds. False is a refused CREATE. */
     private bool $provisionable = true;
 
-    /** The connection the client hands out, when a test needs one. */
-    private ?RecordingProtocol $protocol = null;
+    /** @var list<array{level: string, message: string}> */
+    private array $logged = [];
 
     protected function setUp(): void
     {
+        self::bootKernel();
+
+        $this->user          = 'outbound-' . bin2hex(random_bytes(6));
+        $this->server        = $this->dovecotSession(user: $this->user);
         $this->provisioned   = [];
         $this->provisionable = true;
+        $this->logged        = [];
     }
 
-    // ── flags, in place ──────────────────────────────────────────────────
-
-    public function testMarkingReadSetsSeenOnTheServer(): void
+    protected function tearDown(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        if (isset($this->server)) {
+            $this->server->logout();
+        }
 
-        $this->issue($present, 'seen');
-
-        self::assertSame(['setFlag:Seen'], $present->calls);
+        parent::tearDown();
     }
 
-    public function testMarkingUnreadClearsSeenOnTheServer(): void
+    // ── flags, in place ────────────────────────────────────────────────────
+
+    /** @return iterable<string, array{string, string, bool}> */
+    public static function flagActions(): iterable
     {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'unseen');
-
-        self::assertSame(['unsetFlag:Seen'], $present->calls);
+        yield 'marking read sets \Seen'      => ['seen', '\\Seen', true];
+        yield 'marking unread clears \Seen'  => ['unseen', '\\Seen', false];
+        yield 'starring sets \Flagged'       => ['flag', '\\Flagged', true];
+        yield 'unstarring clears \Flagged'   => ['unflag', '\\Flagged', false];
     }
 
-    public function testStarringSetsFlaggedOnTheServer(): void
+    #[DataProvider('flagActions')]
+    public function testAFlagActionChangesTheFlagOnTheServerAndNothingElse(string $action, string $flag, bool $set): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $uid = $this->put('INBOX', true === $set ? [] : [$flag]);
 
-        $this->issue($present, 'flag');
+        $this->issue('INBOX', $uid, $action);
 
-        self::assertSame(['setFlag:Flagged'], $present->calls);
-    }
+        $flags = $this->server->uidFetch('INBOX', (string) $uid, ['FLAGS'])[$uid]['FLAGS'] ?? null;
 
-    public function testUnstarringClearsFlaggedOnTheServer(): void
-    {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'unflag');
-
-        self::assertSame(['unsetFlag:Flagged'], $present->calls);
+        self::assertIsArray($flags, 'and the message is still where it was: a flag change is never a move');
+        self::assertSame($set, in_array($flag, $flags, true));
     }
 
     /**
-     * A flag change is not a move, and must not become one. The distinction
-     * matters because a move is the one operation here that can duplicate mail
-     * on the server if it is issued twice.
-     */
-    public function testAFlagChangeNeverMovesTheMessage(): void
-    {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'seen');
-
-        self::assertSame(0, $present->moveCalls);
-    }
-
-    // ── delete, which means delete ───────────────────────────────────────
-
-    /**
-     * `delete` expunges. It is not the Trash button — that is `trash`, and it
-     * moves. This action is what plMail issues when the mail is to stop
-     * existing on the server, and it has to carry the expunge or the message
-     * merely wears \Deleted and comes back on the next listing.
-     *
-     * And it expunges this one UID. A plain EXPUNGE also removes every message
-     * another client has only flagged \Deleted, which is why webklex's
-     * delete(expunge: true) is not used; without UIDPLUS there is no way to
-     * name one UID, so the flag is all that is sent.
+     * `delete` expunges this one UID. A plain EXPUNGE also removes every
+     * message another client has only flagged \Deleted and may still undelete.
      */
     public function testDeleteExpungesOnlyItsOwnUid(): void
     {
-        $present        = new RecordingImapMessage(uid: 6);
-        $this->protocol = new RecordingProtocol(['IMAP4rev1', 'UIDPLUS']);
+        $uid   = $this->put('INBOX');
+        $other = $this->put('INBOX', ['\\Deleted'], 'flagged-elsewhere@example.test');
 
-        $this->issue($present, 'delete');
+        $this->issue('INBOX', $uid, 'delete');
 
-        self::assertSame(['setFlag:Deleted'], $present->calls);
-        self::assertSame(['UID EXPUNGE 6'], $this->protocol->commands, 'never a plain EXPUNGE');
-        self::assertSame(0, $present->moveCalls, 'a delete is not a move');
-
-        $flaggedOnly    = new RecordingImapMessage(uid: 6);
-        $this->protocol = new RecordingProtocol(['IMAP4rev1']);
-
-        $this->issue($flaggedOnly, 'delete');
-
-        self::assertSame(['setFlag:Deleted'], $flaggedOnly->calls);
-        self::assertSame([], $this->protocol->commands, 'without UIDPLUS nothing is expunged');
+        self::assertSame([$other], $this->server->uidSearch('INBOX', 'ALL'), 'gone, and only it');
     }
 
+    // ── moves ──────────────────────────────────────────────────────────────
+
     /**
-     * An inbound Message-ID is written into a SEARCH between quotes that
-     * webklex does not escape, so one carrying a quote, a backslash or a line
-     * break is never searched for.
+     * Trash is the account's Trash folder by special use, and the row takes
+     * the address the server gave the copy (COPYUID): the server's own answer,
+     * not a guess at the next UID — Trash already holds two messages here, so
+     * a guess from an empty folder would be wrong.
      */
-    public function testAHostileMessageIdIsNotSearchedFor(): void
+    public function testTrashingMovesToTheTrashFolderAndTheRowTakesTheServersUid(): void
     {
-        self::assertTrue(ApplyImapFlagsHandler::isSearchableMessageId('CAF=abc+123@mail.example.test'));
-        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId('x@y" OR ALL "'));
-        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId('x@y\\'));
-        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId("x@y\r\nA1 DELETE INBOX"));
-    }
+        $this->server->create('Trash');
+        $this->put('Trash', [], 'already-1@example.test');
+        $this->put('Trash', [], 'already-2@example.test');
+        $uid = $this->put('INBOX');
 
-    // ── moves, and where they go ─────────────────────────────────────────
+        $row = $this->issue('INBOX', $uid, 'trash', rowLandsIn: 'Trash');
 
-    /**
-     * Trash resolves to the account's Trash folder by special-use, which is the
-     * mapping the whole label model rests on.
-     */
-    public function testTrashingMovesToTheAccountsTrashFolder(): void
-    {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'trash');
-
-        self::assertSame(1, $present->moveCalls);
-        self::assertSame('INBOX.Trash', $present->movedTo);
+        self::assertSame([], $this->server->uidSearch('INBOX', 'ALL'), 'it left the inbox');
+        self::assertSame(3, $row->imapUid);
+        self::assertSame('<' . self::MESSAGE_ID . '>', $this->server->uidFetchHeader('Trash', '3', 'Message-ID')[3]);
     }
 
     /**
-     * A message already in the Trash stays there, and keeps its address.
-     *
-     * webklex's move() into the folder it is moving out of leaves the
-     * connection in EXAMINE, and the server refuses the MOVE: "NO Not
-     * permitted in EXAMINE state" (#269). The row arrives with no UID —
-     * relocateTo() cleared it when the job was queued — and the envelope's UID
-     * is still right, because the message never left the folder that issued it.
+     * A message already in the Trash stays there and keeps its address.
+     * Sending the MOVE anyway once failed outright (#269).
      */
     public function testTrashingAMessageAlreadyInTheTrashDoesNotMoveIt(): void
     {
-        $present = new RecordingImapMessage(uid: 6, rfcMessageId: 'abc@example.test');
+        $this->server->create('Trash');
+        $uid = $this->put('Trash');
 
-        $row = $this->issue($present, 'trash', rowMessageId: 'abc@example.test', rowLandsIn: 'INBOX.Trash', sourceIsTrash: true);
+        $row = $this->issue('Trash', $uid, 'trash', rowLandsIn: 'Trash');
 
-        self::assertSame(0, $present->moveCalls, 'a move from Trash into Trash was sent to the server');
-        self::assertSame([], $present->calls);
-        self::assertSame('INBOX.Trash', $row->mailbox?->fullPath);
-        self::assertSame(6, $row->imapUid, 'the row should have its address in Trash back');
+        self::assertSame([$uid], $this->server->uidSearch('Trash', 'ALL'));
+        self::assertSame($uid, $row->imapUid, 'the row should have its address in Trash back');
     }
 
-    public function testArchivingMovesToTheAccountsArchiveFolder(): void
+    public function testArchivingMovesToTheArchiveFolder(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $this->server->create('Archive');
+        $uid = $this->put('INBOX');
 
-        $this->issue($present, 'archive', archiveExists: true);
+        $this->issue('INBOX', $uid, 'archive', archive: 'Archive');
 
-        self::assertSame(1, $present->moveCalls);
-        self::assertSame('INBOX.Archive', $present->movedTo);
+        self::assertSame([], $this->server->uidSearch('INBOX', 'ALL'));
+        self::assertCount(1, $this->server->uidSearch('Archive', 'ALL'));
+        self::assertSame([], $this->provisioned, 'nothing is created when the folder is there');
     }
 
     /**
-     * An explicit `move` — what the label propagator queues when a custom
-     * location label is replaced — goes exactly where the envelope says, and
-     * does not re-resolve anything.
+     * An explicit `move` goes exactly where the envelope says. A stored path
+     * is modified UTF-7 already, and is handed to the server as it is: GMX's
+     * Trash is "Gelöscht", and a path encoded twice named no folder at all.
      */
-    public function testAnExplicitMoveGoesToThePathTheEnvelopeNames(): void
+    public function testAnExplicitMoveGoesToThePathTheEnvelopeNamesAsTheServerSpellsIt(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $this->server->create('Gel&APY-scht');
+        $uid = $this->put('INBOX');
 
-        $this->issue($present, 'move', destinationPath: 'INBOX.Projekte');
+        $this->issue('INBOX', $uid, 'move', destinationPath: 'Gel&APY-scht', rowLandsIn: 'Gel&APY-scht');
 
-        self::assertSame('INBOX.Projekte', $present->movedTo);
+        self::assertCount(1, $this->server->uidSearch('Gel&APY-scht', 'ALL'));
     }
 
     /**
-     * A stored path is modified UTF-7 already, as the server listed it.
-     * Handed over without saying so, webklex encoded it a second time, found
-     * no folder at "Gel&-APY-scht" and passed null to moveMessage(): trashing
-     * on GMX, whose Trash is "Gelöscht", failed every time.
-     */
-    public function testAMoveIntoAFolderWithAnUmlautNamesItAsTheServerSpellsIt(): void
-    {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'move', destinationPath: 'INBOX.Gel&APY-scht');
-
-        self::assertSame('INBOX.Gel&APY-scht', $present->movedTo);
-        self::assertTrue($present->movedAsUtf7, 'the path is UTF-7 already and must not be encoded again');
-    }
-
-    // ── the folder the server has not got ────────────────────────────────
-
-    /**
-     * Archiving on an account whose server has no Archive folder used to
-     * resolve no destination, log "destination not resolvable", and stop — the
-     * message left the inbox locally, the server never heard, and the next sync
-     * put it back. Gmail creates a label when it needs one and Graph creates a
-     * folder; IMAP now creates a folder too.
+     * Archiving on a server with no Archive folder creates one rather than
+     * leaving the message out of the inbox here and in it there.
      */
     public function testArchivingCreatesTheArchiveFolderWhenTheServerHasNotGotOne(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $uid = $this->put('INBOX');
 
-        $this->issue($present, 'archive', archiveExists: false);
+        $this->issue('INBOX', $uid, 'archive');
 
-        self::assertSame(['\\Archive'], $this->provisioned, 'the folder is made rather than the move abandoned');
-        self::assertSame(1, $present->moveCalls);
-        self::assertSame('INBOX.Archive', $present->movedTo, 'and the move goes to the folder that was made');
+        self::assertSame([MailboxSpecialUse::ARCHIVE->value], $this->provisioned);
+        self::assertCount(1, $this->server->uidSearch('Archive', 'ALL'));
     }
 
     /**
-     * A CREATE the server refuses — no permission, a strange ACL — degrades to
-     * exactly the old behaviour. It must not throw: the caller is a Messenger
-     * handler, and an exception here would have it re-attempt the same rejected
-     * CREATE on a schedule forever.
+     * A CREATE the server refuses degrades to the old behaviour, and does not
+     * throw: the caller is a Messenger handler, which would re-attempt the
+     * same refused CREATE on a schedule for ever.
      */
-    public function testARefusedFolderCreationLeavesTheMoveUndoneRatherThanCrashing(): void
+    public function testARefusedFolderCreationLeavesTheMessageWhereItWasRatherThanCrashing(): void
     {
-        $present             = new RecordingImapMessage(uid: 6);
         $this->provisionable = false;
+        $uid                 = $this->put('INBOX');
 
-        $this->issue($present, 'archive', archiveExists: false);
+        $this->issue('INBOX', $uid, 'archive');
 
-        self::assertSame(['\\Archive'], $this->provisioned, 'it was attempted');
-        self::assertSame(0, $present->moveCalls, 'and not moved anywhere on failure');
-        self::assertSame([], $present->calls);
+        self::assertSame([$uid], $this->server->uidSearch('INBOX', 'ALL'));
     }
 
-    /**
-     * Nothing is created when the folder is already there. The provisioner is
-     * the last step of resolution, not the first.
-     */
-    public function testAnExistingArchiveFolderIsNotRecreated(): void
-    {
-        $present = new RecordingImapMessage(uid: 6);
-
-        $this->issue($present, 'archive', archiveExists: true);
-
-        self::assertSame([], $this->provisioned);
-        self::assertSame('INBOX.Archive', $present->movedTo);
-    }
-
-    /**
-     * An explicit move names a folder plMail has a row for, which is not the
-     * same as one the server still has — another client can delete a folder at
-     * any time, and moving into one that is not there fails per message with
-     * nothing that says why.
-     */
+    /** Another client can delete a folder at any time; an explicit move makes it again. */
     public function testAnExplicitMoveRecreatesADestinationTheServerHasLost(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $uid = $this->put('INBOX');
 
-        $this->issue($present, 'move', destinationPath: 'INBOX.Projekte', destinationExists: false);
+        $this->issue('INBOX', $uid, 'move', destinationPath: 'Projects', rowLandsIn: 'Projects');
 
-        self::assertSame(['INBOX.Projekte'], $this->provisioned);
-        self::assertSame('INBOX.Projekte', $present->movedTo);
+        self::assertSame(['Projects'], $this->provisioned);
+        self::assertCount(1, $this->server->uidSearch('Projects', 'ALL'));
     }
 
-    // ── the write-back ───────────────────────────────────────────────────
+    // ── a UID that has left the source folder ─────────────────────────────
 
     /**
-     * A move that lands somewhere the server confirms is the same message ends
-     * with the row holding the destination's UID, so it is addressable
-     * immediately rather than at the next sync of the destination.
+     * The row must not go on naming an address the server does not have. A row
+     * with no UID is the one shape SentCopyReconciler::claim() can reconcile
+     * onto the real copy; a row with a wrong UID is the one shape that
+     * guarantees it cannot. And it is not reported as a warning: it is the
+     * normal result of the mail having already moved.
      */
-    public function testAConfirmedMoveWritesTheDestinationUidBackOntoTheRow(): void
+    public function testAVanishedUidLeavesTheRowReconcilableAndIsNotAWarning(): void
     {
-        $landed  = new RecordingImapMessage(uid: 91, rfcMessageId: 'abc@example.test');
-        $present = new RecordingImapMessage(uid: 6, rfcMessageId: 'abc@example.test', landsAs: $landed);
+        $row = $this->issue('INBOX', 41, 'seen', rowKeepsUid: true);
 
-        $row = $this->issue($present, 'trash', rowMessageId: 'abc@example.test', rowLandsIn: 'INBOX.Trash');
-
-        self::assertSame(91, $row->imapUid, 'the row can be addressed in Trash straight away');
+        self::assertNull($row->imapUid);
+        self::assertSame([], array_filter($this->logged, static fn (array $entry): bool => 'info' !== $entry['level']));
     }
 
     /**
-     * And the case that makes checking worth the trouble. webklex finds the
-     * moved message by predicting the destination's UIDNEXT; if something else
-     * landed there first, the prediction names somebody else's mail. An
-     * unverified answer leaves the row unlocated, which costs one sync — a
-     * wrong answer would point the row at another message permanently.
+     * The job ran before and the message is already in Trash. The row finds
+     * it there by its Message-ID — one with a quote and a backslash in it,
+     * which goes to the server as a value and cannot become search syntax.
      */
-    public function testAMoveWhoseDestinationCopyIsSomebodyElsesMailIsNotAdopted(): void
+    public function testAMoveThatAlreadyHappenedIsFoundInTheDestinationByItsMessageId(): void
     {
-        $someoneElse = new RecordingImapMessage(uid: 91, rfcMessageId: 'other@example.test');
-        $present     = new RecordingImapMessage(uid: 6, rfcMessageId: 'abc@example.test', landsAs: $someoneElse);
+        $hostile = 'odd"id\\x@example.test';
 
-        $row = $this->issue($present, 'trash', rowMessageId: 'abc@example.test', rowLandsIn: 'INBOX.Trash');
+        $this->server->create('Trash');
+        $copy = $this->put('Trash', [], $hostile);
 
-        self::assertNull($row->imapUid, 'unlocated is reconcilable; wrong is not');
+        $row = $this->issue('INBOX', 41, 'trash', rowLandsIn: 'Trash', messageId: $hostile);
+
+        self::assertSame($copy, $row->imapUid);
     }
 
-    // ── fixture ──────────────────────────────────────────────────────────
+    /**
+     * The one way this handler could put a real duplicate on the server: a
+     * server without MOVE is sent COPY + STORE \Deleted + EXPUNGE, and a
+     * connection that dies between the COPY and the EXPUNGE leaves the copy in
+     * the destination and the original flagged. Moving it again on redelivery
+     * would copy it twice. The flag is the evidence.
+     */
+    public function testAHalfFinishedMoveIsNotCopiedIntoTheDestinationTwice(): void
+    {
+        $this->server->create('Trash');
+        $copy = $this->put('Trash');
+        $uid  = $this->put('INBOX', ['\\Deleted']);
+
+        $row = $this->issue('INBOX', $uid, 'trash', rowLandsIn: 'Trash');
+
+        self::assertSame([$copy], $this->server->uidSearch('Trash', 'ALL'), 'one copy, not two');
+        self::assertSame($copy, $row->imapUid, 'and the row has its address');
+    }
+
+    // ── fixture ────────────────────────────────────────────────────────────
 
     /**
-     * Run one envelope against a server holding one message, and hand back the
-     * row so the write-back can be asserted on.
+     * Put a message on the server.
+     *
+     * @param list<string> $flags
+     */
+    private function put(string $folder, array $flags = [], string $messageId = self::MESSAGE_ID): int
+    {
+        return (int) $this->server->append($folder, sprintf("From: a@example.test\r\nSubject: Outbound\r\nMessage-ID: <%s>\r\n\r\nBody.\r\n", $messageId), $flags);
+    }
+
+    /**
+     * Run the handler for one message, as the job a user's action queues.
+     *
+     * @param string|null $rowLandsIn  the folder a move re-pointed the row at before queueing it; the row has no UID then
+     * @param bool        $rowKeepsUid a row that still claims $uid, for an action that is not a move
      */
     private function issue(
-        RecordingImapMessage $present,
-        string               $action,
-        ?string              $destinationPath = null,
-        bool                 $archiveExists = true,
-        ?string              $rowMessageId = null,
-        ?string              $rowLandsIn = null,
-        bool                 $destinationExists = true,
-        bool                 $sourceIsTrash = false,
+        string  $source,
+        int     $uid,
+        string  $action,
+        ?string $destinationPath = null,
+        ?string $rowLandsIn = null,
+        ?string $archive = null,
+        string  $messageId = self::MESSAGE_ID,
+        bool    $rowKeepsUid = false,
     ): Message {
-        $account      = new Account();
-        $account->usr = new User();
+        $account                 = new Account();
+        $account->usr            = new User();
+        $account->imapHost       = (string) getenv('IMAP_TEST_HOST');
+        $account->imapPort       = 31143;
+        $account->imapEncryption = null;
+        $account->username       = $this->user;
+        $account->password       = (string) getenv('IMAP_TEST_PASSWORD');
+        $account->authType       = 'password';
 
-        $trash  = $this->mailbox($account, 'Trash', 'INBOX.Trash', MailboxSpecialUse::TRASH);
-        $source = true === $sourceIsTrash
-            ? $trash
-            : $this->mailbox($account, 'INBOX', 'INBOX', MailboxSpecialUse::INBOX);
+        $mailboxes = [
+            'INBOX' => $this->mailbox($account, 'INBOX', MailboxSpecialUse::INBOX),
+            'Trash' => $this->mailbox($account, 'Trash', MailboxSpecialUse::TRASH),
+        ];
+
+        if (null !== $archive) {
+            $mailboxes[$archive] = $this->mailbox($account, $archive, MailboxSpecialUse::ARCHIVE);
+        }
+
+        foreach ([$source, $rowLandsIn, $destinationPath] as $path) {
+            if (null !== $path) {
+                $mailboxes[$path] ??= $this->mailbox($account, $path);
+            }
+        }
 
         $row            = new Message();
         $row->account   = $account;
-        $row->messageId = $rowMessageId;
+        $row->messageId = $messageId;
 
-        // A row mid-move carries no UID at all — relocateTo() cleared it the
-        // moment the user acted, and the envelope is where the source address
-        // survives. Reproducing that is the point: adopt() writing a UID onto
-        // such a row is the whole behaviour under test, and a row that still
-        // held its old UID would hide a wrong adoption behind it.
-        if (null !== $rowLandsIn) {
-            $row->relocateTo($trash);
-        } else {
-            $row->relocateTo($source, 6);
-        }
+        // A row mid-move carries no UID — relocateTo() cleared it the moment
+        // the user acted, and the envelope is where the source address
+        // survives. A row that still held it would hide a wrong adoption.
+        null !== $rowLandsIn
+            ? $row->relocateTo($mailboxes[$rowLandsIn])
+            : $row->relocateTo($mailboxes[$source], true === $rowKeepsUid || in_array($action, ['seen', 'unseen', 'flag', 'unflag', 'delete'], true) ? $uid : null);
 
         new ReflectionProperty(Message::class, 'id')->setValue($row, 1);
 
-        $archive = $archiveExists
-            ? $this->mailbox($account, 'Archive', 'INBOX.Archive', MailboxSpecialUse::ARCHIVE)
-            : null;
+        $messages = $this->createStub(MessageRepository::class);
+        $messages->method('findBy')->willReturn([$row]);
 
-        $messageRepository = $this->createStub(MessageRepository::class);
-        $messageRepository->method('findBy')->willReturn([$row]);
+        $folders = $this->createStub(MailboxRepository::class);
+        $folders->method('find')->willReturn($mailboxes[$source]);
+        $folders->method('findOneBy')->willReturnCallback(
+            static function (array $criteria) use ($mailboxes): ?Mailbox {
+                foreach ($mailboxes as $mailbox) {
+                    if (($criteria['specialUse'] ?? null) === $mailbox->specialUse) {
+                        return $mailbox;
+                    }
+                }
 
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
-        $mailboxRepository->method('find')->willReturn($source);
-        $mailboxRepository->method('findOneBy')->willReturnCallback(
-            static fn (array $criteria): ?Mailbox => match ($criteria['specialUse'] ?? null) {
-                MailboxSpecialUse::TRASH   => $trash,
-                MailboxSpecialUse::ARCHIVE => $archive,
-                default                    => null,
+                return null;
             },
         );
 
-        $client = $this->createStub(Client::class);
-        // Every folder lookup answers with the same holding folder except two:
-        // the names resolveDestinationPath() probes when there is no
-        // special-use row, which must not invent an Archive that is not there,
-        // and an explicit destination the server has lost.
-        $lookup = static fn (string $path): ?Folder => match (true) {
-            false === $archiveExists && in_array($path, ['Archive', 'Archives'], true) => null,
-            false === $destinationExists && $path === $destinationPath => null,
-            default => new RecordingFolder($path, new MessageCollection([$present])),
-        };
-        // The source folder is found by its path (ImapFolderLocator), the
-        // destinations by getFolder(); both answer from the same table.
-        $client->method('getFolder')->willReturnCallback($lookup);
-        $client->method('getFolderByPath')->willReturnCallback($lookup);
-        $client->method('getFolderByName')->willReturnCallback($lookup);
-        $client->method('disconnect')->willReturnSelf();
-
-        if (null !== $this->protocol) {
-            $client->method('getConnection')->willReturn($this->protocol);
-        }
-
-        $connectionFactory = $this->createStub(ImapConnectionFactory::class);
-        $connectionFactory->method('connect')->willReturn($client);
-
-        // Records what the handler asked to be created, and answers with the
-        // path a real provisioner would have made. $this->provisioned is what
-        // the assertions read.
+        // Makes the folder on the server, as the real one does, and says
+        // which it was asked for.
         $provisioner = $this->createStub(ImapFolderProvisioner::class);
         $provisioner->method('ensureSpecialUse')->willReturnCallback(
-            function (Account $account, Client $client, MailboxSpecialUse $specialUse): ?string {
+            function (Account $account, ImapSession $session, MailboxSpecialUse $specialUse): ?string {
                 $this->provisioned[] = $specialUse->value;
 
-                return $this->provisionable ? 'INBOX.' . ltrim($specialUse->value, '\\') : null;
+                return $this->provisionable ? $this->made($session, ltrim($specialUse->value, '\\')) : null;
             },
         );
         $provisioner->method('ensureExactPath')->willReturnCallback(
-            function (Account $account, Client $client, string $path): ?string {
+            function (Account $account, ImapSession $session, string $path): ?string {
                 $this->provisioned[] = $path;
 
-                return $this->provisionable ? $path : null;
+                return $this->provisionable ? $this->made($session, $path) : null;
             },
         );
 
         $handler = new ApplyImapFlagsHandler(
-            $messageRepository,
-            $mailboxRepository,
-            new NullLogger(),
-            $connectionFactory,
+            $messages,
+            $folders,
+            $this->logger(),
+            self::getContainer()->get(ImapConnector::class),
             $this->createStub(EntityManagerInterface::class),
             $provisioner,
             $this->createStub(AccountRepository::class),
         );
 
-        $handler(new ApplyImapFlagsMessage([1 => 10], $action, $destinationPath, [1 => 6]));
+        $handler(new ApplyImapFlagsMessage([1 => 10], $action, $destinationPath, [1 => $uid]));
 
         return $row;
     }
 
-    private function mailbox(
-        Account           $account,
-        string            $name,
-        string            $fullPath,
-        MailboxSpecialUse $specialUse,
-    ): Mailbox {
-        $mailbox = new Mailbox();
+    private function made(ImapSession $session, string $path): string
+    {
+        $session->create($path);
+
+        return $path;
+    }
+
+    private function mailbox(Account $account, string $path, ?MailboxSpecialUse $specialUse = null): Mailbox
+    {
+        $mailbox             = new Mailbox();
         $mailbox->account    = $account;
-        $mailbox->name       = $name;
-        $mailbox->fullPath   = $fullPath;
+        $mailbox->name       = $path;
+        $mailbox->fullPath   = $path;
         $mailbox->specialUse = $specialUse;
 
         return $mailbox;
     }
-}
 
-/**
- * A folder that holds what the test says it holds. Named apart from the
- * FakeFolder in ApplyImapFlagsVanishedUidTest because PHP class names are
- * global and both files load in the same suite.
- */
-final class RecordingFolder extends Folder
-{
-    public function __construct(string $path, private readonly MessageCollection $holding)
+    private function logger(): AbstractLogger
     {
-        // Deliberately not parent::__construct(): it wants a live connection.
-        $this->path      = $path;
-        $this->name      = $path;
-        $this->full_name = $path;
-    }
+        return new class ($this->logged) extends AbstractLogger {
+            /** @param list<array{level: string, message: string}> $logged */
+            public function __construct(public array &$logged)
+            {
+            }
 
-    public function messages(array $extensions = []): WhereQuery
-    {
-        return new RecordingQuery($this->holding);
-    }
-}
-
-/** An ImapQuery, so ImapQuery::of() hands it back as it is. */
-final class RecordingQuery extends ImapQuery
-{
-    public function __construct(private readonly MessageCollection $holding)
-    {
-    }
-
-    public function whereUid(int|string $uid): static
-    {
-        return $this;
-    }
-
-    public function where(mixed $criteria, mixed $value = null): static
-    {
-        return $this;
-    }
-
-    public function setFetchBody(bool $fetch_body): static
-    {
-        return $this;
-    }
-
-    public function get(): MessageCollection
-    {
-        return $this->holding;
-    }
-}
-
-/**
- * An IMAP message that writes down every operation performed on it.
- *
- * getUid()/getMessageId() are declared outright because webklex serves those
- * through __call, which a double cannot intercept.
- */
-final class RecordingImapMessage extends ImapMessage
-{
-    /** @var list<string> */
-    public array $calls = [];
-
-    public int $moveCalls = 0;
-
-    public ?string $movedTo = null;
-
-    public bool $movedAsUtf7 = false;
-
-    private int $fakeUid;
-
-    private ?string $fakeMessageId;
-
-    private ?RecordingImapMessage $landsAs;
-
-    public function __construct(
-        int                   $uid,
-        ?string               $rfcMessageId = null,
-        ?RecordingImapMessage $landsAs = null,
-    ) {
-        $this->fakeUid       = $uid;
-        $this->fakeMessageId = $rfcMessageId;
-        $this->landsAs       = $landsAs;
-    }
-
-    public function getUid(): int
-    {
-        return $this->fakeUid;
-    }
-
-    public function getMessageId(): ?string
-    {
-        return $this->fakeMessageId;
-    }
-
-    public function getFlags(): FlagCollection
-    {
-        return new FlagCollection([]);
-    }
-
-    public function setFlag($flag): bool
-    {
-        $this->calls[] = 'setFlag:' . (is_array($flag) ? implode(',', $flag) : (string) $flag);
-
-        return true;
-    }
-
-    public function unsetFlag($flag): bool
-    {
-        $this->calls[] = 'unsetFlag:' . (is_array($flag) ? implode(',', $flag) : (string) $flag);
-
-        return true;
-    }
-
-    public function delete(bool $expunge = true, ?string $trash_path = null, bool $force_move = false): bool
-    {
-        $this->calls[] = 'delete:' . (true === $expunge ? 'expunge' : 'flag-only');
-
-        return true;
-    }
-
-    public function move(string $folder_path, bool $expunge = false, bool $utf7 = false): ?ImapMessage
-    {
-        ++$this->moveCalls;
-        $this->movedTo     = $folder_path;
-        $this->movedAsUtf7 = $utf7;
-
-        return $this->landsAs;
-    }
-}
-
-/**
- * A connection that announces the capabilities it is given and writes down the
- * commands sent through it, instead of sending them.
- */
-final class RecordingProtocol extends ImapProtocol
-{
-    /** @var list<string> */
-    public array $commands = [];
-
-    /**
-     * @param list<string> $capabilities
-     */
-    public function __construct(private readonly array $capabilities)
-    {
-        parent::__construct(Config::make());
-    }
-
-    public function getCapabilities(): Response
-    {
-        return Response::empty()->setCanBeEmpty(true)->setResult(['CAPABILITY', ...$this->capabilities]);
-    }
-
-    public function requestAndResponse(string $command, array $tokens = [], bool $dontParse = false): Response
-    {
-        $this->commands[] = trim($command . ' ' . implode(' ', $tokens));
-
-        return Response::empty()->setCanBeEmpty(true)->setResult([true]);
+            /** @param array<mixed> $context */
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                $this->logged[] = ['level' => (string) $level, 'message' => (string) $message];
+            }
+        };
     }
 }

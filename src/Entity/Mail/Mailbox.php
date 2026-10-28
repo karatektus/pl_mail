@@ -262,6 +262,21 @@ class Mailbox
         return 0 !== $this->importFloorUid;
     }
 
+    /**
+     * The name to hand the server: the path as it spelled it.
+     *
+     * The leaf name is only for a row that predates the column, and was what
+     * the folder used to be looked up by — which, on an account with
+     * "Archive/Invoices" and "Projects/Invoices", found the same folder for
+     * both. A row synced since has its path.
+     *
+     * Stays a method: it chooses between two properties.
+     */
+    public function serverPath(): string
+    {
+        return '' !== (string) $this->fullPath ? (string) $this->fullPath : (string) $this->name;
+    }
+
 
 
     /**

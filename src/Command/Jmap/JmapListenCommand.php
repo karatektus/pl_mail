@@ -28,18 +28,17 @@ use Throwable;
  * Holds a JMAP EventSource stream open for every JMAP account, and queues the
  * syncs each change asks for.
  *
- * The JMAP counterpart of app:imap:idle, and run the same way: as a child of
- * app:imap:supervise, which starts it when there is a JMAP account to listen
- * for and restarts it with backoff when it dies. So it needs no container of
- * its own and no deployment change — the supervisor every install already runs
- * is what keeps it alive.
+ * The JMAP counterpart of app:imap:listen, and run the same way: as a child of
+ * app:work (`jmap-listener`), which restarts it with backoff when it dies. So
+ * it needs no container of its own and no deployment change. With no JMAP
+ * account it reads the account set once a minute and otherwise sleeps.
  *
  * ## One process, every account
  *
- * Unlike IDLE, which holds a socket per folder and so a process per folder, a
- * JMAP stream is one HTTP response per account that the server writes to when
- * anything changes. Symfony's HttpClient waits on many responses at once, so
- * one process holds them all and wakes when any of them speaks.
+ * A JMAP stream is one HTTP response per account that the server writes to
+ * when anything changes. Symfony's HttpClient waits on many responses at once,
+ * so one process holds them all and wakes when any of them speaks — as
+ * app:imap:listen does for IDLE, which needs a socket per folder.
  *
  * ## What a change does
  *

@@ -55,7 +55,7 @@ this is what keeps an unreviewed commit off running installs.
 |---|---|
 | Backend | Symfony 8, Doctrine ORM, PHP 8.4+ |
 | Database | PostgreSQL 18 |
-| IMAP | webklex/php-imap |
+| IMAP | plMail's own client (`App\Infrastructure\ImapClient`); webklex/php-imap still parses MIME (#82) |
 | Gmail | Gmail REST + Batch API, OAuth2 (league/oauth2-client) |
 | Microsoft | Microsoft Graph API, OAuth2 |
 | Async | Symfony Messenger, Doctrine transport |
@@ -91,7 +91,7 @@ That first boot takes a few minutes. The dev stack bind-mounts the source tree o
 Later boots skip it.
 
 Migrations run automatically via the entrypoint. The worker container starts with the stack and
-runs everything that is not the web server (`app:work`): the IMAP supervisor, one consumer per
+runs everything that is not the web server (`app:work`): the two push listeners, one consumer per
 queue, the scheduler and the Mercure hub, each its own process, each restarted when it stops.
 
 `.github/workflows/docker.yml` builds the published image for both `linux/amd64` and `linux/arm64`,
@@ -984,10 +984,9 @@ php bin/mirror-wiki.php --check
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty, `safe-html-conditional-comments` removes Outlook's `<![endif]-->` from messages that show it as text, `repeated-headers` takes out the header block some IMAP servers repeated at the top of a message body, `gmailify-placement` puts IMAP mail a Gmail account also collects back where its IMAP folder has it |
-| `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
-| `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox, and `app:jmap:listen` while there is a JMAP account |
-| `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
-| `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:imap:supervise` |
+| `app:imap:listen` | Hold IMAP IDLE on every IDLE-enabled folder, in one process, and queue the syncs each change asks for. Started and restarted by `app:work` as `imap-listener` |
+| `app:imap:test [--account=ID] [--append]` | Test an IMAP connection and folder listing; `--append` also puts a test message in the Sent folder |
+| `app:jmap:listen` | Hold a JMAP push stream open for every JMAP account and queue the syncs each change asks for. Started and restarted by `app:work` as `jmap-listener` |
 | `app:push:renew` | Renew Gmail watches and Graph subscriptions nearing expiry |
 | `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |
@@ -1009,7 +1008,7 @@ php bin/mirror-wiki.php --check
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
 | `app:upgrade:run [--status]` | Run the one-time repairs this installation has not run yet, and record that it did. Scheduled every ten minutes, so normally nobody types it — what it guards is the gap between an update landing and a repair happening, and asking costs one indexed lookup per task. Run it by hand after restoring an old backup, or with `--status` to read the ledger when a task has used up its three attempts and you want to see what it says |
-| `app:work [--only=…] [--without=…]` | Run every background process in one container, one process each: the Mercure hub, the IMAP supervisor, the four queue consumers and the scheduler. It is the worker container's command. `--only` and `--without` take process names, comma-separated, for an installation that gives a busy queue a container of its own, or the demo, which runs without the IMAP supervisor |
+| `app:work [--only=…] [--without=…]` | Run every background process in one container, one process each: the Mercure hub, the two push listeners, the queue consumers and the scheduler. It is the worker container's command. `--only` and `--without` take process names, comma-separated, for an installation that gives a busy queue a container of its own, or the demo, which runs without the push listeners. `imap-supervisor`, the process the listeners replaced, still names both |
 | `app:updates:check` | Ask the update channel (Admin → Updates) whether a newer build is published, and tell the administrators the first time it is. Scheduled hourly at :37, so normally nobody types it; run it to check now. Exits 0 when the registry cannot be reached, because an installation behind a firewall is not a fault: the page records why and keeps the last answer |
 | `app:db:wait [--attempts=N]` | Wait for the database to answer, once a second, 60 times by default. The entrypoint runs it before `app:db:migrate`. A miss is retried without a log entry, because a database a few seconds behind the app is what this waits for; only one that never answers is logged, as CRITICAL with the last error, and the command exits 1 |
 | `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |

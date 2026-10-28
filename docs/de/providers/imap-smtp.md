@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:50bd39139cfba3551b35a1fe92934c3bf5f73b53 -->
+<!-- translated-from: providers/imap-smtp.md sha1:0c898528abe06e68a70a613f014b3b5e94c8a942 -->
 
 # IMAP und SMTP
 
@@ -64,9 +64,9 @@ Protokolls selbst zu sagen „melde dich, wenn sich etwas ändert", statt alle p
 nachzufragen. Eine Nachricht, die auf dem Server eintrifft, erreicht plMail in Sekunden.
 
 Es gibt nichts einzuschalten. Wenn plMail die Ordner eines Kontos entdeckt, markiert es die, die der
-Server als Posteingang und als Spam-Ordner kennzeichnet, als IDLE-fähig, und der IMAP-Supervisor
-(einer der Prozesse des Worker-Containers) betreibt eine Verbindung pro solchem Ordner und startet abgebrochene mit einem
-kurzen Backoff neu. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das ist eine
+Server als Posteingang und als Spam-Ordner kennzeichnet, als IDLE-fähig, und der IMAP-Listener
+(einer der Prozesse des Worker-Containers) hält eine Verbindung pro solchem Ordner, alle in diesem einen Prozess, und
+ersetzt abgebrochene mit einem kurzen Backoff. Ein Server, der langsam antwortet, hält nur seine eigenen Ordner auf. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das ist eine
 bewusste Sparsamkeit: Eine IDLE-Verbindung ist ein gehaltener TCP-Socket, und dreißig davon pro Konto
 zu halten, um von Mail zu erfahren, die in einen Archivordner wandert, kostet mehr, als es wert ist.
 
@@ -76,7 +76,7 @@ Verbindung von einer Firewall gekappt wurde oder ein Anbieter beschlossen hat, I
 mehr zu beantworten.
 
 Wenn Mail nicht von selbst eintrifft, ist das Erste zu prüfen, ob der Worker-Container läuft und
-ob das Feld „Prozesse“ im Administrationsbereich den IMAP-Supervisor schlagen zeigt. Ohne ihn hält
+ob das Feld „Prozesse“ im Administrationsbereich `imap-listen` schlagen zeigt. Ohne ihn hält
 nichts eine IDLE-Verbindung, und Mail trifft nur im Viertelstundentakt ein.
 
 ## App-Passwörter bei den großen Anbietern
@@ -160,7 +160,7 @@ Viertelstunden-Durchlauf ein. Eine Nachricht, die vier Minuten nachdem eine Rege
 in einen Unterordner einsortiert hat in plMail auftaucht, ist genau das und funktioniert wie
 vorgesehen.
 
-**Ohne den IMAP-Supervisor hält nichts eine IDLE-Verbindung.** Mail trifft weiterhin ein,
+**Ohne den IMAP-Listener hält nichts eine IDLE-Verbindung.** Mail trifft weiterhin ein,
 nach Zeitplan, was das zu einem sehr leisen Fehlschlag macht — das Symptom ist „Mail ist immer ein
 paar Minuten spät" und nichts, was kaputt aussieht.
 

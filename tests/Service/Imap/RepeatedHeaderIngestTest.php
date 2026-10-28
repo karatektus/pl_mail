@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\RawMessageStorage;
 use App\Entity\Mail\Mailbox;
 use App\Service\Imap\ImapMailboxImporter;
+use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Message as ImapMessage;
-use Webklex\PHPIMAP\Support\FlagCollection;
 
 /**
  * A message whose body arrives with its own header block in front is stored
@@ -26,10 +24,11 @@ use Webklex\PHPIMAP\Support\FlagCollection;
  * correctly — its parts start after the boundary — but its .eml was doubled
  * just the same, which is why both shapes are here.
  *
- * The fixture is built the way the server's answer reaches MessageSyncer:
- * Message::fromString() splits at the first blank line, so the header is the
- * first block and the body is the second block plus the real body — exactly
- * the pair Query::fetch() hands to Message::make() for such a message.
+ * Whether the doubling was the server's answer to RFC822.TEXT alone or is in
+ * the stored message itself was never settled. plMail now fetches the whole
+ * message in one piece (BODY[]), which avoids the first, and the repair stays
+ * for the second: the doubled messages here are put on the test stack's
+ * Dovecot as they are, and come back through the real fetch.
  *
  * Through the importer, like ImapDraftSentAtTest, because buildMessage() and
  * rawOf() are private and the claim is about what is stored.
@@ -37,6 +36,7 @@ use Webklex\PHPIMAP\Support\FlagCollection;
 final class RepeatedHeaderIngestTest extends KernelTestCase
 {
     use SeedsMarkerFixtures;
+    use UsesDovecot;
 
     private Connection $connection;
     private ImapMailboxImporter $importer;
@@ -91,12 +91,12 @@ final class RepeatedHeaderIngestTest extends KernelTestCase
     {
         $html = "<!DOCTYPE html>\r\n<html><body><p>Your parcel is on its way.</p></body></html>\r\n";
 
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding([
+        $this->import([
             1 => $this->doubled(1, "Content-Type: text/html; charset=utf-8\r\n", "\r\n\r\n" . $html),
             // No blank line between the repeated block and the DOCTYPE, the
             // other shape the issue reports.
             2 => $this->doubled(2, "Content-Type: text/html; charset=utf-8\r\n", "\r\n" . $html),
-        ]));
+        ]);
 
         $rows = $this->rows();
 
@@ -123,11 +123,11 @@ final class RepeatedHeaderIngestTest extends KernelTestCase
             . "Content-Type: text/html; charset=utf-8\r\n\r\n<p>Your parcel is on its way.</p>\r\n"
             . "--B--\r\n";
 
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding([
-            3 => $this->doubled(3, "Content-Type: multipart/alternative; boundary=\"B\"\r\n", $parts),
-        ]));
+        $this->import([
+            1 => $this->doubled(1, "Content-Type: multipart/alternative; boundary=\"B\"\r\n", $parts),
+        ]);
 
-        $row = $this->rows()[3];
+        $row = $this->rows()[1];
 
         self::assertSame(1, substr_count($this->raw($row), 'Delivered-To: '));
         self::assertStringContainsString('<p>Your parcel is on its way.</p>', (string) $row['body_html']);
@@ -139,9 +139,9 @@ final class RepeatedHeaderIngestTest extends KernelTestCase
     {
         $header = $this->header(1, "Content-Type: text/plain; charset=utf-8\r\n");
 
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding([
-            1 => $this->fromString($header . "\r\nDelivered-To: is a line of this body.\r\n", 1),
-        ]));
+        $this->import([
+            1 => $header . "\r\nDelivered-To: is a line of this body.\r\n",
+        ]);
 
         $row = $this->rows()[1];
 
@@ -158,11 +158,30 @@ final class RepeatedHeaderIngestTest extends KernelTestCase
      * the same header block, then $rest — which starts with the blank line,
      * or with a lone line break where the server sent none.
      */
-    private function doubled(int $uid, string $contentType, string $rest): ImapMessage
+    private function doubled(int $uid, string $contentType, string $rest): string
     {
         $header = rtrim($this->header($uid, $contentType), "\r\n");
 
-        return $this->fromString($header . "\r\n\r\n" . $header . $rest, $uid);
+        return $header . "\r\n\r\n" . $header . $rest;
+    }
+
+    /**
+     * Put the messages in the folder on the server, in UID order, and import
+     * the page that holds them.
+     *
+     * @param array<int, string> $messages UID => the message; a fresh mailbox numbers from 1
+     */
+    private function import(array $messages): void
+    {
+        $session = $this->dovecotSession();
+        $session->create('Deleted Items');
+
+        foreach ($messages as $uid => $raw) {
+            self::assertSame($uid, $session->append('Deleted Items', $raw, ['\\Seen']));
+        }
+
+        $this->importer->importPage($this->mailboxId, $session);
+        $session->logout();
     }
 
     private function header(int $uid, string $contentType): string
@@ -175,13 +194,6 @@ final class RepeatedHeaderIngestTest extends KernelTestCase
             . "Message-ID: <parcel-{$uid}@example.test>\r\n"
             . "MIME-Version: 1.0\r\n"
             . $contentType;
-    }
-
-    private function fromString(string $raw, int $uid): ImapMessage
-    {
-        return ImapMessage::fromString($raw, ImapConnectionFactory::config())
-            ->setUid($uid)
-            ->setFlags(FlagCollection::make(['Seen' => 'Seen']));
     }
 
     /**

@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * The worker container: every background process plMail runs, in one place.
  *
- * The queue consumers, the scheduler, the IMAP supervisor and the Mercure hub
+ * The queue consumers, the scheduler, the push listeners and the Mercure hub
  * used to be seven containers of one image. They are now the children of this
  * command, still one process each (see BackgroundProcesses for why that part
  * cannot change) and kept alive the way Docker kept the containers alive (see
@@ -26,15 +26,15 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * --only and --without pick a subset, for the two cases that want one: an
  * installation that splits its busiest queue into a container of its own, and
- * the demo, which has no IMAP server for the supervisor to reach.
+ * the demo, which has no mail server for the push listeners to reach. Names in
+ * BackgroundProcesses::ALIASES stand for the processes they replaced.
  *
- * Run it under an init (compose's `init: true`). The IMAP supervisor's own
- * children are this command's grandchildren, and if the supervisor dies hard,
- * something has to reap them.
+ * Run it under an init (compose's `init: true`), so that whatever a child
+ * leaves behind when it dies hard is reaped.
  */
 #[AsCommand(
     name: 'app:work',
-    description: 'Run every background process in one container: the queue workers, the scheduler, the IMAP supervisor and the Mercure hub.',
+    description: 'Run every background process in one container: the queue workers, the scheduler, the push listeners and the Mercure hub.',
 )]
 final class WorkCommand extends Command implements SignalableCommandInterface
 {
@@ -54,7 +54,7 @@ final class WorkCommand extends Command implements SignalableCommandInterface
     {
         $this
             ->addOption('only', null, InputOption::VALUE_REQUIRED, 'Run only these, comma-separated (e.g. worker-bulk)')
-            ->addOption('without', null, InputOption::VALUE_REQUIRED, 'Run everything but these, comma-separated (e.g. imap-supervisor)');
+            ->addOption('without', null, InputOption::VALUE_REQUIRED, 'Run everything but these, comma-separated (e.g. imap-listener)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -106,8 +106,8 @@ final class WorkCommand extends Command implements SignalableCommandInterface
     private function choose(string $only, string $without): array
     {
         $known  = $this->processes->names();
-        $only   = $this->names($only);
-        $skip   = $this->names($without);
+        $only   = BackgroundProcesses::expand($this->names($only));
+        $skip   = BackgroundProcesses::expand($this->names($without));
         $wrong  = array_diff([...$only, ...$skip], $known);
 
         if ([] !== $wrong) {

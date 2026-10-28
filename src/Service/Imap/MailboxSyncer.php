@@ -6,9 +6,10 @@ namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapFolder;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Label\LabelResolver;
@@ -16,8 +17,6 @@ use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * Mirrors the IMAP folder tree into Mailbox rows (pure sync infrastructure)
@@ -139,7 +138,7 @@ readonly class MailboxSyncer
     public function __construct(
         private MailboxRepository      $mailboxRepository,
         private EntityManagerInterface $em,
-        private ImapConnectionFactory  $imapConnectionFactory,
+        private ImapConnector          $connector,
         private LabelResolver          $labelResolver,
         private MessageRepository      $messageRepository,
         private MessageEraser          $eraser,
@@ -167,10 +166,10 @@ readonly class MailboxSyncer
         }
 
         $now    = $now ?? new DateTimeImmutable();
-        $client = $this->imapConnectionFactory->connect($account);
+        $session = $this->connector->session($account);
 
         try {
-            $serverFolders = $this->listFolders($client);
+            $serverFolders = $this->listFolders($session);
 
             // Every IMAP account has at least INBOX, so an empty answer is a
             // failed answer. Believing it would mark every folder missing.
@@ -211,7 +210,7 @@ readonly class MailboxSyncer
                 $specialUse = $specialUses[$folder->path] ?? null;
                 $selectable = false === isset($unselectable[$folder->path]);
                 $mirror     = isset($mirrors[$folder->path]);
-                $source     = $this->findRenameSource($client, $folder, $specialUse, $existing);
+                $source     = $this->findRenameSource($session, $folder, $specialUse, $existing);
 
                 if (null === $source) {
                     $this->create($account, $folder, $specialUse, $selectable, $mirror);
@@ -240,7 +239,7 @@ readonly class MailboxSyncer
 
             $this->dropMirrorCopies($account);
         } finally {
-            $client->disconnect();
+            $session->logout();
         }
 
         return $result;
@@ -322,7 +321,7 @@ readonly class MailboxSyncer
      *
      * @param array<string, Mailbox> $missing
      */
-    private function findRenameSource(Client $client, Folder $folder, ?MailboxSpecialUse $specialUse, array $missing): ?Mailbox
+    private function findRenameSource(ImapSession $session, ImapFolder $folder, ?MailboxSpecialUse $specialUse, array $missing): ?Mailbox
     {
         if ([] === $missing) {
             return null;
@@ -343,12 +342,10 @@ readonly class MailboxSyncer
         }
 
         try {
-            $status = $client->getConnection()->folderStatus($folder->path, ['UIDVALIDITY'])->validatedData();
+            $uidValidity = $session->status($folder->path, ['UIDVALIDITY'])['UIDVALIDITY'] ?? null;
         } catch (\Throwable) {
             return null;
         }
-
-        $uidValidity = is_array($status) ? ($status['uidvalidity'] ?? null) : null;
 
         if (null === $uidValidity) {
             return null;
@@ -362,33 +359,17 @@ readonly class MailboxSyncer
     /**
      * The folder list, each folder with the attributes its LIST line carried.
      *
-     * Asked of the connection rather than through Client::getFolders(), which
-     * builds the same Folder objects from the same response and then drops the
-     * attribute list: Folder keeps \NoSelect and \HasChildren as booleans and
-     * nothing else, so the \Sent the server sent is gone by the time anything
-     * could read it. It is one LIST either way.
+     * An empty answer comes back empty; the caller decides what an empty list
+     * means.
      *
-     * An empty answer comes back empty here rather than as the library's
-     * FolderFetchingException; the caller decides what an empty list means.
-     *
-     * @return list<array{folder: Folder, attributes: list<string>}>
+     * @return list<array{folder: ImapFolder, attributes: list<string>}>
      */
-    private function listFolders(Client $client): array
+    private function listFolders(ImapSession $session): array
     {
-        $items = $client->getConnection()->folders('', '*')->validatedData();
-
-        $folders = [];
-
-        foreach ((array) $items as $path => $item) {
-            $attributes = array_values(array_map('strval', (array) ($item['flags'] ?? [])));
-
-            $folders[] = [
-                'folder'     => new Folder($client, (string) $path, (string) ($item['delimiter'] ?? '.'), $attributes),
-                'attributes' => $attributes,
-            ];
-        }
-
-        return $folders;
+        return array_map(
+            static fn (ImapFolder $folder): array => ['folder' => $folder, 'attributes' => $folder->attributes],
+            $session->folders(),
+        );
     }
 
     /**
@@ -403,7 +384,7 @@ readonly class MailboxSyncer
      * Public and static because it is the whole of the rule, and a test should
      * be able to hand it a listing without standing up a syncer.
      *
-     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      *
      * @return array<string, MailboxSpecialUse> keyed by the folder's raw path
      */
@@ -444,12 +425,12 @@ readonly class MailboxSyncer
      * The folders the server marked \Noselect: placeholders that hold no mail
      * and cannot be opened, Gmail's "[Gmail]" being the usual one.
      *
-     * Read off the raw attribute list rather than Folder::$no_select. RFC 3501
-     * makes attributes case-insensitive and the library matches two spellings.
+     * Compared without case: RFC 3501 makes attributes case-insensitive, and
+     * servers write `\Noselect` and `\NoSelect` both.
      *
      * Public and static for the same reason as assignSpecialUses().
      *
-     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      *
      * @return array<string, true> keyed by the folder's raw path
      */
@@ -482,7 +463,7 @@ readonly class MailboxSyncer
      *
      * Public and static for the same reason as assignSpecialUses().
      *
-     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      * @param array<string, MailboxSpecialUse>                       $specialUses what assignSpecialUses() made of the same listing
      *
      * @return array<string, true> keyed by the folder's raw path
@@ -496,7 +477,7 @@ readonly class MailboxSyncer
             $attributes = array_map('strtolower', $attributes);
 
             $all = in_array('\\all', $attributes, true)
-                || 'all mail' === mb_strtolower(trim($folder->name));
+                || 'all mail' === mb_strtolower(trim($folder->name()));
 
             if (in_array('\\flagged', $attributes, true) || ($all && $hasArchive)) {
                 $paths[$folder->path] = true;
@@ -562,7 +543,7 @@ readonly class MailboxSyncer
         return null;
     }
 
-    private static function specialUseFromName(Folder $folder): ?MailboxSpecialUse
+    private static function specialUseFromName(ImapFolder $folder): ?MailboxSpecialUse
     {
         // INBOX is special by protocol rather than by name: RFC 3501 reserves
         // it, case-insensitively, as the path itself.
@@ -570,10 +551,10 @@ readonly class MailboxSyncer
             return MailboxSpecialUse::INBOX;
         }
 
-        return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name))] ?? null;
+        return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name()))] ?? null;
     }
 
-    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, bool $mirror): void
+    private function create(Account $account, ImapFolder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, bool $mirror): void
     {
         $mailbox = new Mailbox();
         $mailbox->account = $account;
@@ -593,7 +574,7 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, bool $mirror): void
+    private function update(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, bool $mirror): void
     {
         // Off when the folder is first seen to be a mirror, and only then. A
         // folder synced before this rule existed is healed on its next sync;
@@ -621,9 +602,9 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function hydrate(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
+    private function hydrate(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
     {
-        $mailbox->name = $folder->name;
+        $mailbox->name = $folder->name();
         $mailbox->fullPath = $folder->path;
         $mailbox->delimiter = $folder->delimiter;
         $mailbox->specialUse = $specialUse;

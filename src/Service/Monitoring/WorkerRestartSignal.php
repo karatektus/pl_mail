@@ -20,9 +20,9 @@ use Symfony\Component\Messenger\EventListener\StopWorkerOnRestartSignalListener;
  * Deliberately not `docker restart`: the app has no Docker socket, and giving
  * it one to solve this would be wildly disproportionate.
  *
- * ImapSuperviseCommand is not a Messenger worker, so it reads this signal
- * itself rather than being covered by the listener — same key, same meaning,
- * one button.
+ * The push listeners (app:imap:listen, app:jmap:listen) are not Messenger
+ * workers, so they read this signal themselves rather than being covered by
+ * the listener — same key, same meaning, one button.
  *
  * The pool is `cache.messenger.restart_workers_signal`, which is shared across
  * containers. If it is ever reconfigured to a non-shared adapter (array, or a

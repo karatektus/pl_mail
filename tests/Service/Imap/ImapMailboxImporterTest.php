@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Mailbox;
 use App\Service\Imap\ImapImportOutcome;
 use App\Service\Imap\ImapMailboxImporter;
@@ -12,7 +15,6 @@ use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * A folder's history arrives newest first, a page at a time, and no single
@@ -24,10 +26,13 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * what brings the history in now: this is what one call to it does to a
  * folder, checked in the database it writes to.
  *
- * The server is a script (FakeImportClient). Everything else is real — the
- * importer, the paged fetch, MessageSyncer and the pipeline behind it — since
- * the claims are about what ends up stored and where the floor stands, and
- * those are the things a double would be asserting into existence.
+ * The server is a script (FakeImapServer), because the cases that matter are
+ * what servers do wrong — a message listed and never returned, a connection
+ * dropped mid-page — which the test stack's Dovecot will not do on request.
+ * Everything else is real — the IMAP client, the importer, the paged fetch,
+ * MessageSyncer and the pipeline behind it — since the claims are about what
+ * ends up stored and where the floor stands, and those are the things a
+ * double would be asserting into existence.
  *
  * PAGE_SIZE is fifty; the folders here hold a hundred and thirty, which is two
  * full pages and a part of one.
@@ -41,6 +46,15 @@ final class ImapMailboxImporterTest extends KernelTestCase
     private Connection $connection;
     private ImapMailboxImporter $importer;
     private int $mailboxId;
+
+    /** @var array<int, ImapSession> */
+    private array $sessions = [];
+
+    /**
+     * A multipart message with no boundary: the parser finds no content in it
+     * and throws, which is what a message that will not store looks like.
+     */
+    private const string UNREADABLE = "From: a@example.test\r\nSubject: Broken\r\nMessage-ID: <broken@example.test>\r\nContent-Type: multipart/mixed\r\n\r\n--\r\nhello\r\n";
 
     protected function setUp(): void
     {
@@ -82,9 +96,9 @@ final class ImapMailboxImporterTest extends KernelTestCase
 
     public function testTheFirstPageIsTheNewestFiftyRatherThanTheOldest(): void
     {
-        $server = FakeImportClient::holding($this->mails(range(1, self::TOP)));
+        $server = $this->server($this->mails(range(1, self::TOP)));
 
-        $outcome = $this->importer->importPage($this->mailboxId, $server);
+        $outcome = $this->importer->importPage($this->mailboxId, $this->session($server));
 
         self::assertSame(ImapImportOutcome::More, $outcome);
         self::assertSame(range(81, 130), $this->storedUids());
@@ -99,11 +113,11 @@ final class ImapMailboxImporterTest extends KernelTestCase
 
     public function testPageAfterPageReachesTheBottomAndThenSaysSo(): void
     {
-        $server = FakeImportClient::holding($this->mails(range(1, self::TOP)));
+        $server = $this->server($this->mails(range(1, self::TOP)));
 
-        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $server));
-        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $server));
-        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $this->session($server)));
+        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $this->session($server)));
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($server)));
 
         self::assertSame(range(1, 130), $this->storedUids());
         self::assertSame(0, (int) $this->row()['import_floor_uid'], 'zero is "nothing left below"');
@@ -112,7 +126,7 @@ final class ImapMailboxImporterTest extends KernelTestCase
         // And a finished folder is left alone: nothing more is asked of the server.
         $asked = count($server->fetched);
 
-        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($server)));
         self::assertCount($asked, $server->fetched);
     }
 
@@ -124,9 +138,9 @@ final class ImapMailboxImporterTest extends KernelTestCase
     public function testAPageIsFiftyMessagesHoweverTheirUidsAreSpread(): void
     {
         // Every third UID only.
-        $server = FakeImportClient::holding($this->mails(range(1, self::TOP, 3)));
+        $server = $this->server($this->mails(range(1, self::TOP, 3)));
 
-        $this->importer->importPage($this->mailboxId, $server);
+        $this->importer->importPage($this->mailboxId, $this->session($server));
 
         self::assertCount(44, $this->storedUids(), 'all forty-four of them fit one page');
         self::assertSame(0, (int) $this->row()['import_floor_uid']);
@@ -140,11 +154,11 @@ final class ImapMailboxImporterTest extends KernelTestCase
      */
     public function testMessagesAlreadyStoredAreNeverFetchedAgain(): void
     {
-        $server = FakeImportClient::holding($this->mails(range(1, self::TOP)));
+        $server = $this->server($this->mails(range(1, self::TOP)));
 
         // Fifty of them are here already: 11 to 60, one page of a folder that
         // held sixty at the time.
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding($this->mails(range(1, 60))));
+        $this->importer->importPage($this->mailboxId, $this->session($this->server($this->mails(range(1, 60)))));
         self::assertSame(range(11, 60), $this->storedUids());
 
         // Planned again from the top, as an upgrade or a rebuilt folder is.
@@ -154,8 +168,8 @@ final class ImapMailboxImporterTest extends KernelTestCase
         );
         $this->em->clear();
 
-        $this->importer->importPage($this->mailboxId, $server);
-        $this->importer->importPage($this->mailboxId, $server);
+        $this->importer->importPage($this->mailboxId, $this->session($server));
+        $this->importer->importPage($this->mailboxId, $this->session($server));
 
         $asked = array_merge(...$server->fetched);
 
@@ -171,10 +185,10 @@ final class ImapMailboxImporterTest extends KernelTestCase
     public function testAMessageThatWillNotStoreCostsItselfAndIsAskedForAgain(): void
     {
         $script       = $this->mails(range(1, self::TOP));
-        $script[100]  = new \RuntimeException('no content found');
-        $server       = FakeImportClient::holding($script);
+        $script[100]  = self::UNREADABLE;
+        $server       = $this->server($script);
 
-        self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $this->session($server)));
 
         self::assertSame(array_values(array_diff(range(81, 130), [100])), $this->storedUids());
         self::assertSame(self::TOP + 1, (int) $this->row()['import_floor_uid'], 'the floor has not moved past it');
@@ -182,9 +196,9 @@ final class ImapMailboxImporterTest extends KernelTestCase
 
         // It parses now — a fix shipped, say. The same page is asked for
         // again: the one that failed, and the forty-nine below what is stored.
-        $server->script[100] = $this->mails([100])[100];
+        $server->messages['INBOX'][100] = $this->mails([100])[100];
 
-        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $this->session($server)));
 
         self::assertContains(100, $this->storedUids());
         self::assertSame(0, (int) $this->row()['import_page_attempts'], 'a page that goes through earns the count back');
@@ -197,18 +211,18 @@ final class ImapMailboxImporterTest extends KernelTestCase
     public function testAMessageThatNeverStoresIsPassedOverAfterFiveTries(): void
     {
         $script      = $this->mails(range(1, self::TOP));
-        $script[100] = new \RuntimeException('no content found');
-        $server      = FakeImportClient::holding($script);
+        $script[100] = self::UNREADABLE;
+        $server      = $this->server($script);
 
         for ($try = 1; $try < ImapMailboxImporter::MAX_PAGE_ATTEMPTS; ++$try) {
-            self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $server), sprintf('try %d', $try));
+            self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $this->session($server)), sprintf('try %d', $try));
         }
 
-        self::assertNotSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $server));
+        self::assertNotSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $this->session($server)));
         self::assertLessThan(100, (int) $this->row()['import_floor_uid'], 'the floor is below it now');
 
         // And it is not asked for again: the folder finishes without it.
-        while (ImapImportOutcome::Finished !== $this->importer->importPage($this->mailboxId, $server)) {
+        while (ImapImportOutcome::Finished !== $this->importer->importPage($this->mailboxId, $this->session($server))) {
             continue;
         }
 
@@ -229,9 +243,9 @@ final class ImapMailboxImporterTest extends KernelTestCase
         $this->em->clear();
 
         $script      = $this->mails(range(1, self::TOP));
-        $script[100] = new \RuntimeException('no content found');
+        $script[100] = self::UNREADABLE;
 
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding($script));
+        $this->importer->importPage($this->mailboxId, $this->session($this->server($script)));
 
         self::assertSame(131, (int) $this->row()['failed_uid']);
         self::assertSame(3, (int) $this->row()['failed_uid_attempts']);
@@ -253,54 +267,61 @@ final class ImapMailboxImporterTest extends KernelTestCase
         // will not — on a page of its own. That is the shape that stuck: on a
         // page it shares, it is merely absent (the test below).
         $script    = $this->mails(range(31, self::TOP));
-        $script[1] = FakeQuery::NEVER_RETURNED;
-        $server    = FakeImportClient::holding($script);
+        $script[1] = null;
+        $server    = $this->server($script);
 
         // Everything above it, a page at a time, exactly as before.
         while (1 < count($this->missing($server))) {
-            self::assertNotSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+            self::assertNotSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($server)));
         }
 
         self::assertSame(range(31, self::TOP), $this->storedUids());
 
         for ($try = 1; $try < ImapMailboxImporter::MAX_PAGE_ATTEMPTS; ++$try) {
-            self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $server), sprintf('try %d', $try));
+            self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $this->session($server)), sprintf('try %d', $try));
             self::assertSame($try, (int) $this->row()['import_page_attempts'], 'counted, which is what it never was');
         }
 
-        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $server));
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($server)));
         self::assertSame(0, (int) $this->row()['import_floor_uid']);
         self::assertSame(0, (int) $this->row()['import_remaining']);
     }
 
-    /** One that will not come back among forty-nine that do costs nothing at all. */
-    public function testAnAbsentMessageAmongOthersThatArriveDoesNotHoldItsPage(): void
+    /**
+     * One that will not come back among forty-nine that do is held like one
+     * that will not parse: the rest of its page is stored, and it is asked
+     * for again rather than passed over on the first try, since a server can
+     * fail to hand a message over for reasons of its own that pass.
+     */
+    public function testAnAbsentMessageAmongOthersThatArriveIsAskedForAgain(): void
     {
         $script      = $this->mails(range(1, self::TOP));
-        $script[100] = FakeQuery::NEVER_RETURNED;
-        $server      = FakeImportClient::holding($script);
+        $script[100] = null;
+        $server      = $this->server($script);
 
-        self::assertSame(ImapImportOutcome::More, $this->importer->importPage($this->mailboxId, $server));
-        self::assertSame(0, (int) $this->row()['import_page_attempts']);
+        self::assertSame(ImapImportOutcome::Retry, $this->importer->importPage($this->mailboxId, $this->session($server)));
+        self::assertSame(array_values(array_diff(range(81, 130), [100])), $this->storedUids());
+        self::assertSame(1, (int) $this->row()['import_page_attempts']);
     }
 
     /**
-     * The other failure that says "empty response", and the reason only one
-     * of the two is counted: a connection that died says nothing about the
-     * messages. Five failed tries in an hour's outage must not pass over a
+     * A connection that died says nothing about the messages, and is not
+     * counted as a page that held something back. Five failed tries in an hour's outage must not pass over a
      * page of somebody's mail for good.
      */
     public function testADroppedConnectionIsNotCountedAsAMessageThatWillNotCome(): void
     {
-        $server              = FakeImportClient::holding($this->mails(range(1, self::TOP)));
-        $server->pageFailure = new \Webklex\PHPIMAP\Exceptions\RuntimeException('empty response');
+        $server              = $this->server($this->mails(range(1, self::TOP)));
+        $server->dropOnFetch = true;
 
         for ($try = 1; $try <= ImapMailboxImporter::MAX_PAGE_ATTEMPTS + 1; ++$try) {
             try {
-                $this->importer->importPage($this->mailboxId, $server);
+                // A connection of its own each time, as each retry of the
+                // job gets: the last one is gone.
+                $this->importer->importPage($this->mailboxId, $server->session());
                 self::fail('a dead connection is the caller\'s to retry');
-            } catch (\Throwable $e) {
-                self::assertStringContainsString('empty response', $e->getMessage());
+            } catch (ImapConnectionException) {
+                // As it should.
             }
         }
 
@@ -309,18 +330,37 @@ final class ImapMailboxImporterTest extends KernelTestCase
     }
 
     /** @return list<int> the scripted UIDs not stored yet */
-    private function missing(FakeImportClient $server): array
+    private function missing(FakeImapServer $server): array
     {
-        return array_values(array_diff(array_keys($server->script), $this->storedUids()));
+        return array_values(array_diff(array_keys($server->messages['INBOX']), $this->storedUids()));
     }
 
     public function testAnEmptyFolderIsFinishedAtOnce(): void
     {
-        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, FakeImportClient::holding([])));
+        self::assertSame(ImapImportOutcome::Finished, $this->importer->importPage($this->mailboxId, $this->session($this->server([]))));
         self::assertSame(0, (int) $this->row()['import_floor_uid']);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * A server whose INBOX holds these messages.
+     *
+     * @param array<int, string|null> $messages UID => the message, or null for one never returned
+     */
+    private function server(array $messages): FakeImapServer
+    {
+        $server                    = new FakeImapServer(static::getContainer()->get(ImapLoop::class));
+        $server->messages['INBOX'] = $messages;
+
+        return $server;
+    }
+
+    /** One session per server, as one import job holds one connection. */
+    private function session(FakeImapServer $server): ImapSession
+    {
+        return $this->sessions[spl_object_id($server)] ??= $server->session();
+    }
 
     /** @return list<int> */
     private function storedUids(): array
@@ -345,7 +385,7 @@ final class ImapMailboxImporterTest extends KernelTestCase
     /**
      * @param list<int> $uids
      *
-     * @return array<int, ImapMessage>
+     * @return array<int, string>
      */
     private function mails(array $uids): array
     {
@@ -360,7 +400,7 @@ final class ImapMailboxImporterTest extends KernelTestCase
                 . "MIME-Version: 1.0\r\n"
                 . "Content-Type: text/plain; charset=UTF-8\r\n\r\nHello.\r\n";
 
-            $mails[$uid] = ImapMessage::fromString($raw, ImapConnectionFactory::config())->setUid($uid);
+            $mails[$uid] = $raw;
         }
 
         return $mails;

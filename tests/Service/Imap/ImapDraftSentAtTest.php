@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use App\Entity\Mail\Mailbox;
 use App\Service\Imap\ImapMailboxImporter;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Message as ImapMessage;
-use Webklex\PHPIMAP\Support\FlagCollection;
 
 /**
  * An unsent draft has no sentAt, whoever wrote it.
@@ -22,19 +20,21 @@ use Webklex\PHPIMAP\Support\FlagCollection;
  * sentAt on the way in, could be seen in the thread and never opened.
  * receivedAt keeps the Date: it is when the row appeared.
  *
- * webklex strips the backslash, so what a real server's `\Draft` arrives as is
- * `Draft`, and the row stores it that way: the app (Message::isDraft) does not
- * treat it as a draft until something rewrites the flags, which is separate
- * from this. What this pins is that a row is never half of each — "not a draft
- * and never sent" — so sentAt follows the stored flag exactly as isDraft()
- * reads it.
+ * A draft is a draft as the server marks it. webklex, which fetched IMAP mail
+ * before plMail's own client, stripped the backslash, so a server's `\Draft`
+ * was stored as `Draft` and the app (Message::isDraft) did not treat it as a
+ * draft at all. The flags are stored in the app's own spelling now
+ * (MessageFlag::canonicalList, see ImapPagedFetch), and sentAt follows the
+ * stored flag exactly as isDraft() reads it, so a row is never half of each.
  *
- * Through the importer, like ImapMailboxImporterTest, because buildMessage() is
- * private and the claim is about what is stored.
+ * Through the importer and against the test stack's Dovecot, because
+ * buildMessage() is private and the claim is about what a server's flags
+ * become in the database.
  */
 final class ImapDraftSentAtTest extends KernelTestCase
 {
     use SeedsMarkerFixtures;
+    use UsesDovecot;
 
     private Connection $connection;
     private ImapMailboxImporter $importer;
@@ -58,8 +58,8 @@ final class ImapDraftSentAtTest extends KernelTestCase
         $mailbox->name           = 'Drafts';
         $mailbox->fullPath       = 'Drafts';
         $mailbox->isSyncEnabled  = true;
-        $mailbox->lastSeenUid    = 3;
-        $mailbox->importFloorUid = 4;
+        $mailbox->lastSeenUid    = 2;
+        $mailbox->importFloorUid = 3;
 
         $this->em->persist($mailbox);
         $this->em->flush();
@@ -78,17 +78,19 @@ final class ImapDraftSentAtTest extends KernelTestCase
 
     public function testSentAtFollowsTheStoredDraftFlag(): void
     {
-        $this->importer->importPage($this->mailboxId, FakeImportClient::holding([
-            1 => $this->mail(1, ['Draft']),
-            2 => $this->mail(2, ['\\Draft']),
-            3 => $this->mail(3, ['Seen']),
-        ]));
+        $session = $this->dovecotSession();
+        $session->create('Drafts');
+        $session->append('Drafts', $this->mail(1), ['\\Draft']);
+        $session->append('Drafts', $this->mail(2), ['\\Seen']);
 
-        // Presence companions: all three were stored, each with its Date as
-        // receivedAt (Mon, 21 Sep 2026 10:00:00 +0200 = 08:00:00 UTC).
+        $this->importer->importPage($this->mailboxId, $session);
+        $session->logout();
+
+        // Both were stored, each with its Date as receivedAt
+        // (Mon, 21 Sep 2026 10:00:00 +0200 = 08:00:00 UTC).
         $rows = $this->rows();
 
-        self::assertSame([1, 2, 3], array_keys($rows));
+        self::assertSame([1, 2], array_keys($rows));
 
         foreach ($rows as $uid => $row) {
             self::assertSame(
@@ -98,19 +100,15 @@ final class ImapDraftSentAtTest extends KernelTestCase
             );
         }
 
-        self::assertNull($rows[2]['sent_at'], 'a stored `\\Draft` is an unsent draft');
-
-        // Not a draft as the app reads the flag, so not a half-state either.
-        self::assertNotNull($rows[1]['sent_at'], '`Draft` is not `\\Draft` to isDraft()');
+        self::assertSame(['\\Draft'], json_decode((string) $rows[1]['flags'], true), 'stored as the app spells it');
+        self::assertNull($rows[1]['sent_at'], 'a draft is an unsent draft');
 
         // And the ordinary message is untouched.
-        self::assertNotNull($rows[3]['sent_at']);
+        self::assertSame(['\\Seen'], json_decode((string) $rows[2]['flags'], true));
+        self::assertNotNull($rows[2]['sent_at']);
     }
 
-    /**
-     * @param list<string> $flags
-     */
-    private function mail(int $uid, array $flags): ImapMessage
+    private function mail(int $uid): string
     {
         $raw = "From: Sender <sender@example.test>\r\n"
             . "To: {$this->account->email}\r\n"
@@ -120,9 +118,7 @@ final class ImapDraftSentAtTest extends KernelTestCase
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=UTF-8\r\n\r\nHello.\r\n";
 
-        return ImapMessage::fromString($raw, ImapConnectionFactory::config())
-            ->setUid($uid)
-            ->setFlags(FlagCollection::make(array_combine($flags, $flags)));
+        return $raw;
     }
 
     /**
@@ -133,7 +129,7 @@ final class ImapDraftSentAtTest extends KernelTestCase
         $rows = [];
 
         foreach ($this->connection->fetchAllAssociative(
-            'SELECT imap_uid, sent_at, received_at FROM message WHERE mailbox_id = ? ORDER BY imap_uid',
+            'SELECT imap_uid, sent_at, received_at, flags FROM message WHERE mailbox_id = ? ORDER BY imap_uid',
             [$this->mailboxId],
         ) as $row) {
             $rows[(int) $row['imap_uid']] = $row;

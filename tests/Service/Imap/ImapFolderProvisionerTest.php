@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
@@ -15,9 +18,6 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * Where a folder plMail creates on an IMAP server actually goes.
@@ -63,7 +63,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
      * folder is there and the request is already satisfied, anything else means
      * it is not.
      */
-    private string $refusal = 'CREATE refused';
+    private string $refusal = 'NO CREATE refused';
 
     protected function setUp(): void
     {
@@ -78,7 +78,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
 
         $this->created       = [];
         $this->serverAccepts = true;
-        $this->refusal       = 'CREATE refused';
+        $this->refusal       = 'NO CREATE refused';
 
         $this->connection->beginTransaction();
 
@@ -349,29 +349,26 @@ final class ImapFolderProvisionerTest extends KernelTestCase
     // ── fixture ───────────────────────────────────────────────────────────
 
     /**
-     * A client whose createFolder writes down what it was asked for, and
-     * refuses when the test says the server would.
+     * A session on a server that writes down every CREATE it is sent, and
+     * refuses it, in the words the test chose, when the test says it would.
+     * Scripted rather than Dovecot because the refusals are the point.
      */
-    private function client(): Client
+    private function client(): ImapSession
     {
-        $client = $this->createStub(Client::class);
+        $server = new FakeImapServer(self::getContainer()->get(ImapLoop::class));
 
-        $client->method('createFolder')->willReturnCallback(
-            function (string $path): Folder {
-                if (false === $this->serverAccepts) {
-                    throw new \RuntimeException($this->refusal);
-                }
+        $server->on('CREATE', function (string $arguments): array {
+            if (false === $this->serverAccepts) {
+                return [$this->refusal];
+            }
 
-                $this->created[] = $path;
+            $this->created[] = trim($arguments, '"');
 
-                return $this->createStub(Folder::class);
-            },
-        );
+            return ['OK CREATE completed'];
+        });
+        $server->on('SUBSCRIBE', static fn (): array => ['OK SUBSCRIBE completed']);
 
-        $client->method('getConnection')->willReturn($this->createStub(ProtocolInterface::class));
-        $client->method('disconnect')->willReturnSelf();
-
-        return $client;
+        return $server->session();
     }
 
     private function folder(

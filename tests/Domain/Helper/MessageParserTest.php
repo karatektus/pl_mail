@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Domain\Helper;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -41,14 +40,14 @@ final class MessageParserTest extends TestCase
         $failed = false;
 
         try {
-            Message::fromString($blob, ImapConnectionFactory::config());
+            Message::fromString($blob, MessageParser::config());
         } catch (\Throwable) {
             $failed = true;
         }
 
         self::assertTrue($failed, 'the library alone cannot read it, or this test proves nothing');
 
-        $message = MessageParser::fromString($blob, ImapConnectionFactory::config());
+        $message = MessageParser::fromString($blob, MessageParser::config());
 
         self::assertSame('Dated ' . $times . ' times', (string) $message->getSubject());
         self::assertSame('2026-10-19 10:00:00', $message->getDate()->toDate()->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
@@ -60,11 +59,11 @@ final class MessageParserTest extends TestCase
     {
         $blob = "From: a@example.test\nSubject: Plain\nDate: Mon, 19 Oct 2026 10:00:00 +0000\n\nBody.\n";
 
-        $message = MessageParser::fromString($blob, ImapConnectionFactory::config());
+        $message = MessageParser::fromString($blob, MessageParser::config());
 
         self::assertSame('Plain', (string) $message->getSubject());
         self::assertSame(
-            Message::fromString($blob, ImapConnectionFactory::config())->getHeader()?->raw,
+            Message::fromString($blob, MessageParser::config())->getHeader()?->raw,
             $message->getHeader()?->raw,
         );
     }

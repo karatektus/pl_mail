@@ -18,8 +18,8 @@ emulation. Which machine you are on changes a few details — see [Platform note
 
 Sizing is worth a thought rather than a rule. PHP's `memory_limit` is `2G` in the image, each of the
 four Messenger workers is capped by `--memory-limit=256M` and recycles on `--time-limit=3600`, and
-Postgres, the Mercure hub and the IMAP supervisor each want their own share on top. The workers, the
-hub and the IMAP supervisor share one container, so a memory limit on it covers all of them. A first sync of
+Postgres, the Mercure hub and the push listeners each want their own share on top. The workers, the
+hub and the push listeners share one container, so a memory limit on it covers all of them. A first sync of
 a large mailbox is the busiest this ever gets.
 
 That is enough for IMAP mailboxes. Gmail and Outlook additionally need OAuth credentials — see
@@ -137,7 +137,8 @@ crashed.
 | Process | What it runs | What it is for |
 |---|---|---|
 | `mercure` | The Mercure hub, 1.x | Live updates — the mail list refreshing by itself |
-| `imap-supervisor` | `app:imap:supervise` | Spawns and watches one `app:imap:idle` process per IDLE-enabled mailbox, so standard IMAP mail arrives the moment it lands, and one `app:jmap:listen` process that holds the push connection for every JMAP account |
+| `imap-listener` | `app:imap:listen` | Holds IMAP IDLE on every IDLE-enabled folder, all in this one process, so standard IMAP mail arrives the moment it lands |
+| `jmap-listener` | `app:jmap:listen` | Holds the push connection for every JMAP account |
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
 | `worker-ingest` | `messenger:consume ingest` | Fetching mail that is arriving now, and only that |
 | `worker-backlog` | `messenger:consume ingest_backlog` | A mailbox's history on first import, a page at a time. On its own process so mail arriving now is never behind it |

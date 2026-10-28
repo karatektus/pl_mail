@@ -25,7 +25,7 @@ namespace App\Domain\Helper;
  * so this does not try: it keeps the first, a choice that is at least the same
  * every time the mail is read. The alternative is not "the right one" — it is
  * the mail not arriving at all. The raw header is not changed by this:
- * ImapQuery parses a repaired copy and puts the original back on the message,
+ * MessageParser parses a repaired copy and puts the original back on the message,
  * so the stored .eml still shows every line the server sent.
  *
  * Static and free of webklex, so a test can state it without a server.

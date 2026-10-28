@@ -690,8 +690,8 @@ admin:
         restart_app: "Rouse it now"
         restart_app_help: "Ends the hand servin' this page so compose signs on a fresh one. Needed after the generated secrets be rotated: the entrypoint hands them out as environment variables and the kernel boots once in worker mode, so a runnin' web container never learns a new value. About two seconds o' dead water, and this page comes back on its own."
         restart_app_title: "Rouse the web container"
-        restart_confirm: 'Rouse the crew, the timekeeper and the IMAP bosun? They finish the task in hand first.'
-        restart_help: 'Sends the crew, the timekeeper and the IMAP bosun below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
+        restart_confirm: 'Rouse the crew, the timekeeper and the lookouts? They finish the task in hand first.'
+        restart_help: 'Sends the crew, the timekeeper and the lookouts below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
         restart_pending: 'Rousin'' called %seconds%s past — the crew finish the task in hand, then muster back here within a minute or two.'
         restart_title: 'Rouse the long-servin'' hands'
         run_help: 'Put to the crew, not done here on the spot. Same rounds the timekeeper makes on its own.'

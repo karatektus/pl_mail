@@ -1,10 +1,10 @@
-<!-- translated-from: install/unraid.md sha1:4dcbe514ddc1777c782d00c1dbd6ecc8e8842f05 -->
+<!-- translated-from: install/unraid.md sha1:f6a3c8a1c92b2aa6838a4a7fbc0ce2f4c5240f53 -->
 # Unraid
 
 Auf Unraid läuft plMail als **ein Container** neben einem **Postgres-Container**, so wie Unraid-Apps
 üblicherweise kommen: Community Applications installiert pro Vorlage einen Container, und eine
 Datenbank ist eine eigene App. Alles andere, was plMail betreibt (der Webserver, die
-Warteschlangen-Worker, der Scheduler, der IMAP-Supervisor und der Mercure-Hub), lebt im
+Warteschlangen-Worker, der Scheduler, die Push-Listener und der Mercure-Hub), lebt im
 plMail-Container. Das ist der All-in-one-Modus des Images, eingeschaltet mit `APP_ALL_IN_ONE=1`.
 Image und Tags sind dieselben wie bei [Docker Compose](docker.md); anders ist nur, wie es gestartet
 wird.
@@ -46,7 +46,7 @@ docker run -d --name plmail \
 
 `app:work` ist der Hauptprozess des Containers und hält alles andere am Laufen: den Webserver
 (FrankenPHP, einfaches HTTP auf Port 80 im Container), die Warteschlangen-Worker, den Scheduler,
-den IMAP-Supervisor und den Mercure-Hub. Ein Kindprozess, der endet, wird wieder gestartet: nach
+die Push-Listener und den Mercure-Hub. Ein Kindprozess, der endet, wird wieder gestartet: nach
 einem sauberen Ende sofort, nach einem Absturz mit einer Wartezeit, die bei einer Sekunde beginnt
 und sich bis dreißig verdoppelt. Endet `app:work` selbst, endet auch der Container, und Dockers
 Neustart-Richtlinie startet ihn wieder.
@@ -64,8 +64,8 @@ Neustart-Richtlinie holt ihn zurück.
 Die Vorlage trägt unter Extra Parameters `--init --restart=unless-stopped --stop-timeout=35` ein.
 Jede davon zählt:
 
-- `--init` setzt ein minimales Init vor `app:work`, das die Prozesse aufräumt, die der
-  IMAP-Supervisor zurücklässt. Compose macht dasselbe mit `init: true`.
+- `--init` setzt ein minimales Init vor `app:work`, das aufräumt, was ein hart beendeter
+  Kindprozess zurücklässt. Compose macht dasselbe mit `init: true`.
 - `--restart=unless-stopped` holt den Container nach "App neu starten" oder einem Absturz zurück.
 - `--stop-timeout=35` gibt den Workern Zeit, fertig zu werden: `app:work` wartet beim Stoppen bis
   zu 25 Sekunden auf seine Kindprozesse. Docker selbst wartet nur 10 Sekunden und beendet sie dann

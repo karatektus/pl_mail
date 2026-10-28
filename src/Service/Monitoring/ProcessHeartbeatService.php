@@ -19,7 +19,7 @@ use App\Repository\Monitoring\ProcessHeartbeatRepository;
 final class ProcessHeartbeatService
 {
     public const string TYPE_IMAP_IDLE        = 'imap-idle';
-    public const string TYPE_IMAP_SUPERVISE   = 'imap-supervise';
+    public const string TYPE_IMAP_LISTEN      = 'imap-listen';
     public const string TYPE_MESSENGER_WORKER = 'messenger-worker';
     public const string TYPE_JMAP_LISTEN      = 'jmap-listen';
 
@@ -36,8 +36,8 @@ final class ProcessHeartbeatService
 
     /** Seconds after which a heartbeat counts as stale, per process type. */
     public const array STALE_THRESHOLDS = [
-        self::TYPE_IMAP_IDLE        => 2100, // just over the 29-min IDLE reissue
-        self::TYPE_IMAP_SUPERVISE   => 300,
+        self::TYPE_IMAP_IDLE        => 300,  // ImapIdleListener beats each folder every 30s while it idles
+        self::TYPE_IMAP_LISTEN      => 300,  // beats every 30s
         self::TYPE_MESSENGER_WORKER => 120,  // listener beats every 30s
         self::TYPE_JMAP_LISTEN      => 300,  // beats every 30s between stream chunks
     ];

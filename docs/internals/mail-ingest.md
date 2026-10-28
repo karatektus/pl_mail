@@ -24,8 +24,9 @@ The three differ in more than protocol, and the differences are where the bugs l
 **IMAP syncs structure and content in one entry point.** `ImapAccountSyncer` runs
 `MailboxSyncer` before `MessageSyncer` so folders created by another client appear and get
 their label chains before any message tries to resolve into one. `MessageSyncer` fetches in
-batches of 50 and hands the raw RFC822 bytes forward, because webklex keeps them after
-parsing — which is why IMAP is the only path that stores the original for free.
+batches of 50 and hands the raw RFC822 bytes forward, because each message is fetched whole
+(`BODY.PEEK[]`) and parsed from those bytes — which is why IMAP is the only path that stores the
+original for free.
 
 **Gmail has no `Mailbox` rows at all.** `GmailApiSyncer` plans work directly on the account
 and fans out `SyncGmailMessageBatchMessage` jobs of 100 ids each, listing at the API's page

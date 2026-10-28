@@ -28,9 +28,10 @@
             this banner the table just loses rows for ~30s, which reads as an
             outage rather than the restart the admin just asked for.
             #}
-            {# 150s, not 30: measured worst case is the IMAP supervisor, which
-               only checks the signal once per 60s reconcile poll, plus its
-               children's shutdown and the container coming back. #}
+            {# 150s, not 30: measured worst case was the IMAP supervisor, which
+               only checked the signal once per 60s reconcile poll, plus its
+               children's shutdown and the container coming back. The push
+               listeners that replaced it check on the same cadence. #}
             {% if restartRequestedAgo is not null and restartRequestedAgo < 150 %}
                 <div class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-info text-sm text-accent">
                     <i class="fa-solid fa-arrows-rotate mt-0.5 shrink-0 text-accent/70" aria-hidden="true"></i>

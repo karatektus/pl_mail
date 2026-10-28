@@ -7,7 +7,6 @@ namespace App\Service\Mail;
 use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\JmapThrottledException;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\ImportMailMessage;
 use App\Repository\Mail\AccountRepository;
@@ -17,6 +16,7 @@ use App\Service\Gmail\GmailBackfillStep;
 use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\Graph\GraphApiSyncer;
 use App\Service\Graph\GraphImportStep;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapImportOutcome;
 use App\Service\Imap\ImapMailboxImporter;
 use App\Service\JmapClient\JmapImporter;
@@ -95,7 +95,7 @@ final readonly class MailImporter
         private AccountRepository       $accounts,
         private MailboxRepository       $mailboxes,
         private ImapMailboxImporter     $imapImporter,
-        private ImapConnectionFactory   $connections,
+        private ImapConnector           $connections,
         private GmailApiSyncer          $gmail,
         private GraphApiSyncer          $graph,
         private SyncNotifier            $notifier,
@@ -312,7 +312,7 @@ final readonly class MailImporter
             $this->mailboxes->findImporting($account),
         );
 
-        $client  = $this->connections->connect($account);
+        $session = $this->connections->session($account);
         $outcome = ImapImportOutcome::Waiting;
 
         try {
@@ -321,7 +321,7 @@ final readonly class MailImporter
             // the list by rank, and waiting on it would hold every folder
             // behind it for as long as it stays shut.
             foreach ($mailboxIds as $mailboxId) {
-                $outcome = $this->imapImporter->importPage($mailboxId, $client);
+                $outcome = $this->imapImporter->importPage($mailboxId, $session);
 
                 if (ImapImportOutcome::Waiting !== $outcome) {
                     $this->published($accountId, $mailboxId);
@@ -330,7 +330,7 @@ final readonly class MailImporter
                 }
             }
         } finally {
-            $client->disconnect();
+            $session->logout();
         }
 
         return $outcome->shouldWait();

@@ -515,7 +515,7 @@ Get these wrong and things fail quietly rather than loudly.
   Gmailify claim in `MessageSyncer`. Internal-only writes are deliberately not
   recorded — re-pointing `graphId` changes no Email property, and pushing for it
   would wake every client for nothing.
-- **Restart `messenger-worker` and `imap-supervisor` after any DI change.**
+- **Restart the worker container after any DI change.**
   Long-running workers hold a stale compiled container and fail with "Too few
   arguments" or skip new event subscribers entirely.
 

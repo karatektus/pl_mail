@@ -22,7 +22,7 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  * re-run that elimination.
  *
  * The first half is the decode: bytes off the wire through the same decoder
- * ImapConnectionFactory installs, which is where "Stop believing a charset
+ * MessageParser::config() installs, which is where "Stop believing a charset
  * label the bytes disprove" put its fix. It was already right. The second half
  * is the render, where the body was mangled by the sender's own
  * `<meta charset>` — a declaration no longer true of bytes the sync had
@@ -131,7 +131,7 @@ final class CalendarInviteBodyCharsetTest extends KernelTestCase
         return $message;
     }
 
-    /** Parsed through the decoder ImapConnectionFactory installs, not the default. */
+    /** Parsed through the decoder MessageParser::config() installs, not the default. */
     private function parse(string $raw): ImapMessage
     {
         return ImapMessage::fromString($raw, Config::make([

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/jmap.md sha1:a61b6617b8c76795f138a98a09e616af81c7e219 -->
+<!-- translated-from: providers/jmap.md sha1:b6f564e93a149130ffe1f56231dfc32acac25296 -->
 
 # JMAP
 
@@ -87,8 +87,8 @@ siehe [den SSRF-Schutz](../install/configuration.md#der-ssrf-schutz). Der Verbin
 genau so. Für IMAP gibt es diese Regel nicht, weil sich über eine IMAP-Verbindung nichts anderes
 abrufen lässt.
 
-**Ohne den IMAP-Supervisor hält niemand die Push-Verbindung.** Er startet neben IMAP-IDLE auch
-`app:jmap:listen`. Mail kommt weiterhin nach Zeitplan an, also lautet das Symptom „Änderungen
+**Ohne den JMAP-Listener hält niemand die Push-Verbindung.** Das ist `app:jmap:listen`, einer
+der Prozesse des Worker-Containers. Mail kommt weiterhin nach Zeitplan an, also lautet das Symptom „Änderungen
 kommen immer ein paar Minuten zu spät“ und nicht etwas, das kaputt aussieht.
 
 **Ein geteiltes Postfach, das dir ein anderes Konto zeigt, wird nicht synchronisiert.** plMail
