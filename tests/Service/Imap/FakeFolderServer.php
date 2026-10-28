@@ -26,6 +26,9 @@ final class FakeFolderServer extends ImapProtocol
     /** @var array<string, int> path => MESSAGES, for STATUS */
     public array $messages = [];
 
+    /** @var array<string, bool> path => whether its PERMANENTFLAGS carry `\*` */
+    public array $keywordFolders = [];
+
     /** A command prefix ("CREATE", "RENAME …") and the NO line it gets. */
     public ?string $refuse = null;
 
@@ -69,7 +72,31 @@ final class FakeFolderServer extends ImapProtocol
             ]);
         }
 
+        if ('SELECT' === $command) {
+            $path = trim((string) ($tokens[0] ?? ''), '"');
+            $this->commands[] = 'SELECT ' . $path;
+            $flags = ['\\Deleted', '\\Seen', '\\Answered', '\\Flagged', true === ($this->keywordFolders[$path] ?? false) ? '\\Draft' : '\\Draft)]'];
+
+            if (true === ($this->keywordFolders[$path] ?? false)) {
+                $flags[] = '\\*)]';
+            }
+
+            return Response::empty()->setResult([['OK', '[PERMANENTFLAGS', $flags]]);
+        }
+
         return parent::requestAndResponse($command, $tokens, $dontParse);
+    }
+
+    public function store(
+        array|string $flags,
+        int $from,
+        ?int $to = null,
+        ?string $mode = null,
+        bool $silent = true,
+        int|string $uid = \Webklex\PHPIMAP\IMAP::ST_UID,
+        ?string $item = null,
+    ): Response {
+        return $this->answer(sprintf('STORE %d %sFLAGS (%s)', $from, (string) $mode, implode(' ', (array) $flags)));
     }
 
     public function createFolder(string $folder): Response
