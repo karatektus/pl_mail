@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:28f15880ff59216b81d61afd16bf4f1a5357ffb7 -->
+<!-- translated-from: features/accounts.md sha1:1c3e790dc75941eeb24e5f6c9b88bfc3fb609958 -->
 
 # Konten und Aliase
 
@@ -163,6 +163,7 @@ Jede Zeile bietet:
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
 | **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
+| **Outlook-Kategorien folgen** (Schlagwort-Symbol) | Standardmäßig aus; an, setzt eine in Outlook gesetzte oder entfernte Kategorie das Label hier oder nimmt es ab — nur bei Microsoft-Konten; siehe [Labels als Outlook-Kategorien](#labels-als-outlook-kategorien) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -271,14 +272,46 @@ gelesen.
 Geschrieben werden nur Änderungen nach dem Einschalten; Labels, die schon an Mail hängen, werden
 nicht in einem Rutsch übertragen.
 
-**Bei Microsoft sind die meisten Labels Outlook-Kategorien und keine Ordner**, und eine Kategorie
-hat dort keine Identität außer ihrem Namen — der Name ist das, was an jeder Nachricht steht. Eine
-Umbenennung tut deshalb zweierlei: Die Hauptkategorie wird umbenannt, und jede Nachricht, die den
-alten Namen trägt, wird erneut übertragen, damit sie den neuen trägt. Diese zweite Hälfte ist
-dieselbe Frage, die auch Outlooks eigener Umbenennen-Dialog stellt; hier lautet die Antwort ja,
-denn sonst gäbe es das Label zweimal im Postfach — einmal als Kategorie und einmal als loser Text
-an der Mail, die es früher hatte. Ein Label auf tausenden Nachrichten heißt damit tausende
-Aktualisierungen, die im Hintergrund laufen.
+### Labels als Outlook-Kategorien
+
+Bei einem Microsoft-Konto ist ein Label eine Outlook-Kategorie, es sei denn, es stammt von einem
+Exchange-Ordner — dann ist es dieser Ordner. Setzt du ein Label auf eine Konversation, bekommt jede
+ihrer Nachrichten in Exchange die Kategorie, und nimmst du es ab, verschwindet sie wieder; ein hier
+angelegtes Label legt die Kategorie in Outlooks Kategorienliste an, in der Farbe des Labels. Labels
+verschieben nie Mail, und ein Label, das ein Ordner ist, bleibt ein Ordner.
+
+Was von Outlook zurückkommt, ist die andere Hälfte, und sie hängt an **Outlook-Kategorien folgen**,
+dem Schlagwort-Symbol in der Zeile eines Microsoft-Kontos. Standardmäßig ist es aus, und dann
+verhält sich plMail wie bisher: Kategorien werden gelesen, wenn eine Nachricht zum ersten Mal
+ankommt, und eine Kategorie, die danach in Outlook gesetzt oder entfernt wird, ändert hier nichts.
+Ist es an, setzt eine solche Änderung das Label in plMail bei der nächsten Synchronisierung oder
+nimmt es ab, und eine Kategorie, die plMail noch nicht kennt, wird ein neues Label. Es zählen nur
+Änderungen: plMail merkt sich, welche Kategorien Exchange zuletzt an jeder Nachricht hatte, und
+ändert eine Nachricht hier nur, wo Exchanges Liste davon abweicht. Ein Label, das du in plMail
+gesetzt hast und das Exchange nie hatte, bleibt deshalb stehen und wird nicht abgenommen.
+
+Beim Einschalten geht plMail jeden Ordner dieses Kontos noch einmal durch, weil der Stand, bis zu dem
+die Synchronisierung jedes Ordners gekommen war, ohne Kategorien begonnen wurde und sich nicht
+erweitern lässt. Nichts wird doppelt geholt — Mail, die schon da ist, wird erkannt —, aber bei einem
+großen Postfach dauert dieser erste Durchgang eine Weile. Ausschalten kostet nichts.
+
+Der Dialog eines Labels sagt pro Microsoft-Konto, wo es liegt: ein Ordner oder eine
+Outlook-Kategorie, und ob Outlooks Änderungen daran gefolgt wird.
+
+**Eine Kategorie hat keine Identität außer ihrem Namen** — der Name ist das, was an jeder Nachricht
+steht. Eine Umbenennung tut deshalb zweierlei: Die Kategorie in Outlooks Liste bekommt den neuen
+Namen, und jede Nachricht in plMail, die den alten Namen trägt, wird erneut übertragen, damit sie den
+neuen trägt. Diese zweite Hälfte ist dieselbe Frage, die auch Outlooks eigener Umbenennen-Dialog
+stellt; hier lautet die Antwort ja, denn sonst gäbe es das Label zweimal im Postfach — einmal als
+Kategorie und einmal als loser Text an der Mail, die es früher hatte. Ein Label auf tausenden
+Nachrichten heißt damit tausende Aktualisierungen, die im Hintergrund laufen. Microsoft beschreibt
+den Namen einer Kategorie als nach dem Anlegen unveränderlich; lehnt Exchange die Umbenennung ab,
+legt plMail die Kategorie unter dem neuen Namen an und löscht die alte, was zum selben Ergebnis
+führt.
+
+Ein Label zu löschen löscht die Kategorie aus Outlooks Liste. Exchange lässt den Namen als einfachen
+Text an jeder Nachricht stehen, den Outlook ohne Farbe zeigt, bis sich die Labels dieser Nachricht in
+plMail das nächste Mal ändern.
 
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
@@ -572,6 +605,15 @@ Mailprogramm entfernen, was hier auch das alte Label abnimmt.
 **Welche Schlüsselwörter andere Mailprogramme zeigen, entscheiden sie selbst.** Thunderbird zeigt
 ein Schlüsselwort erst als Schlagwort, wenn es dort ein Schlagwort dieses Namens gibt; bis dahin
 hängt es an der Nachricht, ist aber nicht zu sehen.
+
+**Mail, die plMail nie synchronisiert hat, behält den alten Namen einer Outlook-Kategorie.** Eine
+Umbenennung etikettiert die Nachrichten neu, die plMail hat; alles, was Exchange hat und plMail
+nicht, trägt den alten Namen als einfachen Text, den Outlook ohne Farbe zeigt.
+
+**Outlook-Kategorien folgen liest nur Änderungen.** Mail, die beim Eintreffen hier schon eine
+Kategorie in Outlook hatte, hat dieses Label; eine Kategorie, die in Outlook vor dem Einschalten an
+Mail gesetzt wurde, die schon hier war, wird danach nicht nachgeholt. Setz das Label in plMail, oder
+nimm die Kategorie in Outlook ab und setz sie wieder.
 
 **Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
 sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte

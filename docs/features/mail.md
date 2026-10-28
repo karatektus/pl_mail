@@ -505,7 +505,8 @@ message, and renames and deletions are mirrored to Gmail and Microsoft; see
 [Labels at the provider](accounts.md#labels-at-the-provider). On a plain IMAP account putting a
 label on a message tags the message and moves nothing: the label stays in plMail, or, with
 [Labels as keywords](accounts.md#labels-as-keywords) switched on, becomes an IMAP keyword other mail
-apps see.
+apps see. On a Microsoft account a label is an Outlook category; see
+[Labels as Outlook categories](accounts.md#labels-as-outlook-categories).
 
 An IMAP account's folders show in the sidebar as well — the inbox, Sent, and every folder the server
 has; in the LABELS section one of those wears a folder instead of a dot. Those are places rather than
