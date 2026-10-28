@@ -580,7 +580,7 @@ admin:
         heading: 'Gemeldete Mails'
         kind:
             category: 'Falscher Tab'
-            insight: 'Keine Info'
+            insight: 'Kein Insight'
         mark_handled: 'Als erledigt markieren'
         no_body: 'Zu dieser Meldung gibt es keinen Mailtext.'
         no_sender: 'kein Absender gespeichert'
@@ -588,7 +588,7 @@ admin:
         pending: '{0}Nichts offen|{1}1 offen|]1,Inf[ %count% offen'
         pending_badge: 'Offen'
         problem:
-            no_insight: 'Keine Info'
+            no_insight: 'Kein Insight'
         received_at: 'Mail kam am %when%'
         reported_by: 'Gemeldet von %who%'
         reporter_gone: 'einem gelöschten Konto'
@@ -4120,14 +4120,14 @@ settings:
             subscription_hint: Automatische Verlängerungen und endende Testphasen, mit dem Datum dazu.
             ticket: Tickets
             ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
-        heading: Radar
+        heading: Insights
         pane: Streifen über der Mailliste
         pane_hint: >-
             Zeigt dein nächstes Paket, deinen nächsten Flug oder dein
             nächstes Ticket in einem Band über dem Posteingang. Schaltest
             du ihn aus, verschwindet nur das Band — plMail liest diese
-            Angaben weiterhin aus deinen Mails, und du findest sie im
-            Radar und an der Mail selbst.
+            Angaben weiterhin aus deinen Mails, und du findest sie unter
+            „Demnächst“ in der oberen Leiste und an der Mail selbst.
         seg:
             'off': 'Aus'
             'on': 'An'
@@ -4466,7 +4466,7 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         images: Bilder
-        insights: Radar
+        insights: Insights
         integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
