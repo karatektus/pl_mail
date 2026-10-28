@@ -117,7 +117,7 @@ Variables: books (the writable synced address books).
                         <div class="flex-1 min-w-0 flex flex-col gap-0.5">
                             <input name="displayName" maxlength="255" autocomplete="off" aria-label="{{ 'contacts.display_name'|trans }}"
                                    placeholder="{{ 'contacts.display_name'|trans }}"
-                                   class="w-full h-9 -ml-2 px-2 rounded-lg border border-transparent hover:border-line focus:border-field bg-transparent text-lg font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                   class="w-full h-9 -ml-2 px-2 rounded-lg border border-transparent hover:border-line focus:border-field-border bg-transparent text-lg font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                    data-contacts--quick-add-target="name" data-action="input->contacts--quick-add#nameTyped">
                             <div class="flex flex-wrap items-center gap-1 text-xs">
                                 <span class="contents" data-contacts--quick-add-target="partsSummary"></span>
@@ -183,7 +183,7 @@ Variables: books (the writable synced address books).
             <select class="h-9 w-36 shrink-0 rounded-lg border border-transparent hover:border-line bg-transparent px-1 text-xs font-semibold cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     data-kind title="{{ 'contacts.quick.change_type'|trans }}" aria-label="{{ 'contacts.quick.change_type'|trans }}"></select>
             <div class="flex-1 min-w-0 flex flex-col">
-                <input class="w-full h-9 px-2 rounded-lg border border-transparent hover:border-line focus:border-field bg-transparent text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                <input class="w-full h-9 px-2 rounded-lg border border-transparent hover:border-line focus:border-field-border bg-transparent text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                        autocomplete="off" data-value>
                 <span class="px-2 pb-1 text-xs text-ink-muted" data-note hidden>
                     <span class="inline-block mr-1 px-1 rounded text-[10px] font-bold bg-accent-soft text-accent" data-ai hidden>AI</span><span data-note-text></span>

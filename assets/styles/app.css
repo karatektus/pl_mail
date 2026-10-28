@@ -95,9 +95,23 @@
     --rgb-accent:        37  99 235;
     --rgb-accent-ink:   255 255 255;
 
-    /* Fields */
+    /* Fields. The field is the surface's own white, so its border is all
+       that marks it, and the border is held to WCAG 1.4.11's 3:1 for the
+       boundary of a control (#303): against the surface, sunken, the field's
+       own fill and every stop of the page, since the topbar's controls sit on
+       the page. 128 128 136, solid, is 3.92:1 on white, 3.56:1 on sunken and
+       3.18:1 on the indigo-100 corner of the page, the tightest.
+
+       It was 212 212 216 at 0.4, which painted 1.16:1, and the field classes
+       drew `border-field` — the FILL — so not even that reached the screen.
+       Every theme was the same, at 1.0–1.5:1. Each theme's tone below is its
+       old border mixed toward its own ink in oklab until it clears 3.15:1 (a
+       margin for the rounding a translucent fill is painted with), so
+       the hue is the one the theme chose; the alpha is 1 everywhere, because
+       a border that lets the background through cannot promise a ratio
+       against all of them. ThemeFieldBorderContrastTest holds every theme. */
     --rgb-field:        255 255 255;
-    --rgb-field-border: 212 212 216;
+    --rgb-field-border: 128 128 136;
 
     /* Status. Deeper than the Tailwind 600s these were, for the reason
        Paper's note gives: they are text, held to 4.5:1 on the surface, on the
@@ -128,7 +142,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -245,7 +259,7 @@
     --rgb-accent-ink:  255 255 255;
 
     --rgb-field:        39  39  42;
-    --rgb-field-border:113 113 122;
+    --rgb-field-border: 112 114 122;
 
     --rgb-danger:      248 113 113;
     --rgb-warning:     251 191  36;
@@ -273,7 +287,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
-    --field-border-alpha: 0.3;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -340,9 +354,9 @@
        three percent of the topbar it sits on. The border tone here is warm to
        match the paper family rather than the cool grey it had.
 
-       Its alpha is the 0.4 among the alphas below — see the same note under
-       solar for the 0.75 that was declared here too and never painted. */
-    --rgb-field-border: 168 162 150;
+       The tone is the paper grey taken to 3:1 (see the note on fields in
+       :root); its alpha is the 1 among the alphas below. */
+    --rgb-field-border: 134 132 127;
 
     /* Status colours are drawn as text — a badge, an alert, a failed step —
        so they are held to the same 4.5:1 as the ink: on the surface, on the
@@ -377,7 +391,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -443,7 +457,7 @@
        #27272a, which is the same colour as this surface — the search input
        lost its edges entirely. */
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 130 127 123;
 
     /* Status colours want more light on a dark surface than the light
        defaults carry, but not so much that they glow — .dark's are tuned for
@@ -473,7 +487,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -530,7 +544,7 @@
     --rgb-accent-ink: 24  24  27;   /* the frost blue is light enough to need dark ink */
 
     --rgb-field:        39  39  42;
-    --rgb-field-border:113 113 122;
+    --rgb-field-border:153 157 163;
 
     /* Danger and info lifted the same way, for the same corner and for their
        own 12% wash, which on nord0 is lighter than nord0: red-400 was 3.12:1
@@ -558,7 +572,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
-    --field-border-alpha: 0.3;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -609,7 +623,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        39  39  42;
-    --rgb-field-border:113 113 122;
+    --rgb-field-border:120 118 132;
 
     --rgb-danger:      248 113 113;
     --rgb-warning:     251 191  36;
@@ -633,7 +647,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.4;
-    --field-border-alpha: 0.3;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -697,17 +711,16 @@
        here it was a cool grey at 0.4 alpha, i.e. barely present. A darker tone
        from the theme's own family.
 
-       The alpha is still the 0.4 among the alphas below. This fix declared
-       0.75 here as well, and the later 0.4 in the same block won, so the
-       firmer alpha never painted — ThemeVariableCompletenessTest refuses a
-       variable declared twice in one block now. The search box has since
-       moved to a sunken well with no field border at all; what this tone
-       still edges is select-field, Tom Select, the file button and the
-       select-all box.
+       This fix declared an alpha of 0.75 here as well, and the later 0.4 in
+       the same block won, so the firmer alpha never painted —
+       ThemeVariableCompletenessTest refuses a variable declared twice in one
+       block now. The tone is now taken to 3:1 and painted solid (see the
+       note on fields in :root, #303), and it edges every field, the topbar's
+       search box included.
 
        Flat is unaffected in practice: an opaque topbar already gives the fill
        something to sit against, and a firmer border does not hurt it. */
-    --rgb-field-border: 147 161 161;
+    --rgb-field-border: 122 131 132;
 
     /* Held to the floors Paper's status colours are — see the note there —
        and deepened the same way: danger, warning and success from the
@@ -735,7 +748,7 @@
        user's multiplier is --unread-emphasis and lives in :root. */
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -816,7 +829,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 135 131 125;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -835,7 +848,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -875,7 +888,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 131 135 140;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -894,7 +907,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -934,7 +947,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 133 131 127;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -953,7 +966,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -993,7 +1006,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 138 128 113;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -1012,7 +1025,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -1052,7 +1065,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 118 133 137;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -1071,7 +1084,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -1111,7 +1124,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 135 124 119;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -1130,7 +1143,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -1170,7 +1183,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 255 255 255;
+    --rgb-field-border: 132 128 151;
 
     --rgb-danger:    226 128 128;
     --rgb-warning:   219 175 95;
@@ -1189,7 +1202,7 @@
 
     --unread-tint-alpha:  0.03;
     --field-alpha:        0.04;
-    --field-border-alpha: 0.10;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.12;
     --info-soft-alpha:    0.12;
 
@@ -1229,7 +1242,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 206 208 212;
+    --rgb-field-border: 126 133 146;
 
     --rgb-danger:    195 33 33;
     --rgb-warning:   155 84 3;
@@ -1248,7 +1261,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1286,7 +1299,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 209 212;
+    --rgb-field-border: 125 130 138;
 
     --rgb-danger:    191 32 32;
     --rgb-warning:   153 82 3;
@@ -1305,7 +1318,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1343,7 +1356,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 209 206;
+    --rgb-field-border: 126 134 123;
 
     --rgb-danger:    193 32 32;
     --rgb-warning:   154 83 3;
@@ -1362,7 +1375,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1400,7 +1413,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 211 207 208;
+    --rgb-field-border: 142 129 132;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   154 82 3;
@@ -1419,7 +1432,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1457,7 +1470,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 208 207 213;
+    --rgb-field-border: 132 128 147;
 
     --rgb-danger:    193 32 32;
     --rgb-warning:   154 82 3;
@@ -1476,7 +1489,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1514,7 +1527,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 209 216;
+    --rgb-field-border: 125 133 151;
 
     --rgb-danger:    180 57 41;
     --rgb-warning:   154 83 3;
@@ -1533,7 +1546,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1571,7 +1584,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 210 209 206;
+    --rgb-field-border: 132 127 120;
 
     --rgb-danger:    188 31 31;
     --rgb-warning:   150 80 3;
@@ -1590,7 +1603,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1628,7 +1641,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 206 210 209;
+    --rgb-field-border: 121 134 132;
 
     --rgb-danger:    193 32 32;
     --rgb-warning:   149 85 45;
@@ -1647,7 +1660,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1685,7 +1698,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 205 208 216;
+    --rgb-field-border: 123 134 157;
 
     --rgb-danger:    195 33 33;
     --rgb-warning:   155 83 3;
@@ -1704,7 +1717,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1742,7 +1755,7 @@
     --rgb-accent-ink: 24 24 27;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 210 205;
+    --rgb-field-border: 129 136 122;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   154 83 3;
@@ -1761,7 +1774,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1799,7 +1812,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 211 206 209;
+    --rgb-field-border: 142 128 136;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   153 82 3;
@@ -1818,7 +1831,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1856,7 +1869,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 205 207 213;
+    --rgb-field-border: 127 133 153;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   155 84 3;
@@ -1875,7 +1888,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1913,7 +1926,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 211 210;
+    --rgb-field-border: 123 134 130;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   153 82 3;
@@ -1932,7 +1945,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -1970,7 +1983,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 207 209;
+    --rgb-field-border: 127 129 135;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   153 82 3;
@@ -1989,7 +2002,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2027,7 +2040,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 208 207 206;
+    --rgb-field-border: 136 132 129;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   154 83 3;
@@ -2046,7 +2059,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2084,7 +2097,7 @@
     --rgb-accent-ink: 0 0 0;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 208 209;
+    --rgb-field-border: 131 135 137;
 
     --rgb-danger:    195 33 33;
     --rgb-warning:   155 84 3;
@@ -2103,7 +2116,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2141,7 +2154,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 208 207 206;
+    --rgb-field-border: 136 132 128;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   154 82 3;
@@ -2160,7 +2173,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2198,7 +2211,7 @@
     --rgb-accent-ink: 0 0 0;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 207 209;
+    --rgb-field-border: 134 132 139;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   155 83 3;
@@ -2217,7 +2230,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2255,7 +2268,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 209 215;
+    --rgb-field-border: 128 133 149;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   129 97 4;
@@ -2274,7 +2287,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2312,7 +2325,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 207 206 214;
+    --rgb-field-border: 129 130 153;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   154 82 3;
@@ -2331,7 +2344,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2369,7 +2382,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 212 208 205;
+    --rgb-field-border: 140 129 119;
 
     --rgb-danger:    195 33 33;
     --rgb-warning:   155 84 3;
@@ -2388,7 +2401,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2426,7 +2439,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 203 209 211;
+    --rgb-field-border: 121 136 141;
 
     --rgb-danger:    194 32 32;
     --rgb-warning:   155 83 3;
@@ -2445,7 +2458,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2483,7 +2496,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 211 206 209;
+    --rgb-field-border: 143 128 138;
 
     --rgb-danger:    192 32 32;
     --rgb-warning:   153 82 3;
@@ -2502,7 +2515,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2540,7 +2553,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 212 208 205;
+    --rgb-field-border: 140 129 119;
 
     --rgb-danger:    190 31 31;
     --rgb-warning:   151 81 3;
@@ -2559,7 +2572,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 
@@ -2597,7 +2610,7 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 205 208 214;
+    --rgb-field-border: 122 133 149;
 
     --rgb-danger:    193 32 32;
     --rgb-warning:   154 82 3;
@@ -2616,7 +2629,7 @@
 
     --unread-tint-alpha:  0.4;
     --field-alpha:        0.6;
-    --field-border-alpha: 0.4;
+    --field-border-alpha: 1;
     --danger-soft-alpha:  0.08;
     --info-soft-alpha:    0.08;
 

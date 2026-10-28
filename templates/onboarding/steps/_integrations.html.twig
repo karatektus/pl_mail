@@ -31,14 +31,14 @@ form, and HTML has no nested forms.
                     <a href="{{ path('app_settings_integrations_connect', { provider: provider.value }) }}"
                        data-turbo-frame="_top"
                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                              text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                         {{ 'onboarding.integrations.connect'|trans }}
                     </a>
                 {% else %}
                     <a href="{{ isExpanded ? closeUrl : connectUrls[provider.value] }}"
                        data-turbo-frame="modal"
                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                              text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                              text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
                         {{ (isExpanded ? 'onboarding.integrations.cancel' : 'onboarding.integrations.connect')|trans }}
                     </a>
                 {% endif %}

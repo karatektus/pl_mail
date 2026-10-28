@@ -81,7 +81,7 @@ Variables:
                                    value="{{ remote.remoteId }}"
                                    {% if subscription.isSubscribed %}checked{% endif %}
                                    {% if locked or elsewhere %}disabled{% endif %}
-                                   class="mt-0.5 size-4 shrink-0 rounded border-field accent-accent focus:ring-accent cursor-pointer">
+                                   class="mt-0.5 size-4 shrink-0 rounded border-field-border accent-accent focus:ring-accent cursor-pointer">
 
                             {# The disabled box submits nothing, so the ticked
                                state has to travel some other way or saving
@@ -147,7 +147,7 @@ Variables:
             <button type="button"
                     data-action="click->ui--modal#close"
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                           text-ink-soft bg-field border border-field hover:bg-hover
+                           text-ink-soft bg-field border border-field-border hover:bg-hover
                            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
                            transition-colors duration-100">{{ 'form.cancel'|trans }}</button>
 
