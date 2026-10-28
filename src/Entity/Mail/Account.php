@@ -753,6 +753,22 @@ class Account extends AccountModel
     public const string SETTING_KEEP_DECRYPTED_AI      = 'crypto.keep_decrypted_ai';
     public const string SETTING_KEEP_DECRYPTED_AI_HOST = 'crypto.keep_decrypted_ai_host';
 
+    /**
+     * Whether labels on this plain IMAP account's mail are written to the
+     * server as IMAP keywords, where a folder allows them (#221 step 2). Off by
+     * default, because other mail apps then show them: until it is switched
+     * on, a label on IMAP stays in plMail, as it always has.
+     */
+    public const string SETTING_LABELS_AS_KEYWORDS = 'labels.imap_keywords';
+
+    /** Virtual, out of the settings bag — see SETTING_LABELS_AS_KEYWORDS. */
+    public bool $labelsAsKeywords {
+        get => true === $this->isPlainImap() && true === $this->getSetting(self::SETTING_LABELS_AS_KEYWORDS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LABELS_AS_KEYWORDS, $on ? true : null);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED. */
     public bool $keepDecrypted {
         get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED, false);
