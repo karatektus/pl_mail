@@ -18,6 +18,7 @@ use App\Entity\Contacts\Contact;
 use App\Entity\Mail\Account;
 use App\Service\Contacts\ContactPhoto;
 use App\Service\Contacts\ContactPhotoStore;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * A Google account's contacts, through the People API, behind the
@@ -57,8 +58,16 @@ use App\Service\Contacts\ContactPhotoStore;
  *
  * Not synced: Google's "Other contacts" — the people you mailed, which plMail
  * already learns from the mail itself.
+ *
+ * **The groups are read once per job**, not once per contact written. Every
+ * put() needs them, to turn tags into memberships, and reading them each time
+ * made a push of fifty contacts a hundred requests against a per-user,
+ * per-minute quota — the likeliest way a book that is otherwise fully synced
+ * gets refused (#435). They are kept per account until the worker resets its
+ * services between messages; a pull reads them afresh, and a group put()
+ * creates is added to what is kept.
  */
-final readonly class GoogleContactsDriver implements AddressBookDriverInterface
+final class GoogleContactsDriver implements AddressBookDriverInterface, ResetInterface
 {
     /** The one book there is: the account's own contacts. */
     public const string BOOK = 'people/me';
@@ -72,11 +81,23 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
     /** A guard against a server that keeps answering with a next page. */
     private const int MAX_PAGES = 100;
 
+    /**
+     * account id => that account's groups, resourceName => name.
+     *
+     * @var array<int, array<string, string>>
+     */
+    private array $groups = [];
+
     public function __construct(
-        private GooglePeopleClient  $client,
-        private GoogleContactMapper $mapper,
-        private ContactPhotoStore   $photos,
+        private readonly GooglePeopleClient  $client,
+        private readonly GoogleContactMapper $mapper,
+        private readonly ContactPhotoStore   $photos,
     ) {
+    }
+
+    public function reset(): void
+    {
+        $this->groups = [];
     }
 
     public function handles(AddressBookSource $source): bool
@@ -96,7 +117,7 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
     public function pull(AddressBook $book, ?string $syncToken): AddressBookChangeSet
     {
         $account = $this->accountOf($book);
-        $groups  = $this->userGroups($account);
+        $groups  = $this->userGroups($account, fresh: true);
         $cards   = [];
         $query   = [
             'personFields'     => GoogleContactMapper::READ_FIELDS,
@@ -231,14 +252,21 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
     }
 
     /**
-     * The user's own groups, resourceName → name: the tags.
+     * The user's own groups, resourceName → name: the tags. Kept for the rest
+     * of the job (see the class comment); $fresh reads them again regardless.
      *
      * @return array<string, string>
      *
      * @throws CalendarSyncException
      */
-    private function userGroups(Account $account): array
+    private function userGroups(Account $account, bool $fresh = false): array
     {
+        $key = (int) $account->id;
+
+        if (false === $fresh && true === isset($this->groups[$key])) {
+            return $this->groups[$key];
+        }
+
         $body   = $this->client->get($account, '/contactGroups', ['pageSize' => 1000, 'groupFields' => 'name,groupType'], 'reading the contact groups');
         $groups = [];
 
@@ -249,7 +277,7 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
             }
         }
 
-        return $groups;
+        return $this->groups[$key] = $groups;
     }
 
     /**
@@ -295,6 +323,13 @@ final readonly class GoogleContactsDriver implements AddressBookDriverInterface
             if (null === $resource) {
                 $created  = $this->client->write($account, 'POST', '/contactGroups', [], ['contactGroup' => ['name' => $tag]], 'adding a contact group');
                 $resource = is_string($created['resourceName'] ?? null) ? $created['resourceName'] : null;
+
+                // So the next contact with this tag joins the group rather
+                // than creating a second one of the same name.
+                if (null !== $resource) {
+                    $byName[$tag]                                = $resource;
+                    $this->groups[(int) $account->id][$resource] = $tag;
+                }
             }
 
             if (null !== $resource) {

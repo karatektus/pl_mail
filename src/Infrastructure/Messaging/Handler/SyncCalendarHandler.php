@@ -6,6 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarSyncService;
@@ -85,6 +86,13 @@ final readonly class SyncCalendarHandler
             }
 
             return;
+        } catch (CalendarSyncThrottledException $e) {
+            // Rethrown without a line of its own. GiveUpQuietlyOnThrottling
+            // puts the job back to wait out the quota and logs that at info;
+            // an ERROR here, on top, was the loudest of three reports of a
+            // provider being busy for a minute (#435). The failure is still
+            // written on the calendar for the settings list.
+            throw $e;
         } catch (CalendarSyncException $e) {
             // Logged when the failure is NEWS, not on every attempt. The
             // service has just written the failure down, and
