@@ -130,8 +130,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {# Not `latest`: the collection is not ordered by date, so the draft is
        looked up by flag rather than assumed to be the last message. #}
     {% set draftMessage = row.draft %}
+    {# Not on the bin's side, where every message is thrown away: a draft
+       there opens as the mail it is, with the bin's Restore and Delete
+       forever, and not in the composer (see mail/_thread_message). #}
     {% set draft = draftMessage
-        and (draft_scope or count == 1) %}
+        and (draft_scope or count == 1)
+        and not bin_view() %}
     {% set draftId = draft ? draftMessage.id : null %}
 
     {# In Drafts the who column asked the wrong question. Every draft is from

@@ -11,7 +11,11 @@ Variables:
                      flag for a moment, but belongs in the thread as a message
 #}
 {% set expanded = expanded|default(false) %}
-{% set isDraft  = draft is defined ? draft : message.isDraft %}
+{# A draft in the bin is drawn as the mail it is, not as the way back into the
+   editor. It was thrown away, so what it is offered is the bin's: Restore and
+   Delete forever, from the toolbar above. A deleted draft is not one being
+   worked on, and the composer would have it edited and sent from the bin. #}
+{% set isDraft  = draft is defined ? draft : (message.isDraft and 'trash' != mail_placement(message)) %}
 
 {# Both roots below carry `data-enter="rise"`, and this partial is the one place
    in the mail views where an entrance is unambiguously honest: a message in a
