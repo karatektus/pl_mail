@@ -1,4 +1,4 @@
-<!-- translated-from: internals/event-extraction.md sha1:2dae76980d57094d8e6eec5557ae1617da260b33 -->
+<!-- translated-from: internals/event-extraction.md sha1:df3af56b21c9e45e194d0ab553c927148694fae9 -->
 # Extraktion von Terminen
 
 Wie aus einer `.ics`-Einladung ein Kalendereintrag wird, wie aus einem gewöhnlichen Satz das
@@ -380,6 +380,16 @@ sucht.
   Verlängerungstermine — echte, korrekt geparste Daten, die niemand im Kalender haben will.
 - **Nichts, was bereits abgelehnt wurde**, über dieselbe Tabelle `EventSuppression`, die auch
   extrahierte Termine benutzen.
+- **Nur, was der Absender in dieser Nachricht geschrieben hat.** Der Text kommt aus
+  `ReadableBody::ownWordsOf()`, das den zitierten Verlauf einer Antwort oder Weiterleitung
+  abschneidet (`App\Domain\Helper\QuotedHistory`): an Outlooks Verlaufsmarkierungen im rohen
+  HTML und im Text an der ersten Zitat-Kopfzeile, Weiterleitungs-Trennlinie oder dem ersten
+  `Von:/Gesendet:`-Block. Der eigene Filter des Detektors ließ nur Zeilen weg, die mit `>`
+  beginnen, und so zitieren weder HTML-Mail noch Outlook. Ein in einer Mail vereinbartes Treffen
+  wurde deshalb für jede Antwort, die sie zitierte, erneut vorgeschlagen, jedes Mal unter einem
+  eigenen Dedup-Schlüssel ([#437](https://github.com/karatektus/pl_mail/issues/437)). Eine
+  Antwort zwischen den Zitaten — Antworten zwischen `>`-Zeilen — wird nicht abgeschnitten; ihre
+  zitierten Zeilen bleiben dem Filter des Detektors überlassen.
 
 ### Die Vorschlagszeile, und was Annehmen bedeutet
 
