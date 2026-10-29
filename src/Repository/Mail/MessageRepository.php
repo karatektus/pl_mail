@@ -1553,7 +1553,7 @@ class MessageRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('m')
             ->andWhere('m.id > :afterId')
-            ->andWhere('m.imapUid IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.imapUid IS NOT NULL)')
             ->andWhere('m.rawPath IS NOT NULL')
             ->setParameter('afterId', $afterId);
     }
@@ -1671,14 +1671,18 @@ class MessageRepository extends ServiceEntityRepository
      * Bounded below because the syncer only ever asks the server for UIDs
      * above its high-water mark: loading every UID a large folder has ever
      * stored, on every poll, to check the handful above it was the cost.
+     *
+     * Read off the locations alone: the UIDs are theirs, and the unique index
+     * on (mailbox_id, imap_uid) answers this without touching message.
      */
     public function findSyncedUids(Mailbox $mailbox, int $aboveUid = 0): array
     {
-        return $this->createQueryBuilder('m')
-            ->select('m.imapUid')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
-            ->andWhere('m.imapUid > :aboveUid')
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->andWhere('l.imapUid > :aboveUid')
             ->setParameter('mailbox', $mailbox)
             ->setParameter('aboveUid', $aboveUid)
             ->getQuery()
@@ -1728,7 +1732,7 @@ class MessageRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('m')
             ->where('m.gmailCarrierAccount IS NOT NULL')
-            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)')
             ->andWhere('m.id > :afterId')
             ->setParameter('afterId', $afterId)
             ->orderBy('m.id', 'ASC')
@@ -1747,7 +1751,7 @@ class MessageRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('m')
             ->select('COUNT(m.id)')
             ->where('m.gmailCarrierAccount IS NOT NULL')
-            ->andWhere('m.mailbox IS NOT NULL');
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)');
 
         if (null !== $carrierId) {
             $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
@@ -1792,9 +1796,10 @@ class MessageRepository extends ServiceEntityRepository
     {
         /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
+            ->select('m.id', 'l.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getArrayResult();
@@ -1824,7 +1829,14 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function findOneInMailboxByUid(Mailbox $mailbox, int $uid): ?Message
     {
-        return $this->findOneBy(['mailbox' => $mailbox, 'imapUid' => $uid]);
+        return $this->createQueryBuilder('m')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid = :uid')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('uid', $uid)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
@@ -1868,10 +1880,11 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function findLocatedUidsById(Mailbox $mailbox): array
     {
-        $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.imapUid')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS id', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getArrayResult();
@@ -2374,9 +2387,10 @@ class MessageRepository extends ServiceEntityRepository
                 'message.ccAddresses AS ccAddresses',
                 'message.bccAddresses AS bccAddresses',
             )
-            ->leftJoin('message.mailbox', 'mailbox')
+            // EXISTS rather than a join: one row per address set, however many
+            // folders the message is kept in.
             ->leftJoin('message.thread', 'thread')
-            ->where('mailbox.account = :account OR thread.account = :account')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
             ->setParameter('account', $account)
             ->getQuery()
             ->toIterable();
@@ -2442,10 +2456,9 @@ class MessageRepository extends ServiceEntityRepository
     public function findOneForAccountByMessageId(Account $account, string $messageId): ?Message
     {
         return $this->createQueryBuilder('message')
-            ->leftJoin('message.mailbox', 'mailbox')
             ->leftJoin('message.thread', 'thread')
             ->where('message.messageId = :messageId')
-            ->andWhere('mailbox.account = :account OR thread.account = :account')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
             ->setParameter('messageId', $messageId)
             ->setParameter('account', $account)
             ->setMaxResults(1)
@@ -2958,12 +2971,16 @@ class MessageRepository extends ServiceEntityRepository
      * Asked before a Mailbox row is removed, and the answer has to be zero:
      * message.mailbox_id cascades on delete, so removing the row of a folder
      * that still has mail recorded in it deletes that mail here.
+     *
+     * Messages, not locations: a message with two copies in one folder is
+     * still one message that would be lost.
      */
     public function countInMailbox(Mailbox $mailbox): int
     {
-        return (int) $this->createQueryBuilder('m')
-            ->select('COUNT(m.id)')
-            ->where('m.mailbox = :mailbox')
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->select('COUNT(DISTINCT IDENTITY(l.message))')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getSingleScalarResult();
