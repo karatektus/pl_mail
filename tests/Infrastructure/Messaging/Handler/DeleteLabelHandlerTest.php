@@ -70,15 +70,18 @@ final class DeleteLabelHandlerTest extends KernelTestCase
     }
 
     /**
-     * The mail is in the destination folder — on the row and in the label it
-     * wears — and the label is still here: it must outlive its folder, or a
-     * sync in between brings it back.
+     * The mail wears the destination's label, and the label is still here: it
+     * must outlive its folder, or a sync in between brings it back.
+     *
+     * The row goes on naming the old folder until the server has moved the
+     * mail (#415) — which is what keeps the folder from being deleted while
+     * it still holds the mail (RemoteLabelRemover counts what it keeps).
      */
     public function testTheMovePhaseFilesTheMailAndKeepsTheLabel(): void
     {
         $label    = $this->folderLabel(['Old']);
         $receipts = $this->folderLabel(['Receipts']);
-        $target   = $receipts->bindingFor($this->account)?->mailbox?->id;
+        $source   = $label->bindingFor($this->account)?->mailbox?->id;
         $first    = $this->messageIn($label, 'First');
         $second   = $this->messageIn($label, 'Second');
         $job      = $this->job($label, $receipts);
@@ -94,7 +97,7 @@ final class DeleteLabelHandlerTest extends KernelTestCase
 
             self::assertContains('Receipts', $names);
             self::assertNotContains('Old', $names);
-            self::assertSame($target, $message?->mailbox?->id, 'the row still names the folder being deleted');
+            self::assertSame($source, $message?->mailbox?->id, 'the copy is where it is until the server has moved it');
         }
 
         self::assertNotNull($this->em->find(Label::class, $labelId), 'the label went before its folder');

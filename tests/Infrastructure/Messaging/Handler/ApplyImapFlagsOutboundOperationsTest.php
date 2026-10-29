@@ -105,6 +105,71 @@ final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
     }
 
     /**
+     * The copy keeps its INBOX address while the move is queued (#415), and
+     * follows the mail when the server has moved it: the same location, now
+     * at the UID Trash issued. At no point does the row name a folder without
+     * an address in it (#427).
+     */
+    public function testTrashingMovesTheCopyAndItsLocationFollows(): void
+    {
+        $uid = $this->put('INBOX');
+        $this->server->create('Trash');
+
+        $account                 = new Account();
+        $account->usr            = new User();
+        $account->imapHost       = (string) getenv('IMAP_TEST_HOST');
+        $account->imapPort       = 31143;
+        $account->imapEncryption = null;
+        $account->username       = $this->user;
+        $account->password       = (string) getenv('IMAP_TEST_PASSWORD');
+        $account->authType       = 'password';
+
+        $inbox = $this->mailbox($account, 'INBOX', MailboxSpecialUse::INBOX);
+        $trash = $this->mailbox($account, 'Trash', MailboxSpecialUse::TRASH);
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($inbox, 10);
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($trash, 12);
+
+        $row            = new Message();
+        $row->account   = $account;
+        $row->messageId = self::MESSAGE_ID;
+        $copy           = $row->addLocation($inbox, $uid);
+        new ReflectionProperty(Message::class, 'id')->setValue($row, 1);
+
+        $messages = $this->createStub(MessageRepository::class);
+        $messages->method('findBy')->willReturn([$row]);
+
+        $folders = $this->createStub(MailboxRepository::class);
+        $folders->method('find')->willReturnCallback(static fn (int $id): ?Mailbox => [10 => $inbox, 12 => $trash][$id] ?? null);
+        $folders->method('findOneBy')->willReturnCallback(
+            static fn (array $criteria): ?Mailbox => match (true) {
+                MailboxSpecialUse::TRASH === ($criteria['specialUse'] ?? null), 'Trash' === ($criteria['fullPath'] ?? null) => $trash,
+                default                                                       => null,
+            },
+        );
+
+        $handler = new ApplyImapFlagsHandler(
+            $messages,
+            $folders,
+            $this->logger(),
+            self::getContainer()->get(ImapConnector::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(ImapFolderProvisioner::class),
+            $this->createStub(AccountRepository::class),
+        );
+
+        $handler(new ApplyImapFlagsMessage([1 => 10], 'trash', null, [1 => $uid]));
+
+        $inTrash = $this->server->uidSearch('Trash', 'ALL');
+
+        self::assertCount(1, $inTrash);
+        self::assertSame([], $this->server->uidSearch('INBOX', 'ALL'));
+        self::assertSame($trash, $row->mailbox);
+        self::assertSame($inTrash[0], $row->imapUid);
+        self::assertCount(1, $row->locations);
+        self::assertSame($copy, $row->locations->first(), 'the same location, moved');
+    }
+
+    /**
      * IMAP keeps flags per copy, so marking an email read marks every copy the
      * server keeps of it — here one in INBOX and one in Archive (#415) — and
      * each copy remembers that the change was ours.
@@ -283,17 +348,17 @@ final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
     // ── a UID that has left the source folder ─────────────────────────────
 
     /**
-     * The row must not go on naming an address the server does not have. A row
-     * with no UID is the one shape SentCopyReconciler::claim() can reconcile
-     * onto the real copy; a row with a wrong UID is the one shape that
-     * guarantees it cannot. And it is not reported as a warning: it is the
-     * normal result of the mail having already moved.
+     * Left as it is, for the folder's sweep to decide about (#415). It used to
+     * be stripped of its UID here, which left a row with a folder and no
+     * address: one a purge could not reach and a sweep could not see (#427).
+     * And it is not reported as a warning: it is the normal result of the mail
+     * having already moved.
      */
-    public function testAVanishedUidLeavesTheRowReconcilableAndIsNotAWarning(): void
+    public function testAVanishedUidIsLeftToTheSweepAndIsNotAWarning(): void
     {
         $row = $this->issue('INBOX', 41, 'seen', rowKeepsUid: true);
 
-        self::assertNull($row->imapUid);
+        self::assertSame(41, $row->imapUid);
         self::assertSame([], array_filter($this->logged, static fn (array $entry): bool => 'info' !== $entry['level']));
     }
 

@@ -125,9 +125,8 @@ final class MoveToServiceTest extends KernelTestCase
 
     /**
      * Where the target is a real folder on the account, the mail goes INTO it
-     * and Archive has nothing to do with it — the row has to name the folder
-     * the mail is now in, or the next flag sync looks for it under a UID the
-     * destination never issued.
+     * and Archive has nothing to do with it. The row names the folder it
+     * really is in until the server has moved it (#415).
      */
     public function testAFolderTargetReceivesTheMailRatherThanTheArchive(): void
     {
@@ -141,7 +140,8 @@ final class MoveToServiceTest extends KernelTestCase
 
         $this->moveFrom('inbox', '', $target, $message);
 
-        self::assertSame($folder, $message->mailbox);
+        self::assertSame($this->inboxMailbox, $message->mailbox);
+        self::assertTrue($message->hasLabel($target));
         self::assertFalse($message->hasLabel($this->role(LabelRole::Inbox)));
         self::assertFalse($message->hasLabel($this->role(LabelRole::Archive)), 'mail filed in a folder was also archived');
     }

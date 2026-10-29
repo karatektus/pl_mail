@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Infrastructure\ImapClient\ImapSession;
+use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
+use App\Service\Imap\PurgedCopies;
 use App\Service\Imap\VanishedMessageReconciler;
+use App\Service\Mail\MessagePurger;
 use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -188,6 +194,71 @@ final class ImapCopiesSyncTest extends KernelTestCase
         self::assertNull($this->onlyMessage('five')->seenAt, 'and a later change to the other copy wins in turn');
     }
 
+    /**
+     * #427, the worst case: the server has moved the mail to Trash, the row
+     * still names its INBOX address (the move's answer has not been written
+     * yet), and the user deletes it forever. The Trash copy has a UID nobody
+     * recorded — and it must not come back on the next Trash sync, and must
+     * go on the server.
+     */
+    public function testMailDeletedForeverDoesNotComeBackFromAMoveThatLandedFirst(): void
+    {
+        $inbox = $this->folder('INBOX');
+        $trash = $this->folder('Trash');
+
+        $uid = $this->session->append('INBOX', $this->mail('six'));
+        $this->sync($inbox);
+
+        $this->session->uidMove('INBOX', (string) $uid, 'Trash');
+
+        static::getContainer()->get(MessagePurger::class)->purge([$this->onlyMessage('six')]);
+        $this->em->clear();
+
+        $this->sync($trash);
+
+        self::assertCount(0, $this->messages('six'), 'not imported again');
+
+        // Past the purge job's time: the sync asks the server itself.
+        $later = new DateTimeImmutable('+15 minutes');
+        $copies = static::getContainer()->get(PurgedCopies::class);
+        $copies->settle($this->reloaded($trash), $this->session, $later);
+        $copies->settle($this->reloaded($inbox), $this->session, $later);
+
+        self::assertSame([], $this->session->uidSearch('Trash', 'ALL'), 'and gone on the server');
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM purged_copy p JOIN mailbox mb ON mb.id = p.mailbox_id WHERE mb.account_id = ?', [$this->account->id]), 'and nothing left on record');
+    }
+
+    /**
+     * #427, the other report: Trash emptied in webmail stays in plMail. The
+     * copy has a real address, so the sweep sees it go and the reaper — every
+     * folder of the account having been listed since — removes it.
+     */
+    public function testMailDeletedFromTrashOnTheServerIsReaped(): void
+    {
+        $trash = $this->folder('Trash');
+
+        $uid = $this->session->append('Trash', $this->mail('seven'));
+        $this->sync($trash);
+        self::assertCount(1, $this->messages('seven'));
+
+        $this->session->uidStore('Trash', (string) $uid, '+', ['\\Deleted']);
+        $this->session->expunge('Trash', (string) $uid);
+
+        // Missing at one listing, and still missing at the next: the reaper
+        // acts on a folder listed since the copy went, never on one listing.
+        $this->sweep($trash);
+        $this->sweep($trash, new DateTimeImmutable('+1 minute'));
+
+        $vanished = static::getContainer()->get(VanishedMessageReconciler::class);
+        $account  = $this->em->find(Account::class, $this->account->id);
+        self::assertInstanceOf(Account::class, $account);
+
+        $vanished->reap($account, new ImapUidPresence($this->session, new NullLogger()));
+        $this->em->clear();
+
+        self::assertCount(0, $this->messages('seven'));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function folder(string $path, bool $mirror = false): Mailbox
@@ -218,12 +289,12 @@ final class ImapCopiesSyncTest extends KernelTestCase
         $this->em->clear();
     }
 
-    private function sweep(Mailbox $mailbox): void
+    private function sweep(Mailbox $mailbox, ?DateTimeImmutable $now = null): void
     {
         $mailbox          = $this->reloaded($mailbox);
         $mailbox->sweptAt = null;
 
-        static::getContainer()->get(VanishedMessageReconciler::class)->sweep($mailbox, $this->session);
+        static::getContainer()->get(VanishedMessageReconciler::class)->sweep($mailbox, $this->session, $now);
         $this->em->clear();
     }
 

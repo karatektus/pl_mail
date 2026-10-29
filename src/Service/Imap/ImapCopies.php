@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\PurgedCopy;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
@@ -90,24 +91,30 @@ final readonly class ImapCopies
         $attached   = [];
 
         foreach (array_chunk($identities, self::INDEX_PAGE, true) as $page) {
-            $candidates = $this->messages->findCopyCandidates(
-                $mailbox->account,
-                array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): string => $copy->messageId, $page)))),
-                array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): ?string => $copy->serverId, $page)))),
-            );
+            $messageIds = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): string => $copy->messageId, $page))));
+            $serverIds  = array_values(array_unique(array_filter(array_map(static fn (ImapCopyIdentity $copy): ?string => $copy->serverId, $page))));
+            $candidates = $this->messages->findCopyCandidates($mailbox->account, $messageIds, $serverIds);
+            $purged     = $this->purgedEmails($mailbox, $messageIds, $serverIds);
 
-            if ([] === $candidates) {
+            if ([] === $candidates && [] === $purged) {
                 continue;
             }
 
             foreach ($page as $uid => $copy) {
                 $email = self::sameEmail($copy, $candidates);
 
-                if (null === $email) {
+                if (null !== $email) {
+                    $this->attach($email, $mailbox, $copy);
+                } elseif (null !== ($deleted = self::samePurgedEmail($copy, $purged))) {
+                    // A copy of mail deleted forever here — a move that landed
+                    // after the purge, or another client's. Not imported:
+                    // recorded, and deleted on the server by the sync's next
+                    // pass over purged copies (#427).
+                    $this->em->persist(new PurgedCopy($mailbox, $uid, $deleted->messageId, $deleted->rfc822Size, $deleted->serverEmailId));
+                } else {
                     continue;
                 }
 
-                $this->attach($email, $mailbox, $copy);
                 $attached[] = $uid;
                 unset($identities[$uid]);
             }
@@ -175,6 +182,28 @@ final readonly class ImapCopies
      */
     public static function sameEmail(ImapCopyIdentity $copy, array $candidates): ?Message
     {
+        return self::firstOf($copy, $candidates);
+    }
+
+    /**
+     * @param list<PurgedCopy> $purged
+     */
+    public static function samePurgedEmail(ImapCopyIdentity $copy, array $purged): ?PurgedCopy
+    {
+        return self::firstOf($copy, $purged);
+    }
+
+    /**
+     * The server id first, deciding alone; then Message-ID and size together.
+     *
+     * @template T of Message|PurgedCopy
+     *
+     * @param list<T> $candidates
+     *
+     * @return T|null
+     */
+    private static function firstOf(ImapCopyIdentity $copy, array $candidates): Message|PurgedCopy|null
+    {
         if (null !== $copy->serverId) {
             foreach ($candidates as $candidate) {
                 if ($candidate->serverEmailId === $copy->serverId) {
@@ -199,6 +228,43 @@ final readonly class ImapCopies
         }
 
         return null;
+    }
+
+    /**
+     * Purged email of this account that a new copy might be.
+     *
+     * @param list<string> $messageIds
+     * @param list<string> $serverIds
+     *
+     * @return list<PurgedCopy>
+     */
+    private function purgedEmails(Mailbox $mailbox, array $messageIds, array $serverIds): array
+    {
+        if ([] === $messageIds && [] === $serverIds) {
+            return [];
+        }
+
+        $qb = $this->em->createQueryBuilder()
+            ->select('p')
+            ->from(PurgedCopy::class, 'p')
+            ->join('p.mailbox', 'mb')
+            ->where('mb.account = :account')
+            ->setParameter('account', $mailbox->account);
+
+        $either = $qb->expr()->orX();
+
+        if ([] !== $messageIds) {
+            $either->add('p.messageId IN (:messageIds)');
+            $qb->setParameter('messageIds', $messageIds);
+        }
+
+        if ([] !== $serverIds) {
+            $either->add('p.serverEmailId IN (:serverIds)');
+            $qb->setParameter('serverIds', $serverIds);
+        }
+
+        /** @var list<PurgedCopy> */
+        return $qb->andWhere($either)->getQuery()->getResult();
     }
 
     /**

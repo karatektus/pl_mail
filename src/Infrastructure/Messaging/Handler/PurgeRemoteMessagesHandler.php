@@ -13,6 +13,7 @@ use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Imap\ImapConnector;
+use App\Service\Imap\PurgedCopies;
 use App\Service\JmapClient\JmapMailboxSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
@@ -57,6 +58,7 @@ final readonly class PurgeRemoteMessagesHandler
         private LoggerInterface       $logger,
         private JmapClient            $jmap,
         private JmapMailboxSyncer     $jmapMailboxes,
+        private PurgedCopies          $purgedCopies,
     ) {
     }
 
@@ -137,9 +139,12 @@ final readonly class PurgeRemoteMessagesHandler
         try {
             $session->uidStore($path, $set, '+', ['\\Deleted']);
             $session->expunge($path, $set);
+
+            $this->purgedCopies->confirm($account, $path, $uids);
         } catch (ImapCommandException $e) {
             // The folder is gone, or the server will not let it be changed.
-            // Either way not this job's to retry: the rows are gone already.
+            // Not retried here: the copies stay on record, the sync passes
+            // over them and asks the server again (PurgedCopies::settle()).
             $this->logger->warning('PurgeRemoteMessages: could not purge a folder', [
                 'accountId' => $account->id,
                 'folder'    => $path,

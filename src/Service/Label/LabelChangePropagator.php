@@ -146,6 +146,18 @@ final readonly class LabelChangePropagator
     }
 
     /**
+     * The IMAP half of restore() alone: the move back into the inbox folder,
+     * for a caller whose labels reach the other providers another way
+     * (ThreadSnoozeService::wake()).
+     *
+     * @param iterable<Message> $messages
+     */
+    public function restoreOnImap(iterable $messages): void
+    {
+        $this->dispatchFlags($messages, 'restore');
+    }
+
+    /**
      * Discarding a draft — get rid of this copy wherever it exists.
      *
      * Named delete() and reached only from ComposeController::discard(). It is
@@ -200,8 +212,8 @@ final readonly class LabelChangePropagator
      * Detach a custom label. IMAP: physical move only when the detached
      * label was the message's location label — resolved per message.
      *
-     * MUST be called after the DB label mutation but BEFORE re-pointing or
-     * flushing message->mailbox; this method handles the re-point itself.
+     * MUST be called after the DB label mutation. The message's folder changes
+     * when the server has moved it (ApplyImapFlagsHandler), not here.
      *
      * @param iterable<Message> $messages
      */
@@ -242,10 +254,8 @@ final readonly class LabelChangePropagator
             $moves[$destinationMailbox->fullPath][$message->id]    = $sourceMailbox->id;
             $moveUids[$destinationMailbox->fullPath][$message->id] = $message->imapUid;
 
-            // Optimistic re-point. The source address goes with it: the UID
-            // this row held belongs to the folder it is leaving, and the
-            // destination will issue its own. See Message::relocateTo().
-            $message->relocateTo($destinationMailbox);
+            // No re-point: the copy keeps its address until the server says
+            // where it landed, and ApplyImapFlagsHandler moves it then (#415).
         }
 
         foreach ($moves as $destinationPath => $idMap) {

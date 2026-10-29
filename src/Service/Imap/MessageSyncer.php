@@ -62,6 +62,7 @@ class MessageSyncer
         private readonly ManagerRegistry $registry,
         private readonly ImapPagedFetch $pagedFetch,
         private readonly ImapCopies $copies,
+        private readonly PurgedCopies $purgedCopies,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly MessageCryptoDetector $cryptoDetector,
@@ -157,6 +158,15 @@ class MessageSyncer
         $syncedUids = array_flip(
             $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
+
+        // Mail deleted forever here, whose deletion the server has not
+        // confirmed: asked about again if the job did not get through, and
+        // never imported again meanwhile (#427). See PurgedCopy.
+        $this->purgedCopies->settle($mailbox, $session);
+
+        foreach ($this->purgedCopies->uidsIn($mailbox) as $purgedUid) {
+            $syncedUids[$purgedUid] = true;
+        }
 
         // How a message that appears here is told from a message that is merely
         // also here: by whether the copy it would have moved from is still on

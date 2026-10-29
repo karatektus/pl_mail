@@ -178,11 +178,10 @@ final class ThreadStatusUpdaterTest extends KernelTestCase
     }
 
     /**
-     * For plain IMAP the message physically moves, and the local pointer is
-     * re-pointed optimistically so the sync layer does not go looking for it in
-     * the folder it just left.
+     * For plain IMAP the message physically moves, and the row keeps the
+     * address it really has until the server says where it landed (#415).
      */
-    public function testArchivingRePointsAPlainImapMessageAtTheArchiveMailbox(): void
+    public function testArchivingKeepsAPlainImapMessageAtItsAddressUntilMoved(): void
     {
         $archiveMailbox = $this->seedMailbox('Archive');
         $this->labelResolver->bindMailbox($this->role(LabelRole::Archive), $archiveMailbox);
@@ -192,7 +191,8 @@ final class ThreadStatusUpdaterTest extends KernelTestCase
 
         $this->updater->archive($thread->messages->toArray());
 
-        self::assertSame($archiveMailbox, $thread->messages->first()->mailbox);
+        self::assertSame($this->inboxMailbox, $thread->messages->first()->mailbox);
+        self::assertNotNull($thread->messages->first()->imapUid);
     }
 
     /**

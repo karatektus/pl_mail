@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
+use App\Service\Imap\PurgedCopies;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -62,6 +63,7 @@ final readonly class MessagePurger
         private EntityManagerInterface $entityManager,
         private MessageBusInterface    $bus,
         private MessageEraser          $eraser,
+        private PurgedCopies           $purgedCopies,
     ) {
     }
 
@@ -126,10 +128,11 @@ final readonly class MessagePurger
             $accountId             = (int) $account->id;
             $byAccount[$accountId] ??= ['imap' => [], 'gmail' => [], 'graph' => [], 'jmap' => []];
 
-            $folder = $message->mailbox?->fullPath;
-
-            if (null !== $message->imapUid && null !== $folder) {
-                $byAccount[$accountId]['imap'][$folder][] = $message->imapUid;
+            // Every copy the server keeps, each left on record until the
+            // server confirms, so no sync in between brings the mail back
+            // (#415, #427).
+            foreach ($this->purgedCopies->record($message) as $folder => $uids) {
+                $byAccount[$accountId]['imap'][$folder] = [...($byAccount[$accountId]['imap'][$folder] ?? []), ...$uids];
             }
 
             if (null !== $message->gmailId && '' !== $message->gmailId) {

@@ -1100,6 +1100,39 @@ class Message extends MessageModel
         }
     }
 
+    /**
+     * One copy has moved, and the server has said where to: the location
+     * follows it, keeping its id.
+     *
+     * For a move plMail made itself (ApplyImapFlagsHandler), once the server
+     * confirmed the new address. Until then the copy keeps the address it
+     * really has, which is the whole point: there is no moment at which the
+     * message names a folder without saying where in it (#415, #427). The
+     * copy's last reported flags go, since they were another copy's.
+     */
+    public function moveLocation(MessageLocation $location, Mailbox $to, int $uid): void
+    {
+        $existing = $this->locationAt($to, $uid);
+
+        if (null !== $existing && $existing !== $location) {
+            // The destination's sync got there first.
+            $this->removeLocation($location);
+
+            return;
+        }
+
+        $wasPrimary = $location->mailbox === $this->mailbox && $location->imapUid === $this->imapUid;
+
+        $location->mailbox     = $to;
+        $location->imapUid     = $uid;
+        $location->serverFlags = null;
+        $this->vanishedAt      = null;
+
+        if (true === $wasPrimary) {
+            $this->makePrimary($location);
+        }
+    }
+
     public function locationAt(?Mailbox $mailbox, ?int $uid): ?MessageLocation
     {
         foreach ($this->locations as $location) {
