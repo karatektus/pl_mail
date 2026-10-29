@@ -148,6 +148,71 @@ final class GoogleContactsDriverTest extends TestCase
         self::assertNotNull($written->resource, 'the sources kept for the next update');
     }
 
+    /**
+     * #435: the groups were read for every contact written, so a push of fifty
+     * contacts was a hundred requests against a per-minute quota. Read once
+     * per job, and a group made for the first contact is the second's too.
+     */
+    public function testAPushReadsTheGroupsOnceAndReusesAGroupItMade(): void
+    {
+        $driver = $this->driver([
+            $this->groupList(),
+            $this->json(['resourceName' => 'contactGroups/new1', 'name' => 'Work']),
+            $this->json($this->person('c7', 'Grace Hopper', 'grace@navy.example')),
+            $this->json($this->person('c8', 'Ada King', 'ada@example.com')),
+        ]);
+        $book = $this->book();
+
+        $first       = $this->contact('Grace Hopper', 'grace@navy.example');
+        $first->tags = ['Work'];
+        $second       = $this->contact('Ada King', 'ada@example.com');
+        $second->tags = ['Work', 'Friends'];
+
+        $driver->put($book, $first);
+        $driver->put($book, $second);
+
+        self::assertCount(4, $this->requests, 'one group list, one group made, two contacts');
+        self::assertStringEndsWith('/people:createContact?personFields=' . rawurlencode(GoogleContactMapper::READ_FIELDS), $this->requests[3]['url']);
+        self::assertSame(
+            ['contactGroups/myContacts', 'contactGroups/new1', 'contactGroups/friends'],
+            array_map(static fn (array $m): string => $m['contactGroupMembership']['contactGroupResourceName'], json_decode($this->requests[3]['body'], true)['memberships']),
+        );
+    }
+
+    /**
+     * Kept for one job only: the worker resets its services between messages,
+     * and a pull reads the groups afresh because it is where a group renamed
+     * at Google is learned.
+     */
+    public function testTheGroupsAreReadAgainAfterAResetAndByAPull(): void
+    {
+        $driver = $this->driver([
+            $this->groupList(),
+            $this->json($this->person('c7', 'Grace Hopper', 'grace@navy.example')),
+            $this->groupList(),
+            $this->json(['connections' => [], 'nextSyncToken' => 'sync-1']),
+            $this->json($this->person('c8', 'Ada King', 'ada@example.com')),
+            $this->groupList(),
+            $this->json($this->person('c9', 'Alan Turing', 'alan@example.com')),
+        ]);
+        $book = $this->book();
+
+        $driver->put($book, $this->contact('Grace Hopper', 'grace@navy.example'));
+        $driver->pull($book, null);
+        $driver->put($book, $this->contact('Ada King', 'ada@example.com'));
+        $driver->reset();
+        $driver->put($book, $this->contact('Alan Turing', 'alan@example.com'));
+
+        self::assertSame(
+            ['/contactGroups', ':createContact', '/contactGroups', '/people/me/connections', ':createContact', '/contactGroups', ':createContact'],
+            array_map(static fn (array $r): string => match (true) {
+                str_contains($r['url'], '/contactGroups')         => '/contactGroups',
+                str_contains($r['url'], '/people/me/connections') => '/people/me/connections',
+                default                                           => ':createContact',
+            }, $this->requests),
+        );
+    }
+
     public function testAnUpdateNamesOnlyPlMailsFieldsAndCarriesTheEtagAndSources(): void
     {
         $driver = $this->driver([$this->groupList(), $this->json($this->person('c1', 'Ada King', 'ada@example.com'))]);
@@ -326,11 +391,16 @@ final class GoogleContactsDriverTest extends TestCase
 
     public function testAQuotaIsThrottling(): void
     {
-        $driver = $this->driver([$this->json(['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded']], 429, ['retry-after' => '30'])]);
+        $said   = "Quota exceeded for quota metric 'Critical read requests (Contact and Profile Reads)' and limit 'Critical read requests (Contact and Profile Reads) per minute per user'";
+        $driver = $this->driver([$this->json(['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => $said]], 429, ['retry-after' => '30'])]);
 
-        $this->expectException(CalendarSyncThrottledException::class);
-
-        $driver->pull($this->book(), null);
+        try {
+            $driver->pull($this->book(), null);
+            self::fail('a 429 is throttling');
+        } catch (CalendarSyncThrottledException $e) {
+            self::assertSame(30_000, $e->getRetryDelay());
+            self::assertStringContainsString('per minute per user', $e->getMessage(), 'Google\'s words name the quota that was hit (#435)');
+        }
     }
 
     public function testDeletingAContactAlreadyGoneSucceeds(): void
