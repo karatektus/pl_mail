@@ -622,8 +622,10 @@ be a worse regression than the one this feature fixes.
                            else such a row opens the composer, which says what
                            it is; here it opens as a mail (see `draft` above),
                            and the sender is you and the snippet your words, so
-                           it would pass for something you sent. #}
-                        {% if draftMessage and count == 1 and bin_view() %}
+                           it would pass for something you sent. Defaulted
+                           because only a conversation row sets `draftMessage`;
+                           a bare message row has none. #}
+                        {% if draftMessage|default(null) and count == 1 and bin_view() %}
                             <span class="shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-danger/10 text-danger whitespace-nowrap"
                                   data-draft-badge>
                                 {{ 'message.draft'|trans }}
