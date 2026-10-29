@@ -7,6 +7,7 @@ namespace App\Service\Calendar\Proposal;
 use App\Domain\Helper\OwnAddressHelper;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Helper\CalendarAttachment;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -408,25 +409,22 @@ final readonly class EventProposer
     }
 
     /**
-     * The body as text.
+     * The body as text, without the quoted history under it.
      *
-     * bodyText where the sender sent one, and the sanitised HTML stripped of
-     * its tags where they did not — bodyHtmlSafe rather than bodyHtml, because
-     * the safe copy has already had scripts and style blocks removed and the
-     * contents of a <style> element are not prose. Entities are decoded, since
-     * "&nbsp;" between a date and a time would otherwise put them further apart
-     * than the parser allows.
+     * Only what the sender wrote in this message. The whole body used to be
+     * read, and a reply's history is where the thread's earlier arrangements
+     * are: a meeting set in the first mail was proposed again for every
+     * "Thanks!" under it, each a new message with a new dedup key, so even a
+     * refused card came back (#437). The detector's own line filter only ever
+     * caught history quoted with `>`, which HTML mail and Outlook do not use.
+     *
+     * Through ReadableBody rather than a strip_tags() of its own, which also
+     * reads a Graph mail's HTML instead of the 255-character preview stored as
+     * its text — the preview of a short reply is mostly the quoted header.
      */
     private function textOf(Message $message): string
     {
-        $text = trim((string) $message->bodyText);
-
-        if ('' === $text) {
-            $html = (string) ($message->bodyHtmlSafe ?? $message->bodyHtml);
-            $text = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], "\n", $html)));
-        }
-
-        return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return ReadableBody::ownWordsOf($message);
     }
 
     /**
