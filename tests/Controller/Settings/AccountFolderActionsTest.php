@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -33,6 +33,9 @@ final class AccountFolderActionsTest extends WebTestCase
     private Connection $connection;
     private Account $account;
 
+    /** @var list<FakeFolderServer> */
+    private array $servers = [];
+
     protected function setUp(): void
     {
         $this->client = static::createClient();
@@ -56,6 +59,10 @@ final class AccountFolderActionsTest extends WebTestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
         if (true === $this->connection->isTransactionActive()) {
             $this->connection->rollBack();
         }
@@ -172,7 +179,7 @@ final class AccountFolderActionsTest extends WebTestCase
      */
     public function testANewFolderAnswersWithTheToastAndTheRedrawnSidebar(): void
     {
-        $server = new FakeFolderServer('', '/');
+        $server = $this->server('', '/');
         $this->serve($server);
         $this->mailbox('INBOX', 'INBOX', MailboxSpecialUse::INBOX);
 
@@ -194,7 +201,7 @@ final class AccountFolderActionsTest extends WebTestCase
     /** A delete, pressed inside the open list, gets the list back without the folder. */
     public function testADeleteKeepsTheListOpenWithoutTheFolder(): void
     {
-        $server = new FakeFolderServer('', '/');
+        $server = $this->server('', '/');
         $this->serve($server);
         $empty = $this->mailbox('Empty', 'Empty');
         $this->mailbox('Other', 'Other');
@@ -225,10 +232,17 @@ final class AccountFolderActionsTest extends WebTestCase
     /** Every IMAP connection the actions open goes to this in-memory server. */
     private function serve(FakeFolderServer $server): void
     {
-        $factory = $this->createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn($server->client());
+        $server->pointAt($this->account);
+        $this->em->flush();
+    }
 
-        static::getContainer()->set(ImapConnectionFactory::class, $factory);
+    /** On the loop the connector runs on — one container for the test, see setUp(). */
+    private function server(string $namespacePrefix, string $namespaceSeparator): FakeFolderServer
+    {
+        $server          = new FakeFolderServer(static::getContainer()->get(ImapLoop::class), $namespacePrefix, $namespaceSeparator);
+        $this->servers[] = $server;
+
+        return $server;
     }
 
     private function url(string $suffix = ''): string

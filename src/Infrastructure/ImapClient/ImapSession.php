@@ -318,6 +318,33 @@ final class ImapSession
     }
 
     /**
+     * The first personal namespace (RFC 2342) as [prefix, separator]: where
+     * the account's own folders begin on this server — "" on most, "INBOX."
+     * on a Courier-style one. Null when the server does not do NAMESPACE or
+     * lists no personal namespace.
+     *
+     * @return array{0: string, 1: string|null}|null
+     */
+    public function personalNamespace(): ?array
+    {
+        if (false === $this->connection->supports('NAMESPACE')) {
+            return null;
+        }
+
+        // * NAMESPACE (("" "/")) NIL NIL — personal, other users', shared.
+        $personal = $this->connection->command('NAMESPACE')->untagged('NAMESPACE')[0]->data[0] ?? null;
+        $first    = is_array($personal) ? ($personal[0] ?? null) : null;
+
+        if (false === is_array($first) || false === is_string($first[0] ?? null)) {
+            return null;
+        }
+
+        $separator = $first[1] ?? null;
+
+        return [$first[0], true === is_string($separator) && '' !== $separator ? $separator : null];
+    }
+
+    /**
      * Put a message into a folder.
      *
      * @param list<string> $flags

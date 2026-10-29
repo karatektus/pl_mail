@@ -7,7 +7,6 @@ namespace App\Tests\Service\Imap;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Exception\ImapFolderRefusedException;
 use App\Domain\Exception\InvalidFolderNameException;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -17,6 +16,8 @@ use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\ImapFolderProvisioner;
 use App\Service\Label\LabelNotifier;
@@ -48,6 +49,9 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** Writes down what the actions dispatched, in `sent`. */
     private MessageBusInterface $bus;
 
+    /** @var list<FakeFolderServer> */
+    private array $servers = [];
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -74,6 +78,10 @@ final class ImapFolderManagerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
         if (true === $this->connection->isTransactionActive()) {
             $this->connection->rollBack();
         }
@@ -89,7 +97,7 @@ final class ImapFolderManagerTest extends KernelTestCase
      */
     public function testANewFolderGoesInsideTheChosenFolder(): void
     {
-        $server  = new FakeFolderServer('', '/');
+        $server  = $this->server('', '/');
         $clients = $this->folder('INBOX/Clients', 'Clients', '/');
 
         $mailbox = $this->manager($server)->create($this->account, $clients, 'Kine');
@@ -110,12 +118,12 @@ final class ImapFolderManagerTest extends KernelTestCase
     {
         $this->folder('INBOX', 'INBOX', '.');
 
-        $courier = new FakeFolderServer('INBOX.', '.');
+        $courier = $this->server('INBOX.', '.');
         $this->manager($courier)->create($this->account, null, 'Kine');
 
         self::assertSame('CREATE INBOX.Kine', $courier->commands[0]);
 
-        $plain = new FakeFolderServer('', '/');
+        $plain = $this->server('', '/');
         $this->manager($plain)->create($this->account, null, 'Receipts');
 
         self::assertSame('CREATE Receipts', $plain->commands[0]);
@@ -124,7 +132,7 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** The name is encoded once; the parent's path, already encoded, is not touched. */
     public function testANonAsciiNameGoesOutAsModifiedUtf7(): void
     {
-        $server = new FakeFolderServer('INBOX.', '.');
+        $server = $this->server('INBOX.', '.');
         $parent = $this->folder('INBOX.B&APw-cher', 'Bücher', '.');
 
         $mailbox = $this->manager($server)->create($this->account, $parent, 'Köln');
@@ -137,7 +145,7 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** A name with the server's separator in it is refused before the server is asked. */
     public function testTheSeparatorInANameIsRefusedBeforeConnecting(): void
     {
-        $server = new FakeFolderServer('INBOX.', '.');
+        $server = $this->server('INBOX.', '.');
         $parent = $this->folder('INBOX.Projects', 'Projects', '.');
 
         try {
@@ -154,7 +162,7 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** The server's no comes back in its own words, and nothing is recorded. */
     public function testTheServersRefusalComesBackWithItsReason(): void
     {
-        $server          = new FakeFolderServer('', '/');
+        $server          = $this->server('', '/');
         $server->refuse  = 'CREATE';
         $server->refusal = 'NO [OVERQUOTA] Too many folders';
 
@@ -180,7 +188,7 @@ final class ImapFolderManagerTest extends KernelTestCase
      */
     public function testRenameMovesTheFolderAndItsChildrenAndKeepsTheLabel(): void
     {
-        $server  = new FakeFolderServer('', '/');
+        $server  = $this->server('', '/');
         $clients = $this->folder('INBOX/Clients', 'Clients', '/');
         $acme    = $this->folder('INBOX/Clients/Acme', 'Acme', '/');
         $label   = $clients->label;
@@ -199,7 +207,7 @@ final class ImapFolderManagerTest extends KernelTestCase
 
     public function testANonAsciiRenameGoesOutAsModifiedUtf7(): void
     {
-        $server  = new FakeFolderServer('INBOX.', '.');
+        $server  = $this->server('INBOX.', '.');
         $folder  = $this->folder('INBOX.Books', 'Books', '.');
 
         $this->manager($server)->rename($this->account, $folder, 'Bücher');
@@ -215,7 +223,7 @@ final class ImapFolderManagerTest extends KernelTestCase
      */
     public function testSpecialUseFoldersAreNeitherRenamedNorDeleted(): void
     {
-        $server = new FakeFolderServer('', '/');
+        $server = $this->server('', '/');
         $sent   = $this->folder('Sent Items', 'Sent Items', '/', MailboxSpecialUse::SENT);
         $inbox  = $this->folder('INBOX', 'INBOX', '/');
 
@@ -243,7 +251,7 @@ final class ImapFolderManagerTest extends KernelTestCase
      */
     public function testAnEmptyFolderIsDeletedAndItsLeftOverLabelWithIt(): void
     {
-        $server  = new FakeFolderServer('', '/');
+        $server  = $this->server('', '/');
         $empty   = $this->folder('Empty', 'Empty', '/');
         $labelId = $empty->label?->id;
         $id      = $empty->id;
@@ -258,7 +266,7 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** Mail the server still holds is mail, imported here or not. */
     public function testAFolderTheServerStillHasMailInIsNotDeleted(): void
     {
-        $server = new FakeFolderServer('', '/');
+        $server = $this->server('', '/');
         $server->messages['Archive2'] = 3;
         $folder = $this->folder('Archive2', 'Archive2', '/');
 
@@ -275,7 +283,7 @@ final class ImapFolderManagerTest extends KernelTestCase
 
     public function testAFolderWithFoldersInsideIsNotDeleted(): void
     {
-        $server   = new FakeFolderServer('', '/');
+        $server   = $this->server('', '/');
         $projects = $this->folder('Projects', 'Projects', '/');
         $this->folder('Projects/2025', '2025', '/');
 
@@ -287,7 +295,7 @@ final class ImapFolderManagerTest extends KernelTestCase
     /** The server's no to the DELETE is shown, and the row stays. */
     public function testTheServersRefusalToDeleteKeepsTheFolder(): void
     {
-        $server          = new FakeFolderServer('', '/');
+        $server          = $this->server('', '/');
         $server->refuse  = 'DELETE';
         $server->refusal = 'NO [CANNOT] Mailbox is in use';
         $folder          = $this->folder('Busy', 'Busy', '/');
@@ -308,11 +316,11 @@ final class ImapFolderManagerTest extends KernelTestCase
     {
         $container = self::getContainer();
 
-        $factory = self::createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn($server->client());
+        $server->pointAt($this->account);
+        $this->em->flush();
 
         return new ImapFolderManager(
-            $factory,
+            $container->get(ImapConnector::class),
             $container->get(ImapFolderProvisioner::class),
             $container->get(MailboxRepository::class),
             $container->get(MessageRepository::class),
@@ -325,6 +333,15 @@ final class ImapFolderManagerTest extends KernelTestCase
             $this->em,
             new NullLogger(),
         );
+    }
+
+    /** On the loop the connector runs on, and stopped when the test ends. */
+    private function server(string $namespacePrefix, string $namespaceSeparator): FakeFolderServer
+    {
+        $server          = new FakeFolderServer(self::getContainer()->get(ImapLoop::class), $namespacePrefix, $namespaceSeparator);
+        $this->servers[] = $server;
+
+        return $server;
     }
 
     /** A folder as a sync would have left it: recorded and given its label. */

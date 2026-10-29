@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -13,9 +12,13 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
+use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
@@ -60,7 +63,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
     /** A folder's label, renamed here, is still its label after the next sync. */
     public function testALabelRenamedInPlMailIsNotTakenBackByTheNextSync(): void
     {
-        $this->sync(new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+        $this->sync(['INBOX' => [], 'INBOX.Clients' => []]);
 
         $label = $this->mailboxFor('INBOX.Clients')?->label;
         self::assertNotNull($label);
@@ -68,7 +71,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
         $label->name = 'Customers';
         $this->em->flush();
 
-        $this->sync(new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+        $this->sync(['INBOX' => [], 'INBOX.Clients' => []]);
 
         self::assertSame($label->id, $this->mailboxFor('INBOX.Clients')?->label?->id);
         self::assertSame('Customers', $this->mailboxFor('INBOX.Clients')?->label?->name);
@@ -82,7 +85,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
     {
         $listing = ['INBOX' => [], 'Work' => [], 'INBOX.Work' => []];
 
-        $this->sync(new FakeListingClient($listing));
+        $this->sync($listing);
 
         $top   = $this->mailboxFor('Work')?->label;
         $inbox = $this->mailboxFor('INBOX.Work')?->label;
@@ -93,8 +96,8 @@ final class FolderLabelStabilityTest extends KernelTestCase
         self::assertSame('Work', $top->fullName);
         self::assertSame('INBOX/Work', $inbox->fullName);
 
-        $this->sync(new FakeListingClient($listing));
-        $this->sync(new FakeListingClient($listing));
+        $this->sync($listing);
+        $this->sync($listing);
 
         self::assertSame($top->id, $this->mailboxFor('Work')?->label?->id);
         self::assertSame($inbox->id, $this->mailboxFor('INBOX.Work')?->label?->id);
@@ -106,7 +109,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
      */
     public function testAFolderRenamedElsewhereGetsTheLabelOfItsNewPath(): void
     {
-        $this->sync(new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+        $this->sync(['INBOX' => [], 'INBOX.Clients' => []]);
 
         $mailbox = $this->mailboxFor('INBOX.Clients');
         self::assertNotNull($mailbox);
@@ -114,10 +117,7 @@ final class FolderLabelStabilityTest extends KernelTestCase
         $mailbox->uidValidity = 4242;
         $this->em->flush();
 
-        $client = (new FakeListingClient(['INBOX' => [], 'INBOX.Customers' => []]))
-            ->withStatus('INBOX.Customers', ['uidvalidity' => 4242]);
-
-        $result = $this->sync($client);
+        $result = $this->sync(['INBOX' => [], 'INBOX.Customers' => []], ['INBOX.Customers' => ['uidValidity' => 4242]]);
 
         self::assertSame(1, $result['renamed']);
         $renamed = $this->mailboxFor('INBOX.Customers');
@@ -137,21 +137,20 @@ final class FolderLabelStabilityTest extends KernelTestCase
      */
     public function testASharedLabelIsNotRenamedFromOneAccount(): void
     {
-        $this->sync(new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+        $this->sync(['INBOX' => [], 'INBOX.Clients' => []]);
 
         $shared = $this->mailboxFor('INBOX.Clients')?->label;
         self::assertNotNull($shared);
 
         $other = $this->seedAccount($this->account->usr);
-        $this->syncAccount($other, new FakeListingClient(['INBOX' => [], 'INBOX.Clients' => []]));
+        $this->syncAccount($other, ['INBOX' => [], 'INBOX.Clients' => []]);
 
         $mailbox = $this->mailboxFor('INBOX.Clients');
         self::assertNotNull($mailbox);
         $mailbox->uidValidity = 4242;
         $this->em->flush();
 
-        $this->sync((new FakeListingClient(['INBOX' => [], 'INBOX.Customers' => []]))
-            ->withStatus('INBOX.Customers', ['uidvalidity' => 4242]));
+        $this->sync(['INBOX' => [], 'INBOX.Customers' => []], ['INBOX.Customers' => ['uidValidity' => 4242]]);
 
         $label = $this->mailboxFor('INBOX.Customers')?->label;
 
@@ -164,29 +163,36 @@ final class FolderLabelStabilityTest extends KernelTestCase
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
+     * @param array<string, list<string>>                $folders raw path => LIST attributes
+     * @param array<string, array{uidValidity?: int}>    $states  path => what SELECT says
+     *
      * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
      */
-    private function sync(FakeListingClient $client): array
+    private function sync(array $folders, array $states = []): array
     {
-        return $this->syncAccount($this->account, $client);
+        return $this->syncAccount($this->account, $folders, $states);
     }
 
     /**
+     * @param array<string, list<string>>                $folders
+     * @param array<string, array{uidValidity?: int}>    $states
+     *
      * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
      */
-    private function syncAccount(Account $account, FakeListingClient $client): array
+    private function syncAccount(Account $account, array $folders, array $states = []): array
     {
         $container = self::getContainer();
 
-        $factory = self::createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn($client);
+        $server = new FakeImapServer($container->get(ImapLoop::class), $folders, '.', $states);
+        $server->pointAt($account);
+        $this->em->flush();
 
         // A resolver of its own per run, as in MailboxLabelNamingTest: its id
         // caches would otherwise answer the second sync from the first.
         $syncer = new MailboxSyncer(
             $container->get(MailboxRepository::class),
             $this->em,
-            $factory,
+            $container->get(ImapConnector::class),
             new LabelResolver(
                 $container->get(LabelRepository::class),
                 $container->get(LabelBindingRepository::class),
@@ -195,10 +201,15 @@ final class FolderLabelStabilityTest extends KernelTestCase
             ),
             $container->get(MessageRepository::class),
             $container->get(MessageEraser::class),
+            $container->get(ImapCopies::class),
             new NullLogger(),
         );
 
-        return $syncer->syncForAccount($account);
+        try {
+            return $syncer->syncForAccount($account);
+        } finally {
+            $server->stop();
+        }
     }
 
     private function mailboxFor(string $fullPath): ?Mailbox

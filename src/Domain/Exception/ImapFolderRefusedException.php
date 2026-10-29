@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Exception;
 
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+
 /**
  * The IMAP server said no to a folder command — CREATE, RENAME or DELETE.
  *
@@ -27,23 +29,20 @@ final class ImapFolderRefusedException extends \RuntimeException
     }
 
     /**
-     * The server's answer out of whatever the library threw.
-     *
-     * ImapServerErrorException carries the tagged response line ("NO [CANNOT]
-     * Permission denied"); ResponseException wraps its causes in a paragraph of
-     * its own ("Command failed to process: Causes: - …"). Both are reduced to
-     * the part the server wrote.
+     * The server's answer, as the tagged response gave it: its response code,
+     * if any, and its text — "[CANNOT] Permission denied". Anything that is
+     * not a command the server answered (a connection lost on the way) keeps
+     * its own message.
      */
     public static function fromServer(string $folder, \Throwable $e): self
     {
-        $message = trim($e->getMessage());
+        if ($e instanceof ImapCommandException) {
+            $code   = $e->response->code;
+            $reason = trim((null === $code ? '' : '[' . $code . '] ') . $e->response->text);
 
-        if (1 === preg_match('/^\s*-\s*(.+)$/m', $message, $cause) && str_starts_with($message, 'Command failed')) {
-            $message = trim($cause[1]);
+            return new self($folder, '' === $reason ? $e->getMessage() : $reason, $e);
         }
 
-        $reason = trim((string) preg_replace('/^(NO|BAD|BYE)\b\s*/i', '', $message));
-
-        return new self($folder, '' === $reason ? $message : $reason, $e);
+        return new self($folder, trim($e->getMessage()), $e);
     }
 }

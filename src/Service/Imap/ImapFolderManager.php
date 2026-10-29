@@ -8,7 +8,7 @@ use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Exception\FolderActionRefusedException;
 use App\Domain\Exception\ImapFolderRefusedException;
 use App\Domain\Exception\InvalidFolderNameException;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -23,9 +23,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use App\Infrastructure\ImapClient\ImapSession;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 
 /**
  * New folder, rename and delete on a plain IMAP account — folders as places.
@@ -50,7 +49,7 @@ use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 final readonly class ImapFolderManager
 {
     public function __construct(
-        private ImapConnectionFactory   $connections,
+        private ImapConnector           $connector,
         private ImapFolderProvisioner   $provisioner,
         private MailboxRepository       $mailboxes,
         private MessageRepository       $messages,
@@ -79,7 +78,7 @@ final readonly class ImapFolderManager
         // namespace's own separator, which only the server can say.
         ImapFolderName::validate($name, $this->separatorOf($parent, $account), null === $parent);
 
-        $client = $this->connections->connect($account);
+        $session = $this->connector->session($account);
 
         try {
             if (null !== $parent) {
@@ -89,7 +88,7 @@ final readonly class ImapFolderManager
                     $name,
                 );
             } else {
-                [$prefix, $separator] = $this->personalNamespace($client, $account);
+                [$prefix, $separator] = $this->personalNamespace($session, $account);
 
                 // A Courier-style server keeps everything under "INBOX.", and
                 // its top level is that prefix: a folder created beside INBOX
@@ -102,9 +101,9 @@ final readonly class ImapFolderManager
                 );
             }
 
-            $mailbox = $this->provisioner->createFolder($account, $client, $path);
+            $mailbox = $this->provisioner->createFolder($account, $session, $path);
         } finally {
-            $this->disconnect($client);
+            $this->disconnect($session);
         }
 
         $this->logger->info('Created an IMAP folder on request', ['account' => $account->id, 'folder' => $path]);
@@ -139,25 +138,21 @@ final readonly class ImapFolderManager
             return $mailbox;
         }
 
-        $client = $this->connections->connect($account);
+        $session = $this->connector->session($account);
 
         try {
-            $connection = $client->getConnection();
-
             try {
-                // Raw paths both ways, for the reason ImapFolderProvisioner
-                // gives: they are modified UTF-7 already, and Folder::rename()
-                // would encode the new one again.
-                $connection->renameFolder($oldPath, $newPath)->validatedData();
-            } catch (Throwable $e) {
+                // Raw paths both ways: they are modified UTF-7 already.
+                $session->rename($oldPath, $newPath);
+            } catch (ImapCommandException $e) {
                 throw ImapFolderRefusedException::fromServer($oldPath, $e);
             }
 
             // Subscriptions are by name, and some servers do not move them.
             try {
-                $connection->unsubscribeFolder($oldPath);
-                $connection->subscribeFolder($newPath);
-            } catch (Throwable $e) {
+                $session->unsubscribe($oldPath);
+                $session->subscribe($newPath);
+            } catch (ImapCommandException $e) {
                 $this->logger->info('Could not move the subscription of a renamed IMAP folder', [
                     'account' => $account->id,
                     'folder'  => $newPath,
@@ -165,7 +160,7 @@ final readonly class ImapFolderManager
                 ]);
             }
         } finally {
-            $this->disconnect($client);
+            $this->disconnect($session);
         }
 
         foreach ($this->descendantsOf($account, $mailbox) as $child) {
@@ -214,39 +209,35 @@ final readonly class ImapFolderManager
             throw new FolderActionRefusedException(FolderActionRefusedException::NOT_EMPTY, $local);
         }
 
-        $path   = (string) $mailbox->fullPath;
-        $client = $this->connections->connect($account);
+        $path    = (string) $mailbox->fullPath;
+        $session = $this->connector->session($account);
 
         try {
-            $connection = $client->getConnection();
-
             // Asked of the server as well: mail plMail has not imported, or
             // that arrived since the last sync, is still mail.
             try {
-                $status = $connection->folderStatus($path, ['MESSAGES'])->validatedData();
-            } catch (Throwable $e) {
+                $remote = $session->status($path, ['MESSAGES'])['MESSAGES'] ?? 0;
+            } catch (ImapCommandException $e) {
                 throw ImapFolderRefusedException::fromServer($path, $e);
             }
-
-            $remote = is_array($status) ? (int) ($status['messages'] ?? 0) : 0;
 
             if (0 < $remote) {
                 throw new FolderActionRefusedException(FolderActionRefusedException::NOT_EMPTY, $remote);
             }
 
             try {
-                $connection->deleteFolder($path)->validatedData();
-            } catch (Throwable $e) {
+                $session->delete($path);
+            } catch (ImapCommandException $e) {
                 throw ImapFolderRefusedException::fromServer($path, $e);
             }
 
             try {
-                $connection->unsubscribeFolder($path);
-            } catch (Throwable) {
+                $session->unsubscribe($path);
+            } catch (ImapCommandException) {
                 // The folder is gone either way; see RemoteLabelRemover.
             }
         } finally {
-            $this->disconnect($client);
+            $this->disconnect($session);
         }
 
         // Counted again after the round trip, as RemoteLabelRemover does:
@@ -286,18 +277,13 @@ final readonly class ImapFolderManager
      *
      * @return array{0: string, 1: string}
      */
-    public function personalNamespace(Client $client, Account $account): array
+    public function personalNamespace(ImapSession $session, Account $account): array
     {
         $fallback = ['', $this->separatorOf(null, $account)];
-        $protocol = $client->getConnection();
-
-        if (false === $protocol instanceof ImapProtocol) {
-            return $fallback;
-        }
 
         try {
-            $lines = $protocol->requestAndResponse('NAMESPACE')->data();
-        } catch (Throwable $e) {
+            $namespace = $session->personalNamespace();
+        } catch (ImapCommandException $e) {
             $this->logger->info('The IMAP server did not answer NAMESPACE', [
                 'account' => $account->id,
                 'error'   => $e->getMessage(),
@@ -306,27 +292,11 @@ final readonly class ImapFolderManager
             return $fallback;
         }
 
-        foreach ((array) $lines as $line) {
-            if (false === is_array($line)) {
-                continue;
-            }
-
-            $at = array_search('NAMESPACE', $line, true);
-
-            // * NAMESPACE (("" "/")) NIL NIL — the first list after the word
-            // is the personal namespaces, and the first of those is the one.
-            $personal = false === $at ? null : ($line[$at + 1] ?? null);
-            $first    = is_array($personal) ? ($personal[0] ?? null) : null;
-
-            if (is_array($first) && isset($first[0], $first[1])) {
-                $prefix    = trim((string) $first[0], '"');
-                $separator = trim((string) $first[1], '"');
-
-                return [$prefix, '' === $separator || 'NIL' === $separator ? $fallback[1] : $separator];
-            }
+        if (null === $namespace) {
+            return $fallback;
         }
 
-        return $fallback;
+        return [$namespace[0], $namespace[1] ?? $fallback[1]];
     }
 
     /**
@@ -415,10 +385,10 @@ final readonly class ImapFolderManager
         }
     }
 
-    private function disconnect(Client $client): void
+    private function disconnect(ImapSession $session): void
     {
         try {
-            $client->disconnect();
+            $session->logout();
         } catch (Throwable) {
         }
     }

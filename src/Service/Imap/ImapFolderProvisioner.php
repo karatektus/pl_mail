@@ -149,11 +149,11 @@ readonly class ImapFolderProvisioner
      *
      * @throws ImapFolderRefusedException with the server's own words
      */
-    public function createFolder(Account $account, Client $client, string $path): Mailbox
+    public function createFolder(Account $account, ImapSession $session, string $path): Mailbox
     {
         $known = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
 
-        return $this->createOrThrow($account, $client, $path, $known?->specialUse, record: true)
+        return $this->createOrThrow($account, $session, $path, $known?->specialUse, record: true)
             ?? throw new \LogicException('A recorded folder came back without its row.');
     }
 
@@ -162,13 +162,13 @@ readonly class ImapFolderProvisioner
      */
     private function create(
         Account            $account,
-        Client             $client,
+        ImapSession        $session,
         string             $path,
         ?MailboxSpecialUse $specialUse,
         bool               $record = true,
     ): ?string {
         try {
-            $this->createOrThrow($account, $client, $path, $specialUse, $record);
+            $this->createOrThrow($account, $session, $path, $specialUse, $record);
         } catch (ImapFolderRefusedException $e) {
             // The caller is a Messenger handler. Throwing here would have
             // it redeliver and re-attempt a CREATE the server has already
@@ -204,7 +204,7 @@ readonly class ImapFolderProvisioner
      */
     private function createOrThrow(
         Account            $account,
-        ImapSession             $session,
+        ImapSession        $session,
         string             $path,
         ?MailboxSpecialUse $specialUse,
         bool               $record,
@@ -301,7 +301,7 @@ readonly class ImapFolderProvisioner
         $mailbox = new Mailbox();
         $mailbox->account       = $account;
         // The leaf as a person reads it — "Köln", not "K&APY-ln" — which is
-        // what MailboxSyncer stores from webklex's decoded Folder::$name.
+        // what MailboxSyncer stores from ImapFolder::name().
         $mailbox->name          = self::leafName($path, $separator);
         $mailbox->fullPath      = $path;
         $mailbox->delimiter     = $separator;

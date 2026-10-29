@@ -4,114 +4,103 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
-use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\Connection\Protocols\Response;
-use Webklex\PHPIMAP\Exceptions\ImapServerErrorException;
+use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 
 /**
- * An IMAP server for the folder commands, in memory: it answers NAMESPACE,
- * CREATE, RENAME, DELETE, STATUS and the subscriptions, writes down every
- * command it was sent, and refuses what a test tells it to.
+ * An IMAP server for the folder actions of #221: what plMail asked it to
+ * create, rename, delete and subscribe, in order, and a way to make it refuse.
  *
- * @internal for ImapFolderManagerTest
+ * A FakeImapServer underneath, so the folder actions run through the same
+ * ImapConnector and ImapSession they use against a real server. This adds
+ * the commands they send that it does not answer by itself — NAMESPACE with a
+ * personal namespace of the test's choosing, and the folder commands — and
+ * keeps the folder commands as a person would read them: `CREATE INBOX.Kine`,
+ * the path unquoted, without the tag.
  */
-final class FakeFolderServer extends ImapProtocol
+final class FakeFolderServer
 {
-    /** @var list<string> every command, as "CREATE INBOX.Kine" */
+    /** @var list<string> the folder commands received, STATUS among them, in order */
     public array $commands = [];
 
-    /** @var array<string, int> path => MESSAGES, for STATUS */
+    /** @var array<string, int> raw path => what STATUS says it holds */
     public array $messages = [];
 
-    /** A command prefix ("CREATE", "RENAME …") and the NO line it gets. */
+    /** A command name to refuse, with $refusal. */
     public ?string $refuse = null;
 
     public string $refusal = 'NO [CANNOT] Permission denied';
 
+    public readonly FakeImapServer $server;
+
+    /**
+     * @param array<string, list<string>> $folders raw path => LIST attributes
+     */
     public function __construct(
-        private readonly string $namespacePrefix = '',
-        private readonly string $namespaceSeparator = '/',
+        ImapLoop $loop,
+        string   $namespacePrefix = '',
+        string   $namespaceSeparator = '/',
+        array    $folders = ['INBOX' => []],
     ) {
-        parent::__construct(Config::make());
-    }
+        $this->server = new FakeImapServer(
+            $loop,
+            $folders,
+            $namespaceSeparator,
+            capabilities: 'IMAP4rev1 IDLE UIDPLUS MOVE LITERAL+ NAMESPACE',
+        );
 
-    public function client(): Client
-    {
-        $server = $this;
+        foreach (['CREATE', 'RENAME', 'DELETE', 'SUBSCRIBE', 'UNSUBSCRIBE'] as $verb) {
+            $this->server->on($verb, function (string $arguments) use ($verb): array {
+                $this->commands[] = $verb . ' ' . implode(' ', self::strings($arguments));
 
-        return new class ($server) extends Client {
-            public function __construct(private readonly FakeFolderServer $server)
-            {
-                parent::__construct(Config::make());
-            }
-
-            public function getConnection(): ProtocolInterface
-            {
-                return $this->server;
-            }
-
-            public function disconnect(): Client
-            {
-                return $this;
-            }
-        };
-    }
-
-    public function requestAndResponse(string $command, array $tokens = [], bool $dontParse = false): Response
-    {
-        if ('NAMESPACE' === $command) {
-            return Response::empty()->setResult([
-                ['NAMESPACE', [[$this->namespacePrefix, '"' . $this->namespaceSeparator . '"']], 'NIL', 'NIL'],
-                ['OK', 'NAMESPACE', 'completed'],
-            ]);
+                return null !== $this->refuse && $verb === strtoupper($this->refuse)
+                    ? [$this->refusal]
+                    : ['OK ' . $verb . ' completed'];
+            });
         }
 
-        return parent::requestAndResponse($command, $tokens, $dontParse);
+        $this->server->on('NAMESPACE', static fn (): array => [
+            sprintf('* NAMESPACE (("%s" "%s")) NIL NIL', $namespacePrefix, $namespaceSeparator),
+            'OK NAMESPACE completed',
+        ]);
+
+        $this->server->on('STATUS', function (string $arguments): array {
+            $path = self::strings($arguments)[0] ?? '';
+
+            $this->commands[] = 'STATUS ' . $path;
+
+            return [
+                sprintf('* STATUS "%s" (MESSAGES %d)', $path, $this->messages[$path] ?? 0),
+                'OK STATUS completed',
+            ];
+        });
     }
 
-    public function createFolder(string $folder): Response
+    public function pointAt(Account $account): void
     {
-        return $this->answer('CREATE ' . $folder);
+        $this->server->pointAt($account);
     }
 
-    public function renameFolder(string $old, string $new): Response
+    public function stop(): void
     {
-        return $this->answer('RENAME ' . $old . ' ' . $new);
+        $this->server->stop();
     }
 
-    public function deleteFolder(string $folder): Response
+    /**
+     * The quoted strings and atoms of a command's arguments, as values.
+     *
+     * @return list<string>
+     */
+    private static function strings(string $arguments): array
     {
-        return $this->answer('DELETE ' . $folder);
-    }
+        preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"|(\\S+)/', $arguments, $matches, PREG_SET_ORDER);
 
-    public function subscribeFolder(string $folder): Response
-    {
-        return $this->answer('SUBSCRIBE ' . $folder);
-    }
-
-    public function unsubscribeFolder(string $folder): Response
-    {
-        return $this->answer('UNSUBSCRIBE ' . $folder);
-    }
-
-    public function folderStatus(string $folder = 'INBOX', $arguments = []): Response
-    {
-        $this->commands[] = 'STATUS ' . $folder;
-
-        return Response::empty()->setResult(['messages' => $this->messages[$folder] ?? 0]);
-    }
-
-    private function answer(string $command): Response
-    {
-        if (null !== $this->refuse && str_starts_with($command, $this->refuse)) {
-            throw new ImapServerErrorException($this->refusal);
-        }
-
-        $this->commands[] = $command;
-
-        return Response::empty()->setResult([true]);
+        return array_map(
+            static fn (array $match): string => '' !== ($match[1] ?? '') || '"' === ($match[0][0] ?? '')
+                ? stripslashes($match[1])
+                : $match[2],
+            $matches,
+        );
     }
 }
