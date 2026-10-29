@@ -234,7 +234,7 @@ final class AccountFolderActionsTest extends WebTestCase
      */
     public function testLabelsAsKeywordsIsOffAndSwitchingItOnAsksTheFolders(): void
     {
-        $server = new FakeFolderServer('', '/');
+        $server = $this->server('', '/');
         $server->keywordFolders['INBOX'] = true;
         $this->serve($server);
         $inbox = $this->mailbox('INBOX', 'INBOX', MailboxSpecialUse::INBOX);

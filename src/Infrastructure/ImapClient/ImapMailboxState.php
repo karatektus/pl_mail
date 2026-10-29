@@ -20,6 +20,14 @@ final readonly class ImapMailboxState
         public ?int   $uidNext,
         public ?int   $highestModSeq,
         public bool   $readOnly,
+        /**
+         * The flags the server keeps on this folder's mail, from the
+         * PERMANENTFLAGS response code; `\*` among them means it keeps
+         * keywords of the client's choosing. Null when it did not say.
+         *
+         * @var list<string>|null
+         */
+        public ?array $permanentFlags = null,
     ) {
     }
 
@@ -32,7 +40,20 @@ final readonly class ImapMailboxState
             uidNext:       self::integer($result->code('UIDNEXT')),
             highestModSeq: self::integer($result->code('HIGHESTMODSEQ')),
             readOnly:      'READ-ONLY' === $result->completion->code,
+            permanentFlags: self::flags($result->code('PERMANENTFLAGS')),
         );
+    }
+
+    /**
+     * @param list<mixed>|null $codeData
+     *
+     * @return list<string>|null
+     */
+    private static function flags(?array $codeData): ?array
+    {
+        $list = $codeData[0] ?? null;
+
+        return true === is_array($list) ? array_values(array_filter($list, is_string(...))) : null;
     }
 
     /** @param list<mixed>|null $codeData */

@@ -8,20 +8,18 @@ use App\Domain\DTO\Mail\ServerCopy;
 use App\Entity\Mail\Message;
 
 /**
- * Every place an IMAP server keeps this message — the seam for #415.
+ * Every place an IMAP server keeps this message: its locations (#415).
  *
- * Today a Message row IS one server copy: one Mailbox, one UID, and an email
- * kept in two folders is two rows. karatektus/pl_mail#415 separates the two
- * (Message + MessageLocation), and an email then has as many copies as folders
- * that hold it. Keywords are per copy on IMAP, like every flag, so a label
- * written as a keyword has to go to each of them.
+ * An email has as many copies as folders that hold it — INBOX and All Mail,
+ * a folder and a copy another client made. Keywords are per copy on IMAP,
+ * like every flag, so a label written as a keyword goes to each of them.
  *
- * So the keyword code asks here and writes to whatever comes back, and never
- * reads `$message->mailbox` / `$message->imapUid` itself. When #415 lands, this
- * is the one method that changes: from the row's own address to its locations.
+ * The keyword code asks here and writes to whatever comes back, and never
+ * reads `$message->mailbox` / `$message->imapUid` itself: those name one copy
+ * only, the primary.
  *
- * A row waiting for its UID after a move has no copy anyone can address yet,
- * and answers none.
+ * A copy whose UID the server has not reported yet cannot be addressed, and is
+ * left out.
  */
 final class MessageCopies
 {
@@ -30,13 +28,14 @@ final class MessageCopies
      */
     public static function of(Message $message): array
     {
-        $mailbox = $message->mailbox;
-        $uid     = $message->imapUid;
+        $copies = [];
 
-        if (null === $mailbox || null === $uid) {
-            return [];
+        foreach ($message->locations as $location) {
+            if (null !== $location->imapUid) {
+                $copies[] = new ServerCopy($location->mailbox, $location->imapUid);
+            }
         }
 
-        return [new ServerCopy($mailbox, $uid)];
+        return $copies;
     }
 }

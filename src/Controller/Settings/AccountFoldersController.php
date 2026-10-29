@@ -14,10 +14,10 @@ use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Imap\FolderTree;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Imap\ImapPermanentFlags;
 use App\Service\Label\LabelPlaces;
-use App\Domain\Helper\ImapConnectionFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -78,7 +78,7 @@ final class AccountFoldersController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly ImapFolderManager      $folders,
         private readonly TranslatorInterface    $translator,
-        private readonly ImapConnectionFactory  $connections,
+        private readonly ImapConnector          $connector,
         private readonly ImapPermanentFlags     $permanentFlags,
         private readonly LabelPlaces            $places,
     ) {}
@@ -453,7 +453,7 @@ final class AccountFoldersController extends AbstractController
     private function askFolders(Account $account): void
     {
         try {
-            $client = $this->connections->connect($account);
+            $session = $this->connector->session($account);
         } catch (Throwable) {
             return;
         }
@@ -461,12 +461,12 @@ final class AccountFoldersController extends AbstractController
         try {
             foreach ($this->mailboxes->findForAccountOrdered($account) as $mailbox) {
                 if (true === $mailbox->isSelectable && true === $mailbox->isSyncEnabled) {
-                    $this->permanentFlags->probe($client, $mailbox);
+                    $this->permanentFlags->probe($session, $mailbox);
                 }
             }
         } finally {
             try {
-                $client->disconnect();
+                $session->logout();
             } catch (Throwable) {
             }
         }

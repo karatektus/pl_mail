@@ -1112,10 +1112,11 @@ class MessageSyncer
 
         // Keywords that are labels, where the account keeps labels as keywords
         // (#221 step 2): the mail arrives wearing them. Off, and they stay in
-        // the flag mirror and nowhere else, as before.
-        $owner = $mailbox->account?->usr;
+        // the flag mirror and nowhere else, as before. IMAP's only: a JMAP
+        // Email (no folder here) carries its keywords as JMAP does.
+        $owner = $account->usr;
 
-        if (true === $mailbox->account?->labelsAsKeywords && null !== $owner) {
+        if (null !== $mailbox && true === $account->labelsAsKeywords && null !== $owner) {
             foreach (KeywordLabels::namesIn($flagNames) as $name) {
                 $label = $this->keywordLabels->label($name, $owner, true);
 

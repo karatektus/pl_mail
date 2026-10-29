@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Infrastructure\Messaging\Handler\ApplyImapKeywordsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage;
 use App\Repository\Label\LabelRepository;
@@ -18,6 +18,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapPermanentFlags;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
@@ -45,6 +46,9 @@ final class ImapKeywordWriteTest extends KernelTestCase
     private Account $account;
     private Mailbox $inbox;
 
+    /** @var list<FakeFolderServer> */
+    private array $servers = [];
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -59,6 +63,10 @@ final class ImapKeywordWriteTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
         if (true === $this->connection->isTransactionActive()) {
             $this->connection->rollBack();
         }
@@ -114,7 +122,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
 
     public function testTheKeywordIsStoredWhereTheFolderKeepsKeywords(): void
     {
-        $server = new FakeFolderServer();
+        $server = $this->server();
         $server->keywordFolders['INBOX'] = true;
         $message = $this->message(17);
         // A star the server has not confirmed yet, on the same row.
@@ -136,7 +144,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
 
     public function testAKeywordIsTakenOffAgain(): void
     {
-        $server = new FakeFolderServer();
+        $server = $this->server();
         $server->keywordFolders['INBOX'] = true;
         $message = $this->message(17, ['\\Seen', 'Follow&ACA-up']);
 
@@ -154,7 +162,7 @@ final class ImapKeywordWriteTest extends KernelTestCase
     /** A folder without `\*` gets no STORE: the label stays in plMail there. */
     public function testAFolderThatKeepsNoKeywordsIsLeftAlone(): void
     {
-        $server  = new FakeFolderServer();
+        $server  = $this->server();
         $message = $this->message(17);
 
         $this->handler($server)(new ApplyImapKeywordsMessage(
@@ -195,23 +203,33 @@ final class ImapKeywordWriteTest extends KernelTestCase
             $container->get(LabelRepository::class),
             new GraphLabelPolicy(),
             new NullLogger(),
+            $container->get(MessageRepository::class),
         ))->attachLabel([$message], $label);
 
         return array_values(array_filter($bus->sent, static fn (object $m): bool => $m instanceof ApplyImapKeywordsMessage));
+    }
+
+    /** On the loop the connector runs on, and stopped when the test ends. */
+    private function server(): FakeFolderServer
+    {
+        $server          = new FakeFolderServer(self::getContainer()->get(ImapLoop::class));
+        $this->servers[] = $server;
+
+        return $server;
     }
 
     private function handler(FakeFolderServer $server): ApplyImapKeywordsHandler
     {
         $container = self::getContainer();
 
-        $factory = self::createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn($server->client());
+        $server->pointAt($this->account);
+        $this->em->flush();
 
         return new ApplyImapKeywordsHandler(
             $container->get(AccountRepository::class),
             $container->get(MailboxRepository::class),
             $container->get(MessageRepository::class),
-            $factory,
+            $container->get(ImapConnector::class),
             new ImapPermanentFlags(),
             $this->em,
             new NullLogger(),

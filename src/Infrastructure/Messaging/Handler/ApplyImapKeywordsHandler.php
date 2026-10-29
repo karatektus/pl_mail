@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapPermanentFlags;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
-use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
-use Webklex\PHPIMAP\Exceptions\ImapServerErrorException;
-use Webklex\PHPIMAP\IMAP;
 
 /**
  * Put label keywords on, and take them off, the server copies of messages
@@ -48,7 +49,7 @@ final readonly class ApplyImapKeywordsHandler
         private AccountRepository      $accounts,
         private MailboxRepository      $mailboxes,
         private MessageRepository      $messages,
-        private ImapConnectionFactory  $connections,
+        private ImapConnector          $connector,
         private ImapPermanentFlags     $permanentFlags,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
@@ -71,8 +72,8 @@ final readonly class ApplyImapKeywordsHandler
         }
 
         try {
-            $client = $this->connections->connect($account);
-        } catch (ConnectionFailedException | ImapServerErrorException $e) {
+            $session = $this->connector->session($account);
+        } catch (ImapConnectionException $e) {
             $this->logger->warning('ApplyImapKeywordsHandler: server unreachable, will retry', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
@@ -89,11 +90,11 @@ final readonly class ApplyImapKeywordsHandler
                     continue;
                 }
 
-                $this->applyToFolder($client, $mailbox, $uids, $job);
+                $this->applyToFolder($session, $mailbox, $uids, $job);
             }
         } finally {
             try {
-                $client->disconnect();
+                $session->logout();
             } catch (Throwable) {
             }
         }
@@ -104,9 +105,9 @@ final readonly class ApplyImapKeywordsHandler
     /**
      * @param array<int, int> $uids message id => uid
      */
-    private function applyToFolder(\Webklex\PHPIMAP\Client $client, Mailbox $mailbox, array $uids, ApplyImapKeywordsMessage $job): void
+    private function applyToFolder(ImapSession $session, Mailbox $mailbox, array $uids, ApplyImapKeywordsMessage $job): void
     {
-        if (true !== $this->permanentFlags->probe($client, $mailbox)) {
+        if (true !== $this->permanentFlags->probe($session, $mailbox)) {
             $this->logger->info('ApplyImapKeywordsHandler: folder does not keep keywords, labels stay in plMail', [
                 'mailbox' => $mailbox->fullPath,
             ]);
@@ -114,21 +115,21 @@ final readonly class ApplyImapKeywordsHandler
             return;
         }
 
-        $connection = $client->getConnection();
-        $done       = [];
+        $path = $mailbox->serverPath();
+        $done = [];
 
         foreach ($uids as $messageId => $uid) {
             try {
                 if ([] !== $job->add) {
-                    $connection->store($job->add, $uid, null, '+', true, IMAP::ST_UID)->validatedData();
+                    $session->uidStore($path, (string) $uid, '+', $job->add);
                 }
 
                 if ([] !== $job->remove) {
-                    $connection->store($job->remove, $uid, null, '-', true, IMAP::ST_UID)->validatedData();
+                    $session->uidStore($path, (string) $uid, '-', $job->remove);
                 }
 
-                $done[] = $messageId;
-            } catch (Throwable $e) {
+                $done[$messageId] = $uid;
+            } catch (ImapCommandException $e) {
                 $this->logger->error('ApplyImapKeywordsHandler: STORE refused', [
                     'mailbox' => $mailbox->fullPath,
                     'uid'     => $uid,
@@ -137,20 +138,27 @@ final readonly class ApplyImapKeywordsHandler
             }
         }
 
-        foreach ($this->messages->findBy(['id' => $done]) as $message) {
-            $this->recordFlags($message, $job);
+        foreach ($this->messages->findBy(['id' => array_keys($done)]) as $message) {
+            $this->recordFlags($message, $mailbox, $done[(int) $message->id], $job);
         }
     }
 
     /**
-     * The row's mirror of the server's flags, so the inbound pass sees no
-     * difference to act on. Only the keywords; the echo guard is not ours.
+     * The row's mirror of the server's flags, and the copy's own (#415), so the
+     * inbound pass sees no difference to act on. Only the keywords; the echo
+     * guard is not ours.
      */
-    private function recordFlags(Message $message, ApplyImapKeywordsMessage $job): void
+    private function recordFlags(Message $message, Mailbox $mailbox, int $uid, ApplyImapKeywordsMessage $job): void
     {
         $flags  = array_values(array_diff($message->flags, $job->remove));
         $flags  = array_values(array_unique([...$flags, ...$job->add]));
 
         $message->flags = $flags;
+
+        $copy = $message->locationAt($mailbox, $uid);
+
+        if (null !== $copy && null !== $copy->serverFlags) {
+            $copy->serverFlags = MessageFlag::canonicalList([...array_diff($copy->serverFlags, $job->remove), ...$job->add]);
+        }
     }
 }

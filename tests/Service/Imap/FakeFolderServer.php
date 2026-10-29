@@ -15,7 +15,9 @@ use App\Tests\Infrastructure\ImapClient\FakeImapServer;
  * A FakeImapServer underneath, so the folder actions run through the same
  * ImapConnector and ImapSession they use against a real server. This adds
  * the commands they send that it does not answer by itself — NAMESPACE with a
- * personal namespace of the test's choosing, and the folder commands — and
+ * personal namespace of the test's choosing, the folder commands, and a
+ * SELECT that says whether the folder keeps keywords, with the STORE that
+ * writes them (#221 step 2) — and
  * keeps the folder commands as a person would read them: `CREATE INBOX.Kine`,
  * the path unquoted, without the tag.
  */
@@ -26,6 +28,9 @@ final class FakeFolderServer
 
     /** @var array<string, int> raw path => what STATUS says it holds */
     public array $messages = [];
+
+    /** @var array<string, bool> raw path => whether its PERMANENTFLAGS carry `\*` */
+    public array $keywordFolders = [];
 
     /** A command name to refuse, with $refusal. */
     public ?string $refuse = null;
@@ -64,6 +69,32 @@ final class FakeFolderServer
             sprintf('* NAMESPACE (("%s" "%s")) NIL NIL', $namespacePrefix, $namespaceSeparator),
             'OK NAMESPACE completed',
         ]);
+
+        // SELECT answers with PERMANENTFLAGS, `\*` among them for a folder in
+        // $keywordFolders: what the keyword path asks before it writes.
+        $this->server->on('SELECT', function (string $arguments): array {
+            $path = self::strings($arguments)[0] ?? '';
+
+            $this->commands[] = 'SELECT ' . $path;
+
+            $flags = '\\Deleted \\Seen \\Answered \\Flagged \\Draft' . (true === ($this->keywordFolders[$path] ?? false) ? ' \\*' : '');
+
+            return [
+                '* 0 EXISTS',
+                '* OK [UIDVALIDITY 1] UIDs valid',
+                sprintf('* OK [PERMANENTFLAGS (%s)] Flags permitted', $flags),
+                'OK [READ-WRITE] SELECT completed',
+            ];
+        });
+
+        // Recorded as `STORE 17 +FLAGS (Follow&ACA-up)`, the silent suffix left off.
+        $this->server->on('UID STORE', function (string $arguments): array {
+            $this->commands[] = 'STORE ' . str_replace('FLAGS.SILENT', 'FLAGS', $arguments);
+
+            return null !== $this->refuse && 'STORE' === strtoupper($this->refuse)
+                ? [$this->refusal]
+                : ['OK STORE completed'];
+        });
 
         $this->server->on('STATUS', function (string $arguments): array {
             $path = self::strings($arguments)[0] ?? '';
