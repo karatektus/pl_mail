@@ -9,6 +9,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Infrastructure\ImapClient\ImapSession;
+use App\Service\Imap\ImapCopyMerger;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Imap\PurgedCopies;
@@ -360,6 +361,11 @@ final class ImapCopiesSyncTest extends KernelTestCase
 
         $this->sweep($inbox);
         $this->sweep($allMail);
+
+        // What the sweep queued (FoldCopiesMessage), run here: the test
+        // transport keeps jobs in memory.
+        static::getContainer()->get(ImapCopyMerger::class)->foldKeptIn($this->reloaded($allMail));
+        $this->em->clear();
 
         foreach (['first', 'second', 'third'] as $name) {
             $message = $this->onlyMessage('thread-' . $name);

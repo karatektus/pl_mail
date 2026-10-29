@@ -6,12 +6,14 @@ namespace App\Service\Imap;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\Messaging\Message\FoldCopiesMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use App\Infrastructure\ImapClient\ImapSession;
 
 /**
@@ -142,7 +144,7 @@ final readonly class VanishedMessageReconciler
         private MessageEraser          $eraser,
         private ImapFlagReconciler     $flags,
         private ImapCopies             $copies,
-        private ImapCopyMerger         $merger,
+        private MessageBusInterface    $bus,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -254,9 +256,9 @@ final readonly class VanishedMessageReconciler
         $this->messages->backfillSizes($mailbox, $listing['sizes'] ?? []);
 
         // And with their size known, copies of one email stored as separate
-        // messages before #415 are recognisable: folded, a bounded number per
-        // sweep, until there are none (#414).
-        $this->merger->foldKeptIn($mailbox);
+        // messages before #415 are recognisable: folded in a job of its own,
+        // a bounded number per sweep, until there are none (#414).
+        $this->bus->dispatch(new FoldCopiesMessage((int) $mailbox->id));
 
         $mailbox->uidValidity = $listing['uidValidity'];
         $mailbox->sweptAt     = $now;

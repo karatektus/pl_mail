@@ -14,6 +14,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\MessageEraser;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -27,9 +28,11 @@ use Psr\Log\LoggerInterface;
  * showing fourteen messages for seven.
  *
  * ── When ─────────────────────────────────────────────────────────────────────
- * From the sweep, right after it has given the folder's rows their size
+ * After the sweep has given the folder's rows their size
  * (MessageRepository::backfillSizes()), which is the moment this folder's
- * duplicates become recognisable. A bounded number of emails per sweep, so a
+ * duplicates become recognisable — in a job of its own (FoldCopiesMessage),
+ * one email at a time, so an email that cannot be folded costs that email
+ * and neither the sweep nor the others. A bounded number of emails per sweep, so a
  * large account is folded over a few polls rather than in one, and nothing
  * has to remember where it stopped: what is folded is no longer a duplicate.
  *
@@ -62,6 +65,7 @@ final readonly class ImapCopyMerger
         private ThreadMerger            $threadMerger,
         private StateManager            $stateManager,
         private EntityManagerInterface  $em,
+        private ManagerRegistry         $registry,
         private LoggerInterface         $logger,
     ) {
     }
@@ -77,19 +81,34 @@ final readonly class ImapCopyMerger
         $folded = 0;
 
         foreach ($groups as $ids) {
-            $rows = $this->messages->findBy(['id' => $ids]);
+            try {
+                $rows = $this->messages->findBy(['id' => $ids]);
 
-            usort($rows, static fn (Message $a, Message $b): int => array_search($a->id, $ids, true) <=> array_search($b->id, $ids, true));
+                usort($rows, static fn (Message $a, Message $b): int => array_search($a->id, $ids, true) <=> array_search($b->id, $ids, true));
 
-            if (count($rows) < 2) {
-                continue;
+                if (count($rows) < 2) {
+                    continue;
+                }
+
+                $this->em->wrapInTransaction(function () use ($rows): void {
+                    $this->fold(array_shift($rows), $rows);
+                });
+
+                ++$folded;
+            } catch (\Throwable $failed) {
+                // That email stays as it is, and the others are still folded:
+                // a group that cannot be folded must not stop the rest. A
+                // failed transaction closes the manager, so it is opened again.
+                $this->logger->error('Could not fold copies of one email; they are left as they are', [
+                    'messages'  => $ids,
+                    'error'     => $failed->getMessage(),
+                    'exception' => $failed,
+                ]);
+
+                if (false === $this->em->isOpen()) {
+                    $this->registry->resetManager();
+                }
             }
-
-            $this->em->wrapInTransaction(function () use ($rows): void {
-                $this->fold(array_shift($rows), $rows);
-            });
-
-            ++$folded;
         }
 
         if ($folded > 0) {
@@ -109,6 +128,7 @@ final readonly class ImapCopyMerger
     {
         $connection = $this->em->getConnection();
         $addresses  = [];
+        $identities = [];
 
         foreach ($copies as $copy) {
             foreach ($copy->locations as $location) {
@@ -129,9 +149,10 @@ final readonly class ImapCopyMerger
 
             $survivor->seenAt    = self::earlier($survivor->seenAt, $copy->seenAt);
             $survivor->starredAt = self::earlier($survivor->starredAt, $copy->starredAt);
-            $survivor->gmailId     ??= $copy->gmailId;
-            $survivor->jmapId      ??= $copy->jmapId;
-            $survivor->serverEmailId ??= $copy->serverEmailId;
+
+            // Taken over after the copy is gone: Gmail and JMAP ids are unique
+            // per account, and a flush updates before it deletes.
+            $identities[] = [$copy->gmailId, $copy->jmapId, $copy->serverEmailId];
 
             // What points at the copy points at the email: moved across, where
             // the survivor has no row of its own for the same thing already.
@@ -159,6 +180,12 @@ final readonly class ImapCopyMerger
 
         foreach ($addresses as [$mailbox, $uid, $serverFlags]) {
             $survivor->addLocation($mailbox, $uid)->serverFlags = $serverFlags;
+        }
+
+        foreach ($identities as [$gmailId, $jmapId, $serverEmailId]) {
+            $survivor->gmailId       ??= $gmailId;
+            $survivor->jmapId        ??= $jmapId;
+            $survivor->serverEmailId ??= $serverEmailId;
         }
 
         $this->placeByCopies($survivor);
