@@ -20,6 +20,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use App\Domain\Trait\TimestampableTrait;
+use Doctrine\ORM\Event\PreFlushEventArgs;
 use Doctrine\ORM\Mapping as ORM;
 
 // Remote-id uniqueness per account: one row per Gmail/Graph/JMAP message. The
@@ -328,6 +329,30 @@ class Message extends MessageModel
      */
     #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message')]
     public private(set) Collection $messageParts;
+
+    /**
+     * Every place a server keeps this email — see MessageLocation.
+     *
+     * Kept in step with $mailbox / $imapUid by mirrorLocation() while the rest
+     * of the code still writes those two; so far a message has at most one.
+     *
+     * @var Collection<int, MessageLocation>
+     */
+    #[ORM\OneToMany(targetEntity: MessageLocation::class, mappedBy: 'message', cascade: ['persist'], orphanRemoval: true)]
+    public private(set) Collection $locations;
+
+    /**
+     * The $mailbox / $imapUid pair as the location table last had it.
+     *
+     * What lets mirrorLocation() leave a message alone without loading its
+     * locations: a flush touches every managed message, and reading the
+     * collection of each to find it unchanged would be a query per row. Taken
+     * when the row is loaded (the backfill made the table agree with it) and
+     * again after each mirror. Not mapped.
+     */
+    private ?Mailbox $mirroredMailbox = null;
+
+    private ?int $mirroredUid = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
@@ -754,6 +779,7 @@ class Message extends MessageModel
     public function __construct()
     {
         $this->messageParts = new ArrayCollection();
+        $this->locations = new ArrayCollection();
         $this->labels = new ArrayCollection();
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
@@ -984,6 +1010,59 @@ class Message extends MessageModel
         }
 
         return $this;
+    }
+
+    #[ORM\PostLoad]
+    public function rememberMirroredLocation(): void
+    {
+        $this->mirroredMailbox = $this->mailbox;
+        $this->mirroredUid     = $this->imapUid;
+    }
+
+    /**
+     * Carry $mailbox / $imapUid into this message's location (#415).
+     *
+     * The bridge while the code moves over to MessageLocation: every writer of
+     * the pair — relocateTo(), the syncers, the draft and send paths — keeps
+     * writing it, and this is the one place that turns it into a location, so
+     * none of them can forget to. It goes when they write locations directly.
+     *
+     * One location per message, changed in place rather than replaced, so its
+     * id survives a move. No mailbox means no location: Gmail, Graph and JMAP
+     * rows have none, and their own ids say where they are.
+     *
+     * A location that is already loaded may have had its changes computed
+     * before this ran — the flush walks entities class by class — so its
+     * change set is computed again here. Computing it twice is harmless.
+     */
+    #[ORM\PreFlush]
+    public function mirrorLocation(PreFlushEventArgs $args): void
+    {
+        if ($this->mailbox === $this->mirroredMailbox && $this->imapUid === $this->mirroredUid) {
+            return;
+        }
+
+        $location = $this->locations->first();
+
+        if (null === $this->mailbox) {
+            if (false !== $location) {
+                $this->locations->removeElement($location);
+            }
+        } elseif (false === $location) {
+            $this->locations->add(new MessageLocation($this, $this->mailbox, $this->imapUid));
+        } else {
+            $location->mailbox = $this->mailbox;
+            $location->imapUid = $this->imapUid;
+
+            $entityManager = $args->getObjectManager();
+            $unitOfWork    = $entityManager->getUnitOfWork();
+
+            if ($unitOfWork->isInIdentityMap($location)) {
+                $unitOfWork->computeChangeSet($entityManager->getClassMetadata(MessageLocation::class), $location);
+            }
+        }
+
+        $this->rememberMirroredLocation();
     }
 
     /**

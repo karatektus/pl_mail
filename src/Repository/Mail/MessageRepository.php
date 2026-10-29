@@ -11,6 +11,7 @@ use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageLocation;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Mail\Pop3Uidl;
@@ -1947,19 +1948,6 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Strip every stored UID in this folder, keeping the rows.
-     *
-     * What a UIDVALIDITY change means and the most that may be done about it.
-     * The addresses are void; the mail is not, and the server may still have
-     * all of it. An unlocated row is the shape SentCopyReconciler::claim()
-     * re-matches by Message-ID when the folder is re-read, so this is a
-     * re-match and not a wipe.
-     *
-     * The vanish marks go with them: a row with no address cannot be confirmed
-     * gone by anything, so leaving it marked would only give the reaper
-     * questions it can never answer.
-     */
-    /**
      * Drop every JMAP Email id an account's rows carry, keeping the rows.
      *
      * The JMAP half of unlocateAll(), for an account that stops reading over
@@ -1981,8 +1969,34 @@ class MessageRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    /**
+     * Strip every stored UID in this folder, keeping the rows.
+     *
+     * What a UIDVALIDITY change means and the most that may be done about it.
+     * The addresses are void; the mail is not, and the server may still have
+     * all of it. An unlocated row is the shape SentCopyReconciler::claim()
+     * re-matches by Message-ID when the folder is re-read, so this is a
+     * re-match and not a wipe.
+     *
+     * The vanish marks go with them: a row with no address cannot be confirmed
+     * gone by anything, so leaving it marked would only give the reaper
+     * questions it can never answer.
+     */
     public function unlocateAll(Mailbox $mailbox): int
     {
+        // The locations first, in the same terms: an update by query goes past
+        // Message::mirrorLocation(), so it has to say the same thing twice
+        // until the message columns are gone (#415).
+        $this->getEntityManager()->createQueryBuilder()
+            ->update(MessageLocation::class, 'l')
+            ->set('l.imapUid', ':nothing')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+
         return (int) $this->getEntityManager()->createQueryBuilder()
             ->update(Message::class, 'm')
             ->set('m.imapUid', ':nothing')
