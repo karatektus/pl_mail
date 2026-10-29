@@ -141,6 +141,7 @@ final readonly class VanishedMessageReconciler
         private MailboxRepository      $mailboxes,
         private MessageEraser          $eraser,
         private ImapFlagReconciler     $flags,
+        private ImapCopies             $copies,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -214,6 +215,22 @@ final readonly class VanishedMessageReconciler
         if (true === $this->isSuspicious($vanished, $located, $mailbox, $listing['uids'])) {
             return false;
         }
+
+        // A copy gone from this folder while the server still keeps the email
+        // somewhere else is a lost location, not a lost email (#415): there is
+        // nothing to wait for, and nothing to delete. Only the email's last
+        // copy goes on to the vanish marks below and the coverage they wait for.
+        $elsewhere = $this->messages->findIdsWithSeveralLocations($vanished);
+
+        foreach ($elsewhere as $messageId) {
+            $email = $this->messages->find($messageId);
+
+            if (null !== $email) {
+                $this->copies->forget($email, $mailbox);
+            }
+        }
+
+        $vanished = array_values(array_diff($vanished, $elsewhere));
 
         $marked  = $this->messages->markVanished($vanished, $now);
         $cleared = $this->messages->clearVanished($returned);

@@ -58,6 +58,7 @@ final readonly class ImapMailboxImporter
         private MessageSyncer          $messageSyncer,
         private ImapImportPlan         $plan,
         private ImapPagedFetch         $pagedFetch,
+        private ImapCopies        $copies,
         private MailboxRepository      $mailboxes,
         private MessageRepository      $messages,
         private EntityManagerInterface $em,
@@ -128,7 +129,12 @@ final readonly class ImapMailboxImporter
         // deleted and not yet expunged (#96); that used to stop the import at
         // 486 of 487 for good. A dropped connection or a refused FETCH is
         // thrown, and says nothing about the messages.
-        foreach ($this->pagedFetch->pages($session, $path, $page, self::PAGE_SIZE) as [$batch, $unreadable]) {
+        // Copies of mail already here — All Mail's, most of all — become
+        // locations of it and are not downloaded (#415).
+        [$attached, $identities] = $this->copies->attachKnownCopies($mailbox, $session, $page);
+        $toFetch                 = array_values(array_diff($page, $attached));
+
+        foreach ($this->pagedFetch->pages($session, $path, $toFetch, self::PAGE_SIZE) as [$batch, $unreadable]) {
             // Found again for each: storing a page clears the entity manager.
             $current = $this->mailboxes->find($mailboxId);
 
@@ -136,7 +142,7 @@ final readonly class ImapMailboxImporter
                 return ImapImportOutcome::Finished;
             }
 
-            $held = $this->messageSyncer->storeImportPage($current, $session, $batch, $unreadable);
+            $held = $this->messageSyncer->storeImportPage($current, $session, $batch, $unreadable, $identities);
 
             if (null !== $held) {
                 $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);

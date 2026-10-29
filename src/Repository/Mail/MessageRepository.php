@@ -1869,6 +1869,107 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Stored mail of this account that a new copy might be (#415): the rows
+     * with one of these Message-IDs or server ids. ImapCopies decides
+     * which, if any, is the same email; this only narrows the account down to
+     * the handful worth comparing.
+     *
+     * By message.account, never across accounts — see ImapCopies.
+     *
+     * @param list<string> $messageIds normalised, without angle brackets
+     * @param list<string> $serverIds  X-GM-MSGID / EMAILID values
+     *
+     * @return list<Message>
+     */
+    public function findCopyCandidates(Account $account, array $messageIds, array $serverIds): array
+    {
+        if ([] === $messageIds && [] === $serverIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->orderBy('m.id', 'ASC');
+
+        $either = $qb->expr()->orX();
+
+        if ([] !== $messageIds) {
+            $either->add('m.messageId IN (:messageIds)');
+            $qb->setParameter('messageIds', $messageIds);
+        }
+
+        if ([] !== $serverIds) {
+            $either->add('m.serverEmailId IN (:serverIds)');
+            $qb->setParameter('serverIds', $serverIds);
+        }
+
+        /** @var list<Message> */
+        return $qb->andWhere($either)->getQuery()->getResult();
+    }
+
+    /**
+     * Which of these messages the server keeps in more than one place, so that
+     * losing one copy is not losing the email (#415).
+     *
+     * @param list<int> $ids
+     *
+     * @return list<int>
+     */
+    public function findIdsWithSeveralLocations(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_map(intval(...), $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message)')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->groupBy('l.message')
+            ->having('COUNT(l.id) > 1')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Every message with a copy in this folder.
+     *
+     * @return list<Message>
+     */
+    public function findKeptIn(Mailbox $mailbox): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Forget this folder's copies of mail that is primarily somewhere else.
+     *
+     * For a mirror folder that has been switched off: nothing lists it any
+     * more, so its copies would go on claiming an address nobody checks. By
+     * query, because only secondary copies go — a message's primary is left
+     * for MailboxSyncer::dropMirrorCopies(), which erases it as it always did —
+     * so no message's $mailbox / $imapUid changes underneath it.
+     */
+    public function dropSecondaryLocationsIn(Mailbox $mailbox): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->delete(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('EXISTS (SELECT m.id FROM ' . Message::class . ' m WHERE m = l.message AND m.mailbox <> :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * Every address this mailbox holds, as row id => UID.
      *
      * findSyncedUids() answers "have I seen this UID", which is all the

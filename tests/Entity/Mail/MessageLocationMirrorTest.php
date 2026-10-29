@@ -164,6 +164,44 @@ final class MessageLocationMirrorTest extends KernelTestCase
         self::assertSame([[$this->inbox->id, null]], $this->locationsOf($message));
     }
 
+    /**
+     * With a second copy beside it, a move writes the primary's location —
+     * found by its address, not by being first — and leaves the other alone.
+     */
+    public function testAMoveOfThePrimaryLeavesTheOtherCopyAlone(): void
+    {
+        $allMail                      = $this->mailbox('All Mail');
+        $allMail->mirrorsOtherFolders = true;
+
+        $message = $this->message($allMail, 905);
+        $message->addLocation($this->inbox, 11);
+        $this->em->flush();
+
+        self::assertSame($this->inbox, $message->mailbox, 'a real folder is primary over a mirror');
+
+        $message->relocateTo($this->archive, 4);
+        $this->em->flush();
+
+        self::assertSame([[$allMail->id, 905], [$this->archive->id, 4]], $this->locationsOf($message));
+    }
+
+    public function testLosingThePrimaryMakesAnotherCopyPrimary(): void
+    {
+        $message = $this->message($this->inbox, 11);
+        $message->addLocation($this->archive, 4);
+        $this->em->flush();
+
+        $primary = $message->locationAt($this->inbox, 11);
+        self::assertNotNull($primary);
+
+        $message->removeLocation($primary);
+        $this->em->flush();
+
+        self::assertSame($this->archive, $message->mailbox);
+        self::assertSame(4, $message->imapUid);
+        self::assertSame([[$this->archive->id, 4]], $this->locationsOf($message));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function message(?Mailbox $mailbox, ?int $uid): Message
