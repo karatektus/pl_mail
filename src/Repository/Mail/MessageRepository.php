@@ -2006,6 +2006,60 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Give rows stored before #415 the size their copy in this folder has.
+     *
+     * The size is what guards a Message-ID match (ImapCopies), and a row
+     * without one is never recognised: a copy of it that turns up in another
+     * folder is stored again, and a move another client made is only found by
+     * asking the server about each Message-ID. Each folder's listing fills the
+     * rows it keeps, once; after that this finds nothing to do.
+     *
+     * @param array<int, int> $sizesByUid UID => RFC822.SIZE, as the folder listed them
+     *
+     * @return int rows given a size
+     */
+    public function backfillSizes(Mailbox $mailbox, array $sizesByUid): int
+    {
+        if ([] === $sizesByUid) {
+            return 0;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        $unsized = array_flip(array_map(intval(...), $connection->fetchFirstColumn(
+            'SELECT l.imap_uid FROM message_location l JOIN message m ON m.id = l.message_id'
+            . ' WHERE l.mailbox_id = ? AND l.imap_uid IS NOT NULL AND m.rfc822_size IS NULL',
+            [$mailbox->id],
+        )));
+
+        $wanted = array_intersect_key($sizesByUid, $unsized);
+        $filled = 0;
+
+        foreach (array_chunk($wanted, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $uid => $size) {
+                $values[] = '(?::int, ?::int)';
+                $params[] = $uid;
+                $params[] = $size;
+            }
+
+            // The folder's id last, as its placeholder comes after the VALUES.
+            $params[] = (int) $mailbox->id;
+
+            $filled += (int) $connection->executeStatement(
+                'UPDATE message m SET rfc822_size = v.size'
+                . ' FROM (VALUES ' . implode(', ', $values) . ') AS v(uid, size), message_location l'
+                . ' WHERE l.mailbox_id = ? AND l.imap_uid = v.uid AND l.message_id = m.id AND m.rfc822_size IS NULL',
+                $params,
+            );
+        }
+
+        return $filled;
+    }
+
+    /**
      * Write down what the server just reported for these copies' flags.
      *
      * In SQL and in chunks, because the first listing after #415 records

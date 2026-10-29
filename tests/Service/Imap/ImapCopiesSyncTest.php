@@ -259,6 +259,31 @@ final class ImapCopiesSyncTest extends KernelTestCase
         self::assertCount(0, $this->messages('seven'));
     }
 
+    /**
+     * Mail stored before #415 has no size, and a copy of it elsewhere was
+     * stored again. The folder's listing gives it one; from then on its copy
+     * in another folder is recognised.
+     */
+    public function testTheSweepGivesOlderMailItsSizeSoItsCopiesAreRecognised(): void
+    {
+        $inbox   = $this->folder('INBOX');
+        $archive = $this->folder('Archive');
+
+        $uid = $this->session->append('INBOX', $this->mail('eight'));
+        $this->sync($inbox);
+
+        // As a row from before #415 is.
+        $this->connection->executeStatement('UPDATE message SET rfc822_size = NULL WHERE account_id = ?', [$this->account->id]);
+
+        $this->sweep($inbox);
+        self::assertNotNull($this->onlyMessage('eight')->rfc822Size);
+
+        $this->session->uidCopy('INBOX', (string) $uid, 'Archive');
+        $this->sync($archive);
+
+        self::assertCount(2, $this->onlyMessage('eight')->locations);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function folder(string $path, bool $mirror = false): Mailbox

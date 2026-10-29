@@ -183,7 +183,7 @@ final readonly class VanishedMessageReconciler
      * MovedMessageReconciliationTest works through, where the test supplies the
      * answer the probe would have given.
      *
-     * @param array{uidValidity: int, uids: array<int,true>, flags?: array<int,list<string>>, readAt?: DateTimeImmutable} $listing
+     * @param array{uidValidity: int, uids: array<int,true>, flags?: array<int,list<string>>, sizes?: array<int,int>, readAt?: DateTimeImmutable} $listing
      *
      * @return bool whether the listing was believed and acted on
      */
@@ -247,6 +247,10 @@ final readonly class VanishedMessageReconciler
             $listing['flags'] ?? [],
             $listing['readAt'] ?? $now,
         );
+
+        // Mail stored before #415 has no size, and so is never recognised
+        // when a copy of it turns up in another folder. The listing knows it.
+        $this->messages->backfillSizes($mailbox, $listing['sizes'] ?? []);
 
         $mailbox->uidValidity = $listing['uidValidity'];
         $mailbox->sweptAt     = $now;

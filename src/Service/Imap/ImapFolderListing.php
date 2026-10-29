@@ -89,13 +89,16 @@ final readonly class ImapFolderListing
     }
 
     /**
-     * @return array{uidValidity: int, uids: array<int,true>, flags: array<int,list<string>>, readAt: \DateTimeImmutable}|null
+     * @return array{uidValidity: int, uids: array<int,true>, flags: array<int,list<string>>, sizes: array<int,int>, readAt: \DateTimeImmutable}|null
      *         null when the server did not answer. `uids` is a set rather than a
      *         list: the caller's only question of it is membership, once per
      *         local row. `flags` is keyed by the same UIDs, and `readAt` is when
      *         the question was put to the server — which the flag reconciler
      *         needs, because "what the server said" is only meaningful together
-     *         with "and when".
+     *         with "and when". `sizes` is each message's RFC822.SIZE, a few
+     *         bytes a message, which is how mail stored before #415 is given
+     *         the size the sync recognises its copies by (see
+     *         MessageRepository::backfillSizes()).
      */
     public function read(ImapSession $session, Mailbox $mailbox): ?array
     {
@@ -129,13 +132,20 @@ final readonly class ImapFolderListing
             // listing is the sweep's decision, with its bulk guard.
             $found = 0 === $examined->exists
                 ? []
-                : $session->uidFetch($path, '1:*', ['FLAGS']);
+                : $session->uidFetch($path, '1:*', ['FLAGS', 'RFC822.SIZE']);
 
             $uids  = [];
             $flags = [];
+            $sizes = [];
 
             foreach ($found as $uid => $items) {
                 $uids[$uid] = true;
+
+                $size = $items['RFC822.SIZE'] ?? null;
+
+                if (true === is_string($size) && 1 === preg_match('~^\d+$~', $size)) {
+                    $sizes[$uid] = (int) $size;
+                }
 
                 // A message with no flags at all answers with an empty list,
                 // which is a fact — "this message is unread and unstarred" —
@@ -152,6 +162,7 @@ final readonly class ImapFolderListing
                 'uidValidity' => $examined->uidValidity,
                 'uids'        => $uids,
                 'flags'       => $flags,
+                'sizes'       => $sizes,
                 'readAt'      => $readAt,
             ];
         } catch (Throwable $e) {
