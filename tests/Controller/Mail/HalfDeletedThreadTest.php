@@ -122,6 +122,7 @@ final class HalfDeletedThreadTest extends WebTestCase
         self::assertCount(0, $inboxRow->filter('[data-action="click->mail--message-row#purge"]'), 'and no Delete forever');
         self::assertCount(0, $inboxRow->filter('[data-action="click->mail--message-row#restore"]'));
         self::assertStringContainsString('Live reply', $inboxRow->text(), 'the snippet is the live mail\'s');
+        self::assertCount(0, $inboxRow->filter('[data-draft-badge]'), 'sent mail is not called a draft');
         self::assertStringNotContainsString('?bin=1', (string) $inboxRow->filter('a[href*="/mail/thread/"]')->attr('href'));
 
         $binRow = $this->row('/mail/trash', $thread);
@@ -194,12 +195,14 @@ final class HalfDeletedThreadTest extends WebTestCase
         $row = $this->row('/mail/trash', $thread);
 
         self::assertCount(0, $row->filter('a[href*="/compose/edit/"]'));
+        self::assertCount(1, $row->filter('[data-draft-badge]'), 'still said to be a draft, not sent mail');
         self::assertStringContainsString('bin=1', (string) $row->filter('a[href*="/mail/thread/"]')->attr('href'));
 
         $pane = $this->open('/mail/thread/' . $thread . '?bin=1');
 
         self::assertCount(1, $pane->filter('#thread_message_' . $draft . '[data-controller~="mail--thread-message"]'), 'drawn as a message');
         self::assertCount(0, $pane->filter('a[href*="/compose/edit/' . $draft . '"]'), 'with no way into the editor');
+        self::assertCount(1, $pane->filter('#thread_message_' . $draft . ' [data-draft-badge]'), 'and marked as a draft');
     }
 
     /**

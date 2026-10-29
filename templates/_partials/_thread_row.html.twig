@@ -618,6 +618,18 @@ be a worse regression than the one this feature fixes.
                            the environment's, which is already the user's, but
                            it is spelled out here so the two halves of one
                            timestamp cannot be read as coming from two clocks. #}
+                        {# A row in the bin whose side is one draft. Anywhere
+                           else such a row opens the composer, which says what
+                           it is; here it opens as a mail (see `draft` above),
+                           and the sender is you and the snippet your words, so
+                           it would pass for something you sent. #}
+                        {% if draftMessage and count == 1 and bin_view() %}
+                            <span class="shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-danger/10 text-danger whitespace-nowrap"
+                                  data-draft-badge>
+                                {{ 'message.draft'|trans }}
+                            </span>
+                        {% endif %}
+
                         {% if scheduledAt is not null %}
                             {# Badge and cancel are one pill, not a badge with a
                                button parked next to it: the × means nothing on
