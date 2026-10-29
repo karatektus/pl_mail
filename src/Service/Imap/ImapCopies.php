@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\ImapCopyIdentity;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\PurgedCopy;
@@ -14,6 +16,7 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -65,6 +68,7 @@ final readonly class ImapCopies
         private MessageRepository       $messages,
         private StateManager            $stateManager,
         private ThreadLabelSynchronizer $threadLabels,
+        private LabelResolver           $labelResolver,
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
     ) {
@@ -151,11 +155,11 @@ final readonly class ImapCopies
             }
         }
 
-        $label = $mailbox->label;
+        $label = $this->labelFor($mailbox);
 
         if (null !== $label) {
             foreach ($email->locations as $location) {
-                if ($location->mailbox->label === $label) {
+                if ($this->labelFor($location->mailbox) === $label) {
                     $label = null;
 
                     break;
@@ -167,14 +171,13 @@ final readonly class ImapCopies
             $email->removeLabel($label);
         }
 
-        $accountId = (int) $email->account->id;
-
-        if (null !== $email->thread) {
-            $this->threadLabels->sync($email->thread);
-            $this->stateManager->recordThreadsTouched($accountId, [(int) $email->thread->id]);
+        // Left only in All Mail: archived — see labelFor().
+        if (true === self::keptOnlyInMirrors($email)) {
+            $email->addLabel($this->labelResolver->systemLabel(LabelRole::Archive, $mailbox->account));
         }
 
-        $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $email->id);
+        $this->syncThread($email);
+        $this->touched($email);
     }
 
     /**
@@ -319,27 +322,85 @@ final readonly class ImapCopies
 
     private function attach(Message $email, Mailbox $mailbox, ImapCopyIdentity $copy): void
     {
+        $onlyMirrored = self::keptOnlyInMirrors($email);
+
         // Its flags as of now are this copy's starting point, not news: the
         // email's read state stays what it is until this copy changes. See
         // MessageLocation::$serverFlags.
         $email->addLocation($mailbox, $copy->uid)->serverFlags = $copy->flags;
 
-        // The folder's label, as a downloaded copy would have got — except a
-        // mirror's: All Mail is everywhere the email is, and says nothing
-        // about where that is.
-        $label = $mailbox->label;
+        if (true === $mailbox->mirrorsOtherFolders) {
+            // All Mail is everywhere the email is, and says nothing about
+            // where that is: no label of its own.
+            return;
+        }
 
-        if (null !== $label && false === $mailbox->mirrorsOtherFolders) {
+        $label = $this->labelFor($mailbox);
+
+        if (null !== $label) {
             $email->addLabel($label);
             $email->thread?->addLabel($label);
+        }
 
-            $accountId = (int) $mailbox->account->id;
+        // Kept only in All Mail until now, and so archived; a real folder
+        // says where it is instead.
+        if (true === $onlyMirrored) {
+            $email->removeLabel($this->labelResolver->systemLabel(LabelRole::Archive, $mailbox->account));
+            $this->syncThread($email);
+        }
 
-            $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $email->id);
+        $this->touched($email);
+    }
 
-            if (null !== $email->thread) {
-                $this->stateManager->recordThreadsTouched($accountId, [(int) $email->thread->id]);
+    /**
+     * The label a copy in this folder puts on its email (#415).
+     *
+     * A folder's own, except a mirror's — All Mail, or a Flagged that holds a
+     * copy of every starred email — which says nothing about where the email
+     * is: an email kept only there is archived, which is what Gmail means by
+     * All Mail, and wears Archive. Used for the copy the sync downloads, for
+     * the one it recognises, and for the one it forgets, so the three cannot
+     * disagree.
+     */
+    public function labelFor(Mailbox $mailbox): ?Label
+    {
+        if (true === $mailbox->mirrorsOtherFolders) {
+            return $this->labelResolver->systemLabel(LabelRole::Archive, $mailbox->account);
+        }
+
+        return $mailbox->label;
+    }
+
+    private static function keptOnlyInMirrors(Message $email): bool
+    {
+        if (0 === count($email->locations)) {
+            return false;
+        }
+
+        foreach ($email->locations as $location) {
+            if (false === $location->mailbox->mirrorsOtherFolders) {
+                return false;
             }
+        }
+
+        return true;
+    }
+
+    private function syncThread(Message $email): void
+    {
+        if (null !== $email->thread) {
+            $this->threadLabels->sync($email->thread);
+        }
+    }
+
+    private function touched(Message $email): void
+    {
+        $accountId = (int) $email->account->id;
+
+        $this->stateManager->recordUpdated($accountId, JmapObjectType::Email, (string) $email->id);
+
+        if (null !== $email->thread) {
+            $this->stateManager->recordThreadsTouched($accountId, [(int) $email->thread->id]);
         }
     }
 

@@ -1078,7 +1078,9 @@ class MessageSyncer
         $message->account = $account;
         $message->mailbox = $mailbox;
 
-        $mailboxLabel = $mailbox?->label;
+        // The folder's label, or Archive for mail first met in All Mail — see
+        // ImapCopies::labelFor() (#415).
+        $mailboxLabel = null === $mailbox ? null : $this->copies->labelFor($mailbox);
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);

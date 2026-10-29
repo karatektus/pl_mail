@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -12,6 +13,7 @@ use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Imap\PurgedCopies;
 use App\Service\Imap\VanishedMessageReconciler;
+use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessagePurger;
 use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
@@ -284,6 +286,40 @@ final class ImapCopiesSyncTest extends KernelTestCase
         self::assertCount(2, $this->onlyMessage('eight')->locations);
     }
 
+    /**
+     * An email kept only in All Mail is archived, which is what Gmail means by
+     * it, and All Mail is no label of its own. A copy turning up in INBOX says
+     * where the email is instead; losing that copy archives it again.
+     */
+    public function testMailOnlyInAllMailIsArchivedUntilARealFolderKeepsIt(): void
+    {
+        $allMail = $this->folder('All Mail', mirror: true);
+        $inbox   = $this->folder('INBOX');
+
+        $resolver = static::getContainer()->get(LabelResolver::class);
+        $resolver->bindMailbox($resolver->systemLabel(LabelRole::Inbox, $this->account), $inbox);
+        $this->em->flush();
+
+        $this->session->append('All Mail', $this->mail('nine'));
+        $this->sync($allMail);
+
+        self::assertSame(['archive'], $this->roles($this->onlyMessage('nine')), 'archived, and not labelled All Mail');
+
+        $uid = $this->session->append('INBOX', $this->mail('nine'));
+        $this->sync($inbox);
+
+        self::assertSame(['inbox'], $this->roles($this->onlyMessage('nine')), 'in the inbox, and no longer archived');
+
+        // Another neighbour, so the listing that loses the copy is not empty.
+        $this->session->append('INBOX', $this->mail('nine-neighbour'));
+        $this->sync($inbox);
+        $this->session->uidStore('INBOX', (string) $uid, '+', ['\\Deleted']);
+        $this->session->expunge('INBOX', (string) $uid);
+        $this->sweep($inbox);
+
+        self::assertSame(['archive'], $this->roles($this->onlyMessage('nine')), 'archived again');
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function folder(string $path, bool $mirror = false): Mailbox
@@ -321,6 +357,24 @@ final class ImapCopiesSyncTest extends KernelTestCase
 
         static::getContainer()->get(VanishedMessageReconciler::class)->sweep($mailbox, $this->session, $now);
         $this->em->clear();
+    }
+
+    /**
+     * @return list<string> the role values of the system labels the message wears, sorted
+     */
+    private function roles(Message $message): array
+    {
+        $roles = [];
+
+        foreach ($message->labels as $label) {
+            if (null !== $label->role) {
+                $roles[] = $label->role->value;
+            }
+        }
+
+        sort($roles);
+
+        return $roles;
     }
 
     private function reloaded(Mailbox $mailbox): Mailbox
