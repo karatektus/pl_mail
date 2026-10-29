@@ -5,7 +5,7 @@ in full again. plMail now records the folders a message is kept in: a copy of ma
 is recognised from the server's index and not downloaded, read and starred reach every copy, and
 removing a copy from one folder no longer loses the email. Messages stored twice before this are
 folded into one over the next syncs, keeping their labels and stars.
-**Migration:** four new tables-or-columns (`message_location`, `message.rfc822_size`,
-`message.server_email_id`, `purged_copy`); the migration fills `message_location` from the existing
-messages in one statement, which takes a moment on a large install.
+**Migration:** two new tables, `message_location` and `purged_copy`, and two new columns on
+`message`. The migration fills `message_location` from the existing messages in one statement,
+which takes a moment on a large install.
 [#415](https://github.com/karatektus/pl_mail/issues/415), [#414](https://github.com/karatektus/pl_mail/issues/414).
