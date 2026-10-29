@@ -142,6 +142,7 @@ final readonly class VanishedMessageReconciler
         private MessageEraser          $eraser,
         private ImapFlagReconciler     $flags,
         private ImapCopies             $copies,
+        private ImapCopyMerger         $merger,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -251,6 +252,11 @@ final readonly class VanishedMessageReconciler
         // Mail stored before #415 has no size, and so is never recognised
         // when a copy of it turns up in another folder. The listing knows it.
         $this->messages->backfillSizes($mailbox, $listing['sizes'] ?? []);
+
+        // And with their size known, copies of one email stored as separate
+        // messages before #415 are recognisable: folded, a bounded number per
+        // sweep, until there are none (#414).
+        $this->merger->foldKeptIn($mailbox);
 
         $mailbox->uidValidity = $listing['uidValidity'];
         $mailbox->sweptAt     = $now;

@@ -2006,6 +2006,40 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Emails this folder keeps that are stored as more than one message, each
+     * as the ids of its messages, the one to keep first — see ImapCopyMerger.
+     *
+     * One account, one Message-ID, one size, no two server ids that differ,
+     * and every row kept somewhere by the server. Grouped in SQL: the accounts
+     * that need this have it for most of their mail.
+     *
+     * @return list<list<int>>
+     */
+    public function findDuplicateCopyGroups(Mailbox $mailbox, int $limit): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT array_to_json(array_agg(m.id ORDER BY (m.gmail_id IS NULL), m.id))'
+            . ' FROM message m'
+            . ' WHERE m.account_id = :account'
+            . ' AND m.message_id IS NOT NULL AND m.rfc822_size IS NOT NULL'
+            . ' AND EXISTS (SELECT 1 FROM message_location l WHERE l.message_id = m.id)'
+            . ' AND (m.message_id, m.rfc822_size) IN ('
+            . '   SELECT k.message_id, k.rfc822_size FROM message k JOIN message_location kl ON kl.message_id = k.id'
+            . '   WHERE kl.mailbox_id = :mailbox AND k.rfc822_size IS NOT NULL AND k.message_id IS NOT NULL'
+            . ' )'
+            . ' GROUP BY m.message_id, m.rfc822_size'
+            . ' HAVING COUNT(*) > 1 AND COUNT(DISTINCT m.server_email_id) <= 1'
+            . ' LIMIT :limit',
+            ['account' => $mailbox->account->id, 'mailbox' => $mailbox->id, 'limit' => $limit],
+        );
+
+        return array_map(
+            static fn (string $ids): array => array_map(intval(...), json_decode($ids, true, flags: JSON_THROW_ON_ERROR)),
+            $rows,
+        );
+    }
+
+    /**
      * Give rows stored before #415 the size their copy in this folder has.
      *
      * The size is what guards a Message-ID match (ImapCopies), and a row

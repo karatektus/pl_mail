@@ -320,6 +320,62 @@ final class ImapCopiesSyncTest extends KernelTestCase
         self::assertSame(['archive'], $this->roles($this->onlyMessage('nine')), 'archived again');
     }
 
+    /**
+     * #414, stored before #415: a conversation in INBOX, its All Mail copies
+     * stored as messages of their own beside it, so it showed every message
+     * twice. The sweeps give the rows their size and fold them: one message
+     * per email, both copies its locations, the conversation as long as it
+     * is, the inbox its place — and a star the user put on the All Mail copy
+     * kept.
+     */
+    public function testCopiesStoredAsSeparateMessagesBeforeAreFolded(): void
+    {
+        $inbox   = $this->folder('INBOX');
+        $allMail = $this->folder('All Mail', mirror: true);
+
+        $resolver = static::getContainer()->get(LabelResolver::class);
+        $resolver->bindMailbox($resolver->systemLabel(LabelRole::Inbox, $this->account), $inbox);
+        $this->em->flush();
+
+        $parent      = null;
+        $allMailUids = [];
+
+        foreach (['first', 'second', 'third'] as $name) {
+            $uid                = $this->session->append('INBOX', $this->mail('thread-' . $name, $parent, null === $parent ? 'Plans' : 'Re: Plans'));
+            $allMailUids[$name] = $this->session->uidCopy('INBOX', (string) $uid, 'All Mail')[$uid];
+            $parent             = 'thread-' . $name;
+        }
+
+        // As before #415: the INBOX rows have no size, so the All Mail sync
+        // does not recognise its copies and stores each again.
+        $this->sync($inbox);
+        $this->connection->executeStatement('UPDATE message SET rfc822_size = NULL WHERE account_id = ?', [$this->account->id]);
+        $this->sync($allMail);
+        $this->connection->executeStatement('UPDATE message SET rfc822_size = NULL WHERE account_id = ?', [$this->account->id]);
+
+        self::assertCount(2, $this->messages('thread-second'), 'the state #414 reported');
+
+        // Starred in another client, on the All Mail copy only.
+        $this->session->uidStore('All Mail', (string) $allMailUids['second'], '+', ['\\Flagged']);
+
+        $this->sweep($inbox);
+        $this->sweep($allMail);
+
+        foreach (['first', 'second', 'third'] as $name) {
+            $message = $this->onlyMessage('thread-' . $name);
+
+            self::assertCount(2, $message->locations, "{$name}: both copies are its locations");
+            self::assertSame('INBOX', $message->mailbox?->fullPath);
+            self::assertSame(['inbox'], $this->roles($message), "{$name}: in the inbox, not archived");
+        }
+
+        self::assertNotNull($this->onlyMessage('thread-second')->starredAt, 'the star on the copy is kept');
+
+        $threads = $this->connection->fetchFirstColumn('SELECT DISTINCT thread_id FROM message WHERE account_id = ? AND message_id LIKE ?', [$this->account->id, 'copy-thread-%']);
+        self::assertCount(1, $threads, 'one conversation');
+        self::assertSame(3, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message WHERE thread_id = ?', [$threads[0]]), 'of three messages, not six');
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function folder(string $path, bool $mirror = false): Mailbox
@@ -385,13 +441,16 @@ final class ImapCopiesSyncTest extends KernelTestCase
         return $found;
     }
 
-    private function mail(string $name): string
+    private function mail(string $name, ?string $inReplyTo = null, ?string $subject = null): string
     {
+        $subject ??= "Copy {$name}";
+
         return "From: Sender <sender@example.test>\r\n"
             . "To: {$this->account->email}\r\n"
-            . "Subject: Copy {$name}\r\n"
+            . "Subject: {$subject}\r\n"
             . "Date: Mon, 21 Sep 2026 10:00:00 +0200\r\n"
             . "Message-ID: <copy-{$name}@example.test>\r\n"
+            . (null === $inReplyTo ? '' : "In-Reply-To: <copy-{$inReplyTo}@example.test>\r\nReferences: <copy-{$inReplyTo}@example.test>\r\n")
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=utf-8\r\n"
             . "\r\n"
