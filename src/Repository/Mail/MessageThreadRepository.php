@@ -401,6 +401,8 @@ class MessageThreadRepository extends ServiceEntityRepository
             $this->excludeTrashed($qb);
         }
 
+        $this->onlyLiveDrafts($qb, $role);
+
         $this->narrowToUnread($qb, $unreadOnly);
 
         $sort->applyTo($qb);
@@ -423,6 +425,8 @@ class MessageThreadRepository extends ServiceEntityRepository
         if (LabelRole::Trash !== $role) {
             $this->excludeTrashed($qb);
         }
+
+        $this->onlyLiveDrafts($qb, $role);
 
         $this->narrowToUnread($qb, $unreadOnly);
 
@@ -453,6 +457,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+        $this->onlyLiveDrafts($qb, $label->role);
         $this->narrowToUnread($qb, $unreadOnly);
 
         $sort->applyTo($qb);
@@ -471,9 +476,43 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+        $this->onlyLiveDrafts($qb, $label->role);
         $this->narrowToUnread($qb, $unreadOnly);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Drafts lists a conversation for a draft that is still a draft, and not
+     * for one in the bin.
+     *
+     * A thread's labels are its messages' together (ThreadLabelSynchronizer),
+     * so a draft thrown away into Trash keeps Drafts on its conversation, and
+     * the conversation is not wholly in the bin while the mail it answers is
+     * not — excludeTrashed() lets it through. It was listed in Drafts, opened
+     * on the live side (BinView), and the draft it was listed for was not in
+     * it. A thrown-away draft is not one being worked on: it is in Trash, and
+     * back here once it is restored.
+     *
+     * A correlated sub-query, which excludeTrashed() stopped being for speed
+     * (#223). Only the Drafts lists pay it, over the few conversations that
+     * carry Drafts at all.
+     */
+    private function onlyLiveDrafts(QueryBuilder $qb, ?LabelRole $role): void
+    {
+        if (LabelRole::Drafts !== $role) {
+            return;
+        }
+
+        $qb->andWhere(sprintf(
+            'EXISTS (SELECT liveDraft.id FROM %1$s liveDraft JOIN liveDraft.labels liveDraftLabel
+                WHERE liveDraft.thread = t AND liveDraftLabel.role = :liveDraftRole
+                AND NOT EXISTS (SELECT binnedDraft.id FROM %1$s binnedDraft JOIN binnedDraft.labels binnedDraftLabel
+                    WHERE binnedDraft = liveDraft AND binnedDraftLabel.role = :binnedDraftRole))',
+            Message::class,
+        ))
+            ->setParameter('liveDraftRole', LabelRole::Drafts)
+            ->setParameter('binnedDraftRole', LabelRole::Trash);
     }
 
     /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
+use App\Repository\Label\LabelRepository;
 use Symfony\Component\HttpFoundation\Exception\JsonException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -24,11 +26,19 @@ use Symfony\Component\HttpFoundation\RequestStack;
  *
  *  - the page is the Trash list (`app_mail_trash`), including its pages and
  *    the list frame's refreshes, which are the same route;
+ *  - the page is one account's Trash. The account's folder rows in the
+ *    sidebar link every folder by label id (`app_mail_label`), the bin
+ *    included, so the label view is the bin when its label has the Trash
+ *    role. It was the live side, and a conversation partly in the bin was
+ *    listed there and opened without the part it was listed for — a deleted
+ *    draft could be seen nowhere;
  *  - the conversation was opened from it, which the row says with `?bin=1` on
  *    its link (the thread route has no list behind it otherwise);
  *  - a row or toolbar action names Trash as the list it was pressed in. Every
  *    status request carries the list's scope (assets/list_view.js), and the
- *    row it streams back is drawn for that list.
+ *    row it streams back is drawn for that list. One account's Trash names
+ *    itself as the label it is (`label` and its id), so that scope counts too
+ *    when the label is the bin.
  *
  * Anything else is the live side, including a request with no list at all — a
  * search hit, a link, a worker rendering a row. A thread that is wholly in the
@@ -38,8 +48,12 @@ final readonly class BinView
 {
     private const string TRASH_SCOPE = 'trash';
 
-    public function __construct(private RequestStack $requests)
-    {
+    private const string LABEL_SCOPE = 'label';
+
+    public function __construct(
+        private RequestStack    $requests,
+        private LabelRepository $labels,
+    ) {
     }
 
     public function isOpen(): bool
@@ -58,25 +72,54 @@ final readonly class BinView
             return true;
         }
 
-        return self::TRASH_SCOPE === self::scopeOf($request);
+        if ('app_mail_label' === $request->attributes->get('_route')) {
+            return $this->isTrashLabel($request->attributes->get('id'));
+        }
+
+        [$scope, $value] = self::scopeOf($request);
+
+        return self::TRASH_SCOPE === $scope
+            || (self::LABEL_SCOPE === $scope && $this->isTrashLabel($value));
     }
 
     /**
-     * The list a JSON status request was pressed in. Anything that is not a
-     * JSON object — a form post, an empty body — names no list.
+     * Whether a label id names a bin. Not checked against the person asking:
+     * the label view refuses a label that is not theirs before anything is
+     * drawn, and a status request acts on a conversation that is checked on
+     * its own, so all a foreign id could decide is which side of the asker's
+     * own conversation comes back. The label view has already loaded it, so
+     * the lookup is the identity map's.
      */
-    private static function scopeOf(Request $request): ?string
+    private function isTrashLabel(mixed $id): bool
+    {
+        if (false === is_numeric($id)) {
+            return false;
+        }
+
+        return LabelRole::Trash === $this->labels->find((int) $id)?->role;
+    }
+
+    /**
+     * The list a JSON status request was pressed in, as its scope and value.
+     * Anything that is not a JSON object — a form post, an empty body — names
+     * no list.
+     *
+     * @return array{?string, mixed}
+     */
+    private static function scopeOf(Request $request): array
     {
         if ('json' !== $request->getContentTypeFormat()) {
-            return null;
+            return [null, null];
         }
 
         try {
-            $scope = $request->getPayload()->all()['scope'] ?? null;
+            $body = $request->getPayload()->all();
         } catch (JsonException) {
-            return null;
+            return [null, null];
         }
 
-        return is_string($scope) ? $scope : null;
+        $scope = $body['scope'] ?? null;
+
+        return [is_string($scope) ? $scope : null, $body['value'] ?? null];
     }
 }
