@@ -18,6 +18,7 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
@@ -245,6 +246,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
             ),
             $container->get(MessageRepository::class),
             $container->get(MessageEraser::class),
+            $container->get(ImapCopies::class),
             new NullLogger(),
         );
 

@@ -208,7 +208,6 @@ final class EmailSetMethod implements JmapMethod
 
         $trashLabel = $this->labelResolver->systemLabel(LabelRole::Trash, $account);
         $inboxLabel = $this->labelRepository->findOneByRoleForUser(LabelRole::Inbox, $account->usr);
-        $trashMailbox = $trashLabel->bindingFor($account)?->mailbox;
 
         foreach ($destroy as $id) {
             $id = (string) $id;
@@ -229,9 +228,8 @@ final class EmailSetMethod implements JmapMethod
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->imapUid && null !== $trashMailbox) {
-                $message->relocateTo($trashMailbox);
-            }
+            // The copy moves when the server has moved it (#415); see
+            // ThreadStatusUpdater::archive().
 
             $this->threadLabelSynchronizer->sync($message->thread);
             $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);

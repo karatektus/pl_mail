@@ -11,6 +11,7 @@ use App\Infrastructure\ImapClient\ImapLoop;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\ImapConnector;
+use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
@@ -74,6 +75,7 @@ final class MailboxIdleDefaultTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $container->get(MessageRepository::class),
             $container->get(MessageEraser::class),
+            $container->get(ImapCopies::class),
             new NullLogger(),
         )->syncForAccount($this->account);
 

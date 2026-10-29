@@ -105,7 +105,8 @@ final readonly class ImapFlagReconciler
             return 0;
         }
 
-        $wanted = [];
+        $wanted   = [];
+        $observed = [];
 
         foreach ($state as $uid => $current) {
             $flags = $flagsByUid[$uid] ?? null;
@@ -121,6 +122,22 @@ final readonly class ImapFlagReconciler
             $canonical = MessageFlag::canonicalList($flags);
             $seen      = in_array(MessageFlag::SEEN->value, $canonical, true);
             $flagged   = in_array(MessageFlag::FLAGGED->value, $canonical, true);
+
+            // This copy said the same last time: nothing changed on the server,
+            // whatever the message now says. A copy of the email elsewhere may
+            // have been changed since, by another client or by the user here,
+            // and that change stands until this copy changes in turn — see
+            // MessageLocation::$serverFlags (#415). Only a copy never read
+            // before is compared against the message, as every copy used to be.
+            $lastReported = $current['serverFlags'];
+
+            if ($lastReported !== $canonical) {
+                $observed[$current['location']] = $canonical;
+            }
+
+            if (null !== $lastReported && $lastReported === $canonical && false === $current['pending']) {
+                continue;
+            }
 
             // A PRE-FILTER, and deliberately a conservative one: it decides
             // which rows are worth loading, and ThreadStatusUpdater still makes
@@ -141,6 +158,8 @@ final readonly class ImapFlagReconciler
 
             $wanted[$current['id']] = [$seen, $flagged, $canonical];
         }
+
+        $this->messages->recordServerFlags($observed);
 
         if ([] === $wanted) {
             return 0;

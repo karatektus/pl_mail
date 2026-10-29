@@ -58,6 +58,8 @@ final readonly class ImapMailboxImporter
         private MessageSyncer          $messageSyncer,
         private ImapImportPlan         $plan,
         private ImapPagedFetch         $pagedFetch,
+        private ImapCopies             $copies,
+        private PurgedCopies           $purgedCopies,
         private MailboxRepository      $mailboxes,
         private MessageRepository      $messages,
         private EntityManagerInterface $em,
@@ -128,7 +130,12 @@ final readonly class ImapMailboxImporter
         // deleted and not yet expunged (#96); that used to stop the import at
         // 486 of 487 for good. A dropped connection or a refused FETCH is
         // thrown, and says nothing about the messages.
-        foreach ($this->pagedFetch->pages($session, $path, $page, self::PAGE_SIZE) as [$batch, $unreadable]) {
+        // Copies of mail already here — All Mail's, most of all — become
+        // locations of it and are not downloaded (#415).
+        [$attached, $identities] = $this->copies->attachKnownCopies($mailbox, $session, $page);
+        $toFetch                 = array_values(array_diff($page, $attached));
+
+        foreach ($this->pagedFetch->pages($session, $path, $toFetch, self::PAGE_SIZE) as [$batch, $unreadable]) {
             // Found again for each: storing a page clears the entity manager.
             $current = $this->mailboxes->find($mailboxId);
 
@@ -136,7 +143,7 @@ final readonly class ImapMailboxImporter
                 return ImapImportOutcome::Finished;
             }
 
-            $held = $this->messageSyncer->storeImportPage($current, $session, $batch, $unreadable);
+            $held = $this->messageSyncer->storeImportPage($current, $session, $batch, $unreadable, $identities);
 
             if (null !== $held) {
                 $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);
@@ -174,7 +181,12 @@ final readonly class ImapMailboxImporter
         // been dealt with and is not history.
         $onServer = array_filter($onServer, static fn (int $uid): bool => $uid < $floor);
 
-        $stored  = array_flip(array_map('intval', $this->messages->findSyncedUids($mailbox, 0)));
+        // Purged here and not yet confirmed gone on the server count as
+        // stored: importing them would bring back mail deleted forever (#427).
+        $stored  = array_flip([
+            ...array_map('intval', $this->messages->findSyncedUids($mailbox, 0)),
+            ...$this->purgedCopies->uidsIn($mailbox),
+        ]);
         $missing = array_values(array_filter($onServer, static fn (int $uid): bool => false === isset($stored[$uid])));
 
         rsort($missing);

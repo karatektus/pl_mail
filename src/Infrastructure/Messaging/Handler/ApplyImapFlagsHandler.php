@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -139,23 +140,38 @@ final class ApplyImapFlagsHandler
     {
         $this->refusedThisRun = [];
 
-        $messages = $this->messageRepository->findBy(['id' => array_keys($message->messageIds)]);
+        $addresses = $message->addressesByMailbox();
+        $ids       = [];
+
+        foreach ($addresses as $pairs) {
+            foreach ($pairs as [$messageId]) {
+                $ids[$messageId] = true;
+            }
+        }
+
+        $messages = [];
+
+        foreach ($this->messageRepository->findBy(['id' => array_keys($ids)]) as $found) {
+            $messages[(int) $found->id] = $found;
+        }
 
         if (count($messages) === 0) {
             $this->logger->warning('ApplyImapFlagsHandler: no messages found', [
-                'ids'    => array_keys($message->messageIds),
+                'ids'    => array_keys($ids),
                 'action' => $message->action,
             ]);
 
             return;
         }
 
-        /** @var array<int, array<int, Message[]>> $byAccount  accountId → sourceMailboxId → Message[] */
+        // Folder by folder, each copy with the UID it has there: one per
+        // message for a move, every copy for a flag (#415). A UID of null is
+        // an envelope from before UIDs travelled; see processMailbox().
+        /** @var array<int, array<int, list<array{Message, int|null}>>> $byAccount  accountId → sourceMailboxId → [message, UID] */
         $byAccount = [];
 
-        foreach ($messages as $msg) {
-            $sourceMailboxId = $message->messageIds[$msg->id];
-            $sourceMailbox   = $this->mailboxRepository->find($sourceMailboxId);
+        foreach ($addresses as $sourceMailboxId => $pairs) {
+            $sourceMailbox = $this->mailboxRepository->find($sourceMailboxId);
 
             if (null === $sourceMailbox) {
                 $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
@@ -164,9 +180,13 @@ final class ApplyImapFlagsHandler
                 continue;
             }
 
-            $accountId = $sourceMailbox->account->id;
+            foreach ($pairs as [$messageId, $uid]) {
+                $msg = $messages[$messageId] ?? null;
 
-            $byAccount[$accountId][$sourceMailboxId][] = $msg;
+                if (null !== $msg) {
+                    $byAccount[$sourceMailbox->account->id][$sourceMailboxId][] = [$msg, 0 === $uid ? null : $uid];
+                }
+            }
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
@@ -217,7 +237,7 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param array<int, Message[]> $byMailbox  sourceMailboxId → Message[]
+     * @param array<int, list<array{Message, int|null}>> $byMailbox  sourceMailboxId → [message, UID]
      */
     private function processAccount(
         ImapSession           $session,
@@ -277,7 +297,7 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages each with its UID here
      */
     private function processMailbox(
         ImapSession           $session,
@@ -305,18 +325,18 @@ final class ApplyImapFlagsHandler
             return;
         }
 
-        foreach ($messages as $msg) {
+        foreach ($messages as [$msg, $uid]) {
             // Envelope first: the row's own UID is cleared the moment a move is
             // queued, so for every move this is the only surviving copy of the
             // source address. The fallback carries envelopes queued before that.
-            $uid = $envelope->sourceUidFor((int) $msg->id) ?? $msg->imapUid;
+            $uid ??= $msg->imapUid;
 
             if (null === $uid) {
                 continue;
             }
 
             try {
-                $this->applyToMessage($session, $path, $msg, $uid, $envelope->action, $destinationPath);
+                $this->applyToMessage($session, $sourceMailbox, $msg, $uid, $envelope->action, $destinationPath);
             } catch (ImapConnectionException $e) {
                 throw $e;
             } catch (Throwable $e) {
@@ -332,7 +352,7 @@ final class ApplyImapFlagsHandler
                 // at all: the flag is already set HERE and the server refused
                 // it, so plMail and the mailbox now disagree and the next sync
                 // decides in the server's favour. Nothing said so.
-                $accountId = $msg->account?->id;
+                $accountId = $msg->account->id;
 
                 if (null !== $accountId) {
                     $this->refusedThisRun[(int) $accountId] ??= $e->getMessage();
@@ -342,22 +362,21 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * A move into the folder the messages are already in: nothing to send, and
-     * the rows get their address back.
+     * A move into the folder the messages are already in: nothing to send.
+     * (Sending the MOVE anyway once failed outright, #269, and is a wasted
+     * command at best.)
      *
-     * The caller cleared each row's UID when it queued the move
-     * (Message::relocateTo()), so the envelope's UID goes back on: the message
-     * never left the folder, and the address it had is still its address. A row
-     * that something else has re-pointed since, or that has a UID again, is
-     * left to the sync, as adopt() leaves it. (Sending the MOVE anyway once
-     * failed outright, #269, and is a wasted command at best.)
+     * A copy keeps its address while its move is queued (#415), so there is
+     * nothing to give back either — except to a row from a job queued before
+     * that, which was stripped of its UID when the move was queued and gets the
+     * envelope's back: the message never left the folder. A row that something
+     * else has re-pointed since, or that has a UID again, is left to the sync.
      *
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages
      */
     private function stayInPlace(Mailbox $mailbox, array $messages, ApplyImapFlagsMessage $envelope): void
     {
-        foreach ($messages as $msg) {
-            $uid = $envelope->sourceUidFor((int) $msg->id);
+        foreach ($messages as [$msg, $uid]) {
 
             if (null === $uid || null !== $msg->imapUid || $msg->mailbox?->fullPath !== $mailbox->fullPath) {
                 continue;
@@ -375,16 +394,17 @@ final class ApplyImapFlagsHandler
 
     private function applyToMessage(
         ImapSession $session,
-        string      $path,
+        Mailbox     $mailbox,
         Message     $msg,
         int         $uid,
         string      $action,
         ?string     $destinationPath,
     ): void {
+        $path  = $mailbox->serverPath();
         $flags = $session->uidFetch($path, (string) $uid, ['FLAGS'], readOnly: false)[$uid]['FLAGS'] ?? null;
 
         if (false === is_array($flags)) {
-            $this->reResolveVanishedUid($session, $msg, $uid, $path, $action, $destinationPath);
+            $this->reResolveVanishedUid($session, $msg, $mailbox, $uid, $action, $destinationPath);
 
             return;
         }
@@ -406,7 +426,7 @@ final class ApplyImapFlagsHandler
                 'folder'    => $path,
             ]);
 
-            $this->adoptFromDestination($session, $msg, $destinationPath);
+            $this->adoptFromDestination($session, $msg, $mailbox, $uid, $destinationPath);
 
             return;
         }
@@ -415,9 +435,9 @@ final class ApplyImapFlagsHandler
             $moved = $session->uidMove($path, (string) $uid, (string) $destinationPath);
 
             if (true === isset($moved[$uid])) {
-                $this->adoptUid($msg, $moved[$uid], (string) $destinationPath);
+                $this->adoptUid($msg, $mailbox, $uid, (string) $destinationPath, $moved[$uid]);
             } else {
-                $this->adoptFromDestination($session, $msg, $destinationPath);
+                $this->adoptFromDestination($session, $msg, $mailbox, $uid, $destinationPath);
             }
 
             return;
@@ -438,6 +458,19 @@ final class ApplyImapFlagsHandler
         }
 
         $session->uidStore($path, (string) $uid, $change[0], [$change[1]]);
+
+        // What this copy now says is our own doing, and the next listing must
+        // not read it back as somebody's change — see
+        // MessageLocation::$serverFlags (#415).
+        $copy = $msg->locationAt($mailbox, $uid);
+
+        if (null !== $copy) {
+            $now = array_values(array_filter($flags, is_string(...)));
+
+            $copy->serverFlags = MessageFlag::canonicalList('+' === $change[0]
+                ? [...$now, $change[1]]
+                : array_values(array_filter($now, static fn (string $flag): bool => 0 !== strcasecmp($flag, $change[1]))));
+        }
 
         // The server has the change now, so the inbound pass may read this row
         // again. Until this line runs, Message::$flagsTouchedAt is what keeps
@@ -478,38 +511,35 @@ final class ApplyImapFlagsHandler
      *
      * Ordinary rather than exceptional: the message has already moved. Either
      * an earlier attempt of this very job completed and Messenger redelivered
-     * it, or another client moved the mail while the job sat in the queue. What
-     * matters is that the row must not be left claiming the address, because a
-     * stale address is precisely what makes the destination's next sync insert
-     * a second row instead of recognising the first.
+     * it, or another client moved the mail while the job sat in the queue.
+     *
+     * For a move, the destination is searched and a copy found there is where
+     * this one went. Otherwise the copy is left as it is (#415): it used to be
+     * stripped of its UID here, which made it a row with a folder and no
+     * address — the state a purge could not reach and a sweep could not see
+     * (#427). The folder's next sweep is what decides about an absent UID, and
+     * a copy of the email that turns up elsewhere is recognised there.
      */
     private function reResolveVanishedUid(
         ImapSession $session,
         Message     $msg,
+        Mailbox     $source,
         int         $uid,
-        string      $path,
         string      $action,
         ?string     $destinationPath,
     ): void {
         $this->logger->info('ApplyImapFlagsHandler: UID has left the source folder, re-resolving', [
             'messageId' => $msg->id,
             'uid'       => $uid,
-            'folder'    => $path,
+            'folder'    => $source->fullPath,
             'action'    => $action,
         ]);
-
-        // Drop the stale claim whatever else happens. A row with no UID is
-        // reconcilable by Message-ID on the next sync; a row with a UID the
-        // server disowns is the ghost that gets counted twice.
-        if ($msg->imapUid === $uid) {
-            $msg->relocateTo($msg->mailbox);
-        }
 
         if (false === in_array($action, self::MOVE_ACTIONS, true)) {
             return;
         }
 
-        $this->adoptFromDestination($session, $msg, $destinationPath);
+        $this->adoptFromDestination($session, $msg, $source, $uid, $destinationPath);
     }
 
     /**
@@ -521,7 +551,7 @@ final class ApplyImapFlagsHandler
      * HEADER search matches substrings, so each candidate's Message-ID is read
      * back and compared whole before it is adopted.
      */
-    private function adoptFromDestination(ImapSession $session, Message $msg, ?string $destinationPath): void
+    private function adoptFromDestination(ImapSession $session, Message $msg, Mailbox $source, int $sourceUid, ?string $destinationPath): void
     {
         $wanted = MessageIdHelper::normalise((string) $msg->messageId);
 
@@ -538,7 +568,7 @@ final class ApplyImapFlagsHandler
 
             foreach ($session->uidFetchHeader($destinationPath, ImapSession::uidSet($candidates), 'Message-ID') as $uid => $found) {
                 if ($wanted === MessageIdHelper::normalise((string) $found)) {
-                    $this->adoptUid($msg, $uid, $destinationPath);
+                    $this->adoptUid($msg, $source, $sourceUid, $destinationPath, $uid);
 
                     return;
                 }
@@ -555,20 +585,34 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * Give the row the address the server says its copy has.
+     * Move the copy that was at ($source, $sourceUid) to the address the
+     * server says it has now (#415).
      *
-     * The row's own mailbox pointer has to already name the destination — the
-     * caller re-pointed it before queueing the job. If it does not, something
-     * else has moved this message since and the sync layer is better placed to
-     * work out where it belongs than this handler is.
+     * The copy kept its real address until this moment; nothing re-pointed it
+     * when the move was queued. A copy that is no longer where the job found it
+     * has been dealt with by something else since — the sync is better placed
+     * than this handler to say where it is. So is a destination plMail has no
+     * row for yet: the folder's first sync recognises the copy.
+     *
+     * Jobs queued before #415 find their row re-pointed at the destination
+     * already, with no UID, and get one the way they always did.
      */
-    private function adoptUid(Message $msg, int $uid, string $destinationPath): void
+    private function adoptUid(Message $msg, Mailbox $source, int $sourceUid, string $destinationPath, int $uid): void
     {
-        if ($msg->mailbox?->fullPath !== $destinationPath) {
+        if (null === $msg->imapUid && $msg->mailbox?->fullPath === $destinationPath) {
+            $msg->relocateTo($msg->mailbox, $uid);
+
             return;
         }
 
-        $msg->relocateTo($msg->mailbox, $uid);
+        $copy        = $msg->locationAt($source, $sourceUid);
+        $destination = $this->mailboxRepository->findOneBy(['account' => $source->account, 'fullPath' => $destinationPath]);
+
+        if (null === $copy || null === $destination) {
+            return;
+        }
+
+        $msg->moveLocation($copy, $destination, $uid);
     }
 
     /**

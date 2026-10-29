@@ -198,12 +198,10 @@ final readonly class ThreadStatusUpdater
             }
 
             // Plain-IMAP: the message physically moves to the Archive folder,
-            // and gets a new UID there that only the mover can report. Until
-            // then the row names the destination and no address inside it —
-            // see Message::relocateTo().
-            if (null !== $message->imapUid && null !== $archiveMailbox && $message->mailbox !== $archiveMailbox) {
-                $message->relocateTo($archiveMailbox);
-            }
+            // and its copy keeps the address it has until the server says
+            // where it landed — ApplyImapFlagsHandler moves the location then
+            // (#415). Re-pointing it here, with no UID, left a row a purge
+            // could not reach and a sweep could not see (#427).
         }
 
         $this->finish($messages);
@@ -230,9 +228,7 @@ final readonly class ThreadStatusUpdater
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->imapUid && null !== $trashMailbox && $message->mailbox !== $trashMailbox) {
-                $message->relocateTo($trashMailbox);
-            }
+            // The copy moves when the server has moved it; see archive().
         }
 
         $this->finish($messages);
@@ -303,9 +299,7 @@ final readonly class ThreadStatusUpdater
                 }
             }
 
-            if (null !== $message->imapUid && null !== $inboxMailbox && $message->mailbox !== $inboxMailbox) {
-                $message->relocateTo($inboxMailbox);
-            }
+            // The copy moves when the server has moved it; see archive().
         }
 
         $this->finish($messages);
@@ -950,8 +944,7 @@ final readonly class ThreadStatusUpdater
      * rest of the thread sits in the bin — so trashing, archiving or restoring
      * the whole thread reaches messages that are already where it is going.
      * Queueing those as well asked the server to move a message into its own
-     * folder, which IMAP refuses (#269, see ApplyImapFlagsHandler::stayInPlace()),
-     * and the relocateTo() that follows cleared a UID that was still correct.
+     * folder, which IMAP refuses (#269, see ApplyImapFlagsHandler::stayInPlace()).
      * Their labels change all the same; only the move is left out.
      *
      * @param list<Message> $messages

@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
+use App\Domain\DTO\Mail\ImapCopyIdentity;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\RepeatedHeaderHelper;
@@ -60,6 +61,8 @@ class MessageSyncer
         private readonly GhostMessageReaper $ghosts,
         private readonly ManagerRegistry $registry,
         private readonly ImapPagedFetch $pagedFetch,
+        private readonly ImapCopies $copies,
+        private readonly PurgedCopies $purgedCopies,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly MessageCryptoDetector $cryptoDetector,
@@ -75,6 +78,17 @@ class MessageSyncer
      * parameter on five signatures to reach one `if`.
      */
     private bool $importing = false;
+
+    /**
+     * What the index pass said about each UID about to be downloaded, so the
+     * message built from it keeps its size and server id — which is how the
+     * next copy of it is recognised (ImapCopies). Set for the length of
+     * one folder's sync or one import page, like $importing, and for the same
+     * reason: it is needed four calls down.
+     *
+     * @var array<int, ImapCopyIdentity>
+     */
+    private array $identities = [];
 
     /**
      * The instant an RFC 2822 `Date:` header names, in UTC.
@@ -145,6 +159,15 @@ class MessageSyncer
             $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
 
+        // Mail deleted forever here, whose deletion the server has not
+        // confirmed: asked about again if the job did not get through, and
+        // never imported again meanwhile (#427). See PurgedCopy.
+        $this->purgedCopies->settle($mailbox, $session);
+
+        foreach ($this->purgedCopies->uidsIn($mailbox) as $purgedUid) {
+            $syncedUids[$purgedUid] = true;
+        }
+
         // How a message that appears here is told from a message that is merely
         // also here: by whether the copy it would have moved from is still on
         // the server. Asks nothing until something wants to know.
@@ -164,6 +187,22 @@ class MessageSyncer
         // it means (#219).
         $uids = ImapUidSearch::range($session, $path, $uidRange);
 
+        // Copies of mail that is already here become locations of it and are
+        // not downloaded at all (#415). Asked of the new UIDs only; the rest
+        // go on as they always did.
+        $new = array_values(array_filter(
+            $uids,
+            static fn (int $uid): bool => $uid > $lastSeenUid && false === isset($syncedUids[$uid]),
+        ));
+
+        [$attached, $this->identities] = $this->copies->attachKnownCopies($mailbox, $session, $new);
+
+        foreach ($attached as $uid) {
+            $syncedUids[$uid] = true;
+        }
+
+        $uids = array_values(array_diff($uids, $attached));
+
         foreach ($this->pagedFetch->pages($session, $path, $uids, self::BATCH_SIZE) as [$batch, $unreadable]) {
             $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
             $synced += count($batch);
@@ -173,6 +212,22 @@ class MessageSyncer
         }
 
         $mailbox = $this->mailboxRepository->find($mailboxId);
+
+        $this->identities = [];
+
+        // An attached copy moves the mark like a downloaded one, or the next
+        // poll asks for it again; held below a UID that failed, as there.
+        if ([] !== $attached) {
+            $top = max($attached);
+
+            if (null !== $lowestSkippedUid) {
+                $top = min($top, $lowestSkippedUid - 1);
+            }
+
+            if ($top > ($mailbox->lastSeenUid ?? 0)) {
+                $mailbox->lastSeenUid = $top;
+            }
+        }
 
         // Before the counts below, so they are taken over what is left. Only
         // does anything on a Sent folder that still holds pairs the old send
@@ -216,18 +271,20 @@ class MessageSyncer
      * on the mailbox.
      *
      * @param iterable<ImapMessage>  $batch
-     * @param array<int, \Throwable> $unreadable as for processBatch()
+     * @param array<int, \Throwable>        $unreadable as for processBatch()
+     * @param array<int, ImapCopyIdentity> $identities what the index pass said about the page's UIDs
      *
      * @return int|null the lowest UID of the page that was held back, or null
      *                  when every message of it was dealt with
      */
-    public function storeImportPage(Mailbox $mailbox, ImapSession $session, iterable $batch, array $unreadable): ?int
+    public function storeImportPage(Mailbox $mailbox, ImapSession $session, iterable $batch, array $unreadable, array $identities = []): ?int
     {
         $syncedUids = [];
         $lowestHeld = null;
         $presence   = new ImapUidPresence($session, $this->logger);
 
-        $this->importing = true;
+        $this->importing  = true;
+        $this->identities = $identities;
 
         try {
             $this->processBatch(
@@ -241,7 +298,8 @@ class MessageSyncer
                 $unreadable,
             );
         } finally {
-            $this->importing = false;
+            $this->importing  = false;
+            $this->identities = [];
         }
 
         $this->startNextBatch();
@@ -502,6 +560,11 @@ class MessageSyncer
             }
 
             if (null !== $claimed) {
+                // A row this installation wrote, now with a server copy: what
+                // the index said about that copy is what recognises the next.
+                $claimed->rfc822Size    ??= $this->identities[$uid]->size ?? null;
+                $claimed->serverEmailId ??= $this->identities[$uid]->serverId ?? null;
+
                 if (true === $oneAtATime) {
                     $this->em->flush();
                 }
@@ -521,6 +584,15 @@ class MessageSyncer
                 $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
 
                 $message = $this->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
+                $raw     = $this->rawOf($imapMessage);
+
+                // What the next copy of this email is recognised by. The
+                // server's count where the index gave one; otherwise the bytes
+                // as fetched, which are the same octets.
+                $identity               = $this->identities[$uid] ?? null;
+                $message->rfc822Size    = $identity->size ?? strlen($raw);
+                $message->serverEmailId = $identity?->serverId;
+
                 $this->em->persist($message);
 
                 // Only now, with the message whole. buildMessage() used to
@@ -539,7 +611,7 @@ class MessageSyncer
                 }
 
                 $messages[]        = $message;
-                $rawBodies[]       = $this->rawOf($imapMessage);
+                $rawBodies[]       = $raw;
                 $syncedUids[$uid]  = true; // mark within this run
 
                 if (true === ($uid > $maxUid)) {
@@ -1006,7 +1078,9 @@ class MessageSyncer
         $message->account = $account;
         $message->mailbox = $mailbox;
 
-        $mailboxLabel = $mailbox?->label;
+        // The folder's label, or Archive for mail first met in All Mail — see
+        // ImapCopies::labelFor() (#415).
+        $mailboxLabel = null === $mailbox ? null : $this->copies->labelFor($mailbox);
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);

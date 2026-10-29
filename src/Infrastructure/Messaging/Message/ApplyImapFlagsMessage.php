@@ -23,19 +23,56 @@ namespace App\Infrastructure\Messaging\Message;
  * location label is replaced and the propagator has already resolved which
  * folder the message must physically move to. 'archive' and 'trash' keep
  * resolving their destination inside the handler as before.
+ *
+ * $copies is every server copy a flag change goes to (#415): IMAP keeps flags
+ * per copy, so marking an email read means marking each copy that the server
+ * keeps of it, in each folder. Taken when the job is queued, like the source
+ * address. Empty for a move, which moves the copy $messageIds names, and on
+ * every envelope queued before it existed — those go to that copy alone, as
+ * they were queued to.
  */
 readonly class ApplyImapFlagsMessage
 {
     /**
      * @param array<int,int> $messageIds  messageId => sourceMailboxId
      * @param array<int,int> $sourceUids  messageId => UID in that source folder
+     * @param list<array{int,int,int}> $copies [messageId, mailboxId, UID] for each copy
      */
     public function __construct(
         public array   $messageIds,
         public string  $action,
         public ?string $destinationPath = null,
         public array   $sourceUids = [],
+        public array   $copies = [],
     ) {}
+
+    /**
+     * Every copy this job is for, grouped by folder: the copies where it has
+     * them, the one address per message otherwise.
+     *
+     * @return array<int, list<array{int,int}>> mailboxId => [messageId, UID|0]
+     */
+    public function addressesByMailbox(): array
+    {
+        $byMailbox = [];
+
+        // As for sourceUidFor(): an envelope from before the property existed
+        // comes back from the transport without it.
+        // @phpstan-ignore isset.initializedProperty, identical.alwaysTrue
+        if (true === isset($this->copies) && [] !== $this->copies) {
+            foreach ($this->copies as [$messageId, $mailboxId, $uid]) {
+                $byMailbox[$mailboxId][] = [$messageId, $uid];
+            }
+
+            return $byMailbox;
+        }
+
+        foreach ($this->messageIds as $messageId => $mailboxId) {
+            $byMailbox[$mailboxId][] = [$messageId, $this->sourceUidFor($messageId) ?? 0];
+        }
+
+        return $byMailbox;
+    }
 
     /**
      * The UID this message had in its source folder when the job was queued.

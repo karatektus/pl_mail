@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\MessageLocation;
 use App\Infrastructure\ImapClient\ImapFolder;
 use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
@@ -142,6 +143,7 @@ readonly class MailboxSyncer
         private LabelResolver          $labelResolver,
         private MessageRepository      $messageRepository,
         private MessageEraser          $eraser,
+        private ImapCopies             $copies,
         private LoggerInterface        $logger,
     ) {}
 
@@ -293,7 +295,28 @@ readonly class MailboxSyncer
      */
     private function remove(Mailbox $mailbox): void
     {
-        $erased = $this->eraser->eraseAll($this->messageRepository->findBy(['mailbox' => $mailbox]));
+        // Mail the server keeps in another folder too loses this copy and
+        // stays (#415); only mail this folder was the last place of goes. The
+        // flush comes first, so that no message still names this folder as
+        // its primary when the folder's row and its cascade go.
+        $lastCopies = [];
+
+        foreach ($this->messageRepository->findKeptIn($mailbox) as $message) {
+            if (count($message->locations) > count(array_filter(
+                $message->locations->toArray(),
+                static fn (MessageLocation $location): bool => $location->mailbox === $mailbox,
+            ))) {
+                $this->copies->forget($message, $mailbox);
+
+                continue;
+            }
+
+            $lastCopies[] = $message;
+        }
+
+        $this->em->flush();
+
+        $erased = $this->eraser->eraseAll($lastCopies);
 
         $this->em->remove($mailbox);
 
@@ -510,6 +533,10 @@ readonly class MailboxSyncer
         ]);
 
         foreach ($mirrors as $mirror) {
+            // Copies that are not the email's primary are locations only, and
+            // go without a word: the email stays where it is primarily kept.
+            $this->messageRepository->dropSecondaryLocationsIn($mirror);
+
             $copies = $this->messageRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
 
             if ([] === $copies) {
