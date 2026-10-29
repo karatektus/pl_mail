@@ -1789,14 +1789,18 @@ class MessageRepository extends ServiceEntityRepository
      * caller wants values to compare, and an entity it does not intend to
      * change is an entity the UnitOfWork has to track and check anyway.
      *
-     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool}>
+     * With each, its copy here: the location and the flags the server last
+     * reported for that copy, which is what a listing is compared against
+     * first (#415, see MessageLocation::$serverFlags).
+     *
+     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool,location:int,serverFlags:list<string>|null}>
      *         imapUid => its current flag state
      */
     public function findFlagStateByUid(Mailbox $mailbox): array
     {
-        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface}> $rows */
+        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface,location:int,serverFlags:list<string>|null}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'l.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt')
+            ->select('m.id', 'l.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt', 'l.id AS location', 'l.serverFlags')
             ->join('m.locations', 'l')
             ->where('l.mailbox = :mailbox')
             ->andWhere('l.imapUid IS NOT NULL')
@@ -1812,7 +1816,9 @@ class MessageRepository extends ServiceEntityRepository
                 'flags'   => $row['flags'] ?? [],
                 'seen'    => null !== $row['seenAt'],
                 'flagged' => null !== $row['starredAt'],
-                'pending' => null !== $row['flagsTouchedAt'],
+                'pending'     => null !== $row['flagsTouchedAt'],
+                'location'    => (int) $row['location'],
+                'serverFlags' => $row['serverFlags'],
             ];
         }
 
@@ -1967,6 +1973,66 @@ class MessageRepository extends ServiceEntityRepository
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->execute();
+    }
+
+    /**
+     * Every addressable server copy of these messages, for a job that has to
+     * reach each one: [messageId, mailboxId, UID].
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{int,int,int}>
+     */
+    public function findCopiesOf(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS message', 'IDENTITY(l.mailbox) AS mailbox', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->orderBy('l.id', 'ASC')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): array => [(int) $row['message'], (int) $row['mailbox'], (int) $row['imapUid']],
+            $rows,
+        );
+    }
+
+    /**
+     * Write down what the server just reported for these copies' flags.
+     *
+     * In SQL and in chunks, because the first listing after #415 records
+     * every copy in the folder, and a folder can hold a hundred thousand.
+     * After that only the copies that changed come here.
+     *
+     * @param array<int, list<string>> $flagsByLocation location id => canonical flags
+     */
+    public function recordServerFlags(array $flagsByLocation): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+
+        foreach (array_chunk($flagsByLocation, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $locationId => $flags) {
+                $values[] = '(?::int, ?::json)';
+                $params[] = $locationId;
+                $params[] = json_encode(array_values($flags), JSON_THROW_ON_ERROR);
+            }
+
+            $connection->executeStatement(
+                'UPDATE message_location l SET server_flags = v.flags FROM (VALUES ' . implode(', ', $values) . ') AS v(id, flags) WHERE l.id = v.id',
+                $params,
+            );
+        }
     }
 
     /**

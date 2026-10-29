@@ -153,6 +153,41 @@ final class ImapCopiesSyncTest extends KernelTestCase
         self::assertNull($message->vanishedAt, 'not missing: the server still keeps it');
     }
 
+    /**
+     * Another client marks the INBOX copy read and leaves the Archive copy
+     * alone. The email is read: that copy changed. And it stays read when
+     * Archive is listed next — that copy has not changed, it only disagrees,
+     * and copies that disagree used to take turns setting the email.
+     */
+    public function testAChangeToOneCopyStandsAgainstACopyThatDidNotChange(): void
+    {
+        $inbox   = $this->folder('INBOX');
+        $archive = $this->folder('Archive');
+
+        $uid    = $this->session->append('INBOX', $this->mail('five'));
+        $copied = $this->session->uidCopy('INBOX', (string) $uid, 'Archive');
+        $this->sync($inbox);
+        $this->sync($archive);
+
+        self::assertNull($this->onlyMessage('five')->seenAt, 'unread to begin with');
+
+        $this->session->uidStore('INBOX', (string) $uid, '+', ['\\Seen']);
+
+        $this->sweep($inbox);
+        self::assertNotNull($this->onlyMessage('five')->seenAt, 'read: a copy was marked read');
+
+        $this->sweep($archive);
+        self::assertNotNull($this->onlyMessage('five')->seenAt, 'still read: the Archive copy did not change');
+
+        // The Archive copy is read too now, then marked unread: its change is
+        // the latest, and it wins in turn.
+        $this->session->uidStore('Archive', (string) $copied[$uid], '+', ['\\Seen']);
+        $this->sweep($archive);
+        $this->session->uidStore('Archive', (string) $copied[$uid], '-', ['\\Seen']);
+        $this->sweep($archive);
+        self::assertNull($this->onlyMessage('five')->seenAt, 'and a later change to the other copy wins in turn');
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private function folder(string $path, bool $mirror = false): Mailbox
@@ -180,6 +215,15 @@ final class ImapCopiesSyncTest extends KernelTestCase
     private function sync(Mailbox $mailbox): void
     {
         $this->syncer->syncMailbox($this->reloaded($mailbox), $this->session);
+        $this->em->clear();
+    }
+
+    private function sweep(Mailbox $mailbox): void
+    {
+        $mailbox          = $this->reloaded($mailbox);
+        $mailbox->sweptAt = null;
+
+        static::getContainer()->get(VanishedMessageReconciler::class)->sweep($mailbox, $this->session);
         $this->em->clear();
     }
 

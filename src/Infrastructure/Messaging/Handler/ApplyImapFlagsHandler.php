@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -139,23 +140,38 @@ final class ApplyImapFlagsHandler
     {
         $this->refusedThisRun = [];
 
-        $messages = $this->messageRepository->findBy(['id' => array_keys($message->messageIds)]);
+        $addresses = $message->addressesByMailbox();
+        $ids       = [];
+
+        foreach ($addresses as $pairs) {
+            foreach ($pairs as [$messageId]) {
+                $ids[$messageId] = true;
+            }
+        }
+
+        $messages = [];
+
+        foreach ($this->messageRepository->findBy(['id' => array_keys($ids)]) as $found) {
+            $messages[(int) $found->id] = $found;
+        }
 
         if (count($messages) === 0) {
             $this->logger->warning('ApplyImapFlagsHandler: no messages found', [
-                'ids'    => array_keys($message->messageIds),
+                'ids'    => array_keys($ids),
                 'action' => $message->action,
             ]);
 
             return;
         }
 
-        /** @var array<int, array<int, Message[]>> $byAccount  accountId → sourceMailboxId → Message[] */
+        // Folder by folder, each copy with the UID it has there: one per
+        // message for a move, every copy for a flag (#415). A UID of null is
+        // an envelope from before UIDs travelled; see processMailbox().
+        /** @var array<int, array<int, list<array{Message, int|null}>>> $byAccount  accountId → sourceMailboxId → [message, UID] */
         $byAccount = [];
 
-        foreach ($messages as $msg) {
-            $sourceMailboxId = $message->messageIds[$msg->id];
-            $sourceMailbox   = $this->mailboxRepository->find($sourceMailboxId);
+        foreach ($addresses as $sourceMailboxId => $pairs) {
+            $sourceMailbox = $this->mailboxRepository->find($sourceMailboxId);
 
             if (null === $sourceMailbox) {
                 $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
@@ -164,9 +180,13 @@ final class ApplyImapFlagsHandler
                 continue;
             }
 
-            $accountId = $sourceMailbox->account->id;
+            foreach ($pairs as [$messageId, $uid]) {
+                $msg = $messages[$messageId] ?? null;
 
-            $byAccount[$accountId][$sourceMailboxId][] = $msg;
+                if (null !== $msg) {
+                    $byAccount[$sourceMailbox->account->id][$sourceMailboxId][] = [$msg, 0 === $uid ? null : $uid];
+                }
+            }
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
@@ -217,7 +237,7 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param array<int, Message[]> $byMailbox  sourceMailboxId → Message[]
+     * @param array<int, list<array{Message, int|null}>> $byMailbox  sourceMailboxId → [message, UID]
      */
     private function processAccount(
         ImapSession           $session,
@@ -277,7 +297,7 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages each with its UID here
      */
     private function processMailbox(
         ImapSession           $session,
@@ -305,18 +325,18 @@ final class ApplyImapFlagsHandler
             return;
         }
 
-        foreach ($messages as $msg) {
+        foreach ($messages as [$msg, $uid]) {
             // Envelope first: the row's own UID is cleared the moment a move is
             // queued, so for every move this is the only surviving copy of the
             // source address. The fallback carries envelopes queued before that.
-            $uid = $envelope->sourceUidFor((int) $msg->id) ?? $msg->imapUid;
+            $uid ??= $msg->imapUid;
 
             if (null === $uid) {
                 continue;
             }
 
             try {
-                $this->applyToMessage($session, $path, $msg, $uid, $envelope->action, $destinationPath);
+                $this->applyToMessage($session, $sourceMailbox, $msg, $uid, $envelope->action, $destinationPath);
             } catch (ImapConnectionException $e) {
                 throw $e;
             } catch (Throwable $e) {
@@ -332,7 +352,7 @@ final class ApplyImapFlagsHandler
                 // at all: the flag is already set HERE and the server refused
                 // it, so plMail and the mailbox now disagree and the next sync
                 // decides in the server's favour. Nothing said so.
-                $accountId = $msg->account?->id;
+                $accountId = $msg->account->id;
 
                 if (null !== $accountId) {
                     $this->refusedThisRun[(int) $accountId] ??= $e->getMessage();
@@ -352,12 +372,11 @@ final class ApplyImapFlagsHandler
      * left to the sync, as adopt() leaves it. (Sending the MOVE anyway once
      * failed outright, #269, and is a wasted command at best.)
      *
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages
      */
     private function stayInPlace(Mailbox $mailbox, array $messages, ApplyImapFlagsMessage $envelope): void
     {
-        foreach ($messages as $msg) {
-            $uid = $envelope->sourceUidFor((int) $msg->id);
+        foreach ($messages as [$msg, $uid]) {
 
             if (null === $uid || null !== $msg->imapUid || $msg->mailbox?->fullPath !== $mailbox->fullPath) {
                 continue;
@@ -375,12 +394,13 @@ final class ApplyImapFlagsHandler
 
     private function applyToMessage(
         ImapSession $session,
-        string      $path,
+        Mailbox     $mailbox,
         Message     $msg,
         int         $uid,
         string      $action,
         ?string     $destinationPath,
     ): void {
+        $path  = $mailbox->serverPath();
         $flags = $session->uidFetch($path, (string) $uid, ['FLAGS'], readOnly: false)[$uid]['FLAGS'] ?? null;
 
         if (false === is_array($flags)) {
@@ -438,6 +458,19 @@ final class ApplyImapFlagsHandler
         }
 
         $session->uidStore($path, (string) $uid, $change[0], [$change[1]]);
+
+        // What this copy now says is our own doing, and the next listing must
+        // not read it back as somebody's change — see
+        // MessageLocation::$serverFlags (#415).
+        $copy = $msg->locationAt($mailbox, $uid);
+
+        if (null !== $copy) {
+            $now = array_values(array_filter($flags, is_string(...)));
+
+            $copy->serverFlags = MessageFlag::canonicalList('+' === $change[0]
+                ? [...$now, $change[1]]
+                : array_values(array_filter($now, static fn (string $flag): bool => 0 !== strcasecmp($flag, $change[1]))));
+        }
 
         // The server has the change now, so the inbound pass may read this row
         // again. Until this line runs, Message::$flagsTouchedAt is what keeps

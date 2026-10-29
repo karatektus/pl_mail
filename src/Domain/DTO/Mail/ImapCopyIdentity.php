@@ -17,6 +17,12 @@ final readonly class ImapCopyIdentity
         public string  $messageId,
         /** X-GM-MSGID or EMAILID, where the server offers one. */
         public ?string $serverId,
+        /**
+         * Canonical, or null when the server did not say.
+         *
+         * @var list<string>|null
+         */
+        public ?array  $flags = null,
     ) {
     }
 }

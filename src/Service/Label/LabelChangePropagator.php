@@ -14,6 +14,7 @@ use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -52,6 +53,7 @@ final readonly class LabelChangePropagator
         private LabelRepository     $labelRepository,
         private GraphLabelPolicy    $labelPolicy,
         private LoggerInterface     $logger,
+        private MessageRepository   $messageRepository,
     ) {}
 
     /**
@@ -369,7 +371,13 @@ final readonly class LabelChangePropagator
             return;
         }
 
-        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action, null, $uidMap));
+        // A flag goes to every copy the server keeps, since IMAP keeps flags
+        // per copy (#415); a move moves the one copy named above.
+        $copies = true === in_array($action, ['flag', 'unflag', 'seen', 'unseen'], true)
+            ? $this->messageRepository->findCopiesOf(array_keys($idMap))
+            : [];
+
+        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action, null, $uidMap, $copies));
     }
 
     /**

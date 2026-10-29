@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\ThreadStatusUpdater;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -39,10 +40,11 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class ApplyRemoteFlagsMessageHandler
 {
     public function __construct(
-        private MailboxRepository   $mailboxRepository,
-        private MessageRepository   $messageRepository,
-        private ThreadStatusUpdater $status,
-        private LoggerInterface     $logger,
+        private MailboxRepository      $mailboxRepository,
+        private MessageRepository      $messageRepository,
+        private ThreadStatusUpdater    $status,
+        private EntityManagerInterface $em,
+        private LoggerInterface        $logger,
     ) {
     }
 
@@ -70,6 +72,19 @@ final readonly class ApplyRemoteFlagsMessageHandler
         // the whole set, so an absent \Seen means UNSEEN and not "unchanged".
         $flags = MessageFlag::canonicalList($message->flags);
 
+        // As in the sweep's flag pass: this copy telling us what it told us
+        // last time is no change, however the message has changed since —
+        // see MessageLocation::$serverFlags (#415).
+        $copy = $subject->locationAt($mailbox, $message->uid);
+
+        if (null !== $copy) {
+            if ($copy->serverFlags === $flags && null === $subject->flagsTouchedAt) {
+                return;
+            }
+
+            $copy->serverFlags = $flags;
+        }
+
         $this->status->applyRemoteFlags([
             new RemoteFlagState(
                 message: $subject,
@@ -78,5 +93,9 @@ final readonly class ApplyRemoteFlagsMessageHandler
                 flags:   $flags,
             ),
         ]);
+
+        // The copy's new flags, which applyRemoteFlags() leaves unwritten
+        // when the message had nothing to change.
+        $this->em->flush();
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\ImapCopyIdentity;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -106,7 +107,7 @@ final readonly class ImapCopies
                     continue;
                 }
 
-                $this->attach($email, $mailbox, $uid);
+                $this->attach($email, $mailbox, $copy);
                 $attached[] = $uid;
                 unset($identities[$uid]);
             }
@@ -213,7 +214,7 @@ final readonly class ImapCopies
             default                                      => null,
         };
 
-        $items = ['RFC822.SIZE', 'BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]'];
+        $items = ['FLAGS', 'RFC822.SIZE', 'BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]'];
 
         if (null !== $serverIdItem) {
             $items[] = $serverIdItem;
@@ -240,6 +241,9 @@ final readonly class ImapCopies
                     self::size($answer['RFC822.SIZE'] ?? null),
                     self::messageId($answer['BODY[HEADER.FIELDS (MESSAGE-ID)]'] ?? null),
                     null === $serverIdItem ? null : self::serverId($answer[$serverIdItem] ?? null),
+                    true === is_array($answer['FLAGS'] ?? null)
+                        ? MessageFlag::canonicalList(array_values(array_filter($answer['FLAGS'], is_string(...))))
+                        : null,
                 );
             }
         }
@@ -247,9 +251,12 @@ final readonly class ImapCopies
         return $identities;
     }
 
-    private function attach(Message $email, Mailbox $mailbox, int $uid): void
+    private function attach(Message $email, Mailbox $mailbox, ImapCopyIdentity $copy): void
     {
-        $email->addLocation($mailbox, $uid);
+        // Its flags as of now are this copy's starting point, not news: the
+        // email's read state stays what it is until this copy changes. See
+        // MessageLocation::$serverFlags.
+        $email->addLocation($mailbox, $copy->uid)->serverFlags = $copy->flags;
 
         // The folder's label, as a downloaded copy would have got — except a
         // mirror's: All Mail is everywhere the email is, and says nothing

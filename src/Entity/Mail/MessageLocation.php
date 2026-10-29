@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Mail;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -58,4 +59,22 @@ class MessageLocation
         public ?int $imapUid = null,
     ) {
     }
+
+    /**
+     * This copy's flags as the server last reported them, canonical
+     * (MessageFlag::canonicalList()); null until a listing has said.
+     *
+     * IMAP keeps flags per copy, and two copies of one email can disagree —
+     * another client marks the INBOX copy read and leaves the Archive copy
+     * alone. Compared against the message, each folder's listing would then
+     * set the message to its own answer, and the two would take turns for
+     * ever. Compared against this, a listing changes the message only when
+     * this copy changed since it was last read: the last change made anywhere
+     * wins, and copies that merely disagree leave it alone. See
+     * ImapFlagReconciler.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(name: 'server_flags', type: Types::JSON, nullable: true)]
+    public ?array $serverFlags = null;
 }

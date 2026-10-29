@@ -105,6 +105,64 @@ final class ApplyImapFlagsOutboundOperationsTest extends KernelTestCase
     }
 
     /**
+     * IMAP keeps flags per copy, so marking an email read marks every copy the
+     * server keeps of it — here one in INBOX and one in Archive (#415) — and
+     * each copy remembers that the change was ours.
+     */
+    public function testAFlagActionReachesEveryCopyOfTheEmail(): void
+    {
+        $inUid      = $this->put('INBOX');
+        $this->server->create('Archive');
+        $archiveUid = $this->put('Archive');
+
+        $account                 = new Account();
+        $account->usr            = new User();
+        $account->imapHost       = (string) getenv('IMAP_TEST_HOST');
+        $account->imapPort       = 31143;
+        $account->imapEncryption = null;
+        $account->username       = $this->user;
+        $account->password       = (string) getenv('IMAP_TEST_PASSWORD');
+        $account->authType       = 'password';
+
+        $inbox   = $this->mailbox($account, 'INBOX', MailboxSpecialUse::INBOX);
+        $archive = $this->mailbox($account, 'Archive', MailboxSpecialUse::ARCHIVE);
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($inbox, 10);
+        new ReflectionProperty(Mailbox::class, 'id')->setValue($archive, 11);
+
+        $row            = new Message();
+        $row->account   = $account;
+        $row->messageId = self::MESSAGE_ID;
+        $row->addLocation($inbox, $inUid);
+        $row->addLocation($archive, $archiveUid);
+        new ReflectionProperty(Message::class, 'id')->setValue($row, 1);
+
+        $messages = $this->createStub(MessageRepository::class);
+        $messages->method('findBy')->willReturn([$row]);
+
+        $folders = $this->createStub(MailboxRepository::class);
+        $folders->method('find')->willReturnCallback(static fn (int $id): ?Mailbox => [10 => $inbox, 11 => $archive][$id] ?? null);
+
+        $handler = new ApplyImapFlagsHandler(
+            $messages,
+            $folders,
+            $this->logger(),
+            self::getContainer()->get(ImapConnector::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(ImapFolderProvisioner::class),
+            $this->createStub(AccountRepository::class),
+        );
+
+        $handler(new ApplyImapFlagsMessage([1 => 10], 'seen', null, [1 => $inUid], [[1, 10, $inUid], [1, 11, $archiveUid]]));
+
+        foreach (['INBOX' => $inUid, 'Archive' => $archiveUid] as $folder => $uid) {
+            $flags = $this->server->uidFetch($folder, (string) $uid, ['FLAGS'])[$uid]['FLAGS'] ?? [];
+
+            self::assertContains('\\Seen', $flags, "the {$folder} copy is read");
+            self::assertSame(['\\Seen'], $row->locationAt($folder === 'INBOX' ? $inbox : $archive, $uid)?->serverFlags, "and the {$folder} copy knows it was us");
+        }
+    }
+
+    /**
      * `delete` expunges this one UID. A plain EXPUNGE also removes every
      * message another client has only flagged \Deleted and may still undelete.
      */
