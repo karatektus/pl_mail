@@ -2310,14 +2310,32 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
+    /**
+     * The folder's own numbers, as the server would give them: the messages it
+     * keeps, each once however many copies it holds (#415).
+     */
     public function countUnseenForMailbox(Mailbox $mailbox): int
     {
-        return $this->count(['mailbox' => $mailbox, 'seenAt' => null]);
+        return $this->countKeptIn($mailbox, true);
     }
 
     public function countTotalForMailbox(Mailbox $mailbox): int
     {
-        return $this->count(['mailbox' => $mailbox]);
+        return $this->countKeptIn($mailbox, false);
+    }
+
+    private function countKeptIn(Mailbox $mailbox, bool $unseenOnly): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox);
+
+        if (true === $unseenOnly) {
+            $qb->andWhere('m.seenAt IS NULL');
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**

@@ -97,6 +97,20 @@ final class MessageLocationReadersTest extends KernelTestCase
         self::assertSame(1, $this->messages->countInMailbox($this->allMail), 'two copies in one folder are still one message');
     }
 
+    public function testEachFolderCountsTheMessageInItsTotals(): void
+    {
+        $this->location($this->allMail, 906);
+
+        self::assertSame(1, $this->messages->countTotalForMailbox($this->inbox));
+        self::assertSame(1, $this->messages->countTotalForMailbox($this->allMail));
+        self::assertSame(1, $this->messages->countUnseenForMailbox($this->allMail));
+
+        $this->message->seenAt = new DateTimeImmutable();
+        $this->em->flush();
+
+        self::assertSame(0, $this->messages->countUnseenForMailbox($this->allMail));
+    }
+
     public function testTheAccountOwnsTheMessageOnce(): void
     {
         $addresses = iterator_to_array($this->messages->iterateAddressesForAccount($this->account), false);
