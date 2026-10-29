@@ -11,6 +11,7 @@ use App\Entity\Mail\MessageLocation;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Gmail\GmailifyLinks;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -114,6 +115,33 @@ final class MessageLocationReadersTest extends KernelTestCase
         self::assertSame(1, (int) $rows[0]['messages']);
     }
 
+    /**
+     * Gmailify, then the switch turned off: a Gmail mailbox carried this
+     * account's own IMAP copy, and severing takes the Gmail identity off it.
+     * The copy is the IMAP server's throughout, so its folders stay its
+     * locations — and it is found to be severed by having one, however many.
+     */
+    public function testSeveringGmailifyLeavesTheCopiesWhereTheyAre(): void
+    {
+        $carrier = $this->account($this->account->usr, 'carrier');
+        self::assertNotSame($this->account->id, $carrier->id);
+
+        $this->message->gmailCarrierAccount = $carrier;
+        $this->message->gmailId             = 'gmail-kept-twice';
+        $this->em->flush();
+
+        self::assertSame(1, $this->messages->countImapCopiesCarried((int) $carrier->id), 'carried once, not once per copy');
+
+        self::assertSame(1, self::getContainer()->get(GmailifyLinks::class)->severCarriedBy((int) $carrier->id));
+
+        $this->em->clear();
+
+        self::assertSame(0, $this->messages->countImapCopiesCarried((int) $carrier->id));
+        self::assertSame([11], array_map(intval(...), $this->messages->findSyncedUids($this->em->find(Mailbox::class, $this->inbox->id))));
+        self::assertSame([905], array_map(intval(...), $this->messages->findSyncedUids($this->em->find(Mailbox::class, $this->allMail->id))));
+        self::assertNull($this->em->find(Message::class, $this->message->id)?->gmailId);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     /**
@@ -136,27 +164,13 @@ final class MessageLocationReadersTest extends KernelTestCase
         $user->password  = 'x';
         $this->em->persist($user);
 
-        $account                 = new Account();
-        $account->usr            = $user;
-        $account->email          = 'readers-' . uniqid('', true) . '@example.test';
-        $account->username       = $account->email;
-        $account->imapHost       = 'localhost';
-        $account->imapPort       = 993;
-        $account->imapEncryption = 'ssl';
-        $account->smtpHost       = 'localhost';
-        $account->smtpPort       = 587;
-        $account->smtpEncryption = 'starttls';
-        $account->password       = 'x';
-        $account->authType       = 'password';
-        $account->isActive       = true;
-        $this->em->persist($account);
-        $this->account = $account;
+        $this->account = $this->account($user, 'readers');
 
         $this->inbox   = $this->mailbox('INBOX');
         $this->allMail = $this->mailbox('All Mail');
 
         $message                 = new Message();
-        $message->account        = $account;
+        $message->account        = $this->account;
         $message->mailbox        = $this->inbox;
         $message->imapUid        = 11;
         $message->messageId      = '<kept-twice@example.test>';
@@ -170,6 +184,27 @@ final class MessageLocationReadersTest extends KernelTestCase
         $this->message = $message;
 
         $this->location($this->allMail, 905);
+    }
+
+    private function account(User $user, string $prefix): Account
+    {
+        $account                 = new Account();
+        $account->usr            = $user;
+        $account->email          = $prefix . '-' . uniqid('', true) . '@example.test';
+        $account->username       = $account->email;
+        $account->imapHost       = 'localhost';
+        $account->imapPort       = 993;
+        $account->imapEncryption = 'ssl';
+        $account->smtpHost       = 'localhost';
+        $account->smtpPort       = 587;
+        $account->smtpEncryption = 'starttls';
+        $account->password       = 'x';
+        $account->authType       = 'password';
+        $account->isActive       = true;
+        $this->em->persist($account);
+        $this->em->flush();
+
+        return $account;
     }
 
     private function mailbox(string $path): Mailbox
