@@ -44,7 +44,11 @@ final class ImapKeyword
         'junk', 'nonjunk', 'notjunk', 'forwarded', 'mdnsent', 'phishing', 'redirected', 'submitpending', 'submitted',
     ];
 
-    /** The system flags, as webklex sometimes hands them back: without the backslash. */
+    /**
+     * The system flags without their backslash, as some stored rows carry them:
+     * flags written before plMail's own IMAP client came through webklex, which
+     * dropped it on some servers.
+     */
     private const array BARE_SYSTEM = ['seen', 'answered', 'flagged', 'deleted', 'draft', 'recent'];
 
     /** atom-specials (RFC 9051) plus `&`, the shift character. */
@@ -152,8 +156,8 @@ final class ImapKeyword
 
     /**
      * Whether a flag as the server listed it is a keyword at all, rather than
-     * a system flag (`\Seen`) — webklex hands some back without the backslash,
-     * so the known system flags are named.
+     * a system flag (`\Seen`) — rows from before plMail's own IMAP client may
+     * carry them without the backslash, so the known system flags are named.
      */
     public static function isKeyword(string $flag): bool
     {

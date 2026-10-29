@@ -183,6 +183,7 @@ final class GraphCategoryRenameTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
+            $container->get('App\Service\JmapClient\JmapMailboxWriter'),
         );
     }
 
