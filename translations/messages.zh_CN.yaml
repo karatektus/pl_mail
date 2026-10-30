@@ -3304,6 +3304,7 @@ settings:
             fileInCategory: '归入分类'
             markRead: '标为已读'
             markSpam: '标为垃圾邮件'
+            moveToFolder: '移至文件夹'
             removeLabel: '移除标签'
             saveToIntegration: '将附件保存到'
             star: '加星标'

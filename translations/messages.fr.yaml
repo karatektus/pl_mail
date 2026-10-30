@@ -3783,6 +3783,7 @@ settings:
             fileInCategory: "Classer dans une catégorie"
             markRead: Marquer comme lu
             markSpam: Marquer comme spam
+            moveToFolder: Déplacer dans le dossier
             removeLabel: Retirer le libellé
             saveToIntegration: Enregistrer les pièces jointes dans
             star: Le suivre

@@ -3581,6 +3581,7 @@ settings:
             fileInCategory: Stow in a hold of its own
             markRead: Mark as read
             markSpam: Call it bilge
+            moveToFolder: Haul to the hold
             removeLabel: Strike the flag
             saveToIntegration: Stow cargo to
             star: Mark it

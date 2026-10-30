@@ -438,7 +438,7 @@ final class MailRuleController extends AbstractController
 
             $entry = ['type' => $type];
 
-            if (true === in_array($type, [RuleActionExecutor::APPLY_LABEL, RuleActionExecutor::REMOVE_LABEL], true)) {
+            if (true === in_array($type, [RuleActionExecutor::APPLY_LABEL, RuleActionExecutor::REMOVE_LABEL, RuleActionExecutor::MOVE_TO_FOLDER], true)) {
                 $labelId = $action['labelId'] ?? null;
 
                 if (false === is_int($labelId)) {

@@ -3733,6 +3733,7 @@ settings:
             fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
+            moveToFolder: Move to folder
             removeLabel: Remove label
             saveToIntegration: Save attachments to
             star: Star it

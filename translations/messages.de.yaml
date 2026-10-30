@@ -3730,6 +3730,7 @@ settings:
             fileInCategory: In Kategorie ablegen
             markRead: Als gelesen markieren
             markSpam: Als Spam markieren
+            moveToFolder: In Ordner verschieben
             removeLabel: Label entfernen
             saveToIntegration: Anhänge speichern in
             star: Markieren

@@ -203,6 +203,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
                 $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),
+            new GraphLabelPolicy(),
         );
     }
 

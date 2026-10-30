@@ -301,6 +301,10 @@ export default class extends Controller {
                     this.actions[i].labelId = this._assignableLabels()[0]?.id
                 }
 
+                if (select.value === "moveToFolder") {
+                    this.actions[i].labelId = this._folderLabels()[0]?.id
+                }
+
                 if (select.value === "saveToIntegration") {
                     this.actions[i].integrationId = this.integrationsValue[0]?.id
                 }
@@ -316,13 +320,20 @@ export default class extends Controller {
 
             row.append(select)
 
-            if (action.type === "applyLabel" || action.type === "removeLabel") {
+            if (action.type === "applyLabel" || action.type === "removeLabel" || action.type === "moveToFolder") {
                 const label = this._selectElement("flex-1 min-w-[9rem]")
 
                 // System labels are excluded here but not from conditions:
                 // "has label Inbox" is a sensible test, while "apply label
                 // Inbox" is not — that is what the archive action means.
-                for (const l of this._assignableLabels()) {
+                // "Move to folder" offers the labels that are a folder on one
+                // of the accounts (#221 step 3); a stored one that no longer
+                // is stays listed, so the rule does not silently change.
+                const choices = action.type === "moveToFolder"
+                    ? this._assignableLabels().filter((l) => l.folder === true || Number(action.labelId) === l.id)
+                    : this._assignableLabels()
+
+                for (const l of choices) {
                     const o = document.createElement("option")
                     o.value = String(l.id)
                     o.textContent = l.name
@@ -664,6 +675,11 @@ export default class extends Controller {
     /** Labels a rule may apply or remove — user labels only. */
     _assignableLabels() {
         return this.labelsValue.filter((l) => l.system !== true)
+    }
+
+    /** The labels "Move to folder" offers: a folder on one of the accounts. */
+    _folderLabels() {
+        return this._assignableLabels().filter((l) => l.folder === true)
     }
 
     /** The connection an action names, or undefined once it is disconnected. */

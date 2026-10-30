@@ -11,10 +11,12 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MoveToService;
+use App\Service\Rule\RuleActionExecutor;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -496,7 +498,68 @@ final class MoveToServiceTest extends KernelTestCase
         self::assertTrue($this->moveTo->staysInView($message->thread, $user, 'label', (string) $target->id));
     }
 
+    // ── from a rule ──────────────────────────────────────────────────────────
+
+    /**
+     * "Move to folder" (#221 step 3): the rule's own Move to. Where the label
+     * is a folder on the account, the arriving mail is moved there, on the
+     * server too, and out of the folder it arrived in.
+     */
+    public function testARuleMovesArrivingMailIntoAFolder(): void
+    {
+        [$target] = $this->folderTarget('Receipts');
+        $message  = $this->inboxMessage();
+        $inboxUid = (int) $message->imapUid;
+
+        $this->runRule(RuleActionExecutor::MOVE_TO_FOLDER, $target, $message);
+
+        self::assertSame([['move', (int) $this->inboxMailbox->id, $inboxUid, 'Receipts']], $this->moves($message));
+        self::assertTrue($message->hasLabel($target));
+        self::assertFalse($message->hasLabel($this->role(LabelRole::Inbox)));
+    }
+
+    /**
+     * Where the label has no folder on the account, it is a tag there: the
+     * mail is labelled and leaves the inbox, the way Gmail moves — and no
+     * folder is made for it.
+     */
+    public function testARuleMovesToATagByLabellingAndArchiving(): void
+    {
+        $target  = $this->tag('Later');
+        $message = $this->inboxMessage();
+
+        $this->runRule(RuleActionExecutor::MOVE_TO_FOLDER, $target, $message);
+
+        self::assertSame(['archive'], array_column($this->moves($message), 0));
+        self::assertTrue($message->hasLabel($target));
+        self::assertFalse($message->hasLabel($this->role(LabelRole::Inbox)));
+        self::assertNull($target->bindingFor($this->account)?->mailbox, 'a move never makes a folder');
+    }
+
+    /** "Apply label" with a folder tags and never moves. */
+    public function testARuleApplyingAFolderLabelMovesNothing(): void
+    {
+        [$target] = $this->folderTarget('Receipts');
+        $message  = $this->inboxMessage();
+
+        $this->runRule(RuleActionExecutor::APPLY_LABEL, $target, $message);
+
+        self::assertSame([], array_filter($this->moves($message), static fn (array $move): bool => 'move' === $move[0]));
+        self::assertTrue($message->hasLabel($this->role(LabelRole::Inbox)));
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
+
+    private function runRule(string $type, Label $label, Message $message): void
+    {
+        $rule          = new MailRule();
+        $rule->usr     = $this->account->usr;
+        $rule->name    = 'Rule';
+        $rule->actions = [['type' => $type, 'labelId' => $label->id]];
+
+        self::getContainer()->get(RuleActionExecutor::class)->execute($rule, $message);
+        $this->em->flush();
+    }
 
     private function moveFrom(string $scope, string $value, Label $target, Message $message): void
     {
