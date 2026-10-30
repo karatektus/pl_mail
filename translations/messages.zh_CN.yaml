@@ -2959,6 +2959,10 @@ settings:
             stop_sync: '停止同步 %folder%'
             title: '文件夹 — %account%'
             unreachable: '无法连接邮件服务器，未做任何更改：%reason%'
+        gmail_move:
+            off_hint: '关闭：对于此账户，“移至”只列出收件箱、垃圾邮件和废纸篓。标签通过“添加标签”添加。'
+            on_hint: '开启：“移至”也会列出此账户的标签。移动到标签会添加该标签并将邮件移出收件箱，与 Gmail 一致。'
+            title: '“移至”提供标签'
         heading: '邮件账户'
         make_primary: '设为主要账户'
         make_primary_explained: '默认使用 %account% 发送新邮件'

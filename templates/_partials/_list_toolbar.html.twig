@@ -305,7 +305,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
            LEAVES this list, and those three are what a selection is nearly
            always made for. #}
         {% include '_partials/_move_menu.html.twig' with {
-            labels: sidebarCounts.flattenedUserLabels,
+            labels: move_labels(sidebarCounts.flattenedUserLabels),
         } only %}
 
         {# ── More ──────────────────────────────────────────────────────────
@@ -377,7 +377,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
                     } only %}
                 </div>
                 {% include '_partials/_label_menu.html.twig' with {
-                    labels: sidebarCounts.flattenedUserLabels,
+                    labels: tag_labels(sidebarCounts.flattenedUserLabels),
                     targetType: 'thread',
                     trigger: false,
                     align: 'left',

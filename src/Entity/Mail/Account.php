@@ -770,6 +770,23 @@ class Account extends AccountModel
      */
     public const string SETTING_FOLLOW_OUTLOOK_CATEGORIES = 'labels.outlook_categories';
 
+    /**
+     * Whether "Move to" offers this Gmail account's labels as well as its
+     * system places (#221 step 3). Gmail has no folders: a move to a label is
+     * Gmail's own — the label goes on and the inbox comes off — so it is a
+     * choice, not a given. Off by default, and then labels are put on with
+     * "Label as", as tags.
+     */
+    public const string SETTING_GMAIL_MOVE_TO_LABELS = 'labels.gmail_move_to';
+
+    /** Virtual, out of the settings bag — see SETTING_GMAIL_MOVE_TO_LABELS. */
+    public bool $gmailMoveOffersLabels {
+        get => true === $this->isGmail() && true === $this->getSetting(self::SETTING_GMAIL_MOVE_TO_LABELS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_GMAIL_MOVE_TO_LABELS, $on ? true : null);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_FOLLOW_OUTLOOK_CATEGORIES. */
     public bool $followsOutlookCategories {
         get => true === $this->isMicrosoft() && true === $this->getSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, false);

@@ -22,8 +22,10 @@ class LabelBindingRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every binding of this user's that IS an IMAP folder, with its account,
-     * in one read — for the sidebar's folder marks (SidebarCounts::folderAccountsOf()).
+     * Every binding of this user's that is a folder on its account — an IMAP
+     * folder or an Outlook folder — with its account and mailbox, in one read:
+     * for the sidebar's folder marks and for what the "Move to" and "Label as"
+     * pickers offer (SidebarCounts::folderAccountsOf(), isFolderOn()).
      *
      * @return list<LabelBinding>
      */
@@ -32,8 +34,9 @@ class LabelBindingRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('b')
             ->addSelect('a', 'm')
             ->join('b.account', 'a')
-            ->join('b.mailbox', 'm')
+            ->leftJoin('b.mailbox', 'm')
             ->where('a.usr = :user')
+            ->andWhere('b.mailbox IS NOT NULL OR b.graphFolderId IS NOT NULL')
             ->setParameter('user', $user)
             ->getQuery()
             ->getResult();

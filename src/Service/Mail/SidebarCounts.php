@@ -80,6 +80,9 @@ class SidebarCounts implements ResetInterface
     /** @var array<int, array<int, Mailbox>> account id => (label id => its folder there) */
     private array $folders = [];
 
+    /** @var array<int, array<int, true>> label id => (account id => it is a folder there, IMAP or Outlook) */
+    private array $folderOn = [];
+
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
      * staleness was actually caught in the wild.
@@ -105,6 +108,7 @@ class SidebarCounts implements ResetInterface
         $this->changeSequence     = null;
         $this->folderAccounts     = null;
         $this->folders            = [];
+        $this->folderOn           = [];
     }
 
     public function __construct(
@@ -200,6 +204,18 @@ class SidebarCounts implements ResetInterface
         return $this->folders[(int) $account->id][(int) $label->id] ?? null;
     }
 
+    /**
+     * Whether this label is a folder on this account — an IMAP folder, or an
+     * Outlook folder — for the "Move to" and "Label as" pickers (LabelKinds).
+     * Out of the same read as the folder marks.
+     */
+    public function isFolderOn(Label $label, Account $account): bool
+    {
+        $this->loadFolders();
+
+        return isset($this->folderOn[(int) $label->id][(int) $account->id]);
+    }
+
     private function loadFolders(): void
     {
         if (null !== $this->folderAccounts) {
@@ -208,13 +224,20 @@ class SidebarCounts implements ResetInterface
 
         $this->folderAccounts = [];
         $this->folders        = [];
+        $this->folderOn       = [];
         $user                 = $this->security->getUser();
 
         foreach (null === $user ? [] : $this->bindings->findFolderBindingsForUser($user) as $binding) {
             $account = $binding->account;
             $label   = $binding->label;
 
-            if (null === $account || null === $label || null === $binding->mailbox || false === $account->isPlainImap()) {
+            if (null === $account || null === $label) {
+                continue;
+            }
+
+            $this->folderOn[(int) $label->id][(int) $account->id] = true;
+
+            if (null === $binding->mailbox || false === $account->isPlainImap()) {
                 continue;
             }
 

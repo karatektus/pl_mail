@@ -3379,6 +3379,10 @@ settings:
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'
             unreachable: 'Le serveur de messagerie est injoignable, rien n’a été modifié : %reason%'
+        gmail_move:
+            off_hint: 'Désactivé : pour ce compte, Déplacer vers ne liste que la boîte de réception, le spam et la corbeille. Les libellés se posent avec « Appliquer le libellé ».'
+            on_hint: 'Activé : Déplacer vers liste aussi les libellés de ce compte. Y déplacer pose le libellé et sort le message de la boîte de réception, comme dans Gmail.'
+            title: 'Déplacer vers propose les libellés'
         heading: Comptes mail
         make_primary: Définir comme principal
         make_primary_explained: 'Envoyer les nouveaux messages depuis %account% par défaut'

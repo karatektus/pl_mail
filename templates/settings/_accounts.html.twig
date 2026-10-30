@@ -255,6 +255,9 @@
                     {% if account.microsoft %}
                         {{ include('settings/accounts/_categories_control.html.twig', {account: account}) }}
                     {% endif %}
+                    {% if account.gmail %}
+                        {{ include('settings/accounts/_gmail_move_control.html.twig', {account: account}) }}
+                    {% endif %}
                     <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
                         <button

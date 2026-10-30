@@ -3358,6 +3358,10 @@ settings:
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
             unreachable: 'The mail server could not be reached, nothing was changed: %reason%'
+        gmail_move:
+            off_hint: 'Off: Move to lists the inbox, spam and trash only for this account. Labels are put on with Label as.'
+            on_hint: 'On: Move to lists this account’s labels too. Moving there puts the label on and takes the mail out of the inbox, as Gmail does.'
+            title: 'Move to offers labels'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'

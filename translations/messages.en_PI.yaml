@@ -3207,6 +3207,10 @@ settings:
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'
             unreachable: 'The mail server could not be hailed, nothin changed: %reason%'
+        gmail_move:
+            off_hint: 'Off: Haul off to lists the inbox, the bilge and Davy Jones only for this account. Flags be hoisted with Fly a flag.'
+            on_hint: 'On: Haul off to lists this account’s flags too. Movin’ there hoists the flag and takes the letter out o’ the inbox, as Gmail does.'
+            title: 'Haul off to offers flags'
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'
