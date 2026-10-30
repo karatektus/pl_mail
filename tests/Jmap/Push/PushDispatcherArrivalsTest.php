@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\Push;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\PushTransport;
 use App\Domain\Interface\PushSenderInterface;
 use App\Entity\Mail\Account;
@@ -106,40 +107,60 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
     }
 
     /**
-     * A user who wants Primary only is judged by the Primary set, not by "mail
-     * arrived": a promotion arrives and says nothing to them.
+     * A user who chose tabs is judged by the tab the mail arrived in, not by
+     * "mail arrived": a promotion arrives and says nothing to someone who only
+     * wants Primary and Social.
      */
-    public function testAPrimaryOnlyUserIsNotToldOfMailThatIsNotPrimary(): void
+    public function testAUserWhoChoseTabsIsToldOnlyOfMailInThoseTabs(): void
     {
         $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
-        $this->user->pushPrimaryOnly = true;
+        $this->user->pushCategories = [MessageCategory::Primary, MessageCategory::Social];
         $this->em->flush();
 
         $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
         $own     = $this->ownAccountId();
 
-        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: []);
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], categories: [$own => [MessageCategory::Promotions]]);
 
-        self::assertCount(0, $webPush->sent, 'something arrived, but nothing Primary');
+        self::assertCount(0, $webPush->sent, 'something arrived, but in a tab they did not choose');
 
-        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: [$own]);
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], categories: [$own => [MessageCategory::Promotions, MessageCategory::Social]]);
 
-        self::assertCount(1, $webPush->sent, 'presence: Primary mail arrived, so they are told');
+        self::assertCount(1, $webPush->sent, 'presence: one of the arrivals is in a chosen tab');
     }
 
-    /** Mail released into Primary after a hold is in the Primary set only. */
-    public function testAPrimaryOnlyUserIsToldWhenHeldMailIsReleasedIntoPrimary(): void
+    /** Held mail has no tab on arrival, so it says nothing to a user who chose tabs. */
+    public function testHeldMailIsNoNewsToAUserWhoChoseTabs(): void
     {
         $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
-        $this->user->pushPrimaryOnly = true;
+        $this->user->pushCategories = [MessageCategory::Primary];
         $this->em->flush();
 
         $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
         $own     = $this->ownAccountId();
 
-        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], primaryArrived: [$own]);
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], categories: []);
 
-        self::assertCount(1, $webPush->sent, 'the release is their arrival');
+        self::assertCount(0, $webPush->sent, 'its tab is not known yet');
+    }
+
+    /** Mail released into a chosen tab after a hold is in the per-tab set only. */
+    public function testAUserWhoChoseTabsIsToldWhenHeldMailIsReleasedIntoOne(): void
+    {
+        $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
+        $this->user->pushCategories = [MessageCategory::Primary];
+        $this->em->flush();
+
+        $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
+        $own     = $this->ownAccountId();
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], categories: [$own => [MessageCategory::Updates]]);
+
+        self::assertCount(0, $webPush->sent, 'released into a tab they did not choose');
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], categories: [$own => [MessageCategory::Primary]]);
+
+        self::assertCount(1, $webPush->sent, 'presence: the release is their arrival');
     }
 
     /** ...and is not an arrival for anybody who is told about everything. */
@@ -150,13 +171,13 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
         $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
         $own     = $this->ownAccountId();
 
-        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], primaryArrived: [$own]);
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], categories: [$own => [MessageCategory::Primary]]);
 
         self::assertCount(0, $webPush->sent, 'they were told when it arrived');
 
-        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: []);
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], categories: []);
 
-        self::assertCount(1, $webPush->sent, 'presence: a promotion still notifies someone who wants everything');
+        self::assertCount(1, $webPush->sent, 'presence: held mail still notifies someone who wants everything');
     }
 
     /**
@@ -164,9 +185,9 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
      * @param list<int> $updated    the accounts a change was recorded for; the
      *                              dispatcher receives the same ids for both
      * @param list<int> $arrived    the accounts mail arrived in
-     * @param list<int> $primaryArrived the accounts Primary mail arrived in
+     * @param array<int,list<MessageCategory>> $categories the tabs mail arrived in, per account
      */
-    private function dispatch(PushSenderInterface $sender, array $accountIds, array $updated, array $arrived, array $primaryArrived = []): void
+    private function dispatch(PushSenderInterface $sender, array $accountIds, array $updated, array $arrived, array $categories = []): void
     {
         $container = self::getContainer();
 
@@ -184,7 +205,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
             new PushSenderRegistry([$sender]),
             $container->get(StateChangeBuilder::class),
             new NullLogger(),
-        )->dispatch($changed, $arrived, $primaryArrived);
+        )->dispatch($changed, $arrived, $categories);
     }
 
     /** This user's account id as the int the dispatcher is handed; JmapTestCase::accountId() is the JMAP string. */

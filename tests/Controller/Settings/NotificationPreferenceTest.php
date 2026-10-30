@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\User\User;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
@@ -98,26 +99,34 @@ final class NotificationPreferenceTest extends WebTestCase
         self::assertFalse($this->reread()->pushSkipsRead);
     }
 
-    public function testNotifyForIsAllUntilPrimaryOnlyIsChosen(): void
+    public function testEveryTabNotifiesUntilSomeAreChosen(): void
     {
-        self::assertFalse($this->user->pushPrimaryOnly);
+        self::assertFalse($this->user->pushFiltersCategories);
+        self::assertCount(5, $this->user->pushCategories);
 
         $page = $this->client->request('GET', '/settings?section=notifications');
 
-        self::assertSame('all', $page->filter('input[name="notifyFor"]:checked')->attr('value'));
+        self::assertCount(5, $page->filter('input[name="categories[]"]:checked'));
 
-        $this->post(['notifyFor' => 'primary']);
+        $this->post(['categoriesSent' => '1', 'categories' => ['primary', 'social']]);
 
-        self::assertTrue($this->reread()->pushPrimaryOnly);
+        self::assertSame([MessageCategory::Primary, MessageCategory::Social], $this->reread()->pushCategories);
+        self::assertTrue($this->reread()->pushNotifiesFor(MessageCategory::Social));
+        self::assertFalse($this->reread()->pushNotifiesFor(MessageCategory::Promotions));
 
-        // A post that does not mention it leaves it alone; "all" is the absent key.
+        // A post that does not mention the boxes leaves them alone.
         $this->post(['skipRead' => '1']);
-        self::assertTrue($this->reread()->pushPrimaryOnly);
+        self::assertTrue($this->reread()->pushFiltersCategories);
 
-        $this->post(['notifyFor' => 'all']);
+        // Unchecking every box changes nothing: no tab at all is notifications off.
+        $this->post(['categoriesSent' => '1']);
+        self::assertSame([MessageCategory::Primary, MessageCategory::Social], $this->reread()->pushCategories);
 
-        self::assertFalse($this->reread()->pushPrimaryOnly);
-        self::assertNull($this->reread()->getSetting(User::SETTING_PUSH_PRIMARY_ONLY));
+        // Everything again is the absent key.
+        $this->post(['categoriesSent' => '1', 'categories' => ['primary', 'social', 'promotions', 'updates', 'forums', 'bogus']]);
+
+        self::assertFalse($this->reread()->pushFiltersCategories);
+        self::assertNull($this->reread()->getSetting(User::SETTING_PUSH_CATEGORIES));
     }
 
     public function testTheEndpointReportsTheSettingAndTheInboxUnread(): void
@@ -171,7 +180,7 @@ final class NotificationPreferenceTest extends WebTestCase
         return json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
     }
 
-    /** @param array<string, string> $fields */
+    /** @param array<string, string|list<string>> $fields */
     private function post(array $fields): void
     {
         $page  = $this->client->request('GET', '/settings?section=notifications');

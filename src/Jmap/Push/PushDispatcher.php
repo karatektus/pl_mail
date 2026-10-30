@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\User\PushSubscription;
+use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
 use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\User\UserRepository;
@@ -46,16 +48,15 @@ final class PushDispatcher
     /**
      * @param array<int,array<string,string>> $changed           accountId => type => state
      * @param list<int>                       $arrivedAccountIds accounts on which mail arrived since the last drain
-     * @param list<int>                       $primaryArrivedIds accounts on which Primary mail arrived, or was released into it
+     * @param array<int,list<MessageCategory>> $arrivalCategories the tabs mail arrived in, or was released into, per account
      */
-    public function dispatch(array $changed, array $arrivedAccountIds, array $primaryArrivedIds = []): void
+    public function dispatch(array $changed, array $arrivedAccountIds, array $arrivalCategories = []): void
     {
         if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
 
         $arrived        = array_map('intval', $arrivedAccountIds);
-        $primaryArrived = array_map('intval', $primaryArrivedIds);
 
         foreach ($this->groupByUser($changed) as $userId => $userChanges) {
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
@@ -77,14 +78,12 @@ final class PushDispatcher
                 // arrival says nothing about it.
                 //
                 // And judged by what this user asked to hear about: a user who
-                // wants Primary only is told of the arrivals that are Primary,
-                // which is a different set from "mail arrived" (see
-                // StateManager::$primaryArrivals). Android narrows to Primary
-                // on its own and is not an arrivals-only row, so this reaches
-                // the browser and nothing else.
-                $relevant = true === $subscription->usr->pushPrimaryOnly ? $primaryArrived : $arrived;
-
-                if (true === $subscription->arrivalsOnly && false === $this->anyArrived($userChanges, $relevant)) {
+                // chose categories is told of arrivals in those tabs, which is a
+                // different question from "mail arrived" (see
+                // StateManager::$categorisedArrivals). Android narrows to
+                // Primary on its own and is not an arrivals-only row, so this
+                // reaches the browser and nothing else.
+                if (true === $subscription->arrivalsOnly && false === $this->arrivalIsWanted($subscription->usr, $userChanges, $arrived, $arrivalCategories)) {
                     continue;
                 }
 
@@ -129,14 +128,27 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<string,array<string,string>> $userChanges accountId => type => state, for one user
-     * @param list<int>                          $arrived     accounts on which mail arrived
+     * @param array<string,array<string,string>> $userChanges        accountId => type => state, for one user
+     * @param list<int>                          $arrived            accounts on which mail arrived
+     * @param array<int,list<MessageCategory>>   $arrivalCategories the tabs it arrived in, per account
      */
-    private function anyArrived(array $userChanges, array $arrived): bool
+    private function arrivalIsWanted(User $user, array $userChanges, array $arrived, array $arrivalCategories): bool
     {
         foreach (array_keys($userChanges) as $accountId) {
-            if (true === in_array((int) $accountId, $arrived, true)) {
-                return true;
+            $accountId = (int) $accountId;
+
+            if (false === $user->pushFiltersCategories) {
+                if (true === in_array($accountId, $arrived, true)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            foreach ($arrivalCategories[$accountId] ?? [] as $category) {
+                if (true === $user->pushNotifiesFor($category)) {
+                    return true;
+                }
             }
         }
 

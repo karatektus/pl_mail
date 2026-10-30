@@ -90,17 +90,16 @@ final readonly class HeldMailReleaser
 
         $this->announce($released);
 
-        // The verdict is in, so "is this Primary" can finally be answered for
-        // the user who wants Primary only. The same tests the pipeline applied
-        // on arrival, asked again because the mail may have been read, filed or
-        // sorted into another tab in the meantime.
+        // The verdict is in, so "which tab" can finally be answered for the user
+        // who chose categories. The same tests the pipeline applied on arrival,
+        // asked again because the mail may have been read, filed or sorted into
+        // another tab in the meantime.
         foreach ($released as $message) {
             if (ArrivalPlace::Inbox === $message->arrivedIn
                 && null === $message->seenAt
                 && true === $message->isInInbox()
-                && false === $message->isSetAside()
-                && MessageCategory::Primary === $message->category) {
-                $this->changes->mailReleasedToPrimary((int) $message->account->id);
+                && false === $message->isSetAside()) {
+                $this->changes->mailReleasedTo((int) $message->account->id, $message->category ?? MessageCategory::Primary);
             }
         }
 
