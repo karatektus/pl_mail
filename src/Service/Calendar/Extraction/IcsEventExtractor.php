@@ -9,6 +9,7 @@ use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Domain\Helper\CharsetHelper;
 use App\Domain\Interface\EventExtractorInterface;
+use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\MessagePart;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use App\Service\Graph\GraphMessageBuilder;
@@ -191,6 +192,11 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
         if ('' === $uid) {
             // Without a UID there is no identity, so a later update could not
             // find this again and every resend would be a new event.
+            return null;
+        }
+
+        if (false === CalendarEvent::fitsAnIndex($uid)) {
+            // A UID the sender made too long to store is no invitation to act on.
             return null;
         }
 

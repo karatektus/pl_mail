@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\CalendarChangeKind;
 use App\Domain\Trait\TimestampableTrait;
 use App\Repository\Calendar\CalendarChangeLogRepository;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -111,7 +112,7 @@ class CalendarChangeLog
     public private(set) ?int $eventId;
 
     /** RFC 5545 UID, copied so a tombstone still names its resource. */
-    #[ORM\Column(name: 'event_uid', length: 255, nullable: true)]
+    #[ORM\Column(name: 'event_uid', type: Types::TEXT, nullable: true)]
     public private(set) ?string $eventUid;
 
     #[ORM\Column(name: 'change_kind', length: 16, enumType: CalendarChangeKind::class)]

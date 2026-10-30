@@ -149,7 +149,7 @@ class Calendar
     public int $sortOrder = 0;
 
     /** Opaque id at the remote, for CalendarRole::Remote. */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
 
     /** CalDAV sync-token or provider equivalent; opaque, never parsed. */
@@ -257,7 +257,7 @@ class Calendar
      * comparison against a known column, and neither is something to build on a
      * key inside a jsonb document whose readers assume their own defaults.
      */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $pushChannelId = null;
 
     /**
@@ -270,7 +270,7 @@ class Calendar
      *
      * Null for Microsoft, which cancels by subscription id alone.
      */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $pushResourceId = null;
 
     /**

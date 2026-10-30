@@ -176,6 +176,17 @@ final class IcsImporterTest extends KernelTestCase
         self::assertCount(1, $this->onTheCalendar());
     }
 
+    public function testAUidTooLongToIndexSkipsThatEventAndKeepsTheRest(): void
+    {
+        $file = str_replace('UID:meeting-1', 'UID:' . bin2hex(random_bytes(1500)), $this->twoEvents());
+
+        $result = $this->importer->import($this->calendar, $this->user, $file);
+        $this->em->flush();
+
+        self::assertSame(1, $result->imported);
+        self::assertCount(1, $this->onTheCalendar());
+    }
+
     /**
      * A mirror of a published file cannot accept anything: rows written there
      * could never leave, and the engine's promise is that a driver is never

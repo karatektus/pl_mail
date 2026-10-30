@@ -90,6 +90,18 @@ final class IcsExtractionTest extends KernelTestCase
     }
 
     /**
+     * Whoever sends the invitation picks the UID, so this is what keeps a mail
+     * from failing the import of the message it came in.
+     */
+    public function testAnInviteWhoseUidIsTooLongToIndexBecomesNothing(): void
+    {
+        $uid = bin2hex(random_bytes(1500));
+
+        self::assertNull($this->ingest($this->ics($uid, 'Standup', '20260803T090000Z', '20260803T091500Z')));
+        self::assertSame([], $this->eventsWithUid($uid));
+    }
+
+    /**
      * RFC 5545 says a calendar is UTF-8, and senders send latin-1 anyway.
      *
      * Nothing converts these bytes on the way in: an invite is stored as the

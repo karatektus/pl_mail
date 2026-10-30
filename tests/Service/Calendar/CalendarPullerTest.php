@@ -127,6 +127,47 @@ final class CalendarPullerTest extends KernelTestCase
         );
     }
 
+    /**
+     * #443: the length that failed an Outlook calendar's every pull, down to the
+     * change log, which copies the uid.
+     */
+    public function testAUidLongerThan255CharactersIsStored(): void
+    {
+        $uid    = str_repeat('u', 262);
+        $remote = $this->calDav(str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs()));
+
+        self::assertNotNull($remote);
+        self::assertSame(1, $this->apply([$remote]));
+        self::assertSame(
+            $uid,
+            $this->events->findOneByRemoteId($this->calendar, 'https://dav.example.com/c/weekly.ics')?->uid,
+        );
+        self::assertGreaterThan(
+            0,
+            (int) $this->connection->fetchOne('SELECT count(*) FROM calendar_change_log WHERE event_uid = ?', [$uid]),
+        );
+    }
+
+    /**
+     * Random, because a repetitive value compresses and fits the index anyway.
+     */
+    public function testAUidTooLongToIndexSkipsThatEventAndNotTheCalendar(): void
+    {
+        $uid     = bin2hex(random_bytes(1500));
+        $tooLong = $this->calDav(str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs()));
+
+        self::assertNotNull($tooLong);
+
+        $this->apply([$tooLong, $this->google($this->googleSeries())]);
+
+        self::assertSame(1, $this->rowCount(), 'the other event in the window is written');
+        self::assertNull($this->events->findOneByRemoteId($this->calendar, 'https://dav.example.com/c/weekly.ics'));
+        self::assertContains(
+            'CalendarSync: skipped an event whose identifier is too long to store',
+            array_column($this->logger->records, 'message'),
+        );
+    }
+
     public function testAnUnconvertibleRuleLeavesTheEventVisibleRatherThanEmpty(): void
     {
         // FREQ=SECONDLY is refused rather than converted — sabre's iterator

@@ -72,6 +72,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
 class CalendarEvent
 {
+    /**
+     * Past this a uid or remote id is refused rather than stored. Both columns
+     * are in a btree, and Postgres refuses an index row over 2704 bytes after
+     * compression, so a random 2800-character value fails its insert. Left to
+     * that error, one such event would fail every pull of its calendar, and a
+     * uid is whatever the sender of an invitation chose. Set below the limit
+     * because compression can't be relied on, and far above any real value.
+     */
+    public const int MAX_IDENTITY_BYTES = 2048;
+
     use TimestampableTrait;
 
     /**
@@ -111,8 +121,12 @@ class CalendarEvent
      * For an invite this is the sender's own UID, verbatim, because RFC 5546
      * already decided what identity means and re-deciding it would break
      * interoperability with every other calendar.
+     *
+     * TEXT, because the sender picks the length and RFC 5545 sets no maximum: a
+     * 262-character iCalUId at varchar(255) failed every pull of an Outlook
+     * calendar. See fitsAnIndex() for the limit that is left.
      */
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(type: Types::TEXT)]
     public string $uid = '';
 
     /** iCalendar SEQUENCE: which revision this is. Higher wins. */
@@ -244,7 +258,7 @@ class CalendarEvent
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteEtag = null;
 
     /**
@@ -336,5 +350,10 @@ class CalendarEvent
     public function isExtracted(): bool
     {
         return null !== $this->kind;
+    }
+
+    public static function fitsAnIndex(string $identity): bool
+    {
+        return strlen($identity) <= self::MAX_IDENTITY_BYTES;
     }
 }

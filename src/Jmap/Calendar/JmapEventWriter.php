@@ -112,6 +112,10 @@ final class JmapEventWriter
             // decided what an event's identity is, and a server that reissued
             // it would break every reply and update sent about the meeting.
             $event->uid = $this->string($uid, 'uid');
+
+            if (false === CalendarEvent::fitsAnIndex($event->uid)) {
+                throw new MethodException('invalidProperties', '"uid" is too long.', ['properties' => ['uid']]);
+            }
         }
 
         $this->apply($event, $calendar, $user, $create, $create);

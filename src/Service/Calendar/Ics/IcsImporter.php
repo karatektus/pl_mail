@@ -198,6 +198,15 @@ final readonly class IcsImporter
             return false;
         }
 
+        if (false === CalendarEvent::fitsAnIndex($remote->uid)) {
+            $this->logger->warning('IcsImport: skipped a component whose UID is too long to store', [
+                'calendarId' => $calendar->id,
+                'uidBytes'   => strlen($remote->uid),
+            ]);
+
+            return false;
+        }
+
         $event = $existing ?? new CalendarEvent();
 
         // Before write(), which mints a UID for an event that has none. A
