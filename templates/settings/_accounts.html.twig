@@ -206,11 +206,10 @@
                         </button>
                     {% endif %}
                     {# Which folders to fetch. Only an account that syncs over
-                       IMAP has folder rows to choose between; a Gmail or
-                       Microsoft one syncs through its API and gets no button,
-                       which is the condition AccountFoldersController refuses
-                       the rest on. #}
-                    {% if not (account.microsoft or account.gmail) %}
+                       IMAP has folder rows to choose between; the others get
+                       no button, which is the condition
+                       AccountFoldersController refuses the rest on. #}
+                    {% if account.plainImap %}
                         <button
                             type="button"
                             data-controller="ui--modal"
@@ -251,6 +250,12 @@
                     {% endif %}
                     {% if account.microsoft or account.gmail %}
                         {{ include('settings/accounts/_push_control.html.twig', {account: account, failed: false}) }}
+                    {% endif %}
+                    {% if account.microsoft %}
+                        {{ include('settings/accounts/_categories_control.html.twig', {account: account}) }}
+                    {% endif %}
+                    {% if account.gmail %}
+                        {{ include('settings/accounts/_gmail_move_control.html.twig', {account: account}) }}
                     {% endif %}
                     <form method="post" action="{{ path('app_account_toggle', { id: account.id }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">

@@ -694,7 +694,7 @@ be a worse regression than the one this feature fixes.
                             </span>
                         {% endif %}
                         <span class="row-line:hidden contents">
-                            {% include '_partials/_thread_labels.html.twig' with { item: item } %}
+                            {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                         </span>
                         {# A three-line row has one short line for the preview,
                            and a scheduled draft has already spent most of it
@@ -739,7 +739,7 @@ be a worse regression than the one this feature fixes.
                    not need to — see the note on `hidden @xl:inline-block`
                    above. #}
                 <div class="hidden row-line:has-[*]:flex items-center mt-1">
-                    {% include '_partials/_thread_labels.html.twig' with { item: item } %}
+                    {% include '_partials/_thread_labels.html.twig' with { item: item, account: rowAccount } %}
                 </div>
             </div>
         </div>

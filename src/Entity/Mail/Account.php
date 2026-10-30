@@ -753,6 +753,56 @@ class Account extends AccountModel
     public const string SETTING_KEEP_DECRYPTED_AI      = 'crypto.keep_decrypted_ai';
     public const string SETTING_KEEP_DECRYPTED_AI_HOST = 'crypto.keep_decrypted_ai_host';
 
+    /**
+     * Whether labels on this plain IMAP account's mail are written to the
+     * server as IMAP keywords, where a folder allows them (#221 step 2). Off by
+     * default, because other mail apps then show them: until it is switched
+     * on, a label on IMAP stays in plMail, as it always has.
+     */
+    public const string SETTING_LABELS_AS_KEYWORDS = 'labels.imap_keywords';
+
+    /**
+     * Whether a category put on or taken off a message in Outlook puts the
+     * label on or takes it off in plMail (#221 step 4). Microsoft only, off by
+     * default: until it is on, categories are read at import and pushed from
+     * plMail, as they always were, and a change made in Outlook to mail
+     * already here is not followed.
+     */
+    public const string SETTING_FOLLOW_OUTLOOK_CATEGORIES = 'labels.outlook_categories';
+
+    /**
+     * Whether "Move to" offers this Gmail account's labels as well as its
+     * system places (#221 step 3). Gmail has no folders: a move to a label is
+     * Gmail's own — the label goes on and the inbox comes off — so it is a
+     * choice, not a given. Off by default, and then labels are put on with
+     * "Label as", as tags.
+     */
+    public const string SETTING_GMAIL_MOVE_TO_LABELS = 'labels.gmail_move_to';
+
+    /** Virtual, out of the settings bag — see SETTING_GMAIL_MOVE_TO_LABELS. */
+    public bool $gmailMoveOffersLabels {
+        get => true === $this->isGmail() && true === $this->getSetting(self::SETTING_GMAIL_MOVE_TO_LABELS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_GMAIL_MOVE_TO_LABELS, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_FOLLOW_OUTLOOK_CATEGORIES. */
+    public bool $followsOutlookCategories {
+        get => true === $this->isMicrosoft() && true === $this->getSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_FOLLOW_OUTLOOK_CATEGORIES, $on ? true : null);
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_LABELS_AS_KEYWORDS. */
+    public bool $labelsAsKeywords {
+        get => true === $this->isPlainImap() && true === $this->getSetting(self::SETTING_LABELS_AS_KEYWORDS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_LABELS_AS_KEYWORDS, $on ? true : null);
+        }
+    }
+
     /** Virtual, out of the settings bag — see SETTING_KEEP_DECRYPTED. */
     public bool $keepDecrypted {
         get => true === $this->getSetting(self::SETTING_KEEP_DECRYPTED, false);

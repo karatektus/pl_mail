@@ -9,6 +9,7 @@ use App\Infrastructure\ImapClient\ImapSession;
 use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\ImapFolderRefusedException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -344,6 +345,46 @@ final class ImapFolderProvisionerTest extends KernelTestCase
 
         self::assertSame('INBOX.Projekte', $path);
         self::assertSame(['INBOX.Projekte'], $this->created, 'the server is asked for exactly what the row named');
+    }
+
+    // ── a folder somebody asked for (#221) ────────────────────────────────
+
+    /**
+     * A folder asked for by name is told why it was not made, in the server's
+     * own words — its response code and text — rather than null and a line in
+     * the worker log; and nothing is recorded for it.
+     */
+    public function testAFolderAskedForByNameSaysWhyTheServerRefused(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [CANNOT] Permission denied';
+
+        try {
+            $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+            self::fail('a refused CREATE was reported as made');
+        } catch (ImapFolderRefusedException $e) {
+            self::assertSame('Clients', $e->folder);
+            self::assertSame('[CANNOT] Permission denied', $e->reason);
+        }
+
+        self::assertNull(
+            $this->em->getRepository(Mailbox::class)->findOneBy(['account' => $this->account, 'fullPath' => 'Clients']),
+            'and nothing is recorded for it',
+        );
+    }
+
+    /** Asked for by name, a folder that is already there is still the answer. */
+    public function testAFolderAskedForThatAlreadyExistsIsReturned(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists';
+
+        $mailbox = $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+
+        self::assertSame('Clients', $mailbox->fullPath);
+        self::assertSame('Clients', $mailbox->label?->name);
     }
 
     // ── fixture ───────────────────────────────────────────────────────────

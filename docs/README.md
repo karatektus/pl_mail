@@ -86,6 +86,7 @@ or extending plMail rather than running it.
 | [The sync engine](internals/calendar-sync-engine.md) | The driver contract every provider implements, push channels, deduplication |
 | [AI assistance](internals/ai-assist.md) | The optional model features: what is off by default, and why the vector design avoids pgvector |
 | [Event extraction](internals/event-extraction.md) | How an invitation and how a sentence become a calendar entry |
+| [Folders and labels](internals/folders-and-labels.md) | A folder is a place and a label a tag: the model, the folder actions on IMAP, and the steps still to come |
 | [JMAP](internals/jmap.md) | What is implemented, what is deliberately not, and the id spaces |
 | [Security model](internals/security-model.md) | Encryption at rest, the secrets file, tokens, and what a public link can reach |
 

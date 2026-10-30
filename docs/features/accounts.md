@@ -142,7 +142,9 @@ Each row offers:
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
-| **Choose which folders to sync** | Switches individual IMAP folders on or off — IMAP accounts only; see [Folders to sync](#folders-to-sync) |
+| **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
+| **Follow Outlook categories** (tags icon) | Off by default; on, a category put on or taken off in Outlook puts the label on or takes it off here — Microsoft accounts only; see [Labels as Outlook categories](#labels-as-outlook-categories) |
+| **Move to offers labels** (open folder icon) | Off by default; on, **Move to** lists this account's labels as well as the inbox, spam and trash, and moving there puts the label on and takes the mail out of the inbox, as Gmail does — Gmail accounts only; see [Move to](mail.md#move-to) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -163,8 +165,8 @@ On the edit form, leaving the password field blank keeps the stored one.
 
 ## Per-account settings
 
-Three controls sit under each account row. Each re-renders on its own rather than reloading the
-whole list.
+The controls under each account row each re-render on their own rather than reloading the whole
+list.
 
 ### Instant delivery
 
@@ -200,36 +202,107 @@ two you are looking at and shows the dates it decided from.
 Where push is not available on this server at all, the control says so rather than offering a
 switch that cannot work.
 
-### Sync labels to provider
+### Labels at the provider
 
-Off by default. With it on, labels you create, rename or delete are mirrored to that provider,
-whether the change came from the web UI or from a JMAP client.
+On Gmail and Microsoft, labels you create, rename or delete are mirrored to the provider, whether
+the change came from the web UI or from a JMAP client. There is no switch for it: it used to be one,
+off by default, and all it bought was an organisation that existed only in plMail and vanished the
+moment you opened Gmail. It only ever affects changes made from then on; labels that already exist
+are not pushed retroactively.
 
-Only Gmail and Microsoft offer it. On plain IMAP a label is a physical folder, so creating and
-deleting labels would move real mail on the server — a different and riskier operation than the
-switch promises.
+On a plain IMAP account a label never creates, renames or deletes a folder on the server, and it
+never moves mail. Folders are made, renamed and deleted in the account's own folder list — see
+[Folders](#folders). Where a label goes instead is the next section.
 
-It only ever affects changes made from now on. Labels that already exist are not pushed
-retroactively, because that would mean bulk-creating your entire local tree at the provider from
-one click.
+### Labels as keywords
 
-**On Microsoft, most labels are Outlook categories rather than folders**, and a category there has
-no identity but its name — the name is what is written onto each message. So renaming one does two
-things: the master category is renamed, and every message carrying the old name is pushed again so
-it carries the new one. That second half is the same question Outlook's own rename dialog asks; here
-it is answered yes, because the alternative is a mailbox where the label exists twice — once as a
-category and once as loose text on the mail that used to have it. A label on thousands of messages
-therefore means thousands of updates, sent in the background.
+IMAP has tags of its own: keywords, which a server keeps on each message beside `\Seen` and
+`\Flagged`, and which other mail apps show — Thunderbird as its tags, for one. **Labels as keywords**,
+at the top of an IMAP account's folder list, puts your labels there. It is off by default, and then
+a label on IMAP mail stays in plMail, as it always has.
+
+Switched on, putting a label on a conversation writes it to the server as a keyword on each of its
+messages, and taking it off removes it. A keyword set or cleared in another mail app puts the label
+on or takes it off here, within seconds when plMail is idling on the folder and at the next sync
+otherwise; a keyword plMail has not seen before becomes a new label. Labels still never move mail,
+and a label that is a folder on the account stays a folder.
+
+Switching it on asks each folder whether the server keeps keywords there, and the list says what it
+answered: **This server keeps keywords**, **This server keeps no keywords** (labels then stay in
+plMail on that account), or not asked yet. Every label's dialog says, per IMAP account, where it is
+kept: a folder, a keyword, or only in plMail, and why.
+
+A label's name becomes a keyword as it is when it can — "Work", "Invoices/2025" — so it matches what
+other mail apps write. A name with spaces or other characters a keyword cannot hold is written in
+the encoding IMAP uses for folder names ("Follow up" is `Follow&ACA-up`), which plMail reads back as
+the same name. Keywords that mean something to mail apps — `$Junk`, `$NotJunk`, `$Forwarded`,
+`$MDNSent`, `$Phishing`, `$Important`, Thunderbird's `$label1`–`$label5` — are never read as labels.
+
+Only changes made after switching it on are written; labels already on mail are not pushed in bulk.
+
+### Labels as Outlook categories
+
+On a Microsoft account a label is an Outlook category, unless it came from an Exchange folder, in
+which case it is that folder. Putting a label on a conversation puts the category on each of its
+messages in Exchange, and taking it off takes it off; creating a label here creates the category in
+Outlook's category list, in the label's colour. Labels never move mail,
+and a label that is a folder stays a folder.
+
+What comes back from Outlook is the other half, and it depends on **Follow Outlook categories**,
+the tags icon on a Microsoft account's row. It is off by default, and then plMail behaves as it
+always has: categories are read when a message first arrives, and a category put on or taken off
+in Outlook afterwards changes nothing here. Switched on, such a change puts the label on or takes
+it off in plMail at the next sync, and a category plMail has not seen before becomes a new label.
+Only changes count: plMail remembers which categories Exchange last held for each message, and a
+message is changed here only where Exchange's list differs from that. A label you put on in plMail
+and Exchange never had is therefore left alone, not taken off.
+
+Turning it on makes plMail list every folder of that account once more, because the record of where
+each folder's sync had got to was started without categories and cannot be widened. Nothing is
+fetched twice — mail already here is recognised — but on a large mailbox that first pass takes a
+while. Turning it off again costs nothing.
+
+The label dialog says, per Microsoft account, where the label is kept: a folder, or an Outlook
+category, and whether Outlook's changes to it are followed.
+
+**A category has no identity but its name** — the name is what is written onto each message. So
+renaming a label does two things: the category in Outlook's list gets the new name, and every
+message plMail holds that carries the old name is pushed again so it carries the new one. That
+second half is the same question Outlook's own rename dialog asks; here it is answered yes, because
+the alternative is a mailbox where the label exists twice — once as a category and once as loose
+text on the mail that used to have it. A label on thousands of messages therefore means thousands of
+updates, sent in the background. Microsoft documents a category's name as fixed once made; where
+Exchange refuses the rename, plMail makes the category under the new name and deletes the old one,
+which ends in the same place.
+
+Deleting a label deletes the category from Outlook's list. Exchange leaves the name on each message
+as plain text, which Outlook shows without a colour, until something next changes that message's
+labels in plMail.
 
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
 
-### Folders to sync
+### Folders
 
-**Choose which folders to sync** opens the account's folders, each with a switch. Every folder starts
-on. Switching one off stops plMail fetching it: the mail already stored stays where it is, and
-switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
-that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
+**Folders** opens the account's folders as the server has them: the same tree,
+nested the same way, whatever it looks like. A folder is a place — each message is in exactly one
+folder of its account — and this list is where folders are managed. It appears only for IMAP
+accounts: a Gmail or Microsoft account syncs through its provider's API and has no folder list here.
+A folder the server has stopped listing is not shown.
+
+The same dialog is on the account in the sidebar's ACCOUNTS section. An IMAP account's row has a
+⋯ button whose menu offers **New folder…**, which opens the form for that account, and
+**Folders…**, which opens the list. Expand the account and its folders end with **+ New folder**;
+with a mouse, hovering one of your own folders there shows a pencil that opens its rename. In the LABELS section a label that is a folder on an
+IMAP account wears a folder in its colour instead of a dot, and its tooltip names the account, so a
+folder and a plain label can be told apart.
+
+#### Syncing
+
+Each folder has a switch, and every folder starts on. Switching one off stops plMail fetching it:
+the mail already stored stays where it is, and switching the folder back on resumes from where it
+stopped. The inbox has no switch, because a client that has stopped fetching its inbox is not a
+client — to stop an account altogether, disable it.
 
 Two kinds of folder start off: **Starred**, and **All Mail** on an account that also has an Archive
 folder — Proton Mail Bridge has both. They are the server's view of mail it keeps in your other
@@ -242,8 +315,58 @@ Nested folders are indented under their parent. A folder that only groups others
 of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
 the server will not open it, so there is nothing to fetch.
 
-It appears only for IMAP accounts. A Gmail or Microsoft account syncs through its provider's API and
-has no folders to choose between. A folder the server has stopped listing is not shown.
+The list names a folder the way the server does. The inbox and the other system folders read as
+they do in the sidebar ("Drafts", "Trash"), so the same folder is not called two things.
+
+#### New folder
+
+**New folder** asks for a name and for where it goes: **Top level**, or inside any folder the
+server listed. plMail makes the folder on the server, so it appears in every mail app that reads the
+account, subscribes to it, and shows it in the sidebar like the account's other folders.
+
+You type a name, never a path. Where the top level is and which character separates a folder from
+the folders inside it are the server's to say, and plMail asks it: on most servers the top level is
+the top, and on servers that keep everything under the inbox (`INBOX.Name`) a top-level folder goes
+there too, where your other mail apps expect it. Names in any script work, "Bücher" or "Café". A
+folder that is already on the server under that name is not an error: plMail takes it as made.
+
+A name is refused before the server is asked when it cannot be a folder there:
+
+- it contains the server's separator — `/` on most servers, `.` on some. A folder called "v1.2" on a
+  `.` server would silently become a folder "2" inside a folder "v1";
+- it contains `*` or `%`, which other mail apps cannot list reliably, or a line break;
+- it is "INBOX" at the top level, which every server reserves for the inbox.
+
+When it works, the dialog closes, the usual notice at the bottom of the screen says so, and the
+folder is in the sidebar at once. A name the server itself refuses — one it does not allow, a folder
+that already exists when you rename, a quota — is shown with the server's own words, and nothing
+changes.
+
+#### Rename and delete
+
+Your own folders have a pencil (**Rename folder …**) and a bin (**Delete folder …**) beside their
+switch.
+
+**Rename** gives the folder a new name where it is. The server renames the folders inside it along
+with it, and plMail follows at once: its mail stays where it was, and its label in the sidebar keeps
+everything filed under it, under the new name. A label that a folder on another of your accounts
+shares is not renamed from here, because it is that folder's name as well; the renamed folder gets a
+label of its new name instead. Some servers give a renamed folder a new identity, so plMail syncs the
+account straight afterwards.
+
+**Delete** removes a folder from the server, and only an empty one: no mail in it, neither in plMail
+nor on the server, and no folders inside it. Anything else is refused with the reason — move the mail
+or the folders out first. Deleting a folder never deletes mail. Its label goes with it when nothing
+else is left on the label.
+
+The inbox, **Sent**, **Drafts**, **Trash**, **Junk** and **Archive** have neither button. plMail
+never renames or deletes them: your other mail apps and plMail's own sending, archiving and spam
+handling find them by name, or by the role the server gives them, and a renamed Sent folder is one
+nothing files into.
+
+A folder made, renamed or deleted in another mail app shows up here after the next sync. A folder
+renamed elsewhere keeps its mail and, unless another account shares it, its label, under the new
+name.
 
 ## Sending aliases
 
@@ -398,6 +521,34 @@ connects, mail works, and no calendars appear. Reconnecting with the box left ti
 **Push failing is not an error state.** A self-hosted install may have no publicly reachable HTTPS
 address at all. Registration failing means "stay on polling", and the fifteen-minute sweep is
 unaffected.
+
+**On some servers a folder renamed in another mail app comes back as a new folder.** plMail
+recognises a rename by the folder's UIDVALIDITY, which a rename keeps. Stalwart 0.11 answers STATUS
+with a different number from the one it gives when the folder is opened, so a folder renamed there
+in another app arrives as a new folder, its mail is fetched again, and the old one is removed once
+it has been missing for three syncs and a day. A rename made in plMail is not affected.
+
+**The server decides which folders are system folders, and not every server says.** A folder the
+server marks as Sent, Trash, Junk, Drafts or Archive, or one with a well-known name such as "Sent
+Items" or "Gesendet", is protected from rename and delete. A folder whose name plMail does not know
+and that the server does not mark — Stalwart's "Junk Mail" — is treated as your own.
+
+**Renaming or deleting a label does not touch keywords already on the server.** A renamed label's
+mail keeps the old keyword, and a deleted label's keyword stays where it is, in plMail and in other
+mail apps. Putting the renamed label on again writes the new keyword; the old one can be removed in
+another mail app, which takes the old label off here too.
+
+**Other mail apps decide which keywords they show.** Thunderbird shows a keyword as a tag only once
+a tag of that name exists there; until then the keyword is on the message and not on screen.
+
+**Mail plMail never synced keeps an Outlook category's old name.** Renaming a label re-tags the
+messages plMail holds; anything Exchange has that plMail does not carries the old name as plain
+text, which Outlook shows without a colour.
+
+**Follow Outlook categories reads only changes.** Mail that already had a category in Outlook when
+it arrived here has that label; a category added in Outlook before the switch was turned on, to
+mail already here, is not picked up afterwards. Put it on in plMail, or take it off and on again in
+Outlook.
 
 **A message moved in another mail client into a folder that is switched off looks, to plMail, like
 one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only

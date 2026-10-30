@@ -173,6 +173,9 @@ final readonly class ConfigBackupUsers
         // NAMES, which the restorer recreates verbatim, not a row id that means
         // somebody else on the target.
         User::SETTING_SIDEBAR_COLLAPSED,
+        // Whether LABELS lists folders too (#221 step 3): how the person
+        // wants the sidebar, and nothing in it is particular to one host.
+        User::SETTING_FOLDERS_IN_LABELS,
         // Row names, no ids, and the same on any install — and an empty list
         // is a choice that has to survive ("nothing behind More"), which is
         // why this is carried even though most bags never hold it.
@@ -274,6 +277,16 @@ final readonly class ConfigBackupUsers
         // anything the other host did: restored, the target files the mail it
         // imports the way the user asked for.
         Account::SETTING_GMAILIFY,
+        // Whether labels on this IMAP account are written as keywords (#221
+        // step 2): a standing choice its owner made, and the same server keeps
+        // the keywords wherever plMail reads it from.
+        Account::SETTING_LABELS_AS_KEYWORDS,
+        // Whether category changes made in Outlook are followed (#221 step 4):
+        // a choice, carried like the one above.
+        Account::SETTING_FOLLOW_OUTLOOK_CATEGORIES,
+        // Whether Move to offers a Gmail account's labels (#221 step 3): a
+        // choice, carried like the two above.
+        Account::SETTING_GMAIL_MOVE_TO_LABELS,
         // Carried, unlike the ledger below: whether an account deletes from
         // the server after fetching is a standing instruction its owner gave
         // on purpose, and a restore that silently turned it back to Keep

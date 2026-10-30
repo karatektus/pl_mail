@@ -2705,6 +2705,28 @@ label:
         no_color: '— keine —'
         no_parent: '— oberste Ebene —'
         parent: Einordnen unter
+        places:
+            category: 'Eine Outlook-Kategorie auf %account% (Änderungen in Outlook werden nicht übernommen)'
+            category_followed: 'Eine Outlook-Kategorie auf %account%'
+            folder: 'Ein Ordner auf %account%'
+            keyword: 'Ein Schlüsselwort auf %account%'
+            keyword_unasked: 'Ein Schlüsselwort auf %account%, wo seine Ordner Schlüsselwörter speichern'
+            local_off: 'Nur in plMail auf %account% (Labels als Schlüsselwörter ist aus)'
+            local_server: 'Nur in plMail auf %account% (der Server speichert keine Schlüsselwörter)'
+            make_folder: 'Zum Ordner machen'
+            make_folder_body: 'Legt den Ordner „%name%“ auf %account% an, sodass Nachrichten dorthin verschoben werden können.'
+            make_folder_category: 'Die gleichnamige Outlook-Kategorie wird entfernt.'
+            make_folder_done: 'Ordner erstellt.'
+            make_folder_failed: 'Der Ordner konnte nicht erstellt werden: %error%'
+            make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
+            make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
+            make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
+            make_label: 'Zum Label machen'
+            make_label_body: 'Löscht den Ordner „%name%“ auf %account%. Das Label bleibt dort als Markierung und kommt wieder an die verschobenen Nachrichten.'
+            make_label_failed_moved: 'Die verschobenen Nachrichten haben dieses Label nicht mehr; füge es wieder hinzu, sobald der Ordner weg ist.'
+            make_label_mail: '%count% Nachrichten in diesem Ordner müssen zuerst woandershin.'
+            manage: 'Pro Konto ändern'
+            title: 'Wo dieses Label liegt'
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
@@ -3258,6 +3280,10 @@ settings:
             off: 'Aus'
             on: 'An'
     accounts:
+        categories:
+            off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
+            on_hint: 'An: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, setzt hier das Label oder nimmt es ab.'
+            title: 'Outlook-Kategorien folgen'
         colour:
             change: 'Farbe von %account% ändern'
             swatch:
@@ -3277,7 +3303,12 @@ settings:
         enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
-            button: Zu synchronisierende Ordner wählen
+            button: Ordner
+            created: 'Ordner „%folder%“ angelegt'
+            delete:
+                button: 'Ordner %folder% löschen'
+                confirm: 'Den Ordner %folder% auf dem Mailserver löschen? Er ist leer; sonst wird nichts gelöscht.'
+            deleted: 'Ordner „%folder%“ gelöscht'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
             idle_needs_sync: '%folder% wird nicht synchronisiert und kann deshalb nicht beobachtet werden'
             intro: >-
@@ -3287,12 +3318,49 @@ settings:
                 aufgehört hat. Ein Ordner mit leuchtendem Blitz wird
                 beobachtet, neue Mail darin erscheint sofort; die anderen
                 werden im Intervall des Kontos abgerufen.
+            invalid:
+                control: 'Ein Ordnername darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.'
+                empty: 'Gib dem Ordner einen Namen.'
+                reserved: 'INBOX ist für den Posteingang reserviert.'
+                separator: 'Auf diesem Server darf ein Ordnername kein „%separator%“ enthalten: Es trennt Ordner von den Ordnern darin.'
+                too_long: 'Dieser Name ist für einen Ordner zu lang.'
+                wildcard: 'Ein Ordnername darf kein * und kein % enthalten.'
+            keywords:
+                allowed: 'Dieser Server speichert Schlüsselwörter.'
+                intro: 'Setzt Labels auf die Mail dieses Kontos als IMAP-Schlüsselwörter, damit Mailprogramme, die Schlüsselwörter zeigen (etwa die Schlagwörter in Thunderbird), sie sehen, und dort gesetzte Schlüsselwörter hier als Labels ankommen. Labels verschieben nie Mail. Aus: Labels bleiben in plMail.'
+                refused: 'Dieser Server speichert keine Schlüsselwörter, deshalb bleiben Labels auf diesem Konto in plMail.'
+                title: 'Labels als Schlüsselwörter'
+                unknown: 'Noch nicht gefragt: plMail fragt jeden Ordner, wenn es dort zum ersten Mal ein Schlüsselwort schreibt.'
+            new:
+                button: 'Neuer Ordner'
+                intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
+                name: 'Name'
+                parent: 'In'
+                submit: 'Ordner anlegen'
+                title: 'Neuer Ordner — %account%'
+                top_level: 'Oberste Ebene'
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            refused:
+                has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
+                server: 'Der Mailserver hat abgelehnt: %reason%'
+                special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
+            rename:
+                button: 'Ordner %folder% umbenennen'
+                intro: 'Der Ordner wird samt den Ordnern darin auf dem Mailserver umbenannt, also sieht jedes Mailprogramm, das dieses Konto liest, den neuen Namen.'
+                submit: 'Umbenennen'
+                title: 'Ordner umbenennen — %folder%'
+            renamed: 'Ordner in „%folder%“ umbenannt'
             start_idle: '%folder% auf neue Mail beobachten, sobald sie eintrifft'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_idle: '%folder% nicht mehr beobachten — stattdessen im Intervall des Kontos abrufen'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
+            unreachable: 'Der Mailserver war nicht erreichbar, es wurde nichts geändert: %reason%'
+        gmail_move:
+            off_hint: 'Aus: „Verschieben nach“ listet für dieses Konto nur Posteingang, Spam und Papierkorb. Labels werden mit „Label vergeben“ gesetzt.'
+            on_hint: 'An: „Verschieben nach“ listet auch die Labels dieses Kontos. Ein Verschieben dorthin setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail.'
+            title: '„Verschieben nach“ bietet Labels an'
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
@@ -3675,6 +3743,7 @@ settings:
             fileInCategory: In Kategorie ablegen
             markRead: Als gelesen markieren
             markSpam: Als Spam markieren
+            moveToFolder: In Ordner verschieben
             removeLabel: Label entfernen
             saveToIntegration: Anhänge speichern in
             star: Markieren
@@ -4386,6 +4455,10 @@ settings:
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
+        folders_in_labels:
+            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
+            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
         show: Label anzeigen
@@ -4869,10 +4942,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
-        heading: Konten
-        none: Noch keine Konten
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        folders: 'Ordner …'
+        heading: Konten
+        menu: 'Ordner von %account%'
+        new_folder: 'Neuer Ordner …'
+        none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
     badge:
@@ -4882,6 +4958,7 @@ sidebar:
     compose: Schreiben
     labels:
         add: Label erstellen
+        folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
     new_mail_here: 'Neue Nachrichten in %where%'
@@ -4965,6 +5042,7 @@ thread_row:
         snooze: Zurückstellen
     answer: Neue Antwort auf deine Nachricht
     answer_badge: Antwort
+    folder: 'Im Ordner %label%'
     has_attachment: Enthält Anhang
     me: ich
     meaning: 'Über die Bedeutung gefunden, nicht über die eingegebenen Wörter'
@@ -4980,6 +5058,7 @@ thread_row:
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
         unavailable: 'Nicht gesendet: dein Mailanbieter war nicht erreichbar'
+    remove_label: '%label% entfernen'
     scheduled: 'Geplant %when%'
     select: Auswählen
     sheet:

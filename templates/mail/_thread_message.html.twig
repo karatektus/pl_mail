@@ -180,7 +180,19 @@ Variables:
                    opened — so the thread showed a label the message in front
                    of you did not have, and hid the one it did. Same chips as
                    the list, so a label looks like itself everywhere. #}
-                {% include '_partials/_thread_labels.html.twig' with { item: message } only %}
+                {# A folder chip says where this copy is and has no ×; a tag
+                   can be taken off here (#221 step 3). In a frame of its own
+                   so the answer to that redraws these chips alone. #}
+                <span id="message_labels_{{ message.id }}"
+                      data-controller="mail--label-chip"
+                      data-mail--label-chip-message-id-value="{{ message.id }}"
+                      class="contents">
+                    {% include '_partials/_thread_labels.html.twig' with {
+                        item: message,
+                        account: message.mailbox ? message.mailbox.account : message.thread.account,
+                        removable: true,
+                    } only %}
+                </span>
 
                 {# A lock for an encrypted message, a seal for a signed one. The
                    banner above the body says what either means; this is so the

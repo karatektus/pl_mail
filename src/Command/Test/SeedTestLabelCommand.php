@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Test;
 
 use App\Entity\Label\Label;
+use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\User\UserRepository;
@@ -13,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,6 +22,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Seeds one visible custom label ("E2E Label") on the E2E mail account so the
  * "Label as" attach flow has something to attach. Idempotent; refuses prod.
+ *
+ * With `--folder` it seeds "E2E Folder" instead, a label that is a folder on
+ * the account — what "Move to" offers on plain IMAP since #221 step 3, where
+ * a label that is only a tag is put on with "Label as" and never moved to.
  *
  * Mirrors what LabelController::new persists: a Label with account + name
  * (+ colour), role left null (custom), everything else default. Fields are
@@ -35,6 +41,7 @@ final class SeedTestLabelCommand extends Command
 
     private const string SEED_ACCOUNT_USERNAME = 'mailbox@e2e.test';
     private const string LABEL_NAME            = 'E2E Label';
+    private const string FOLDER_NAME           = 'E2E Folder';
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -51,6 +58,7 @@ final class SeedTestLabelCommand extends Command
     protected function configure(): void
     {
         $this->configureUserOption();
+        $this->addOption('folder', null, InputOption::VALUE_NONE, 'Seed "' . self::FOLDER_NAME . '", a folder on the account, instead');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -83,35 +91,43 @@ final class SeedTestLabelCommand extends Command
             return Command::FAILURE;
         }
 
-        $existing = $this->labelRepository->findOneBy([
+        $folder = true === $input->getOption('folder');
+        $name   = $folder ? self::FOLDER_NAME : self::LABEL_NAME;
+        $label  = $this->labelRepository->findOneBy([
             'usr'  => $user,
-            'name' => self::LABEL_NAME,
+            'name' => $name,
         ]);
 
-        if (null !== $existing) {
-            // Still ensure the binding, so a re-seed after the account was
-            // recreated leaves the label materialized on it.
-            $this->labelResolver->binding($existing, $account);
+        if (null === $label) {
+            $label        = new Label();
+            $label->usr   = $user;
+            $label->name  = $name;
+            $label->color = $folder ? 'green' : 'blue';
+
+            $this->entityManager->persist($label);
             $this->entityManager->flush();
-
-            $io->success(sprintf('Custom label "%s" already present.', self::LABEL_NAME));
-
-            return Command::SUCCESS;
         }
 
-        $label       = new Label();
-        $label->usr   = $user;
-        $label->name  = self::LABEL_NAME;
-        $label->color = 'blue';
-
-        $this->entityManager->persist($label);
-        $this->entityManager->flush();
-
         // Labels are user-scoped; the binding is what puts it on this account.
-        $this->labelResolver->binding($label, $account);
+        // Ensured on a re-seed too, so one after the account was recreated
+        // leaves the label materialized on it.
+        $binding = $this->labelResolver->binding($label, $account);
+
+        if ($folder && null === $binding->mailbox) {
+            $mailbox                = new Mailbox();
+            $mailbox->account       = $account;
+            $mailbox->name          = self::FOLDER_NAME;
+            $mailbox->fullPath      = self::FOLDER_NAME;
+            $mailbox->delimiter     = '/';
+            $mailbox->isSyncEnabled = true;
+
+            $this->entityManager->persist($mailbox);
+            $binding->mailbox = $mailbox;
+        }
+
         $this->entityManager->flush();
 
-        $io->success(sprintf('Seeded custom label "%s".', self::LABEL_NAME));
+        $io->success(sprintf('Seeded custom label "%s".', $name));
 
         return Command::SUCCESS;
     }

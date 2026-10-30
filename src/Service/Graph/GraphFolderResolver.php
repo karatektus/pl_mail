@@ -122,4 +122,39 @@ final class GraphFolderResolver
 
         return $labels;
     }
+
+    /**
+     * The label for a category put on mail in Outlook, made when there is none
+     * yet (#221 step 4): a category made in Outlook and applied in one go
+     * reaches the delta before GraphCategorySyncer has seen the master list.
+     * Made as a plain label, nested on `/`, the way a category's label is.
+     */
+    public function categoryLabel(string $name, Account $account): ?Label
+    {
+        $parent = null;
+        $label  = null;
+
+        foreach (explode('/', $name) as $segment) {
+            if ('' === trim($segment)) {
+                continue;
+            }
+
+            $label = $this->labelRepository->findOneChildByName($account->usr, $parent, $segment);
+
+            if (null === $label) {
+                $label         = new Label();
+                $label->usr    = $account->usr;
+                $label->parent = $parent;
+                $label->name   = $segment;
+                $this->em->persist($label);
+                $this->em->flush();
+            }
+
+            $parent = $label;
+        }
+
+        unset($this->categoryIdCache[(int) $account->id][trim($name)]);
+
+        return $label;
+    }
 }

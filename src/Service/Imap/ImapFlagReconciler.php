@@ -8,6 +8,7 @@ use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
@@ -75,6 +76,7 @@ final readonly class ImapFlagReconciler
         private MessageRepository   $messages,
         private ThreadStatusUpdater $status,
         private LoggerInterface     $logger,
+        private KeywordLabelFollower $keywords,
     ) {
     }
 
@@ -167,6 +169,11 @@ final readonly class ImapFlagReconciler
 
         $messages = $this->messages->findByIdsKeyedByUid(array_keys($wanted));
         $states   = [];
+        $before   = [];
+
+        foreach ($messages as $message) {
+            $before[(int) $message->id] = $message->flags;
+        }
 
         foreach ($messages as $message) {
             $answer = $wanted[(int) $message->id] ?? null;
@@ -185,6 +192,9 @@ final readonly class ImapFlagReconciler
         // asked. ThreadStatusUpdater owns that judgement for every provider —
         // see its applyRemoteFlags() docblock.
         $changed = $this->status->applyRemoteFlags($states, $readAt);
+
+        // Keywords another client changed, as labels (#221 step 2).
+        $this->keywords->follow($mailbox, $messages, $before);
 
         if ($changed > 0) {
             $this->logger->info('Refreshed message flags from the server', [

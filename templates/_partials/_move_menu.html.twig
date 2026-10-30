@@ -20,8 +20,9 @@ panel opens, not here. The reading pane's copy is rendered by a request that
 has no list behind it, so only the browser knows which view that is.
 
 Variables:
-  labels      Label[]   flat list of the user's custom labels (role null),
-                        pre-ordered; indentation derives from label.depth
+  labels      Label[]   the user's custom labels that are a place on the
+                        account (move_labels(), LabelKinds), pre-ordered;
+                        indentation derives from label.depth
   targetId    int|null  the thread, in the reading pane; when null the pick is
                         handed to mail--list-toolbar, which owns the selection
   carried     int[]     ids of the labels the thread already has (reading pane
@@ -126,7 +127,7 @@ Variables:
                     data-label-id="{{ label.id }}"
                     class="{{ entry_class }}"
                     style="padding-left: {{ 12 + label.depth * 14 }}px">
-                <i class="fa-solid fa-tag w-3.5 text-ink-faint" aria-hidden="true"></i>
+                <i class="fa-solid fa-folder w-3.5 text-ink-faint" aria-hidden="true"></i>
                 <span class="truncate">{{ label|label_name }}</span>
             </button>
         {% endfor %}

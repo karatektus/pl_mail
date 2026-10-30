@@ -2701,6 +2701,28 @@ label:
         no_color: '— none —'
         no_parent: '— top level —'
         parent: Nest under
+        places:
+            category: 'An Outlook category on %account% (changes made in Outlook are not followed)'
+            category_followed: 'An Outlook category on %account%'
+            folder: 'A folder on %account%'
+            keyword: 'A keyword on %account%'
+            keyword_unasked: 'A keyword on %account%, where its folders keep keywords'
+            local_off: 'Only in plMail on %account% (labels as keywords is off)'
+            local_server: 'Only in plMail on %account% (the server keeps no keywords)'
+            make_folder: 'Make it a folder'
+            make_folder_body: 'Creates the folder “%name%” on %account%, so it becomes a place mail can be moved to.'
+            make_folder_category: 'The Outlook category of this name is removed.'
+            make_folder_done: 'Folder created.'
+            make_folder_failed: 'The folder could not be created: %error%'
+            make_folder_mail: '%count% message(s) with this label on this account move into it.'
+            make_folder_nested: 'Its parent “%parent%” becomes a folder there too.'
+            make_folder_stay: 'Mail in Trash, Spam, Sent and Drafts stays where it is.'
+            make_label: 'Make it a label'
+            make_label_body: 'Deletes the folder “%name%” on %account%. The label stays, as a tag there, and goes back on the mail that moves.'
+            make_label_failed_moved: 'The moved mail no longer has this label; add it again once the folder is gone.'
+            make_label_mail: '%count% message(s) in this folder have to go somewhere else first.'
+            manage: 'Change per account'
+            title: 'Where this label is kept'
     menu:
         create: Create new
         empty: No labels yet.
@@ -3273,6 +3295,10 @@ settings:
             off: 'Off'
             on: 'On'
     accounts:
+        categories:
+            off_hint: 'Off: a category put on or taken off in Outlook does not change labels here. Turning it on lists every folder of this account once more.'
+            on_hint: 'On: a category put on or taken off in Outlook puts the label on or takes it off here.'
+            title: 'Follow Outlook categories'
         colour:
             change: 'Change the colour of %account%'
             swatch:
@@ -3292,7 +3318,12 @@ settings:
         enable: Enable account
         folders:
             always_synced: The inbox is always synced
-            button: Choose which folders to sync
+            button: Folders
+            created: 'Folder “%folder%” created'
+            delete:
+                button: 'Delete folder %folder%'
+                confirm: 'Delete the folder %folder% on the mail server? It is empty; nothing else is deleted.'
+            deleted: 'Folder “%folder%” deleted'
             empty: No folders yet. They are listed after the first sync.
             idle_needs_sync: '%folder% is not synced, so it cannot be watched'
             intro: >-
@@ -3301,12 +3332,49 @@ settings:
                 resumes from where it stopped. A folder with the bolt lit is
                 watched, so new mail in it shows up at once; the others are
                 checked at the account's interval.
+            invalid:
+                control: 'A folder name cannot contain line breaks or other control characters.'
+                empty: 'Give the folder a name.'
+                reserved: 'INBOX is reserved for the inbox.'
+                separator: 'A folder name cannot contain “%separator%” on this server: it separates folders from the folders inside them.'
+                too_long: 'That name is too long for a folder.'
+                wildcard: 'A folder name cannot contain * or %.'
+            keywords:
+                allowed: 'This server keeps keywords.'
+                intro: 'Put labels on this account’s mail as IMAP keywords, so mail apps that show keywords (Thunderbird’s tags, for one) see them, and keywords set there arrive here as labels. Labels never move mail. Off: labels stay in plMail.'
+                refused: 'This server keeps no keywords, so labels stay in plMail on this account.'
+                title: 'Labels as keywords'
+                unknown: 'Not asked yet: plMail asks each folder the first time it writes a keyword there.'
+            new:
+                button: 'New folder'
+                intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Create folder'
+                title: 'New folder — %account%'
+                top_level: 'Top level'
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
+            refused:
+                has_children: 'This folder has folders inside it. Delete or move those first.'
+                not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
+                server: 'The mail server refused: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder is renamed on the mail server, with the folders inside it, so every mail app that reads this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to “%folder%”'
             start_idle: 'Watch %folder% for new mail as it arrives'
             start_sync: 'Start syncing %folder%'
             stop_idle: 'Stop watching %folder% — check it at the account''s interval instead'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be reached, nothing was changed: %reason%'
+        gmail_move:
+            off_hint: 'Off: Move to lists the inbox, spam and trash only for this account. Labels are put on with Label as.'
+            on_hint: 'On: Move to lists this account’s labels too. Moving there puts the label on and takes the mail out of the inbox, as Gmail does.'
+            title: 'Move to offers labels'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'
@@ -3678,6 +3746,7 @@ settings:
             fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
+            moveToFolder: Move to folder
             removeLabel: Remove label
             saveToIntegration: Save attachments to
             star: Star it
@@ -4365,6 +4434,10 @@ settings:
         delete: Delete label "%name%"
         edit: Edit label "%name%"
         empty: No labels yet — create one, or they appear after the first sync.
+        folders_in_labels:
+            off_hint: 'Off: folders are listed under their account, and the Labels section holds the labels you put on mail.'
+            on_hint: 'On: the Labels section in the sidebar lists folders too, beside their place under each account.'
+            title: 'Folders in Labels'
         heading: Labels
         hide: Hide label
         show: Show label
@@ -4840,10 +4913,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
-        heading: Accounts
-        none: No accounts yet
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, which is switched off'
+        folders: 'Folders…'
+        heading: Accounts
+        menu: 'Folders of %account%'
+        new_folder: 'New folder…'
+        none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
     badge:
@@ -4853,6 +4929,7 @@ sidebar:
     compose: Compose
     labels:
         add: Create label
+        folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
     new_mail_here: 'New mail in %where%'
@@ -4939,6 +5016,7 @@ thread_row:
         snooze: Snooze
     answer: New reply to your message
     answer_badge: Reply
+    folder: 'In the folder %label%'
     has_attachment: Has attachment
     me: me
     meaning: 'Found by meaning, not by the words you typed'
@@ -4954,6 +5032,7 @@ thread_row:
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
         unavailable: 'Not sent: your mail provider could not be reached'
+    remove_label: 'Remove %label%'
     scheduled: 'Scheduled %when%'
     select: Select
     # The long-press sheet's own names: its dialog label, and the entry that ticks the row.

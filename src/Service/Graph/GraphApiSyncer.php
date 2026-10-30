@@ -582,6 +582,9 @@ final class GraphApiSyncer
             // That holds only for a chain begun with them: GraphApiClient::
             // DELTA_SELECT. One begun without is sent no entry at all for a
             // message that was merely read, so this block cannot make up for it.
+            // Categories set or cleared in Outlook, as labels (#221 step 4).
+            $changed = $this->followCategories($account, $graphId, $item) || $changed;
+
             $state = $this->flagStateOf($account, $graphId, $item);
 
             if (null !== $state) {
@@ -679,6 +682,91 @@ final class GraphApiSyncer
      * @return bool whether the message's folder labels changed, i.e. whether it
      *              really moved. Re-reporting it where it already is does not.
      */
+    /**
+     * A category put on or taken off in Outlook, as the label (#221 step 4).
+     *
+     * Read as a CHANGE against Message::$graphCategories — what Exchange held
+     * when plMail last imported or pushed the message — and never as "the
+     * delta's list is the truth". A delta that echoes plMail's own push agrees
+     * with the mirror and changes nothing; one that arrives before a push has
+     * landed still agrees with the old mirror, so the label the person just set
+     * is not taken off again. A row whose mirror is unknown (stored before the
+     * mirror existed) gets the mirror and no label change: nothing to compare.
+     *
+     * Only where the account follows Outlook categories, and only when the
+     * entry mentions categories at all — absence is not "none", the rule
+     * flagStateOf() keeps for isRead. A category whose label is a folder on
+     * this account changes nothing: folders are places.
+     *
+     * @param array<string,mixed> $item
+     */
+    private function followCategories(Account $account, string $graphId, array $item): bool
+    {
+        if (false === $account->followsOutlookCategories || false === array_key_exists('categories', $item)) {
+            return false;
+        }
+
+        $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
+
+        if (null === $message) {
+            return false;
+        }
+
+        $server = array_values(array_unique(array_map('strval', (array) $item['categories'])));
+        $mirror = $message->graphCategories;
+
+        $message->graphCategories = $server;
+
+        if (null === $mirror) {
+            return false;
+        }
+
+        $added   = array_values(array_diff($server, $mirror));
+        $removed = array_values(array_diff($mirror, $server));
+
+        if ([] === $added && [] === $removed) {
+            return false;
+        }
+
+        $changed = false;
+
+        $arriving = $this->folderResolver->resolveCategories($added, $account);
+        $known    = array_map(static fn ($label): string => $label->fullName, $arriving);
+
+        foreach (array_diff($added, $known) as $name) {
+            $made = $this->folderResolver->categoryLabel($name, $account);
+
+            if (null !== $made) {
+                $arriving[] = $made;
+            }
+        }
+
+        foreach ($arriving as $label) {
+            if (true === $this->labelPolicy->pushesAsCategory($label, $account) && false === $message->hasLabel($label)) {
+                $message->addLabel($label);
+                $changed = true;
+            }
+        }
+
+        $leaving = array_filter(
+            $message->labels->toArray(),
+            fn ($label): bool => true === in_array($label->fullName, $removed, true)
+                && true === $this->labelPolicy->pushesAsCategory($label, $account),
+        );
+
+        foreach ($leaving as $label) {
+            $message->removeLabel($label);
+            $changed = true;
+        }
+
+        if (true === $changed) {
+            $this->recordMoved($account, $message);
+            $this->syncThreadLabels($message);
+        }
+
+        return $changed;
+    }
+
     private function attachFolderLabel(Account $account, string $graphId, string $folderId): bool
     {
         $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);

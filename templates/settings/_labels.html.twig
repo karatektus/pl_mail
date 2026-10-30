@@ -18,6 +18,8 @@ Variables:
 <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-line bg-sunken">
     <p class="text-xs text-ink-faint">{{ 'settings.labels.count'|trans({ '%count%': labels|length }) }}</p>
 
+    <div class="ml-auto">{{ include('settings/labels/_folders_in_labels_control.html.twig') }}</div>
+
     <button
         data-controller="ui--modal"
         data-action="click->ui--modal#open"

@@ -58,8 +58,9 @@ how "label everything arriving in this account" is written.
 
 | Action | Effect |
 |---|---|
-| **Apply label** | Adds one of your labels, creating its binding on the message's account |
+| **Apply label** | Adds one of your labels, creating its binding on the message's account. Tags only: it never moves mail, also when the label is a folder |
 | **Remove label** | Takes one off |
+| **Move to folder** | Moves the mail to one of your folders, out of the folder it arrived in. On an account where the label is not a folder — Gmail, say — it puts the label on and skips the inbox, as Gmail's own move does. It never makes a folder. A filter written before this action existed that applied a label which is a folder on every account it covers was turned into this action, because that is what it did |
 | **Mark as read** | |
 | **Star it** | |
 | **Skip inbox** | Removes the Inbox label — archiving, in other words |

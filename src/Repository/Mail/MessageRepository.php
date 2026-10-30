@@ -11,6 +11,7 @@ use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use Doctrine\ORM\QueryBuilder;
 use App\Entity\Mail\MessageLocation;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
@@ -3184,6 +3185,47 @@ class MessageRepository extends ServiceEntityRepository
             ->getScalarResult();
 
         return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * The mail a label's new folder takes in on one account: what wears the
+     * label, less what is in the bin, in spam, or sent or drafted, which is not
+     * being filed by giving a tag a folder.
+     *
+     * @return list<int>
+     */
+    public function findIdsToFileIntoFolder(int $accountId, int $labelId, int $afterId = 0, int $limit = 100): array
+    {
+        $rows = $this->toFileIntoFolder($accountId, $labelId)
+            ->select('m.id')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    public function countToFileIntoFolder(int $accountId, int $labelId): int
+    {
+        return (int) $this->toFileIntoFolder($accountId, $labelId)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function toFileIntoFolder(int $accountId, int $labelId): QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('NOT EXISTS (SELECT 1 FROM ' . Message::class . ' stays JOIN stays.labels staysIn WHERE stays = m AND staysIn.role IN (:staying))')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('staying', [LabelRole::Trash, LabelRole::Spam, LabelRole::Sent, LabelRole::Drafts]);
     }
 
     /**

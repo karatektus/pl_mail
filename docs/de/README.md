@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:73831dfc59c1fc884717d0faa2a11c28ae36208d -->
+<!-- translated-from: README.md sha1:0d8088e3cf6b34f7119aac66ecb8d58c1b3198d3 -->
 
 # plMail-Dokumentation
 
@@ -88,6 +88,7 @@ plMail prüft oder erweitert, statt es zu betreiben.
 | [Die Sync-Engine](internals/calendar-sync-engine.md) | Der Treibervertrag, den jeder Anbieter erfüllt, Push-Kanäle, Deduplizierung |
 | [KI-Unterstützung](internals/ai-assist.md) | Die optionalen Modell-Funktionen: was standardmäßig aus ist und warum das Vektor-Design ohne pgvector auskommt |
 | [Terminerkennung](internals/event-extraction.md) | Wie aus einer Einladung und wie aus einem Satz ein Kalendereintrag wird |
+| [Ordner und Labels](internals/folders-and-labels.md) | Ein Ordner ist ein Ort, ein Label eine Markierung: das Modell, die Ordneraktionen bei IMAP und die Schritte, die noch kommen |
 | [JMAP](internals/jmap.md) | Was umgesetzt ist, was bewusst nicht, und die Id-Räume |
 | [Sicherheitsmodell](internals/security-model.md) | Verschlüsselung im Ruhezustand, die Geheimnisdatei, Token, und was ein öffentlicher Link erreicht |
 

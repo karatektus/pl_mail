@@ -22,10 +22,12 @@ import type { Locator, Page } from "@playwright/test";
  * So each test moves from a real list and then goes and LOOKS in both places:
  * gone from where it was, present under the target.
  */
-const LABEL_NAME = "E2E Label";
+// A folder on the account: on plain IMAP, "Move to" offers places, and a label
+// that is only a tag is put on with "Label as" (#221 step 3).
+const LABEL_NAME = "E2E Folder";
 
 test.beforeEach(() => {
-    seed("seed-mail", "seed-label");
+    seed("seed-mail", "seed-label --folder");
 });
 
 /**

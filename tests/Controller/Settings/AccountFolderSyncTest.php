@@ -266,13 +266,14 @@ final class AccountFolderSyncTest extends WebTestCase
         $frame = sprintf('turbo-frame#account-folder-sync-%d', (int) $placeholder->id);
 
         self::assertSelectorExists(sprintf('%s button[disabled]', $frame));
-        self::assertSelectorNotExists(sprintf('%s form', $frame));
+        // The sync switch's form; the row's delete form (#221) is another matter.
+        self::assertSelectorNotExists(sprintf('%s form[action$="/sync"]', $frame));
         self::assertSelectorExists(sprintf('%s [data-folder-placeholder]', $frame));
 
         // Presence: an ordinary folder beside it is neither.
         $other = sprintf('turbo-frame#account-folder-sync-%d', (int) $ordinary->id);
 
-        self::assertSelectorExists(sprintf('%s form', $other));
+        self::assertSelectorExists(sprintf('%s form[action$="/sync"]', $other));
         self::assertSelectorNotExists(sprintf('%s [data-folder-placeholder]', $other));
 
         // And the endpoint agrees with the page, for whoever posts without it.

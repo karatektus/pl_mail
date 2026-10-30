@@ -130,8 +130,11 @@ self-contained: no {% extends %}, no block dependencies.
         {% endif %}
     </div>
 
+    {# Each picker offers what is that kind on this conversation's account: a
+       folder there is a place and a move goes to it; anything else is a tag
+       (LabelKinds). #}
     {% include '_partials/_label_menu.html.twig' with {
-        labels:       sidebarCounts.flattenedUserLabels(),
+        labels:       tag_labels(sidebarCounts.flattenedUserLabels(), thread.account),
         targetType:   'thread',
         targetId:     thread.id,
         activeLabels: threadLabelIds,
@@ -144,7 +147,7 @@ self-contained: no {% extends %}, no block dependencies.
        this label off — and hiding it would remove the only way to say so
        from here. #}
     {% include '_partials/_move_menu.html.twig' with {
-        labels:   sidebarCounts.flattenedUserLabels(),
+        labels:   move_labels(sidebarCounts.flattenedUserLabels(), thread.account),
         targetId: thread.id,
         carried:  threadOwnLabelIds,
         placement: mail_placement(thread),

@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:e9173d595210dba54af18c10d5e388e88ed12c90 -->
+<!-- translated-from: features/accounts.md sha1:dd311daaff4feeb70f4da91bf54177f857045c5f -->
 
 # Konten und Aliase
 
@@ -162,7 +162,9 @@ Jede Zeile bietet:
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
-| **Zu synchronisierende Ordner wählen** | Schaltet einzelne IMAP-Ordner ein oder aus — nur bei IMAP-Konten; siehe [Zu synchronisierende Ordner](#zu-synchronisierende-ordner) |
+| **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
+| **Outlook-Kategorien folgen** (Schlagwort-Symbol) | Standardmäßig aus; an, setzt eine in Outlook gesetzte oder entfernte Kategorie das Label hier oder nimmt es ab — nur bei Microsoft-Konten; siehe [Labels als Outlook-Kategorien](#labels-als-outlook-kategorien) |
+| **„Verschieben nach“ bietet Labels an** (Symbol geöffneter Ordner) | Standardmäßig aus; an, listet **Verschieben nach** neben Posteingang, Spam und Papierkorb auch die Labels dieses Kontos, und dorthin verschieben setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail — nur bei Gmail-Konten; siehe [Verschieben nach](mail.md#verschieben-nach) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -184,8 +186,8 @@ Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte
 
 ## Einstellungen pro Konto
 
-Unter jeder Kontozeile sitzen drei Bedienelemente. Jedes zeichnet sich für sich neu, statt die
-ganze Liste neu zu laden.
+Die Bedienelemente unter jeder Kontozeile zeichnen sich jeweils für sich neu, statt die ganze
+Liste neu zu laden.
 
 ### Sofortige Zustellung
 
@@ -226,39 +228,119 @@ welchen der beiden Fälle du vor dir hast, und zeigt die Daten, nach denen entsc
 Wo Push auf diesem Server überhaupt nicht zur Verfügung steht, sagt das Bedienelement das,
 statt einen Schalter anzubieten, der nicht funktionieren kann.
 
-### Labels zum Anbieter synchronisieren
+### Labels beim Anbieter
 
-Standardmäßig aus. Ist es an, werden Labels, die du anlegst, umbenennst oder löschst, zu diesem
-Anbieter gespiegelt — gleich, ob die Änderung aus der Weboberfläche oder aus einem JMAP-Client
-kam.
+Bei Gmail und Microsoft werden Labels, die du anlegst, umbenennst oder löschst, zum Anbieter
+gespiegelt — gleich, ob die Änderung aus der Weboberfläche oder aus einem JMAP-Client kam. Einen
+Schalter dafür gibt es nicht: Früher gab es einen, standardmäßig aus, und er brachte nur eine
+Ordnung, die allein in plMail existierte und verschwand, sobald du Gmail geöffnet hast. Es wirkt
+sich immer nur auf Änderungen ab dann aus; bereits vorhandene Labels werden nicht rückwirkend
+übertragen.
 
-Nur Gmail und Microsoft bieten das an. Bei einfachem IMAP ist ein Label ein physischer Ordner;
-Labels anzulegen und zu löschen würde also echte Mail auf dem Server verschieben — eine andere
-und riskantere Operation, als der Schalter verspricht.
+Bei einem reinen IMAP-Konto legt ein Label auf dem Server nie einen Ordner an, benennt keinen um,
+löscht keinen und verschiebt nie Mail. Ordner legst du in der eigenen Ordnerliste des Kontos an,
+benennst sie dort um und löschst sie dort — siehe [Ordner](#ordner). Wohin ein Label stattdessen
+geht, steht im nächsten Abschnitt.
 
-Es wirkt sich immer nur auf Änderungen ab jetzt aus. Bereits vorhandene Labels werden nicht
-rückwirkend übertragen, denn das hieße, deinen gesamten lokalen Baum mit einem Klick beim
-Anbieter anzulegen.
+### Labels als Schlüsselwörter
 
-**Bei Microsoft sind die meisten Labels Outlook-Kategorien und keine Ordner**, und eine Kategorie
-hat dort keine Identität außer ihrem Namen — der Name ist das, was an jeder Nachricht steht. Eine
-Umbenennung tut deshalb zweierlei: Die Hauptkategorie wird umbenannt, und jede Nachricht, die den
-alten Namen trägt, wird erneut übertragen, damit sie den neuen trägt. Diese zweite Hälfte ist
-dieselbe Frage, die auch Outlooks eigener Umbenennen-Dialog stellt; hier lautet die Antwort ja,
-denn sonst gäbe es das Label zweimal im Postfach — einmal als Kategorie und einmal als loser Text
-an der Mail, die es früher hatte. Ein Label auf tausenden Nachrichten heißt damit tausende
-Aktualisierungen, die im Hintergrund laufen.
+IMAP hat eigene Markierungen: Schlüsselwörter, die ein Server neben `\Seen` und `\Flagged` an jeder
+Nachricht speichert und die andere Mailprogramme zeigen — Thunderbird etwa als seine Schlagwörter.
+**Labels als Schlüsselwörter** oben in der Ordnerliste eines IMAP-Kontos legt deine Labels dort ab.
+Standardmäßig ist es aus, und dann bleibt ein Label an IMAP-Mail in plMail, wie bisher.
+
+Ist es an, schreibt ein Label, das du auf eine Konversation setzt, ein Schlüsselwort auf dem Server
+an jede ihrer Nachrichten, und nimmst du es ab, verschwindet es dort. Ein Schlüsselwort, das in
+einem anderen Mailprogramm gesetzt oder entfernt wird, setzt das Label hier oder nimmt es ab —
+binnen Sekunden, wenn plMail den Ordner per IDLE beobachtet, sonst bei der nächsten
+Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Labels
+verschieben weiterhin nie Mail, und ein Label, das auf dem Konto ein Ordner ist, bleibt ein Ordner.
+
+Beim Einschalten fragt plMail jeden Ordner, ob der Server dort Schlüsselwörter speichert, und die
+Liste sagt, was er geantwortet hat: **Dieser Server speichert Schlüsselwörter**, **Dieser Server
+speichert keine Schlüsselwörter** (dann bleiben Labels auf diesem Konto in plMail) oder noch nicht
+gefragt. Der Dialog jedes Labels sagt pro IMAP-Konto, wo es liegt: ein Ordner, ein Schlüsselwort
+oder nur in plMail, und warum.
+
+Der Name eines Labels wird, wenn es geht, unverändert zum Schlüsselwort — „Work“, „Invoices/2025“ —,
+damit er zu dem passt, was andere Mailprogramme schreiben. Ein Name mit Leerzeichen oder anderen
+Zeichen, die ein Schlüsselwort nicht enthalten kann, wird in der Kodierung geschrieben, die IMAP für
+Ordnernamen verwendet („Follow up“ wird `Follow&ACA-up`), und plMail liest ihn als denselben Namen
+zurück. Schlüsselwörter, die für Mailprogramme etwas bedeuten — `$Junk`, `$NotJunk`, `$Forwarded`,
+`$MDNSent`, `$Phishing`, `$Important`, Thunderbirds `$label1`–`$label5` —, werden nie als Labels
+gelesen.
+
+Geschrieben werden nur Änderungen nach dem Einschalten; Labels, die schon an Mail hängen, werden
+nicht in einem Rutsch übertragen.
+
+### Labels als Outlook-Kategorien
+
+Bei einem Microsoft-Konto ist ein Label eine Outlook-Kategorie, es sei denn, es stammt von einem
+Exchange-Ordner — dann ist es dieser Ordner. Setzt du ein Label auf eine Konversation, bekommt jede
+ihrer Nachrichten in Exchange die Kategorie, und nimmst du es ab, verschwindet sie wieder; ein hier
+angelegtes Label legt die Kategorie in Outlooks Kategorienliste an, in der Farbe des Labels. Labels
+verschieben nie Mail, und ein Label, das ein Ordner ist, bleibt ein Ordner.
+
+Was von Outlook zurückkommt, ist die andere Hälfte, und sie hängt an **Outlook-Kategorien folgen**,
+dem Schlagwort-Symbol in der Zeile eines Microsoft-Kontos. Standardmäßig ist es aus, und dann
+verhält sich plMail wie bisher: Kategorien werden gelesen, wenn eine Nachricht zum ersten Mal
+ankommt, und eine Kategorie, die danach in Outlook gesetzt oder entfernt wird, ändert hier nichts.
+Ist es an, setzt eine solche Änderung das Label in plMail bei der nächsten Synchronisierung oder
+nimmt es ab, und eine Kategorie, die plMail noch nicht kennt, wird ein neues Label. Es zählen nur
+Änderungen: plMail merkt sich, welche Kategorien Exchange zuletzt an jeder Nachricht hatte, und
+ändert eine Nachricht hier nur, wo Exchanges Liste davon abweicht. Ein Label, das du in plMail
+gesetzt hast und das Exchange nie hatte, bleibt deshalb stehen und wird nicht abgenommen.
+
+Beim Einschalten geht plMail jeden Ordner dieses Kontos noch einmal durch, weil der Stand, bis zu dem
+die Synchronisierung jedes Ordners gekommen war, ohne Kategorien begonnen wurde und sich nicht
+erweitern lässt. Nichts wird doppelt geholt — Mail, die schon da ist, wird erkannt —, aber bei einem
+großen Postfach dauert dieser erste Durchgang eine Weile. Ausschalten kostet nichts.
+
+Der Dialog eines Labels sagt pro Microsoft-Konto, wo es liegt: ein Ordner oder eine
+Outlook-Kategorie, und ob Outlooks Änderungen daran gefolgt wird.
+
+**Eine Kategorie hat keine Identität außer ihrem Namen** — der Name ist das, was an jeder Nachricht
+steht. Eine Umbenennung tut deshalb zweierlei: Die Kategorie in Outlooks Liste bekommt den neuen
+Namen, und jede Nachricht in plMail, die den alten Namen trägt, wird erneut übertragen, damit sie den
+neuen trägt. Diese zweite Hälfte ist dieselbe Frage, die auch Outlooks eigener Umbenennen-Dialog
+stellt; hier lautet die Antwort ja, denn sonst gäbe es das Label zweimal im Postfach — einmal als
+Kategorie und einmal als loser Text an der Mail, die es früher hatte. Ein Label auf tausenden
+Nachrichten heißt damit tausende Aktualisierungen, die im Hintergrund laufen. Microsoft beschreibt
+den Namen einer Kategorie als nach dem Anlegen unveränderlich; lehnt Exchange die Umbenennung ab,
+legt plMail die Kategorie unter dem neuen Namen an und löscht die alte, was zum selben Ergebnis
+führt.
+
+Ein Label zu löschen löscht die Kategorie aus Outlooks Liste. Exchange lässt den Namen als einfachen
+Text an jeder Nachricht stehen, den Outlook ohne Farbe zeigt, bis sich die Labels dieser Nachricht in
+plMail das nächste Mal ändern.
 
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
-### Zu synchronisierende Ordner
+### Ordner
 
-**Zu synchronisierende Ordner wählen** öffnet die Ordner des Kontos, jeweils mit einem Schalter.
-Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nicht mehr ab: Die
-bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
-weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
-Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+**Ordner** öffnet die Ordner des Kontos so, wie der Server sie hat:
+derselbe Baum, genauso verschachtelt, wie auch immer er aussieht. Ein Ordner ist ein Ort — jede
+Nachricht liegt in genau einem Ordner ihres Kontos —, und in dieser Liste verwaltest du Ordner. Sie
+erscheint nur bei IMAP-Konten: Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
+Anbieters und hat hier keine Ordnerliste. Ein Ordner, den der Server nicht mehr auflistet, wird
+nicht angezeigt.
+
+Denselben Dialog erreichst du am Konto im Bereich KONTEN der Seitenleiste. Die Zeile eines
+IMAP-Kontos hat einen ⋯-Knopf, dessen Menü **Neuer Ordner …** anbietet, das das Formular für dieses
+Konto öffnet, und **Ordner …**, das die Liste öffnet. Klappst du das Konto auf, enden seine Ordner
+mit **+ Neuer Ordner**; fährst du dort mit der Maus über einen deiner eigenen Ordner, erscheint ein
+Stift, der seine Umbenennung öffnet. Im Bereich
+LABELS trägt ein Label, das ein Ordner auf einem IMAP-Konto ist, statt eines Punkts einen Ordner in
+seiner Farbe, und sein Tooltip nennt das Konto — so unterscheidest du Ordner und reine Labels.
+
+#### Synchronisieren
+
+Jeder Ordner hat einen Schalter, und jeder Ordner beginnt eingeschaltet. Schaltest du einen aus,
+ruft plMail ihn nicht mehr ab: Die bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du
+den Ordner wieder ein, geht es dort weiter, wo es aufgehört hat. Der Posteingang hat keinen
+Schalter, denn ein Client, der seinen Posteingang nicht mehr abruft, ist kein Client — um ein Konto
+ganz anzuhalten, deaktiviere es.
 
 Zwei Arten von Ordnern beginnen ausgeschaltet: **Markiert** (Starred) und **Alle Nachrichten** (All
 Mail), wenn das Konto auch einen Archiv-Ordner hat — Proton Mail Bridge hat beide. Sie sind die
@@ -274,9 +356,63 @@ zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, s
 Liste, sein Schalter aus und gesperrt: Der Server lässt ihn nicht öffnen, also gibt es nichts
 abzurufen.
 
-Es erscheint nur bei IMAP-Konten. Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
-Anbieters und hat keine Ordner zur Auswahl. Ein Ordner, den der Server nicht mehr auflistet, wird
-nicht angezeigt.
+Die Liste nennt einen Ordner so, wie der Server ihn nennt. Der Posteingang und die anderen
+Systemordner heißen wie in der Seitenleiste („Entwürfe“, „Papierkorb“), damit derselbe Ordner nicht
+zwei Namen trägt.
+
+#### Neuer Ordner
+
+**Neuer Ordner** fragt nach einem Namen und danach, wohin der Ordner kommt: **Oberste Ebene** oder in
+einen beliebigen Ordner, den der Server aufgelistet hat. plMail legt den Ordner auf dem Server an,
+damit er in jedem Mailprogramm erscheint, das dieses Konto liest, abonniert ihn und zeigt ihn in der
+Seitenleiste wie die anderen Ordner des Kontos.
+
+Du tippst einen Namen, nie einen Pfad. Wo die oberste Ebene liegt und welches Zeichen einen Ordner
+von den Ordnern darin trennt, bestimmt der Server, und plMail fragt ihn: Bei den meisten Servern ist
+die oberste Ebene ganz oben, und bei Servern, die alles unter dem Posteingang ablegen
+(`INBOX.Name`), kommt ein Ordner der obersten Ebene ebenfalls dorthin, wo deine anderen
+Mailprogramme ihn erwarten. Namen in jeder Schrift funktionieren, „Bücher“ oder „Café“. Liegt auf
+dem Server schon ein Ordner dieses Namens, ist das kein Fehler: plMail nimmt ihn als angelegt.
+
+Ein Name wird abgelehnt, bevor der Server gefragt wird, wenn er dort kein Ordner sein kann:
+
+- er enthält das Trennzeichen des Servers — `/` bei den meisten Servern, `.` bei manchen. Ein
+  Ordner „v1.2“ würde auf einem `.`-Server stillschweigend zu einem Ordner „2“ in einem Ordner „v1“;
+- er enthält `*` oder `%`, die andere Mailprogramme nicht zuverlässig auflisten können, oder einen
+  Zeilenumbruch;
+- er heißt auf der obersten Ebene „INBOX“, was jeder Server für den Posteingang reserviert.
+
+Klappt es, schließt sich der Dialog, die übliche Meldung unten am Bildschirm sagt es, und der Ordner
+steht sofort in der Seitenleiste. Einen Namen, den der Server selbst ablehnt — einen, den er nicht
+erlaubt, einen Ordner, den es beim Umbenennen schon gibt, ein Kontingent —, zeigt plMail mit den
+Worten des Servers, und nichts ändert sich.
+
+#### Umbenennen und löschen
+
+Deine eigenen Ordner haben neben ihrem Schalter einen Stift (**Ordner … umbenennen**) und einen
+Papierkorb (**Ordner … löschen**).
+
+**Umbenennen** gibt dem Ordner einen neuen Namen an seinem Platz. Der Server benennt die Ordner darin mit
+um, und plMail zieht sofort nach: Seine Mail bleibt, wo sie war, und sein Label in der Seitenleiste
+behält alles, was darunter abgelegt ist, unter dem neuen Namen. Ein Label, das ein Ordner auf einem
+deiner anderen Konten mitbenutzt, wird von hier aus nicht umbenannt, denn es ist auch der Name jenes
+Ordners; der umbenannte Ordner bekommt stattdessen ein Label mit seinem neuen Namen. Manche Server
+geben einem umbenannten Ordner eine neue Identität, deshalb synchronisiert plMail das Konto gleich
+danach.
+
+**Löschen** entfernt einen Ordner vom Server, und nur einen leeren: keine Mail darin, weder in plMail
+noch auf dem Server, und keine Ordner darin. Alles andere wird mit Begründung abgelehnt — verschiebe
+die Mail oder die Ordner zuerst. Einen Ordner zu löschen löscht nie Mail. Sein Label verschwindet
+mit ihm, wenn sonst nichts mehr an dem Label hängt.
+
+Posteingang, **Gesendet**, **Entwürfe**, **Papierkorb**, **Spam** und **Archiv** haben keinen der
+beiden Knöpfe. plMail benennt sie nie um und löscht sie nie: Deine anderen Mailprogramme und plMails
+eigenes Senden, Archivieren und die Spam-Behandlung finden sie über ihren Namen oder über die Rolle,
+die der Server ihnen gibt, und in einen umbenannten Gesendet-Ordner legt niemand mehr etwas ab.
+
+Ein Ordner, den du in einem anderen Mailprogramm anlegst, umbenennst oder löschst, erscheint hier
+nach der nächsten Synchronisierung. Ein anderswo umbenannter Ordner behält seine Mail und, sofern
+kein anderes Konto es mitbenutzt, sein Label, unter dem neuen Namen.
 
 ## Absendeadressen
 
@@ -447,6 +583,38 @@ Lösung ist, erneut zu verbinden und das Häkchen gesetzt zu lassen.
 **Ein fehlgeschlagener Push ist kein Fehlerzustand.** Eine selbst gehostete Installation hat
 womöglich überhaupt keine öffentlich erreichbare HTTPS-Adresse. Eine gescheiterte Registrierung
 heißt „bleib beim Abrufen“, und der Durchlauf alle fünfzehn Minuten bleibt davon unberührt.
+
+**Bei manchen Servern kommt ein in einem anderen Mailprogramm umbenannter Ordner als neuer Ordner
+zurück.** plMail erkennt eine Umbenennung an der UIDVALIDITY des Ordners, die eine Umbenennung
+behält. Stalwart 0.11 beantwortet STATUS mit einer anderen Zahl als der, die es beim Öffnen des
+Ordners nennt; ein dort in einem anderen Programm umbenannter Ordner kommt deshalb als neuer Ordner
+an, seine Mail wird erneut abgerufen, und der alte wird entfernt, sobald er drei Synchronisierungen
+und einen Tag lang gefehlt hat. Eine Umbenennung in plMail betrifft das nicht.
+
+**Welche Ordner Systemordner sind, entscheidet der Server, und nicht jeder Server sagt es.** Ein
+Ordner, den der Server als Gesendet, Papierkorb, Spam, Entwürfe oder Archiv kennzeichnet, oder einer
+mit einem bekannten Namen wie „Sent Items“ oder „Gesendet“, ist vor Umbenennen und Löschen
+geschützt. Ein Ordner, dessen Namen plMail nicht kennt und den der Server nicht kennzeichnet —
+Stalwarts „Junk Mail“ —, gilt als dein eigener.
+
+**Ein Label umzubenennen oder zu löschen ändert keine Schlüsselwörter, die schon auf dem Server
+liegen.** Die Mail eines umbenannten Labels behält das alte Schlüsselwort, und das Schlüsselwort
+eines gelöschten Labels bleibt, wo es ist, in plMail wie in anderen Mailprogrammen. Setzt du das
+umbenannte Label erneut, wird das neue Schlüsselwort geschrieben; das alte kannst du in einem anderen
+Mailprogramm entfernen, was hier auch das alte Label abnimmt.
+
+**Welche Schlüsselwörter andere Mailprogramme zeigen, entscheiden sie selbst.** Thunderbird zeigt
+ein Schlüsselwort erst als Schlagwort, wenn es dort ein Schlagwort dieses Namens gibt; bis dahin
+hängt es an der Nachricht, ist aber nicht zu sehen.
+
+**Mail, die plMail nie synchronisiert hat, behält den alten Namen einer Outlook-Kategorie.** Eine
+Umbenennung etikettiert die Nachrichten neu, die plMail hat; alles, was Exchange hat und plMail
+nicht, trägt den alten Namen als einfachen Text, den Outlook ohne Farbe zeigt.
+
+**Outlook-Kategorien folgen liest nur Änderungen.** Mail, die beim Eintreffen hier schon eine
+Kategorie in Outlook hatte, hat dieses Label; eine Kategorie, die in Outlook vor dem Einschalten an
+Mail gesetzt wurde, die schon hier war, wird danach nicht nachgeholt. Setz das Label in plMail, oder
+nimm die Kategorie in Outlook ab und setz sie wieder.
 
 **Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
 sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte

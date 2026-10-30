@@ -8,6 +8,7 @@ use App\Domain\DTO\Mail\LabelMove;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
@@ -185,6 +186,25 @@ final readonly class MoveToService
     }
 
     /**
+     * The folder a list shows on this account, when it shows one: the inbox,
+     * the bin, spam, or a label that is a folder here. Null for a list with no
+     * folder behind it — a search, a tag, All Mail — where a move takes each
+     * message's primary copy (#221 step 3).
+     */
+    public function viewedFolder(User $user, Account $account, string $scope, string $value): ?Mailbox
+    {
+        $label = match ($scope) {
+            'inbox' => $this->labels->findOneByRoleForUser(LabelRole::Inbox, $user),
+            'trash' => $this->labels->findOneByRoleForUser(LabelRole::Trash, $user),
+            'spam'  => $this->labels->findOneByRoleForUser(LabelRole::Spam, $user),
+            'label' => $this->viewedLabel($user, (int) $value),
+            default => null,
+        };
+
+        return $label?->bindingFor($account)?->mailbox;
+    }
+
+    /**
      * Whether a conversation still belongs in the list it was moved from.
      *
      * Asked after the move, of the labels the thread now carries, so the
@@ -295,11 +315,29 @@ final readonly class MoveToService
             return;
         }
 
-        // Attached first, to the whole conversation, and before anything is
-        // detached: on plain IMAP the detach decides where the mail physically
-        // goes from the labels it still carries, so the destination has to be
-        // among them. The ordering ThreadStatusUpdater::moveToFolder() is built
-        // around, for the same reason.
+        // A REAL FOLDER ON THIS ACCOUNT: a move, said as one (#221 step 3).
+        // The copies in the folder the list showed go into it — the view's
+        // own folder is where they leave from — and only those: in a
+        // conversation opened from the inbox, the replies in Sent stay in
+        // Sent. ThreadStatusUpdater::move() takes the view's label off them
+        // and the target's on, and tells each provider. It used to be the
+        // target attached and the view's label detached, with the detach
+        // inferring the move — the inference that made a label able to move
+        // mail.
+        $account = $this->status->accountOf($messages[0]);
+
+        if (true === $this->isFolderOn($target, $account)) {
+            if ([] !== $carriers) {
+                $this->status->move($carriers, $target, $leaving?->bindingFor($account)?->mailbox);
+            }
+
+            return;
+        }
+
+        // A TAG ON THIS ACCOUNT: the tag on the whole conversation, and the
+        // mail out of the list it was in — Gmail's move, and the same move on
+        // an IMAP or Outlook account where the label is not a folder. Never a
+        // folder made for it: that would turn the tag into a place here.
         $this->status->applyLabel($messages, $target, true);
 
         if ([] === $carriers) {
@@ -316,15 +354,8 @@ final readonly class MoveToService
         // tell a plain IMAP server to "archive" a message the row still
         // claimed was in the bin.
         //
-        // A real folder on this account is simpler: move() puts the mail in it
-        // and takes it out of every other place, the bin included.
+        // A real folder on this account never gets here: it is a move, above.
         if (true === $fromTheBin) {
-            if (true === $this->isFolderOn($target, $this->status->accountOf($messages[0]))) {
-                $this->status->move($carriers, $target);
-
-                return;
-            }
-
             $this->status->restore($carriers);
             $this->status->archive($carriers);
 
@@ -338,11 +369,7 @@ final readonly class MoveToService
         // archive() is the one place that knows what that means per provider.
         // Detaching Inbox by hand would tell a plain IMAP server to archive
         // the message and leave the row still pointing at the inbox folder.
-        //
-        // When the target is a real folder on this account the detach is the
-        // right call instead: the mail goes INTO that folder, and Archive has
-        // nothing to do with it.
-        if (LabelRole::Inbox === $leaving->role && false === $this->isFolderOn($target, $this->status->accountOf($messages[0]))) {
+        if (LabelRole::Inbox === $leaving->role) {
             $this->status->archive($carriers);
 
             return;

@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -45,6 +46,7 @@ final readonly class ApplyRemoteFlagsMessageHandler
         private ThreadStatusUpdater    $status,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private KeywordLabelFollower   $keywords,
     ) {
     }
 
@@ -70,7 +72,8 @@ final readonly class ApplyRemoteFlagsMessageHandler
         // Read from the complete list the server sent rather than from the
         // presence of a delta, because that is what it is: RFC 3501 requires
         // the whole set, so an absent \Seen means UNSEEN and not "unchanged".
-        $flags = MessageFlag::canonicalList($message->flags);
+        $flags  = MessageFlag::canonicalList($message->flags);
+        $before = [(int) $subject->id => $subject->flags];
 
         // As in the sweep's flag pass: this copy telling us what it told us
         // last time is no change, however the message has changed since —
@@ -93,6 +96,10 @@ final readonly class ApplyRemoteFlagsMessageHandler
                 flags:   $flags,
             ),
         ]);
+
+        // Keywords another client changed, as labels (#221 step 2) — the same
+        // rule as the folder listing's, from KeywordLabelFollower.
+        $this->keywords->follow($mailbox, [$subject], $before);
 
         // The copy's new flags, which applyRemoteFlags() leaves unwritten
         // when the message had nothing to change.

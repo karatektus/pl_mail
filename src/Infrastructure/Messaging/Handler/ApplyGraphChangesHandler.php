@@ -174,6 +174,20 @@ final class ApplyGraphChangesHandler
 
         $this->recordRefusals($account, $result, 'patch');
 
+        // Exchange now holds what was pushed, for every message it did not
+        // refuse or put off: the categories mirror says so, and the next delta
+        // that echoes them back is not read as a change made in Outlook
+        // (#221 step 4).
+        $notApplied = array_merge($result['throttled'], array_keys($result['failed']), array_keys($result['refusals']));
+
+        foreach ($messages as $entity) {
+            $graphId = (string) $entity->graphId;
+
+            if (true === isset($patches[$graphId]) && false === in_array($graphId, $notApplied, true)) {
+                $entity->graphCategories = $patches[$graphId]['categories'];
+            }
+        }
+
         return $result['throttled'];
     }
 

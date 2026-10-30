@@ -7,7 +7,11 @@
    one row from the next here is the row under the pointer lighting up. There is no form around it — each row carries its own, and a
    form inside a form is not HTML — and no footer: every switch has done its
    work the moment it is pressed, and the modal's own header closes it, as it
-   does for the calendar's read-only dialogs. #}
+   does for the calendar's read-only dialogs.
+
+   Above the list, New folder (#221), and after a folder action that did not
+   work, why (`error`); one that worked is said by the app's toast
+   (_folder_done.stream.html.twig). #}
 {% extends '_layout/app.html.twig' %}
 
 {% block body %}
@@ -15,8 +19,56 @@
         <template data-ui--modal-frame-title>{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}</template>
 
         <div class="flex-1 min-h-0 overflow-y-auto pb-2">
-            <p class="px-6 pb-3 text-xs text-ink-faint">{{ 'settings.accounts.folders.intro'|trans }}</p>
+            <div class="flex items-start gap-3 px-6 pb-3">
+                <p class="flex-1 text-xs text-ink-faint">{{ 'settings.accounts.folders.intro'|trans }}</p>
 
+                {# A folder is made here, in the account's own tree, and nowhere
+                   else (#221): making a label never makes a folder. #}
+                <a href="{{ path('settings_account_folder_new', { id: account.id }) }}"
+                   data-turbo-frame="modal"
+                   data-folder-new
+                   class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
+                    <i class="fa-solid fa-folder-plus text-[10px]" aria-hidden="true"></i>
+                    {{ 'settings.accounts.folders.new.button'|trans }}
+                </a>
+            </div>
+
+            {# Labels as IMAP keywords (#221 step 2). Off by default; the
+               sentence under it says what the server allows, as far as it has
+               been asked. keep-open: a switch, not a form that finishes. #}
+            {% set _kw = account.labelsAsKeywords %}
+            <form method="post" action="{{ path('settings_account_folder_keywords', { id: account.id }) }}"
+                  data-turbo-frame="modal" data-ui--modal-keep-open data-folder-keywords
+                  class="mx-6 mb-3 flex items-start gap-3 rounded-lg bg-raised px-3.5 py-2.5">
+                <input type="hidden" name="_token" value="{{ csrf_token('account_folder_keywords_' ~ account.id) }}">
+                <div class="flex-1 min-w-0 space-y-1">
+                    <p class="text-sm font-medium text-ink">{{ 'settings.accounts.folders.keywords.title'|trans }}</p>
+                    <p class="text-xs text-ink-faint leading-snug">{{ 'settings.accounts.folders.keywords.intro'|trans }}</p>
+                    {% if _kw %}
+                        <p class="text-xs leading-snug {{ keywordsAllowed|default(null) is same as(false) ? 'text-warning' : 'text-ink-muted' }}" data-folder-keywords-state>
+                            {{ (keywordsAllowed|default(null) is same as(true)
+                                ? 'settings.accounts.folders.keywords.allowed'
+                                : (keywordsAllowed|default(null) is same as(false)
+                                    ? 'settings.accounts.folders.keywords.refused'
+                                    : 'settings.accounts.folders.keywords.unknown'))|trans }}
+                        </p>
+                    {% endif %}
+                </div>
+                <button type="submit" role="switch" aria-checked="{{ _kw ? 'true' : 'false' }}"
+                        class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        aria-label="{{ 'settings.accounts.folders.keywords.title'|trans }}" title="{{ 'settings.accounts.folders.keywords.title'|trans }}">
+                    <i class="fa-solid {{ _kw ? 'fa-toggle-on text-success' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
+                </button>
+            </form>
+
+            {% if error|default(null) is not null %}
+                <div role="alert" data-folder-error class="mx-6 mb-3 flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-2 text-sm text-danger">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ error }}</p>
+                </div>
+            {% endif %}
+
+    
             {% if rows is empty %}
                 <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
                     {{ 'settings.accounts.folders.empty'|trans }}
@@ -41,5 +93,11 @@
                 </ul>
             {% endif %}
         </div>
+
+        {# After a delete that worked: the toast and both sidebars drawn again
+           (_folder_done.stream.html.twig). Turbo carries out a <turbo-stream>
+           wherever it lands, so riding inside the frame that puts the list
+           back is enough. #}
+        {% if done|default(null) is not null %}{{ done|raw }}{% endif %}
     </turbo-frame>
 {% endblock %}

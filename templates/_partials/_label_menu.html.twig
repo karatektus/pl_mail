@@ -4,8 +4,9 @@ _label_menu.html.twig
 "Label as" dropdown for the list toolbar and the thread view toolbar.
 
 Variables:
-  labels        Label[]   flat list of the user's custom labels (role null),
-                          pre-ordered; indentation derives from label.depth
+  labels        Label[]   the user's custom labels that are a tag on the
+                          account (tag_labels(), LabelKinds), pre-ordered;
+                          indentation derives from label.depth
   targetType    string    "thread" | "message"
   targetId      int|null  when null the Stimulus controller resolves selected
                           rows from the list instead (bulk mode)

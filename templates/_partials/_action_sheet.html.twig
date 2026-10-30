@@ -69,7 +69,7 @@ Variables: sidebarCounts (the list's own, for the move menu's labels).
                     <div data-sheet-picker-scope="move" class="absolute inset-0">
                         {% include '_partials/_move_menu.html.twig' with {
                             sidebarCounts: sidebarCounts,
-                            labels: sidebarCounts.flattenedUserLabels,
+                            labels: move_labels(sidebarCounts.flattenedUserLabels),
                             targetId: 0,
                             carried: [],
                             placement: '',
@@ -84,7 +84,7 @@ Variables: sidebarCounts (the list's own, for the move menu's labels).
                     </button>
                     <div data-sheet-picker-scope="labels" class="absolute inset-0">
                         {% include '_partials/_label_menu.html.twig' with {
-                            labels: sidebarCounts.flattenedUserLabels,
+                            labels: tag_labels(sidebarCounts.flattenedUserLabels),
                             targetType: 'thread',
                             targetId: 0,
                             trigger: false,

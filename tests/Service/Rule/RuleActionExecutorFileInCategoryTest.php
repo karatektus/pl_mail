@@ -149,6 +149,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),
+            new GraphLabelPolicy(),
         );
     }
 
