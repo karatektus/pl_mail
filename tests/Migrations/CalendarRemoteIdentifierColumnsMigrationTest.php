@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Migrations;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -67,7 +70,67 @@ final class CalendarRemoteIdentifierColumnsMigrationTest extends KernelTestCase
     {
         yield 'uid' => ['idx_calendar_event_uid', 'USING hash (uid)'];
         yield 'remote id' => ['idx_calendar_event_remote', 'USING hash (remote_id)'];
-        yield 'uid per calendar' => ['uniq_calendar_event_calendar_uid', 'md5(uid)'];
+        yield 'uid per calendar' => ['uniq_calendar_event_calendar_uid', '(calendar_id, uid_hash)'];
+        yield 'calendar per account' => ['uniq_calendar_account_remote', '(account_id, remote_id_hash)'];
+        yield 'calendar per integration' => ['uniq_calendar_integration_remote', '(integration_id, remote_id_hash)'];
+        yield 'one calendar per channel' => ['uniq_calendar_push_channel_id', '(push_channel_id_hash)'];
+        yield 'webhook lookup' => ['idx_calendar_push_channel', 'USING hash (push_channel_id)'];
         yield 'dedup key' => ['idx_event_source_link_dedup', 'USING hash (dedup_key)'];
+    }
+
+    /**
+     * Random, because a repetitive value compresses and would fit a btree anyway.
+     * Uniqueness has to survive the move to hashes.
+     */
+    public function testACalendarTakesIdentifiersOfAnyLengthAndStillRefusesADuplicateChannel(): void
+    {
+        self::bootKernel();
+
+        $connection = self::getContainer()->get(Connection::class);
+        $connection->beginTransaction();
+
+        try {
+            $userId = (int) $connection->fetchOne(
+                'INSERT INTO "user" (email, name_first, name_last, password, roles, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, now(), now()) RETURNING id',
+                ['long-id-' . bin2hex(random_bytes(4)) . '@plmail.test', 'Probe', 'Fixture', 'x', '[]'],
+            );
+            $insert = 'INSERT INTO calendar (name, usr_id, remote_id, push_channel_id, push_resource_id, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, now(), now())';
+            $channel = bin2hex(random_bytes(50000));
+
+            $connection->executeStatement($insert, [
+                'Probe',
+                $userId,
+                bin2hex(random_bytes(50000)),
+                $channel,
+                bin2hex(random_bytes(50000)),
+            ]);
+
+            self::assertSame(1, (int) $connection->fetchOne('SELECT count(*) FROM calendar WHERE push_channel_id = ?', [$channel]));
+
+            $this->expectException(UniqueConstraintViolationException::class);
+            $connection->executeStatement($insert, ['Probe', $userId, null, $channel, null]);
+        } finally {
+            $connection->rollBack();
+        }
+    }
+
+    /**
+     * The diff has unrelated entries elsewhere, so this asks only about what this
+     * change declares: the mapping and the database have to agree on all of it.
+     */
+    public function testMappingAndDatabaseAgreeOnTheseColumnsAndIndexes(): void
+    {
+        self::bootKernel();
+
+        $em  = self::getContainer()->get(EntityManagerInterface::class);
+        $sql = new SchemaTool($em)->getUpdateSchemaSql($em->getMetadataFactory()->getAllMetadata());
+
+        $names = '/uid_hash|remote_id_hash|push_channel_id_hash|idx_calendar_event_uid|idx_calendar_event_remote\b'
+            . '|uniq_calendar_event_calendar_uid|uniq_calendar_account_remote|uniq_calendar_integration_remote'
+            . '|uniq_calendar_push_channel_id|idx_calendar_push_channel|idx_event_source_link_dedup|event_uid|dedup_key\b/';
+
+        self::assertSame([], array_values(preg_grep($names, $sql)));
     }
 }

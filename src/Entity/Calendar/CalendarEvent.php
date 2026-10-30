@@ -73,10 +73,9 @@ use Doctrine\ORM\Mapping as ORM;
 // because without it every schema diff asks to drop it, and dropping it turns
 // the lookup into a sequential scan of every event on the install.
 #[ORM\Index(name: 'idx_calendar_event_remote_instances', columns: ['remote_instances'])]
-// Built on (calendar_id, md5(uid)) by the migration, for the same reason: a hash
-// index can't be unique or span two columns. Attributes can't state an
-// expression, so this declares what it enforces rather than how it is built.
-#[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
+// On the uid's hash for the same reason: a hash index can't be unique or span
+// two columns, and a btree can't hold the uid itself.
+#[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid_hash'])]
 class CalendarEvent
 {
     use TimestampableTrait;
@@ -125,6 +124,19 @@ class CalendarEvent
      */
     #[ORM\Column(type: Types::TEXT)]
     public string $uid = '';
+
+    /**
+     * What uniq_calendar_event_calendar_uid compares. Generated so it can't
+     * disagree with $uid, and nothing in PHP reads it.
+     */
+    #[ORM\Column(
+        type: Types::TEXT,
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: 'text GENERATED ALWAYS AS (md5(uid)) STORED',
+    )]
+    public private(set) ?string $uidHash = null;
 
     /** iCalendar SEQUENCE: which revision this is. Higher wins. */
     #[ORM\Column(options: ['default' => 0])]

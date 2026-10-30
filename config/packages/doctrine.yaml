@@ -31,6 +31,10 @@ doctrine:
             # comparator sees the same type on both sides and stops asking to
             # rewrite the column on every diff.
             tsrange: text
+            # message_embedding.embedding is a real[] that only raw SQL touches
+            # (see EmbeddingStore). Without this schema:validate stops at the
+            # column instead of comparing anything.
+            _float4: text
 
 
         # IMPORTANT: You MUST configure your server version,
