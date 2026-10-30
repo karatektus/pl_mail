@@ -72,8 +72,11 @@ class EventSourceLink
      * The identity this extraction claimed, before the event existed. Kept so a
      * re-key backfill can find the rows it needs to rewrite — see
      * CalendarEvent::$dedupKeyVersion.
+     *
+     * TEXT with a hash index, because an invitation's key contains its UID and
+     * the sender chooses how long that is.
      */
-    #[ORM\Column(length: 128)]
+    #[ORM\Column(type: Types::TEXT)]
     public string $dedupKey = '';
 
     /** False means read but superseded; the event does not reflect this row. */

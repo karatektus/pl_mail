@@ -176,6 +176,19 @@ final class IcsImporterTest extends KernelTestCase
         self::assertCount(1, $this->onTheCalendar());
     }
 
+    public function testAUidTooLongForABtreeImportsOnceHoweverOftenTheFileIsImported(): void
+    {
+        $file = str_replace('UID:meeting-1', 'UID:' . bin2hex(random_bytes(50000)), $this->twoEvents());
+
+        self::assertSame(2, $this->importer->import($this->calendar, $this->user, $file)->imported);
+        $this->em->flush();
+
+        self::assertSame(0, $this->importer->import($this->calendar, $this->user, $file)->imported);
+        $this->em->flush();
+
+        self::assertCount(2, $this->onTheCalendar());
+    }
+
     /**
      * A mirror of a published file cannot accept anything: rows written there
      * could never leave, and the engine's promise is that a driver is never

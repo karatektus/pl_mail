@@ -41,10 +41,10 @@ use Doctrine\ORM\Mapping as ORM;
 // full one, on the largest table in the schema, for a column that is NULL on
 // nearly every row. Serves "which mail is in this category" and the SET NULL a
 // category's removal performs.
-#[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => 'rule_category_id IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => '(rule_category_id IS NOT NULL)'])]
 // The sidebar's unsent-draft warning counts these on every refresh; partial,
 // because nearly every row is null here and only the few marked ones matter.
-#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => 'send_failed_at IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => '(send_failed_at IS NOT NULL)'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
@@ -53,7 +53,7 @@ use Doctrine\ORM\Mapping as ORM;
 // The copy matcher's first question when the server names its emails (#415):
 // partial, because only Gmail and RFC 8474 servers do, and nearly every row
 // is null here.
-#[ORM\Index(name: 'idx_message_server_email_id_account', columns: ['server_email_id', 'account_id'], options: ['where' => 'server_email_id IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_server_email_id_account', columns: ['server_email_id', 'account_id'], options: ['where' => '(server_email_id IS NOT NULL)'])]
 #[ORM\Index(name: 'idx_message_provider_thread_key_account', columns: ['provider_thread_key', 'account_id'])]
 // The reaper's only query: rows of one account carrying a vanish mark, oldest
 // first. Without it, every poll of every folder sequentially scans the
@@ -69,6 +69,21 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_account_accepted_at', columns: ['account_id', 'provider_accepted_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
+// Partial, and declared so the mapping and the migrations agree. A where clause
+// is written the way Postgres prints it back, or every diff rebuilds the index.
+#[ORM\Index(name: 'idx_message_ai_categorised', columns: ['ai_categorised_at'], options: ['where' => "(ai_categorised_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_category_held', columns: ['category_held_at'], options: ['where' => "(category_held_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_flags_touched_at', columns: ['flags_touched_at'], options: ['where' => "(flags_touched_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_unseen_mailbox', columns: ['mailbox_id'], options: ['where' => "(seen_at IS NULL)"])]
+#[ORM\Index(name: 'idx_message_epoch_ghost', columns: ['id'], options: ['where' => "(received_at < '1971-01-01 00:00:00'::timestamp without time zone)"])]
+// Built `USING gin` with gin_trgm_ops by the migration. Declared plain, the same
+// trick as idx_calendar_event_remote_instances: the comparator matches an index
+// on its name and columns and never looks at the method.
+#[ORM\Index(name: 'idx_message_subject_trgm', columns: ['subject'])]
+#[ORM\Index(name: 'idx_message_body_text_trgm', columns: ['body_text'])]
+#[ORM\Index(name: 'idx_message_from_name_trgm', columns: ['from_name'])]
+#[ORM\Index(name: 'idx_message_from_address_trgm', columns: ['from_address'])]
+#[ORM\Index(name: 'idx_message_gmail_carrier_account', columns: ['gmail_carrier_account_id'])]
 class Message extends MessageModel
 {
     use TimestampableTrait;

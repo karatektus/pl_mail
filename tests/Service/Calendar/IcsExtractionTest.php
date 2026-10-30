@@ -21,6 +21,7 @@ use App\Entity\Calendar\EventSuppression;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -87,6 +88,27 @@ final class IcsExtractionTest extends KernelTestCase
 
         // Materialised, or it is on no calendar anyone can see.
         self::assertCount(1, $event->occurrences);
+    }
+
+    /**
+     * Whoever sends the invitation picks the UID, and the source link's dedup key
+     * contains it. 130 is past that key's old 128, 100,000 past what a btree takes.
+     */
+    #[DataProvider('longUids')]
+    public function testAnInviteWithALongUidBecomesAnEvent(int $bytes): void
+    {
+        $uid = bin2hex(random_bytes($bytes / 2));
+
+        self::assertSame($uid, $this->ingest($this->ics($uid, 'Standup', '20260803T090000Z', '20260803T091500Z'))?->uid);
+    }
+
+    /**
+     * @return iterable<string,array{int}>
+     */
+    public static function longUids(): iterable
+    {
+        yield 'past the dedup key' => [130];
+        yield 'past a btree' => [100000];
     }
 
     /**

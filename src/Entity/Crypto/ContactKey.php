@@ -45,7 +45,7 @@ use Doctrine\ORM\Mapping as ORM;
 // silently replaces the known one", which a read-then-write in PHP cannot be
 // on its own when two workers collect keys from two messages at once. Partial,
 // because any number of Changed keys may wait beside it.
-#[ORM\UniqueConstraint(name: 'uniq_contact_key_current', columns: ['usr_id', 'email'], options: ['where' => "status = 'current'"])]
+#[ORM\UniqueConstraint(name: 'uniq_contact_key_current', columns: ['usr_id', 'email'], options: ['where' => "((status)::text = 'current'::text)"])]
 #[ORM\HasLifecycleCallbacks]
 class ContactKey
 {

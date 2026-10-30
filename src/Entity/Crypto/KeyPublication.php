@@ -28,6 +28,7 @@ use Doctrine\ORM\Mapping as ORM;
 // One state per address per server per key: publishing again updates it.
 #[ORM\UniqueConstraint(name: 'uniq_key_publication', columns: ['address_key_id', 'host', 'email'])]
 #[ORM\HasLifecycleCallbacks]
+#[ORM\Index(name: 'idx_key_publication_address_key', columns: ['address_key_id'])]
 class KeyPublication
 {
     use TimestampableTrait;

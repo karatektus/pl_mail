@@ -16,12 +16,10 @@ use Throwable;
  *
  * DBAL, NOT THE ORM, AND DELIBERATELY NO ENTITY
  * ─────────────────────────────────────────────
- * `real[]` is not a type Doctrine can name. Teaching it one would mean a
- * `mapping_types` entry so the comparator sees the same type on both sides and
- * stops asking to rewrite the column on every diff — the workaround this
- * codebase already carries for `tsrange`, and one more thing to keep in step
- * for a table nothing hydrates. Nothing here ever needs an object: the writer
- * has an id and an array, and the reader is a JOIN inside somebody else's SQL.
+ * `real[]` is not a type Doctrine can name, and the table is left out of schema
+ * diffs by `schema_filter` in doctrine.yaml. Nothing here ever needs an object:
+ * the writer has an id and an array, and the reader is a JOIN inside somebody
+ * else's SQL.
  *
  * NORMALISED HERE, ONCE
  * ─────────────────────

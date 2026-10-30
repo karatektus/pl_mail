@@ -18,6 +18,12 @@ doctrine:
         # 18's) and the one every compose file here runs.
         server_version: '18'
 
+        # Tables deliberately written by raw SQL with no entity (see EmbeddingStore
+        # and ThreadSummaryStore). Without this every diff asks to drop them. It also
+        # hides them from the schema manager's table listing, so nothing that must
+        # see every table may read it: DataResetRepository asks the catalogue.
+        schema_filter: '~^(?!(ai_backfill_state|ai_call_metric|message_embedding|thread_summary)$)~'
+
         types:
             # TEXT column, encrypted at rest. See App\Infrastructure\Doctrine\Type\EncryptedStringType.
             encrypted_string: App\Infrastructure\Doctrine\Type\EncryptedStringType

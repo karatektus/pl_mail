@@ -43,8 +43,11 @@ use Doctrine\ORM\Mapping as ORM;
 // would make a notification ambiguous, and the endpoint would either sync the
 // wrong calendar or sync both on somebody else's secret. Postgres allows any
 // number of NULLs in a unique index, which is what keeps this usable on the
-// column's ordinary state: a calendar with no channel.
-#[ORM\UniqueConstraint(name: 'uniq_calendar_push_channel_id', columns: ['push_channel_id'])]
+// column's ordinary state: a calendar with no channel. On the id's hash, because
+// the provider picks the id's length and a btree refuses a row over 2704 bytes;
+// the hash index below is what the webhooks read by.
+#[ORM\UniqueConstraint(name: 'uniq_calendar_push_channel_id', columns: ['push_channel_id_hash'])]
+#[ORM\Index(name: 'idx_calendar_push_channel', columns: ['push_channel_id'])]
 // One local calendar per remote calendar, per source — the partial unique index
 // the class docblock above promised and nothing had. Two rows mirroring one
 // remote calendar are two mirrors of one thing: the sweep pulls its events
@@ -59,8 +62,8 @@ use Doctrine\ORM\Mapping as ORM;
 // CalendarDiscoverer's call, made where it can tell the user why. NULLs are
 // distinct in a PostgreSQL unique index, which is what leaves the ordinary
 // state of both columns unconstrained; see the note above.
-#[ORM\UniqueConstraint(name: 'uniq_calendar_account_remote', columns: ['account_id', 'remote_id'])]
-#[ORM\UniqueConstraint(name: 'uniq_calendar_integration_remote', columns: ['integration_id', 'remote_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_calendar_account_remote', columns: ['account_id', 'remote_id_hash'])]
+#[ORM\UniqueConstraint(name: 'uniq_calendar_integration_remote', columns: ['integration_id', 'remote_id_hash'])]
 class Calendar
 {
     use TimestampableTrait;
@@ -149,8 +152,18 @@ class Calendar
     public int $sortOrder = 0;
 
     /** Opaque id at the remote, for CalendarRole::Remote. */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
+
+    /** What the unique constraints compare. Generated, and nothing in PHP reads it. */
+    #[ORM\Column(
+        type: Types::TEXT,
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: 'text GENERATED ALWAYS AS (md5(remote_id)) STORED',
+    )]
+    public private(set) ?string $remoteIdHash = null;
 
     /** CalDAV sync-token or provider equivalent; opaque, never parsed. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -257,8 +270,18 @@ class Calendar
      * comparison against a known column, and neither is something to build on a
      * key inside a jsonb document whose readers assume their own defaults.
      */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $pushChannelId = null;
+
+    /** What the unique constraints compare. Generated, and nothing in PHP reads it. */
+    #[ORM\Column(
+        type: Types::TEXT,
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: 'text GENERATED ALWAYS AS (md5(push_channel_id)) STORED',
+    )]
+    public private(set) ?string $pushChannelIdHash = null;
 
     /**
      * Google's `resourceId` for the channel, and the reason it is stored: a
@@ -270,7 +293,7 @@ class Calendar
      *
      * Null for Microsoft, which cancels by subscription id alone.
      */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $pushResourceId = null;
 
     /**
