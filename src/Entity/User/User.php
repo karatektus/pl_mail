@@ -1368,6 +1368,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether a browser push for new mail is dropped when the Inbox has nothing
+     * unread left by the time the browser acts on it.
+     *
+     * A web push is content-free (a StateChange cannot say WHICH mail arrived)
+     * and cannot be recalled, so a message that is read or deleted on a phone a
+     * minute after it arrived has already told every other browser. The service
+     * worker therefore waits a moment, asks WebPushController::inboxState()
+     * whether anything is still unread, and shows nothing when not. Per USER,
+     * not per device: the same mail notifying on one browser and not on another
+     * is the confusing outcome, not the setting.
+     *
+     * OFF unless somebody switches it on, so nothing changes for anybody who
+     * does not. Only a stored true is on, so the key is absent for nearly
+     * everybody and no migration writes it.
+     */
+    public const string SETTING_PUSH_SKIP_READ = 'notifications.skip_read';
+
+    /** Virtual, out of the settings bag — see SETTING_PUSH_SKIP_READ. */
+    public bool $pushSkipsRead {
+        get => true === $this->getSetting(self::SETTING_PUSH_SKIP_READ, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_PUSH_SKIP_READ, $on ? true : null);
+        }
+    }
+
+    /**
      * How mail goes out once plMail can encrypt it — Settings → Encryption →
      * Sending. Four switches in the settings bag, each stored only when it
      * differs from its default, like the two above.

@@ -4294,6 +4294,10 @@ settings:
             On iPhone and iPad, the lookout only calls once plMail be added to
             the Home Screen: open her in Safari, tap Share, then "Add to Home
             Screen", and allow the callin' from there.
+        'off': Off
+        'on': On
+        skip_read: "Skip bottles already read"
+        skip_read_hint: "A notice in yer browser waits a spell, then sinks if no unread bottle be left in yer Inbox, say because ye read or sunk it on yer phone. Holds for all yer browsers; off, every new bottle sounds the bell at once."
         state_denied: >-
             Barred in yer browser settin's. Allow the lookout to call for this
             site, then try again.

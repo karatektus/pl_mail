@@ -4490,6 +4490,14 @@ settings:
             On iPhone and iPad, notifications only work once plMail is added to
             the Home Screen: open it in Safari, tap Share, then "Add to Home
             Screen", and enable notifications from there.
+        'off': 'Off'
+        'on': 'On'
+        skip_read: Skip mail that is already read
+        skip_read_hint: >-
+            A browser notification waits a moment, then is dropped if there is
+            nothing unread left in your Inbox, for example because you read or
+            deleted the mail on your phone. Applies to every browser of yours;
+            off, every new message notifies at once.
         state_denied: >-
             Blocked in your browser settings. Allow notifications for this site,
             then try again.

@@ -4515,6 +4515,14 @@ settings:
             plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
             Teilen tippen, dann "Zum Home-Bildschirm", und dort
             Benachrichtigungen aktivieren.
+        'off': 'Aus'
+        'on': 'An'
+        skip_read: Bereits gelesene Mail überspringen
+        skip_read_hint: >-
+            Eine Browser-Benachrichtigung wartet einen Moment und entfällt, wenn
+            im Posteingang nichts Ungelesenes mehr liegt, etwa weil du die Mail
+            auf dem Handy gelesen oder gelöscht hast. Gilt für alle deine
+            Browser; aus meldet jede neue Nachricht sofort.
         state_denied: >-
             In deinen Browser-Einstellungen blockiert. Erlaube
             Benachrichtigungen für diese Seite und versuche es erneut.
