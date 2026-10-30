@@ -29,6 +29,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class ImmichDriverTest extends TestCase
 {
+    use AssertsHttpLimits;
+
     /** @var list<array{method:string,url:string,options:array<string,mixed>}> */
     private array $requests = [];
 
@@ -74,6 +76,8 @@ final class ImmichDriverTest extends TestCase
         self::assertSame(['Archive', 'Trips'], array_map(static fn ($e) => $e->name, $listing->entries));
         self::assertTrue($listing->entries[0]->isFolder);
         self::assertStringEndsWith('/api/albums', $this->requests[0]['url']);
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     /**
@@ -319,6 +323,8 @@ final class ImmichDriverTest extends TestCase
         self::assertSame('beach.jpg', $file->filename);
         self::assertSame('image/jpeg', $file->mime);
         self::assertSame('binary-jpeg', $file->contents);
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testApiKeyTravelsInTheHeader(): void
@@ -368,6 +374,8 @@ final class ImmichDriverTest extends TestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testPeopleAreEntriesOfTheirOwnKindNotFolders(): void

@@ -235,7 +235,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
 
     public function download(Integration $integration, string $fileId): RemoteFile
     {
-        $response = $this->request($integration, 'GET', $this->url($integration, '/assets/'.rawurlencode($fileId).'/original'));
+        $response = $this->request($integration, 'GET', $this->url($integration, '/assets/'.rawurlencode($fileId).'/original'), HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -286,7 +286,7 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
         $response = $this->request($integration, 'POST', $this->url($integration, '/assets'), [
             'headers' => $form->getPreparedHeaders()->toArray(),
             'body'    => $form->bodyToIterable(),
-        ]);
+        ] + HttpLimits::transfer());
 
         try {
             $payload = $response->toArray(false);
@@ -849,6 +849,8 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
             ['x-api-key' => $integration->secret, 'Accept' => 'application/json'],
             $options['headers'] ?? [],
         );
+
+        $options += HttpLimits::CALL;
 
         try {
             $response = $this->httpClient->request($method, $url, $options);

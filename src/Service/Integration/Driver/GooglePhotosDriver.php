@@ -90,7 +90,7 @@ final class GooglePhotosDriver extends AbstractOAuthDriver implements Destinatio
         // baseUrl carries its own short-lived credential, so our bearer token
         // is deliberately not sent — Google rejects the combination.
         try {
-            $response = $this->httpClient->request('GET', $baseUrl.self::ORIGINAL_SUFFIX);
+            $response = $this->httpClient->request('GET', $baseUrl.self::ORIGINAL_SUFFIX, HttpLimits::transfer());
 
             if ($response->getStatusCode() >= 400) {
                 throw new IntegrationException($this->messageForStatus($response->getStatusCode(), $response));
@@ -139,7 +139,7 @@ final class GooglePhotosDriver extends AbstractOAuthDriver implements Destinatio
                     'X-Goog-Upload-Protocol'   => 'raw',
                 ],
                 'body' => $handle,
-            ]);
+            ] + HttpLimits::transfer());
 
             $uploadToken = trim($response->getContent());
         } catch (HttpExceptionInterface $e) {
@@ -202,7 +202,7 @@ final class GooglePhotosDriver extends AbstractOAuthDriver implements Destinatio
         }
 
         try {
-            $response = $this->httpClient->request('GET', sprintf('%s=w%d-h%d-c', $baseUrl, self::THUMBNAIL_EDGE, self::THUMBNAIL_EDGE));
+            $response = $this->httpClient->request('GET', sprintf('%s=w%d-h%d-c', $baseUrl, self::THUMBNAIL_EDGE, self::THUMBNAIL_EDGE), HttpLimits::CALL);
 
             if (200 !== $response->getStatusCode()) {
                 return null;

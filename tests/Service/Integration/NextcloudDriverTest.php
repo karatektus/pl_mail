@@ -25,6 +25,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class NextcloudDriverTest extends TestCase
 {
+    use AssertsHttpLimits;
+
     /** @var list<array{method:string,url:string,options:array<string,mixed>}> */
     private array $requests = [];
 
@@ -57,6 +59,8 @@ final class NextcloudDriverTest extends TestCase
         self::assertSame(24019, $report->size);
         self::assertSame('application/pdf', $report->mime);
         self::assertSame('2026-07-20', $report->modifiedAt?->format('Y-m-d'));
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     public function testListBuildsABreadcrumbFromTheFolderPath(): void
@@ -86,6 +90,23 @@ final class NextcloudDriverTest extends TestCase
         self::assertStringEndsWith('/remote.php/dav/files/alice/etc/passwd', $this->requests[0]['url']);
     }
 
+    public function testUploadMovesItsFileUnderTheTransferLimits(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'nextcloud');
+        self::assertIsString($path);
+        file_put_contents($path, 'bytes');
+
+        try {
+            $driver = $this->driver([new MockResponse('', ['http_code' => 201]), new MockResponse('', ['http_code' => 201])]);
+
+            $driver->upload($this->integration(), $path, 'note.txt', 'text/plain', 'Documents');
+        } finally {
+            unlink($path);
+        }
+
+        self::assertARequestIsATransfer($this->requests);
+    }
+
     public function testDownloadReturnsBytesAndABareMimeType(): void
     {
         $driver = $this->driver([
@@ -97,6 +118,8 @@ final class NextcloudDriverTest extends TestCase
         self::assertSame('report.pdf', $file->filename);
         self::assertSame('application/pdf', $file->mime, 'the charset suffix is stripped');
         self::assertSame('%PDF-1.7 ...', $file->contents);
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testShareLinkReadsTheOcsEnvelope(): void

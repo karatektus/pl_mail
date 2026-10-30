@@ -33,6 +33,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class PaperlessDriverTest extends TestCase
 {
+    use AssertsHttpLimits;
+
     /** @var list<array{method:string,url:string,options:array<string,mixed>,body:string}> */
     private array $requests = [];
 
@@ -125,6 +127,8 @@ final class PaperlessDriverTest extends TestCase
         self::assertSame(['Paperless'], array_map(static fn ($crumb) => $crumb->name, $listing->breadcrumb));
         self::assertStringContainsString('/api/tags/', $this->requests[0]['url']);
         self::assertStringContainsString('ordering=-created', $this->requests[1]['url']);
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     /**
@@ -277,6 +281,8 @@ final class PaperlessDriverTest extends TestCase
         // No ?original=true: /download/ serves the archived, OCR'd PDF and falls
         // back to the original by itself where Paperless made none.
         self::assertStringEndsWith('/api/documents/91/download/', $this->requests[0]['url']);
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     /**
@@ -364,6 +370,8 @@ final class PaperlessDriverTest extends TestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     /**

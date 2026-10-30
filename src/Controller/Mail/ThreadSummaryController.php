@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Helper\RequestTimeLimit;
 use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\SummariseThreadMessage;
 use App\Entity\User\User;
@@ -409,7 +410,7 @@ final class ThreadSummaryController extends AbstractController
         // way round, and PHP would kill the request while the client was still
         // waiting patiently — which is the failure this line exists to prevent,
         // reintroduced by the feature that needed it most.
-        set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
+        RequestTimeLimit::hold(self::STREAM_TIME_LIMIT_SECONDS);
 
         // Here rather than beside the frames that count it: this controller can
         // outlive a request under a FrankenPHP worker, and the stop log below

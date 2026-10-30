@@ -8,6 +8,7 @@ use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
+use App\Service\OAuth\OAuthHttpClient;
 use League\OAuth2\Client\Provider\AbstractProvider;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Provider\Google;
@@ -64,9 +65,9 @@ final readonly class IntegrationOAuthProviderFactory
         ];
 
         return match ($provider) {
-            Provider::GoogleDrive, Provider::GooglePhotos => new Google($options + ['accessType' => 'offline']),
+            Provider::GoogleDrive, Provider::GooglePhotos => new Google($options + ['accessType' => 'offline'], OAuthHttpClient::collaborators()),
             Provider::OneDrive => $this->azure($options, $config->settings['tenant'] ?? 'common'),
-            default            => new GenericProvider($options + $this->endpoints($provider)),
+            default            => new GenericProvider($options + $this->endpoints($provider), OAuthHttpClient::collaborators()),
         };
     }
 
@@ -99,7 +100,7 @@ final readonly class IntegrationOAuthProviderFactory
             // token for Graph scopes — the same trap OAuthProviderFactory
             // documents for mail.
             'defaultEndPointVersion' => Azure::ENDPOINT_VERSION_2_0,
-        ]);
+        ], OAuthHttpClient::collaborators());
 
         $azure->urlAPI = 'https://graph.microsoft.com/v1.0/';
         $azure->resource = 'https://graph.microsoft.com/';

@@ -18,6 +18,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class DropboxDriverTest extends OAuthDriverTestCase
 {
+    use AssertsHttpLimits;
+
     public function testListsAFolderWithFoldersFirst(): void
     {
         $driver = $this->driver([
@@ -33,6 +35,8 @@ final class DropboxDriverTest extends OAuthDriverTestCase
         self::assertSame(24019, $listing->entries[1]->size);
         // Dropbox reports no MIME type, so inventing one here would be a lie.
         self::assertNull($listing->entries[1]->mime);
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     public function testTheRootIsTheEmptyStringNeverASlash(): void
@@ -81,6 +85,8 @@ final class DropboxDriverTest extends OAuthDriverTestCase
 
         $arg = $this->requests[0]['options']['normalized_headers']['dropbox-api-arg'][0] ?? '';
         self::assertStringContainsString('"path":"/report.pdf"', $arg);
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testNonAsciiFilenamesAreEscapedInTheHeader(): void
@@ -121,6 +127,8 @@ final class DropboxDriverTest extends OAuthDriverTestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testAnAlreadySharedFileFallsBackToItsExistingLink(): void

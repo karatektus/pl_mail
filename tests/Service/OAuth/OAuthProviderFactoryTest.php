@@ -85,6 +85,19 @@ final class OAuthProviderFactoryTest extends TestCase
         self::assertSame('common', $this->factory($config)->create(MailProvider::Microsoft)->tenant);
     }
 
+    /** Guzzle's default is no timeout at all, and a refresh runs ahead of a page's first call (#449). */
+    public function testEveryProviderIsGivenAClientThatGivesUp(): void
+    {
+        $factory = $this->factory(null);
+
+        foreach ([MailProvider::Google, MailProvider::Microsoft] as $provider) {
+            $client = $factory->create($provider)->getHttpClient();
+
+            self::assertInstanceOf(\GuzzleHttp\Client::class, $client);
+            self::assertGreaterThan(0, $client->getConfig('timeout'), $provider->value);
+        }
+    }
+
     public function testIsCompleteNeedsBothHalves(): void
     {
         $config = new MailProviderConfig(MailProvider::Google);
