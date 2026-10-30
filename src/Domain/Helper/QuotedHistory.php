@@ -86,11 +86,18 @@ final class QuotedHistory
     private const string HEADER_FROM = '~^\s*(?:from|von|de)\s*:~iu';
 
     /**
-     * …and the lines that confirm it is one. `Date:`/`Datum:` belongs here
-     * although the detector keeps it: on its own it is how German business
-     * mail states an appointment, but under a `Von:` line it is a header.
+     * …the lines a block of headers is made of…
      */
     private const string HEADER_FOLLOWING = '~^\s*(?:sent|gesendet|date|datum|envoy[ée]|to|an|à|cc|subject|betreff|objet)\s*:~iu';
+
+    /**
+     * …and the ones that prove it is a mail's, because a mail was sent at some
+     * time. A web form writes `From:` and `Subject:` too, above the very message
+     * it exists to deliver, and it names no time. `Date:`/`Datum:` belongs here
+     * although the detector keeps it: on its own it is how German business mail
+     * states an appointment, but under a `Von:` line it is a header.
+     */
+    private const string HEADER_SENT = '~^\s*(?:sent|gesendet|date|datum|envoy[ée])\s*:~iu';
 
     /** How many non-blank lines below `From:` the rest of its block may start. */
     private const int HEADER_REACH = 2;
@@ -236,7 +243,10 @@ final class QuotedHistory
      * It ends in a colon and names the verb, and it carries a date or an
      * address — "Wie Paul schrieb:" is a sentence, not a client's furniture.
      * Plain-text clients wrap it at 72 columns, so a line that opens with
-     * "On"/"Am"/"Le" just above is the beginning of the same attribution.
+     * "On"/"Am"/"Le" directly above is the beginning of the same attribution,
+     * unless it ends a sentence or this line opens the attribution itself.
+     * "Am 05.11. um 14 Uhr passt mir." above a blank line and "Am … schrieb
+     * Paul:" is the sender's answer, and the date this class exists to keep.
      *
      * @param list<string> $lines
      */
@@ -249,11 +259,13 @@ final class QuotedHistory
         }
 
         $start    = $index;
-        $previous = self::previousNonBlank($lines, $index);
+        $previous = $lines[$index - 1] ?? '';
 
-        if (null !== $previous && 1 === preg_match(self::ATTRIBUTION_OPENING, $lines[$previous])) {
-            $start = $previous;
-            $line  = $lines[$previous] . ' ' . $line;
+        if (0 === preg_match(self::ATTRIBUTION_OPENING, $line)
+            && 1 === preg_match(self::ATTRIBUTION_OPENING, $previous)
+            && 0 === preg_match('~[.!?]\s*$~u', $previous)) {
+            $start = $index - 1;
+            $line  = $previous . ' ' . $line;
         }
 
         if (mb_strlen($line) > self::MAX_ATTRIBUTION_CHARS || 0 === preg_match('~[\d@]~', $line)) {
@@ -273,7 +285,7 @@ final class QuotedHistory
                 continue;
             }
 
-            if (1 === preg_match(self::HEADER_FOLLOWING, $lines[$next])) {
+            if (1 === preg_match(self::HEADER_SENT, $lines[$next])) {
                 return true;
             }
 
@@ -319,17 +331,5 @@ final class QuotedHistory
         }
 
         return false;
-    }
-
-    /** @param list<string> $lines */
-    private static function previousNonBlank(array $lines, int $index): ?int
-    {
-        for ($previous = $index - 1; $previous >= 0; $previous--) {
-            if ('' !== trim($lines[$previous])) {
-                return $previous;
-            }
-        }
-
-        return null;
     }
 }

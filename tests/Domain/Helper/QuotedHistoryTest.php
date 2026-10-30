@@ -35,6 +35,12 @@ final class QuotedHistoryTest extends TestCase
             "Danke, passt!\n\n________________________________",
         ];
 
+        yield 'an Apple Mail forward, with the date two lines down' => [
+            "FYI\n\nFrom: Paul <paul@example.org>\nSubject: Meeting\nDate: 28 October 2026 at 10:00:00 CET\nTo: me@example.test\n\n"
+            . 'Shall we meet on 5 November 2026 at 2pm?',
+            'FYI',
+        ];
+
         yield 'an Outlook reply under its separator' => [
             "Thanks!\n\n-----Original Message-----\nFrom: Paul <paul@example.org>\nSent: Wednesday, October 28, 2026 10:00 AM\n\n"
             . 'Shall we meet on 5 November 2026 at 2pm?',
@@ -65,6 +71,56 @@ final class QuotedHistoryTest extends TestCase
         ];
     }
 
+    /**
+     * The sender's answer opening with the same word as the attribution under
+     * it. Taking it for the top of a wrapped attribution cut the date being
+     * proposed along with the history.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function answersAboveAnAttribution(): iterable
+    {
+        yield 'English' => [
+            "On Thursday 5 November 2026 at 2pm works for me.\n\nOn Wed, Oct 28, 2026 at 10:00 AM Paul <paul@example.org> wrote:\n> When suits you?",
+            'On Thursday 5 November 2026 at 2pm works for me.',
+        ];
+
+        yield 'German' => [
+            "Am 05.11.2026 um 14 Uhr passt mir.\n\nAm Mi., 28. Okt. 2026 um 10:00 Uhr schrieb Paul <paul@example.org>:\n> Wann?",
+            'Am 05.11.2026 um 14 Uhr passt mir.',
+        ];
+
+        yield 'French' => [
+            "Le 5 novembre 2026 à 14h me convient.\n\nLe mer. 28 oct. 2026 à 10:00, Paul <paul@example.org> a écrit :\n> Quand ?",
+            'Le 5 novembre 2026 à 14h me convient.',
+        ];
+
+        yield 'no punctuation, but a blank line between' => [
+            "Am 05.11.2026 um 14 Uhr\n\nPaul <paul@example.org> schrieb am Mi., 28. Okt. 2026, 10:00:\n> Wann?",
+            'Am 05.11.2026 um 14 Uhr',
+        ];
+
+        yield 'a sentence directly above a verb-first attribution' => [
+            "Am 05.11.2026 um 14 Uhr passt mir.\nPaul <paul@example.org> schrieb am Mi., 28. Okt. 2026, 10:00:\n> Wann?",
+            'Am 05.11.2026 um 14 Uhr passt mir.',
+        ];
+    }
+
+    #[DataProvider('answersAboveAnAttribution')]
+    public function testAnAnswerAboveAnAttributionIsKept(string $mail, string $ownWords): void
+    {
+        self::assertSame($ownWords, QuotedHistory::fromText($mail));
+    }
+
+    public function testAGmailAnswerOpeningLikeItsAttributionIsKept(): void
+    {
+        $html = '<div dir="ltr">On Thursday 5 November 2026 at 2pm works for me.</div><br><div class="gmail_quote"><div class="gmail_attr">'
+            . 'On Wed, Oct 28, 2026 at 10:00 AM Paul &lt;paul@example.org&gt; wrote:<br></div>'
+            . '<blockquote class="gmail_quote"><div>When?</div></blockquote></div>';
+
+        self::assertSame('On Thursday 5 November 2026 at 2pm works for me.', $this->ownWordsOfHtml($html));
+    }
+
     #[DataProvider('plainTextCases')]
     public function testTheHistoryIsCutFromPlainText(string $mail, string $ownWords): void
     {
@@ -87,6 +143,11 @@ final class QuotedHistoryTest extends TestCase
 
         yield 'a Von line that is prose rather than a header block' => [
             "Von: der Personalabteilung kam die Zusage.\nTermin ist am 04.08.2026 um 14 Uhr.",
+        ];
+
+        // A form's mail: headers of a kind, and no time a mail was sent at.
+        yield 'a web form with From and Subject above its message' => [
+            "From: Anna\nSubject: Viewing\nMessage: Can we meet on 05.11.2026 at 14:00?",
         ];
 
         yield 'a sentence that mentions writing' => ["Wie Paul schrieb:\nTermin am 04.08.2026 um 14 Uhr."];

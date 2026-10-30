@@ -348,6 +348,18 @@ final class EventProposerTest extends KernelTestCase
         self::assertSame('2026-08-05 10:00', $proposal->startsAt->format('Y-m-d H:i'));
     }
 
+    /** An answer that opens the way the attribution under it does is still the answer. */
+    public function testAReplyOpeningLikeItsAttributionIsStillProposed(): void
+    {
+        $proposal = $this->proposer->propose($this->message(
+            subject: 'AW: Treffen',
+            body:    "Am 05.08.2026 um 10 Uhr passt mir.\n\nAm Do., 30. Juli 2026 um 10:00 Uhr schrieb Paul <paul@example.org>:\n> Wann passt es dir?",
+        ));
+
+        self::assertNotNull($proposal);
+        self::assertSame('2026-08-05 10:00', $proposal->startsAt->format('Y-m-d H:i'));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**

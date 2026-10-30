@@ -7,4 +7,4 @@ been dismissed. Proposals now read only what the sender wrote in that message: t
 the quote attribution, a forward or an Outlook header block begins, while an interleaved reply keeps
 the answers written between its quotes. An Outlook mail synced through Microsoft Graph is read from
 its full body instead of the 255-character preview. Cards already shown are not removed. No schema
-change. [#437](https://github.com/karatektus/pl_mail/issues/437)
+change. [#437](https://github.com/karatektus/pl_mail/issues/437), by @pmdevelopment.
