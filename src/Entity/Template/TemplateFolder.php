@@ -45,6 +45,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'template_folder')]
 // Every read is "this user's folders", all of them at once, to build the tree.
 #[ORM\Index(name: 'idx_template_folder_usr', columns: ['usr_id'])]
+#[ORM\Index(name: 'idx_template_folder_account', columns: ['account_id'])]
+#[ORM\Index(name: 'idx_template_folder_parent', columns: ['parent_id'])]
 class TemplateFolder
 {
     use TimestampableTrait;

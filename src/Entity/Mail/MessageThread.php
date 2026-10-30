@@ -21,7 +21,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_thread_account_normalized_subject', columns: ['account_id', 'normalized_subject'])]
 // Partial for the reason Message's idx_message_rule_category is, and declared so
 // the mapping and the migration agree.
-#[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => 'user_category_id IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => '(user_category_id IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_message_thread_account_starred', columns: ['account_id'], options: ['where' => "(starred_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_thread_account_unread', columns: ['account_id'], options: ['where' => "(unread_count > 0)"])]
+#[ORM\Index(name: 'idx_message_thread_snoozed_until', columns: ['snoozed_until'], options: ['where' => "(snoozed_until IS NOT NULL)"])]
+// Descending in the migration; the comparator doesn't see column order direction.
+#[ORM\Index(name: 'idx_message_thread_account_last_message', columns: ['account_id', 'last_message_at', 'id'])]
 #[ORM\Entity(repositoryClass: MessageThreadRepository::class)]
 class MessageThread
 {

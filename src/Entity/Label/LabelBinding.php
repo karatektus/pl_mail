@@ -100,7 +100,7 @@ class LabelBinding
      * to looking one up by the name it had before a rename. The id is what makes
      * that lookup unnecessary, not what makes the rename possible.
      */
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 255, nullable: true, options: ['comment' => 'Exchange master category id. Deliberately not graph_folder_id, which GraphLabelPolicy reads to mean "this label is a folder".'])]
     public ?string $graphCategoryId = null;
 
     /**

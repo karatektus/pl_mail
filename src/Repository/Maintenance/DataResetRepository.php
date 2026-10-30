@@ -42,7 +42,12 @@ final readonly class DataResetRepository
      */
     public function existingTables(): array
     {
-        return array_values($this->connection->createSchemaManager()->listTableNames());
+        // The catalogue, not the schema manager: schema_filter hides the raw-SQL
+        // tables from that, and a reset that missed them would keep their rows.
+        return array_values($this->connection->fetchFirstColumn(
+            // quote_ident because truncate() interpolates this: "user" is reserved.
+            'SELECT quote_ident(tablename) FROM pg_tables WHERE schemaname = current_schema()',
+        ));
     }
 
     /**

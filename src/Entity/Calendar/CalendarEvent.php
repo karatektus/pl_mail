@@ -196,7 +196,7 @@ class CalendarEvent
      * list as they last saw it, so a stale NEEDS-ACTION in it would silently
      * un-accept a meeting somebody is already going to.
      */
-    #[ORM\Column(length: 16, nullable: true, enumType: ParticipationStatus::class)]
+    #[ORM\Column(length: 16, nullable: true, enumType: ParticipationStatus::class, options: ['comment' => "The owner's own RSVP, projected from jscalendar.participants. NULL means this is not an invitation addressed to them and is always drawn."])]
     public ?ParticipationStatus $myParticipation = null;
 
     /**

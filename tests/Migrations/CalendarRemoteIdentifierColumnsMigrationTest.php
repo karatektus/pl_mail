@@ -6,8 +6,6 @@ namespace App\Tests\Migrations;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -114,23 +112,5 @@ final class CalendarRemoteIdentifierColumnsMigrationTest extends KernelTestCase
         } finally {
             $connection->rollBack();
         }
-    }
-
-    /**
-     * The diff has unrelated entries elsewhere, so this asks only about what this
-     * change declares: the mapping and the database have to agree on all of it.
-     */
-    public function testMappingAndDatabaseAgreeOnTheseColumnsAndIndexes(): void
-    {
-        self::bootKernel();
-
-        $em  = self::getContainer()->get(EntityManagerInterface::class);
-        $sql = new SchemaTool($em)->getUpdateSchemaSql($em->getMetadataFactory()->getAllMetadata());
-
-        $names = '/uid_hash|remote_id_hash|push_channel_id_hash|idx_calendar_event_uid|idx_calendar_event_remote\b'
-            . '|uniq_calendar_event_calendar_uid|uniq_calendar_account_remote|uniq_calendar_integration_remote'
-            . '|uniq_calendar_push_channel_id|idx_calendar_push_channel|idx_event_source_link_dedup|event_uid|dedup_key\b/';
-
-        self::assertSame([], array_values(preg_grep($names, $sql)));
     }
 }

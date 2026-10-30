@@ -44,6 +44,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: CategoryReportRepository::class)]
 #[ORM\Table(name: 'category_report')]
 #[ORM\Index(columns: ['created_at'], name: 'idx_category_report_created')]
+#[ORM\Index(name: 'idx_category_report_usr', columns: ['usr_id'])]
 class CategoryReport
 {
     #[ORM\Id]
@@ -90,7 +91,7 @@ class CategoryReport
     public ?MessageCategory $filedMessage = null;
 
     /** Somebody put this conversation where it is by hand. Nothing else applies. */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => false])]
     public bool $pinned = false;
 
     /** Where the reader says it belongs. The whole point of the button. */
@@ -122,7 +123,7 @@ class CategoryReport
      * `gmail:updates ... by:assistant` is unreadable: it does not say whether
      * Gmail was consulted and lost, or never consulted at all.
      */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => false])]
     public bool $overrideProvider = false;
 
     /**
@@ -131,7 +132,7 @@ class CategoryReport
      * `model:-` covers two completely different failures — never asked, and
      * asked and returned nothing — and only one of them is a prompt problem.
      */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => false])]
     public bool $aiAsked = false;
 
     /**
@@ -142,7 +143,7 @@ class CategoryReport
      * part)`, and it is then deciding on headers and a subject alone. A report
      * about a mail the model never really saw is not evidence about the prompt.
      */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => false])]
     public bool $hasPlainText = false;
 
     /** The bulk headers the message carries, names only. Never their values. */
