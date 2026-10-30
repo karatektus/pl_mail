@@ -298,6 +298,68 @@ final class EventProposerTest extends KernelTestCase
         self::assertSame('Probearbeit', $proposal->title);
     }
 
+    /**
+     * #437: a reply's quoted history is the earlier mail's claim, not this
+     * one's. The meeting below is still ahead when the reply arrives, so the
+     * horizon rule never refused it, and every reply in the thread proposed it
+     * again under a key of its own.
+     */
+    public function testAReplyDoesNotProposeTheMeetingInItsQuotedHistory(): void
+    {
+        self::assertNull($this->proposer->propose($this->message(
+            subject: 'AW: Treffen',
+            body:    "Danke, passt!\n\n________________________________\nVon: Paul <paul@example.org>\n"
+                . "Gesendet: Donnerstag, 30. Juli 2026 10:00\nAn: me@example.test\nBetreff: Treffen\n\n"
+                . 'Treffen wir uns am 04.08.2026 um 14 Uhr?',
+        )));
+    }
+
+    /**
+     * The same reply as Outlook sends it through Graph: HTML, with only the
+     * 255-character preview stored as its text — and the preview of a short
+     * reply is mostly the history.
+     */
+    public function testAGraphReplyDoesNotProposeTheMeetingInItsQuotedHistory(): void
+    {
+        $message = $this->message(
+            subject: 'AW: Treffen',
+            body:    'Danke, passt! Von: Paul Gesendet: Donnerstag, 30. Juli 2026 10:00 Treffen wir uns am 04.08.2026 um 14 Uhr?',
+            html:    '<div>Danke, passt!</div><div id="appendonsend"></div><hr>'
+                . '<div id="divRplyFwdMsg"><b>Von:</b> Paul<br><b>Gesendet:</b> Donnerstag, 30. Juli 2026 10:00</div>'
+                . '<div>Treffen wir uns am 04.08.2026 um 14 Uhr?</div>',
+            graphId: 'AAMk-proposer-graph',
+        );
+
+        self::assertNull($this->proposer->propose($message));
+    }
+
+    /** What the reply itself arranges is still proposed, history or not. */
+    public function testAReplyStillProposesWhatItArrangesItself(): void
+    {
+        $proposal = $this->proposer->propose($this->message(
+            subject: 'AW: Treffen',
+            body:    '',
+            html:    '<div>Lieber am 05.08.2026 um 10 Uhr?</div><br><div class="gmail_quote">'
+                . '<div class="gmail_attr">Am Do., 30. Juli 2026 um 10:00 Uhr schrieb Paul &lt;paul@example.org&gt;:</div>'
+                . '<blockquote class="gmail_quote"><div>Treffen wir uns am 04.08.2026 um 14 Uhr?</div></blockquote></div>',
+        ));
+
+        self::assertNotNull($proposal);
+        self::assertSame('2026-08-05 10:00', $proposal->startsAt->format('Y-m-d H:i'));
+    }
+
+    /** An answer that opens the way the attribution under it does is still the answer. */
+    public function testAReplyOpeningLikeItsAttributionIsStillProposed(): void
+    {
+        $proposal = $this->proposer->propose($this->message(
+            subject: 'AW: Treffen',
+            body:    "Am 05.08.2026 um 10 Uhr passt mir.\n\nAm Do., 30. Juli 2026 um 10:00 Uhr schrieb Paul <paul@example.org>:\n> Wann passt es dir?",
+        ));
+
+        self::assertNotNull($proposal);
+        self::assertSame('2026-08-05 10:00', $proposal->startsAt->format('Y-m-d H:i'));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
@@ -311,12 +373,16 @@ final class EventProposerTest extends KernelTestCase
         ?MessageCategory $category = MessageCategory::Primary,
         array            $headers = [],
         ?array           $to = null,
+        ?string          $html = null,
+        ?string          $graphId = null,
     ): Message {
         $message                 = new Message();
         $message->account        = $this->account;
         $message->messageId      = uniqid('proposer-', true) . '@example.test';
         $message->subject        = $subject;
         $message->bodyText       = $body;
+        $message->bodyHtml       = $html;
+        $message->graphId        = $graphId;
         $message->fromAddress    = 'someone@example.org';
         $message->toAddresses    = $to ?? ['me@example.test'];
         $message->category       = $category;
