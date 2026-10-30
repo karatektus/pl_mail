@@ -127,6 +127,14 @@ Mail counts as new only once your [filters](filters.md) have run. A message a fi
 archives, or moves to Trash or Spam is not announced, and neither is mail that was already read when
 plMail fetched it — opened on your phone a moment earlier, say.
 
+**Skip mail that is already read.** A push cannot be recalled, so with notifications on in several
+browsers each one says "New mail" even when you read or deleted the message on your phone a minute
+later. **Settings → Notifications → Skip mail that is already read** (off by default, and for you
+rather than for one device) makes a browser wait twenty seconds after the push and then ask whether
+the Inbox still has anything unread. If not, it shows nothing, and it takes down a notification it
+had shown for earlier mail. It looks at the Inbox as a whole, not at the one message, so an older
+unread message keeps the notification.
+
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is
 available. Apps that register through JMAP (`PushSubscription/set`), and an Android phone through

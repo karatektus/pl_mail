@@ -27,6 +27,8 @@
  */
 
 const VERIFY_URL = "/settings/push/verify";
+const INBOX_STATE_URL = "/settings/push/inbox-state";
+const NEW_MAIL_TAG = "plmail-new-mail";
 
 self.addEventListener("install", () => {
     // Take over immediately; there is no old cache to drain.
@@ -112,16 +114,57 @@ async function notifyStateChange(payload) {
         return;
     }
 
+    // A user who asked to skip mail that is already read: wait, then look at
+    // the Inbox again. The push cannot be recalled and says nothing about WHICH
+    // mail arrived, so this is the only point where "read on the phone a minute
+    // ago" can still be told apart from "new". Asked twice rather than once
+    // because the first answer also carries the setting and the delay.
+    let state = await inboxState();
+
+    if (state && state.skipRead === true) {
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(state.delay) || 0) * 1000));
+
+        state = await inboxState();
+
+        if (state && state.unread === 0) {
+            // Nothing unread: show nothing, and take down the one this worker
+            // showed for an earlier push if the mail it announced is read now.
+            const shown = await self.registration.getNotifications({ tag: NEW_MAIL_TAG });
+            shown.forEach((notification) => notification.close());
+
+            return;
+        }
+    }
+
     await self.registration.showNotification("plMail", {
         body: "New mail",
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-192.png",
         // One replaceable notification rather than a growing stack: the push
         // carries no per-message detail, so several would all say the same.
-        tag: "plmail-new-mail",
+        tag: NEW_MAIL_TAG,
         renotify: true,
         data: { url: "/mail/inbox" },
     });
+}
+
+/**
+ * Whether the Inbox still has unread mail, and whether this user wants that
+ * checked (User::$pushSkipsRead). Null when it cannot be told — offline, signed
+ * out, a server error — and the caller then shows the notification, because a
+ * missed notification is worse than one for mail that is already read.
+ */
+async function inboxState() {
+    try {
+        const response = await fetch(INBOX_STATE_URL, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+        });
+
+        return response.ok ? await response.json() : null;
+    } catch (e) {
+        return null;
+    }
 }
 
 /**

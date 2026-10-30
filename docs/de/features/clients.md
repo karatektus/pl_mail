@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:7572727e02295e1e0c6cb23f8c03ef55a4df9326 -->
+<!-- translated-from: features/clients.md sha1:503f8b67719b741d237a13ee1bd9174c356d87ae -->
 
 # Andere Clients
 
@@ -140,6 +140,15 @@ Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine N
 Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschiebt, wird nicht
 gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
 dem Handy geöffnet.
+
+**Bereits gelesene Post überspringen.** Ein Push lässt sich nicht zurückrufen: Sind die
+Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch wenn du die Nachricht eine
+Minute später auf dem Handy gelesen oder gelöscht hast. **Einstellungen → Benachrichtigungen →
+Bereits gelesene Mail überspringen** (standardmäßig aus und für dich, nicht für ein einzelnes Gerät)
+lässt einen Browser nach dem Push zwanzig Sekunden warten und dann fragen, ob im Posteingang noch
+etwas Ungelesenes liegt. Wenn nicht, zeigt er nichts an und nimmt eine Benachrichtigung zurück, die er
+für frühere Post gezeigt hatte. Maßgeblich ist der Posteingang als Ganzes, nicht die einzelne
+Nachricht; eine ältere ungelesene Nachricht hält die Benachrichtigung also aufrecht.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

@@ -672,6 +672,10 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                     vapidPublicKey: vapidPublicKey,
                                                 } %}
 
+                                                {% include 'settings/_notification_preferences.html.twig' with {
+                                                    skipRead: app.user.pushSkipsRead,
+                                                } %}
+
                                                 {# Wrapped in an id because removing
                                                    a device replaces the whole list
                                                    over Turbo — see
