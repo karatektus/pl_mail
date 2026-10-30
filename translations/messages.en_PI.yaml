@@ -4239,6 +4239,10 @@ settings:
         delete: Strike the flag "%name%"
         edit: Mend the flag "%name%"
         empty: No flags yet — hoist one, or they turn up after the first haul.
+        folders_in_labels:
+            off_hint: 'Off: holds be listed under their account, and th'' Flags section keeps th'' flags ye hoist on letters.'
+            on_hint: 'On: th'' Flags section o'' the sidebar lists holds too, beside their berth under each account.'
+            title: 'Holds among th'' Flags'
         heading: Flags
         hide: Lower this flag
         show: Fly this flag

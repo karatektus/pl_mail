@@ -42,7 +42,10 @@
                class="flex-1 min-w-0 truncate">{{ 'sidebar.nav.all_mail'|trans }}</a>
         </div>
     {% endif %}
-    {% for label in labels %}
+    {# The account's places: its system folders, and the labels that are a
+       folder here (#221 step 3, LabelKinds::isPlaceOn()). A tag is in the
+       LABELS section, because a tag is not somewhere mail is. #}
+    {% for label in labels|filter(label => label.role is not null or is_place(label, account)) %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar
            link target so the open folder is highlighted at all — these rows had
            a rounded-lg hover box and no active state whatsoever. Depth rides in

@@ -16,6 +16,9 @@ use Twig\TwigFunction;
  * `move_labels(labels, account?)` and `tag_labels(labels, account?)`: the
  * labels the "Move to" and "Label as" pickers offer — places and tags, per
  * account where the picker is for one conversation (LabelKinds).
+ *
+ * `is_place(label, account)` for the folder rows under an account, and
+ * `in_labels(label)` for the sidebar's LABELS section, which holds the tags.
  */
 final class LabelKindsExtension extends AbstractExtension
 {
@@ -30,6 +33,8 @@ final class LabelKindsExtension extends AbstractExtension
         return [
             new TwigFunction('move_labels', $this->places(...)),
             new TwigFunction('tag_labels', $this->tags(...)),
+            new TwigFunction('is_place', $this->kinds->isPlaceOn(...)),
+            new TwigFunction('in_labels', $this->inLabels(...)),
         ];
     }
 
@@ -55,5 +60,12 @@ final class LabelKindsExtension extends AbstractExtension
         $user = $this->security->getUser();
 
         return $user instanceof User ? $this->kinds->tags($labels, $user, $account) : [];
+    }
+
+    public function inLabels(Label $label): bool
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User && $this->kinds->inLabels($label, $user);
     }
 }

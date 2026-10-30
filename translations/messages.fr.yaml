@@ -4477,6 +4477,10 @@ settings:
         delete: Supprimer le libellé « %name% »
         edit: Modifier le libellé « %name% »
         empty: Aucun libellé pour l’instant — créez-en un, ou ils apparaîtront après la première synchronisation.
+        folders_in_labels:
+            off_hint: 'Désactivé : les dossiers sont listés sous leur compte, et la section Libellés contient les libellés posés sur les messages.'
+            on_hint: 'Activé : la section Libellés de la barre latérale liste aussi les dossiers, en plus de leur place sous chaque compte.'
+            title: 'Dossiers dans Libellés'
         heading: Libellés
         hide: Masquer le libellé
         show: Afficher le libellé

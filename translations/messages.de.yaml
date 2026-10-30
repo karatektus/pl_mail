@@ -4441,6 +4441,10 @@ settings:
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
+        folders_in_labels:
+            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
+            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
         show: Label anzeigen

@@ -218,7 +218,9 @@ account inside ThreadStatusUpdater.
 
 {% macro label_node(label, depth, drawerClose) %}
     {% import _self as macros %}
-    {% set children = sidebarCounts.visibleChildrenOf(label) %}
+    {# LABELS holds the tags; a folder that is a tag nowhere is under its
+       account (#221 step 3, LabelKinds::inLabels()). #}
+    {% set children = sidebarCounts.visibleChildrenOf(label)|filter(child => in_labels(child)) %}
     {% set _href = path('app_mail_label_path', { path: label.fullName }) %}
 
     {% if children|length > 0 %}
@@ -795,7 +797,7 @@ controller instead — the scroll position and which trees are open.
             </summary>
 
             <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="nav-rows">
-                {% set labelTree = sidebarCounts.userLabelTree() %}
+                {% set labelTree = sidebarCounts.userLabelTree()|filter(node => in_labels(node)) %}
                 {% if labelTree|length == 0 %}
                     <p class="px-3 text-xs text-ink-faint" data-nav-tier="tree">{{ 'sidebar.labels.none'|trans }}</p>
                 {% else %}

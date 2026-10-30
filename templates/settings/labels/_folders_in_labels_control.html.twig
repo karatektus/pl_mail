@@ -1,0 +1,22 @@
+{# Folders in Labels, a switch in the labels settings (#221 step 3).
+
+   The account switches' shape: an icon button in its own frame that answers
+   with itself (LabelSettingsController), `contents` on the frame so the bar
+   keeps its flex layout. The tooltip says what it does; aria-pressed says the
+   state. #}
+{% set _on = app.user.foldersInLabels %}
+{% set _hint = (_on ? 'settings.labels.folders_in_labels.on_hint' : 'settings.labels.folders_in_labels.off_hint')|trans %}
+<turbo-frame id="labels-folders-in-labels" class="contents">
+    <form method="post" action="{{ path('settings_labels_folders_toggle') }}" class="contents">
+        <input type="hidden" name="_token" value="{{ csrf_token('labels_folders_in_labels') }}">
+        <button type="submit"
+                data-folders-in-labels
+                aria-pressed="{{ _on ? 'true' : 'false' }}"
+                title="{{ _hint }}"
+                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs transition-colors cursor-pointer hover:bg-hover
+                       {{ _on ? 'text-success' : 'text-ink-faint hover:text-ink' }}">
+            <i class="fa-solid fa-folder text-[10px]" aria-hidden="true"></i>
+            {{ 'settings.labels.folders_in_labels.title'|trans }}
+        </button>
+    </form>
+</turbo-frame>

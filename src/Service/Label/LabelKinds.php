@@ -69,6 +69,33 @@ final readonly class LabelKinds
     }
 
     /**
+     * Whether the sidebar's LABELS section lists this label: a tag on any of
+     * the user's accounts, or the parent of one that is — or every label,
+     * where the user has folders listed there too (User::$foldersInLabels).
+     * A folder that is a tag nowhere is listed under its account instead.
+     */
+    public function inLabels(Label $label, User $user): bool
+    {
+        if (true === $user->foldersInLabels) {
+            return true;
+        }
+
+        foreach ($this->accounts->all($user) as $account) {
+            if (true === $this->isTagOn($label, $account)) {
+                return true;
+            }
+        }
+
+        foreach ($this->sidebar->visibleChildrenOf($label) as $child) {
+            if (true === $this->inLabels($child, $user)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param Label[] $labels
      *
      * @return Label[]

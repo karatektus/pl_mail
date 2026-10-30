@@ -4420,6 +4420,10 @@ settings:
         delete: Delete label "%name%"
         edit: Edit label "%name%"
         empty: No labels yet — create one, or they appear after the first sync.
+        folders_in_labels:
+            off_hint: 'Off: folders are listed under their account, and the Labels section holds the labels you put on mail.'
+            on_hint: 'On: the Labels section in the sidebar lists folders too, beside their place under each account.'
+            title: 'Folders in Labels'
         heading: Labels
         hide: Hide label
         show: Show label
