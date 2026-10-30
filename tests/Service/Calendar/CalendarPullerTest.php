@@ -149,23 +149,34 @@ final class CalendarPullerTest extends KernelTestCase
     }
 
     /**
-     * Random, because a repetitive value compresses and fits the index anyway.
+     * Random, because a repetitive value compresses and would fit a btree anyway.
+     * A later pull of the same event has to find it rather than add a second.
      */
-    public function testAUidTooLongToIndexSkipsThatEventAndNotTheCalendar(): void
+    public function testAUidTooLongForABtreeIsStoredAndFoundAgain(): void
     {
-        $uid     = bin2hex(random_bytes(1500));
-        $tooLong = $this->calDav(str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs()));
+        $uid  = bin2hex(random_bytes(50000));
+        $href = 'https://dav.example.com/c/weekly.ics';
+        $ics  = str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs());
 
-        self::assertNotNull($tooLong);
+        $this->apply([$this->calDav($ics)]);
+        $this->apply([
+            new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()))
+                ->toRemoteEvent(str_replace('SUMMARY:Standup', 'SUMMARY:Renamed', $ics), $href, '"etag-2"'),
+        ]);
 
-        $this->apply([$tooLong, $this->google($this->googleSeries())]);
+        self::assertSame(1, $this->rowCount());
+        self::assertSame('Renamed', $this->events->findOneByRemoteId($this->calendar, $href)?->title);
+        self::assertSame($uid, $this->events->findOneByRemoteId($this->calendar, $href)->uid);
+    }
 
-        self::assertSame(1, $this->rowCount(), 'the other event in the window is written');
-        self::assertNull($this->events->findOneByRemoteId($this->calendar, 'https://dav.example.com/c/weekly.ics'));
-        self::assertContains(
-            'CalendarSync: skipped an event whose identifier is too long to store',
-            array_column($this->logger->records, 'message'),
-        );
+    public function testARemoteIdTooLongForABtreeIsStored(): void
+    {
+        $href = 'https://dav.example.com/c/' . bin2hex(random_bytes(50000)) . '.ics';
+        $remote = new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()))
+            ->toRemoteEvent($this->weeklyIcs(), $href, '"etag-1"');
+
+        self::assertSame(1, $this->apply([$remote]));
+        self::assertNotNull($this->events->findOneByRemoteId($this->calendar, $href));
     }
 
     public function testAnUnconvertibleRuleLeavesTheEventVisibleRatherThanEmpty(): void

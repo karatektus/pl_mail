@@ -274,18 +274,6 @@ final readonly class CalendarPuller
             return $collapsed;
         }
 
-        if (false === CalendarEvent::fitsAnIndex($remote->uid) || false === CalendarEvent::fitsAnIndex($remote->remoteId)) {
-            // Skipped rather than left to the insert: that error would fail the
-            // whole pull, this time and every time after it, for one event.
-            $this->logger->warning('CalendarSync: skipped an event whose identifier is too long to store', [
-                'calendarId'    => $calendar->id,
-                'uidBytes'      => strlen($remote->uid),
-                'remoteIdBytes' => strlen($remote->remoteId),
-            ]);
-
-            return $collapsed;
-        }
-
         if (null !== $existing && true === $this->isUnchanged($existing, $remote)) {
             $written[$remote->remoteId] = $existing;
 
@@ -451,7 +439,7 @@ final readonly class CalendarPuller
                 // naming ids for a series nobody holds is nothing to report.
                 if ([] !== $remotes) {
                     $this->logger->info('CalendarSync: an instance arrived for a series that is not here', [
-                        'calendarId'    => $calendar->id,
+                        'calendarId'     => $calendar->id,
                         'seriesRemoteId' => $seriesRemoteId,
                         'instances'      => count($remotes),
                     ]);

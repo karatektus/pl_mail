@@ -336,17 +336,17 @@ final class CalendarEventSetMethodTest extends CalendarMethodTestCase
         self::assertSame('Renamed', $event->title);
     }
 
-    public function testAUidTooLongToIndexIsRefused(): void
+    public function testAUidTooLongForABtreeIsKeptVerbatim(): void
     {
-        $result = $this->create(['new' => [
-            'calendarId' => (string) $this->calendar->id,
-            'uid' => str_repeat('u', CalendarEvent::MAX_IDENTITY_BYTES + 1),
+        $uid = bin2hex(random_bytes(50000));
+
+        $event = $this->createdEvent([
+            'uid' => $uid,
             'title' => 'Kickoff',
             'start' => $this->local(9),
-        ]]);
+        ]);
 
-        self::assertSame('invalidProperties', $result['notCreated']['new']['type']);
-        self::assertSame(['uid'], $result['notCreated']['new']['properties']);
+        self::assertSame($uid, $event->uid);
     }
 
     private function create(array $create): array

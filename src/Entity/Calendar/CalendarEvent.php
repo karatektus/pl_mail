@@ -48,6 +48,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'calendar_event')]
 #[ORM\Index(name: 'idx_calendar_event_usr', columns: ['usr_id'])]
 #[ORM\Index(name: 'idx_calendar_event_calendar_starts', columns: ['calendar_id', 'starts_at'])]
+// Built `USING hash` by the migration, as is idx_calendar_event_remote below. A
+// btree refuses a row over 2704 bytes, and a sender chooses the UID, so one
+// long value would fail the insert and with it the whole pull. A hash index
+// stores only the hash, and every lookup on these columns is equality.
 #[ORM\Index(name: 'idx_calendar_event_uid', columns: ['uid'])]
 #[ORM\Index(name: 'idx_calendar_event_kind', columns: ['kind'])]
 // The pull's identity lookup: one row per remote resource within a calendar.
@@ -55,7 +59,7 @@ use Doctrine\ORM\Mapping as ORM;
 // every event on a calendar that mirrors nothing — which is most of the table,
 // and Postgres treats each null as distinct anyway, so a unique index here
 // would buy nothing the lookup does not already get.
-#[ORM\Index(name: 'idx_calendar_event_calendar_remote', columns: ['calendar_id', 'remote_id'])]
+#[ORM\Index(name: 'idx_calendar_event_remote', columns: ['remote_id'])]
 // What the pusher sweeps before every pull. Calendar leads because the sweep is
 // always scoped to one calendar and the states are four values — leading with
 // sync_state would put the whole table's clean rows in front of the answer.
@@ -69,19 +73,12 @@ use Doctrine\ORM\Mapping as ORM;
 // because without it every schema diff asks to drop it, and dropping it turns
 // the lookup into a sequential scan of every event on the install.
 #[ORM\Index(name: 'idx_calendar_event_remote_instances', columns: ['remote_instances'])]
+// Built on (calendar_id, md5(uid)) by the migration, for the same reason: a hash
+// index can't be unique or span two columns. Attributes can't state an
+// expression, so this declares what it enforces rather than how it is built.
 #[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
 class CalendarEvent
 {
-    /**
-     * Past this a uid or remote id is refused rather than stored. Both columns
-     * are in a btree, and Postgres refuses an index row over 2704 bytes after
-     * compression, so a random 2800-character value fails its insert. Left to
-     * that error, one such event would fail every pull of its calendar, and a
-     * uid is whatever the sender of an invitation chose. Set below the limit
-     * because compression can't be relied on, and far above any real value.
-     */
-    public const int MAX_IDENTITY_BYTES = 2048;
-
     use TimestampableTrait;
 
     /**
@@ -124,7 +121,7 @@ class CalendarEvent
      *
      * TEXT, because the sender picks the length and RFC 5545 sets no maximum: a
      * 262-character iCalUId at varchar(255) failed every pull of an Outlook
-     * calendar. See fitsAnIndex() for the limit that is left.
+     * calendar. Its indexes hash it, so no length can fail an insert.
      */
     #[ORM\Column(type: Types::TEXT)]
     public string $uid = '';
@@ -251,9 +248,7 @@ class CalendarEvent
      * own resource hrefs are and Google's encoding is long: an event exported
      * from Google and imported into Baïkal produced a 258-character href, and at
      * varchar(255) that one resource failed the whole pull for the calendar.
-     * idx_calendar_event_calendar_remote indexes it, which TEXT does not
-     * change: a btree takes a text value up to about 2.7 kB, ten times any
-     * href a server has been seen to write.
+     * idx_calendar_event_remote is a hash index, so length can't fail an insert.
      */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
@@ -350,10 +345,5 @@ class CalendarEvent
     public function isExtracted(): bool
     {
         return null !== $this->kind;
-    }
-
-    public static function fitsAnIndex(string $identity): bool
-    {
-        return strlen($identity) <= self::MAX_IDENTITY_BYTES;
     }
 }

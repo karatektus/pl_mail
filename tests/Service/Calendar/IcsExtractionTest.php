@@ -21,6 +21,7 @@ use App\Entity\Calendar\EventSuppression;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -90,15 +91,24 @@ final class IcsExtractionTest extends KernelTestCase
     }
 
     /**
-     * Whoever sends the invitation picks the UID, so this is what keeps a mail
-     * from failing the import of the message it came in.
+     * Whoever sends the invitation picks the UID, and the source link's dedup key
+     * contains it. 130 is past that key's old 128, 100,000 past what a btree takes.
      */
-    public function testAnInviteWhoseUidIsTooLongToIndexBecomesNothing(): void
+    #[DataProvider('longUids')]
+    public function testAnInviteWithALongUidBecomesAnEvent(int $bytes): void
     {
-        $uid = bin2hex(random_bytes(1500));
+        $uid = bin2hex(random_bytes($bytes / 2));
 
-        self::assertNull($this->ingest($this->ics($uid, 'Standup', '20260803T090000Z', '20260803T091500Z')));
-        self::assertSame([], $this->eventsWithUid($uid));
+        self::assertSame($uid, $this->ingest($this->ics($uid, 'Standup', '20260803T090000Z', '20260803T091500Z'))?->uid);
+    }
+
+    /**
+     * @return iterable<string,array{int}>
+     */
+    public static function longUids(): iterable
+    {
+        yield 'past the dedup key' => [130];
+        yield 'past a btree' => [100000];
     }
 
     /**
