@@ -206,11 +206,10 @@
                         </button>
                     {% endif %}
                     {# Which folders to fetch. Only an account that syncs over
-                       IMAP has folder rows to choose between; a Gmail or
-                       Microsoft one syncs through its API and gets no button,
-                       which is the condition AccountFoldersController refuses
-                       the rest on. #}
-                    {% if not (account.microsoft or account.gmail) %}
+                       IMAP has folder rows to choose between; the others get
+                       no button, which is the condition
+                       AccountFoldersController refuses the rest on. #}
+                    {% if account.plainImap %}
                         <button
                             type="button"
                             data-controller="ui--modal"

@@ -934,9 +934,9 @@ final readonly class ThreadStatusUpdater
      * those are the app's own folders, and LabelRole::hasProviderFolder() is
      * the existing spelling of "the server has one of these too". A custom
      * label is one only when it is bound to a real folder on this account,
-     * which is what LabelBinding::$mailbox records: a label that exists as an
-     * IMAP folder is somewhere mail can be, and a label that is only a row in
-     * our database is a tag the mail wears wherever it lives.
+     * which is what LabelBinding::$mailbox and $graphFolderId record: a label
+     * that exists as a folder is somewhere mail can be, and a label that is only
+     * a row in our database is a tag the mail wears wherever it lives.
      *
      * Getting this wrong in the generous direction — treating every label as a
      * location — would make a move strip every tag off the conversation, and
@@ -966,7 +966,9 @@ final readonly class ThreadStatusUpdater
                 continue;
             }
 
-            if (null !== $label->bindingFor($account)?->mailbox) {
+            $binding = $label->bindingFor($account);
+
+            if (null !== $binding?->mailbox || null !== $binding?->graphFolderId) {
                 $locations[] = $label;
             }
         }

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:739cc8eba21ecd3c6a7c4e2a4dda9b8380aecd44 -->
+<!-- translated-from: features/mail.md sha1:05a21f984d8f556b978d82d39d9b546b5ab2cb3a -->
 
 # Mail
 
@@ -596,6 +596,9 @@ mit der Begründung des Servers, und das Label bleibt. Einen Ordner, dessen Mail
 importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt dir das. Ein Gmail-Label
 oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
 und verschiebt nichts.
+
+Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
+Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.
 
 ### Verschieben nach
 

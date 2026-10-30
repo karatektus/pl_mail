@@ -2713,6 +2713,15 @@ label:
             keyword_unasked: 'Ein Schlüsselwort auf %account%, wo seine Ordner Schlüsselwörter speichern'
             local_off: 'Nur in plMail auf %account% (Labels als Schlüsselwörter ist aus)'
             local_server: 'Nur in plMail auf %account% (der Server speichert keine Schlüsselwörter)'
+            make_folder: 'Zum Ordner machen'
+            make_folder_body: 'Legt den Ordner „%name%“ auf %account% an, sodass Nachrichten dorthin verschoben werden können.'
+            make_folder_category: 'Die gleichnamige Outlook-Kategorie wird entfernt.'
+            make_folder_done: 'Ordner erstellt.'
+            make_folder_failed: 'Der Ordner konnte nicht erstellt werden: %error%'
+            make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
+            make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
+            make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
+            manage: 'Pro Konto ändern'
             title: 'Wo dieses Label liegt'
     menu:
         create: Neu erstellen

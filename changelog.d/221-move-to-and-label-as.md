@@ -10,6 +10,7 @@ under the account and keeps the LABELS section for tags; **Folders in Labels** i
 lists folders there too. In a conversation, a folder chip says where a message is, and a label chip
 has an × to take it off. Filters gain **Move to folder**; a filter that applied a label which is a
 folder on every account it covers becomes one, because that is what it did, and Apply label now
-only labels. [#221](https://github.com/karatektus/pl_mail/issues/221).
+only labels. To make a label a folder on one plain IMAP or Outlook account, open it and use **Change per
+account**; its mail on that account moves into the new folder. [#221](https://github.com/karatektus/pl_mail/issues/221).
 
 **Migration:** `Version20261030100000` rewrites the actions of those filters; no schema change.

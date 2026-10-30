@@ -1,0 +1,40 @@
+{#
+label/_make_folder.html.twig — "Make it a folder" for one account, inside the
+modal frame (#221). Says what will happen to the mail before anything does.
+
+Variables: label, account, form (LabelDeleteType, empty), mailCount, hasCategory, parentToo
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        label: label,
+        account: account,
+        mailCount: mailCount,
+        hasCategory: hasCategory,
+        parentToo: parentToo,
+        title: 'label.form.places.make_folder'|trans,
+        submit_label: 'label.form.places.make_folder'|trans,
+    } only %}
+        {% block before_fields %}
+            <div class="space-y-2.5 text-sm leading-snug text-ink-muted" data-label-make-folder>
+                <p>{{ 'label.form.places.make_folder_body'|trans({ '%name%': label|label_name, '%account%': account.displayAddress }) }}</p>
+                {% if mailCount > 0 %}
+                    <p class="text-ink" data-label-make-folder-count="{{ mailCount }}">{{ 'label.form.places.make_folder_mail'|trans({ '%count%': mailCount }) }}</p>
+                {% endif %}
+                <p>{{ 'label.form.places.make_folder_stay'|trans }}</p>
+                {% if hasCategory %}
+                    <p>{{ 'label.form.places.make_folder_category'|trans }}</p>
+                {% endif %}
+                {% if parentToo %}
+                    <p>{{ 'label.form.places.make_folder_nested'|trans({ '%parent%': label.parent|label_name }) }}</p>
+                {% endif %}
+            </div>
+        {% endblock %}
+
+        {% block after_fields %}
+            <input type="hidden" name="_token" value="{{ csrf_token('label-make-folder' ~ label.id ~ '-' ~ account.id) }}">
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

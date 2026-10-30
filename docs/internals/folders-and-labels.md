@@ -89,10 +89,11 @@ Settings → Accounts → **Folders** and, for a plain IMAP account, from the �
 row in the sidebar (**New folder…**, **Folders…**). The account's folder list in the sidebar ends
 with **+ New folder**, and a pencil on its own folder rows opens a rename. An action that works
 answers with a turbo-stream — the app's toast, and both copies of the sidebar drawn again, so the
-folder is under its account and under LABELS without a reload (`_folder_done.stream.html.twig`);
+folder is under its account without a reload (`_folder_done.stream.html.twig`);
 one that is refused stays in the dialog with the reason. In
-the LABELS section a label that is a folder on a plain IMAP account wears a folder instead of a dot
-(`SidebarCounts::folderAccountsOf()`), the one visual difference step 1 makes between the two.
+the LABELS section, where a folder is listed at all (a tag elsewhere, or `User::$foldersInLabels`),
+a label that is a folder on a plain IMAP account wears a folder instead of a dot
+(`SidebarCounts::folderAccountsOf()`).
 
 - **Create** — `CREATE`, then `SUBSCRIBE`, then the `Mailbox` row and its label as a sync would make
   them. "Already exists" counts as success. Any other refusal is `ImapFolderRefusedException` with
@@ -282,6 +283,13 @@ LABELS holds the labels that are a tag on any account, or the parents of one; wi
 **The chips.** On a message in the conversation, a folder label wears a folder and has no ×;
 taking a folder off is a move. A tag's × posts the same detach as unticking it in Label as, for
 that message, and the answer redraws that message's chips (`message_labels_{id}`).
+
+**Per account, in the label dialog.** Under "Where this label is kept", **Change per account**
+offers **Make it a folder** on each plain IMAP and Microsoft account where the label is not one
+(`LabelFolderMaker`). A nested label's parent becomes a folder first. The dialog counts the mail
+that will move; `MakeLabelFolderHandler` then moves it, leaving Trash, Spam, Sent and Drafts alone,
+and on Outlook removes the master category. The way back, a folder into a tag, is not built: its mail
+would need somewhere to go.
 
 ## Later steps
 

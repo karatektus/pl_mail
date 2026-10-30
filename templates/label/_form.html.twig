@@ -62,6 +62,29 @@ shell's `after_fields` slot, and an include cannot fill a block.
                             </li>
                         {% endfor %}
                     </ul>
+
+                    {# The same list, to change: closed unless someone wants it,
+                       because the dialog's usual job is a name and a colour. #}
+                    {% set _changeable = places|filter(place => place.state != 'folder') %}
+                    {% if _changeable is not empty %}
+                        <details class="pt-1" data-label-places-manage>
+                            <summary class="text-xs text-ink-soft cursor-pointer">{{ 'label.form.places.manage'|trans }}</summary>
+                            <ul class="mt-1.5 space-y-1">
+                                {% for place in _changeable %}
+                                    <li class="flex items-center gap-2 text-[13px] text-ink-muted">
+                                        <span class="flex-1 min-w-0 truncate">{{ place.account.displayAddress }}</span>
+                                        <a href="{{ path('app_label_make_folder_confirm', { label: label.id, account: place.account.id }) }}"
+                                           data-turbo-frame="modal"
+                                           data-label-make-folder-link
+                                           class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium border border-line hover:bg-hover transition-colors">
+                                            <i class="fa-solid fa-folder-plus text-[10px]" aria-hidden="true"></i>
+                                            {{ 'label.form.places.make_folder'|trans }}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endif %}
                 </div>
             {% endif %}
             {% if label.id is not null and not label.isSystem %}

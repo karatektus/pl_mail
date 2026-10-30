@@ -2726,6 +2726,15 @@ label:
             keyword_unasked: 'Un mot-clé sur %account%, là où ses dossiers conservent les mots-clés'
             local_off: 'Seulement dans plMail sur %account% (libellés en mots-clés désactivé)'
             local_server: 'Seulement dans plMail sur %account% (le serveur ne conserve pas de mots-clés)'
+            make_folder: 'En faire un dossier'
+            make_folder_body: 'Crée le dossier « %name% » sur %account%, pour pouvoir y déplacer du courrier.'
+            make_folder_category: 'La catégorie Outlook de ce nom est supprimée.'
+            make_folder_done: 'Dossier créé.'
+            make_folder_failed: 'Le dossier n’a pas pu être créé : %error%'
+            make_folder_mail: '%count% messages portant ce libellé sur ce compte y seront déplacés.'
+            make_folder_nested: 'Son parent « %parent% » y devient aussi un dossier.'
+            make_folder_stay: 'Le courrier de la corbeille, des spams, des envoyés et des brouillons reste où il est.'
+            manage: 'Modifier par compte'
             title: 'Où ce libellé est conservé'
     menu:
         create: Créer

@@ -2709,6 +2709,15 @@ label:
             keyword_unasked: 'A keyword on %account%, where its folders keep keywords'
             local_off: 'Only in plMail on %account% (labels as keywords is off)'
             local_server: 'Only in plMail on %account% (the server keeps no keywords)'
+            make_folder: 'Make it a folder'
+            make_folder_body: 'Creates the folder “%name%” on %account%, so it becomes a place mail can be moved to.'
+            make_folder_category: 'The Outlook category of this name is removed.'
+            make_folder_done: 'Folder created.'
+            make_folder_failed: 'The folder could not be created: %error%'
+            make_folder_mail: '%count% messages with this label on this account move into it.'
+            make_folder_nested: 'Its parent “%parent%” becomes a folder there too.'
+            make_folder_stay: 'Mail in Trash, Spam, Sent and Drafts stays where it is.'
+            manage: 'Change per account'
             title: 'Where this label is kept'
     menu:
         create: Create new

@@ -538,6 +538,12 @@ at once with the server's reason, and the label stays. A folder whose mail plMai
 cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
 and moves nothing.
 
+To turn a label into a folder on one account, open the label and use **Change per account** under
+**Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.
+Mail with that label on that account moves into the new folder, except mail in Trash, Spam, Sent and
+Drafts, and the dialog says how many messages will move first. On Outlook the category of that name
+is removed.
+
 ### Move to
 
 The folder button — beside **Delete** in the toolbar above a selection, and beside the label

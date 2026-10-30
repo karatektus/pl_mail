@@ -2591,6 +2591,15 @@ label:
             keyword_unasked: 'A keyword aboard %account%, where its folders keep keywords'
             local_off: 'Only aboard plMail on %account% (flags as keywords be off)'
             local_server: 'Only aboard plMail on %account% (the server keeps no keywords)'
+            make_folder: 'Make it a hold'
+            make_folder_body: 'Builds the hold “%name%” on %account%, so yarns can be stowed there.'
+            make_folder_category: 'The Outlook category o'' this name be thrown overboard.'
+            make_folder_done: 'Hold built.'
+            make_folder_failed: 'The hold could not be built: %error%'
+            make_folder_mail: '%count% yarns flyin'' this flag on this ship be stowed in it.'
+            make_folder_nested: 'Its parent “%parent%” becomes a hold there too.'
+            make_folder_stay: 'Yarns in the Brig, Spam, Sent an'' Drafts stay where they be.'
+            manage: 'Change per ship'
             title: 'Where this flag be kept'
     menu:
         create: Hoist a new one

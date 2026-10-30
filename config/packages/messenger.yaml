@@ -314,6 +314,8 @@ framework:
             # Its server half waits by re-dispatching itself on a delay, so it
             # never holds the one consumer while it waits.
             App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
+            # And so is filing a label's mail into the folder it has just become.
+            App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
 
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export
