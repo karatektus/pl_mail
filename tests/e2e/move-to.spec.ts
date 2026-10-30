@@ -42,7 +42,7 @@ async function select(row: Locator) {
 
 /** Opens a "Move to" picker and picks one destination from it. */
 async function moveTo(scope: Locator, destination: string | RegExp) {
-    await scope.getByRole("button", { name: "Move to" }).click();
+    await scope.getByRole("button", { name: "Move to", exact: true }).click();
 
     const menu = scope.getByRole("menu", { name: "Move to" });
     await expect(menu).toBeVisible();
@@ -157,7 +157,7 @@ test.describe("from the Inbox", () => {
         await page.goto("/mail/inbox");
 
         await select(mailRow(page, INBOX_SUBJECTS.read));
-        await listToolbar(page).getByRole("button", { name: "Move to" }).click();
+        await listToolbar(page).getByRole("button", { name: "Move to", exact: true }).click();
 
         const menu = listToolbar(page).getByRole("menu", { name: "Move to" });
 
@@ -199,7 +199,7 @@ test.describe("from the bin", () => {
         await expect(row).toHaveCount(1);
         await select(row);
 
-        await listToolbar(page).getByRole("button", { name: "Move to" }).click();
+        await listToolbar(page).getByRole("button", { name: "Move to", exact: true }).click();
 
         const menu = listToolbar(page).getByRole("menu", { name: "Move to" });
 
@@ -235,7 +235,7 @@ test.describe("from the bin", () => {
         const sheet = page.locator("div.mail-sheet");
         await expect(sheet).toBeVisible();
 
-        await sheet.getByRole("button", { name: "Move to" }).click();
+        await sheet.getByRole("button", { name: "Move to", exact: true }).click();
 
         const menu = sheet.getByRole("menu", { name: "Move to" });
 
@@ -253,7 +253,7 @@ test.describe("what is offered", () => {
         // the selection includes one that does not.
         await select(mailRow(page, INBOX_SUBJECTS.read));
 
-        const button = listToolbar(page).getByRole("button", { name: "Move to" });
+        const button = listToolbar(page).getByRole("button", { name: "Move to", exact: true });
         const menu   = listToolbar(page).getByRole("menu", { name: "Move to" });
 
         await button.click();
@@ -273,7 +273,7 @@ test.describe("what is offered", () => {
         const sheet = page.locator("div.mail-sheet");
         await expect(sheet).toBeVisible();
 
-        await sheet.getByRole("button", { name: "Move to" }).click();
+        await sheet.getByRole("button", { name: "Move to", exact: true }).click();
 
         const paneMenu = sheet.getByRole("menu", { name: "Move to" });
 
@@ -294,7 +294,7 @@ test.describe("from a label", () => {
         await select(row);
 
         // The label being looked at is the one entry that would do nothing.
-        await listToolbar(page).getByRole("button", { name: "Move to" }).click();
+        await listToolbar(page).getByRole("button", { name: "Move to", exact: true }).click();
         const menu = listToolbar(page).getByRole("menu", { name: "Move to" });
         await expect(menu.getByRole("menuitem", { name: LABEL_NAME })).toHaveCount(0);
         await menu.getByRole("menuitem", { name: "Inbox" }).click();
