@@ -17,6 +17,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class OneDriveDriverTest extends OAuthDriverTestCase
 {
+    use AssertsHttpLimits;
+
     public function testListsRootChildren(): void
     {
         $driver = $this->driver([
@@ -33,6 +35,8 @@ final class OneDriveDriverTest extends OAuthDriverTestCase
         self::assertSame(24019, $listing->entries[1]->size);
         self::assertSame('application/pdf', $listing->entries[1]->mime);
         self::assertStringContainsString('/me/drive/root/children', $this->requests[0]['url']);
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     public function testPaginationFollowsGraphsNextLinkVerbatim(): void
@@ -70,6 +74,8 @@ final class OneDriveDriverTest extends OAuthDriverTestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testLargeUploadOpensASessionAndSendsChunksWithoutOurToken(): void
@@ -97,6 +103,8 @@ final class OneDriveDriverTest extends OAuthDriverTestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testShareLinkAsksForAnAnonymousViewLink(): void

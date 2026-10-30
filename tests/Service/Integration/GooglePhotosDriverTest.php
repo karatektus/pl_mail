@@ -19,6 +19,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class GooglePhotosDriverTest extends OAuthDriverTestCase
 {
+    use AssertsHttpLimits;
+
     public function testRootListsAlbumsAsFolders(): void
     {
         $driver = $this->driver([
@@ -32,6 +34,8 @@ final class GooglePhotosDriverTest extends OAuthDriverTestCase
 
         self::assertSame(['Trips', 'Archive'], array_map(static fn ($e) => $e->name, $listing->entries));
         self::assertTrue($listing->entries[0]->isFolder);
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     public function testAlbumItemsAreSearchedByPostAndReportUnknownSize(): void
@@ -71,6 +75,8 @@ final class GooglePhotosDriverTest extends OAuthDriverTestCase
         // baseUrl carries its own credential; Google rejects ours alongside it.
         self::assertSame('access-token', $this->bearerOf(0));
         self::assertNull($this->bearerOf(1));
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testUploadPostsBytesThenCommitsTheToken(): void
@@ -98,6 +104,8 @@ final class GooglePhotosDriverTest extends OAuthDriverTestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testARejectedCommitFailsEvenThoughTheHttpCallSucceeded(): void

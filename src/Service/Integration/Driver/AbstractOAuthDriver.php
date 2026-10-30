@@ -64,6 +64,8 @@ abstract class AbstractOAuthDriver implements IntegrationDriverInterface
     ): ResponseInterface {
         $options['auth_bearer'] = $this->tokens->getValidAccessToken($integration);
 
+        $options += HttpLimits::CALL;
+
         try {
             $response = $this->httpClient->request($method, $url, $options);
 

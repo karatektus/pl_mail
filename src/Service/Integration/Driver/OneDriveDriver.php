@@ -172,7 +172,7 @@ final class OneDriveDriver extends AbstractOAuthDriver implements SearchableDriv
             'query' => ['$select' => 'name,file,size'],
         ]);
 
-        $response = $this->request($integration, 'GET', self::DRIVE.'/items/'.rawurlencode($fileId).'/content');
+        $response = $this->request($integration, 'GET', self::DRIVE.'/items/'.rawurlencode($fileId).'/content', HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -256,7 +256,7 @@ final class OneDriveDriver extends AbstractOAuthDriver implements SearchableDriv
             $payload = $this->json($integration, 'PUT', $this->contentUrl($folderId, $filename), [
                 'headers' => ['Content-Type' => $mime],
                 'body'    => $handle,
-            ]);
+            ] + HttpLimits::transfer());
         } finally {
             if (true === is_resource($handle)) {
                 fclose($handle);
@@ -314,7 +314,7 @@ final class OneDriveDriver extends AbstractOAuthDriver implements SearchableDriv
                         'Content-Range'  => sprintf('bytes %d-%d/%d', $offset, $offset + $length - 1, $size),
                     ],
                     'body' => $chunk,
-                ]);
+                ] + HttpLimits::transfer());
 
                 $status = $response->getStatusCode();
 

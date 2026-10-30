@@ -19,6 +19,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class GoogleDriveDriverTest extends OAuthDriverTestCase
 {
+    use AssertsHttpLimits;
+
     public function testListsChildrenAndExcludesTrash(): void
     {
         $driver = $this->driver([
@@ -42,6 +44,8 @@ final class GoogleDriveDriverTest extends OAuthDriverTestCase
         // Root is Drive's own alias, since Drive has no path addressing.
         self::assertStringContainsString('%27root%27%20in%20parents', $this->requests[0]['url']);
         self::assertSame('access-token', $this->bearerOf(0));
+
+        self::assertEveryRequestIsACall($this->requests);
     }
 
     public function testNativeGoogleFormatsReportNoSizeSoThePickerTreatsThemAsUnattachable(): void
@@ -85,6 +89,8 @@ final class GoogleDriveDriverTest extends OAuthDriverTestCase
         self::assertSame('application/pdf', $file->mime);
         self::assertSame('%PDF-1.7 ..', $file->contents);
         self::assertStringContainsString('alt=media', $this->requests[1]['url']);
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testUploadSendsRelatedMultipartWithMetadataFirst(): void
@@ -109,6 +115,8 @@ final class GoogleDriveDriverTest extends OAuthDriverTestCase
         } finally {
             unlink($path);
         }
+
+        self::assertARequestIsATransfer($this->requests);
     }
 
     public function testShareLinkGrantsAnyoneThenReadsBackTheUrl(): void

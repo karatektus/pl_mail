@@ -248,7 +248,7 @@ final readonly class NextcloudDriver implements IntegrationDriverInterface, Sear
             throw new IntegrationException('No file selected.');
         }
 
-        $response = $this->request($integration, 'GET', $this->davUrl($integration, $path));
+        $response = $this->request($integration, 'GET', $this->davUrl($integration, $path), HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -291,7 +291,7 @@ final readonly class NextcloudDriver implements IntegrationDriverInterface, Sear
             $this->request($integration, 'PUT', $this->davUrl($integration, $target), [
                 'headers' => ['Content-Type' => $mime],
                 'body'    => $handle,
-            ])->getStatusCode();
+            ] + HttpLimits::transfer())->getStatusCode();
         } finally {
             if (true === is_resource($handle)) {
                 fclose($handle);
@@ -584,6 +584,8 @@ final readonly class NextcloudDriver implements IntegrationDriverInterface, Sear
         }
 
         $options['auth_basic'] = [$integration->username, $integration->secret];
+
+        $options += HttpLimits::CALL;
 
         try {
             $response = $this->httpClient->request($method, $url, $options);
