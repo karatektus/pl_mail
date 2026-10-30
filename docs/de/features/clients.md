@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:503f8b67719b741d237a13ee1bd9174c356d87ae -->
+<!-- translated-from: features/clients.md sha1:53d13cf0dd35cf0d5b376ad0e3b722508fa11b4b -->
 
 # Andere Clients
 
@@ -141,14 +141,21 @@ Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschi
 gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
 dem Handy geöffnet.
 
-**Bereits gelesene Post überspringen.** Ein Push lässt sich nicht zurückrufen: Sind die
-Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch wenn du die Nachricht eine
-Minute später auf dem Handy gelesen oder gelöscht hast. **Einstellungen → Benachrichtigungen →
-Bereits gelesene Mail überspringen** (standardmäßig aus und für dich, nicht für ein einzelnes Gerät)
-lässt einen Browser nach dem Push zwanzig Sekunden warten und dann fragen, ob im Posteingang noch
-etwas Ungelesenes liegt. Wenn nicht, zeigt er nichts an und nimmt eine Benachrichtigung zurück, die er
-für frühere Post gezeigt hatte. Maßgeblich ist der Posteingang als Ganzes, nicht die einzelne
-Nachricht; eine ältere ungelesene Nachricht hält die Benachrichtigung also aufrecht.
+**Was benachrichtigt.** Zwei Einstellungen unter **Einstellungen → Benachrichtigungen**, beide
+standardmäßig aus und beide für dich, nicht für ein einzelnes Gerät. **Benachrichtigen bei → Nur
+Primär** beschränkt die Browser auf Post, die in deinem Tab „Primär“ landet; plMail entscheidet das
+auf dem Server, weil die Benachrichtigung selbst nichts enthält, wonach der Browser urteilen könnte.
+Post, die der Assistent noch einsortiert, wird gemeldet, sobald sie in „Primär“ liegt, und gar nicht,
+wenn sie in einem anderen Tab landet. Die Android-App beschränkt sich von selbst auf „Primär“ und
+ignoriert diese Einstellung.
+
+**Nur bei ungelesener Mail benachrichtigen** begegnet einem Push, der sich nicht zurückrufen lässt:
+Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch wenn du die
+Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit dieser Option
+wartet nach dem Push zwanzig Sekunden und fragt, ob im Posteingang noch etwas Ungelesenes liegt.
+Wenn nicht, zeigt er nichts an und nimmt eine Benachrichtigung zurück, die er für frühere Post
+gezeigt hatte. Maßgeblich ist der Posteingang als Ganzes, nicht die einzelne Nachricht; eine ältere
+ungelesene Nachricht hält die Benachrichtigung also aufrecht.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

@@ -82,9 +82,19 @@ final readonly class MailChangeRecorder
      * Recorded by the caller in addition to emailChanged(created: true), never
      * instead of it: the Email still changed for everybody else.
      */
-    public function mailArrived(int $accountId): void
+    public function mailArrived(int $accountId, bool $primary = true): void
     {
-        $this->stateManager->recordArrival($accountId);
+        $this->stateManager->recordArrival($accountId, $primary);
+    }
+
+    /**
+     * Held mail has been released into Primary: new mail for a user who wants
+     * Primary only, and not for anybody else, who heard of it on arrival.
+     * See StateManager::recordReleasedArrival().
+     */
+    public function mailReleasedToPrimary(int $accountId): void
+    {
+        $this->stateManager->recordReleasedArrival($accountId);
     }
 
     /**

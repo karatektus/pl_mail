@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\CategorySource;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -20,6 +21,7 @@ use App\Infrastructure\Messaging\Message\ExtractInsightsMessage;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
 use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
 use App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage;
+use App\Jmap\State\StateManager;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
@@ -245,6 +247,55 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         // The timed release arriving after the verdict has already released
         // the message is the ordinary case, and must be a no-op.
         self::assertSame(0, $releaser->release([$message]));
+    }
+
+    /**
+     * Primary only (#369): held mail is not yet known to be Primary, so its
+     * arrival is not announced to a user who wants that, and the release is.
+     * Everybody else hears of it on arrival, as before, and not again.
+     */
+    public function testHeldMailIsPrimaryNewsOnlyWhenItIsReleased(): void
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+        $state->drainPrimaryArrivals();
+
+        $message = $this->inboxMessage('fresh', '-1 minute');
+        $this->ingest($message);
+
+        self::assertTrue($message->isCategoryHeld());
+        self::assertSame([(int) $message->account->id], $state->drainArrivals(), 'new mail for everybody, on arrival');
+        self::assertSame([], $state->drainPrimaryArrivals(), 'not yet known to be Primary');
+
+        self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
+
+        self::assertSame(MessageCategory::Primary, $message->category, 'the fixture is Primary, or this proves nothing');
+        self::assertSame([], $state->drainArrivals(), 'everybody else was already told');
+        self::assertSame([(int) $message->account->id], $state->drainPrimaryArrivals(), 'presence: Primary-only is told now');
+    }
+
+    /** ...and a release into another tab tells them nothing. */
+    public function testHeldMailReleasedIntoAnotherTabIsNoNewsForPrimaryOnly(): void
+    {
+        $this->assistantSorts();
+        $this->importFinished();
+
+        $state = self::getContainer()->get(StateManager::class);
+
+        $message = $this->inboxMessage('fresh', '-1 minute');
+        $this->ingest($message);
+
+        $message->category = MessageCategory::Promotions;
+        $this->em->flush();
+
+        $state->drainPrimaryArrivals();
+
+        self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
+
+        self::assertSame([], $state->drainPrimaryArrivals());
     }
 
     /**
@@ -632,6 +683,17 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     }
 
     /** Persisted and flushed, which is the pipeline's stated precondition. */
+    /** An Inbox arrival, which is the only kind the push ever announces. */
+    private function inboxMessage(string $slug, string $received): Message
+    {
+        $message = $this->message($slug, $received);
+        $message->arrivedIn = ArrivalPlace::Inbox;
+        $message->addLabel(self::getContainer()->get(LabelResolver::class)->systemLabel(LabelRole::Inbox, $this->account));
+        $this->em->flush();
+
+        return $message;
+    }
+
     private function message(string $slug, string $received): Message
     {
         $message = new Message();

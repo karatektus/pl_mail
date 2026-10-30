@@ -56,4 +56,32 @@ final class StateArrivalsTest extends JmapTestCase
         self::assertSame([], $state->drainArrivals(), 'an update alone records no arrival');
         self::assertArrayHasKey($accountId, $state->drainDirty(), 'presence: the update is dirty');
     }
+
+    public function testAnArrivalIsPrimaryUnlessItIsSaidNotToBe(): void
+    {
+        $state     = self::getContainer()->get(StateManager::class);
+        $accountId = (int) $this->account->id;
+
+        $state->recordArrival($accountId, primary: false);
+
+        self::assertSame([$accountId], $state->drainArrivals(), 'it arrived');
+        self::assertSame([], $state->drainPrimaryArrivals(), 'a Promotions arrival is not Primary mail');
+
+        $state->recordArrival($accountId);
+
+        self::assertSame([$accountId], $state->drainPrimaryArrivals(), 'presence: an arrival is Primary by default');
+        self::assertSame([], $state->drainPrimaryArrivals(), 'draining empties it');
+    }
+
+    /** Released mail is news to the user who wants Primary only, and to nobody else. */
+    public function testAReleasedArrivalIsOnlyEverPrimary(): void
+    {
+        $state     = self::getContainer()->get(StateManager::class);
+        $accountId = (int) $this->account->id;
+
+        $state->recordReleasedArrival($accountId);
+
+        self::assertSame([], $state->drainArrivals(), 'everybody else was told when it arrived');
+        self::assertSame([$accountId], $state->drainPrimaryArrivals(), 'presence: Primary-only is told now');
+    }
 }

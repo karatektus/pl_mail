@@ -106,12 +106,67 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
     }
 
     /**
+     * A user who wants Primary only is judged by the Primary set, not by "mail
+     * arrived": a promotion arrives and says nothing to them.
+     */
+    public function testAPrimaryOnlyUserIsNotToldOfMailThatIsNotPrimary(): void
+    {
+        $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
+        $this->user->pushPrimaryOnly = true;
+        $this->em->flush();
+
+        $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
+        $own     = $this->ownAccountId();
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: []);
+
+        self::assertCount(0, $webPush->sent, 'something arrived, but nothing Primary');
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: [$own]);
+
+        self::assertCount(1, $webPush->sent, 'presence: Primary mail arrived, so they are told');
+    }
+
+    /** Mail released into Primary after a hold is in the Primary set only. */
+    public function testAPrimaryOnlyUserIsToldWhenHeldMailIsReleasedIntoPrimary(): void
+    {
+        $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
+        $this->user->pushPrimaryOnly = true;
+        $this->em->flush();
+
+        $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
+        $own     = $this->ownAccountId();
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], primaryArrived: [$own]);
+
+        self::assertCount(1, $webPush->sent, 'the release is their arrival');
+    }
+
+    /** ...and is not an arrival for anybody who is told about everything. */
+    public function testAUserWhoWantsEverythingIsNotToldTwiceOfReleasedMail(): void
+    {
+        $this->subscribe($this->arrivalsOnlyBrowser('pwa-device'));
+
+        $webPush = new RecordingArrivalsSender(PushTransport::WebPush);
+        $own     = $this->ownAccountId();
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [], primaryArrived: [$own]);
+
+        self::assertCount(0, $webPush->sent, 'they were told when it arrived');
+
+        $this->dispatch($webPush, [$own], updated: [$own], arrived: [$own], primaryArrived: []);
+
+        self::assertCount(1, $webPush->sent, 'presence: a promotion still notifies someone who wants everything');
+    }
+
+    /**
      * @param list<int> $accountIds the accounts whose state changed
      * @param list<int> $updated    the accounts a change was recorded for; the
      *                              dispatcher receives the same ids for both
      * @param list<int> $arrived    the accounts mail arrived in
+     * @param list<int> $primaryArrived the accounts Primary mail arrived in
      */
-    private function dispatch(PushSenderInterface $sender, array $accountIds, array $updated, array $arrived): void
+    private function dispatch(PushSenderInterface $sender, array $accountIds, array $updated, array $arrived, array $primaryArrived = []): void
     {
         $container = self::getContainer();
 
@@ -129,7 +184,7 @@ final class PushDispatcherArrivalsTest extends JmapTestCase
             new PushSenderRegistry([$sender]),
             $container->get(StateChangeBuilder::class),
             new NullLogger(),
-        )->dispatch($changed, $arrived);
+        )->dispatch($changed, $arrived, $primaryArrived);
     }
 
     /** This user's account id as the int the dispatcher is handed; JmapTestCase::accountId() is the JMAP string. */

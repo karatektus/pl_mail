@@ -47,6 +47,20 @@ final class StateManager
      */
     private array $arrivals = [];
 
+    /**
+     * The accounts on which mail arrived that a user who asked for Primary only
+     * would be told about (User::$pushPrimaryOnly).
+     *
+     * Mostly a subset of $arrivals: mail that landed in another tab, or is held
+     * for the assistant, is in $arrivals and not here. The exception is mail
+     * released from a hold into Primary, which is here and NOT in $arrivals,
+     * because everybody else was told when it arrived. See
+     * recordReleasedArrival().
+     *
+     * @var array<int,bool>
+     */
+    private array $primaryArrivals = [];
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ChangeLogRepository $changeLogRepository,
@@ -120,9 +134,26 @@ final class StateManager
      * Callers must be sure the message is genuinely new mail, not merely a
      * created Email. See PostIngestPipeline, the one place that decides.
      */
-    public function recordArrival(int $accountId): void
+    public function recordArrival(int $accountId, bool $primary = true): void
     {
         $this->arrivals[$accountId] = true;
+
+        if (true === $primary) {
+            $this->primaryArrivals[$accountId] = true;
+        }
+    }
+
+    /**
+     * Mail the assistant has just put into Primary, which was held back when it
+     * arrived.
+     *
+     * Not an arrival for everybody: it was announced when it came in, before
+     * anybody knew which tab it belonged in. It is one for a user who wants
+     * Primary only, who was deliberately told nothing then.
+     */
+    public function recordReleasedArrival(int $accountId): void
+    {
+        $this->primaryArrivals[$accountId] = true;
     }
 
     /**
@@ -136,6 +167,21 @@ final class StateManager
         $arrived = array_map('intval', array_keys($this->arrivals));
 
         $this->arrivals = [];
+
+        return array_values($arrived);
+    }
+
+    /**
+     * The accounts where Primary mail arrived since the last drain, emptying
+     * that buffer. See $primaryArrivals.
+     *
+     * @return list<int>
+     */
+    public function drainPrimaryArrivals(): array
+    {
+        $arrived = array_map('intval', array_keys($this->primaryArrivals));
+
+        $this->primaryArrivals = [];
 
         return array_values($arrived);
     }
