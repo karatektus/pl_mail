@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:83aabeaddee8e1f9d9d377b1c27f25c7c4d9460b -->
+<!-- translated-from: features/mail.md sha1:739cc8eba21ecd3c6a7c4e2a4dda9b8380aecd44 -->
 
 # Mail
 
@@ -562,13 +562,20 @@ in plMail oder wird, wenn [Labels als Schlüsselwörter](accounts.md#labels-als-
 ist, ein IMAP-Schlüsselwort, das andere Mailprogramme sehen. Bei einem Microsoft-Konto ist ein Label eine
 Outlook-Kategorie; siehe [Labels als Outlook-Kategorien](accounts.md#labels-als-outlook-kategorien).
 
-Die Ordner eines IMAP-Kontos erscheinen ebenfalls in der Seitenleiste — der Posteingang, Gesendet
-und jeder Ordner, den der Server hat; im Bereich LABELS trägt einer davon statt eines Punkts einen
-Ordner. Das sind Orte, keine Markierungen: Jede Nachricht liegt in
-genau einem davon, und **Verschieben nach** in einen davon oder eine Konversation darauf zu ziehen verschiebt
-die Mail auf dem Server dorthin. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst
-sie dort um und löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
+Die Ordner eines IMAP-Kontos erscheinen in der Seitenleiste unter dem Konto — der Posteingang,
+Gesendet und jeder Ordner, den der Server hat —, ebenso die Mailordner eines Outlook-Kontos. Das sind
+Orte, keine Markierungen: Eine Nachricht liegt in einem davon, und **Verschieben nach** in einen davon
+oder eine Konversation darauf zu ziehen verschiebt die Mail auf dem Server dorthin. **Label vergeben**
+bietet nur die Labels an, die auf dem Konto Markierungen sind, ein Label zu setzen verschiebt Mail also
+nie. Der Bereich LABELS enthält diese Markierungen; schalte **Ordner unter Labels** unter
+**Einstellungen → Labels** ein, um dort auch Ordner aufzulisten, die dann statt eines Punkts einen
+Ordner tragen. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und
+löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
 [Ordner](accounts.md#ordner).
+
+In einer geöffneten Konversation zeigt jede Nachricht ihre Labels. Ein Ordner, in dem sie liegt,
+trägt einen Ordner und hat kein ×, denn Mail aus einem Ordner zu nehmen ist ein Verschieben; ein Label
+hat ein ×, das es von dieser Nachricht nimmt.
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
 Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem
@@ -593,25 +600,40 @@ und verschiebt nichts.
 ### Verschieben nach
 
 Der Ordner-Knopf — neben **Löschen** in der Leiste über einer Auswahl und neben dem Label-Knopf in
-einer geöffneten Konversation — legt Mail in einem Schritt unter einem Label ab: **Das gewählte Label kommt dazu,
-und das Label der Liste, in der du gerade warst, fällt weg.** Alle anderen Labels bleiben.
+einer geöffneten Konversation — verschiebt Mail in einem Schritt an einen Ort. Was ein Ort ist, hängt
+vom Konto ab:
+
+| Konto | **Verschieben nach** bietet | Dorthin verschieben |
+|---|---|---|
+| Reines IMAP, Microsoft | seine Ordner, dazu **Posteingang**, **Spam** und **Papierkorb** | Verschiebt die Mail auf dem Server in den Ordner |
+| Gmail | **Posteingang**, **Spam** und **Papierkorb**; mit **„Verschieben nach“ bietet Labels an** auch seine Labels | Setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail |
+| JMAP | jedes Label | Verschiebt die Mail in dieses Postfach |
+
+**„Verschieben nach“ bietet Labels an** ist ein Schalter in der Zeile eines Gmail-Kontos unter
+**Einstellungen → Konten**, aus, bis du ihn einschaltest. In einer Liste, deren Auswahl mehrere
+Konten umfasst, bietet die Auswahl an, was auf irgendeinem davon ein Ort ist, und jede Konversation
+wird so verschoben, wie ihr eigenes Konto es tut: in den Ordner, wo das Label einer ist, und mit dem
+Label versehen und aus dem Posteingang genommen, wo es eine Markierung ist. Ein Verschieben legt nie
+einen Ordner an.
+
+Welche Kopie verschoben wird, hängt davon ab, wo du bist:
 
 | Wo du bist | Was „Verschieben nach *Belege*“ tut |
 |---|---|
-| **Posteingang** | Vergibt *Belege* und archiviert die Konversation |
-| Ein Label | Tauscht dieses Label gegen *Belege* |
-| **Papierkorb** oder **Spam** | Vergibt *Belege* und nimmt die Konversation aus Papierkorb und Spam — ohne sie zurück in den Posteingang zu legen |
-| Sonst überall — Suche, **Markiert**, **Gesendet** | Vergibt *Belege* und nimmt die Konversation aus dem Posteingang, falls sie dort war |
+| **Posteingang** | Verschiebt die Konversation aus dem Posteingang nach *Belege* |
+| Ein Ordner | Verschiebt die Kopie in diesem Ordner nach *Belege*; Kopien anderswo bleiben, wo sie sind |
+| **Papierkorb** oder **Spam** | Verschiebt die Konversation nach *Belege*, aus Papierkorb und Spam heraus, ohne sie zurück in den Posteingang zu legen |
+| Sonst überall — Suche, **Markiert** | Verschiebt die Kopie der Konversation im Posteingang, oder ihre Hauptkopie, nach *Belege* |
 
-Zur Auswahl stehen der **Posteingang**, deine Labels, **Spam** und **Papierkorb**. Ein Klick wendet
-es sofort an; es gibt nichts zu bestätigen. **Posteingang** holt eine Konversation zurück und
-entfernt das Label, in dem du warst; **Spam** und **Papierkorb** tun, was ihre eigenen Knöpfe tun.
-Die Liste, in der du schon bist, jedes Label, das die Konversation bereits trägt, und **Papierkorb**
-oder **Spam** für Mail, die schon dort liegt, fehlen in der Auswahl.
+Deine eigenen Antworten in **Gesendet** bleiben in Gesendet. Ein Klick wendet die Wahl sofort an; es
+gibt nichts zu bestätigen. **Posteingang** holt eine Konversation zurück; **Spam** und **Papierkorb**
+tun, was ihre eigenen Knöpfe tun. Die Liste, in der du schon bist, ein Ordner, in dem die
+Konversation schon liegt, und **Papierkorb** oder **Spam** für Mail, die schon dort liegt, fehlen in
+der Auswahl.
 
-Das ist nicht dasselbe, wie eine Konversation auf einen Ordner unter einem Konto zu ziehen: Das
-legt sie in diesen Ordner und nimmt sie aus jedem anderen. Nimm den Label-Knopf, wenn du ein Label
-vergeben und die Mail lassen willst, wo sie ist.
+Eine Konversation auf einen Ordner unter einem Konto zu ziehen tut dasselbe wie **Verschieben nach**
+in diesen Ordner. Sie auf ein Label im Bereich LABELS zu ziehen setzt das Label und lässt die Mail,
+wo sie ist, wie **Label vergeben**.
 
 Verschieben, Labeln und Archivieren zeigen für ein paar Sekunden **Rückgängig**. Es stellt genau
 die Labels wieder her, die jede Konversation vorher hatte — bei einer gemischten Auswahl ist das

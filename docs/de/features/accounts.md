@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:1c3e790dc75941eeb24e5f6c9b88bfc3fb609958 -->
+<!-- translated-from: features/accounts.md sha1:dd311daaff4feeb70f4da91bf54177f857045c5f -->
 
 # Konten und Aliase
 
@@ -164,6 +164,7 @@ Jede Zeile bietet:
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
 | **Ordner** | Die IMAP-Ordner des Kontos: jeden ein- oder ausschalten und deine eigenen anlegen, umbenennen oder löschen — nur bei IMAP-Konten; siehe [Ordner](#ordner) |
 | **Outlook-Kategorien folgen** (Schlagwort-Symbol) | Standardmäßig aus; an, setzt eine in Outlook gesetzte oder entfernte Kategorie das Label hier oder nimmt es ab — nur bei Microsoft-Konten; siehe [Labels als Outlook-Kategorien](#labels-als-outlook-kategorien) |
+| **„Verschieben nach“ bietet Labels an** (Symbol geöffneter Ordner) | Standardmäßig aus; an, listet **Verschieben nach** neben Posteingang, Spam und Papierkorb auch die Labels dieses Kontos, und dorthin verschieben setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail — nur bei Gmail-Konten; siehe [Verschieben nach](mail.md#verschieben-nach) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an

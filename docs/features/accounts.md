@@ -144,6 +144,7 @@ Each row offers:
 | **Edit account** | Server settings and password — password accounts only |
 | **Folders** | The account's IMAP folders: switch each on or off, and make, rename or delete your own — IMAP accounts only; see [Folders](#folders) |
 | **Follow Outlook categories** (tags icon) | Off by default; on, a category put on or taken off in Outlook puts the label on or takes it off here — Microsoft accounts only; see [Labels as Outlook categories](#labels-as-outlook-categories) |
+| **Move to offers labels** (open folder icon) | Off by default; on, **Move to** lists this account's labels as well as the inbox, spam and trash, and moving there puts the label on and takes the mail out of the inbox, as Gmail does — Gmail accounts only; see [Move to](mail.md#move-to) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very

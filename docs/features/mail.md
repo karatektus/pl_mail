@@ -508,12 +508,17 @@ label on a message tags the message and moves nothing: the label stays in plMail
 apps see. On a Microsoft account a label is an Outlook category; see
 [Labels as Outlook categories](accounts.md#labels-as-outlook-categories).
 
-An IMAP account's folders show in the sidebar as well — the inbox, Sent, and every folder the server
-has; in the LABELS section one of those wears a folder instead of a dot. Those are places rather than
-tags: each message is in exactly one of them, and **Move to** one
-of them, or dragging a conversation onto it, moves the mail there on the server. Folders are made,
-renamed and deleted in the account's own folder list, never by making or renaming a label; see
-[Folders](accounts.md#folders).
+An IMAP account's folders show in the sidebar under the account — the inbox, Sent, and every folder
+the server has — and so do an Outlook account's mail folders. Those are places rather than tags: a
+message is in one of them, and **Move to** one of them, or dragging a conversation onto it, moves the
+mail there on the server. **Label as** offers only the labels that are tags on the account, so
+putting a label on mail never moves it. The LABELS section holds those tags; switch on **Folders in
+Labels** in **Settings → Labels** to list folders there too, where they wear a folder instead of a
+dot. Folders are made, renamed and deleted in the account's own folder list, never by making or
+renaming a label; see [Folders](accounts.md#folders).
+
+In an open conversation each message shows its labels. A folder it is in wears a folder and has no
+×, because taking mail out of a folder is a move; a label has an × that takes it off that message.
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
@@ -536,25 +541,38 @@ and moves nothing.
 ### Move to
 
 The folder button — beside **Delete** in the toolbar above a selection, and beside the label
-button in an open conversation — files mail under one label in a single step: **the label you pick goes on, and the
-label of the list you were looking at comes off.** Every other label stays.
+button in an open conversation — moves mail to one place in a single step. What counts as a place
+depends on the account:
+
+| Account | **Move to** offers | Moving there |
+|---|---|---|
+| Plain IMAP, Microsoft | its folders, with **Inbox**, **Spam** and **Trash** | Moves the mail into the folder on the server |
+| Gmail | **Inbox**, **Spam** and **Trash**; with **Move to offers labels** on, its labels too | Puts the label on and takes the mail out of the inbox, as Gmail does |
+| JMAP | every label | Moves the mail into that mailbox |
+
+**Move to offers labels** is a switch on a Gmail account's row in **Settings → Accounts**, off until
+you turn it on. In a list whose selection spans several accounts, the picker offers what is a place
+on any of them, and each conversation is moved the way its own account does it: into the folder
+where the label is one, and labelled and out of the inbox where it is a tag. A move never makes a
+folder.
+
+Which copy moves depends on where you are:
 
 | Where you are | What "Move to *Receipts*" does |
 |---|---|
-| **Inbox** | Adds *Receipts* and archives the conversation |
-| A label | Swaps that label for *Receipts* |
-| **Trash** or **Spam** | Adds *Receipts* and takes the conversation out of the bin and out of spam — without putting it back in the inbox |
-| Anywhere else — search, **Starred**, **Sent** | Adds *Receipts*, and takes the conversation out of the inbox if it was in it |
+| **Inbox** | Moves the conversation out of the inbox into *Receipts* |
+| A folder | Moves the copy in that folder into *Receipts*; copies elsewhere stay where they are |
+| **Trash** or **Spam** | Moves the conversation into *Receipts*, out of the bin and out of spam, without putting it back in the inbox |
+| Anywhere else — search, **Starred** | Moves the conversation's copy in the inbox, or its main copy, into *Receipts* |
 
-The picker offers the **Inbox**, your labels, **Spam** and **Trash**. Picking one applies it at
-once; there is nothing to confirm. **Inbox** brings a conversation back and removes the label you
-were in; **Spam** and **Trash** do what their own buttons do. The list you are already in, any
-label the conversation already has, and **Trash** or **Spam** for mail that is already there, are
-left off the picker.
+Your own replies in **Sent** stay in Sent. Picking an entry applies it at once; there is nothing to
+confirm. **Inbox** brings a conversation back; **Spam** and **Trash** do what their own buttons do.
+The list you are already in, a folder the conversation is already in, and **Trash** or **Spam** for
+mail that is already there, are left off the picker.
 
-This is not the same as dragging a conversation onto a folder under an account, which puts it in
-that folder and takes it out of every other one. Use the label button when you want to add a label
-and leave the mail where it is.
+Dragging a conversation onto a folder under an account does the same as **Move to** that folder.
+Dragging it onto a label in the LABELS section puts the label on and leaves the mail where it is,
+like **Label as**.
 
 Moving, labelling and archiving each show an **Undo** for a few seconds. It puts back exactly the
 labels each conversation had before, which for a mixed selection is not the same as reversing the

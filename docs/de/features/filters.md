@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:3b9dca54a193eed5fa2e7700671025a8d731e11e -->
+<!-- translated-from: features/filters.md sha1:812e1dabc8e8acaf069d0dc28f83d8b9d17ece43 -->
 
 # Filter
 
@@ -65,8 +65,9 @@ eintrifft“.
 
 | Aktion | Wirkung |
 |---|---|
-| **Label vergeben** | Fügt eines deiner Labels hinzu und legt dessen Bindung auf dem Konto der Nachricht an |
+| **Label vergeben** | Fügt eines deiner Labels hinzu und legt dessen Bindung auf dem Konto der Nachricht an. Nur eine Markierung: Es verschiebt nie Mail, auch nicht, wenn das Label ein Ordner ist |
 | **Label entfernen** | Nimmt eines weg |
+| **In Ordner verschieben** | Verschiebt die Mail in einen deiner Ordner, aus dem Ordner heraus, in dem sie ankam. Auf einem Konto, auf dem das Label kein Ordner ist — etwa Gmail —, setzt es das Label und überspringt den Posteingang, wie Gmails eigenes Verschieben. Es legt nie einen Ordner an. Ein Filter von vor dieser Aktion, der ein Label vergab, das auf jedem seiner Konten ein Ordner ist, wurde in diese Aktion umgewandelt, denn genau das tat er |
 | **Als gelesen markieren** | |
 | **Markieren** | |
 | **Posteingang überspringen** | Entfernt das Posteingangs-Label — mit anderen Worten: archivieren |

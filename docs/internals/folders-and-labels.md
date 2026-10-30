@@ -27,15 +27,15 @@ serves JMAP itself. Only Gmail has labels and nothing else.
 
 ## Where the code is today
 
-The data model already separates the two; the interface does not yet.
+The data model separates the two, and since step 3 so does the interface.
 
 - A `Label` belongs to the user, not to an account. A `LabelBinding` materialises it on one
   account and carries what it is there: an IMAP folder (`mailbox`), a Gmail label, an Exchange
   folder or an Outlook category.
 - A `Mailbox` row is an IMAP folder, keyed by its raw path. A message has one `mailbox` and any
   number of labels; the label bound to its mailbox is its *location label*.
-- In the sidebar an IMAP folder appears as its location label. Filing under it moves mail; a label
-  made in plMail on an IMAP account is stored in plMail only and moves nothing
+- In the sidebar an IMAP folder appears under its account, as its location label. Moving to it
+  moves mail; a label made in plMail on an IMAP account is a tag and moves nothing
   (`LabelChangePropagator`).
 
 ## Step 1: folders as folders (built)
@@ -238,26 +238,64 @@ now** on the account, or waiting for the next scheduled run.
 With **Instant delivery** on, steps 5 and 6 should land without a manual sync; whether they do is
 one of the unverified points above.
 
+## Step 3: Move to and Label as, apart (built)
+
+Whether a label is a place or a tag is a question about one account, and `LabelKinds` answers it:
+
+| Account | A place | A tag |
+|---|---|---|
+| Plain IMAP | a label with a `mailbox` there | every other label (a keyword, or plMail's alone) |
+| Microsoft | a label with a `graphFolderId` there | every other label (a category) |
+| Gmail | none, unless `Account::$gmailMoveOffersLabels` | every label |
+| JMAP | every label (a mailbox; mail can sit in several, and a move replaces them) | every label |
+| POP3 | none | every label |
+
+Which labels are folders where comes from `SidebarCounts::isFolderOn()`, which reads every folder
+binding of the user's in the one query the sidebar's folder marks already make, so the pickers on
+every list page cost nothing per label (`ThreadListQueryBudgetTest`). It reads the signed-in user,
+so it is for requests; a worker asks the binding itself, as `MoveToService` and the rule executor
+do.
+
+**The pickers.** **Move to** offers the places (`move_labels()`), **Label as** the tags
+(`tag_labels()`): for the conversation's own account in the reading pane, and in the list, whose
+selection can span accounts, what is that kind on any of them.
+
+**The move.** `MoveToService` decides per account. Where the target is a folder there,
+`ThreadStatusUpdater::move()` takes the source label off and `LabelChangePropagator::moveCopies()`
+moves one copy on the server: the copy in the folder being looked at (`viewedFolder()`, also what a
+drop passes), or else the primary copy. Copies elsewhere — Archive, All Mail, a reply in Sent — stay
+where they are, and so do their labels. `detachLabel(..., moveOnImap: false)` takes the source label
+off without inferring a second move from what is left, which is what used to make a label menu able
+to move mail. Where the target is a tag there, the mail is tagged and leaves the inbox, Gmail's
+move. A move never creates a folder: a tag would become a place as a side effect.
+
+**Label as** never moves. A rule's **Apply label** is the same, and **Move to folder**
+(`RuleActionExecutor::MOVE_TO_FOLDER`) is the rule's Move to, with the same per-account split.
+`Version20261030100000` turned the rules that applied a folder label into Move to folder rules, but
+only where the label is a folder on every account the rule covers, because on a Gmail account the
+same rule only ever tagged.
+
+**The sidebar.** An account's rows are its system folders and the labels that are a place there.
+LABELS holds the labels that are a tag on any account, or the parents of one; with
+`User::$foldersInLabels` it holds every label, as before step 3.
+
+**The chips.** On a message in the conversation, a folder label wears a folder and has no ×;
+taking a folder off is a move. A tag's × posts the same detach as unticking it in Label as, for
+that message, and the answer redraws that message's chips (`message_labels_{id}`).
+
 ## Later steps
 
-In the order agreed in #221 (step 3 is not built yet):
-
-1. ~~Mirror the folder tree as folders, with New folder, rename and delete~~ — this page.
-2. ~~IMAP keywords as the label backend~~ — above.
-3. **Move to separate from Assign label in the interface**: one picker with two sections, folders and
-   labels, so assigning a label can no longer move mail and Move to always does. Gmail, which has no
-   folders, keeps Move to for its system labels only (Inbox, Spam, Trash, archive).
-4. ~~Outlook categories as Outlook's label backend~~ — above.
-
-After those: a move-to-folder filter action, an `in:folder` search, and an opt-in "convert folders
-to labels" wizard, which stays out of #221.
+All four steps agreed in #221 are built. After them: an `in:folder` search, and an opt-in "convert
+folders to labels" wizard, which stays out of #221. Moving a copy into a folder that already holds
+a copy of the same email is left to the server and to the next merge (`ImapCopyMerger`).
 
 ## Things that bite
 
 **The label tree is per user, the folder trees are per account.** Two accounts with a folder
 "Clients" share one label "Clients", and a folder inside one of them hangs under that shared label.
 Renaming one account's folder therefore cannot rename the shared label, and the folder gets a label
-of its own instead. A sidebar that draws each account's folders as their own tree is step 3's.
+of its own instead. Under each account the sidebar draws only that account's places, which is why
+it reads as its own tree.
 
 **A server that does not mark its system folders gets them protected only by name.** Stalwart
 answers a plain `LIST` without special-use attributes, so its "Sent Items", "Deleted Items" and
