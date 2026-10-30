@@ -4515,10 +4515,8 @@ settings:
             plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
             Teilen tippen, dann "Zum Home-Bildschirm", und dort
             Benachrichtigungen aktivieren.
-        notify_all: 'Gesamter Posteingang'
         notify_for: 'Benachrichtigen bei'
-        notify_for_hint: 'Welche neue Post eine Browser-Benachrichtigung auslöst. Gilt für alle deine Browser; die Android-App entscheidet selbst.'
-        notify_primary: 'Nur Primär'
+        notify_for_hint: 'Für welche Posteingang-Tabs eine Browser-Benachrichtigung erscheint. Gilt für alle deine Browser; die Android-App entscheidet selbst. Mindestens einer bleibt an.'
         'off': 'Aus'
         'on': 'An'
         skip_read: 'Nur bei ungelesener Mail benachrichtigen'

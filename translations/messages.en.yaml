@@ -4490,10 +4490,8 @@ settings:
             On iPhone and iPad, notifications only work once plMail is added to
             the Home Screen: open it in Safari, tap Share, then "Add to Home
             Screen", and enable notifications from there.
-        notify_all: 'All of the Inbox'
         notify_for: 'Notify for'
-        notify_for_hint: 'Which new mail makes a browser notification. Applies to every browser of yours; the Android app chooses for itself.'
-        notify_primary: 'Primary only'
+        notify_for_hint: 'Which inbox tabs make a browser notification. Applies to every browser of yours; the Android app chooses for itself. At least one stays on.'
         'off': 'Off'
         'on': 'On'
         skip_read: 'Only notify for unread mail'

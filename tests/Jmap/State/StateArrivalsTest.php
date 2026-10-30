@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\State;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Tests\Jmap\JmapTestCase;
@@ -57,31 +58,42 @@ final class StateArrivalsTest extends JmapTestCase
         self::assertArrayHasKey($accountId, $state->drainDirty(), 'presence: the update is dirty');
     }
 
-    public function testAnArrivalIsPrimaryUnlessItIsSaidNotToBe(): void
+    public function testAnArrivalRemembersItsTabAndHeldMailHasNone(): void
     {
         $state     = self::getContainer()->get(StateManager::class);
         $accountId = (int) $this->account->id;
 
-        $state->recordArrival($accountId, primary: false);
+        $state->recordArrival($accountId, MessageCategory::Promotions);
+        $state->recordArrival($accountId, MessageCategory::Promotions);
+        $state->recordArrival($accountId, MessageCategory::Social);
 
         self::assertSame([$accountId], $state->drainArrivals(), 'it arrived');
-        self::assertSame([], $state->drainPrimaryArrivals(), 'a Promotions arrival is not Primary mail');
+        self::assertEqualsCanonicalizing(
+            [MessageCategory::Promotions, MessageCategory::Social],
+            $state->drainArrivalCategories()[$accountId],
+            'each tab once',
+        );
+        self::assertSame([], $state->drainArrivalCategories(), 'draining empties it');
+
+        $state->recordArrival($accountId, null);
+
+        self::assertSame([$accountId], $state->drainArrivals(), 'held mail still arrived');
+        self::assertSame([], $state->drainArrivalCategories(), 'presence: it has no tab yet');
 
         $state->recordArrival($accountId);
 
-        self::assertSame([$accountId], $state->drainPrimaryArrivals(), 'presence: an arrival is Primary by default');
-        self::assertSame([], $state->drainPrimaryArrivals(), 'draining empties it');
+        self::assertSame([MessageCategory::Primary], $state->drainArrivalCategories()[$accountId], 'Primary is the default');
     }
 
-    /** Released mail is news to the user who wants Primary only, and to nobody else. */
-    public function testAReleasedArrivalIsOnlyEverPrimary(): void
+    /** Released mail is news to a user who chose tabs, and to nobody else. */
+    public function testAReleasedArrivalHasATabAndIsNotAnArrivalForEverybody(): void
     {
         $state     = self::getContainer()->get(StateManager::class);
         $accountId = (int) $this->account->id;
 
-        $state->recordReleasedArrival($accountId);
+        $state->recordReleasedArrival($accountId, MessageCategory::Updates);
 
         self::assertSame([], $state->drainArrivals(), 'everybody else was told when it arrived');
-        self::assertSame([$accountId], $state->drainPrimaryArrivals(), 'presence: Primary-only is told now');
+        self::assertSame([MessageCategory::Updates], $state->drainArrivalCategories()[$accountId], 'presence: users who chose tabs are told now');
     }
 }

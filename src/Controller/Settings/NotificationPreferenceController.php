@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Settings → Notifications: what a notification is worth showing, for the
  * whole user rather than one device.
  *
- * Two choices, both for the browsers: which mail notifies (User::$pushPrimaryOnly,
+ * Two choices, both for the browsers: which tabs notify (User::$pushCategories,
  * enforced where the push is sent, in PushDispatcher) and whether mail that is
  * already read is skipped (User::$pushSkipsRead, read back by the service worker
  * through WebPushController::inboxState()). This controller only records them.
@@ -42,8 +43,24 @@ final class NotificationPreferenceController extends AbstractController
             $user->pushSkipsRead = '1' === (string) $request->request->get('skipRead');
         }
 
-        if (true === $request->request->has('notifyFor')) {
-            $user->pushPrimaryOnly = 'primary' === (string) $request->request->get('notifyFor');
+        // The tab boxes are posted with a marker, because an unchecked box sends
+        // nothing and "no field" must still mean "leave it alone". A post that
+        // unchecks every box changes nothing either: no tab at all is
+        // notifications switched off, which has a switch of its own.
+        if (true === $request->request->has('categoriesSent')) {
+            $chosen = [];
+
+            foreach ($request->request->all('categories') as $value) {
+                $category = MessageCategory::tryFrom((string) $value);
+
+                if (null !== $category) {
+                    $chosen[] = $category;
+                }
+            }
+
+            if ([] !== $chosen) {
+                $user->pushCategories = $chosen;
+            }
         }
 
         $em->flush();

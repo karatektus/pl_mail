@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
@@ -82,19 +83,19 @@ final readonly class MailChangeRecorder
      * Recorded by the caller in addition to emailChanged(created: true), never
      * instead of it: the Email still changed for everybody else.
      */
-    public function mailArrived(int $accountId, bool $primary = true): void
+    public function mailArrived(int $accountId, ?MessageCategory $category = MessageCategory::Primary): void
     {
-        $this->stateManager->recordArrival($accountId, $primary);
+        $this->stateManager->recordArrival($accountId, $category);
     }
 
     /**
-     * Held mail has been released into Primary: new mail for a user who wants
-     * Primary only, and not for anybody else, who heard of it on arrival.
+     * Held mail has been released into a tab: new mail for a user who chose
+     * categories, and not for anybody else, who heard of it on arrival.
      * See StateManager::recordReleasedArrival().
      */
-    public function mailReleasedToPrimary(int $accountId): void
+    public function mailReleasedTo(int $accountId, MessageCategory $category): void
     {
-        $this->stateManager->recordReleasedArrival($accountId);
+        $this->stateManager->recordReleasedArrival($accountId, $category);
     }
 
     /**

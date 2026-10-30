@@ -122,14 +122,14 @@ column.
 - `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
   driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`, which
   drains three buffers from `StateManager`: what changed (`drainDirty()`), on
-  which accounts mail arrived (`drainArrivals()`) and on which Primary mail
-  arrived (`drainPrimaryArrivals()`). A subscription with `arrivalsOnly` — the
+  which accounts mail arrived (`drainArrivals()`) and on which tabs mail
+  arrived in (`drainArrivalCategories()`). A subscription with `arrivalsOnly` — the
   in-app browser/PWA device, set by `WebPushController` — is sent a StateChange
-  only when its user had an arrival, judged against the Primary buffer when the
-  user chose "Primary only" (`User::$pushPrimaryOnly`); every other row is sent
+  only when its user had an arrival, judged against the per-tab buffer when the
+  user chose tabs (`User::$pushCategories`); every other row is sent
   every StateChange. "Arrived" is decided by `PostIngestPipeline` (a live batch,
   filed in the Inbox), not by an Email being created. Mail held for the
-  assistant is not Primary yet, so `HeldMailReleaser` adds it to the Primary
+  assistant has no tab yet, so `HeldMailReleaser` adds it to the per-tab
   buffer alone when the hold ends.
 
 **Appearance glue**

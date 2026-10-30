@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\State;
 
 use App\Entity\User\User;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Jmap\Protocol\Exception\MethodException;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -48,18 +49,18 @@ final class StateManager
     private array $arrivals = [];
 
     /**
-     * The accounts on which mail arrived that a user who asked for Primary only
-     * would be told about (User::$pushPrimaryOnly).
+     * What KIND of mail arrived, per account: accountId => category value => true.
      *
-     * Mostly a subset of $arrivals: mail that landed in another tab, or is held
-     * for the assistant, is in $arrivals and not here. The exception is mail
-     * released from a hold into Primary, which is here and NOT in $arrivals,
+     * Read by the users who asked to be notified for some categories only
+     * (User::$pushCategories). Mostly a subset of $arrivals: held mail is in
+     * $arrivals and not here, because nobody knows its tab yet. The exception
+     * is mail released from a hold, which is here and NOT in $arrivals,
      * because everybody else was told when it arrived. See
      * recordReleasedArrival().
      *
-     * @var array<int,bool>
+     * @var array<int,array<string,true>>
      */
-    private array $primaryArrivals = [];
+    private array $categorisedArrivals = [];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -134,26 +135,26 @@ final class StateManager
      * Callers must be sure the message is genuinely new mail, not merely a
      * created Email. See PostIngestPipeline, the one place that decides.
      */
-    public function recordArrival(int $accountId, bool $primary = true): void
+    public function recordArrival(int $accountId, ?MessageCategory $category = MessageCategory::Primary): void
     {
         $this->arrivals[$accountId] = true;
 
-        if (true === $primary) {
-            $this->primaryArrivals[$accountId] = true;
+        if (null !== $category) {
+            $this->categorisedArrivals[$accountId][$category->value] = true;
         }
     }
 
     /**
-     * Mail the assistant has just put into Primary, which was held back when it
+     * Mail the assistant has just put into a tab, which was held back when it
      * arrived.
      *
      * Not an arrival for everybody: it was announced when it came in, before
-     * anybody knew which tab it belonged in. It is one for a user who wants
-     * Primary only, who was deliberately told nothing then.
+     * anybody knew which tab it belonged in. It is one for a user who chose
+     * categories, who was deliberately told nothing then.
      */
-    public function recordReleasedArrival(int $accountId): void
+    public function recordReleasedArrival(int $accountId, MessageCategory $category): void
     {
-        $this->primaryArrivals[$accountId] = true;
+        $this->categorisedArrivals[$accountId][$category->value] = true;
     }
 
     /**
@@ -172,18 +173,25 @@ final class StateManager
     }
 
     /**
-     * The accounts where Primary mail arrived since the last drain, emptying
-     * that buffer. See $primaryArrivals.
+     * The categories mail arrived in since the last drain, per account,
+     * emptying that buffer. See $categorisedArrivals.
      *
-     * @return list<int>
+     * @return array<int,list<MessageCategory>>
      */
-    public function drainPrimaryArrivals(): array
+    public function drainArrivalCategories(): array
     {
-        $arrived = array_map('intval', array_keys($this->primaryArrivals));
+        $byAccount = [];
 
-        $this->primaryArrivals = [];
+        foreach ($this->categorisedArrivals as $accountId => $categories) {
+            $byAccount[(int) $accountId] = array_map(
+                static fn (string $value): MessageCategory => MessageCategory::from($value),
+                array_keys($categories),
+            );
+        }
 
-        return array_values($arrived);
+        $this->categorisedArrivals = [];
+
+        return $byAccount;
     }
 
     /**

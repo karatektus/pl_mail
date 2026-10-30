@@ -127,14 +127,16 @@ Mail counts as new only once your [filters](filters.md) have run. A message a fi
 archives, or moves to Trash or Spam is not announced, and neither is mail that was already read when
 plMail fetched it — opened on your phone a moment earlier, say.
 
-**Choosing what notifies.** Two settings in **Settings → Notifications**, both off by default and
-both for you rather than for one device. **Notify for → Primary only** limits the browsers to mail
-that lands in your Primary tab; plMail decides that on the server, because the notification itself
-carries nothing the browser could judge by. Mail the assistant is still sorting is announced once it
-has been put in Primary, and nothing is sent if it ends up in another tab. The Android app narrows
-to Primary on its own and ignores this setting.
+**Choosing what notifies.** Two settings in **Settings → Notifications**, both for you rather than
+for one device. **Notify for** has a box for each inbox tab (Primary, Social, Promotions, Updates,
+Forums), all ticked until you choose; a browser is then told only about mail that lands in the tabs
+you left ticked, so "Primary only" is Primary alone. plMail decides that on the server, because the
+notification itself carries nothing the browser could judge by. Mail the assistant is still sorting
+is announced once it has been put in a tab, and only if that tab is one you ticked. At least one tab
+stays ticked: none at all would be notifications switched off, which has its own switch. This
+applies to browsers only; the Android app narrows to Primary on its own and ignores it.
 
-**Only notify for unread mail** deals with a push that cannot be recalled: with notifications on in
+**Only notify for unread mail** (off by default) deals with a push that cannot be recalled: with notifications on in
 several browsers each one says "New mail" even when you read or deleted the message on your phone a
 minute later. A browser with this on waits twenty seconds after the push and asks whether the Inbox
 still has anything unread. If not, it shows nothing, and it takes down a notification it had shown

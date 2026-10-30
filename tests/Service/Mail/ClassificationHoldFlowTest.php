@@ -250,35 +250,44 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     }
 
     /**
-     * Primary only (#369): held mail is not yet known to be Primary, so its
-     * arrival is not announced to a user who wants that, and the release is.
-     * Everybody else hears of it on arrival, as before, and not again.
+     * Notifying for chosen tabs (#369): held mail has no tab on arrival, so
+     * a user who chose tabs is not told then, and is told when the hold ends.
+     * Everybody else hears of it on arrival, and not again.
      */
-    public function testHeldMailIsPrimaryNewsOnlyWhenItIsReleased(): void
+    public function testHeldMailIsTabNewsOnlyWhenItIsReleased(): void
     {
         $this->assistantSorts();
         $this->importFinished();
 
         $state = self::getContainer()->get(StateManager::class);
         $state->drainArrivals();
-        $state->drainPrimaryArrivals();
+        $state->drainArrivalCategories();
 
         $message = $this->inboxMessage('fresh', '-1 minute');
         $this->ingest($message);
 
         self::assertTrue($message->isCategoryHeld());
         self::assertSame([(int) $message->account->id], $state->drainArrivals(), 'new mail for everybody, on arrival');
-        self::assertSame([], $state->drainPrimaryArrivals(), 'not yet known to be Primary');
+        self::assertSame([], $state->drainArrivalCategories(), 'its tab is not known yet');
+
+        $message->category = MessageCategory::Updates;
+        $this->em->flush();
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
 
-        self::assertSame(MessageCategory::Primary, $message->category, 'the fixture is Primary, or this proves nothing');
         self::assertSame([], $state->drainArrivals(), 'everybody else was already told');
-        self::assertSame([(int) $message->account->id], $state->drainPrimaryArrivals(), 'presence: Primary-only is told now');
+
+        $categories = $state->drainArrivalCategories();
+
+        self::assertSame(
+            [(int) $message->account->id => [MessageCategory::Updates]],
+            $categories,
+            'presence: users who chose tabs are told now, with the tab it ended in',
+        );
     }
 
-    /** ...and a release into another tab tells them nothing. */
-    public function testHeldMailReleasedIntoAnotherTabIsNoNewsForPrimaryOnly(): void
+    /** Mail the reader has meanwhile read is no news when its hold ends. */
+    public function testHeldMailThatWasReadMeanwhileIsNoNewsOnRelease(): void
     {
         $this->assistantSorts();
         $this->importFinished();
@@ -288,14 +297,14 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $message = $this->inboxMessage('fresh', '-1 minute');
         $this->ingest($message);
 
-        $message->category = MessageCategory::Promotions;
+        $message->seenAt = new DateTimeImmutable();
         $this->em->flush();
 
-        $state->drainPrimaryArrivals();
+        $state->drainArrivalCategories();
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
 
-        self::assertSame([], $state->drainPrimaryArrivals());
+        self::assertSame([], $state->drainArrivalCategories());
     }
 
     /**

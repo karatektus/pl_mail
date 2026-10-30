@@ -202,13 +202,13 @@ final readonly class PostIngestPipeline
             $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
 
             if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
-                // Primary only counts for a user who asked for that, and a held
-                // message is not known to be Primary yet: it is announced to
-                // them when the hold ends (HeldMailReleaser). Everybody else is
-                // told now, as they always were.
+                // Which tab it is in counts for a user who chose categories, and a
+                // held message's tab is not known yet: it is announced to them
+                // when the hold ends (HeldMailReleaser). Everybody else is told
+                // now, as they always were.
                 $this->changes->mailArrived(
                     (int) $arrived->account->id,
-                    primary: MessageCategory::Primary === $arrived->category && false === $arrived->isCategoryHeld(),
+                    true === $arrived->isCategoryHeld() ? null : ($arrived->category ?? MessageCategory::Primary),
                 );
             }
         }

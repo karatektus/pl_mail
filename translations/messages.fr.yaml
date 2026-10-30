@@ -4551,10 +4551,8 @@ settings:
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
             ajouté à l’écran d’accueil : ouvrez-le dans Safari, touchez Partager, puis
             « Sur l’écran d’accueil », et activez les notifications depuis là.
-        notify_all: 'Toute la boîte de réception'
         notify_for: 'Notifier pour'
-        notify_for_hint: 'Quel nouveau courrier déclenche une notification du navigateur. S’applique à tous vos navigateurs ; l’application Android choisit d’elle-même.'
-        notify_primary: 'Principale uniquement'
+        notify_for_hint: 'Pour quels onglets de la boîte de réception le navigateur notifie. S’applique à tous vos navigateurs ; l’application Android choisit d’elle-même. Au moins un reste activé.'
         'off': 'Désactivé'
         'on': 'Activé'
         skip_read: 'Notifier seulement le courrier non lu'

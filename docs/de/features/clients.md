@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:53d13cf0dd35cf0d5b376ad0e3b722508fa11b4b -->
+<!-- translated-from: features/clients.md sha1:448e0f236540832019a2d13b6a4f3a00fa0d5768 -->
 
 # Andere Clients
 
@@ -141,15 +141,17 @@ Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschi
 gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
 dem Handy geöffnet.
 
-**Was benachrichtigt.** Zwei Einstellungen unter **Einstellungen → Benachrichtigungen**, beide
-standardmäßig aus und beide für dich, nicht für ein einzelnes Gerät. **Benachrichtigen bei → Nur
-Primär** beschränkt die Browser auf Post, die in deinem Tab „Primär“ landet; plMail entscheidet das
-auf dem Server, weil die Benachrichtigung selbst nichts enthält, wonach der Browser urteilen könnte.
-Post, die der Assistent noch einsortiert, wird gemeldet, sobald sie in „Primär“ liegt, und gar nicht,
-wenn sie in einem anderen Tab landet. Die Android-App beschränkt sich von selbst auf „Primär“ und
-ignoriert diese Einstellung.
+**Was benachrichtigt.** Zwei Einstellungen unter **Einstellungen → Benachrichtigungen**, beide für
+dich, nicht für ein einzelnes Gerät. **Benachrichtigen bei** hat ein Kästchen für jeden Tab des
+Posteingangs (Allgemein, Soziale Netzwerke, Werbung, Benachrichtigungen, Foren), alle angekreuzt, bis du wählst; ein Browser
+erfährt dann nur von Post, die in den angekreuzten Tabs landet, „nur Allgemein“ ist also Allgemein allein.
+plMail entscheidet das auf dem Server, weil die Benachrichtigung selbst nichts enthält, wonach der
+Browser urteilen könnte. Post, die der Assistent noch einsortiert, wird gemeldet, sobald sie in einem
+Tab liegt, und nur wenn dieser Tab angekreuzt ist. Mindestens ein Tab bleibt angekreuzt: keiner wäre
+„Benachrichtigungen aus“, wofür es einen eigenen Schalter gibt. Das gilt nur für Browser; die
+Android-App beschränkt sich von selbst auf „Allgemein“ und ignoriert es.
 
-**Nur bei ungelesener Mail benachrichtigen** begegnet einem Push, der sich nicht zurückrufen lässt:
+**Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht zurückrufen lässt:
 Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch wenn du die
 Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit dieser Option
 wartet nach dem Push zwanzig Sekunden und fragt, ob im Posteingang noch etwas Ungelesenes liegt.
