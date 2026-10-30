@@ -2403,6 +2403,10 @@ label:
             make_folder_mail: '此账户上带有此标签的 %count% 封邮件将移入其中。'
             make_folder_nested: '其上级“%parent%”也会在那里成为文件夹。'
             make_folder_stay: '废纸篓、垃圾邮件、已发送和草稿中的邮件保持不动。'
+            make_label: '设为标签'
+            make_label_body: '删除 %account% 上的文件夹“%name%”。标签会保留并作为标记，重新加到移动后的邮件上。'
+            make_label_failed_moved: '已移动的邮件不再带有此标签；文件夹删除后请重新添加。'
+            make_label_mail: '此文件夹中的 %count% 封邮件需要先移到别处。'
             manage: '按账户更改'
             title: '此标签保存在哪里'
     menu:

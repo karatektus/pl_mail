@@ -2734,6 +2734,10 @@ label:
             make_folder_mail: '%count% messages portant ce libellé sur ce compte y seront déplacés.'
             make_folder_nested: 'Son parent « %parent% » y devient aussi un dossier.'
             make_folder_stay: 'Le courrier de la corbeille, des spams, des envoyés et des brouillons reste où il est.'
+            make_label: 'En faire un libellé'
+            make_label_body: 'Supprime le dossier « %name% » sur %account%. Le libellé reste, comme étiquette, et revient sur le courrier déplacé.'
+            make_label_failed_moved: 'Le courrier déplacé n’a plus ce libellé ; ajoutez-le de nouveau une fois le dossier supprimé.'
+            make_label_mail: '%count% messages de ce dossier doivent d’abord aller ailleurs.'
             manage: 'Modifier par compte'
             title: 'Où ce libellé est conservé'
     menu:

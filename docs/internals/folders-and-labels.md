@@ -288,8 +288,14 @@ that message, and the answer redraws that message's chips (`message_labels_{id}`
 offers **Make it a folder** on each plain IMAP and Microsoft account where the label is not one
 (`LabelFolderMaker`). A nested label's parent becomes a folder first. The dialog counts the mail
 that will move; `MakeLabelFolderHandler` then moves it, leaving Trash, Spam, Sent and Drafts alone,
-and on Outlook removes the master category. The way back, a folder into a tag, is not built: its mail
-would need somewhere to go.
+and on Outlook removes the master category.
+
+**Make it a label** is the way back, offered where the folder has no folder under it. The dialog asks
+where the mail goes; `MakeLabelTagHandler` moves it, deletes the folder once the server says it is
+empty, and puts the label back on the moved mail, which is a tag there by then. The label is off the
+mail in between, because a message wearing a folder's label says it is in that folder, and on Outlook
+the next push would move it back. If the folder never empties the job fails, the folder stays, and
+the moved mail stays where it went without the label.
 
 ## Later steps
 

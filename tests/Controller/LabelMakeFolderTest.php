@@ -190,6 +190,55 @@ final class LabelMakeFolderTest extends WebTestCase
         self::assertSame($account->id, $job->view['accountId'] ?? null);
     }
 
+    public function testAFolderAsksWhereItsMailGoesAndStartsAJob(): void
+    {
+        $account  = $this->imap('tag-mail');
+        $other    = $this->imap('tag-other');
+        $label    = $this->label('Tag Mail');
+        $sibling  = $this->label('Tag Sibling');
+        $foreign  = $this->label('Tag Foreign');
+        $this->makeFolderOn($label, $account);
+        $this->makeFolderOn($sibling, $account);
+        $this->makeFolderOn($foreign, $other);
+
+        $message = $this->message($account, 'tag');
+        $message->addLabel($label);
+        $this->em->flush();
+
+        $url     = '/labels/' . $label->id . '/tag-on/' . $account->id;
+        $crawler = $this->client->request('GET', $url);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('1', $crawler->filter('[data-label-make-tag-count]')->attr('data-label-make-tag-count'));
+
+        $values = $crawler->filter('select option')->each(static fn ($o): string => (string) $o->attr('value'));
+
+        self::assertContains('label:' . $sibling->id, $values);
+        self::assertNotContains('label:' . $foreign->id, $values, 'a folder on another account is no place for this mail');
+
+        $token = (string) $crawler->filter('form input[name=_token]')->attr('value');
+
+        $this->client->request('POST', $url, ['_token' => $token]);
+        self::assertResponseStatusCodeSame(422);
+
+        $this->client->request('POST', $url, ['_token' => $token, 'label_delete' => ['destination' => 'label:' . $sibling->id]]);
+        self::assertResponseIsSuccessful();
+
+        $job = $this->em->getRepository(BackgroundJob::class)->findOneBy(['usr' => $this->user->id], ['id' => 'DESC']);
+
+        self::assertSame($sibling->id, $job?->view['destinationId'] ?? null);
+    }
+
+    public function testATagHasNoWayBackToOffer(): void
+    {
+        $account = $this->imap('tag-none');
+        $label   = $this->label('Tag None');
+
+        $this->client->request('GET', '/labels/' . $label->id . '/tag-on/' . $account->id);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     private function post(Label $label, Account $account, ?string $refuse = null): void
     {
         $this->server         = new FakeFolderServer(static::getContainer()->get(ImapLoop::class));
@@ -223,6 +272,7 @@ final class LabelMakeFolderTest extends WebTestCase
         $mailbox->fullPath      = (string) $label->name;
         $mailbox->delimiter     = '/';
         $mailbox->isSyncEnabled = true;
+        $mailbox->importFloorUid = 0;
         $this->em->persist($mailbox);
 
         $binding = $this->labelResolver()->binding($label, $account);

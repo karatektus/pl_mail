@@ -2599,6 +2599,10 @@ label:
             make_folder_mail: '%count% yarns flyin'' this flag on this ship be stowed in it.'
             make_folder_nested: 'Its parent “%parent%” becomes a hold there too.'
             make_folder_stay: 'Yarns in the Brig, Spam, Sent an'' Drafts stay where they be.'
+            make_label: 'Make it a flag'
+            make_label_body: 'Scuttles the hold “%name%” on %account%. The flag stays, as a tag there, an'' goes back on the yarns that move.'
+            make_label_failed_moved: 'The moved yarns no longer fly this flag; hoist it again once the hold be gone.'
+            make_label_mail: '%count% yarns in this hold must go elsewhere first.'
             manage: 'Change per ship'
             title: 'Where this flag be kept'
     menu:

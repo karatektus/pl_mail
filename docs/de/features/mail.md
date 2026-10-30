@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:05a21f984d8f556b978d82d39d9b546b5ab2cb3a -->
+<!-- translated-from: features/mail.md sha1:bfa8370895bd295821b9a383b1b2e258cf4c1a07 -->
 
 # Mail
 
@@ -599,6 +599,9 @@ und verschiebt nichts.
 
 Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
 Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.
+
+**Zum Label machen** tut das Gegenteil, bei einem Ordner ohne Unterordner. Wähle, wohin seine Nachrichten sollen; plMail verschiebt sie, löscht den Ordner auf dem Server und setzt das Label wieder als Markierung an diese Nachrichten.
+Behält der Server Nachrichten im Ordner, schlägt der Auftrag mit einem Hinweis fehl: Der Ordner bleibt, und bereits verschobene Nachrichten bleiben ohne das Label dort, wohin sie verschoben wurden.
 
 ### Verschieben nach
 

@@ -39,7 +39,7 @@ final readonly class LabelPlaces
     }
 
     /**
-     * @return list<array{account: Account, state: string}>
+     * @return list<array{account: Account, state: string, canBecomeTag: bool}>
      */
     public function of(Label $label, User $user): array
     {
@@ -50,10 +50,42 @@ final readonly class LabelPlaces
                 continue;
             }
 
-            $places[] = ['account' => $account, 'state' => $this->stateOn($label, $account)];
+            $places[] = [
+                'account'      => $account,
+                'state'        => $this->stateOn($label, $account),
+                'canBecomeTag' => $this->canBecomeTag($label, $account),
+            ];
         }
 
         return $places;
+    }
+
+    /**
+     * Whether this folder can stop being one: not a system place, and with no
+     * folder under it, because deleting one with folders inside is refused
+     * (ImapFolderManager::delete()) and Exchange would take them with it.
+     */
+    public function canBecomeTag(Label $label, Account $account): bool
+    {
+        if (null !== $label->role || true === $label->isSystem || (false === $account->isPlainImap() && false === $account->isMicrosoft())) {
+            return false;
+        }
+
+        $binding = $label->bindingFor($account);
+
+        if (null === $binding || (null === $binding->mailbox && null === $binding->graphFolderId) || null !== $binding->mailbox?->specialUse) {
+            return false;
+        }
+
+        foreach ($label->children as $child) {
+            $childBinding = $child->bindingFor($account);
+
+            if (null !== $childBinding?->mailbox || null !== $childBinding?->graphFolderId) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function stateOn(Label $label, Account $account): string

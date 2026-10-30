@@ -544,6 +544,11 @@ Mail with that label on that account moves into the new folder, except mail in T
 Drafts, and the dialog says how many messages will move first. On Outlook the category of that name
 is removed.
 
+**Make it a label** does the reverse on a folder with no folders inside it. Choose where its mail goes;
+plMail moves the mail, deletes the folder on the server and puts the label back on that mail as a tag.
+If the server keeps mail in the folder, the job fails and says so: the folder stays, and the mail already
+moved stays where it went, without the label.
+
 ### Move to
 
 The folder button — beside **Delete** in the toolbar above a selection, and beside the label

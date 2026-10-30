@@ -316,6 +316,7 @@ framework:
             App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
             # And so is filing a label's mail into the folder it has just become.
             App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
+            App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk
 
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export

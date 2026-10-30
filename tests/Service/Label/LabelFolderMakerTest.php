@@ -12,12 +12,15 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\MakeLabelFolderHandler;
+use App\Infrastructure\Messaging\Handler\MakeLabelTagHandler;
 use App\Infrastructure\Messaging\Message\MakeLabelFolderMessage;
+use App\Infrastructure\Messaging\Message\MakeLabelTagMessage;
 use App\Repository\Job\BackgroundJobRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
@@ -27,7 +30,9 @@ use App\Service\Imap\ImapFolderManager;
 use App\Service\Job\JobNotifier;
 use App\Service\Label\LabelFolderMaker;
 use App\Service\Label\LabelNotifier;
+use App\Service\Label\LabelPlaces;
 use App\Service\Label\LabelResolver;
+use App\Service\Label\RemoteLabelRemover;
 use App\Service\Mail\GraphApiClient;
 use App\Service\OAuth\OAuthTokenManager;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -37,7 +42,10 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * A label becoming an Outlook folder: the folder, then its mail, then the
@@ -197,6 +205,161 @@ final class LabelFolderMakerTest extends KernelTestCase
         $this->em->persist($message);
 
         return $message;
+    }
+
+    /**
+     * The way back: the mail leaves with the label off, the folder goes only
+     * once the server says it is empty, and the label returns as a tag.
+     */
+    public function testAFolderBecomesATagAndItsMailKeepsTheLabel(): void
+    {
+        [$jobId, $labelId, $messageId, $archiveId, $accountId] = $this->folderWithMail();
+
+        $bus = $this->bus();
+        $this->tagHandler(serverIsEmpty: true, bus: $bus)(new MakeLabelTagMessage($jobId));
+
+        $this->em->clear();
+
+        $labels = $this->labelIds($messageId);
+
+        self::assertNotContains($labelId, $labels, 'off while the folder still exists');
+        self::assertContains($archiveId, $labels);
+        self::assertInstanceOf(MakeLabelTagMessage::class, $bus->sent[0] ?? null);
+
+        $this->tagHandler(serverIsEmpty: true, bus: $bus)($bus->sent[0]);
+
+        $this->em->clear();
+
+        $labels = $this->labelIds($messageId);
+
+        self::assertContains($labelId, $labels, 'back on, as a tag');
+        self::assertContains($archiveId, $labels, 'and it did not move back');
+        self::assertNull($this->em->find(Label::class, $labelId)?->bindingFor($this->em->find(Account::class, $accountId))?->graphFolderId);
+        self::assertSame(JobState::Done, $this->em->find(BackgroundJob::class, $jobId)?->state);
+        self::assertArrayNotHasKey('movedIds', (array) $this->em->find(BackgroundJob::class, $jobId)?->view);
+    }
+
+    public function testAFolderThatNeverEmptiesFailsAndStays(): void
+    {
+        [$jobId, $labelId, , , $accountId] = $this->folderWithMail();
+
+        $bus = $this->bus();
+        $this->tagHandler(serverIsEmpty: false, bus: $bus)(new MakeLabelTagMessage($jobId, MakeLabelTagMessage::PHASE_MOVE));
+        $this->tagHandler(serverIsEmpty: false, bus: $bus)(new MakeLabelTagMessage($jobId, MakeLabelTagMessage::PHASE_REMOTE, 39));
+
+        $this->em->clear();
+
+        $job = $this->em->find(BackgroundJob::class, $jobId);
+
+        self::assertSame(JobState::Failed, $job?->state);
+        self::assertSame('folder-tag', $this->em->find(Label::class, $labelId)?->bindingFor($this->em->find(Account::class, $accountId))?->graphFolderId);
+    }
+
+    public function testAFolderWithAFolderInsideCannotBecomeATag(): void
+    {
+        $account  = $this->microsoft();
+        $parent   = $this->label('Maker Outer');
+        $child    = $this->label('Maker Inner', $parent);
+        $resolver = self::getContainer()->get(LabelResolver::class);
+        $places   = self::getContainer()->get(LabelPlaces::class);
+
+        $resolver->binding($parent, $account)->graphFolderId = 'folder-outer';
+        $this->em->flush();
+        $this->em->refresh($parent);
+
+        self::assertFalse($places->canBecomeTag($child, $account), 'not a folder yet');
+
+        $resolver->binding($child, $account)->graphFolderId = 'folder-inner';
+        $this->em->flush();
+        $this->em->refresh($parent);
+        $this->em->refresh($child);
+
+        self::assertFalse($places->canBecomeTag($parent, $account));
+        self::assertTrue($places->canBecomeTag($child, $account));
+    }
+
+    /** @return array{int, int, int, int, int} job, label, message, archive, account */
+    private function folderWithMail(): array
+    {
+        $account  = $this->microsoft();
+        $label    = $this->label('Maker Tag');
+        $resolver = self::getContainer()->get(LabelResolver::class);
+        $archive  = $resolver->userSystemLabel(LabelRole::Archive, $this->user);
+
+        $resolver->binding($label, $account)->graphFolderId = 'folder-tag';
+
+        $message = $this->message($account);
+        $message->addLabel($label);
+
+        $job       = new BackgroundJob($this->user, JobKind::MoveTo);
+        $job->view = ['scope' => 'label', 'value' => (string) $label->id, 'unreadOnly' => false, 'labelId' => $label->id, 'accountId' => $account->id, 'destinationId' => $archive->id];
+        $this->em->persist($job);
+        $this->em->flush();
+
+        return [(int) $job->id, (int) $label->id, (int) $message->id, (int) $archive->id, (int) $account->id];
+    }
+
+    /** @return list<int|null> */
+    private function labelIds(int $messageId): array
+    {
+        return $this->em->find(Message::class, $messageId)->labels->map(static fn (Label $l): ?int => $l->id)->toArray();
+    }
+
+    /** @return MessageBusInterface&object{sent: list<object>} */
+    private function bus(): MessageBusInterface
+    {
+        return new class implements MessageBusInterface {
+            /** @var list<object> */
+            public array $sent = [];
+
+            public function dispatch(object $message, array $stamps = []): Envelope
+            {
+                $this->sent[] = $message;
+
+                return new Envelope($message, $stamps);
+            }
+        };
+    }
+
+    private function tagHandler(bool $serverIsEmpty, MessageBusInterface $bus): MakeLabelTagHandler
+    {
+        $container = self::getContainer();
+
+        $remover = new readonly class ($serverIsEmpty) extends RemoteLabelRemover {
+            public function __construct(private bool $empty)
+            {
+            }
+
+            public function remove(LabelBinding $binding): bool
+            {
+                if (true === $this->empty) {
+                    $binding->graphFolderId = null;
+                }
+
+                return $this->empty;
+            }
+
+            public function prepareDestination(Account $account, LabelRole $role): bool
+            {
+                return true;
+            }
+        };
+
+        return new MakeLabelTagHandler(
+            $container->get(BackgroundJobRepository::class),
+            $container->get(LabelRepository::class),
+            $container->get(AccountRepository::class),
+            $container->get(MessageRepository::class),
+            $remover,
+            $container->get(ThreadStatusUpdater::class),
+            $container->get(LabelNotifier::class),
+            $container->get(JobNotifier::class),
+            $bus,
+            $container->get(UrlGeneratorInterface::class),
+            $container->get(TranslatorInterface::class),
+            $this->em,
+            new NullLogger(),
+        );
     }
 
     /** @param list<string> $answers */

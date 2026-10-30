@@ -2721,6 +2721,10 @@ label:
             make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
             make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
             make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
+            make_label: 'Zum Label machen'
+            make_label_body: 'Löscht den Ordner „%name%“ auf %account%. Das Label bleibt dort als Markierung und kommt wieder an die verschobenen Nachrichten.'
+            make_label_failed_moved: 'Die verschobenen Nachrichten haben dieses Label nicht mehr; füge es wieder hinzu, sobald der Ordner weg ist.'
+            make_label_mail: '%count% Nachrichten in diesem Ordner müssen zuerst woandershin.'
             manage: 'Pro Konto ändern'
             title: 'Wo dieses Label liegt'
     menu:
