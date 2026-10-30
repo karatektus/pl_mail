@@ -4294,10 +4294,14 @@ settings:
             On iPhone and iPad, the lookout only calls once plMail be added to
             the Home Screen: open her in Safari, tap Share, then "Add to Home
             Screen", and allow the callin' from there.
+        notify_all: 'All o'' the Inbox'
+        notify_for: 'Sound the bell for'
+        notify_for_hint: 'Which new bottles make a notice in yer browser. Holds for all yer browsers; the Android app picks for itself.'
+        notify_primary: 'Primary only'
         'off': Off
         'on': On
-        skip_read: "Skip bottles already read"
-        skip_read_hint: "A notice in yer browser waits a spell, then sinks if no unread bottle be left in yer Inbox, say because ye read or sunk it on yer phone. Holds for all yer browsers; off, every new bottle sounds the bell at once."
+        skip_read: 'Only for bottles still unread'
+        skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if any unread bottle be left in yer Inbox. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-
             Barred in yer browser settin's. Allow the lookout to call for this
             site, then try again.

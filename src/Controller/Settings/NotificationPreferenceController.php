@@ -17,10 +17,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Settings → Notifications: what a notification is worth showing, for the
  * whole user rather than one device.
  *
- * Today that is one switch, "skip mail that is already read" (User::$pushSkipsRead).
- * It is not enforced here: the browser's service worker reads it back through
- * WebPushController::inboxState() when a push arrives, so this controller only
- * records the choice. Which devices exist is PushDeviceController's business.
+ * Two choices, both for the browsers: which mail notifies (User::$pushPrimaryOnly,
+ * enforced where the push is sent, in PushDispatcher) and whether mail that is
+ * already read is skipped (User::$pushSkipsRead, read back by the service worker
+ * through WebPushController::inboxState()). This controller only records them.
+ * Which devices exist is PushDeviceController's business.
  */
 #[IsGranted('ROLE_USER')]
 final class NotificationPreferenceController extends AbstractController
@@ -39,6 +40,10 @@ final class NotificationPreferenceController extends AbstractController
         // form that did not mention the switch must not move it.
         if (true === $request->request->has('skipRead')) {
             $user->pushSkipsRead = '1' === (string) $request->request->get('skipRead');
+        }
+
+        if (true === $request->request->has('notifyFor')) {
+            $user->pushPrimaryOnly = 'primary' === (string) $request->request->get('notifyFor');
         }
 
         $em->flush();

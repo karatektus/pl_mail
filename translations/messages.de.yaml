@@ -4515,14 +4515,14 @@ settings:
             plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
             Teilen tippen, dann "Zum Home-Bildschirm", und dort
             Benachrichtigungen aktivieren.
+        notify_all: 'Gesamter Posteingang'
+        notify_for: 'Benachrichtigen bei'
+        notify_for_hint: 'Welche neue Post eine Browser-Benachrichtigung auslöst. Gilt für alle deine Browser; die Android-App entscheidet selbst.'
+        notify_primary: 'Nur Primär'
         'off': 'Aus'
         'on': 'An'
-        skip_read: Bereits gelesene Mail überspringen
-        skip_read_hint: >-
-            Eine Browser-Benachrichtigung wartet einen Moment und entfällt, wenn
-            im Posteingang nichts Ungelesenes mehr liegt, etwa weil du die Mail
-            auf dem Handy gelesen oder gelöscht hast. Gilt für alle deine
-            Browser; aus meldet jede neue Nachricht sofort.
+        skip_read: 'Nur bei ungelesener Mail benachrichtigen'
+        skip_read_hint: 'Bevor eine Browser-Benachrichtigung erscheint, wartet plMail einige Sekunden und prüft, ob im Posteingang noch Ungelesenes liegt. Hast du die Nachricht schon gelesen oder gelöscht, etwa auf dem Handy, erscheint nichts.'
         state_denied: >-
             In deinen Browser-Einstellungen blockiert. Erlaube
             Benachrichtigungen für diese Seite und versuche es erneut.

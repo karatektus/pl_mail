@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\MessageThreadRepository;
@@ -87,6 +89,20 @@ final readonly class HeldMailReleaser
         $this->threads->recomputeCategoriesForThreads(array_keys($threadIds));
 
         $this->announce($released);
+
+        // The verdict is in, so "is this Primary" can finally be answered for
+        // the user who wants Primary only. The same tests the pipeline applied
+        // on arrival, asked again because the mail may have been read, filed or
+        // sorted into another tab in the meantime.
+        foreach ($released as $message) {
+            if (ArrivalPlace::Inbox === $message->arrivedIn
+                && null === $message->seenAt
+                && true === $message->isInInbox()
+                && false === $message->isSetAside()
+                && MessageCategory::Primary === $message->category) {
+                $this->changes->mailReleasedToPrimary((int) $message->account->id);
+            }
+        }
 
         return count($released);
     }

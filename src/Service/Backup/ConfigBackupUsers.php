@@ -219,6 +219,13 @@ final readonly class ConfigBackupUsers
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which mail a browser notifies for, and whether it skips mail already
+        // read (#369). Choices about how one wants to be interrupted, which a
+        // restore must not quietly undo: back to a notification for every
+        // promotion is exactly what these were switched on to stop. Booleans,
+        // no id, meaning the same on any install.
+        User::SETTING_PUSH_PRIMARY_ONLY,
+        User::SETTING_PUSH_SKIP_READ,
         // Whether an account's own inbox has the category tabs. How the
         // mailbox is drawn, like the reading pane above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,

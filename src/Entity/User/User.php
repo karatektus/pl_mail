@@ -1394,6 +1394,30 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
+     * Whether a browser is told only about new mail in the Primary tab, rather
+     * than about everything that lands in the Inbox.
+     *
+     * A web push is content-free, so the browser cannot tell a Primary message
+     * from a promotion and notified for both. The server can, which is why the
+     * choice is made where the push is sent (PushDispatcher). Per USER, not per
+     * device, and for the browsers only: the Android app narrows to Primary by
+     * itself.
+     *
+     * OFF unless somebody switches it on, so nothing changes for anybody who
+     * does not. Only a stored true is on, so the key is absent for nearly
+     * everybody and no migration writes it.
+     */
+    public const string SETTING_PUSH_PRIMARY_ONLY = 'notifications.primary_only';
+
+    /** Virtual, out of the settings bag — see SETTING_PUSH_PRIMARY_ONLY. */
+    public bool $pushPrimaryOnly {
+        get => true === $this->getSetting(self::SETTING_PUSH_PRIMARY_ONLY, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_PUSH_PRIMARY_ONLY, $on ? true : null);
+        }
+    }
+
+    /**
      * How mail goes out once plMail can encrypt it — Settings → Encryption →
      * Sending. Four switches in the settings bag, each stored only when it
      * differs from its default, like the two above.

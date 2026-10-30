@@ -297,6 +297,36 @@ final class PostIngestPipelineTest extends KernelTestCase
      * would set it at persist. The stamper itself needs provider headers this
      * fixture does not carry, so the place is written here.
      */
+    /**
+     * Primary only is judged on the server, so the pipeline has to say which
+     * arrivals are Primary: an Inbox arrival Gmail filed under Promotions is
+     * new mail for everybody and Primary mail for nobody.
+     */
+    public function testAPromotionArrivesButIsNotPrimaryMail(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+        $state->drainPrimaryArrivals();
+
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $promotion = $this->seedArrival(ArrivalPlace::Inbox);
+        $promotion->gmailLabelIds = ['INBOX', 'CATEGORY_PROMOTIONS'];
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [new IngestedMessage($promotion, $this->account)]);
+
+        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'it is new mail');
+        self::assertSame([], $state->drainPrimaryArrivals(), 'a promotion is not Primary mail');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+
+        self::assertSame([(int) $this->account->id], $state->drainPrimaryArrivals(), 'presence: an ordinary arrival is Primary');
+    }
+
     private function seedArrival(?ArrivalPlace $arrivedIn): Message
     {
         $message = $this->seedMessage('arrival-' . uniqid('', true));

@@ -13,8 +13,8 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * Settings → Notifications → "Skip mail that is already read" (#369), and the
- * answer the service worker reads it back through.
+ * Settings → Notifications → "Notify for" and "Only notify for unread mail" (#369),
+ * and the answer the service worker reads the second back through.
  *
  * What the worker does with the answer is JavaScript and is not tested here.
  * What is worth pinning is the server's half: the switch is off for somebody
@@ -96,6 +96,28 @@ final class NotificationPreferenceTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
         self::assertFalse($this->reread()->pushSkipsRead);
+    }
+
+    public function testNotifyForIsAllUntilPrimaryOnlyIsChosen(): void
+    {
+        self::assertFalse($this->user->pushPrimaryOnly);
+
+        $page = $this->client->request('GET', '/settings?section=notifications');
+
+        self::assertSame('all', $page->filter('input[name="notifyFor"]:checked')->attr('value'));
+
+        $this->post(['notifyFor' => 'primary']);
+
+        self::assertTrue($this->reread()->pushPrimaryOnly);
+
+        // A post that does not mention it leaves it alone; "all" is the absent key.
+        $this->post(['skipRead' => '1']);
+        self::assertTrue($this->reread()->pushPrimaryOnly);
+
+        $this->post(['notifyFor' => 'all']);
+
+        self::assertFalse($this->reread()->pushPrimaryOnly);
+        self::assertNull($this->reread()->getSetting(User::SETTING_PUSH_PRIMARY_ONLY));
     }
 
     public function testTheEndpointReportsTheSettingAndTheInboxUnread(): void

@@ -46,14 +46,16 @@ final class PushDispatcher
     /**
      * @param array<int,array<string,string>> $changed           accountId => type => state
      * @param list<int>                       $arrivedAccountIds accounts on which mail arrived since the last drain
+     * @param list<int>                       $primaryArrivedIds accounts on which Primary mail arrived, or was released into it
      */
-    public function dispatch(array $changed, array $arrivedAccountIds): void
+    public function dispatch(array $changed, array $arrivedAccountIds, array $primaryArrivedIds = []): void
     {
         if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
 
-        $arrived = array_map('intval', $arrivedAccountIds);
+        $arrived        = array_map('intval', $arrivedAccountIds);
+        $primaryArrived = array_map('intval', $primaryArrivedIds);
 
         foreach ($this->groupByUser($changed) as $userId => $userChanges) {
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
@@ -73,7 +75,16 @@ final class PushDispatcher
                 // Judged per user, not per change: a StateChange for this user's
                 // own mail is what the PWA is waiting for, and another user's
                 // arrival says nothing about it.
-                if (true === $subscription->arrivalsOnly && false === $this->anyArrived($userChanges, $arrived)) {
+                //
+                // And judged by what this user asked to hear about: a user who
+                // wants Primary only is told of the arrivals that are Primary,
+                // which is a different set from "mail arrived" (see
+                // StateManager::$primaryArrivals). Android narrows to Primary
+                // on its own and is not an arrivals-only row, so this reaches
+                // the browser and nothing else.
+                $relevant = true === $subscription->usr->pushPrimaryOnly ? $primaryArrived : $arrived;
+
+                if (true === $subscription->arrivalsOnly && false === $this->anyArrived($userChanges, $relevant)) {
                     continue;
                 }
 

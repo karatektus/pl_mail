@@ -1,14 +1,17 @@
 {#
 settings/_notification_preferences.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-What a notification is worth showing, for the whole user and not one device:
-today, whether a browser push for mail that has been read in the meantime is
-dropped. The service worker reads the choice back when a push arrives.
+What a browser notification is worth showing, for the whole user and not one
+device: which mail notifies (everything in the Inbox, or Primary only), and
+whether mail that has been read in the meantime is dropped. The first is decided
+where the push is sent, the second by the service worker, which reads it back
+when a push arrives.
 
 A plain form that submits on change and redirects, like the Disposal card.
 
 Accepts:
-  skipRead  bool
+  skipRead     bool
+  primaryOnly  bool
 #}
 {% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
                   peer-checked:bg-accent peer-checked:text-accent-ink
@@ -16,10 +19,30 @@ Accepts:
                   transition-colors cursor-pointer' %}
 
 <form method="post" action="{{ path('app_settings_notifications_update') }}"
-      class="px-4 py-3 border-t border-line" data-controller="ui--auto-submit">
+      class="border-t border-line" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-notifications') }}">
 
-    <div class="flex items-start justify-between gap-3">
+    <div class="px-4 py-3 flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.notify_for'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.notify_for_hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.notifications.notify_for'|trans }}">
+            {% for value, label in { all: 'settings.notifications.notify_all', primary: 'settings.notifications.notify_primary' } %}
+                <label>
+                    <input type="radio" name="notifyFor" class="peer sr-only"
+                           value="{{ value }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ (primaryOnly ? 'primary' : 'all') == value ? 'checked' : '' }}>
+                    <span class="{{ segText }}">{{ label|trans }}</span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="px-4 py-3 border-t border-line flex items-start justify-between gap-3">
         <span class="min-w-0">
             <span class="block text-xs font-medium text-ink-muted">{{ 'settings.notifications.skip_read'|trans }}</span>
             <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.notifications.skip_read_hint'|trans }}</span>

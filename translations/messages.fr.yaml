@@ -4551,15 +4551,14 @@ settings:
             Sur iPhone et iPad, les notifications ne fonctionnent qu’une fois plMail
             ajouté à l’écran d’accueil : ouvrez-le dans Safari, touchez Partager, puis
             « Sur l’écran d’accueil », et activez les notifications depuis là.
+        notify_all: 'Toute la boîte de réception'
+        notify_for: 'Notifier pour'
+        notify_for_hint: 'Quel nouveau courrier déclenche une notification du navigateur. S’applique à tous vos navigateurs ; l’application Android choisit d’elle-même.'
+        notify_primary: 'Principale uniquement'
         'off': 'Désactivé'
         'on': 'Activé'
-        skip_read: Ignorer le courrier déjà lu
-        skip_read_hint: >-
-            Une notification du navigateur attend un instant, puis disparaît s’il
-            ne reste rien de non lu dans votre boîte de réception, par exemple
-            parce que vous avez lu ou supprimé le message sur votre téléphone.
-            S’applique à tous vos navigateurs ; désactivé, chaque nouveau message
-            notifie aussitôt.
+        skip_read: 'Notifier seulement le courrier non lu'
+        skip_read_hint: 'Avant d’afficher une notification du navigateur, plMail attend quelques secondes et vérifie s’il reste du courrier non lu dans votre boîte de réception. Si vous avez déjà lu ou supprimé le message, par exemple sur votre téléphone, rien n’est affiché.'
         state_denied: >-
             Bloquées dans les réglages de votre navigateur. Autorisez les notifications
             pour ce site, puis réessayez.
