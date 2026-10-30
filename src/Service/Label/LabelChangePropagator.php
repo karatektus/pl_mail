@@ -7,7 +7,9 @@ namespace App\Service\Label;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageLocation;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
@@ -223,12 +225,18 @@ final readonly class LabelChangePropagator
      *
      * @param iterable<Message> $messages
      */
-    public function detachLabel(iterable $messages, Label $label): void
+    public function detachLabel(iterable $messages, Label $label, bool $moveOnImap = true): void
     {
         $this->dispatchGmail($messages, ['add' => [], 'remove' => [(string) $label->id]]);
         $this->dispatchGraph($messages);
         $this->dispatchJmap($messages, remove: [self::entryFor($label)]);
         $this->dispatchKeywords($messages, $label, false);
+
+        // A caller that moves the copies itself (ThreadStatusUpdater's folder
+        // move, moveCopies()) takes the label off without a second move.
+        if (false === $moveOnImap) {
+            return;
+        }
 
         // ── IMAP location handling ────────────────────────────────────────
         /** @var array<string, array<int,int>> $moves  destinationPath → messageId => sourceMailboxId */
@@ -277,6 +285,90 @@ final readonly class LabelChangePropagator
         if (count($archives) > 0) {
             $this->dispatchFlags($archives, 'archive');
         }
+    }
+
+    /**
+     * Move mail into a folder, as a move and nothing else (#221 step 3).
+     *
+     * The copy moved is the one in $from — the folder the list was showing —
+     * where the message has one there, and its primary copy otherwise: from a
+     * search or a tag nothing names a folder, and the primary is where the
+     * message is. Other copies (All Mail, a label folder on Gmail, one another
+     * client made) are the server's, and stay where they are.
+     *
+     * Into the folder $destination is on the copy's account. On an account
+     * where it is no folder — a tag there — the copy goes to the archive: the
+     * tag goes on through attachLabel(), and the mail leaves the list it was
+     * in, which is Gmail's meaning of moving to a label. Never a folder made
+     * for the occasion: that would turn the label from a tag into a place on
+     * that account, under mail already tagged with it.
+     *
+     * It used to happen inside detachLabel(): taking off the label of the
+     * folder the mail was in was the move, and where it went was inferred from
+     * what labels were left. That inference is what made a label menu able to
+     * move mail.
+     *
+     * IMAP only; the other providers move through attachLabel() as before.
+     * No re-point: the copy keeps its address until the server says where it
+     * landed (#415).
+     *
+     * @param iterable<Message> $messages
+     */
+    public function moveCopies(iterable $messages, Label $destination, ?Mailbox $from = null): void
+    {
+        /** @var array<string, array<int,int>> $moves destination path → message id => source mailbox id */
+        $moves = [];
+        /** @var array<string, array<int,int>> $moveUids destination path → message id => source UID */
+        $moveUids = [];
+        /** @var array<int,int> $archives message id => source mailbox id */
+        $archives = [];
+        /** @var array<int,int> $archiveUids message id => source UID */
+        $archiveUids = [];
+
+        foreach ($messages as $message) {
+            $copy = (null === $from ? null : self::copyIn($message, $from))
+                ?? $message->locationAt($message->mailbox, $message->imapUid);
+
+            if (null === $copy || null === $copy->imapUid || null === $message->id) {
+                continue;
+            }
+
+            $target = $destination->bindingFor($copy->mailbox->account)?->mailbox;
+
+            if ($target === $copy->mailbox) {
+                continue;
+            }
+
+            if (null === $target) {
+                $archives[$message->id]    = (int) $copy->mailbox->id;
+                $archiveUids[$message->id] = $copy->imapUid;
+
+                continue;
+            }
+
+            $moves[(string) $target->fullPath][$message->id]    = (int) $copy->mailbox->id;
+            $moveUids[(string) $target->fullPath][$message->id] = $copy->imapUid;
+        }
+
+        foreach ($moves as $destinationPath => $idMap) {
+            $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, 'move', $destinationPath, $moveUids[$destinationPath]));
+        }
+
+        if ([] !== $archives) {
+            $this->bus->dispatch(new ApplyImapFlagsMessage($archives, 'archive', null, $archiveUids));
+        }
+    }
+
+    /** The message's copy in this folder that the server has given a UID, if any. */
+    private static function copyIn(Message $message, Mailbox $folder): ?MessageLocation
+    {
+        foreach ($message->locations as $location) {
+            if ($location->mailbox === $folder && null !== $location->imapUid) {
+                return $location;
+            }
+        }
+
+        return null;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

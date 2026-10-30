@@ -334,7 +334,7 @@ final readonly class ThreadStatusUpdater
      *
      * @param list<Message> $messages
      */
-    public function move(array $messages, Label $destination): void
+    public function move(array $messages, Label $destination, ?Mailbox $from = null): void
     {
         $this->dropSnooze($messages);
 
@@ -342,7 +342,7 @@ final readonly class ThreadStatusUpdater
             LabelRole::Inbox   => $this->restore($messages),
             LabelRole::Archive => $this->archive($messages),
             LabelRole::Trash   => $this->trash($messages),
-            default            => $this->moveToFolder($messages, $destination),
+            default            => $this->moveToFolder($messages, $destination, $from),
         };
     }
 
@@ -868,17 +868,26 @@ final readonly class ThreadStatusUpdater
      *
      * @param list<Message> $messages
      */
-    private function moveToFolder(array $messages, Label $destination): void
+    private function moveToFolder(array $messages, Label $destination, ?Mailbox $from = null): void
     {
         $sources = [];
 
         foreach ($messages as $message) {
+            // From a folder the message has a copy in, only that folder's
+            // label comes off: the copy there is the one that moves (#221
+            // step 3), and a copy in Archive or All Mail stays where it is.
+            $viewedHere = null !== $from && true === self::hasCopyIn($message, $from);
+
             foreach ($this->locationLabelsOf($message) as $label) {
                 if ($label === $destination) {
                     // Already here. Detaching and re-attaching the same label
                     // would be a physical move to the folder the mail is in,
                     // which some servers answer by giving it a new UID and
                     // others by refusing outright.
+                    continue;
+                }
+
+                if (true === $viewedHere && $label !== $from->label) {
                     continue;
                 }
 
@@ -891,17 +900,30 @@ final readonly class ThreadStatusUpdater
 
         $this->propagator->attachLabel($messages, $destination);
 
+        // The move itself, said as one. The detach below takes the old
+        // folder's label off on every provider and moves nothing more.
+        $this->propagator->moveCopies($messages, $destination, $from);
+
         foreach ($sources as $source) {
             foreach ($source['messages'] as $message) {
                 $message->removeLabel($source['label']);
             }
 
-            // Handles the IMAP location-label replacement (physical move)
-            // internally; must run before flush.
-            $this->propagator->detachLabel($source['messages'], $source['label']);
+            $this->propagator->detachLabel($source['messages'], $source['label'], moveOnImap: false);
         }
 
         $this->finish($messages);
+    }
+
+    private static function hasCopyIn(Message $message, Mailbox $folder): bool
+    {
+        foreach ($message->locations as $location) {
+            if ($location->mailbox === $folder) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
