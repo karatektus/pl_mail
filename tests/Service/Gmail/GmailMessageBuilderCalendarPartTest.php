@@ -160,10 +160,9 @@ final class GmailMessageBuilderCalendarPartTest extends KernelTestCase
     }
 
     /**
-     * Read the parts back from the database rather than off the entity. The
-     * OneToMany is mappedBy with no cascade, so the builder persists parts
-     * without touching the in-memory collection — reading that side would test
-     * Doctrine's hydration, not the builder.
+     * Read the parts back from the database rather than off the entity: what
+     * matters is that they were written, which the in-memory collection does
+     * not show.
      *
      * @return list<MessagePart>
      */

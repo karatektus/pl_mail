@@ -99,19 +99,14 @@ readonly class MessageEraser
 
         // The parts explicitly, and this is not tidiness (#299). The loop in
         // removeFiles() has just loaded every one of them into the unit of
-        // work, and Message::$messageParts has neither cascade nor
-        // orphanRemoval, so removing the message alone left them managed. The
-        // database takes their rows with the message's by ON DELETE CASCADE,
+        // work, and Message::$messageParts cascades persist but not remove and
+        // has no orphanRemoval, so removing the message alone left them managed.
+        // The database takes their rows with the message's by ON DELETE CASCADE,
         // but Doctrine is not told: after the delete it forgets the message and
         // nulls its id, and the next flush in the same unit of work found
         // managed parts pointing at an entity it no longer knew — "a new entity
         // was found through the relationship MessagePart#message". Every sync
         // that erased mail with an attachment failed on its following flush.
-        //
-        // Not fixed with cascade on the mapping, for the reason MessagePurger
-        // gave when it hit the same error first: that changes every other path
-        // that touches a message, the syncers that detach and re-attach parts
-        // among them, and this is the one place that wants a part destroyed.
         foreach ($message->messageParts as $part) {
             $this->em->remove($part);
         }
