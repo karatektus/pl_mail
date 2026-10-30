@@ -21,7 +21,6 @@ use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -47,7 +46,6 @@ use Psr\Log\LoggerInterface;
 final class GmailMessageBuilder
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
         private readonly GmailLabelResolver     $labelResolver,
         private readonly LabelResolver          $localLabelResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
@@ -437,7 +435,7 @@ final class GmailMessageBuilder
             $mp->storagePath = $relativePath;
             $mp->isInline    = true;
 
-            $this->em->persist($mp);
+            $message->addMessagePart($mp);
         }
     }
 
@@ -483,7 +481,7 @@ final class GmailMessageBuilder
             $mp->storagePath = 'gmail://' . $attachmentId;
             $mp->isInline    = $isInline;
 
-            $this->em->persist($mp);
+            $message->addMessagePart($mp);
 
             if (false === $isInline) {
                 $hasAttachments = true;

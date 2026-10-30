@@ -14,7 +14,6 @@ use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Converts a Microsoft Graph message resource into a Message entity.
@@ -60,7 +59,6 @@ final class GraphMessageBuilder
     public const string MEETING_TYPE_HEADER = 'x-plmail-meeting-message-type';
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
         private readonly GraphFolderResolver    $folderResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly HeaderNormalizer       $headerNormalizer,
@@ -289,7 +287,7 @@ final class GraphMessageBuilder
             $part->storagePath = 'msgraph://' . $attachmentId;
             $part->isInline    = $isInline;
 
-            $this->em->persist($part);
+            $message->addMessagePart($part);
 
             if (false === $isInline) {
                 $found = true;
