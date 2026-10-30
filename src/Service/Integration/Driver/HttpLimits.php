@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Integration\Driver;
 
+use App\Domain\Helper\RequestTimeLimit;
 use RuntimeException;
 
 /**
@@ -36,12 +37,7 @@ use RuntimeException;
  * and not set_time_limit(0): see ComposeAssistController for how 0 failed. Above
  * IDLE_SECONDS, so that the watchdog gives up first and the person gets a reason
  * instead of a fatal.
- *
- * Raising it has to be undone. A FrankenPHP worker does not reset the setting
- * between requests (measured: the request after a transfer started at 90), so
- * one attachment would have loosened that thread's limit for good. Holding it
- * off remembers the value, and release() puts it back when the request ends.
- */
+ * */
 final class HttpLimits
 {
     /** @var array{timeout: float, max_duration: float} */
@@ -53,13 +49,23 @@ final class HttpLimits
      */
     public const float IDLE_SECONDS = 60.0;
 
+    /**
+     * For code that runs both inside a web request and in a worker, such as a
+     * DAV client: CALL under PHP's limit, and nothing where there is no limit.
+     * A worker has no fatal to get ahead of, the client's default of 60 seconds
+     * already ends a hang there, and a large sync report may be slow to start.
+     *
+     * @return array{timeout?: float, max_duration?: float}
+     */
+    public static function forThisProcess(): array
+    {
+        return (int) ini_get('max_execution_time') > 0 ? self::CALL : [];
+    }
+
     private const int PHP_LIMIT_SECONDS = 90;
 
     /** Never reached: the callback below always gives up first. */
     private const float CLIENT_TIMEOUT_SECONDS = 86400.0;
-
-    /** What to go back to, while this thread's limit is being held off. */
-    private static ?int $phpLimitBefore = null;
 
     /**
      * Options for one request that moves a file. Call it for each request: the
@@ -72,7 +78,7 @@ final class HttpLimits
      */
     public static function transfer(float $idleSeconds = self::IDLE_SECONDS): array
     {
-        self::holdOffPhpLimit();
+        RequestTimeLimit::hold(self::PHP_LIMIT_SECONDS);
 
         $moved  = null;
         $lastAt = microtime(true);
@@ -88,7 +94,7 @@ final class HttpLimits
                     $moved  = $total;
                     $lastAt = $now;
 
-                    self::holdOffPhpLimit();
+                    RequestTimeLimit::hold(self::PHP_LIMIT_SECONDS);
 
                     return;
                 }
@@ -98,25 +104,5 @@ final class HttpLimits
                 }
             },
         ];
-    }
-
-    /** Back to the configured limit, restarted. Harmless when nothing held it off. */
-    public static function release(): void
-    {
-        if (null !== self::$phpLimitBefore) {
-            set_time_limit(self::$phpLimitBefore);
-            self::$phpLimitBefore = null;
-        }
-    }
-
-    /** A messenger worker has no limit to hold off, and giving it one would be the bug. */
-    private static function holdOffPhpLimit(): void
-    {
-        $limit = (int) ini_get('max_execution_time');
-
-        if ($limit > 0) {
-            self::$phpLimitBefore ??= $limit;
-            set_time_limit(self::PHP_LIMIT_SECONDS);
-        }
     }
 }

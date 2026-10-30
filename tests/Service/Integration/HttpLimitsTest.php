@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Integration;
 
+use App\Domain\Helper\RequestTimeLimit;
 use App\Service\Integration\Driver\HttpLimits;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -21,7 +22,7 @@ final class HttpLimitsTest extends TestCase
 {
     protected function tearDown(): void
     {
-        HttpLimits::release();
+        RequestTimeLimit::release();
         set_time_limit(0);
     }
 
@@ -91,22 +92,13 @@ final class HttpLimitsTest extends TestCase
         self::assertSame(30, (int) ini_get('max_execution_time'), 'no traffic, nothing renewed');
     }
 
-    /** A worker keeps the setting from one request to the next. */
-    public function testReleasePutsTheConfiguredLimitBack(): void
+    public function testOnlyAProcessWithALimitGetsTheCallLimitsByDefault(): void
     {
         set_time_limit(30);
+        self::assertSame(HttpLimits::CALL, HttpLimits::forThisProcess());
 
-        HttpLimits::transfer()['on_progress'](1, 0, []);
-        HttpLimits::transfer()['on_progress'](2, 0, []);
-        self::assertGreaterThan(30, (int) ini_get('max_execution_time'));
-
-        HttpLimits::release();
-        self::assertSame(30, (int) ini_get('max_execution_time'));
-
-        // And only once: a request that moved nothing has nothing to undo.
-        set_time_limit(45);
-        HttpLimits::release();
-        self::assertSame(45, (int) ini_get('max_execution_time'));
+        set_time_limit(0);
+        self::assertSame([], HttpLimits::forThisProcess());
     }
 
     /** A messenger worker has no limit, and must not be handed one. */

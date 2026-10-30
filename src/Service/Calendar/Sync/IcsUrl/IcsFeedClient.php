@@ -9,6 +9,7 @@ use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\IntegrationException;
+use App\Service\Integration\Driver\HttpLimits;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -176,7 +177,7 @@ final readonly class IcsFeedClient
             $response = $this->httpClient->request('GET', $url, [
                 'headers'       => $sent,
                 'max_redirects' => 0,
-            ]);
+            ] + HttpLimits::forThisProcess());
 
             // `false` throughout, so a 4xx reaches the classifier below rather
             // than being turned into a transport exception by getStatusCode().

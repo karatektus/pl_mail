@@ -6,6 +6,7 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Ai\WritingTask;
+use App\Domain\Helper\RequestTimeLimit;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageRepository;
@@ -316,7 +317,7 @@ final class ComposeAssistController extends AbstractController
         //
         // Above OllamaClient::GENERATE_TIMEOUT (120s, an IDLE timeout) plus a
         // cold load, so this only ever fires when that has failed to.
-        set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
+        RequestTimeLimit::hold(self::STREAM_TIME_LIMIT_SECONDS);
 
         $tokens = $this->assistant->stream($user, $task, $draft, $context, $subject, $note);
 
