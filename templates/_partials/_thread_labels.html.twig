@@ -3,9 +3,22 @@ _thread_labels.html.twig
 ─────────────────────────────────────────────────────────────────────────────
 Gmail-style label chips inside a thread/message list row.
 
+A label that is a FOLDER on the mail's account is where the mail is, not a
+tag on it (#221 step 3): its chip wears a folder and has no ×, because taking
+a folder off is a move, and "Move to" is where a move is made. A tag can be
+taken off where it is shown — in the conversation, where `removable` is on.
+
 Variables:
-  item   MessageThread|Message  anything exposing .labels
+  item       MessageThread|Message  anything exposing .labels
+  account    Account|null           the mail's account, which decides what a
+                                    label is; null draws every chip as a tag
+  removable  bool                   an × on each tag that takes it off this
+                                    message (`item` is then a Message).
+                                    Default false: a list row has the Label
+                                    as picker for that.
 #}
+{% set account   = account|default(null) %}
+{% set removable = removable|default(false) %}
 {% set chipLabels = item.labels|filter(chipLabel => chipLabel.role is null and chipLabel.isVisible) %}
 {% if chipLabels|length > 0 %}
     {# Shown at every width now. They used to be hidden on a narrow list
@@ -36,9 +49,22 @@ Variables:
                 'pink':   'border-pink-500/40 text-pink-700 dark:text-pink-300',
             }[chipLabel.color ?? 'gray'] ?? 'border-ink-faint/40 text-ink-muted' %}
 
-            <span class="inline-flex items-center px-2 py-px rounded-full border
-                         text-[11px] leading-[1.35] max-w-28 truncate {{ tone }}">
-                {{ chipLabel.name }}
+            {% set isFolder = account is not null and sidebarCounts.isFolderOn(chipLabel, account) %}
+            <span data-label-chip="{{ chipLabel.id }}"
+                  {% if isFolder %}data-label-chip-folder title="{{ 'thread_row.folder'|trans({ '%label%': chipLabel|label_name }) }}"{% endif %}
+                  class="inline-flex items-center gap-1 px-2 py-px rounded-full border
+                         text-[11px] leading-[1.35] max-w-28 {{ tone }}">
+                {% if isFolder %}<i class="fa-solid fa-folder text-[9px] opacity-70" aria-hidden="true"></i>{% endif %}
+                <span class="truncate">{{ chipLabel.name }}</span>
+                {% if removable and not isFolder %}
+                    <button type="button"
+                            data-action="click->mail--label-chip#remove"
+                            data-label-id="{{ chipLabel.id }}"
+                            aria-label="{{ 'thread_row.remove_label'|trans({ '%label%': chipLabel|label_name }) }}"
+                            class="-mr-1 w-3.5 h-3.5 flex items-center justify-center rounded-full opacity-60 hover:opacity-100 hover:bg-hover cursor-pointer">
+                        <i class="fa-solid fa-xmark text-[9px]" aria-hidden="true"></i>
+                    </button>
+                {% endif %}
             </span>
         {% endfor %}
         {% if chipLabels|length > 3 %}

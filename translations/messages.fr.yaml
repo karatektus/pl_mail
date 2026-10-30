@@ -5034,6 +5034,7 @@ thread_row:
         snooze: Mettre en attente
     answer: Nouvelle réponse à votre message
     answer_badge: Réponse
+    folder: 'Dans le dossier %label%'
     has_attachment: Contient une pièce jointe
     me: moi
     meaning: 'Trouvé par le sens, pas par les mots tapés'
@@ -5049,6 +5050,7 @@ thread_row:
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
         unavailable: 'Non envoyé : votre fournisseur était injoignable'
+    remove_label: 'Retirer %label%'
     scheduled: 'Programmé %when%'
     select: Sélectionner
     sheet:

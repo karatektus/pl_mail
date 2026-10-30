@@ -4998,6 +4998,7 @@ thread_row:
         snooze: Snooze
     answer: New reply to your message
     answer_badge: Reply
+    folder: 'In the folder %label%'
     has_attachment: Has attachment
     me: me
     meaning: 'Found by meaning, not by the words you typed'
@@ -5013,6 +5014,7 @@ thread_row:
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
         unavailable: 'Not sent: your mail provider could not be reached'
+    remove_label: 'Remove %label%'
     scheduled: 'Scheduled %when%'
     select: Select
     # The long-press sheet's own names: its dialog label, and the entry that ticks the row.

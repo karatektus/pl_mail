@@ -5024,6 +5024,7 @@ thread_row:
         snooze: Zurückstellen
     answer: Neue Antwort auf deine Nachricht
     answer_badge: Antwort
+    folder: 'Im Ordner %label%'
     has_attachment: Enthält Anhang
     me: ich
     meaning: 'Über die Bedeutung gefunden, nicht über die eingegebenen Wörter'
@@ -5039,6 +5040,7 @@ thread_row:
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
         unavailable: 'Nicht gesendet: dein Mailanbieter war nicht erreichbar'
+    remove_label: '%label% entfernen'
     scheduled: 'Geplant %when%'
     select: Auswählen
     sheet:

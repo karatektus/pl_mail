@@ -4796,6 +4796,7 @@ thread_row:
         snooze: Let it drift
     answer: "A fresh reply to yer letter"
     answer_badge: "Reply"
+    folder: 'Stowed in the hold %label%'
     has_attachment: Carries cargo
     me: me
     meaning: "Found by meanin', not by the words ye typed"
@@ -4811,6 +4812,7 @@ thread_row:
         rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
         refused: 'Never sailed: th'' harbour master turned it away'
         unavailable: 'Never sailed: yer mail port could not be reached'
+    remove_label: 'Strike %label%'
     scheduled: 'Due %when%'
     select: Pick it
     sheet:

@@ -4292,6 +4292,7 @@ thread_row:
         snooze: '稍后提醒'
     answer: '你的邮件收到了新回复'
     answer_badge: '回复'
+    folder: '位于文件夹 %label%'
     has_attachment: '含附件'
     me: '我'
     meaning: '按语义找到，并非匹配输入的关键词'
@@ -4307,6 +4308,7 @@ thread_row:
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
         unavailable: '未发送：无法连接邮件服务商'
+    remove_label: '移除 %label%'
     scheduled: '定于 %when% 发送'
     select: '选择'
     sheet:
