@@ -10,6 +10,354 @@ The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, `milestone-vX.Y.Z` the work collected for that
 release before it reaches `main`, and `sha-…` pins one commit.
 
+## v0.4.1 — 2026-10-31
+
+plMail now speaks JMAP, keeps folders and labels properly apart, and the compose window and filters
+learn a few new tricks. The picture beside each highlight opens large when you click it.
+
+<!-- highlight screenshot=jmap-accounts -->
+**Connect a JMAP account — Stalwart, Fastmail, Cyrus — and get its mail, calendars and contacts
+from one login.** Choose **JMAP** under **Incoming protocol** when adding an account, and give the
+server's host name and an app password, or a Fastmail API token. Mailboxes are labels, as in Gmail,
+and what you read, star, file, archive or delete here is written back to the server; mail is
+imported Inbox first. Sending goes through the server, which files the copy in Sent. The account's
+calendars and address books are offered under **Settings → Calendars** and **Settings → Contacts**
+like a Google or Microsoft account's, and changes on the server arrive within seconds over push. An
+IMAP account on a server that speaks both can be switched to JMAP on its edit form, keeping its
+mail. See [JMAP](docs/providers/jmap.md).
+[#27](https://github.com/karatektus/pl_mail/issues/27).
+
+**Migration:** adds `message.jmap_id` and `label_binding.jmap_mailbox_id`, both empty on every
+existing row, and the table `contact_change_log`, which starts empty. A JMAP server on a private network is reached only once its host is in
+`INTEGRATIONS_ALLOWED_HOSTS`, as a LAN CalDAV server is. JMAP push runs inside the existing IMAP
+supervisor container as `app:jmap:listen`, so no container is added; with a public HTTPS
+`APP_PUBLIC_URL`, the server is also asked to call plMail's webhook at `/webhook/jmap/`, which a
+reverse proxy has to pass through like the Graph and Gmail ones.
+
+<!-- highlight screenshot=move-to-folder -->
+**Move to moves, and Label as only labels.** A folder is a place and a label is a tag, and plMail
+now keeps them apart per account. **Move to** offers an account's folders and moves the mail there
+on the server — the copy in the folder you are looking at, so a reply in Sent or a copy in Archive
+stays put. **Label as** offers the labels that are tags there and never moves mail. On Gmail, which
+has no folders, Move to offers the inbox, spam and trash; a new switch on a Gmail account's row,
+**Move to offers labels**, adds its labels, and moving to one labels the mail and takes it out of
+the inbox, as Gmail does. A move never makes a folder. The sidebar lists each account's folders
+under the account and keeps the LABELS section for tags; **Folders in Labels** in Settings → Labels
+lists folders there too. In a conversation, a folder chip says where a message is, and a label chip
+has an × to take it off. [#221](https://github.com/karatektus/pl_mail/issues/221).
+
+<!-- highlight screenshot=drag-recipients -->
+**Drag a recipient between To, Cc and Bcc.** A chip dragged onto another of the three moves there,
+and a contact keeps its name; the field it would land in is outlined on the way. With a mouse or a
+pen — on a touch screen, cut and paste the address. 
+[#396](https://github.com/karatektus/pl_mail/issues/396), by @jo2904.
+
+<!-- highlight screenshot=test-filters -->
+**Test your filters on a message.** **Test my filters on this message**, at the bottom of a message's
+Details panel, lists every filter switched on for its account, in order, and says whether each
+matches and what it would do — without doing it. For File in category it says whether the message
+would be filed and, if not, why. [#400](https://github.com/karatektus/pl_mail/issues/400), by @jo2904.
+
+<!-- highlight screenshot=forgotten-attachment -->
+**Send asks when a message mentions an attachment it does not carry.** "Attached", "ci-joint",
+"pièce jointe", "Anbei", "附件" and their kin in the subject or in what you wrote, with no file
+attached, are now one more reason in the question Send already asks about an empty subject or body;
+**Send anyway** goes on. The quoted original is not read. 
+[#390](https://github.com/karatektus/pl_mail/issues/390), by @jo2904.
+
+<!-- highlight screenshot=idle-folders -->
+**Choose which folders are watched, and how often each account is checked.** In Settings → Mail
+accounts, the folders list of an IMAP account has a bolt beside each folder: lit, the folder is
+watched with IDLE and new mail in it shows up at once; unlit, it is checked at the account's
+interval. Only the inbox is lit by default. Switch the inbox off too and the account is
+polling-only. The new clock icon on every account's row sets that interval: 1, 5, 15, 30 or 60
+minutes, 15 by default as before.
+
+What you may notice: Junk folders are no longer watched. The upgrade switches IDLE off on them,
+which frees one connection per account; light the bolt again if you want spam to show up at once.
+[#202](https://github.com/karatektus/pl_mail/issues/202).
+
+<!-- highlight screenshot=android-app -->
+**Settings → App passwords says where to get the Android app.** Above "Pair a device", the Google
+Play badge links to plMail for Android, now on Play as a paid app in early access, with the free
+build on GitHub beside it; buying it on Play is, for now, the main way this project supports
+itself. The help menu (?) links the app as well. The badge is served by your own instance, so the
+page makes no request to Google. The README and the handbook's "Other clients" page link the app
+too. [#402](https://github.com/karatektus/pl_mail/issues/402).
+
+**One plMail can hold another's mail, calendars and contacts.** plMail is a JMAP server itself, so
+add the other one as an account with an app password from it. Its calendars and contacts are now
+offered to any JMAP client in the standard form (the JMAP Calendars draft, and RFC 9610 for
+contacts). [#27](https://github.com/karatektus/pl_mail/issues/27).
+
+**Filters can move mail, and a label can become a folder.** Filters gain **Move to folder**; a filter that applied a label which is a
+folder on every account it covers becomes one, because that is what it did, and Apply label now
+only labels. To make a label a folder on one plain IMAP or Outlook account, open it and use **Change per
+account**; its mail on that account moves into the new folder. **Make it a label** does the reverse and asks where
+the mail goes.
+[#221](https://github.com/karatektus/pl_mail/issues/221).
+
+**Migration:** `Version20261030100000` rewrites the actions of those filters; no schema change.
+
+**IMAP folders can be made, renamed and deleted in plMail.** An IMAP account's folder list
+(Settings → Accounts → **Folders**, or the ⋯ menu on the account in the sidebar, or **+ New folder**
+at the end of its folders there) gains **New folder**, and each of your own folders a rename and a
+delete button. A new folder goes where you pick it in the server's real tree, named in any script;
+the server's separator, its namespace and its refusals are respected and shown. The inbox and the
+system folders are never renamed or deleted, and only an empty folder can be deleted. Making a
+label still never makes a folder, and in the sidebar's LABELS section a label that is an IMAP
+folder now wears a folder instead of a dot. A folder sync also stopped re-deriving every folder's
+label from its path, which had undone label renames and let two folders that differ only by INBOX
+take one label from each other, and a folder plMail creates for a move is no longer encoded to
+modified UTF-7 twice when its name is not plain ASCII. No schema change.
+[#221](https://github.com/karatektus/pl_mail/issues/221), by @phdelodder.
+
+**Labels can be IMAP keywords that other mail apps see.** An IMAP account's folder list has a new
+switch, **Labels as keywords**, off by default. Switched on, a label put on or taken off a
+conversation is written to the server as a keyword on each of its messages, where the server keeps
+keywords, and a keyword set or cleared in another mail app (Thunderbird's tags, for one) puts the
+label on or takes it off in plMail. Labels still never move mail. The label dialog now says, per IMAP
+account, whether the label is a folder there, a keyword, or only in plMail, and why. System keywords
+such as `$Junk` or Thunderbird's `$label1` are never read as labels. Adds a nullable column,
+`mailbox.keywords_allowed` (migration `Version20261028100000`).
+[#221](https://github.com/karatektus/pl_mail/issues/221), by @phdelodder.
+
+**Outlook categories set or cleared in Outlook can follow into plMail.** A Microsoft account's row
+has a new switch, **Follow Outlook categories** (the tags icon), off by default. Switched on, a
+category put on or taken off a message in Outlook puts the label on or takes it off in plMail at the
+next sync, and a category plMail has not seen becomes a new label; only changes count, so labels
+given in plMail are never stripped. Turning it on lists the account's folders once more. Labels
+still never move mail, and labels were already written to Outlook as categories. Renaming a
+category-backed label now also works where Exchange refuses to rename the category in place: plMail
+makes the new one and deletes the old. The label dialog now names Microsoft accounts too. Adds a
+nullable column, `message.graph_categories` (migration `Version20261028110000`).
+[#221](https://github.com/karatektus/pl_mail/issues/221), by @phdelodder.
+
+**Input fields have a visible border in every theme.** Text fields, text areas and checkboxes
+were drawn with their fill colour as their border, so on a white pane a field was marked only by a
+faint shadow. The theme's field border was too weak anyway, at 1.0–1.5:1. Every theme's field
+border now reaches 3:1 against the pane, sunken areas and the page, in that theme's own tone.
+[#303](https://github.com/karatektus/pl_mail/issues/303).
+
+**The search box and the Upcoming button stand out from the page.** Both are filled pills on the
+page gradient, and in the light themes their fill was almost the colour of the page. They now
+carry the same field border as every input, held to 3:1 on every page colour.
+[#303](https://github.com/karatektus/pl_mail/issues/303).
+
+**Searching from Trash or Spam searches that folder.** Search leaves Trash and Spam out unless the
+query asks for them, and the folder you were looking at did not count, so searching from Trash
+found nothing that was in it. Clicking into the search box there now writes `in:trash` or
+`in:spam` in for you. You can see it, and delete it to search everywhere.
+[#341](https://github.com/karatektus/pl_mail/issues/341).
+
+**CardDAV address books on go-webdav servers sync their contacts.** Without sync-collection,
+plMail lists an address book with an addressbook-query, and that query had no filter, which
+RFC 6352 requires. Servers built on go-webdav, such as Meerkat CRM, answered it with no cards, so
+the mirrored book stayed empty. The query now carries a filter that every card passes.
+[#350](https://github.com/karatektus/pl_mail/issues/350).
+
+**A refused sync batch no longer reads as an error in the log.** When the database refused a batch
+of fetched mail, usually because a move made in the app filed one of its UIDs while the sync was
+still fetching, the log showed a warning with a full stack trace, although the one-at-a-time retry
+stored everything. That line is a notice now. A message that really cannot be stored is still
+logged as an error of its own. [#352](https://github.com/karatektus/pl_mail/issues/352).
+
+**German: Insights are called Insights everywhere.** The settings page for them was called
+"Radar", the report action "Insight" and the admin's reported-mail list "Info", so a German user
+who reported a missed insight found no settings page of that name. The settings page and the admin
+list say "Insights" now, and the settings hint names the "Demnächst" button instead of "Radar".
+[#354](https://github.com/karatektus/pl_mail/issues/354).
+
+**An expired login code leaves Happening soon when it expires.** A code whose mail said how long
+it was valid ("expires in 10 minutes") stayed in the Happening soon dialog and in the strip above
+the mail list, code readable, for 18 hours after it had expired. It now disappears the moment it
+expires. The card on the mail itself is unchanged.
+[#355](https://github.com/karatektus/pl_mail/issues/355).
+
+**A list of addresses pasted into To, Cc or Bcc becomes one recipient per address.** Separated by
+semicolons, commas, new lines or spaces, with or without names, as Outlook and Gmail copy them:
+`jo@jo.fr; Ann <ann@example.org>` or `jo@jo.fr jo2@jo.fr`. A space inside a name does not split it,
+and a pasted name with no address in it is still searched for. An address already in the field is
+not added twice, and what is not an address stays in the box with the usual error. No schema
+change. [#379](https://github.com/karatektus/pl_mail/issues/379), by @jo2904.
+
+**File in category works on IMAP accounts.** The sender check behind it failed every message read
+over IMAP, so a filter filing into a tab of your own matched its mail, said it had been applied,
+and filed none of it. php-imap returns the receiving server's name alone beside the
+Authentication-Results line, and that bare name was read as a second, failing verdict. Mail already
+synced is fixed too: press **Apply to existing mail** on the filter. No schema change.
+[#381](https://github.com/karatektus/pl_mail/issues/381), by @jo2904.
+
+**plMail can run as a single container, for Unraid.** With `APP_ALL_IN_ONE=1` the container runs
+the web server, the queue workers, the scheduler, the IMAP supervisor and the Mercure hub itself,
+next to a Postgres container of your own. That is the shape an Unraid Community Applications app
+needs. "Restart app" and "Restart workers" both work in it, and compose and TrueNAS installs are
+unchanged. See [Unraid](docs/install/unraid.md).
+[#387](https://github.com/karatektus/pl_mail/issues/387).
+
+**What you write after adding a recipient stays in the message.** Typing an address, pressing Enter
+and going straight on to the subject or the message could pull the caret back into To a moment
+later, so the rest of the sentence became a refused "address". No schema change.
+[#388](https://github.com/karatektus/pl_mail/pull/388).
+
+**Double-click a recipient to correct it.** The address goes back into the field; Enter puts the
+corrected one where the old one was, and leaving the field without Enter puts it back unchanged. A
+typo in a chip no longer means deleting it and typing the address again. No schema change.
+[#392](https://github.com/karatektus/pl_mail/issues/392), by @jo2904.
+
+**Selected recipients copy and cut.** Select chips with a click, Shift+click or Ctrl+A in an empty
+field, and Ctrl+C puts them on the clipboard as `Name <address>; address`, which other mail clients
+read; Ctrl+X removes them as well, so a list moves from To to Bcc with a cut and a paste. A selected
+chip is now drawn as selected. No schema change.
+[#394](https://github.com/karatektus/pl_mail/issues/394), by @jo2904.
+
+**Create a filter from a message.** A new entry in a message's ⋮ menu opens Settings → Filters with
+the editor already holding that message's sender (**From is exactly** its address, its name as the
+filter's name). You choose what the filter does, and nothing is saved until you save it. No schema
+change. [#398](https://github.com/karatektus/pl_mail/issues/398), by @jo2904.
+
+**A filter files everything it matches, and your replies no longer take a conversation out of its
+tab.** File in category used to file only mail whose sender the receiving server had verified. That
+left out your own sent mail and mail a platform sends on somebody's behalf, such as an answer to a
+job application from a recruiting system. A filter now outranks every other sorting whatever that
+check says. Instead, filters leave mail in Spam alone unless they name it with **Has label** *Spam*;
+"Test my filters" says when it skipped one for that. A conversation now follows the newest message
+you *received* in it: your own replies and drafts move it up the list but not into another tab.
+The "not filed: the receiving server did not verify the sender" line under a filter is gone. Adds
+`message_thread.category_decided_at` and drops `mail_rule.run_unfiled`; the migration re-resolves
+every conversation nobody dragged onto a tab, once. Mail a filter refused before is filed when you
+press **Apply to existing mail** on that filter again.
+[#405](https://github.com/karatektus/pl_mail/issues/405).
+
+**The provider list fills in POP3 and JMAP servers too, and a JMAP account sends through its
+server.** Choose **POP3** or **JMAP** on the account form and then a provider, and plMail fills in
+that provider's POP3 or JMAP server rather than switching the form back to IMAP, and greys out the
+protocols that provider does not offer — POP3 for iCloud, say. Fastmail comes with its JMAP server,
+its session URL and the API-token box ticked, and **plMail** is in the list too, for holding another
+plMail's mail: it chooses JMAP and leaves the host to you. Under JMAP the form shows only what JMAP
+needs: no encryption to choose, the **Session URL** behind a link until a server needs it, and
+**Outgoing — JMAP** in place of SMTP, since the server sends your mail itself; **My server does not
+send over JMAP — use SMTP** brings the SMTP fields back for a server that does not. No schema
+change. [#412](https://github.com/karatektus/pl_mail/issues/412).
+
+**Conversations no longer show every message twice on Proton Bridge.** An IMAP account whose
+server marks a folder as a view of mail kept elsewhere — All Mail beside an Archive folder, and
+Starred — no longer syncs that folder by default, and the copies it already stored are removed over
+the next few syncs. Mail that only All Mail holds stays. Gmail over IMAP keeps All Mail on, as it is
+where archived mail lives there. Switch either folder back on under the account's folders and the removed
+copies are fetched again.
+Schema change: one new column on `mailbox`.
+[#414](https://github.com/karatektus/pl_mail/issues/414).
+
+**An email your IMAP server keeps in several folders is one message.** Proton Bridge's All Mail,
+Gmail's label folders and copies another client made were each stored as a message of their own,
+so a conversation could show every message twice and a second folder of that kind was downloaded
+in full again. plMail now records the folders a message is kept in: a copy of mail it already has
+is recognised from the server's index and not downloaded, read and starred reach every copy, and
+removing a copy from one folder no longer loses the email. Messages stored twice before this are
+folded into one over the next syncs, keeping their labels and stars.
+[#415](https://github.com/karatektus/pl_mail/issues/415), [#414](https://github.com/karatektus/pl_mail/issues/414).
+
+**Migration:** two new tables, `message_location` and `purged_copy`, and two new columns on
+`message`. The migration fills `message_location` from the existing messages in one statement,
+which takes a moment on a large install.
+
+**IMAP runs on plMail's own client, and IDLE no longer costs a process per folder.** Every folder
+with IDLE on (the Inbox and Junk of each IMAP account) used to get a background process of its
+own, about 40 MB each, so fifteen accounts came to more than a gigabyte just to wait for mail. All
+of them now share one process, `imap-listener` (`app:imap:listen`), whose memory does not grow
+with the number of folders, and a server that is slow to answer holds up only its own folders.
+Sync, import, flags, moves, deletes, the Sent copy and the connection test speak IMAP through
+the same client instead of webklex/php-imap, which now only parses mail (#82 replaces that).
+
+What you may notice: a draft another client left in an IMAP Drafts folder is now a draft in
+plMail and opens in the editor (it was stored as `Draft` without the backslash and not
+recognised); the upgrade fixes the ones already stored. Keywords other clients set
+(`$Forwarded`, `$Junk`) are kept on new mail. A message the server lists but does not
+hand over is asked for again a few times before it is passed over, instead of being skipped at
+once. `app:imap:test` no longer writes a test message into the Sent folder unless given
+`--append`.
+
+The worker runs `imap-listener` and `jmap-listener` itself; the `imap-supervisor` process is
+gone, and `--without=imap-supervisor` (or `--only`) still means both listeners. It also stops in
+a few seconds on shutdown, where the per-folder processes could outlast the grace period and be
+killed. In Admin → Processes the folders are a row of folder icons on the
+`imap-listen` row, green while IDLE holds and red when a folder has gone quiet, instead of an
+`imap-idle` row each. A migration rewrites every stored flag list into the new spelling; nothing else to do
+on upgrade.
+[#421](https://github.com/karatektus/pl_mail/issues/421).
+
+**A second subscribed calendar address shows its events.** Every ICS feed after the first was
+taken for a copy of it ("Already mirrored through …"), so its connection appeared in settings
+but no calendar was made for it. Each feed is now told apart by its address. Feeds already
+affected need "Find calendars" opened on them once after the upgrade. Subscribing to an address
+you already subscribe to is now refused instead of drawing every event twice.
+[#424](https://github.com/karatektus/pl_mail/issues/424).
+
+**Mail deleted forever stays deleted, and Trash emptied elsewhere empties here.** On IMAP, a
+trashed message pointed at Trash with no address until the server's answer came back, so "Delete
+forever" in that moment removed it here and left it on the server, and the next sync brought it
+back; mail deleted from Trash in webmail stayed in plMail. A message now keeps its real address
+until the server has moved it, a purged copy is never imported again while the server catches up,
+and a delete the server refused is asked again by the next sync. Waking a snoozed conversation
+also moves it back into the inbox on the server, where before it stayed in the archive folder.
+[#427](https://github.com/karatektus/pl_mail/issues/427), [#415](https://github.com/karatektus/pl_mail/issues/415).
+
+**A contact or calendar provider rate-limiting plMail no longer fills the log with errors.** When
+Google or Microsoft refused a contact or calendar sync for a minute, plMail logged it as an error,
+then as a warning with two stack traces for every retry, and as a critical failure if the limit
+was still there after the last one. Such a job now waits for the limit to clear and tries again,
+and the log says so once, at info level, with the reason Google gives. Saving several Google
+contacts at once also uses about half as many requests, which makes hitting the limit less likely.
+[#435](https://github.com/karatektus/pl_mail/issues/435).
+
+**A reply no longer offers to put the meeting from the mail it quotes on your calendar.** Calendar
+proposals read the whole body of a message, including the history quoted under a reply, and only
+lines starting with `>` were left out. Gmail, Outlook and Apple Mail quote an HTML mail in a
+container instead, and Outlook quotes plain text under a `Von:/Gesendet:` block, so a meeting
+arranged in one mail was offered again for every "Thanks!" in the thread — even after the card had
+been dismissed. Proposals now read only what the sender wrote in that message: the text is cut where
+the quote attribution, a forward or an Outlook header block begins, while an interleaved reply keeps
+the answers written between its quotes. An Outlook mail synced through Microsoft Graph is read from
+its full body instead of the 255-character preview. Cards already shown are not removed. No schema
+change. [#437](https://github.com/karatektus/pl_mail/issues/437), by @pmdevelopment.
+
+**A deleted draft can be found again, in Trash, and taken out of it.** A conversation whose only
+deleted message was a draft was listed in Drafts and in an account's Trash, and opened from either
+without the draft. An account's Trash under the account in the sidebar now shows the deleted side
+of a conversation, as the Trash list does. A deleted draft opens there as a mail marked Draft, not in
+the composer, and Drafts lists only drafts that are not in the bin. The conversation's own toolbar now
+offers Move to inbox and, with it switched on, Delete forever for mail in the bin, as its row does. [#439](https://github.com/karatektus/pl_mail/pull/439).
+
+**A calendar event with a very long identifier no longer stops its calendar from syncing.** An event
+whose UID or address was too long for its column or index failed every sync of the whole calendar,
+and an emailed invitation with a UID over about 124 characters failed too. Calendar and event
+identifiers now store at any length. Widens seven calendar columns to `TEXT`, rebuilds their indexes
+around hashes and adds three generated columns (migration `Version20261030120000`). The migration
+rewrites `calendar_event`, which blocks calendar writes and reads while it runs.
+[#443](https://github.com/karatektus/pl_mail/issues/443), reported by @jeremyames-gmail.
+
+**`doctrine:schema:validate` passes.** The entity mapping now describes the database as it is, and a
+test keeps the two in step. Migration `Version20261030130000` turns 17 hand-written `SERIAL` ids
+into identity columns. [#443](https://github.com/karatektus/pl_mail/issues/443).
+
+**One Gmail or Outlook message that fails to import no longer fails a later batch.** When building a
+message failed partway, the attachments already handled stayed queued for the database, pointing at
+a message that would never be saved. The next sync batch to write anything then failed on them,
+with an error naming messages that were fine. It recovered on the retry and nothing was lost, but
+the log pointed at the wrong mail. No schema change.
+[#447](https://github.com/karatektus/pl_mail/issues/447), by @f-liva.
+
+**A file service that stops answering no longer crashes the file picker.** A Paperless, Immich or
+Nextcloud server that accepted the connection and then said nothing left the page waiting until PHP
+gave up, which showed the generic error page and took a server thread with it. The picker now says
+it could not reach the service after ten seconds. Copying a file to or from a service has no time
+limit at all as long as data keeps moving, in either direction: a large attachment is no longer cut
+off at PHP's 30 seconds, and a transfer is only given up on after a minute with no data moving.
+Connecting a CalDAV or CardDAV server or an ICS feed that does not answer now fails the same way,
+and renewing a Google or Microsoft token gives up after ten seconds instead of waiting for ever. No
+schema change. [#449](https://github.com/karatektus/pl_mail/issues/449), reported by @f-liva.
+
 ## v0.4.0 — 2026-10-26
 
 <!-- highlight screenshot=encryption -->
