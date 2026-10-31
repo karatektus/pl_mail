@@ -1,4 +1,4 @@
-<!-- highlight -->
+<!-- highlight screenshot=android-app -->
 **Settings → App passwords says where to get the Android app.** Above "Pair a device", the Google
 Play badge links to plMail for Android, now on Play as a paid app in early access, with the free
 build on GitHub beside it; buying it on Play is, for now, the main way this project supports

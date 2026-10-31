@@ -1,3 +1,4 @@
+<!-- highlight screenshot=forgotten-attachment -->
 **Send asks when a message mentions an attachment it does not carry.** "Attached", "ci-joint",
 "pièce jointe", "Anbei", "附件" and their kin in the subject or in what you wrote, with no file
 attached, are now one more reason in the question Send already asks about an empty subject or body;

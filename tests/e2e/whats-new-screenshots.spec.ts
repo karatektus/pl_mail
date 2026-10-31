@@ -266,6 +266,225 @@ test.describe("What's new screenshots, v0.4.0", () => {
     });
 });
 
+/**
+ * The v0.4.1 highlights, on the demo mailbox.
+ *
+ * The demo account's host does not exist, so it never syncs and has no folders
+ * of its own. The two pictures that are about folders stage some in the
+ * database, as the sso-only picture does with its box, and take them away in
+ * `finally`, so every other picture still sees the account as it was seeded.
+ */
+const DEMO_ACCOUNT = `(SELECT a.id FROM account a JOIN \\"user\\" u ON u.id = a.usr_id WHERE a.username = 'demo@plmail.test' AND u.email = '${TEST_DEMO.email}')`;
+
+/** The folders: name, path, special use, watched with IDLE. */
+const DEMO_FOLDERS: [string, string, string | null, boolean][] = [
+    ["INBOX", "INBOX", "Inbox", true],
+    ["Archive", "Archive", "Archive", false],
+    ["Drafts", "Drafts", "Drafts", false],
+    ["Sent", "Sent", "Sent", false],
+    ["Junk", "Junk", "Junk", false],
+    ["Trash", "Trash", "Trash", false],
+    ["Receipts", "Receipts", null, true],
+    ["Travel", "Travel", null, false],
+];
+
+function stageFolders(): void {
+    const rows = DEMO_FOLDERS.map(([name, path, use, idle]) =>
+        `(${DEMO_ACCOUNT}, '${name}', '${path}', '/', ${null === use ? "NULL" : `'\\\\${use}'`}, true, ${idle}, NOW(), NOW())`,
+    ).join(", ");
+
+    consoleCommand(`dbal:run-sql "INSERT INTO mailbox (account_id, name, full_path, delimiter, special_use, is_sync_enabled, is_idle_enabled, created_at, updated_at) VALUES ${rows}"`);
+    // Two of the demo's labels become folders on the account: what Move to offers.
+    consoleCommand(`dbal:run-sql "UPDATE label_binding b SET mailbox_id = m.id FROM label l, mailbox m WHERE b.label_id = l.id AND b.account_id = ${DEMO_ACCOUNT} AND m.account_id = b.account_id AND m.name = l.name AND l.name IN ('Receipts', 'Travel')"`);
+}
+
+function clearFolders(): void {
+    consoleCommand(`dbal:run-sql "DELETE FROM mailbox WHERE account_id = ${DEMO_ACCOUNT}"`);
+}
+
+/** A compose window addressed and written, ready to photograph. */
+async function composeTo(page: Page, recipients: string[], subject: string, body: string): Promise<Locator> {
+    await page.goto("/mail/inbox");
+    await page.getByRole("link", { name: "Compose" }).first().click();
+
+    const dock = page.locator("#compose_dock");
+    const to = dock.locator(".ts-control input").first();
+    await expect(to).toBeVisible();
+
+    for (const recipient of recipients) {
+        await to.fill(recipient);
+        await to.press("Enter");
+    }
+
+    await dock.locator('[data-compose--compose-target="subject"]').fill(subject);
+    await dock.locator('[data-compose--compose-toolbar-target="editor"]').fill(body);
+
+    return dock;
+}
+
+test.describe("What's new screenshots, v0.4.1", () => {
+    test.skip(undefined === process.env.E2E_SCREENSHOTS, 'Demo mailbox required — run "npm run test:e2e:screenshots".');
+
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
+
+    /** The account form under JMAP with Fastmail chosen: one host, one token, no SMTP. */
+    test("jmap-accounts", async ({ page }) => {
+        await page.setViewportSize({ width: 1200, height: 1400 });
+        await page.goto("/settings?section=accounts");
+        await page.locator("section").filter({ has: page.locator("#settings-account-list") })
+            .getByRole("button", { name: "Add account" }).click();
+
+        const modal = page.locator("#modal");
+        await expect(modal.locator('input[name="account[imapHost]"]')).toBeVisible();
+
+        await modal.getByRole("radiogroup").getByText("JMAP", { exact: true }).click();
+        await expect(modal.getByText("Outgoing — JMAP")).toBeVisible();
+        await modal.locator('input[name="account[email]"], input[name="account[emailAddress]"]').first().fill("priya@ramanjoinery.example");
+        await modal.locator('input[name="account[username]"]').fill("priya@ramanjoinery.example");
+        await modal.locator('input[name="account[imapHost]"]').fill("mail.ramanjoinery.example");
+
+        await capture(page, "jmap-accounts", page.locator("[data-ui--modal-panel]"), 760);
+    });
+
+    /** Move to open on a message: the folders of the account, and nothing that is only a tag. */
+    test("move-to-folder", async ({ page }) => {
+        stageFolders();
+
+        try {
+            await page.goto("/mail/inbox");
+            await page.locator("#message-list li").first().click();
+
+            const button = page.getByRole("button", { name: "Move to", exact: true }).last();
+            await button.click();
+
+            const menu = page.getByRole("menu", { name: "Move to" }).last();
+            await expect(menu).toBeVisible();
+            await page.waitForTimeout(300);
+
+            const box = await menu.boundingBox();
+            expect(box, "move-to-folder: no menu").not.toBeNull();
+            await page.screenshot({
+                path: `${OUT}/move-to-folder.png`,
+                clip: { x: box!.x - 70, y: box!.y - 50, width: box!.width + 150, height: box!.height + 62 },
+            });
+        } finally {
+            clearFolders();
+        }
+    });
+
+    /** A chip on its way from To to Cc: the ghost under the pointer, the field it would land in outlined. */
+    test("drag-recipients", async ({ page }) => {
+        const dock = await composeTo(
+            page,
+            ["priya@ramanjoinery.example", "tomas@brunnengasse.example", "lena@studio.example"],
+            "Measurements for the Brunnengasse workshop",
+            "The drawings are on their way.",
+        );
+
+        await dock.getByRole("button", { name: /^Cc$/ }).click();
+
+        const chip = dock.locator(".ts-control").first().locator(".item").filter({ hasText: "lena@studio.example" });
+        const cc = dock.locator(".ts-control").nth(1);
+        const [from, to] = [await chip.boundingBox(), await cc.boundingBox()];
+        expect(from && to, "drag-recipients: the chip or Cc is not on screen").toBeTruthy();
+
+        await page.mouse.move(from!.x + 8, from!.y + from!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(to!.x + to!.width / 3, to!.y + to!.height / 2, { steps: 10 });
+        await expect(dock.locator(".ts-wrapper.ts-drop-target")).toHaveCount(1);
+
+        await capture(page, "drag-recipients", dock.locator(".compose-window"));
+        await page.mouse.up();
+    });
+
+    /** Send's question, with the word that raised it in the message behind it. */
+    test("forgotten-attachment", async ({ page }) => {
+        const dock = await composeTo(
+            page,
+            ["priya@ramanjoinery.example"],
+            "Quote for the Brunnengasse workshop",
+            "Hello Priya, the quote is attached. Let me know what you think.",
+        );
+
+        await dock.getByRole("button", { name: "Send", exact: true }).click();
+        await expect(dock.locator('[data-compose--compose-target="sendWarning"]')).toContainText(/mentions an attachment/i);
+
+        await capture(page, "forgotten-attachment", dock.locator(".compose-window"));
+    });
+
+    /** The Details panel answering for two filters, one that matches and one that does not. */
+    test("test-filters", async ({ page }) => {
+        const names = ["Hotel bookings", "Newsletters"];
+
+        const forget = (): void => consoleCommand(`dbal:run-sql "DELETE FROM mail_rule WHERE name IN ('${names.join("', '")}')"`);
+
+        const saveFilter = async (name: string, subject: string): Promise<void> => {
+            await page.goto("/settings?section=filters");
+            const list = page.locator("#settings-filter-list");
+
+            await list.getByRole("link", { name: "New filter" }).click();
+            const editor = page.locator("#filter-editor");
+            await editor.getByLabel("Name").fill(name);
+            await editor.locator('[data-rules--rule-builder-target="tree"] input[data-rule-value]').first().fill(subject);
+            await editor.getByRole("button", { name: "Add action" }).click();
+            await editor.getByRole("button", { name: "Save" }).click();
+            await expect(list.getByText(name)).toBeVisible();
+        };
+
+        forget();
+        await saveFilter(names[0], "Booking");
+        await saveFilter(names[1], "Newsletter");
+
+        await page.goto("/mail/inbox");
+        await page.locator("#message-list li").filter({ hasText: "Booking confirmed" }).first().click();
+
+        const details = page.locator('[data-controller="mail--message-details"]').first();
+        await details.getByRole("button").first().click();
+        await details.getByRole("button", { name: "Test my filters on this message" }).click();
+        await expect(details.locator('[data-mail--message-details-target="filters"] turbo-frame > div')).toBeVisible();
+
+        await capture(page, "test-filters", details.locator('[data-mail--message-details-target="panel"]'));
+        forget();
+    });
+
+    /** An account's folder list: the bolts, and New folder above them. */
+    test("idle-folders", async ({ page }) => {
+        stageFolders();
+
+        try {
+            await page.setViewportSize({ width: 1200, height: 900 });
+            await page.goto("/settings?section=accounts");
+            await page.locator("#settings-account-list li").first()
+                .getByRole("button", { name: "Folders", exact: true }).click();
+
+            const modal = page.locator("#modal-backdrop");
+            await expect(modal.getByText("Receipts")).toBeVisible();
+
+            await capture(page, "idle-folders", page.locator("[data-ui--modal-panel]"));
+        } finally {
+            clearFolders();
+        }
+    });
+
+    /** Settings → App passwords, from the Play badge down to Pair a device. */
+    test("android-app", async ({ page }) => {
+        await page.goto("/settings?section=app-passwords");
+        await expect(page.getByTestId("native-apps-play")).toBeVisible();
+
+        const card = page.locator("section", { has: page.getByTestId("native-apps-play") }).first();
+        await capture(page, "android-app", card, 420);
+    });
+});
+
 /** A workshop's mark: a plane over a board, in the demo's joinery colours. */
 const JOINERY_LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
     <rect width="64" height="64" rx="14" fill="#7d6b4f"/>

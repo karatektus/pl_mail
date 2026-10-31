@@ -1,3 +1,4 @@
+<!-- highlight screenshot=idle-folders -->
 **Choose which folders are watched, and how often each account is checked.** In Settings → Mail
 accounts, the folders list of an IMAP account has a bolt beside each folder: lit, the folder is
 watched with IDLE and new mail in it shows up at once; unlit, it is checked at the account's

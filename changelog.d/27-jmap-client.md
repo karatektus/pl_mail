@@ -1,4 +1,4 @@
-<!-- highlight -->
+<!-- highlight screenshot=jmap-accounts -->
 **Connect a JMAP account — Stalwart, Fastmail, Cyrus — and get its mail, calendars and contacts
 from one login.** Choose **JMAP** under **Incoming protocol** when adding an account, and give the
 server's host name and an app password, or a Fastmail API token. Mailboxes are labels, as in Gmail,
