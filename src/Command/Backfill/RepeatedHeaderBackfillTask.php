@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command\Backfill;
 
 use App\Domain\Helper\CharsetHelper;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\MessageParser;
 use App\Domain\Helper\RawMessageStorage;
 use App\Domain\Helper\RepeatedHeaderHelper;
 use App\Entity\Mail\Message;
@@ -155,7 +155,7 @@ final readonly class RepeatedHeaderBackfillTask implements BackfillTaskInterface
 
             // Parsed before anything is written, so a message the library
             // cannot read is left exactly as it was rather than half repaired.
-            $parsed = ImapMessage::fromString($repaired, ImapConnectionFactory::config());
+            $parsed = ImapMessage::fromString($repaired, MessageParser::config());
         } catch (Throwable $e) {
             // Skipped rather than fatal: one unreadable file is one message
             // that stays as it was, and stopping here would leave every later

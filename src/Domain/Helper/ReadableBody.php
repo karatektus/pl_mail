@@ -67,6 +67,37 @@ final class ReadableBody
         return self::fromHtml((string) ($message->bodyHtmlSafe ?? $message->bodyHtml));
     }
 
+    /**
+     * What the sender wrote in THIS message: the same choice of part as of(),
+     * with the quoted history of a reply or forward taken off. See
+     * QuotedHistory.
+     *
+     * The raw HTML rather than the sanitised copy, because the sanitiser drops
+     * the ids Outlook marks its history with; fromHtml() removes what is not
+     * prose either way.
+     *
+     * No fallback from one part to the other once the history is off. A reply
+     * that says nothing of its own has an empty answer, and falling back to
+     * Graph's preview or the other part would hand back the very history that
+     * was just removed.
+     */
+    public static function ownWordsOf(Message $message): string
+    {
+        $html = (string) $message->bodyHtml;
+
+        if ('' === trim($html)) {
+            $html = (string) $message->bodyHtmlSafe;
+        }
+
+        $text = trim((string) $message->bodyText);
+
+        if ('' !== trim($html) && (null !== $message->graphId || '' === $text)) {
+            return trim(QuotedHistory::fromText(self::fromHtml(QuotedHistory::fromHtml($html))));
+        }
+
+        return trim(QuotedHistory::fromText($text));
+    }
+
     public static function fromHtml(string $html): string
     {
         if ('' === trim($html)) {

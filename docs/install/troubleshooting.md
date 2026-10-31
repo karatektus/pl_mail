@@ -133,8 +133,9 @@ per type:
 
 | Process type | Stale after |
 |---|---|
-| `imap-idle` | 2100s — just over the 29-minute IDLE reissue |
-| `imap-supervise` | 300s |
+| `imap-idle` | 300s — one row per folder; the IMAP listener beats each every 30s while it idles |
+| `imap-listen` | 300s |
+| `jmap-listen` | 300s |
 | `messenger-worker` | 120s — the listener beats every 30s |
 | anything else | 600s |
 
@@ -161,7 +162,7 @@ docker compose logs -f worker
 ```
 
 Everything that is not the web server logs through the worker: the queue consumers, the scheduler,
-the IMAP supervisor and the hub. Each JSON record names the process it came from, so a filter on
+the push listeners and the hub. Each JSON record names the process it came from, so a filter on
 `worker-ingest` or `scheduler` finds one of them.
 
 The main handler is `fingers_crossed` at `error` with a 50-message buffer, which means routine info

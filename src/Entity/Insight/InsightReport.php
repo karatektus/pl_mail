@@ -58,6 +58,9 @@ use Doctrine\ORM\Mapping as ORM;
 // "how many are waiting" count. handled_at carries both.
 #[ORM\Index(name: 'idx_insight_report_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_insight_report_handled_at', columns: ['handled_at'])]
+#[ORM\Index(name: 'idx_insight_report_reported_by', columns: ['reported_by_id'])]
+#[ORM\Index(name: 'idx_insight_report_account', columns: ['account_id'])]
+#[ORM\Index(name: 'idx_insight_report_message', columns: ['message_id'])]
 class InsightReport
 {
     use TimestampableTrait;

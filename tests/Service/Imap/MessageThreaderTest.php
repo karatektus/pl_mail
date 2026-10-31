@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\InboxCategory;
 use App\Entity\Mail\Message;
@@ -123,6 +125,7 @@ final class MessageThreaderTest extends TestCase
         $thread->attachmentCount = 0;
         $thread->category = MessageCategory::Updates;
         $thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+        $thread->categoryDecidedAt = new \DateTimeImmutable('2026-07-28 12:00:00');
 
         $message = $this->message(MessageCategory::Promotions, $incomingReceivedAt);
 
@@ -211,6 +214,74 @@ final class MessageThreaderTest extends TestCase
 
         self::assertFalse($owner->categorySorting->overrideProvider);
         self::assertSame($shipping, $message->thread->userCategory);
+    }
+
+    /**
+     * Your reply is newer than everything in the conversation, and it moves the
+     * conversation up the list — but not out of its tab. Answering a recruiter
+     * used to take the conversation out of the "Bewerbung" tab the recruiter's
+     * mail was filed in, because the reply is categorised too and no filter
+     * files your own mail (#405).
+     */
+    public function testYourOwnReplyMovesTheConversationUpButNotOutOfItsTab(): void
+    {
+        $bewerbung = new InboxCategory();
+
+        $thread = $this->existingThread();
+        $thread->userCategory = $bewerbung;
+
+        $reply = $this->sent($this->message(MessageCategory::Primary, '2026-07-28 13:00:00'));
+
+        $this->threaderWithThreadLookup($thread)->assignThread($reply, new Account());
+
+        self::assertEquals(new \DateTimeImmutable('2026-07-28 13:00:00'), $thread->lastMessageAt);
+        self::assertSame($bewerbung, $thread->userCategory, 'your own reply took the conversation out of its tab');
+        self::assertSame(MessageCategory::Updates, $thread->category);
+    }
+
+    /**
+     * What a received message has to be newer than is the received message
+     * that placed the conversation, not your reply: the answer to your reply
+     * can carry an older date than the reply itself (a clock, a relay), and a
+     * folder synced after Sent brings mail older than what you wrote since.
+     */
+    public function testAReceivedMessageOlderThanYourReplyStillDecides(): void
+    {
+        $receipts = new InboxCategory();
+
+        $thread = $this->existingThread();
+        $thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 14:00:00');
+
+        $message = $this->message(MessageCategory::Promotions, '2026-07-28 13:00:00');
+        $message->ruleCategory = $receipts;
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertSame($receipts, $thread->userCategory);
+        self::assertSame(MessageCategory::Promotions, $thread->category);
+        self::assertEquals(new \DateTimeImmutable('2026-07-28 13:00:00'), $thread->categoryDecidedAt);
+    }
+
+    /**
+     * A conversation you started has nothing received to follow, so your own
+     * mail places it — and the first answer takes over, whatever its date.
+     */
+    public function testYourOwnMailPlacesAConversationUntilSomethingIsReceived(): void
+    {
+        $opening = $this->sent($this->message(MessageCategory::Primary, '2026-07-28 10:00:00'));
+
+        $this->threaderWithThreadLookup(null)->assignThread($opening, new Account());
+
+        $thread = $opening->thread;
+        self::assertNotNull($thread);
+        self::assertSame(MessageCategory::Primary, $thread->category);
+        self::assertNull($thread->categoryDecidedAt);
+
+        $answer = $this->message(MessageCategory::Updates, '2026-07-28 09:30:00');
+
+        $this->threaderWithThreadLookup($thread)->assignThread($answer, new Account());
+
+        self::assertSame(MessageCategory::Updates, $thread->category);
     }
 
     /**
@@ -306,6 +377,7 @@ final class MessageThreaderTest extends TestCase
         $thread->attachmentCount = 0;
         $thread->category = MessageCategory::Updates;
         $thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+        $thread->categoryDecidedAt = new \DateTimeImmutable('2026-07-28 12:00:00');
 
         return $thread;
     }
@@ -425,6 +497,16 @@ final class MessageThreaderTest extends TestCase
         $entityManager->method('contains')->willReturn($managed);
 
         return $this->threaderWithoutDatabase($entityManager, $threadRepository);
+    }
+
+    /** The message as your own: filed under Sent. */
+    private function sent(Message $message): Message
+    {
+        $label       = new Label();
+        $label->name = 'Sent';
+        $label->role = LabelRole::Sent;
+
+        return $message->addLabel($label);
     }
 
     private function message(?MessageCategory $category, string $receivedAt): Message

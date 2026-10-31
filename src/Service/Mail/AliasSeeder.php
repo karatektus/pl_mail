@@ -6,15 +6,19 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
+use App\Domain\Exception\JmapApiException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
+use App\Infrastructure\JmapClient\JmapCapability;
+use App\Infrastructure\JmapClient\JmapClient;
 use App\Repository\Mail\EmailAliasRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Populates an account's alias set from what the provider reports. Every
  * account type participates: Microsoft via the Graph profile emails, Gmail via
- * the send-as settings, and plain-IMAP/password accounts via their own address.
+ * the send-as settings, JMAP via its server's identities, and plain-IMAP/password
+ * accounts via their own address.
  *
  * Rules that keep re-seeds safe:
  *  - Discovered addresses arrive as Active; a provider-internal canonical
@@ -32,6 +36,7 @@ final class AliasSeeder
         private readonly GmailApiClient         $gmailApiClient,
         private readonly EmailAliasRepository   $aliasRepository,
         private readonly EntityManagerInterface $em,
+        private readonly JmapClient             $jmap,
     ) {}
 
     public function seed(Account $account): void
@@ -78,7 +83,60 @@ final class AliasSeeder
             return $this->fromGmail($account);
         }
 
+        if (true === $account->isJmap()) {
+            return $this->fromJmap($account);
+        }
+
         return $this->fromImap($account);
+    }
+
+    /**
+     * A JMAP server's identities, which are its send-as addresses.
+     *
+     * The account's own address is always among the entries, and is the
+     * preferred one, as for IMAP: an identity list may lead with a shared
+     * address the user is allowed to send as. A server that cannot be asked
+     * just now — this runs as the account is created, before anything has
+     * proved the server reachable — gives the IMAP answer rather than an
+     * account that could not be saved. A wildcard identity (`*@example.com`)
+     * is a permission, not an address, and is left to the catch-all setting.
+     *
+     * @return array{0: list<array{address: string, displayName: ?string, isSystem: bool}>, 1: ?string}
+     */
+    private function fromJmap(Account $account): array
+    {
+        [$entries, $preferred] = $this->fromImap($account);
+
+        try {
+            $session   = $this->jmap->session($account);
+            $accountId = $session->accountFor(JmapCapability::SUBMISSION);
+
+            if (null === $accountId) {
+                return [$entries, $preferred];
+            }
+
+            $identities = $this->jmap->call($account, [JmapCapability::SUBMISSION], [
+                ['Identity/get', ['accountId' => $accountId, 'ids' => null], 'i'],
+            ])->get('i', 'Identity/get');
+        } catch (JmapApiException) {
+            return [$entries, $preferred];
+        }
+
+        $seen = array_flip(array_column($entries, 'address'));
+
+        foreach (is_array($identities['list'] ?? null) ? $identities['list'] : [] as $identity) {
+            $address = strtolower(trim((string) ($identity['email'] ?? '')));
+
+            if ('' === $address || true === str_contains($address, '*') || true === isset($seen[$address])) {
+                continue;
+            }
+
+            $name      = trim((string) ($identity['name'] ?? ''));
+            $entries[] = ['address' => $address, 'displayName' => '' === $name ? null : $name, 'isSystem' => false];
+            $seen[$address] = true;
+        }
+
+        return [$entries, $preferred];
     }
 
     /**

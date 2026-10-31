@@ -148,7 +148,11 @@ final readonly class PostgresStatusRepository
     public function hasTable(string $name): bool
     {
         try {
-            return $this->connection->createSchemaManager()->tableExists($name);
+            // The catalogue, not the schema manager: schema_filter hides some tables.
+            return (bool) $this->connection->fetchOne(
+                'SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = current_schema() AND tablename = ?)',
+                [$name],
+            );
         } catch (\Throwable) {
             return false;
         }

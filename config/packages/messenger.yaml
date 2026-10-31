@@ -314,6 +314,9 @@ framework:
             # Its server half waits by re-dispatching itself on a delay, so it
             # never holds the one consumer while it waits.
             App\Infrastructure\Messaging\Message\DeleteLabelMessage: bulk
+            # And so is filing a label's mail into the folder it has just become.
+            App\Infrastructure\Messaging\Message\MakeLabelFolderMessage: bulk
+            App\Infrastructure\Messaging\Message\MakeLabelTagMessage: bulk
 
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export
@@ -334,6 +337,10 @@ framework:
             # followed by a scan of rows the database already has. Nobody waits
             # on it, and arriving mail must not queue behind it.
             App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage: maintenance
+            # maintenance as well: folding the copies one folder's sweep found
+            # is a scan of stored rows, and a fold that fails must not take the
+            # sweep that queued it with it (#415).
+            App\Infrastructure\Messaging\Message\FoldCopiesMessage: maintenance
             # The dispatcher is trivial; what it queues is ClassifyMailMessage,
             # which is already routed to its own transport below. Here so the
             # settings request answers at once rather than waiting on a query
@@ -350,6 +357,7 @@ framework:
             App\Infrastructure\Messaging\Message\ImportMailMessage: ingest_backlog
             App\Infrastructure\Messaging\Message\SendMessageMessage: export
             App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: export
+            App\Infrastructure\Messaging\Message\ApplyImapKeywordsMessage: export
             # Onto export with every other outbound push, and that placement is
             # load-bearing rather than tidy: a purge must not overtake a
             # relabel already queued for the same mail, and one queue is what
@@ -373,7 +381,10 @@ framework:
             App\Infrastructure\Messaging\Message\CollectContactKeysMessage: enrich
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
+            App\Infrastructure\Messaging\Message\SyncJmapMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export
+            App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage: export
+            App\Infrastructure\Messaging\Message\ConfirmJmapPushMessage: export
             App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: export
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             # Taking decrypted mail back off the server when an account stops

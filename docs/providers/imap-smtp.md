@@ -14,10 +14,11 @@ connection to come up, and about the handful of settings providers genuinely dis
 **Settings → Mail accounts → Add account**, on the **IMAP / SMTP** tab.
 
 1. Pick your provider from the **Provider** dropdown if it is there. plMail ships a list of common
-   providers and fills in host, port and encryption for both directions from it; several entries also
-   carry a short note about something that provider requires. The list is matched against the domain
-   of the address you type, so for most mailboxes the settings arrive before you have touched the
-   dropdown at all.
+   providers and fills in host, port and encryption for both directions from it — the POP3 or JMAP
+   server instead of the IMAP one when that is the protocol chosen and plMail knows the provider's;
+   several entries also carry a short note about something that provider requires. The list is
+   matched against the domain of the address you type, so for most mailboxes the settings arrive
+   before you have touched the dropdown at all.
 2. **Email address** is what the account is called in plMail's own interface. **Username** is
    what the server knows you as, and is also what the provider detection reads. On most servers
    these are the same string; on some they are not, which is what the two fields are for.
@@ -55,20 +56,28 @@ plMail holds an **IMAP IDLE** connection to each mailbox, which is the protocol'
 "tell me when something changes" rather than asking every few minutes. A message arriving on the
 server reaches plMail in seconds.
 
-There is nothing to switch on. When plMail discovers an account's folders it marks the ones the
-server flags as the inbox and the junk folder as IDLE-enabled, and the IMAP supervisor (one of the
-worker container's processes) runs one connection per such folder, restarting any that drop with a short backoff. Other folders
-are synced but not watched, which is a deliberate economy: an IDLE connection is a held TCP socket,
-and holding thirty of them per account to learn about mail moving into an archive folder costs more
-than it is worth.
+There is nothing to switch on for the inbox. When plMail discovers an account's folders it marks
+the one the server flags as the inbox as IDLE-enabled, and the IMAP listener (one of the worker
+container's processes) keeps one connection per such folder, all of them in that one process,
+replacing any that drop with a short backoff. A server that is slow to answer holds up only its own
+folders. Other folders are synced but not watched, which is a deliberate economy: an IDLE connection
+is a held TCP socket, and holding thirty of them per account to learn about mail moving into an
+archive folder costs more than it is worth.
 
-Behind that, a scheduled sweep syncs every account every fifteen minutes regardless. IDLE makes mail
-arrive immediately; the sweep is what makes it arrive at all when a connection has been dropped by a
-firewall or a provider has decided to stop answering IDLE for a while.
+Which folders are watched is yours to change: **Settings → Mail accounts → the folder icon** lists
+the account's folders, and the bolt beside each one switches IDLE on or off for it. A lit bolt means
+watched. Switching it off on the inbox too makes the account polling-only. The listener picks the
+change up within a minute.
+
+Behind that, a scheduled sweep syncs every account regardless, every fifteen minutes unless you
+choose otherwise: the clock icon on the account's row offers 1, 5, 15, 30 or 60 minutes. IDLE makes
+mail arrive immediately; the sweep is what makes it arrive at all when a connection has been dropped
+by a firewall or a provider has decided to stop answering IDLE for a while, and it is the only way
+mail arrives in a folder that is not watched.
 
 If mail is not arriving on its own, the thing to check first is that the worker container is
-running, and that the admin dashboard's Processes panel shows the IMAP supervisor beating. Without
-it, nothing holds an IDLE connection and mail arrives on the fifteen-minute schedule only.
+running, and that the admin dashboard's Processes panel shows `imap-listen` beating. Without
+it, nothing holds an IDLE connection and mail arrives on the account's sync interval only.
 
 ## App passwords at the big providers
 
@@ -143,11 +152,12 @@ refused at iCloud, Yahoo or Fastmail, this is why.
 connect until you update it here; the account row records the failure, so the accounts list is where
 to look when one mailbox has quietly stopped.
 
-**Only the inbox and the junk folder are watched with IDLE.** Everything else arrives on the
-fifteen-minute sweep. A message that appears in plMail four minutes after a rule filed it into a
-subfolder on the server is this, working as designed.
+**Only the inbox is watched with IDLE unless you switch on more.** Everything else arrives on the
+account's sync interval. A message that appears in plMail four minutes after a rule filed it into a
+subfolder on the server is this, working as designed; light that folder's bolt in the folders list,
+or shorten the interval, if it should be faster.
 
-**Without the IMAP supervisor, nothing holds an IDLE connection.** Mail still arrives, on
+**Without the IMAP listener, nothing holds an IDLE connection.** Mail still arrives, on
 the schedule, which makes this a very quiet failure — the symptom is "mail is always a few minutes
 late" rather than anything that looks broken.
 

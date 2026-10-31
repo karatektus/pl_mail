@@ -155,6 +155,42 @@ class CalendarEventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every event in these calendars, by first start: what a JMAP
+     * CalendarEvent/query names when it gives no window.
+     *
+     * From the event rows, not the occurrence index, because the index keeps
+     * only a horizon's worth of past and future — an unbounded answer read
+     * from it would stop at the horizon and look complete. A row deleted here
+     * and not yet pushed is left out, as the index leaves it out.
+     *
+     * @param list<int> $calendarIds
+     *
+     * @return list<int>
+     */
+    public function findIdsInCalendars(UserInterface $user, array $calendarIds): array
+    {
+        if ([] === $calendarIds) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('event')
+            ->select('event.id')
+            ->join('event.calendar', 'calendar')
+            ->where('calendar.usr = :user')
+            ->andWhere('calendar.id IN (:calendarIds)')
+            ->andWhere('event.syncState <> :deleted')
+            ->setParameter('user', $user)
+            ->setParameter('calendarIds', $calendarIds)
+            ->setParameter('deleted', SyncState::PendingDelete)
+            ->orderBy('event.startsAt', 'ASC')
+            ->addOrderBy('event.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(intval(...), $rows);
+    }
+
+    /**
      * Locally known rows on this calendar that a full read did not mention.
      *
      * The other half of a resync: a full read returns every live event and no

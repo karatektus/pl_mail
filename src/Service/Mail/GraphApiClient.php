@@ -117,8 +117,9 @@ final class GraphApiClient
     /**
      * Light projection a folder's delta is followed with — no bodies.
      *
-     * isRead and flag are in it because a message delta reports a change only
-     * in the properties it was asked for. Without them Exchange sends no entry
+     * isRead, flag and categories are in it because a message delta reports a
+     * change only in the properties it was asked for (categories: #221 step 4,
+     * followed where Account::$followsOutlookCategories is on). Without them Exchange sends no entry
      * at all for a message that was merely read, unread, flagged or unflagged,
      * so mail handled in Outlook or on a phone never reached plMail.
      *
@@ -127,7 +128,7 @@ final class GraphApiClient
      * changes nothing for a link already stored — see the migration that
      * hands every folder back to the import, and keep the two in step.
      */
-    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId,isRead,flag';
+    private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId,isRead,flag,categories';
 
     public function __construct(
         // The scoped client from framework.yaml, not the default one: it
@@ -808,7 +809,8 @@ final class GraphApiClient
     /**
      * Rename a category. Graph keys category membership on displayName, so a
      * rename here does NOT re-tag existing messages — the sync layer reconciles
-     * them on the next pass.
+     * them on the next pass. Graph documents displayName as fixed once created;
+     * ApplyLabelStructureHandler::replaceCategory() answers a refusal.
      */
     public function patchMasterCategory(Account $account, string $categoryId, string $displayName): void
     {

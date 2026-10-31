@@ -173,6 +173,9 @@ final readonly class ConfigBackupUsers
         // NAMES, which the restorer recreates verbatim, not a row id that means
         // somebody else on the target.
         User::SETTING_SIDEBAR_COLLAPSED,
+        // Whether LABELS lists folders too (#221 step 3): how the person
+        // wants the sidebar, and nothing in it is particular to one host.
+        User::SETTING_FOLDERS_IN_LABELS,
         // Row names, no ids, and the same on any install — and an empty list
         // is a choice that has to survive ("nothing behind More"), which is
         // why this is carried even though most bags never hold it.
@@ -274,6 +277,16 @@ final readonly class ConfigBackupUsers
         // anything the other host did: restored, the target files the mail it
         // imports the way the user asked for.
         Account::SETTING_GMAILIFY,
+        // Whether labels on this IMAP account are written as keywords (#221
+        // step 2): a standing choice its owner made, and the same server keeps
+        // the keywords wherever plMail reads it from.
+        Account::SETTING_LABELS_AS_KEYWORDS,
+        // Whether category changes made in Outlook are followed (#221 step 4):
+        // a choice, carried like the one above.
+        Account::SETTING_FOLLOW_OUTLOOK_CATEGORIES,
+        // Whether Move to offers a Gmail account's labels (#221 step 3): a
+        // choice, carried like the two above.
+        Account::SETTING_GMAIL_MOVE_TO_LABELS,
         // Carried, unlike the ledger below: whether an account deletes from
         // the server after fetching is a standing instruction its owner gave
         // on purpose, and a restore that silently turned it back to Keep
@@ -284,6 +297,12 @@ final readonly class ConfigBackupUsers
         // (pop3_uidl) and is not part of the backup, so the target fetches
         // everything before it deletes anything.
         Account::SETTING_POP3_DELETE_MODE,
+        // Carried: where a JMAP account's session lives and whether its
+        // password is a bearer token are how it connects at all, as much as
+        // its host and port are. Without them a restored Fastmail account
+        // looks for a session at the well-known path and signs in with Basic.
+        Account::SETTING_JMAP_SESSION_URL,
+        Account::SETTING_JMAP_TOKEN_AUTH,
     ];
 
     /**
@@ -323,6 +342,9 @@ final readonly class ConfigBackupUsers
         Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
         Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
         Account::SETTING_POP3_ADOPTING => 'a pass over the OTHER host\'s POP3 mailbox that had still to finish; the target keeps no UIDLs from the file and fetches the mailbox afresh',
+        Account::SETTING_JMAP_STATES => 'the server states the OTHER host had synced up to; carried, the target would ask only for changes since then and never import the mail it does not have',
+        Account::SETTING_JMAP_IMPORT => 'where the other host\'s first import had got to, by Email ids for rows this host does not have; the target plans its own',
+        Account::SETTING_JMAP_PUSH_SUBSCRIPTION => 'a PushSubscription the server holds for the OTHER host\'s webhook; the target registers its own at its own APP_PUBLIC_URL',
     ];
 
     public function __construct(

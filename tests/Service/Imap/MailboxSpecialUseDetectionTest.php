@@ -7,9 +7,7 @@ namespace App\Tests\Service\Imap;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Service\Imap\MailboxSyncer;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Folder;
+use App\Infrastructure\ImapClient\ImapFolder;
 
 /**
  * Which folder is Sent, on servers that do not call it "Sent".
@@ -52,12 +50,12 @@ final class MailboxSpecialUseDetectionTest extends TestCase
     /**
      * @param list<string> $attributes
      *
-     * @return array{folder: Folder, attributes: list<string>}
+     * @return array{folder: ImapFolder, attributes: list<string>}
      */
     private static function listed(string $path, array $attributes): array
     {
         return [
-            'folder'     => new Folder(new Client(Config::make()), $path, '.', $attributes),
+            'folder'     => new ImapFolder($path, '.', $attributes),
             'attributes' => $attributes,
         ];
     }

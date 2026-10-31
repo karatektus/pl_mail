@@ -11,7 +11,11 @@ Variables:
                      flag for a moment, but belongs in the thread as a message
 #}
 {% set expanded = expanded|default(false) %}
-{% set isDraft  = draft is defined ? draft : message.isDraft %}
+{# A draft in the bin is drawn as the mail it is, not as the way back into the
+   editor. It was thrown away, so what it is offered is the bin's: Restore and
+   Delete forever, from the toolbar above. A deleted draft is not one being
+   worked on, and the composer would have it edited and sent from the bin. #}
+{% set isDraft  = draft is defined ? draft : (message.isDraft and 'trash' != mail_placement(message)) %}
 
 {# Both roots below carry `data-enter="rise"`, and this partial is the one place
    in the mail views where an entrance is unambiguously honest: a message in a
@@ -140,6 +144,18 @@ Variables:
                 <span class="text-sm font-semibold text-ink truncate">
                     {{ message.fromName ?: message.fromAddress }}
                 </span>
+
+                {# A draft in the bin, drawn as a message (see isDraft above),
+                   still says it never went out. From you, to them, with a body:
+                   without this it reads as a reply that was sent. Not on a
+                   just-sent message, which passes `draft` because it HAS gone
+                   out and only still carries the flag. #}
+                {% if draft is not defined and message.isDraft %}
+                    <span class="shrink-0 self-center px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-danger/10 text-danger"
+                          data-draft-badge>
+                        {{ 'message.draft'|trans }}
+                    </span>
+                {% endif %}
                 {# The address is the one half of this line the sender cannot
                    choose, so it is as readable as the name beside it: same
                    size, full ink, and allowed to WRAP — `truncate` cuts the
@@ -164,7 +180,19 @@ Variables:
                    opened — so the thread showed a label the message in front
                    of you did not have, and hid the one it did. Same chips as
                    the list, so a label looks like itself everywhere. #}
-                {% include '_partials/_thread_labels.html.twig' with { item: message } only %}
+                {# A folder chip says where this copy is and has no ×; a tag
+                   can be taken off here (#221 step 3). In a frame of its own
+                   so the answer to that redraws these chips alone. #}
+                <span id="message_labels_{{ message.id }}"
+                      data-controller="mail--label-chip"
+                      data-mail--label-chip-message-id-value="{{ message.id }}"
+                      class="contents">
+                    {% include '_partials/_thread_labels.html.twig' with {
+                        item: message,
+                        account: message.mailbox ? message.mailbox.account : message.thread.account,
+                        removable: true,
+                    } only %}
+                </span>
 
                 {# A lock for an encrypted message, a seal for a signed one. The
                    banner above the body says what either means; this is so the

@@ -52,7 +52,7 @@ class OAuthProviderFactory
                 'clientSecret' => $this->clientSecret($provider, $config),
                 'redirectUri'  => $redirectUri,
                 'accessType'   => 'offline',
-            ]);
+            ], OAuthHttpClient::collaborators());
         }
 
         if (MailProvider::Microsoft === $provider) {
@@ -93,7 +93,7 @@ class OAuthProviderFactory
             'redirectUri'            => $redirectUri,
             'tenant'                 => $tenant ?? $this->microsoftTenant,
             'defaultEndPointVersion' => Azure::ENDPOINT_VERSION_2_0,
-        ]);
+        ], OAuthHttpClient::collaborators());
 
         // The provider defaults to the Azure AD Graph resource; point it at
         // Microsoft Graph so `getResourceOwner()` hits /me on the right API.

@@ -4,34 +4,51 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
-use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapConnection;
+use App\Infrastructure\ImapClient\ImapCredentials;
+use App\Infrastructure\ImapClient\ImapEndpoint;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSecurity;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Service\Imap\ImapUidPresence;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 
 /**
  * "Is this UID still there?" is answered by the search, without building the
- * message (#357).
+ * message (#357), against the test stack's Dovecot.
  *
  * Proton Mail Bridge held a message whose Date line was there three times.
- * The probe fetched it to see whether it existed, webklex handed preg_match()
- * an array, and the answer was "could not tell" — on every sync, logged as an
- * error, and the duplicate the reconciler had asked about was never repaired.
+ * The probe fetched it to see whether it existed, the parser threw, and the
+ * answer was "could not tell" — on every sync, logged as an error, and the
+ * duplicate the reconciler had asked about was never repaired. The same
+ * message is put on the server here, and the probe must find it there.
  *
- * FakeImportClient's folder answers SEARCH from the script and only builds a
- * message on FETCH, where a scripted throwable is what building it throws: so
- * a probe that fetched would fail here the way it failed against the Bridge.
+ * Null is the answer that must never be mistaken for "gone": a folder that
+ * is not there says nothing about the message.
  */
 final class ImapUidPresenceTest extends TestCase
 {
+    private ImapSession $session;
+
     /** @var AbstractLogger&object{logged: list<string>} */
     private AbstractLogger $logger;
 
     protected function setUp(): void
     {
-        $this->logger = new class extends AbstractLogger {
+        $host     = getenv('IMAP_TEST_HOST');
+        $password = getenv('IMAP_TEST_PASSWORD');
+
+        if (false === $host || '' === $host || false === $password) {
+            self::markTestSkipped('Set IMAP_TEST_HOST and IMAP_TEST_PASSWORD to run against an IMAP server; the test stack does.');
+        }
+
+        $connection = ImapConnection::open(new ImapLoop(), new ImapEndpoint($host, 31143, ImapSecurity::None));
+        $connection->authenticate(new ImapCredentials('presence-' . bin2hex(random_bytes(6)), $password));
+
+        $this->session = new ImapSession($connection);
+        $this->logger  = new class extends AbstractLogger {
             /** @var list<string> */
             public array $logged = [];
 
@@ -42,36 +59,46 @@ final class ImapUidPresenceTest extends TestCase
         };
     }
 
+    protected function tearDown(): void
+    {
+        if (isset($this->session)) {
+            $this->session->logout();
+        }
+    }
+
     public function testAMessageTheParserCannotReadIsStillThere(): void
     {
-        $presence = $this->presence(FakeImportClient::holding([
-            6331 => new \TypeError('preg_match(): Argument #2 ($subject) must be of type string, array given'),
-        ]));
+        $this->session->create('Labels');
+        $uid = $this->session->append('Labels', "Date: Mon, 2 Mar 2026 10:00:00 +0000\r\nDate: Mon, 2 Mar 2026 10:00:00 +0000\r\nDate: x\r\nSubject: Three dates\r\n\r\nBody.\r\n");
 
-        self::assertTrue($presence($this->mailbox(), 6331));
+        $presence = new ImapUidPresence($this->session, $this->logger);
+
+        self::assertTrue($presence($this->mailbox('Labels'), (int) $uid));
         self::assertSame([], $this->logger->logged, 'nothing to report: the server answered');
     }
 
     public function testAUidTheFolderDoesNotListIsGone(): void
     {
-        $presence = $this->presence(FakeImportClient::holding([6331 => new \TypeError('never built')]));
+        $this->session->create('Labels');
+        $uid = $this->session->append('Labels', "Subject: One\r\n\r\nBody.\r\n");
 
-        self::assertFalse($presence($this->mailbox(), 6332));
+        $presence = new ImapUidPresence($this->session, $this->logger);
+
+        self::assertFalse($presence($this->mailbox('Labels'), (int) $uid + 1));
     }
 
-    private function presence(FakeImportClient $server): ImapUidPresence
+    public function testAFolderThatIsNotThereIsNoAnswerRatherThanGone(): void
     {
-        $connections = $this->createStub(ImapConnectionFactory::class);
-        $connections->method('connect')->willReturn($server);
+        $presence = new ImapUidPresence($this->session, $this->logger);
 
-        return new ImapUidPresence(new Account(), $connections, $this->logger);
+        self::assertNull($presence($this->mailbox('Not There'), 1));
     }
 
-    private function mailbox(): Mailbox
+    private function mailbox(string $path): Mailbox
     {
         $mailbox           = new Mailbox();
-        $mailbox->name     = 'gmail.com 27-02-2026 11:08';
-        $mailbox->fullPath = 'Labels/gmail.com 27-02-2026 11:08';
+        $mailbox->name     = $path;
+        $mailbox->fullPath = $path;
 
         return $mailbox;
     }

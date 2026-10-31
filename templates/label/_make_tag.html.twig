@@ -1,0 +1,32 @@
+{#
+label/_make_tag.html.twig — "Make it a label" for one account, inside the modal
+frame (#221): the folder goes, so its mail needs somewhere to go first.
+
+Variables: label, account, form (LabelDeleteType, with `destination` when there
+is mail to move), mailCount
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    {% embed '_partials/_modal_form.html.twig' with {
+        form: form,
+        label: label,
+        account: account,
+        mailCount: mailCount,
+        title: 'label.form.places.make_label'|trans,
+        submit_label: 'label.form.places.make_label'|trans,
+    } only %}
+        {% block before_fields %}
+            <div class="space-y-2.5 text-sm leading-snug text-ink-muted" data-label-make-tag>
+                <p>{{ 'label.form.places.make_label_body'|trans({ '%name%': label|label_name, '%account%': account.displayAddress }) }}</p>
+                {% if mailCount > 0 %}
+                    <p class="text-ink" data-label-make-tag-count="{{ mailCount }}">{{ 'label.form.places.make_label_mail'|trans({ '%count%': mailCount }) }}</p>
+                {% endif %}
+            </div>
+        {% endblock %}
+
+        {% block after_fields %}
+            <input type="hidden" name="_token" value="{{ csrf_token('label-make-tag' ~ label.id ~ '-' ~ account.id) }}">
+        {% endblock %}
+    {% endembed %}
+{% endblock %}

@@ -101,7 +101,8 @@ something here.
 ## NAS boxes
 
 A NAS is squarely the kind of machine plMail is meant to run on. On TrueNAS, install plMail from the
-apps catalogue. On anything else, these are the decisions you will face.
+apps catalogue; on Unraid, from Community Applications (see [Unraid](unraid.md)). On anything
+else, these are the decisions you will face.
 
 **Ports.** A NAS whose own management UI already holds 80 and 443 needs plMail moved. Set
 `HTTP_PORT` and `HTTPS_PORT` (and `HTTP3_PORT` if you serve HTTP/3 directly), or do what the

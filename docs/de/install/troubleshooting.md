@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:81f5c6d505546c5bab2723acf94c75233a8d970e -->
+<!-- translated-from: install/troubleshooting.md sha1:8d05f5c03497430aa6aedee8917e0165d5583f11 -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -144,8 +144,9 @@ die anderen hineinsehen kann. Jeder dauerhaft laufende Prozess schreibt eine Zei
 
 | Prozesstyp | Veraltet nach |
 |---|---|
-| `imap-idle` | 2100s — knapp über der 29-minütigen IDLE-Erneuerung |
-| `imap-supervise` | 300s |
+| `imap-idle` | 300s — eine Zeile pro Ordner; der IMAP-Listener lässt jede alle 30s schlagen, solange er wartet |
+| `imap-listen` | 300s |
+| `jmap-listen` | 300s |
 | `messenger-worker` | 120s — der Listener schlägt alle 30s |
 | alles andere | 600s |
 
@@ -174,7 +175,7 @@ docker compose logs -f worker
 ```
 
 Alles, was nicht der Webserver ist, protokolliert über den Worker: die Warteschlangen-Consumer, der
-Scheduler, der IMAP-Supervisor und der Hub. Jeder JSON-Eintrag nennt den Prozess, von dem er stammt,
+Scheduler, die Push-Listener und der Hub. Jeder JSON-Eintrag nennt den Prozess, von dem er stammt,
 ein Filter auf `worker-ingest` oder `scheduler` findet also genau einen davon.
 
 Der Haupt-Handler ist `fingers_crossed` auf `error` mit einem Puffer von 50 Nachrichten, das heißt,

@@ -8,6 +8,7 @@ use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Label\KeywordLabelFollower;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
@@ -75,6 +76,7 @@ final readonly class ImapFlagReconciler
         private MessageRepository   $messages,
         private ThreadStatusUpdater $status,
         private LoggerInterface     $logger,
+        private KeywordLabelFollower $keywords,
     ) {
     }
 
@@ -105,7 +107,8 @@ final readonly class ImapFlagReconciler
             return 0;
         }
 
-        $wanted = [];
+        $wanted   = [];
+        $observed = [];
 
         foreach ($state as $uid => $current) {
             $flags = $flagsByUid[$uid] ?? null;
@@ -118,9 +121,25 @@ final readonly class ImapFlagReconciler
                 continue;
             }
 
-            $seen     = $this->hasFlag($flags, 'seen');
-            $flagged  = $this->hasFlag($flags, 'flagged');
             $canonical = MessageFlag::canonicalList($flags);
+            $seen      = in_array(MessageFlag::SEEN->value, $canonical, true);
+            $flagged   = in_array(MessageFlag::FLAGGED->value, $canonical, true);
+
+            // This copy said the same last time: nothing changed on the server,
+            // whatever the message now says. A copy of the email elsewhere may
+            // have been changed since, by another client or by the user here,
+            // and that change stands until this copy changes in turn — see
+            // MessageLocation::$serverFlags (#415). Only a copy never read
+            // before is compared against the message, as every copy used to be.
+            $lastReported = $current['serverFlags'];
+
+            if ($lastReported !== $canonical) {
+                $observed[$current['location']] = $canonical;
+            }
+
+            if (null !== $lastReported && $lastReported === $canonical && false === $current['pending']) {
+                continue;
+            }
 
             // A PRE-FILTER, and deliberately a conservative one: it decides
             // which rows are worth loading, and ThreadStatusUpdater still makes
@@ -130,15 +149,11 @@ final readonly class ImapFlagReconciler
             // whatever it says, because a pending mark means the updater has
             // something to do (honour the guard, or clear an expired one) and
             // the grace period that decides which is its business, not ours.
-            //
-            // Both sides canonicalised for the same reason applyRemoteFlags()
-            // canonicalises: a mirror captured from a server that writes `Seen`
-            // must not read as differing from a listing that writes `\Seen`.
             if (
                 false === $current['pending']
                 && $seen === $current['seen']
                 && $flagged === $current['flagged']
-                && MessageFlag::canonicalList($current['flags']) === $canonical
+                && $current['flags'] === $canonical
             ) {
                 continue;
             }
@@ -146,12 +161,19 @@ final readonly class ImapFlagReconciler
             $wanted[$current['id']] = [$seen, $flagged, $canonical];
         }
 
+        $this->messages->recordServerFlags($observed);
+
         if ([] === $wanted) {
             return 0;
         }
 
         $messages = $this->messages->findByIdsKeyedByUid(array_keys($wanted));
         $states   = [];
+        $before   = [];
+
+        foreach ($messages as $message) {
+            $before[(int) $message->id] = $message->flags;
+        }
 
         foreach ($messages as $message) {
             $answer = $wanted[(int) $message->id] ?? null;
@@ -171,6 +193,9 @@ final readonly class ImapFlagReconciler
         // see its applyRemoteFlags() docblock.
         $changed = $this->status->applyRemoteFlags($states, $readAt);
 
+        // Keywords another client changed, as labels (#221 step 2).
+        $this->keywords->follow($mailbox, $messages, $before);
+
         if ($changed > 0) {
             $this->logger->info('Refreshed message flags from the server', [
                 'mailbox'  => $mailbox->fullPath,
@@ -181,27 +206,4 @@ final readonly class ImapFlagReconciler
 
         return $changed;
     }
-
-    /**
-     * Whether a flag list contains one flag, whatever the server called it.
-     *
-     * The backslash is part of the IMAP wire syntax for a system flag rather
-     * than part of its name, and servers are inconsistent about whether it
-     * survives into a parsed response — webklex hands back `Seen` from some and
-     * `\Seen` from others. Comparing on the bare lower-cased name is the only
-     * comparison that is right on both.
-     *
-     * @param list<string> $flags
-     */
-    private function hasFlag(array $flags, string $wanted): bool
-    {
-        foreach ($flags as $flag) {
-            if ($wanted === strtolower(ltrim($flag, '\\'))) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
 }

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\ImapFolder;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
@@ -15,6 +18,7 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
@@ -22,9 +26,6 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Config;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * What a folder is called on the wire, and what it is called on screen.
@@ -74,18 +75,18 @@ final class MailboxLabelNamingTest extends KernelTestCase
     }
 
     /**
-     * The library half of the story, pinned because everything below rests on
-     * it: webklex leaves `path` raw and decodes `name` and `full_name`. If an
-     * upgrade ever changes that, the syncer starts writing decoded paths into
-     * the identity column and this is the test that says so.
+     * The client half of the story, pinned because everything below rests on
+     * it: ImapFolder leaves `path` raw and decodes the names. If that ever
+     * changes, the syncer starts writing decoded paths into the identity
+     * column and this is the test that says so.
      */
-    public function testWebklexLeavesThePathRawAndDecodesTheName(): void
+    public function testTheClientLeavesThePathRawAndDecodesTheName(): void
     {
-        $folder = self::folder('INBOX.B&APw-cher');
+        $folder = new ImapFolder('INBOX.B&APw-cher', '.', []);
 
         self::assertSame('INBOX.B&APw-cher', $folder->path);
-        self::assertSame('INBOX.Bücher', $folder->full_name);
-        self::assertSame('Bücher', $folder->name);
+        self::assertSame('INBOX.Bücher', $folder->fullName());
+        self::assertSame('Bücher', $folder->name());
     }
 
     public function testAGermanFolderGetsAReadableLabel(): void
@@ -224,13 +225,9 @@ final class MailboxLabelNamingTest extends KernelTestCase
     {
         $container = self::getContainer();
 
-        $client = self::client($paths);
-
-        // A stub, not a mock: the syncer is expected to connect, but how often
-        // is not the subject here, and asserting it would only pin an
-        // implementation detail.
-        $factory = self::createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn($client);
+        // A Courier-style INBOX. namespace, which the test stack's Dovecot
+        // does not have: see FakeImapServer.
+        new FakeImapServer($container->get(ImapLoop::class), array_fill_keys($paths, []), '.')->pointAt($this->account);
 
         // A LabelResolver of its own per call rather than the container's.
         // It caches label ids in memory for the life of the instance, so
@@ -240,7 +237,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
         $syncer = new MailboxSyncer(
             $container->get(MailboxRepository::class),
             $this->em,
-            $factory,
+            $container->get(ImapConnector::class),
             new LabelResolver(
                 $container->get(LabelRepository::class),
                 $container->get(LabelBindingRepository::class),
@@ -249,23 +246,11 @@ final class MailboxLabelNamingTest extends KernelTestCase
             ),
             $container->get(MessageRepository::class),
             $container->get(MessageEraser::class),
+            $container->get(ImapCopies::class),
             new NullLogger(),
         );
 
         return $syncer->syncForAccount($this->account);
-    }
-
-    /**
-     * @param list<string> $paths
-     */
-    private static function client(array $paths): Client
-    {
-        return new FakeListingClient(array_fill_keys($paths, []));
-    }
-
-    private static function folder(string $path): Folder
-    {
-        return new Folder(new Client(Config::make()), $path, '.', []);
     }
 
     private function mailboxFor(string $fullPath): ?Mailbox

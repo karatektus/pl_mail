@@ -127,6 +127,58 @@ final class CalendarPullerTest extends KernelTestCase
         );
     }
 
+    /**
+     * #443: the length that failed an Outlook calendar's every pull, down to the
+     * change log, which copies the uid.
+     */
+    public function testAUidLongerThan255CharactersIsStored(): void
+    {
+        $uid    = str_repeat('u', 262);
+        $remote = $this->calDav(str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs()));
+
+        self::assertNotNull($remote);
+        self::assertSame(1, $this->apply([$remote]));
+        self::assertSame(
+            $uid,
+            $this->events->findOneByRemoteId($this->calendar, 'https://dav.example.com/c/weekly.ics')?->uid,
+        );
+        self::assertGreaterThan(
+            0,
+            (int) $this->connection->fetchOne('SELECT count(*) FROM calendar_change_log WHERE event_uid = ?', [$uid]),
+        );
+    }
+
+    /**
+     * Random, because a repetitive value compresses and would fit a btree anyway.
+     * A later pull of the same event has to find it rather than add a second.
+     */
+    public function testAUidTooLongForABtreeIsStoredAndFoundAgain(): void
+    {
+        $uid  = bin2hex(random_bytes(50000));
+        $href = 'https://dav.example.com/c/weekly.ics';
+        $ics  = str_replace('UID:weekly-1', 'UID:' . $uid, $this->weeklyIcs());
+
+        $this->apply([$this->calDav($ics)]);
+        $this->apply([
+            new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()))
+                ->toRemoteEvent(str_replace('SUMMARY:Standup', 'SUMMARY:Renamed', $ics), $href, '"etag-2"'),
+        ]);
+
+        self::assertSame(1, $this->rowCount());
+        self::assertSame('Renamed', $this->events->findOneByRemoteId($this->calendar, $href)?->title);
+        self::assertSame($uid, $this->events->findOneByRemoteId($this->calendar, $href)->uid);
+    }
+
+    public function testARemoteIdTooLongForABtreeIsStored(): void
+    {
+        $href = 'https://dav.example.com/c/' . bin2hex(random_bytes(50000)) . '.ics';
+        $remote = new CalDavEventConverter(new RecurrenceRuleConverter(), new AlertReader(new NullLogger()))
+            ->toRemoteEvent($this->weeklyIcs(), $href, '"etag-1"');
+
+        self::assertSame(1, $this->apply([$remote]));
+        self::assertNotNull($this->events->findOneByRemoteId($this->calendar, $href));
+    }
+
     public function testAnUnconvertibleRuleLeavesTheEventVisibleRatherThanEmpty(): void
     {
         // FREQ=SECONDLY is refused rather than converted — sabre's iterator

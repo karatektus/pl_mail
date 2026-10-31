@@ -102,7 +102,7 @@ final class HealthController extends AbstractController
      * True when every process that has ever reported in is still beating.
      *
      * Heartbeat-based rather than process-based, so it covers the workers that
-     * run in their own containers — the scheduler and the IMAP supervisor —
+     * run in their own containers — the scheduler and the push listeners —
      * which the web container cannot see any other way.
      *
      * An install that has never run a worker has no heartbeats at all, and

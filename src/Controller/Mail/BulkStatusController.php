@@ -509,7 +509,16 @@ final class BulkStatusController extends AbstractController
             $undoToken = $this->undo->remember($selected);
 
             foreach ($byAccount as $messages) {
-                $this->status->move($messages, $destination);
+                // From the folder the list shows, where it shows one: that
+                // copy is the one a drop moves (#221 step 3).
+                $from = $this->moveTo->viewedFolder(
+                    $user,
+                    $this->status->accountOf($messages[0]),
+                    (string) ($body['scope'] ?? ''),
+                    (string) ($body['value'] ?? ''),
+                );
+
+                $this->status->move($messages, $destination, $from);
             }
 
             // Its own template rather than a flag on the shared one, and the

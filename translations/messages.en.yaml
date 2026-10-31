@@ -10,6 +10,16 @@ account:
         imap:
             heading: Incoming — IMAP
             host: Host
+        jmap:
+            heading: 'Incoming — JMAP'
+            outgoing_heading: 'Outgoing — JMAP'
+            outgoing_help: 'The JMAP server sends your mail itself and files the copy in Sent, so there is nothing to fill in here.'
+            session_url: 'Session URL'
+            session_url_help: 'Leave blank to use the address above. Fill it in only if your server''s JMAP session is not at /.well-known/jmap.'
+            session_url_offer: 'My server''s JMAP session is somewhere else'
+            token_auth: 'The password is an API token'
+            token_auth_help: 'Tick this for servers such as Fastmail that give you a token instead of an app password. The username is then not sent.'
+            use_smtp: 'My server does not send over JMAP — use SMTP'
         password: Password
         pop3:
             delete_help: 'Kept on the server, a message is recognised next time by its UIDL and never fetched twice. Deleting frees space on the server, but plMail''s copy is then the only one left.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Changing this later keeps the mail you have: the next sync recognises what is already here.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Incoming protocol'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Continue with Microsoft
     primary_set: Primary account changed
     removed: Account removed
+    sync_interval_set: Sync interval changed
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'The connection did not work. Check the host, port and encryption.'
             host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
             imap_ok: 'Connected — %count% folders visible.'
+            jmap_no_mail: 'The server speaks JMAP but offers no mail for this account.'
+            jmap_ok: 'Connected — %count% mailboxes visible.'
+            jmap_submission: 'Sending goes through the JMAP server.'
             missing_fields: 'Enter at least an email address and an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
             pop3_ok: 'Connected — %count% messages in the mailbox.'
+            private_network: 'This server is on a private network. An administrator has to allow its host in INTEGRATIONS_ALLOWED_HOSTS before plMail may connect to it.'
             smtp_none: 'No SMTP host configured — sending is disabled for this account.'
             smtp_ok: 'Connected and signed in.'
             timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'
@@ -737,8 +753,8 @@ admin:
             running web container never picks up a new value. About two seconds of
             downtime, and this page comes back on its own.
         restart_app_title: 'Restart the web container'
-        restart_confirm: 'Restart the workers, scheduler and IMAP supervisor? In-flight work finishes first.'
-        restart_help: 'Stops the workers, scheduler and IMAP supervisor so they start again fresh. Long-running processes cache database mappings for their whole lifetime, so they need this after a migration.'
+        restart_confirm: 'Restart the workers, scheduler and push listeners? In-flight work finishes first.'
+        restart_help: 'Stops the workers, scheduler and push listeners so they start again fresh. Long-running processes cache database mappings for their whole lifetime, so they need this after a migration.'
         restart_pending: 'Restart requested %seconds%s ago — processes finish their current work, then reappear here within a minute or two.'
         restart_title: 'Restart long-running processes'
         run_help: 'Queued for a worker, not run here. These are the same sweeps the scheduler runs unattended.'
@@ -1826,6 +1842,7 @@ compose:
         send_anyway: Send it anyway?
         plain_text: Switching to plain text removes all formatting from this message. Continue?
         open_variables: 'A template placeholder has not been filled in.'
+        no_attachment: 'The message mentions an attachment, but nothing is attached.'
     # Every label inside the emoji picker. The component ships its own English
     # strings and takes a replacement object; this is that object, so the
     # picker is as translated as the window around it.
@@ -2684,6 +2701,28 @@ label:
         no_color: '— none —'
         no_parent: '— top level —'
         parent: Nest under
+        places:
+            category: 'An Outlook category on %account% (changes made in Outlook are not followed)'
+            category_followed: 'An Outlook category on %account%'
+            folder: 'A folder on %account%'
+            keyword: 'A keyword on %account%'
+            keyword_unasked: 'A keyword on %account%, where its folders keep keywords'
+            local_off: 'Only in plMail on %account% (labels as keywords is off)'
+            local_server: 'Only in plMail on %account% (the server keeps no keywords)'
+            make_folder: 'Make it a folder'
+            make_folder_body: 'Creates the folder “%name%” on %account%, so it becomes a place mail can be moved to.'
+            make_folder_category: 'The Outlook category of this name is removed.'
+            make_folder_done: 'Folder created.'
+            make_folder_failed: 'The folder could not be created: %error%'
+            make_folder_mail: '%count% message(s) with this label on this account move into it.'
+            make_folder_nested: 'Its parent “%parent%” becomes a folder there too.'
+            make_folder_stay: 'Mail in Trash, Spam, Sent and Drafts stays where it is.'
+            make_label: 'Make it a label'
+            make_label_body: 'Deletes the folder “%name%” on %account%. The label stays, as a tag there, and goes back on the mail that moves.'
+            make_label_failed_moved: 'The moved mail no longer has this label; add it again once the folder is gone.'
+            make_label_mail: '%count% message(s) in this folder have to go somewhere else first.'
+            manage: 'Change per account'
+            title: 'Where this label is kept'
     menu:
         create: Create new
         empty: No labels yet.
@@ -2730,6 +2769,7 @@ message:
         more: More
         print: Print
         report_insight: Report a missed insight
+        filter_from_message: 'Create a filter from this message'
         show_original: Show original
         star: Star
         unstar: Remove star
@@ -2787,6 +2827,19 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This message is encrypted with S/MIME for a certificate plMail does not have. Import it in Settings → Encryption, or open the message in a mail program that holds it."
         smime_unsupported: "This message is encrypted with a cipher plMail cannot open; only AES is supported."
+    filter_check:
+        button: 'Test my filters on this message'
+        hide: 'Hide the filter test'
+        none: 'No filter is switched on for this account.'
+        state:
+            matches: 'matches'
+            no_match: 'does not match'
+            stopped: 'not reached: "%rule%" stops after itself'
+            broken: 'its conditions cannot be read; it is skipped'
+            spam: 'skipped: the message is in Spam, and this filter does not name the Spam folder'
+        filing:
+            Filed: 'would file it in %category%'
+            NoCategory: 'nothing to file in: the tab is gone'
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '
@@ -3242,6 +3295,10 @@ settings:
             off: 'Off'
             on: 'On'
     accounts:
+        categories:
+            off_hint: 'Off: a category put on or taken off in Outlook does not change labels here. Turning it on lists every folder of this account once more.'
+            on_hint: 'On: a category put on or taken off in Outlook puts the label on or takes it off here.'
+            title: 'Follow Outlook categories'
         colour:
             change: 'Change the colour of %account%'
             swatch:
@@ -3261,16 +3318,63 @@ settings:
         enable: Enable account
         folders:
             always_synced: The inbox is always synced
-            button: Choose which folders to sync
+            button: Folders
+            created: 'Folder “%folder%” created'
+            delete:
+                button: 'Delete folder %folder%'
+                confirm: 'Delete the folder %folder% on the mail server? It is empty; nothing else is deleted.'
+            deleted: 'Folder “%folder%” deleted'
             empty: No folders yet. They are listed after the first sync.
+            idle_needs_sync: '%folder% is not synced, so it cannot be watched'
             intro: >-
                 Switch a folder off and plMail stops fetching it. Mail already
                 stored stays where it is, and switching the folder back on
-                resumes from where it stopped.
+                resumes from where it stopped. A folder with the bolt lit is
+                watched, so new mail in it shows up at once; the others are
+                checked at the account's interval.
+            invalid:
+                control: 'A folder name cannot contain line breaks or other control characters.'
+                empty: 'Give the folder a name.'
+                reserved: 'INBOX is reserved for the inbox.'
+                separator: 'A folder name cannot contain “%separator%” on this server: it separates folders from the folders inside them.'
+                too_long: 'That name is too long for a folder.'
+                wildcard: 'A folder name cannot contain * or %.'
+            keywords:
+                allowed: 'This server keeps keywords.'
+                intro: 'Put labels on this account’s mail as IMAP keywords, so mail apps that show keywords (Thunderbird’s tags, for one) see them, and keywords set there arrive here as labels. Labels never move mail. Off: labels stay in plMail.'
+                refused: 'This server keeps no keywords, so labels stay in plMail on this account.'
+                title: 'Labels as keywords'
+                unknown: 'Not asked yet: plMail asks each folder the first time it writes a keyword there.'
+            new:
+                button: 'New folder'
+                intro: 'The folder is made on the mail server, so it shows in every mail app that reads this account. Making a label never makes a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Create folder'
+                title: 'New folder — %account%'
+                top_level: 'Top level'
             placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
+            refused:
+                has_children: 'This folder has folders inside it. Delete or move those first.'
+                not_empty: 'This folder still holds mail (%count%). Move it elsewhere first; deleting a folder would delete its mail.'
+                server: 'The mail server refused: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk and Archive are never renamed or deleted from plMail: other mail apps and plMail itself rely on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder is renamed on the mail server, with the folders inside it, so every mail app that reads this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to “%folder%”'
+            start_idle: 'Watch %folder% for new mail as it arrives'
             start_sync: 'Start syncing %folder%'
+            stop_idle: 'Stop watching %folder% — check it at the account''s interval instead'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be reached, nothing was changed: %reason%'
+        gmail_move:
+            off_hint: 'Off: Move to lists the inbox, spam and trash only for this account. Labels are put on with Label as.'
+            on_hint: 'On: Move to lists this account’s labels too. Moving there puts the label on and takes the mail out of the inbox, as Gmail does.'
+            title: 'Move to offers labels'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'
@@ -3296,6 +3400,7 @@ settings:
                     Push is registered but nothing has arrived recently. The
                     Pub/Sub push subscription in Google Cloud may be missing or
                     pointing elsewhere. Mail is still syncing on a schedule.
+                jmap: 'Push is on but nothing is arriving. Check that the JMAP server is reachable; the account is still syncing on a schedule.'
                 microsoft: >-
                     The push subscription has lapsed and nothing is arriving.
                     Re-register it to resume instant delivery. Mail is still
@@ -3307,6 +3412,7 @@ settings:
                     existing Pub/Sub topic and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. The account is still syncing on a schedule.
+                jmap: 'Push couldn''t be turned on. The account is still syncing on a schedule.'
                 microsoft: >-
                     Push couldn't be enabled — Microsoft needs to reach this
                     server over HTTPS. Check your reverse proxy and
@@ -3322,6 +3428,7 @@ settings:
             off_hint: Mail is checked on a schedule. Turn on push for instant delivery.
             on_hint:
                 gmail: New mail arrives immediately via Gmail push notifications.
+                jmap: 'Changes arrive immediately: the JMAP server pushes them to plMail, over a webhook when it can reach this server and over a held-open connection when it cannot.'
                 microsoft: New mail arrives immediately via Microsoft push notifications.
             title: Instant delivery
         reorder: Drag to reorder
@@ -3329,6 +3436,10 @@ settings:
             active: Active
             disabled: Disabled
         subheading: Add, edit, enable, or remove the mailboxes you sync.
+        sync_interval:
+            change: 'Checked for new mail every %minutes% min — change how often for %account%'
+            every: 'Every %minutes% min'
+            heading: 'Check for new mail every … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3384,6 +3495,12 @@ settings:
         with_keys: "Your keys come along: encrypted mail opens in the app straight away."
         expires: "Expires at %time%."
         open_in_app: "Open in the app"
+    native_apps:
+        android_hint: "Then pair it with the button below. Buying the app on Google Play is, for now, the main way this project supports itself."
+        android_title: "Install plMail for Android first"
+        github: "or free from GitHub"
+        play_alt: "Get it on Google Play"
+        play_badge: images/badges/google-play-en.png
     app_passwords:
         copy: Copy
         copy_now: Here is your new app password
@@ -3629,6 +3746,7 @@ settings:
             fileInCategory: File in category
             markRead: Mark as read
             markSpam: Mark as spam
+            moveToFolder: Move to folder
             removeLabel: Remove label
             saveToIntegration: Save attachments to
             star: Star it
@@ -4316,6 +4434,10 @@ settings:
         delete: Delete label "%name%"
         edit: Edit label "%name%"
         empty: No labels yet — create one, or they appear after the first sync.
+        folders_in_labels:
+            off_hint: 'Off: folders are listed under their account, and the Labels section holds the labels you put on mail.'
+            on_hint: 'On: the Labels section in the sidebar lists folders too, beside their place under each account.'
+            title: 'Folders in Labels'
         heading: Labels
         hide: Hide label
         show: Show label
@@ -4791,10 +4913,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Add account
-        heading: Accounts
-        none: No accounts yet
         colour: 'Colour marking %account%'
         colour_disabled: 'Colour marking %account%, which is switched off'
+        folders: 'Folders…'
+        heading: Accounts
+        menu: 'Folders of %account%'
+        new_folder: 'New folder…'
+        none: No accounts yet
         open: 'Open %account%'
         toggle: 'Show or hide folders in %account%'
     badge:
@@ -4804,6 +4929,7 @@ sidebar:
     compose: Compose
     labels:
         add: Create label
+        folder_on: 'Folder on %accounts%'
         heading: Labels
         none: No labels yet
     new_mail_here: 'New mail in %where%'
@@ -4890,6 +5016,7 @@ thread_row:
         snooze: Snooze
     answer: New reply to your message
     answer_badge: Reply
+    folder: 'In the folder %label%'
     has_attachment: Has attachment
     me: me
     meaning: 'Found by meaning, not by the words you typed'
@@ -4905,6 +5032,7 @@ thread_row:
         rate_limited: 'Not sent: your mail provider was limiting sends'
         refused: 'Not sent: the mail server refused it'
         unavailable: 'Not sent: your mail provider could not be reached'
+    remove_label: 'Remove %label%'
     scheduled: 'Scheduled %when%'
     select: Select
     # The long-press sheet's own names: its dialog label, and the entry that ticks the row.
@@ -5097,6 +5225,7 @@ whats_new:
         where: 'Goes by mail to %address%, with your plMail version. A copy stays in your Sent folder.'
     highlights: 'Highlights'
     menu:
+        android: 'plMail for Android'
         label: 'Help and feedback'
         unseen: 'There are release notes you have not seen'
         version: 'plMail %version%'

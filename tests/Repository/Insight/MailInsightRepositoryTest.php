@@ -19,8 +19,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
- * Which undated cards the radar offers, and on whose clock — and which cards
- * it leaves out because their mail is in Spam (#304).
+ * Which undated cards the radar offers, and on whose clock — which dated
+ * code it lets go when it expires (#355) — and which cards it leaves out
+ * because their mail is in Spam (#304).
  *
  * An undated card — GitHub activity, a code whose mail states no expiry — has
  * no date of its own, so the radar measures how recent it is. The first version
@@ -135,6 +136,28 @@ final class MailInsightRepositoryTest extends KernelTestCase
     }
 
     /**
+     * A code whose mail states an expiry is dated by it, and leaves the radar
+     * when it expires. The eighteen hours of look-back are for a parcel that
+     * landed this morning; they kept an expired code listed, readable, for
+     * that long (#355).
+     *
+     * Hand-derived with NOW 12:00:00: a code expiring at 12:00:01 is listed,
+     * one that expired at 11:59:59 is not, and a parcel due at 11:59:59 keeps
+     * its look-back.
+     */
+    public function testACodeThatStatesAnExpiryLeavesTheRadarWhenItExpires(): void
+    {
+        $this->datedCard('otp:still-good', null, InsightKind::Otp, '2026-10-13 12:00:01');
+        $this->datedCard('otp:expired', null, InsightKind::Otp, '2026-10-13 11:59:59');
+        $this->datedCard('parcel:landed', null, InsightKind::Parcel, '2026-10-13 11:59:59');
+
+        self::assertSame(
+            ['stub:parcel:landed', 'stub:otp:still-good'],
+            $this->dedupeKeys($this->upcoming()),
+        );
+    }
+
+    /**
      * Spam is where a fake parcel notice ends up, usually after it was read:
      * the harvester skips mail that arrives in Spam, not mail moved there
      * later. Any Spam label on the conversation takes its card off both lists.
@@ -201,18 +224,22 @@ final class MailInsightRepositoryTest extends KernelTestCase
         return $this->repository()->upcomingForUser($this->user, new DateTimeImmutable(self::NOW, new DateTimeZone('UTC')));
     }
 
-    /** One parcel due tomorrow at noon, linked to `$thread` (or to none). */
-    private function datedCard(string $key, ?MessageThread $thread): MailInsight
-    {
+    /** One dated card, by default a parcel due tomorrow at noon, linked to `$thread` (or to none). */
+    private function datedCard(
+        string $key,
+        ?MessageThread $thread,
+        InsightKind $kind = InsightKind::Parcel,
+        string $happensAt = '2026-10-14 12:00:00',
+    ): MailInsight {
         $insight            = new MailInsight();
         $insight->account   = $this->account;
-        $insight->kind      = InsightKind::Parcel;
+        $insight->kind      = $kind;
         $insight->title     = $key;
         $insight->extractor = 'stub';
         $insight->dedupeKey = 'stub:' . $key;
         $insight->payload   = [];
         $insight->thread    = $thread;
-        $insight->happensAt = new DateTimeImmutable('2026-10-14 12:00:00', new DateTimeZone('UTC'));
+        $insight->happensAt = new DateTimeImmutable($happensAt, new DateTimeZone('UTC'));
 
         $this->em->persist($insight);
         $this->em->flush();

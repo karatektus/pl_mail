@@ -27,6 +27,8 @@ x-test-app: &test-app
     MERCURE_COOKIE_NAME: mercure_access_token
     MERCURE_URL: http://mercure/.well-known/mercure
     MERCURE_JWT_SECRET: e2e-mercure-secret-not-for-production
+    IMAP_TEST_HOST: dovecot
+    IMAP_TEST_PASSWORD: dovecot-test-password
   depends_on:
     database:
       condition: service_healthy
@@ -66,6 +68,13 @@ services:
         php bin/console app:test:seed-user
         php bin/console app:test:seed-user --admin --email=e2e-admin@plmail.test --password=e2e-admin-password
 
+  dovecot:
+    image: dovecot/dovecot:2.4.1
+    environment:
+      USER_PASSWORD: dovecot-test-password
+    volumes:
+      - ./tests/dovecot/cleartext.conf:/etc/dovecot/conf.d/cleartext.conf:ro
+
   mercure:
     image: dunglas/mercure
     environment:
@@ -91,6 +100,8 @@ services:
         condition: service_completed_successfully
       mercure:
         condition: service_healthy
+      dovecot:
+        condition: service_started
 
   worker-bulk:
     <<: *test-app

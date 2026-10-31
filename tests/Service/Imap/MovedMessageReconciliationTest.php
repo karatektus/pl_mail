@@ -89,28 +89,28 @@ final class MovedMessageReconciliationTest extends KernelTestCase
     // ── the move we make ourselves ────────────────────────────────────────
 
     /**
-     * The reported bug, from the button the user pressed.
-     *
-     * Trashing must leave the row naming Trash and naming no address inside it.
-     * The UID it held was INBOX's and describes nothing once the message has
-     * left — and keeping it is exactly what made the Trash sync insert a twin.
+     * The button the user pressed: the row keeps the address it really has
+     * until the server has moved the mail (#415). Re-pointing it at Trash with
+     * no UID, as this used to, left a row a purge could not reach and a sweep
+     * could not see (#427).
      */
-    public function testTrashingAMessageDoesNotLeaveItClaimingItsOldAddress(): void
+    public function testTrashingAMessageKeepsItsAddressUntilTheServerHasMovedIt(): void
     {
         $message = $this->incoming('Rechnung', 'kunde@example.test', $this->inbox, 6);
 
         $this->status->trash([$message]);
 
-        self::assertSame($this->trash->id, $message->mailbox?->id, 'the row has to name the folder the mail is going to');
-        self::assertNull($message->imapUid, 'and no UID, because Trash has not issued one yet');
+        self::assertSame($this->inbox->id, $message->mailbox?->id);
+        self::assertSame(6, $message->imapUid);
     }
 
     /**
      * The other half of the same journey: the Trash sync meets the real UID and
      * has to recognise the row rather than insert beside it.
      *
-     * No probe is passed, and that is the point — a move we made ourselves needs
-     * no server to confirm it, because the row already says it has no address.
+     * With the sync's probe, as the sync calls it: the row still names its
+     * INBOX address until the move is confirmed, and the server saying that
+     * address is empty is what makes the Trash copy this row's.
      */
     public function testTheTrashSyncGivesTheMovedRowItsNewAddressInsteadOfASecondRow(): void
     {
@@ -120,7 +120,7 @@ final class MovedMessageReconciliationTest extends KernelTestCase
 
         $this->status->trash([$message]);
 
-        $claimed = $this->reconciler->claim($this->trash, $messageId, 91);
+        $claimed = $this->reconciler->claim($this->trash, $messageId, 91, static fn (): bool => false);
         $this->em->flush();
 
         self::assertNotNull($claimed, 'the trashed message must be recognised when it reappears in Trash');

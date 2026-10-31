@@ -75,7 +75,7 @@ Variables:
                        name="name"
                        value="{{ page ? page.name : '' }}"
                        maxlength="120"
-                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.name_help'|trans }}</p>
             </div>
@@ -87,7 +87,7 @@ Variables:
                 <textarea id="booking-description"
                           name="description"
                           rows="2"
-                          class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                          class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field-border text-ink
                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ page ? page.description : '' }}</textarea>
             </div>
 
@@ -119,7 +119,7 @@ Variables:
                                name="busyCalendars[]"
                                value="{{ calendar.id }}"
                                {{ page is null or page.busyCalendars.contains(calendar) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field-border accent-accent focus:ring-accent">
                         <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
                         {{ calendar.name }}
                     </label>
@@ -131,7 +131,7 @@ Variables:
 
                 <div class="flex flex-wrap gap-2">
                     {% for weekday in 1..7 %}
-                        <label class="cursor-pointer rounded-lg border border-field bg-field px-2.5 py-1.5 text-xs text-ink-soft
+                        <label class="cursor-pointer rounded-lg border border-field-border bg-field px-2.5 py-1.5 text-xs text-ink-soft
                                       has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink">
                             <input type="checkbox"
                                    name="weekdays[]"
@@ -180,7 +180,7 @@ Variables:
                     </label>
                     <input type="number" id="booking-slot" name="slotMinutes" min="5" max="1440"
                            value="{{ page ? page.slotMinutes : 30 }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 </div>
 
@@ -190,7 +190,7 @@ Variables:
                     </label>
                     <input type="number" id="booking-buffer" name="bufferMinutes" min="0" max="240"
                            value="{{ page ? page.bufferMinutes : 0 }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                     <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.booking.form.buffer_help'|trans }}</p>
                 </div>
@@ -201,7 +201,7 @@ Variables:
                     </label>
                     <input type="number" id="booking-notice" name="noticeMinutes" min="0" max="43200"
                            value="{{ page ? page.noticeMinutes : 120 }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 </div>
 
@@ -211,7 +211,7 @@ Variables:
                     </label>
                     <input type="number" id="booking-horizon" name="horizonDays" min="1" max="366"
                            value="{{ page ? page.horizonDays : 30 }}"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 </div>
             </div>
@@ -246,7 +246,7 @@ Variables:
             <button type="button"
                     data-action="click->ui--modal#close"
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
+                           text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
 
             <button type="submit"
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink

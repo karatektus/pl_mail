@@ -2,22 +2,26 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\DTO\Mail\ImapCopyIdentity;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
 use App\Domain\Helper\RepeatedHeaderHelper;
+use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Crypto\MessageCryptoDetector;
+use App\Service\Label\KeywordLabels;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
@@ -28,7 +32,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Attribute;
-use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Message as ImapMessage;
 use Webklex\PHPIMAP\Support\AttachmentCollection;
 use App\Service\Mail\HeaderNormalizer;
@@ -55,14 +58,16 @@ class MessageSyncer
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
-        private readonly ImapConnectionFactory $connections,
         private readonly VanishedMessageReconciler $vanished,
         private readonly GhostMessageReaper $ghosts,
         private readonly ManagerRegistry $registry,
         private readonly ImapPagedFetch $pagedFetch,
+        private readonly ImapCopies $copies,
+        private readonly PurgedCopies $purgedCopies,
         private readonly ImapImportPlan $importPlan,
         private readonly ProcessHeartbeatService $heartbeats,
         private readonly MessageCryptoDetector $cryptoDetector,
+        private readonly KeywordLabels $keywordLabels,
     ) {}
 
     /**
@@ -77,24 +82,15 @@ class MessageSyncer
     private bool $importing = false;
 
     /**
-     * A UID range as a search criterion the library will not quote.
+     * What the index pass said about each UID about to be downloaded, so the
+     * message built from it keeps its size and server id — which is how the
+     * next copy of it is recognised (ImapCopies). Set for the length of
+     * one folder's sync or one import page, like $importing, and for the same
+     * reason: it is needed four calls down.
      *
-     * `where('UID', '1:*')` looks right and is not: Query::generate_query()
-     * emits the value bare only when `is_numeric()` says so, and a range is not
-     * numeric, so it goes out as `UID "1:*"`. Servers reject that outright —
-     * Dovecot with `BAD expected DIGIT instead of '"'` — and since every
-     * incremental sync asks for a range, IMAP sync failed for every mailbox
-     * while the logs showed only a protocol error with no obvious cause.
-     *
-     * `CUSTOM ` is the library's own escape hatch: validate_criteria() strips
-     * the prefix and the remainder is pushed as a single token, which
-     * generate_query() appends verbatim. A single UID would have been fine
-     * either way, which is why this never showed up in a first sync of one.
+     * @var array<int, ImapCopyIdentity>
      */
-    public static function uidRangeCriteria(string $uidRange): string
-    {
-        return 'CUSTOM UID '.$uidRange;
-    }
+    private array $identities = [];
 
     /**
      * The instant an RFC 2822 `Date:` header names, in UTC.
@@ -116,15 +112,17 @@ class MessageSyncer
             ->setTimezone(new \DateTimeZone('UTC'));
     }
 
-    public function syncMailbox(Mailbox $mailbox, Client $client): void
+    public function syncMailbox(Mailbox $mailbox, ImapSession $session): void
     {
         $mailboxId = $mailbox->id;
         $accountId = $mailbox->account->id;
+        $path      = $mailbox->serverPath();
 
-        $folder = ImapFolderLocator::of($client, $mailbox);
+        try {
+            $session->select($path);
+        } catch (ImapCommandException $refused) {
+            $this->logger->error('Folder not found', ['mailbox' => $path, 'error' => $refused->getMessage()]);
 
-        if (null === $folder) {
-            $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);
             return;
         }
 
@@ -134,7 +132,7 @@ class MessageSyncer
         // below has to be planned against that rather than against the state
         // this method was entered with. On the ordinary poll this is a no-op —
         // it only lists a folder every SWEEP_INTERVAL_MINUTES.
-        $this->vanished->sweep($mailbox, $client);
+        $this->vanished->sweep($mailbox, $session);
 
         // A folder nobody has looked at yet: put the mark at its top, so what
         // follows asks for new mail only, and leave everything below to the
@@ -143,7 +141,7 @@ class MessageSyncer
         // this one job (#42). A server that will not say where its top is
         // leaves the folder unplanned, and it is read that old way.
         if (null === $mailbox->importFloorUid) {
-            $this->importPlan->begin($mailbox, $client);
+            $this->importPlan->begin($mailbox, $session);
         }
 
         $lastSeenUid = $mailbox->lastSeenUid ?? 0;
@@ -163,10 +161,19 @@ class MessageSyncer
             $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
 
+        // Mail deleted forever here, whose deletion the server has not
+        // confirmed: asked about again if the job did not get through, and
+        // never imported again meanwhile (#427). See PurgedCopy.
+        $this->purgedCopies->settle($mailbox, $session);
+
+        foreach ($this->purgedCopies->uidsIn($mailbox) as $purgedUid) {
+            $syncedUids[$purgedUid] = true;
+        }
+
         // How a message that appears here is told from a message that is merely
         // also here: by whether the copy it would have moved from is still on
-        // the server. Opens nothing until something actually asks.
-        $presence = new ImapUidPresence($mailbox->account, $this->connections, $this->logger);
+        // the server. Asks nothing until something wants to know.
+        $presence = new ImapUidPresence($session, $this->logger);
 
         $synced = 0;
 
@@ -176,49 +183,77 @@ class MessageSyncer
         // batch's higher UIDs, and the skipped message was never asked for again.
         $lowestSkippedUid = null;
 
-        try {
-            // Not the library's chunked(): one message it cannot parse ends
-            // that loop for the whole folder, on every sync. See ImapPagedFetch.
-            // A range that finds nothing moves nothing, so a server's "no such
-            // message" for it is read as the empty answer it means (#219).
-            $query = ImapQuery::of($folder)->emptyWhenNoSuchMessage()->where(self::uidRangeCriteria($uidRange));
+        // A message that cannot be read costs that message, not the folder;
+        // see ImapPagedFetch. A range that finds nothing moves nothing, so
+        // a server's "no such message" for it is read as the empty answer
+        // it means (#219).
+        $uids = ImapUidSearch::range($session, $path, $uidRange);
 
-            foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
-                $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
-                $synced += count($batch);
-                $this->startNextBatch();
-                $this->heartbeats->beatWhileBusy();
-                $this->logger->info(sprintf('Synced %d messages so far', $synced));
+        // Copies of mail that is already here become locations of it and are
+        // not downloaded at all (#415). Asked of the new UIDs only; the rest
+        // go on as they always did.
+        $new = array_values(array_filter(
+            $uids,
+            static fn (int $uid): bool => $uid > $lastSeenUid && false === isset($syncedUids[$uid]),
+        ));
+
+        [$attached, $this->identities] = $this->copies->attachKnownCopies($mailbox, $session, $new);
+
+        foreach ($attached as $uid) {
+            $syncedUids[$uid] = true;
+        }
+
+        $uids = array_values(array_diff($uids, $attached));
+
+        foreach ($this->pagedFetch->pages($session, $path, $uids, self::BATCH_SIZE) as [$batch, $unreadable]) {
+            $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
+            $synced += count($batch);
+            $this->startNextBatch();
+            $this->heartbeats->beatWhileBusy();
+            $this->logger->info(sprintf('Synced %d messages so far', $synced));
+        }
+
+        $mailbox = $this->mailboxRepository->find($mailboxId);
+
+        $this->identities = [];
+
+        // An attached copy moves the mark like a downloaded one, or the next
+        // poll asks for it again; held below a UID that failed, as there.
+        if ([] !== $attached) {
+            $top = max($attached);
+
+            if (null !== $lowestSkippedUid) {
+                $top = min($top, $lowestSkippedUid - 1);
             }
 
-            $mailbox = $this->mailboxRepository->find($mailboxId);
-
-            // Before the counts below, so they are taken over what is left. Only
-            // does anything on a Sent folder that still holds pairs the old send
-            // path duplicated; on every other sync it is one indexed query that
-            // finds nothing. See SentCopyReconciler::repair().
-            $this->sentCopies->repair($mailbox);
-
-            // The same idea one folder wider: rows this account holds twice
-            // because a move left the first one behind. Also one indexed query
-            // that finds nothing on an account that never had the bug.
-            $this->sentCopies->repairRelocated($mailbox, $presence);
-
-            // Last, and account-wide rather than folder-wide, because the
-            // question it settles is "is this message anywhere" and no single
-            // folder can answer it. Does nothing until every folder in the
-            // account has been swept, and nothing then either unless the server
-            // confirms the absence one row at a time. See
-            // VanishedMessageReconciler.
-            $this->vanished->reap($mailbox->account, $presence);
-
-            // Before the counts below, because a ghost is counted as unread and
-            // the badge is where they were noticed in the first place. Runs
-            // after the reconcilers so it never races them for the same row.
-            $this->ghosts->reap();
-        } finally {
-            $presence->close();
+            if ($top > ($mailbox->lastSeenUid ?? 0)) {
+                $mailbox->lastSeenUid = $top;
+            }
         }
+
+        // Before the counts below, so they are taken over what is left. Only
+        // does anything on a Sent folder that still holds pairs the old send
+        // path duplicated; on every other sync it is one indexed query that
+        // finds nothing. See SentCopyReconciler::repair().
+        $this->sentCopies->repair($mailbox);
+
+        // The same idea one folder wider: rows this account holds twice
+        // because a move left the first one behind. Also one indexed query
+        // that finds nothing on an account that never had the bug.
+        $this->sentCopies->repairRelocated($mailbox, $presence);
+
+        // Last, and account-wide rather than folder-wide, because the
+        // question it settles is "is this message anywhere" and no single
+        // folder can answer it. Does nothing until every folder in the
+        // account has been swept, and nothing then either unless the server
+        // confirms the absence one row at a time. See
+        // VanishedMessageReconciler.
+        $this->vanished->reap($mailbox->account, $presence);
+
+        // Before the counts below, because a ghost is counted as unread and
+        // the badge is where they were noticed in the first place. Runs
+        // after the reconcilers so it never races them for the same row.
+        $this->ghosts->reap();
 
         $mailbox->syncedAt = new DateTimeImmutable();
         $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
@@ -238,18 +273,20 @@ class MessageSyncer
      * on the mailbox.
      *
      * @param iterable<ImapMessage>  $batch
-     * @param array<int, \Throwable> $unreadable as for processBatch()
+     * @param array<int, \Throwable>        $unreadable as for processBatch()
+     * @param array<int, ImapCopyIdentity> $identities what the index pass said about the page's UIDs
      *
      * @return int|null the lowest UID of the page that was held back, or null
      *                  when every message of it was dealt with
      */
-    public function storeImportPage(Mailbox $mailbox, iterable $batch, array $unreadable): ?int
+    public function storeImportPage(Mailbox $mailbox, ImapSession $session, iterable $batch, array $unreadable, array $identities = []): ?int
     {
         $syncedUids = [];
         $lowestHeld = null;
-        $presence   = new ImapUidPresence($mailbox->account, $this->connections, $this->logger);
+        $presence   = new ImapUidPresence($session, $this->logger);
 
-        $this->importing = true;
+        $this->importing  = true;
+        $this->identities = $identities;
 
         try {
             $this->processBatch(
@@ -263,27 +300,13 @@ class MessageSyncer
                 $unreadable,
             );
         } finally {
-            $this->importing = false;
-            $presence->close();
+            $this->importing  = false;
+            $this->identities = [];
         }
 
         $this->startNextBatch();
 
         return $lowestHeld;
-    }
-
-    /**
-     * A set of UIDs as a search criterion: `UID 912,915:917,930`.
-     *
-     * For the importer, which asks for exactly the messages a folder is
-     * missing rather than for a range. Through the same escape hatch as
-     * uidRangeCriteria(), for the same reason.
-     *
-     * @param list<int> $uids
-     */
-    public static function uidSetCriteria(array $uids): string
-    {
-        return self::uidRangeCriteria(implode(',', $uids));
     }
 
     /**
@@ -326,7 +349,11 @@ class MessageSyncer
                 throw $refused;
             }
 
-            $this->logger->warning('The database refused a batch; storing its messages one at a time', [
+            // A notice, not a warning: this line only says the run changes
+            // strategy. Most refusals are the race described below and lose
+            // nothing, and a message that really cannot be stored is logged
+            // as an error of its own by the one-at-a-time pass (#352).
+            $this->logger->notice('The database refused a batch; storing its messages one at a time', [
                 'mailboxId' => $mailboxId,
                 'error'     => $refused->getMessage(),
                 'exception' => $refused,
@@ -535,6 +562,11 @@ class MessageSyncer
             }
 
             if (null !== $claimed) {
+                // A row this installation wrote, now with a server copy: what
+                // the index said about that copy is what recognises the next.
+                $claimed->rfc822Size    ??= $this->identities[$uid]->size ?? null;
+                $claimed->serverEmailId ??= $this->identities[$uid]->serverId ?? null;
+
                 if (true === $oneAtATime) {
                     $this->em->flush();
                 }
@@ -554,6 +586,15 @@ class MessageSyncer
                 $this->dropRepeatedHeader($imapMessage, $uid, $mailbox->fullPath);
 
                 $message = $this->buildMessageFromParsed($imapMessage, $mailbox, $accountId);
+                $raw     = $this->rawOf($imapMessage);
+
+                // What the next copy of this email is recognised by. The
+                // server's count where the index gave one; otherwise the bytes
+                // as fetched, which are the same octets.
+                $identity               = $this->identities[$uid] ?? null;
+                $message->rfc822Size    = $identity->size ?? strlen($raw);
+                $message->serverEmailId = $identity?->serverId;
+
                 $this->em->persist($message);
 
                 // Only now, with the message whole. buildMessage() used to
@@ -572,7 +613,7 @@ class MessageSyncer
                 }
 
                 $messages[]        = $message;
-                $rawBodies[]       = $this->rawOf($imapMessage);
+                $rawBodies[]       = $raw;
                 $syncedUids[$uid]  = true; // mark within this run
 
                 if (true === ($uid > $maxUid)) {
@@ -920,7 +961,7 @@ class MessageSyncer
      * A Date header that is present but unparseable used to be fatal twice
      * over. webklex throws InvalidMessageDateException while it builds the
      * message unless a fallback date is configured, which failed the whole
-     * fetch — so ImapConnectionFactory configures one, the epoch. And a value
+     * fetch — so MessageParser::config() configures one, the epoch. And a value
      * that did survive into the attribute could still throw here out of
      * Carbon::parse(). Both now land on the fallback: webklex's epoch is read
      * as "no date" rather than stored as 1970, and a throw is caught.
@@ -1020,11 +1061,28 @@ class MessageSyncer
      */
     public function buildMessageFromParsed(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
+        return $this->buildFromParsed($imapMessage, $mailbox->account, $mailbox);
+    }
+
+    /**
+     * The same, for a message that lives in no folder.
+     *
+     * JMAP is the caller: its server hands over the RFC 822 bytes of an Email
+     * as a blob, so the bytes go through the parser IMAP and POP3 use and
+     * come out as the same row — but a JMAP Email is in any number of
+     * mailboxes at once, which a Mailbox row cannot say. Its placement is
+     * labels, as a Gmail message's is, and the caller applies them; there is
+     * no folder label to add here and no folder to point the row at.
+     */
+    public function buildFromParsed(ImapMessage $imapMessage, Account $account, ?Mailbox $mailbox): Message
+    {
         $message = new Message();
-        $message->account = $mailbox->account;
+        $message->account = $account;
         $message->mailbox = $mailbox;
 
-        $mailboxLabel = $mailbox->label;
+        // The folder's label, or Archive for mail first met in All Mail — see
+        // ImapCopies::labelFor() (#415).
+        $mailboxLabel = null === $mailbox ? null : $this->copies->labelFor($mailbox);
 
         if (null !== $mailboxLabel) {
             $message->addLabel($mailboxLabel);
@@ -1052,20 +1110,31 @@ class MessageSyncer
         $flagNames = array_values($imapMessage->getFlags()->toArray());
         $message->flags = $flagNames;
 
+        // Keywords that are labels, where the account keeps labels as keywords
+        // (#221 step 2): the mail arrives wearing them. Off, and they stay in
+        // the flag mirror and nowhere else, as before. IMAP's only: a JMAP
+        // Email (no folder here) carries its keywords as JMAP does.
+        $owner = $account->usr;
+
+        if (null !== $mailbox && true === $account->labelsAsKeywords && null !== $owner) {
+            foreach (KeywordLabels::namesIn($flagNames) as $name) {
+                $label = $this->keywordLabels->label($name, $owner, true);
+
+                if (null !== $label) {
+                    $message->addLabel($label);
+                }
+            }
+        }
+
         // Dates. A draft has not been sent, whatever its Date header says (see
         // Message::$sentAt). Decided by the same test the rest of the app uses
-        // on the stored flags, so a row is never "not a draft, never sent":
-        // webklex strips the backslash, so a server's `\Draft` is stored as
-        // `Draft` here and is not a draft to the app yet.
+        // on the stored flags, so a row is never "not a draft, never sent".
         $receivedAt = $this->receivedAtOf($imapMessage);
 
         $message->sentAt = true === $message->isDraft() ? null : $receivedAt;
         $message->receivedAt = $receivedAt;
 
-        if (
-            true === in_array('Seen', $flagNames, true)
-            || true === in_array('\\Seen', $flagNames, true)
-        ) {
+        if (true === $message->hasFlag(MessageFlag::SEEN)) {
             $message->seenAt = new DateTimeImmutable();
         }
 
@@ -1141,7 +1210,7 @@ class MessageSyncer
         }
 
         foreach ($remaining as $attachment) {
-            if (false === $this->persistAttachment($attachment, $message, $accountId)) {
+            if (false === $this->persistAttachment($attachment, $message, (int) $account->id)) {
                 $hasAttachments = true;
             }
         }
@@ -1290,10 +1359,15 @@ class MessageSyncer
         $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
         $content  = $attachment->getContent();
 
+        // Zero for the folder and the uid of a message that has neither — a
+        // JMAP one, see buildFromParsed(). The path only has to be somewhere
+        // the file can be written: parts are found and deleted by their own
+        // storagePath, never by the directory they are in, and a name that
+        // repeats there is given a suffix by the store.
         $storagePath = $this->attachmentStorage->store(
             $accountId,
-            $message->mailbox->id,
-            $message->imapUid,
+            (int) ($message->mailbox->id ?? 0),
+            (int) ($message->imapUid ?? 0),
             $filename,
             $content,
         );

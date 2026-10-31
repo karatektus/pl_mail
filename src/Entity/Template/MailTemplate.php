@@ -39,6 +39,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'mail_template')]
 // Every read is "this user's templates", all of them, for the tree or the picker.
 #[ORM\Index(name: 'idx_mail_template_usr', columns: ['usr_id'])]
+#[ORM\Index(name: 'idx_mail_template_account', columns: ['account_id'])]
+#[ORM\Index(name: 'idx_mail_template_folder', columns: ['folder_id'])]
 class MailTemplate
 {
     use TimestampableTrait;

@@ -21,6 +21,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'address_key_binding')]
 #[ORM\UniqueConstraint(name: 'uniq_address_key_binding', columns: ['address_key_id', 'email'])]
 #[ORM\Index(name: 'idx_address_key_binding_email', columns: ['email'])]
+#[ORM\Index(name: 'idx_address_key_binding_key', columns: ['address_key_id'])]
 class AddressKeyBinding
 {
     #[ORM\Id]

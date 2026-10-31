@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Rule\MailRuleRepository;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -62,6 +67,55 @@ final class MailRuleControllerTest extends WebTestCase
         self::assertSame(['subject' => 'invoice'], $rule->conditions);
         self::assertSame('applyLabel', $rule->actions[0]['type']);
         self::assertTrue($rule->isEnabled);
+    }
+
+    /**
+     * "Create a filter from this message" opens the editor on the sender, as
+     * a whole address — and with no action, which stays the reader's choice.
+     */
+    public function testTheEditorOpensOnTheSenderOfTheMessageItWasAskedFrom(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage($this->user, 'Cyber Lettre', 'cyberveille@cyberveille.eu');
+
+        $crawler = $client->request('GET', '/settings/filters/new?message=' . $message->id);
+
+        self::assertResponseIsSuccessful();
+
+        $form = $crawler->filter('form[data-controller="rules--rule-builder"]');
+
+        self::assertSame(
+            ['operator' => 'AND', 'conditions' => [['fromAddress' => 'cyberveille@cyberveille.eu']]],
+            json_decode((string) $form->attr('data-rules--rule-builder-conditions-value'), true),
+        );
+        self::assertSame('[]', $form->attr('data-rules--rule-builder-actions-value'));
+        self::assertSame('Cyber Lettre', $crawler->filter('input[name="name"]')->attr('value'));
+    }
+
+    /** Somebody else's message lends nothing to the form, not even its sender. */
+    public function testAMessageThatIsNotTheReadersIsRefused(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage($this->seedUser(), 'Stranger', 'stranger@example.org');
+
+        $client->request('GET', '/settings/filters/new?message=' . $message->id);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    /** The settings page opened from a message loads the editor on its draft. */
+    public function testTheFiltersPageOpenedFromAMessageLoadsTheDraft(): void
+    {
+        $client  = $this->signIn();
+        $message = $this->seedMessage($this->user, 'Cyber Lettre', 'cyberveille@cyberveille.eu');
+
+        $crawler = $client->request('GET', '/settings?section=filters&from_message=' . $message->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            '/settings/filters/new?message=' . $message->id,
+            $crawler->filter('turbo-frame#filter-editor')->attr('src'),
+        );
     }
 
     /**
@@ -317,6 +371,50 @@ final class MailRuleControllerTest extends WebTestCase
         $this->em->flush();
 
         return $label;
+    }
+
+    private function seedMessage(User $owner, string $fromName, string $fromAddress): Message
+    {
+        $account                 = new Account();
+        $account->usr            = $owner;
+        $account->name           = 'Rules fixture';
+        $account->email          = 'rules-account@example.test';
+        $account->username       = 'rules-' . uniqid('', true) . '@example.test';
+        $account->imapHost       = 'localhost';
+        $account->imapPort       = 993;
+        $account->imapEncryption = 'ssl';
+        $account->authType       = 'password';
+        $account->isActive       = true;
+        $this->em->persist($account);
+
+        $thread                    = new MessageThread();
+        $thread->account           = $account;
+        $thread->subject           = 'Votre CyberLettre';
+        $thread->normalizedSubject = 'votre cyberlettre';
+        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new DateTimeImmutable('2026-10-26');
+        $thread->unreadCount       = 0;
+        $thread->messageCount      = 1;
+        $this->em->persist($thread);
+
+        $message                 = new Message();
+        $message->account        = $account;
+        $message->thread         = $thread;
+        $message->subject        = 'Votre CyberLettre';
+        $message->fromAddress    = $fromAddress;
+        $message->fromName       = $fromName;
+        $message->bodyText       = 'La cyberlettre du jour.';
+        $message->receivedAt     = new DateTimeImmutable('2026-10-26 09:00');
+        $message->sentAt         = $message->receivedAt;
+        $message->hasAttachments = false;
+        $message->flags          = [];
+        $message->messageId      = sprintf('<rules-%s@example.test>', uniqid('', true));
+        $thread->addMessage($message);
+        $this->em->persist($message);
+
+        $this->em->flush();
+
+        return $message;
     }
 
     private function seedUser(): User

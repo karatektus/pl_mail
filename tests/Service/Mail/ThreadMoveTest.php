@@ -109,14 +109,15 @@ final class ThreadMoveTest extends KernelTestCase
     }
 
     /**
-     * Plain IMAP: the row has to name the folder the mail is now in.
+     * Plain IMAP: the row names the folder the mail is really in.
      *
-     * The label change is the source of truth, but the mailbox pointer is what
-     * the sync layer addresses the message by. Left pointing at the source, the
-     * next flag pass would look for the message under a UID the destination
-     * never issued.
+     * The label change is the source of truth for where it shows. The mailbox
+     * pointer is the copy's address, and it stays at the source until the
+     * server has moved the mail and said where to (#415): re-pointed early, it
+     * named a folder with no UID in it — a row a purge could not reach and a
+     * sweep could not see (#427).
      */
-    public function testTheMessageIsRepointedAtTheDestinationMailbox(): void
+    public function testTheMessageKeepsItsAddressUntilTheServerHasMovedIt(): void
     {
         $inbox    = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
         $receipts = $this->folderLabel('Receipts', $this->receiptsMailbox);
@@ -138,7 +139,9 @@ final class ThreadMoveTest extends KernelTestCase
 
         $this->status->move([$message], $receipts);
 
-        self::assertSame($this->receiptsMailbox, $message->mailbox);
+        // Where it really is until the server has moved it (#415); the move
+        // itself is queued — see the test below.
+        self::assertSame($this->inboxMailbox, $message->mailbox);
     }
 
     /**
@@ -226,7 +229,7 @@ final class ThreadMoveTest extends KernelTestCase
         self::assertSame($trashMailbox, $binned->mailbox);
         self::assertSame(4242, $binned->imapUid, 'the binned message lost a UID that was still its address');
         self::assertTrue($binned->labels->contains($trash), 'the binned message lost its Trash label');
-        self::assertSame($trashMailbox, $reply->mailbox, 'the Inbox message was not re-pointed at the bin');
+        self::assertSame($this->inboxMailbox, $reply->mailbox, 'the Inbox message keeps its address until the server has moved it');
     }
 
     /**

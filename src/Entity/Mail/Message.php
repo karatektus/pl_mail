@@ -20,15 +20,17 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use App\Domain\Trait\TimestampableTrait;
+use Doctrine\ORM\Event\PreFlushEventArgs;
 use Doctrine\ORM\Mapping as ORM;
 
-// Remote-id uniqueness per account: one row per Gmail/Graph message. The
+// Remote-id uniqueness per account: one row per Gmail/Graph/JMAP message. The
 // batch handlers dedup in PHP before inserting, but that check is a read on
 // stale data — this is the guard that actually holds when batches overlap
 // across runs or retries. Provider id leads the column list so the indexes
 // also serve the provider-id lookups (graph by account, gmail by owning user).
 #[ORM\UniqueConstraint(name: 'uniq_message_gmail_id_account', columns: ['gmail_id', 'account_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_message_graph_id_account', columns: ['graph_id', 'account_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_message_jmap_id_account', columns: ['jmap_id', 'account_id'])]
 // IMAP UIDs are unique within a mailbox, so this is the guard for the sync
 // path. Mailbox leads: it matches how the syncer reads them back (all UIDs
 // for one mailbox), and no query looks up a bare UID.
@@ -39,15 +41,19 @@ use Doctrine\ORM\Mapping as ORM;
 // full one, on the largest table in the schema, for a column that is NULL on
 // nearly every row. Serves "which mail is in this category" and the SET NULL a
 // category's removal performs.
-#[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => 'rule_category_id IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_rule_category', columns: ['rule_category_id'], options: ['where' => '(rule_category_id IS NOT NULL)'])]
 // The sidebar's unsent-draft warning counts these on every refresh; partial,
 // because nearly every row is null here and only the few marked ones matter.
-#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => 'send_failed_at IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_send_failed', columns: ['account_id'], options: ['where' => '(send_failed_at IS NOT NULL)'])]
 // Threading reads both of these on every synced message. message_id is looked up
 // by value across an account (parent lookup for References threading); the
 // provider key is looked up account-scoped, so account trails it the same way
 // the provider-id constraints above are ordered.
 #[ORM\Index(name: 'idx_message_message_id', columns: ['message_id'])]
+// The copy matcher's first question when the server names its emails (#415):
+// partial, because only Gmail and RFC 8474 servers do, and nearly every row
+// is null here.
+#[ORM\Index(name: 'idx_message_server_email_id_account', columns: ['server_email_id', 'account_id'], options: ['where' => '(server_email_id IS NOT NULL)'])]
 #[ORM\Index(name: 'idx_message_provider_thread_key_account', columns: ['provider_thread_key', 'account_id'])]
 // The reaper's only query: rows of one account carrying a vanish mark, oldest
 // first. Without it, every poll of every folder sequentially scans the
@@ -63,6 +69,21 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_account_accepted_at', columns: ['account_id', 'provider_accepted_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
+// Partial, and declared so the mapping and the migrations agree. A where clause
+// is written the way Postgres prints it back, or every diff rebuilds the index.
+#[ORM\Index(name: 'idx_message_ai_categorised', columns: ['ai_categorised_at'], options: ['where' => "(ai_categorised_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_category_held', columns: ['category_held_at'], options: ['where' => "(category_held_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_flags_touched_at', columns: ['flags_touched_at'], options: ['where' => "(flags_touched_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_unseen_mailbox', columns: ['mailbox_id'], options: ['where' => "(seen_at IS NULL)"])]
+#[ORM\Index(name: 'idx_message_epoch_ghost', columns: ['id'], options: ['where' => "(received_at < '1971-01-01 00:00:00'::timestamp without time zone)"])]
+// Built `USING gin` with gin_trgm_ops by the migration. Declared plain, the same
+// trick as idx_calendar_event_remote_instances: the comparator matches an index
+// on its name and columns and never looks at the method.
+#[ORM\Index(name: 'idx_message_subject_trgm', columns: ['subject'])]
+#[ORM\Index(name: 'idx_message_body_text_trgm', columns: ['body_text'])]
+#[ORM\Index(name: 'idx_message_from_name_trgm', columns: ['from_name'])]
+#[ORM\Index(name: 'idx_message_from_address_trgm', columns: ['from_address'])]
+#[ORM\Index(name: 'idx_message_gmail_carrier_account', columns: ['gmail_carrier_account_id'])]
 class Message extends MessageModel
 {
     use TimestampableTrait;
@@ -123,6 +144,30 @@ class Message extends MessageModel
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $messageId = null;
 
+    /**
+     * The server's own name for this email, where it gives one: Gmail's
+     * X-GM-MSGID, or RFC 8474's EMAILID. The same in every folder that keeps
+     * the email, which is what makes it the best answer to "is this copy one I
+     * have" — see ImapCopies. Null on servers that name nothing (Dovecot
+     * 2.3 and 2.4 among them) and on every row stored before #415.
+     */
+    #[ORM\Column(length: 100, nullable: true)]
+    public ?string $serverEmailId = null;
+
+    /**
+     * The email's size in octets, as IMAP's RFC822.SIZE counts it.
+     *
+     * The guard on a Message-ID match (#415). Two copies of one email are the
+     * same bytes, so the same size: measured, COPY keeps it. A message you Cc
+     * to yourself is not — the delivered copy has gained Received: headers the
+     * Sent copy lacks — and so stays a message of its own, as it is today;
+     * neither does a list resending under one Message-ID with a new footer.
+     * Null on rows stored before #415, which therefore never match: those
+     * duplicates are the merge job's, not the sync's to guess at.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $rfc822Size = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $gmailId = null;
 
@@ -130,8 +175,20 @@ class Message extends MessageModel
     public ?string $graphId = null;
 
     /**
-     * Gmail threadId / Graph conversationId, carried from the sync payload so the
-     * threader can group without a second API call. Null for IMAP.
+     * The JMAP Email id on the account's server.
+     *
+     * Unlike an IMAP UID it survives moves — RFC 8621 makes an Email's id
+     * immutable and the mailboxes it is in a property of it — so one id names
+     * the message wherever it is filed, as a Gmail id does. 255 because that
+     * is the RFC 8620 ceiling for any JMAP id.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $jmapId = null;
+
+    /**
+     * Gmail threadId / Graph conversationId / JMAP threadId, carried from the
+     * sync payload so the threader can group without a second API call. Null
+     * for IMAP.
      */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $providerThreadKey = null;
@@ -141,6 +198,20 @@ class Message extends MessageModel
      */
     #[ORM\Column(type: 'json', nullable: true)]
     public ?array $gmailLabelIds = null;
+
+    /**
+     * The Outlook categories this message had on Exchange the last time
+     * plMail and Exchange agreed: as imported, or as plMail last pushed them
+     * (#221 step 4). Null on rows stored before this existed: not known.
+     *
+     * A mirror, read only to tell a change made in Outlook from one plMail
+     * made itself — the same job Message::$flags does for IMAP keywords. The
+     * labels are the truth; this says what Exchange was last seen to hold.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $graphCategories = null;
     /**
      * @var array<string,string|list<string>>|null
      */
@@ -313,8 +384,33 @@ class Message extends MessageModel
     /**
      * @var Collection<int, MessagePart>
      */
-    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message')]
+    #[ORM\OneToMany(targetEntity: MessagePart::class, mappedBy: 'message', cascade: ['persist'])]
     public private(set) Collection $messageParts;
+
+    /**
+     * Every place a server keeps this email — see MessageLocation.
+     *
+     * Added and removed by the sync (addLocation(), removeLocation()); one of
+     * them is the primary, which $mailbox / $imapUid name while the rest of the
+     * code still reads and writes those two — see mirrorLocation().
+     *
+     * @var Collection<int, MessageLocation>
+     */
+    #[ORM\OneToMany(targetEntity: MessageLocation::class, mappedBy: 'message', cascade: ['persist'], orphanRemoval: true)]
+    public private(set) Collection $locations;
+
+    /**
+     * The $mailbox / $imapUid pair as the location table last had it.
+     *
+     * What lets mirrorLocation() leave a message alone without loading its
+     * locations: a flush touches every managed message, and reading the
+     * collection of each to find it unchanged would be a query per row. Taken
+     * when the row is loaded (the backfill made the table agree with it) and
+     * again after each mirror. Not mapped.
+     */
+    private ?Mailbox $mirroredMailbox = null;
+
+    private ?int $mirroredUid = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
@@ -741,6 +837,7 @@ class Message extends MessageModel
     public function __construct()
     {
         $this->messageParts = new ArrayCollection();
+        $this->locations = new ArrayCollection();
         $this->labels = new ArrayCollection();
         $this->createdAt = new DateTimeImmutable();
         $this->updatedAt = new DateTimeImmutable();
@@ -834,6 +931,23 @@ class Message extends MessageModel
     {
         foreach ($this->labels as $label) {
             if (LabelRole::Inbox === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the message is the account's own: filed under Sent or Drafts.
+     *
+     * The same test the thread list makes for its "filed as sent" rows
+     * (MessageRepository), and the one the category recomputes make in SQL.
+     */
+    public function isFiledAsSent(): bool
+    {
+        foreach ($this->labels as $label) {
+            if (LabelRole::Sent === $label->role || LabelRole::Drafts === $label->role) {
                 return true;
             }
         }
@@ -954,6 +1068,200 @@ class Message extends MessageModel
         }
 
         return $this;
+    }
+
+    #[ORM\PostLoad]
+    public function rememberMirroredLocation(): void
+    {
+        $this->mirroredMailbox = $this->mailbox;
+        $this->mirroredUid     = $this->imapUid;
+    }
+
+    /**
+     * Record that the server keeps this email at another address too.
+     *
+     * The sync's way in when a folder turns out to hold an email that is
+     * already here (ImapCopies): no second message, one more location.
+     * Saying so twice is harmless — the address is unique per folder, so the
+     * same address is the same copy.
+     *
+     * The first location is the primary, and so is a real folder's over a
+     * mirror's: Proton's INBOX over its All Mail, so the code that still reads
+     * $mailbox as "the" folder sees the folder the user filed it in.
+     */
+    public function addLocation(Mailbox $mailbox, ?int $uid): MessageLocation
+    {
+        $location = $this->locationAt($mailbox, $uid);
+
+        if (null === $location) {
+            $location = new MessageLocation($this, $mailbox, $uid);
+            $this->locations->add($location);
+        }
+
+        if (null === $this->mailbox || (true === $this->mailbox->mirrorsOtherFolders && false === $mailbox->mirrorsOtherFolders)) {
+            $this->makePrimary($location);
+        }
+
+        // A message somebody's listing missed is not missing if the server has
+        // just shown it here; see $vanishedAt.
+        if (null !== $uid) {
+            $this->vanishedAt = null;
+        }
+
+        return $location;
+    }
+
+    /**
+     * Forget one copy, keeping the email and every other copy of it.
+     *
+     * When the primary goes, another becomes primary — the same preference as
+     * addLocation() — so $mailbox never names a folder that no longer keeps
+     * the email. The last one leaves the message with no folder, which is the
+     * caller's to act on: whether that means the email is gone is
+     * VanishedMessageReconciler's question, not this one's.
+     */
+    public function removeLocation(MessageLocation $location): void
+    {
+        $this->locations->removeElement($location);
+
+        if ($location->mailbox === $this->mailbox && $location->imapUid === $this->imapUid) {
+            $this->promoteAnotherLocation();
+        }
+    }
+
+    /**
+     * One copy has moved, and the server has said where to: the location
+     * follows it, keeping its id.
+     *
+     * For a move plMail made itself (ApplyImapFlagsHandler), once the server
+     * confirmed the new address. Until then the copy keeps the address it
+     * really has, which is the whole point: there is no moment at which the
+     * message names a folder without saying where in it (#415, #427). The
+     * copy's last reported flags go, since they were another copy's.
+     */
+    public function moveLocation(MessageLocation $location, Mailbox $to, int $uid): void
+    {
+        $existing = $this->locationAt($to, $uid);
+
+        if (null !== $existing && $existing !== $location) {
+            // The destination's sync got there first.
+            $this->removeLocation($location);
+
+            return;
+        }
+
+        $wasPrimary = $location->mailbox === $this->mailbox && $location->imapUid === $this->imapUid;
+
+        $location->mailbox     = $to;
+        $location->imapUid     = $uid;
+        $location->serverFlags = null;
+        $this->vanishedAt      = null;
+
+        if (true === $wasPrimary) {
+            $this->makePrimary($location);
+        }
+    }
+
+    public function locationAt(?Mailbox $mailbox, ?int $uid): ?MessageLocation
+    {
+        foreach ($this->locations as $location) {
+            if ($location->mailbox === $mailbox && $location->imapUid === $uid) {
+                return $location;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Carry $mailbox / $imapUid into this message's primary location (#415).
+     *
+     * The bridge while the code moves over to MessageLocation: every writer of
+     * the pair — relocateTo(), the syncers, the draft and send paths — keeps
+     * writing it, and this is the one place that turns it into a location, so
+     * none of them can forget to. It goes when they write locations directly.
+     *
+     * The pair names the primary, so the location changed is the one at the
+     * pair's previous address, found by that address and not by position:
+     * with All Mail beside it, "the first location" may be the other copy.
+     * Changed in place rather than replaced, so its id survives a move. No
+     * mailbox means that copy is gone; any other copy becomes primary.
+     *
+     * A location that is already loaded may have had its changes computed
+     * before this ran — the flush walks entities class by class — so its
+     * change set is computed again here. Computing it twice is harmless.
+     */
+    #[ORM\PreFlush]
+    public function mirrorLocation(PreFlushEventArgs $args): void
+    {
+        if ($this->mailbox === $this->mirroredMailbox && $this->imapUid === $this->mirroredUid) {
+            return;
+        }
+
+        $previous = null === $this->mirroredMailbox ? null : $this->locationAt($this->mirroredMailbox, $this->mirroredUid);
+
+        if (null === $this->mailbox) {
+            if (null !== $previous) {
+                $this->locations->removeElement($previous);
+            }
+
+            $this->promoteAnotherLocation();
+
+            return;
+        }
+
+        if (null !== $this->locationAt($this->mailbox, $this->imapUid)) {
+            // Already a copy at the new address: the pair now names that one.
+            if (null !== $previous) {
+                $this->locations->removeElement($previous);
+            }
+        } elseif (null === $previous) {
+            $this->locations->add(new MessageLocation($this, $this->mailbox, $this->imapUid));
+        } else {
+            $previous->mailbox = $this->mailbox;
+            $previous->imapUid = $this->imapUid;
+
+            $entityManager = $args->getObjectManager();
+            $unitOfWork    = $entityManager->getUnitOfWork();
+
+            if ($unitOfWork->isInIdentityMap($previous)) {
+                $unitOfWork->computeChangeSet($entityManager->getClassMetadata(MessageLocation::class), $previous);
+            }
+        }
+
+        $this->rememberMirroredLocation();
+    }
+
+    private function makePrimary(MessageLocation $location): void
+    {
+        $this->mailbox = $location->mailbox;
+        $this->imapUid = $location->imapUid;
+        $this->rememberMirroredLocation();
+    }
+
+    private function promoteAnotherLocation(): void
+    {
+        $next = null;
+
+        foreach ($this->locations as $location) {
+            if (false === $location->mailbox->mirrorsOtherFolders) {
+                $next = $location;
+
+                break;
+            }
+
+            $next ??= $location;
+        }
+
+        if (null === $next) {
+            $this->mailbox = null;
+            $this->imapUid = null;
+            $this->rememberMirroredLocation();
+
+            return;
+        }
+
+        $this->makePrimary($next);
     }
 
     /**

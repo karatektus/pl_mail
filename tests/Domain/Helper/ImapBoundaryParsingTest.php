@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Domain\Helper;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\MessageParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Webklex\PHPIMAP\Config;
@@ -21,7 +21,7 @@ use Webklex\PHPIMAP\Message;
  * fetched, which stopped the whole folder's sync on every poll until somebody
  * deleted the message on the server (#45).
  *
- * Parsed through ImapConnectionFactory::config(), which is the configuration a
+ * Parsed through MessageParser::config(), which is the configuration a
  * sync parses with. That is half the point: the pattern is a config value, and
  * a test that handed the library its own config would pass without the value
  * ever reaching the header that reads it.
@@ -51,7 +51,7 @@ final class ImapBoundaryParsingTest extends TestCase
     #[DataProvider('waysToWriteABoundary')]
     public function testTheBodyIsReadHoweverTheBoundaryIsWritten(string $parameter): void
     {
-        $message = Message::fromString($this->multipart($parameter, 'XYZ'), ImapConnectionFactory::config());
+        $message = Message::fromString($this->multipart($parameter, 'XYZ'), MessageParser::config());
 
         self::assertSame('hello', trim((string) $message->getTextBody()));
     }
@@ -61,7 +61,7 @@ final class ImapBoundaryParsingTest extends TestCase
     {
         $message = Message::fromString(
             $this->multipart('boundary = "part one"', 'part one'),
-            ImapConnectionFactory::config(),
+            MessageParser::config(),
         );
 
         self::assertSame('hello', trim((string) $message->getTextBody()));
@@ -90,7 +90,7 @@ final class ImapBoundaryParsingTest extends TestCase
             . "--INNER--\r\n"
             . "--OUTER--\r\n";
 
-        $message = Message::fromString($raw, ImapConnectionFactory::config());
+        $message = Message::fromString($raw, MessageParser::config());
 
         self::assertSame('hello', trim((string) $message->getTextBody()));
         self::assertSame('<p>hello</p>', trim((string) $message->getHTMLBody()));

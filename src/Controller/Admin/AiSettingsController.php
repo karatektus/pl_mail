@@ -8,6 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Domain\Enum\Ai\PromptSlot;
+use App\Domain\Helper\RequestTimeLimit;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Form\Admin\AiSettingsType;
@@ -340,7 +341,7 @@ final class AiSettingsController extends AbstractController
         // should be good for alongside everything else.
         $this->assertCsrf($request, 'admin-ai-warmup');
 
-        set_time_limit(self::WARMUP_TIME_LIMIT_SECONDS);
+        RequestTimeLimit::hold(self::WARMUP_TIME_LIMIT_SECONDS);
 
         $result = $this->assistant->warmUp();
 

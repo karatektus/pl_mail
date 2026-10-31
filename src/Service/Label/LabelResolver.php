@@ -265,6 +265,161 @@ final class LabelResolver
     }
 
     /**
+     * Give an IMAP folder its label, the way it should appear in the sidebar,
+     * without taking a label away from a folder that already has one.
+     *
+     * A special-use folder feeds its system label, always. Every other folder
+     * is a place the user made, and the rule is the one #221 agreed on: plMail
+     * mirrors the account's folder tree and never quietly reshapes it.
+     *
+     * This used to re-derive the label from the folder's path on every sync —
+     * split the path, find-or-create a chain, bind — and that is what made a
+     * folder impossible to own:
+     *
+     *   - renaming its label in plMail was undone by the next sync, which
+     *     found-or-created a label under the old name and moved the folder
+     *     there, leaving the renamed one empty;
+     *   - two folders whose paths differ only by the INBOX namespace,
+     *     "Work" and "INBOX.Work", both resolved to the label "Work", and as a
+     *     folder feeds exactly one label the two took it from each other on
+     *     alternate syncs.
+     *
+     * So the path is read once, when the folder first arrives, and again only
+     * when the folder itself moved ($previousPath differs: renamed on the
+     * server, by plMail or by another client) — and a folder renamed where it
+     * stands keeps its label under the new name (renameInPlace()). A folder
+     * whose path has not changed keeps the label it has. One exception, for a label that is the
+     * raw modified UTF-7 of its name ("B&APw-cher") — what syncs before
+     * names were decoded left behind, and never what anybody typed.
+     *
+     * A new folder whose label is already another folder's, on this account,
+     * keeps its INBOX segment instead ("INBOX › Work"), so the two stay two.
+     */
+    public function linkFolder(Mailbox $mailbox, Account $account, ?string $previousPath = null): void
+    {
+        $specialUse = $mailbox->specialUse;
+
+        if (null !== $specialUse) {
+            $this->bindMailbox($this->systemLabel(LabelRole::fromSpecialUse($specialUse), $account), $mailbox);
+
+            return;
+        }
+
+        $current = $mailbox->labelBinding?->label;
+        $moved   = null !== $previousPath && $previousPath !== $mailbox->fullPath;
+
+        if (null !== $current && null === $current->role && false === $moved && false === self::isUndecoded($current)) {
+            return;
+        }
+
+        if (true === $moved && null !== $current && null === $current->role
+            && true === $this->renameInPlace($current, $mailbox, $account, (string) $previousPath)
+        ) {
+            return;
+        }
+
+        $segments = $this->segmentsFromImapPath((string) $mailbox->fullPath, $mailbox->delimiter);
+
+        if (count($segments) === 0) {
+            $segments = [(string) $mailbox->name];
+        }
+
+        if (true === $this->feedsAnotherFolder($segments, $account, $mailbox)) {
+            $full = $this->segmentsFromImapPath((string) $mailbox->fullPath, $mailbox->delimiter, keepInbox: true);
+
+            if ($full !== $segments) {
+                $segments = $full;
+            }
+        }
+
+        $label = $this->customChain($segments, $account);
+
+        if (null !== $label) {
+            $this->bindMailbox($label, $mailbox);
+        }
+    }
+
+    /**
+     * A folder renamed where it stands takes its label along: same label, new
+     * name, so whatever was filed under it is still filed under it and the
+     * old name does not linger in the sidebar as an empty label.
+     *
+     * Only when the label is this folder's alone. A label other accounts have
+     * too is theirs as well, and renaming it from here would rename their
+     * folder in the sidebar; one whose new name a sibling already has would
+     * collide. Both, and a folder that moved to another parent, are linked
+     * afresh instead, the way a new folder is.
+     */
+    private function renameInPlace(Label $label, Mailbox $mailbox, Account $account, string $previousPath): bool
+    {
+        $delimiter = (string) $mailbox->delimiter;
+        $path      = (string) $mailbox->fullPath;
+
+        if ('' === $delimiter || self::parentOf($previousPath, $delimiter) !== self::parentOf($path, $delimiter)) {
+            return false;
+        }
+
+        foreach ($label->bindings as $binding) {
+            if ($binding->account !== $account) {
+                return false;
+            }
+        }
+
+        $segments = $this->segmentsFromImapPath($path, $delimiter);
+        $name     = (string) end($segments);
+        $sibling  = $this->labelRepository->findOneChildByName($account->usr, $label->parent, $name);
+
+        if ('' === trim($name) || (null !== $sibling && $sibling !== $label)) {
+            return false;
+        }
+
+        $label->name = $name;
+
+        // The id cache is keyed by the full name, which just changed.
+        unset($this->pathIdCache[(int) $account->usr->id]);
+
+        return true;
+    }
+
+    private static function parentOf(string $path, string $delimiter): string
+    {
+        $cut = strrpos($path, $delimiter);
+
+        return false === $cut ? '' : substr($path, 0, $cut);
+    }
+
+    /**
+     * Whether the label these segments name already feeds a different folder
+     * of this account. Looked up without creating anything: a chain made only
+     * to be found taken would be a label nobody asked for.
+     *
+     * @param list<string> $segments
+     */
+    private function feedsAnotherFolder(array $segments, Account $account, Mailbox $mailbox): bool
+    {
+        $label = null;
+
+        foreach ($segments as $segment) {
+            $label = $this->labelRepository->findOneChildByName($account->usr, $label, $segment);
+
+            if (null === $label) {
+                return false;
+            }
+        }
+
+        $fed = $label?->bindingFor($account)?->mailbox;
+
+        return null !== $fed && $fed !== $mailbox;
+    }
+
+    private static function isUndecoded(Label $label): bool
+    {
+        $name = (string) $label->name;
+
+        return str_contains($name, '&') && ImapUtf7Helper::decode($name) !== $name;
+    }
+
+    /**
      * Split an IMAP folder full path into label segments, honouring the
      * account delimiter and stripping a leading INBOX namespace segment
      * (Courier/Dovecot-style "INBOX.Work.Invoices").
@@ -282,9 +437,11 @@ final class LabelResolver
      * delimiter is not part of any segment's encoding — which is exactly how
      * webklex derives Folder::$full_name from Folder::$path.
      *
+     * `$keepInbox` is for linkFolder()'s one collision case and nothing else.
+     *
      * @return list<string>
      */
-    public function segmentsFromImapPath(string $fullPath, ?string $delimiter): array
+    public function segmentsFromImapPath(string $fullPath, ?string $delimiter, bool $keepInbox = false): array
     {
         if (null === $delimiter || '' === $delimiter) {
             $delimiter = '/';
@@ -295,7 +452,7 @@ final class LabelResolver
             return '' !== trim($segment);
         }));
 
-        if (count($segments) > 1 && 'INBOX' === strtoupper($segments[0])) {
+        if (false === $keepInbox && count($segments) > 1 && 'INBOX' === strtoupper($segments[0])) {
             array_shift($segments);
         }
 

@@ -21,7 +21,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_thread_account_normalized_subject', columns: ['account_id', 'normalized_subject'])]
 // Partial for the reason Message's idx_message_rule_category is, and declared so
 // the mapping and the migration agree.
-#[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => 'user_category_id IS NOT NULL'])]
+#[ORM\Index(name: 'idx_message_thread_user_category', columns: ['user_category_id'], options: ['where' => '(user_category_id IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_message_thread_account_starred', columns: ['account_id'], options: ['where' => "(starred_at IS NOT NULL)"])]
+#[ORM\Index(name: 'idx_message_thread_account_unread', columns: ['account_id'], options: ['where' => "(unread_count > 0)"])]
+#[ORM\Index(name: 'idx_message_thread_snoozed_until', columns: ['snoozed_until'], options: ['where' => "(snoozed_until IS NOT NULL)"])]
+// Descending in the migration; the comparator doesn't see column order direction.
+#[ORM\Index(name: 'idx_message_thread_account_last_message', columns: ['account_id', 'last_message_at', 'id'])]
 #[ORM\Entity(repositoryClass: MessageThreadRepository::class)]
 class MessageThread
 {
@@ -103,6 +108,28 @@ class MessageThread
      */
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $categoryPinnedAt = null;
+
+    /**
+     * When the received message that placed this conversation in its tab
+     * happened — the message $category and $userCategory were taken from.
+     *
+     * Null while nothing received has placed it: a conversation of your own
+     * sent mail and drafts, one held for the assistant, or one too new to have
+     * been resolved.
+     *
+     * A conversation follows its newest RECEIVED message, not its newest
+     * message (#405). Your own reply is categorised like anything else, and
+     * when it decided, answering the recruiter took the conversation out of the
+     * "Bewerbung" tab the recruiter's mail had been filed in — a tab follows
+     * what other people send you, not what you send back. lastMessageAt cannot
+     * answer "newer than what placed it" once sent mail moves it too, and
+     * asking the database instead misses messages of the same batch not yet
+     * flushed, so the instant is kept here. See MessageThreader::adoptCategory()
+     * and the recompute statements in MessageThreadRepository, which write it
+     * by the same rule.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $categoryDecidedAt = null;
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $starredAt = null;

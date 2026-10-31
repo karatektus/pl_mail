@@ -10,6 +10,16 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
+        jmap:
+            heading: 'Incomin'' — JMAP'
+            outgoing_heading: 'Outgoin'' — JMAP'
+            outgoing_help: 'The JMAP harbour sends yer letters itself an'' stows the copy in Sent, so there be nothin'' to fill in here.'
+            session_url: 'Session URL'
+            session_url_help: 'Leave it empty an'' the port above be used. Fill it in only if yer server''s JMAP session don''t be moored at /.well-known/jmap.'
+            session_url_offer: 'Me harbour''s JMAP session be moored elsewhere'
+            token_auth: 'The password be an API token'
+            token_auth_help: 'Tick this fer harbours like Fastmail that hand ye a token instead o'' an app password. The username then stays ashore.'
+            use_smtp: 'Me harbour don''t send o''er JMAP — use SMTP'
         password: Secret word
         pop3:
             delete_help: 'Left in port, a message be spotted next time by its UIDL and never hauled in twice. Scuttlin'' it frees the harbour''s space, but then plMail''s copy be the only one afloat.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Change this later and ye keep yer haul: the next voyage knows what be aboard already.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Incomin'' protocol'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Sail on with Microsoft
     primary_set: A new flagship be named
     removed: Crew member put ashore
+    sync_interval_set: Th' watch be reset
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'The line didn''t hold. Check the host, port an'' encryption.'
             host_invalid: 'A host name or IP address only, sailor — no slashes, question marks nor @.'
             imap_ok: 'Aboard — %count% holds in sight.'
+            jmap_no_mail: 'The server speaks JMAP but offers no mail fer this account.'
+            jmap_ok: 'Aboard — %count% holds in sight.'
+            jmap_submission: 'Messages sail out through the JMAP server.'
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
+            private_network: 'This server lies in private waters. The captain must allow its host in INTEGRATIONS_ALLOWED_HOSTS afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
@@ -675,8 +691,8 @@ admin:
         restart_app: "Rouse it now"
         restart_app_help: "Ends the hand servin' this page so compose signs on a fresh one. Needed after the generated secrets be rotated: the entrypoint hands them out as environment variables and the kernel boots once in worker mode, so a runnin' web container never learns a new value. About two seconds o' dead water, and this page comes back on its own."
         restart_app_title: "Rouse the web container"
-        restart_confirm: 'Rouse the crew, the timekeeper and the IMAP bosun? They finish the task in hand first.'
-        restart_help: 'Sends the crew, the timekeeper and the IMAP bosun below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
+        restart_confirm: 'Rouse the crew, the timekeeper and the lookouts? They finish the task in hand first.'
+        restart_help: 'Sends the crew, the timekeeper and the lookouts below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
         restart_pending: 'Rousin'' called %seconds%s past — the crew finish the task in hand, then muster back here within a minute or two.'
         restart_title: 'Rouse the long-servin'' hands'
         run_help: 'Put to the crew, not done here on the spot. Same rounds the timekeeper makes on its own.'
@@ -1732,6 +1748,7 @@ compose:
         send_anyway: Cast it off regardless?
         plain_text: "Strikin' to plain text scrubs every flourish from this scroll. Carry on?"
         open_variables: 'A blank in yer form letter be still unfilled.'
+        no_attachment: 'Ye speak o'' cargo in the hold, but the hold be empty.'
     emoji:
         activities: Sport and mischief
         animals_nature: Beasts and the wilds
@@ -2566,6 +2583,28 @@ label:
         no_color: '— none —'
         no_parent: '— top o'' the mast —'
         parent: Fly beneath
+        places:
+            category: 'An Outlook category aboard %account% (changes made in Outlook be not followed)'
+            category_followed: 'An Outlook category aboard %account%'
+            folder: 'A folder aboard %account%'
+            keyword: 'A keyword aboard %account%'
+            keyword_unasked: 'A keyword aboard %account%, where its folders keep keywords'
+            local_off: 'Only aboard plMail on %account% (flags as keywords be off)'
+            local_server: 'Only aboard plMail on %account% (the server keeps no keywords)'
+            make_folder: 'Make it a hold'
+            make_folder_body: 'Builds the hold “%name%” on %account%, so yarns can be stowed there.'
+            make_folder_category: 'The Outlook category o'' this name be thrown overboard.'
+            make_folder_done: 'Hold built.'
+            make_folder_failed: 'The hold could not be built: %error%'
+            make_folder_mail: '%count% yarns flyin'' this flag on this ship be stowed in it.'
+            make_folder_nested: 'Its parent “%parent%” becomes a hold there too.'
+            make_folder_stay: 'Yarns in the Brig, Spam, Sent an'' Drafts stay where they be.'
+            make_label: 'Make it a flag'
+            make_label_body: 'Scuttles the hold “%name%” on %account%. The flag stays, as a tag there, an'' goes back on the yarns that move.'
+            make_label_failed_moved: 'The moved yarns no longer fly this flag; hoist it again once the hold be gone.'
+            make_label_mail: '%count% yarns in this hold must go elsewhere first.'
+            manage: 'Change per ship'
+            title: 'Where this flag be kept'
     menu:
         create: Hoist a new one
         empty: No flags yet.
@@ -2612,6 +2651,7 @@ message:
         more: More
         print: Print
         report_insight: "Report what the spyglass missed"
+        filter_from_message: 'Rig a sorting order from this yarn'
         show_original: Show the original scroll
         star: Mark with an X
         unstar: Rub out the X
@@ -2669,6 +2709,19 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This letter be S/MIME-sealed fer a certificate plMail don't hold. Bring it aboard in Settings → Encryption, or open th' letter in a mail program that holds it."
         smime_unsupported: "This letter be sealed with a cipher plMail can't open; only AES serves."
+    filter_check:
+        button: 'Try me sortin'' orders on this yarn'
+        hide: 'Stow the sortin'' trial'
+        none: 'No sortin'' order be hoisted for this ship.'
+        state:
+            matches: 'catches it'
+            no_match: 'lets it pass'
+            stopped: 'never reached: "%rule%" drops anchor after itself'
+            broken: 'its orders be unreadable; it be skipped'
+            spam: 'passed over: she lies in the Spam bilge, an'' this sortin'' never names it'
+        filing:
+            Filed: 'would stow it in %category%'
+            NoCategory: 'nowhere to stow it: the hold be gone'
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "
@@ -3091,6 +3144,10 @@ settings:
             off: 'Nay'
             on: 'Aye'
     accounts:
+        categories:
+            off_hint: 'Off: a category hoisted or struck in Outlook changes no flags here. Turning it on charts every folder of this account once more.'
+            on_hint: 'On: a category hoisted or struck in Outlook hoists or strikes the flag here.'
+            title: 'Follow Outlook categories'
         colour:
             change: 'Change the colours o'' %account%'
             swatch:
@@ -3110,16 +3167,63 @@ settings:
         enable: Restore the papers
         folders:
             always_synced: The inbox be always hauled aboard
-            button: Pick which folders to haul aboard
+            button: Folders
+            created: 'Folder “%folder%” be built'
+            delete:
+                button: 'Scuttle folder %folder%'
+                confirm: 'Scuttle the folder %folder% on the mail server? She be empty; nothin else goes down.'
+            deleted: 'Folder “%folder%” scuttled'
             empty: No folders yet. They be listed after the first haul.
+            idle_needs_sync: 'Naught be hauled from %folder%, so there be no lookout to post on it'
             intro: >-
                 Switch a folder off and plMail stops haulin it aboard. Post
                 already stowed stays where it lies, and switchin the folder back
-                on picks up where it left off.
+                on picks up where it left off. A folder with the bolt lit has a
+                lookout posted, so new bottles show at once; the rest be checked
+                on the ship's watch.
+            invalid:
+                control: 'A folder name cannot carry line breaks or other strange marks.'
+                empty: 'Give the folder a name, matey.'
+                reserved: 'INBOX be reserved for the inbox.'
+                separator: 'A folder name cannot carry “%separator%” on this ship: it splits folders from the folders inside.'
+                too_long: 'That name be too long for a folder.'
+                wildcard: 'A folder name cannot carry * or %.'
+            keywords:
+                allowed: 'This server keeps keywords.'
+                intro: 'Stitch flags onto this account’s post as IMAP keywords, so mail apps that show keywords (Thunderbird’s tags, say) see them, and keywords set there sail in here as flags. Flags never move post. Off: flags stay aboard plMail.'
+                refused: 'This server keeps no keywords, so flags stay aboard plMail on this account.'
+                title: 'Flags as keywords'
+                unknown: 'Not asked yet: plMail hails each folder the first time it writes a keyword there.'
+            new:
+                button: 'New folder'
+                intro: 'The folder be built on the mail server, so every mail app readin this account sees it. Makin a label never builds a folder; this does.'
+                name: 'Name'
+                parent: 'Inside'
+                submit: 'Build folder'
+                title: 'New folder — %account%'
+                top_level: 'Top deck'
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
+            refused:
+                has_children: 'This folder has folders inside her. Scuttle or move those first.'
+                not_empty: 'This folder still holds post (%count%). Move it elsewhere first; scuttlin a folder sinks its post.'
+                server: 'The mail server said nay: %reason%'
+                special_use: 'The inbox, Sent, Drafts, Trash, Junk an Archive be never renamed or scuttled from plMail: other mail apps an plMail itself lean on them.'
+            rename:
+                button: 'Rename folder %folder%'
+                intro: 'The folder be renamed on the mail server, with the folders inside her, so every mail app readin this account sees the new name.'
+                submit: 'Rename'
+                title: 'Rename folder — %folder%'
+            renamed: 'Folder renamed to “%folder%”'
+            start_idle: 'Post a lookout on %folder% to spot new bottles the moment they land'
             start_sync: 'Start haulin %folder%'
+            stop_idle: 'Call the lookout off %folder% — check it on the ship''s watch instead'
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'
+            unreachable: 'The mail server could not be hailed, nothin changed: %reason%'
+        gmail_move:
+            off_hint: 'Off: Haul off to lists the inbox, the bilge and Davy Jones only for this account. Flags be hoisted with Fly a flag.'
+            on_hint: 'On: Haul off to lists this account’s flags too. Movin’ there hoists the flag and takes the letter out o’ the inbox, as Gmail does.'
+            title: 'Haul off to offers flags'
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'
@@ -3144,6 +3248,7 @@ settings:
                     The cannon be loaded but naught has been heard lately. The
                     Pub/Sub push subscription in Google Cloud may be missin' or
                     aimed elsewhere. Mail still comes aboard on the watch bell.
+                jmap: 'Push be on but nothin'' comes aboard. Check the JMAP server can be reached; the account still sails on schedule.'
                 microsoft: >-
                     The push subscription has run out and naught be arrivin'.
                     Load the cannon again to bring word back. Mail still comes
@@ -3155,6 +3260,7 @@ settings:
                     that truly exists, and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. Mail still comes aboard on the watch bell.
+                jmap: 'Push couldn''t be hoisted. The account still sails on schedule.'
                 microsoft: >-
                     The cannon couldn't be readied — Microsoft must reach this
                     ship over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL.
@@ -3170,6 +3276,7 @@ settings:
             off_hint: Mail comes aboard on the watch bell. Load the cannon for word the moment it lands.
             on_hint:
                 gmail: New mail lands the instant Gmail fires the cannon.
+                jmap: 'Changes come aboard at once: the JMAP server sends ''em to plMail, by webhook when it can reach this port an'' over a line held open when it can''t.'
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
         reorder: Drag to reorder the line
@@ -3177,6 +3284,10 @@ settings:
             active: Sailin'
             disabled: Beached
         subheading: Sign on, amend, restore or put ashore the crew ye sail with.
+        sync_interval:
+            change: 'Checked for bottles every %minutes% min — change the watch for %account%'
+            every: 'Every %minutes% min'
+            heading: 'Check for bottles every … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3232,6 +3343,12 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    native_apps:
+        android_hint: "Then sign it on with th' button below. Buyin' th' app on Google Play be, fer now, the main way this crew keeps afloat."
+        android_title: "Fetch plMail fer Android first"
+        github: "or take it free from GitHub"
+        play_alt: "Get it on Google Play"
+        play_badge: images/badges/google-play-en.png
     app_passwords:
         copy: Copy
         copy_now: Here be yer new spare key
@@ -3477,6 +3594,7 @@ settings:
             fileInCategory: Stow in a hold of its own
             markRead: Mark as read
             markSpam: Call it bilge
+            moveToFolder: Haul to the hold
             removeLabel: Strike the flag
             saveToIntegration: Stow cargo to
             star: Mark it
@@ -4135,6 +4253,10 @@ settings:
         delete: Strike the flag "%name%"
         edit: Mend the flag "%name%"
         empty: No flags yet — hoist one, or they turn up after the first haul.
+        folders_in_labels:
+            off_hint: 'Off: holds be listed under their account, and th'' Flags section keeps th'' flags ye hoist on letters.'
+            on_hint: 'On: th'' Flags section o'' the sidebar lists holds too, beside their berth under each account.'
+            title: 'Holds among th'' Flags'
         heading: Flags
         hide: Lower this flag
         show: Fly this flag
@@ -4592,10 +4714,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Sign on a crew member
-        heading: Th' crew
-        none: No crew yet
         colour: 'Colours flown by %account%'
         colour_disabled: 'Colours flown by %account%, laid up in port'
+        folders: 'Folders…'
+        heading: Th' crew
+        menu: 'Folders o'' %account%'
+        new_folder: 'New folder…'
+        none: No crew yet
         open: 'Board %account%'
         toggle: 'Open or close the lockers in %account%'
     badge:
@@ -4605,6 +4730,7 @@ sidebar:
     compose: Scribble
     labels:
         add: Hoist a new flag
+        folder_on: 'Folder aboard %accounts%'
         heading: Flags
         none: No flags yet
     new_mail_here: 'Fresh bottles washed up in %where%'
@@ -4688,6 +4814,7 @@ thread_row:
         snooze: Let it drift
     answer: "A fresh reply to yer letter"
     answer_badge: "Reply"
+    folder: 'Stowed in the hold %label%'
     has_attachment: Carries cargo
     me: me
     meaning: "Found by meanin', not by the words ye typed"
@@ -4703,6 +4830,7 @@ thread_row:
         rate_limited: 'Never sailed: yer mail port were rationin'' sailings'
         refused: 'Never sailed: th'' harbour master turned it away'
         unavailable: 'Never sailed: yer mail port could not be reached'
+    remove_label: 'Strike %label%'
     scheduled: 'Due %when%'
     select: Pick it
     sheet:
@@ -4870,6 +4998,7 @@ whats_new:
         where: 'Goes by bottle to %address%, with yer plMail version. A copy stays in yer Sent hold.'
     highlights: 'Treasures'
     menu:
+        android: 'plMail fer Android'
         label: 'Help an'' word'
         unseen: 'There be ship''s log entries ye haven''t seen'
         version: 'plMail %version%'

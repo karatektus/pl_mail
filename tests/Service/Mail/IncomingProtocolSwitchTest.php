@@ -6,11 +6,11 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Service\Imap\ImapConnector;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\Pop3UidlRepository;
@@ -204,7 +204,7 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
 
         $this->expectException(\LogicException::class);
 
-        static::getContainer()->get(ImapConnectionFactory::class)->connect($this->account);
+        static::getContainer()->get(ImapConnector::class)->endpoint($this->account);
     }
 
     /** IDLE is an IMAP command; a switch keeps the folder's switch, not the supervisor's interest. */
@@ -223,6 +223,53 @@ final class IncomingProtocolSwitchTest extends KernelTestCase
         $this->switchTo(IncomingProtocol::Pop3);
 
         self::assertNotContains($this->inbox->id, $idling());
+    }
+
+    /**
+     * To JMAP: the folders stop importing, the UIDs go, and nothing JMAP
+     * holds is left over to make the first JMAP sync think it has already
+     * imported — that import is what recognises these rows by Message-ID.
+     */
+    public function testImapToJmapLeavesTheRowsForTheJmapImportToAdopt(): void
+    {
+        $this->account->rememberJmapState('Email', 'stale');
+
+        $this->switchTo(IncomingProtocol::Jmap);
+
+        $this->em->refresh($this->message);
+
+        self::assertNull($this->message->imapUid);
+        self::assertNull($this->account->jmapState('Email'), 'the first JMAP sync plans an import');
+        self::assertTrue($this->account->pushEnabled, 'push starts on, as for a new JMAP account');
+
+        foreach ([$this->inbox, $this->archive] as $folder) {
+            $this->em->refresh($folder);
+            self::assertSame(0, $folder->importFloorUid, 'no IMAP import left to show as running');
+        }
+    }
+
+    /**
+     * From JMAP: the Email ids go, so a JMAP job still on the queue finds
+     * nothing to patch or destroy, and the next JMAP switch re-adopts by
+     * Message-ID instead.
+     */
+    public function testJmapBackToImapForgetsTheJmapIds(): void
+    {
+        $this->switchTo(IncomingProtocol::Jmap);
+
+        $this->message->jmapId = 'e1';
+        $this->account->rememberJmapState('Email', 's1');
+        $this->account->jmapPushSubscription = ['id' => 'ps', 'verified' => true, 'expires' => time() + 60, 'token' => str_repeat('a', 64)];
+        $this->em->flush();
+
+        $this->switchTo(IncomingProtocol::Imap);
+
+        $this->em->refresh($this->message);
+
+        self::assertNull($this->message->jmapId);
+        self::assertNull($this->account->jmapState('Email'));
+        self::assertNull($this->account->jmapPushSubscription);
+        self::assertFalse($this->account->pushEnabled);
     }
 
     private function switchTo(IncomingProtocol $protocol): void

@@ -63,6 +63,31 @@ self-contained: no {% extends %}, no block dependencies.
             {{ tbtn('click->mail--message-actions#trash', 'fa-solid fa-trash', 'toolbar.actions.delete'|trans) }}
         {% endif %}
 
+        {# The bin's own two, as its row offers them: the way back, and the
+           way out for good for somebody who switched that on (Settings → Mail
+           → Disposal). The pane had neither, so mail opened from Trash could
+           only be taken out of it from the list — and a thrown-away draft,
+           which opens here and nowhere else, could not be at all. On the bin's
+           side of a partly deleted conversation, both act on that side only
+           (ThreadStatusController::purge()). The question travels as a param
+           for the reason the row's does: see mail--message-row#purge. #}
+        {% if placement == 'trash' %}
+            {{ tbtn('click->mail--message-actions#restore', 'fa-solid fa-inbox', 'discarded.actions.restore'|trans) }}
+
+            {% if app.user and app.user.deleteNowButtons %}
+                <button type="button"
+                        data-action="click->mail--message-actions#purge"
+                        data-mail--message-actions-purge-confirm-param="{{ 'discarded.actions.purge_confirm'|trans }}"
+                        aria-label="{{ 'discarded.actions.purge'|trans }}"
+                        title="{{ 'discarded.actions.purge'|trans }}"
+                        class="flex items-center justify-center w-8 h-8 rounded-full
+                               text-ink-muted hover:text-danger hover:bg-danger-soft
+                               transition-colors duration-100 cursor-pointer">
+                    <i class="fa-solid fa-fire text-[15px]" aria-hidden="true"></i>
+                </button>
+            {% endif %}
+        {% endif %}
+
         {# Beside Delete, because it is the same thought with a different
            destination. Offered from the archive too — spam that was archived
            by mistake is still spam — and not where the mail is already thrown
@@ -105,8 +130,11 @@ self-contained: no {% extends %}, no block dependencies.
         {% endif %}
     </div>
 
+    {# Each picker offers what is that kind on this conversation's account: a
+       folder there is a place and a move goes to it; anything else is a tag
+       (LabelKinds). #}
     {% include '_partials/_label_menu.html.twig' with {
-        labels:       sidebarCounts.flattenedUserLabels(),
+        labels:       tag_labels(sidebarCounts.flattenedUserLabels(), thread.account),
         targetType:   'thread',
         targetId:     thread.id,
         activeLabels: threadLabelIds,
@@ -119,7 +147,7 @@ self-contained: no {% extends %}, no block dependencies.
        this label off — and hiding it would remove the only way to say so
        from here. #}
     {% include '_partials/_move_menu.html.twig' with {
-        labels:   sidebarCounts.flattenedUserLabels(),
+        labels:   move_labels(sidebarCounts.flattenedUserLabels(), thread.account),
         targetId: thread.id,
         carried:  threadOwnLabelIds,
         placement: mail_placement(thread),

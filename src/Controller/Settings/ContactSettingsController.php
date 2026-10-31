@@ -201,13 +201,13 @@ final class ContactSettingsController extends AbstractController
         return $integration;
     }
 
-    /** A Google or Microsoft mail account of this user's, or a refusal. */
+    /** A Google, Microsoft or JMAP mail account of this user's, or a refusal. */
     private function accountFor(int $id): Account
     {
         $account = $this->accounts->find($id);
 
         if (null === $account || $account->usr !== $this->currentUser()
-            || (false === $account->isGmail() && false === $account->isMicrosoft())) {
+            || (false === $account->isGmail() && false === $account->isMicrosoft() && false === $account->isJmap())) {
             throw $this->createAccessDeniedException();
         }
 

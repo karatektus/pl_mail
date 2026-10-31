@@ -113,17 +113,21 @@ final class ThreadSnoozeService
         $inboxMailbox = $inbox->bindingFor($account)?->mailbox;
         $unread = 0;
 
+        // Plain-IMAP: the message physically comes back to INBOX. Its copy
+        // keeps the address it has until the server says where it landed
+        // (#415). This used to re-point the row at INBOX and send nothing, so
+        // the server kept the mail in Archive and the row claimed an INBOX
+        // address it never got. The labels go through attachLabel() below.
+        $this->propagator->restoreOnImap(array_values(array_filter(
+            $messages,
+            static fn ($message): bool => null !== $message->imapUid && null !== $inboxMailbox && $message->mailbox !== $inboxMailbox,
+        )));
+
         foreach ($messages as $message) {
             $message->addLabel($inbox);
 
             if (null !== $snoozed) {
                 $message->removeLabel($snoozed);
-            }
-
-            // Plain-IMAP: the message physically comes back to INBOX, under a
-            // UID INBOX has not issued yet — see Message::relocateTo().
-            if (null !== $message->imapUid && null !== $inboxMailbox) {
-                $message->relocateTo($inboxMailbox);
             }
 
             $message->removeFlag(MessageFlag::SEEN);

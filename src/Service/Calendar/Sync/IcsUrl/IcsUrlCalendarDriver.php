@@ -86,18 +86,6 @@ use Psr\Log\LoggerInterface;
 final readonly class IcsUrlCalendarDriver implements CalendarSyncDriverInterface, VerifiableDriverInterface
 {
     /**
-     * The remote id of the one calendar behind a feed.
-     *
-     * A feed is one calendar, so there is nothing to distinguish, and the
-     * obvious id — the URL — is a bad one twice over: Calendar::$remoteId is
-     * 255 characters and a feed address with a signed query string exceeds that
-     * routinely, and an address the user later corrects would orphan the
-     * calendar mirroring it. The address lives on the Integration, where it can
-     * be edited without the calendar losing its identity.
-     */
-    public const string REMOTE_ID = 'feed';
-
-    /**
      * What separates the two validators inside the sync token.
      *
      * A unit separator rather than a pipe or a comma: an ETag is an opaque
@@ -115,6 +103,37 @@ final readonly class IcsUrlCalendarDriver implements CalendarSyncDriverInterface
         private CalDavEventConverter $converter,
         private LoggerInterface      $logger,
     ) {
+    }
+
+    /**
+     * The remote id of the one calendar behind a feed: the SHA-256 of its
+     * address.
+     *
+     * It used to be the constant `feed`, on the reasoning that a feed is one
+     * calendar and has nothing to distinguish. Within one subscription that is
+     * true. Across them it is not: CalendarDiscoverer compares remote ids
+     * between a user's sources to stop one remote being mirrored twice, and
+     * every feed answering `feed` made the second one read as "already
+     * mirrored through" the first, so it was never subscribed at all (#424).
+     *
+     * The address itself would be the honest id and is the wrong one to store.
+     * Calendar::$remoteId is 255 characters, which a signed feed address
+     * exceeds routinely, and the address is the credential for a published
+     * calendar: the subscribe screen posts remote ids back as tick-box values,
+     * so it would render a secret that nothing else ever shows again. A hash is
+     * the same identity without either problem, and it makes the cross-source
+     * check right for feeds too: the same address subscribed twice is one
+     * calendar, and now reads as one.
+     *
+     * The address as stored rather than as normalised for fetching, so the
+     * migration that rewrote the old `feed` rows (Version20261028150000) can
+     * compute the same hash in SQL. A subscription's address cannot be edited
+     * — a wrong one is removed and added again — so the id never drifts from
+     * the row it was stored with.
+     */
+    public static function remoteIdOf(Integration $integration): string
+    {
+        return hash('sha256', (string) $integration->baseUrl);
     }
 
     /**
@@ -146,11 +165,12 @@ final readonly class IcsUrlCalendarDriver implements CalendarSyncDriverInterface
      */
     public function discover(CalendarSource $source): array
     {
-        $url      = $this->urlOfSource($source);
-        $document = $this->reader->read($this->client->fetch($url)->body);
+        $integration = $this->integrationOf($source);
+        $url         = $this->urlOf($integration);
+        $document    = $this->reader->read($this->client->fetch($url)->body);
 
         return [new RemoteCalendar(
-            remoteId: self::REMOTE_ID,
+            remoteId: self::remoteIdOf($integration),
             name:     $this->reader->nameOf($document) ?? $this->normaliser->suggestedName($url),
             // A feed states no colour. Null lets CalendarSubscriber take the
             // next palette entry, so two feeds added in a row are not the same
@@ -327,17 +347,11 @@ final readonly class IcsUrlCalendarDriver implements CalendarSyncDriverInterface
     }
 
     /** @throws CalendarSyncPermanentException */
-    private function urlOfSource(CalendarSource $source): string
+    private function integrationOf(CalendarSource $source): Integration
     {
-        $integration = $source->integration;
-
-        if (null === $integration) {
-            throw new CalendarSyncPermanentException(
-                'This calendar source is not a subscribed address, so there is nothing to read.',
-            );
-        }
-
-        return $this->urlOf($integration);
+        return $source->integration ?? throw new CalendarSyncPermanentException(
+            'This calendar source is not a subscribed address, so there is nothing to read.',
+        );
     }
 
     /** @throws CalendarSyncPermanentException */

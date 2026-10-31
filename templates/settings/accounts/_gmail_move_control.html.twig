@@ -1,0 +1,22 @@
+{# "Move to offers labels", a switch on a Gmail account's row (#221 step 3).
+
+   The categories switch's shape: an icon button in its own frame that answers
+   with itself (AccountGmailMoveController), `contents` on the frame so the row
+   keeps its flex layout. The tooltip says what it does; aria-pressed says the
+   state. #}
+{% set _on = account.gmailMoveOffersLabels %}
+{% set _hint = (_on ? 'settings.accounts.gmail_move.on_hint' : 'settings.accounts.gmail_move.off_hint')|trans %}
+<turbo-frame id="account-gmail-move-{{ account.id }}" class="contents">
+    <form method="post" action="{{ path('settings_account_gmail_move_toggle', { id: account.id }) }}" class="contents">
+        <input type="hidden" name="_token" value="{{ csrf_token('account_gmail_move_' ~ account.id) }}">
+        <button type="submit"
+                data-account-gmail-move
+                aria-pressed="{{ _on ? 'true' : 'false' }}"
+                aria-label="{{ 'settings.accounts.gmail_move.title'|trans }}"
+                title="{{ 'settings.accounts.gmail_move.title'|trans }} — {{ _hint }}"
+                class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-hover
+                       {{ _on ? 'text-success' : 'text-ink-faint hover:text-ink' }}">
+            <i class="fa-solid fa-folder-open text-xs" aria-hidden="true"></i>
+        </button>
+    </form>
+</turbo-frame>

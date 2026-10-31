@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Command\Mail;
 
 use App\Domain\Enum\Mail\SyncTrigger;
+use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Demo\DemoMode;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -23,9 +26,10 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final class MailSyncCommand extends Command
 {
     public function __construct(
-        private readonly AccountRepository   $accountRepository,
-        private readonly MessageBusInterface $bus,
-        private readonly DemoMode            $demoMode,
+        private readonly AccountRepository      $accountRepository,
+        private readonly MessageBusInterface    $bus,
+        private readonly DemoMode               $demoMode,
+        private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
     }
@@ -33,6 +37,7 @@ final class MailSyncCommand extends Command
     protected function configure(): void
     {
         $this->addArgument('account-id', InputArgument::OPTIONAL, 'Sync a single account by ID; omit for all active accounts');
+        $this->addOption('due', null, InputOption::VALUE_NONE, 'Only the active accounts whose own sync interval has run out (what the scheduler runs every minute)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -46,8 +51,8 @@ final class MailSyncCommand extends Command
         // failures is precisely the state the admin panel exists to make
         // alarming — and on a demo it would be alarming about nothing.
         //
-        // The scheduler runs this every fifteen minutes, so this is the branch
-        // that actually keeps a demo quiet.
+        // The scheduler runs this every minute, so this is the branch that
+        // actually keeps a demo quiet.
         if (true === $this->demoMode->isEnabled()) {
             $io->note('Demo mode is on — mail sync is disabled.');
 
@@ -68,6 +73,22 @@ final class MailSyncCommand extends Command
         } else {
             $accounts = $this->accountRepository->findBy(['isActive' => true]);
         }
+
+        // Each account has its own interval (#202), so the scheduler asks every
+        // minute and this picks the ones that are due. Stamped at dispatch, by
+        // hand-run syncs too: an account somebody just synced from the console
+        // has just been polled.
+        $now = new \DateTimeImmutable();
+
+        if (true === $input->getOption('due')) {
+            $accounts = array_values(array_filter($accounts, static fn (Account $account): bool => $account->isPollDue($now)));
+        }
+
+        foreach ($accounts as $account) {
+            $account->lastPolledAt = $now;
+        }
+
+        $this->entityManager->flush();
 
         foreach ($accounts as $account) {
             $this->bus->dispatch(new SyncAccountMessage($account->id, SyncTrigger::Poll));

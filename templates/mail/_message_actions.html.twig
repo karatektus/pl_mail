@@ -118,6 +118,16 @@ Variables:
 
         <div class="border-t border-line my-1"></div>
 
+        {# Opens Settings → Filters with the editor already holding this
+           message's sender; the reader chooses what the filter does. #}
+        <a href="{{ path('app_settings_index', { section: 'filters', from_message: message.id }) }}"
+           data-turbo-frame="_top"
+           data-action="click->mail--message-actions#dismiss"
+           class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
+            <i class="fa-solid fa-filter w-4 text-ink-faint" aria-hidden="true"></i>
+            {{ 'message.actions.filter_from_message'|trans }}
+        </a>
+
         <a href="{{ path('app_mail_message_original', { id: message.id }) }}"
            target="_blank" rel="noopener"
            data-action="click->mail--message-actions#dismiss"

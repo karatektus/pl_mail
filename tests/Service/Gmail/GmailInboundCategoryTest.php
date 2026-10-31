@@ -205,6 +205,8 @@ final class GmailInboundCategoryTest extends KernelTestCase
         $thread->normalizedSubject = 'half price everything';
         $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
         $thread->lastMessageAt     = new DateTimeImmutable('-1 hour');
+        // As the threader leaves it: placed by this received message.
+        $thread->categoryDecidedAt = $thread->lastMessageAt;
         $thread->unreadCount       = 0;
         $thread->category          = MessageCategory::Primary;
 
@@ -250,7 +252,8 @@ final class GmailInboundCategoryTest extends KernelTestCase
         $reply->syncedAt       = new DateTimeImmutable();
 
         $thread->addMessage($reply);
-        $thread->lastMessageAt = $reply->receivedAt;
+        $thread->lastMessageAt     = $reply->receivedAt;
+        $thread->categoryDecidedAt = $reply->receivedAt;
 
         $this->em->persist($reply);
         $this->em->flush();

@@ -6,6 +6,7 @@ namespace App\Service\Gmail;
 
 use App\Domain\DTO\Gmail\ExtractedBody;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
@@ -20,7 +21,6 @@ use App\Service\Label\LabelResolver;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -46,7 +46,6 @@ use Psr\Log\LoggerInterface;
 final class GmailMessageBuilder
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
         private readonly GmailLabelResolver     $labelResolver,
         private readonly LabelResolver          $localLabelResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
@@ -140,7 +139,7 @@ final class GmailMessageBuilder
             $flags[] = '\\Draft';
         }
 
-        $message->flags = $flags;
+        $message->flags = MessageFlag::canonicalList($flags);
 
         // ── Headers ──────────────────────────────────────────────────────────
 
@@ -436,7 +435,7 @@ final class GmailMessageBuilder
             $mp->storagePath = $relativePath;
             $mp->isInline    = true;
 
-            $this->em->persist($mp);
+            $message->addMessagePart($mp);
         }
     }
 
@@ -482,7 +481,7 @@ final class GmailMessageBuilder
             $mp->storagePath = 'gmail://' . $attachmentId;
             $mp->isInline    = $isInline;
 
-            $this->em->persist($mp);
+            $message->addMessagePart($mp);
 
             if (false === $isInline) {
                 $hasAttachments = true;

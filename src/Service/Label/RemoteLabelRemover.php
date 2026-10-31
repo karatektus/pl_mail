@@ -8,15 +8,19 @@ use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphApiException;
 use App\Domain\Exception\GraphThrottledException;
+use App\Domain\Exception\JmapApiException;
+use App\Domain\Exception\JmapThrottledException;
 use App\Domain\Exception\LabelDeleteRefusedException;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapFolder;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapFolderProvisioner;
+use App\Service\JmapClient\JmapMailboxWriter;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +29,8 @@ use Throwable;
 
 /**
  * Removes what one label binding is on its mail server — an IMAP folder, an
- * Exchange folder, a Gmail label, an Exchange category — and forgets it here.
+ * Exchange folder, a JMAP mailbox, a Gmail label, an Exchange category — and
+ * forgets it here.
  *
  * ## A folder is only deleted empty
  *
@@ -63,7 +68,7 @@ use Throwable;
 readonly class RemoteLabelRemover
 {
     public function __construct(
-        private ImapConnectionFactory  $imapConnections,
+        private ImapConnector          $imapConnections,
         private GmailApiClient         $gmail,
         private GraphApiClient         $graph,
         private MessageRepository      $messages,
@@ -71,6 +76,7 @@ readonly class RemoteLabelRemover
         private LabelResolver          $labels,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private JmapMailboxWriter      $jmapWriter,
     ) {
     }
 
@@ -114,6 +120,43 @@ readonly class RemoteLabelRemover
             }
 
             $binding->graphFolderId = null;
+            $this->em->flush();
+        }
+
+        // A JMAP mailbox is asked to go without its mail, and the server's
+        // refusal while it still holds some is the wait: RFC 8621 answers
+        // mailboxHasEmail rather than deleting, which is the check the folder
+        // branches above make by counting first. The mail is in other
+        // mailboxes too by then — the detach jobs took this one off it.
+        if (null !== $binding->jmapMailboxId) {
+            $mailboxId = $binding->jmapMailboxId;
+
+            try {
+                $this->jmapWriter->destroy($account, $mailboxId);
+            } catch (JmapThrottledException $e) {
+                throw $e;
+            } catch (JmapApiException $e) {
+                if (true === in_array($e->getType(), ['mailboxHasEmail', 'mailboxHasChild'], true)) {
+                    $this->logger->info('RemoteLabelRemover: JMAP mailbox still holds mail or mailboxes, waiting', [
+                        'accountId' => $account->id,
+                        'mailboxId' => $mailboxId,
+                        'type'      => $e->getType(),
+                    ]);
+
+                    return false;
+                }
+
+                // Already gone on the server is the end state wanted.
+                if ('notFound' !== $e->getType()) {
+                    if (500 <= $e->getStatus() || (0 === $e->getStatus() && null === $e->getType())) {
+                        throw $e;
+                    }
+
+                    throw new LabelDeleteRefusedException((string) $binding->label?->fullName, $e);
+                }
+            }
+
+            $binding->jmapMailboxId = null;
             $this->em->flush();
         }
 
@@ -177,15 +220,12 @@ readonly class RemoteLabelRemover
             return true;
         }
 
-        $client = $this->imapConnections->connect($account);
+        $session = $this->imapConnections->session($account);
 
         try {
-            return null !== $this->provisioner->ensureSpecialUse($account, $client, $specialUse);
+            return null !== $this->provisioner->ensureSpecialUse($account, $session, $specialUse);
         } finally {
-            try {
-                $client->disconnect();
-            } catch (Throwable) {
-            }
+            $session->logout();
         }
     }
 
@@ -212,12 +252,13 @@ readonly class RemoteLabelRemover
             return false;
         }
 
-        $client = $this->imapConnections->connect($account);
+        $session = $this->imapConnections->session($account);
 
         try {
-            if (null !== $client->getFolderByPath($path, utf7: true)) {
-                $status   = $client->getConnection()->folderStatus($path, ['MESSAGES'])->validatedData();
-                $messages = is_array($status) ? (int) ($status['messages'] ?? 0) : 0;
+            $listed = array_map(static fn (ImapFolder $folder): string => $folder->path, $session->folders());
+
+            if (true === in_array($path, $listed, true)) {
+                $messages = $session->status($path, ['MESSAGES'])['MESSAGES'] ?? 0;
 
                 if (0 < $messages) {
                     $this->logger->info('RemoteLabelRemover: IMAP folder still holds mail, waiting', [
@@ -229,13 +270,13 @@ readonly class RemoteLabelRemover
                     return false;
                 }
 
-                $this->refusable($binding, static fn () => $client->getConnection()->deleteFolder($path)->validatedData());
+                $this->refusable($binding, static fn () => $session->delete($path));
 
                 // Servers that keep subscriptions apart from folders would go
                 // on listing a deleted folder as subscribed. Worth trying and
                 // not worth failing over: the folder is gone either way.
                 try {
-                    $client->getConnection()->unsubscribeFolder($path);
+                    $session->unsubscribe($path);
                 } catch (Throwable $e) {
                     $this->logger->info('RemoteLabelRemover: could not unsubscribe a deleted IMAP folder', [
                         'accountId' => $account->id,
@@ -245,13 +286,9 @@ readonly class RemoteLabelRemover
                 }
             }
         } finally {
-            // A server that dropped the connection on the delete leaves nothing
-            // to disconnect from, and the error from trying must not replace
-            // the refusal on its way out.
-            try {
-                $client->disconnect();
-            } catch (Throwable) {
-            }
+            // Best effort, so a server that dropped the connection on the
+            // delete cannot replace the refusal on its way out.
+            $session->logout();
         }
 
         // Counted again, after the server round trip: a sync could have put

@@ -17,7 +17,7 @@ import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 
 // Classes applied to the checkbox button in each state
-const CB_BASE   = "border-field bg-field";
+const CB_BASE   = "border-field-border bg-field";
 const CB_ACTIVE = "border-accent bg-accent";
 
 // Base path prefix for all status actions — must match Symfony routing.

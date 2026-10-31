@@ -515,7 +515,7 @@ Get these wrong and things fail quietly rather than loudly.
   Gmailify claim in `MessageSyncer`. Internal-only writes are deliberately not
   recorded — re-pointing `graphId` changes no Email property, and pushing for it
   would wake every client for nothing.
-- **Restart `messenger-worker` and `imap-supervisor` after any DI change.**
+- **Restart the worker container after any DI change.**
   Long-running workers hold a stale compiled container and fail with "Too few
   arguments" or skip new event subscribers entirely.
 
@@ -765,16 +765,25 @@ statement that creates the need for it.
   the tags. A client may render these strings as HTML; a sender's own markup
   inside one arrives escaped and is displayed rather than parsed. See
   `App\Service\Search\SearchHighlighter`, which the web search page shares.
-- **Calendars are advertised as `urn:plmail:params:jmap:calendars`, not
-  `urn:ietf:params:jmap:calendars`.** JMAP for Calendars is an unratified draft
-  whose object shape is still moving; claiming its URN would promise a contract
-  no client could rely on. Same call `urn:plmail:params:jmap:push` already made.
-- `CalendarEvent/query` **requires** `after` and `before`. Occurrences are
-  materialised only to `RecurrenceMaterialiser`'s horizon, so an unbounded query
-  would answer from a partial index and look complete. `inCalendar` is the only
-  other condition; a FilterOperator and a `sort` are refused rather than ignored.
-  With `expandRecurrences`, a window past the horizon and a `timeZone` argument
-  are refused too — see the load-bearing fact above.
+- **Calendars are advertised under two URNs**, `urn:plmail:params:jmap:calendars`
+  and `urn:ietf:params:jmap:calendars`, for the same methods. A request whose
+  `using` names the IETF one is answered and read in the draft's shape —
+  `calendarIds`, one `recurrenceRule`, the draft's `myRights` — by
+  `Calendar/IetfCalendarShape`; under plMail's URN nothing changed. The IETF
+  URN is what Stalwart speaks and what plMail's own JMAP client reads, so one
+  plMail syncs another's calendars. The plMail URN goes once the Android and
+  iOS apps read the IETF one. `isRecurring` stays under the IETF URN as
+  `plmail.org:isRecurring` (RFC 8984's vendor property names): the rule is not
+  the same answer, because a rule this server could not convert is stored
+  verbatim and expands to one occurrence. The Android app reads it.
+- `CalendarEvent/query` without `after` and `before` names every event in the
+  calendars, from the event rows (`CalendarEventRepository::findIdsInCalendars`).
+  **Expanding** still requires the window: occurrences are materialised only to
+  `RecurrenceMaterialiser`'s horizon, so an unbounded expansion would answer from
+  a partial index and look complete. `inCalendar` is the only other condition; a
+  FilterOperator and a `sort` are refused rather than ignored. With
+  `expandRecurrences`, a window past the horizon and a `timeZone` argument are
+  refused too — see the load-bearing fact above.
 - `CalendarEvent/set` cannot write ONE instance of a series. An instance id from
   an expanded query is refused by name (`invalidArguments`, naming `seriesId`)
   rather than answered `notFound`; the draft expects `/set` to resolve those ids
@@ -859,14 +868,20 @@ statement that creates the need for it.
   anyway. A client that lists a capability it depends on in `using` — the
   obvious thing to do — would otherwise have its whole request refused with
   `unknownCapability` rather than merely losing the extension.
-- **Contacts are advertised as `urn:plmail:params:jmap:contacts`, and there is
-  no `Contact/get`, `Contact/query` or `Contact/set`.** RFC 8621 has no Contacts
-  section, and the JMAP Contacts draft describes an AddressBook of ContactCards
-  a client may create, update and destroy. plMail's `contact` table is written
-  only by the header harvest (`HarvestContactsService`) and read by two
-  features; there is no address book to write to. The method is called
-  `autocomplete` rather than `query` for the same honesty: a `/query` returns
-  ids for a `/get` to resolve, and this returns objects.
+- **Contacts are served under two URNs.** `urn:ietf:params:jmap:contacts` is
+  RFC 9610 — `AddressBook/get` and `/changes`, `ContactCard/get`, `/changes`,
+  `/query` (by `inAddressBook`) and `/set`, cards in JSContact — from the one
+  account `ContactAccountResolver` names. plMail's own contacts are the book
+  `plmail`; each mirrored address book is another, by its row id. Cards are
+  written through `JsContactMapper` and `VCardMapper::apply()`, the same pair
+  every sync uses (`Contact/ContactCards`), and `contact_change_log`, written
+  by `ContactChangeLogListener` inside the flush, is their state. A destroy
+  bins the contact. `urn:plmail:params:jmap:contacts` is plMail's own surface:
+  `Contact/autocomplete`, duplicates, merge and reference emails, which have no
+  RFC equivalent, beside its older `Contact/get`, `/query` and `/set`, which
+  the phone apps are to move off. `Contact/autocomplete` is named so rather
+  than `query` because a `/query` returns ids for a `/get` to resolve, and this
+  returns objects.
 - **`Contact/autocomplete` ranks by `frequency DESC, last_seen_at DESC`**, and
   the order is entirely the database's — nothing sorts the page in PHP, which
   would produce a list ordered only within the window the client asked for.

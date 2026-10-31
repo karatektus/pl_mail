@@ -11,6 +11,7 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\UploadAttachmentsMessage;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
+use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -33,6 +34,7 @@ final readonly class RuleActionExecutor
 {
     public const string APPLY_LABEL = 'applyLabel';
     public const string REMOVE_LABEL = 'removeLabel';
+    public const string MOVE_TO_FOLDER = 'moveToFolder';
     public const string MARK_READ = 'markRead';
     public const string STAR = 'star';
     public const string ARCHIVE = 'archive';
@@ -44,6 +46,7 @@ final readonly class RuleActionExecutor
     public const array TYPES = [
         self::APPLY_LABEL,
         self::REMOVE_LABEL,
+        self::MOVE_TO_FOLDER,
         self::MARK_READ,
         self::STAR,
         self::ARCHIVE,
@@ -62,6 +65,7 @@ final readonly class RuleActionExecutor
         private MessageBusInterface     $bus,
         private LoggerInterface         $logger,
         private RuleCategoryFiler       $categoryFiler,
+        private GraphLabelPolicy        $graphLabels,
     ) {}
 
     public function execute(MailRule $rule, Message $message): void
@@ -74,6 +78,15 @@ final readonly class RuleActionExecutor
             }
 
             $type = (string) ($action['type'] ?? '');
+
+            // A tab, not a label: nothing about the message's labels or its
+            // place at the provider changes, so there is no propagator call
+            // and no thread label re-sync to ask for.
+            if (self::FILE_IN_CATEGORY === $type) {
+                $this->categoryFiler->file($rule, $message, $action);
+
+                continue;
+            }
 
             $touchedLabels = $this->one($type, $action, $message, $rule) || $touchedLabels;
         }
@@ -126,6 +139,15 @@ final readonly class RuleActionExecutor
 
                 return true;
 
+            case self::MOVE_TO_FOLDER:
+                $label = $this->resolveLabel($action, $rule);
+
+                if (null === $label) {
+                    return false;
+                }
+
+                return $this->moveToFolder($message, $label);
+
             case self::MARK_READ:
                 if (null === $message->seenAt) {
                     $message->seenAt = new \DateTimeImmutable();
@@ -153,15 +175,6 @@ final readonly class RuleActionExecutor
 
             case self::SAVE_TO_INTEGRATION:
                 $this->queueUpload($action, $message, $rule);
-
-                return false;
-
-            case self::FILE_IN_CATEGORY:
-                // A tab, not a label: nothing about the message's labels or its
-                // place at the provider changes, so there is no propagator call
-                // and no thread label re-sync to ask for. Whether it is allowed
-                // to file at all is RuleCategoryFiler's decision.
-                $this->categoryFiler->file($rule, $message, $action);
 
                 return false;
 
@@ -254,6 +267,51 @@ final readonly class RuleActionExecutor
             LabelRole::Trash => $this->propagator->trash([$message]),
             default => $this->propagator->archive([$message]),
         };
+
+        return true;
+    }
+
+    /**
+     * "Move to folder" (#221 step 3), the rule's own Move to: on an account
+     * where the label is a folder, the message is moved there — out of the
+     * folder it arrived in, into this one, on the server too; where it is a
+     * tag (Gmail, and a label with no folder on that account), it is labelled
+     * and leaves the inbox, the way Gmail moves. Never a folder created to
+     * move into: that would turn a tag into a place.
+     *
+     * The same steps MoveToService takes through ThreadStatusUpdater, without
+     * its flush: the engine runs inside the import, which flushes once.
+     */
+    private function moveToFolder(Message $message, \App\Entity\Label\Label $label): bool
+    {
+        $account = $message->account;
+        $binding = $label->bindingFor($account);
+
+        $isFolder = null !== $binding?->mailbox || true === $this->graphLabels->pushesAsFolder($label, $account);
+
+        if (false === $isFolder) {
+            $this->labelResolver->binding($label, $account);
+
+            $message->addLabel($label);
+            $this->propagator->attachLabel([$message], $label);
+
+            return $this->moveOutOfInbox($message, null);
+        }
+
+        $from = $message->mailbox?->label;
+
+        if ($from === $label) {
+            return false;
+        }
+
+        $message->addLabel($label);
+        $this->propagator->attachLabel([$message], $label);
+        $this->propagator->moveCopies([$message], $label);
+
+        if (null !== $from) {
+            $message->removeLabel($from);
+            $this->propagator->detachLabel([$message], $from, moveOnImap: false);
+        }
 
         return true;
     }

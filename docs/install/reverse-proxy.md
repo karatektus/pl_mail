@@ -58,7 +58,8 @@ so that the log says which setting is missing rather than repeating a remote val
 
 Fail either and calendar push and Microsoft Graph mail push do not register. **That is not an
 error condition** — an install with no publicly reachable address simply polls instead, and polling
-is unchanged by any of it: `app:mail:sync` runs every 15 minutes and `app:calendar:sync --stale`
+is unchanged by any of it: `app:mail:sync` syncs each account at its own interval (15 minutes unless
+changed on the account's row) and `app:calendar:sync --stale`
 every 15 minutes offset off the quarter hour. Push only makes mail and calendar changes arrive
 first rather than late.
 

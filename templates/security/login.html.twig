@@ -129,7 +129,7 @@
                                 autocomplete="email"
                                 autofocus
                                 required
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field-border bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="you@example.com"
                             >
                         </div>
@@ -160,7 +160,7 @@
                                    given it — see App\Service\Demo\DemoMode::PASSWORD. #}
                                 {% if 'dev' == app.environment %}value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
                                 {% elseif demo.isEnabled %}value="demo"{% endif %}
-                                class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
+                                class="w-full px-3 py-2 text-sm rounded-lg border border-field-border bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >
                         </div>
@@ -171,7 +171,7 @@
                                 name="_remember_me"
                                 value="1"
                                 checked
-                                class="h-4 w-4 rounded border-field bg-field accent-accent focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
+                                class="h-4 w-4 rounded border-field-border bg-field accent-accent focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                             >
                             {{ 'login.form.remember_me'|trans }}
                         </label>

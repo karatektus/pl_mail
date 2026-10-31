@@ -91,6 +91,119 @@ test.describe("compose recipients", () => {
         expect(selected).not.toContain(KNOWN);
     });
 
+    /**
+     * A typo in a chip is corrected in place: a double click puts the address
+     * back in the box, Enter commits the fix, and it comes back where it was —
+     * the first To recipient is who a template greets.
+     */
+    test("a double-clicked chip is corrected in place", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, "recipients-typo@exmaple.test");
+        await addRecipient(page, OTHER);
+
+        await chips(page).first().dblclick();
+
+        const input = page.locator(`${DOCK} .ts-control input`).first();
+        await expect(input).toHaveValue("recipients-typo@exmaple.test");
+        await expect(chips(page)).toHaveCount(1);
+
+        await input.fill(KNOWN);
+        await input.press("Enter");
+
+        await expect(chips(page)).toHaveCount(2);
+        await expect(chips(page).first()).toContainText(KNOWN);
+        await expect(chips(page).nth(1)).toContainText(OTHER);
+    });
+
+    /** Leaving the box without Enter puts the chip back rather than losing it. */
+    test("a chip opened for correction and left alone comes back", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, KNOWN);
+        await chips(page).first().dblclick();
+        await page.locator(`${DOCK} [data-compose--compose-target="subject"]`).click();
+
+        await expect(chips(page)).toHaveCount(1);
+        await expect(chips(page).first()).toContainText(KNOWN);
+    });
+
+    /**
+     * Ctrl+A then Ctrl+C on the chips copies the recipients as a list another
+     * client reads — and Ctrl+X takes them off, which is how a list moves to
+     * Bcc from the keyboard.
+     */
+    test("selected chips copy and cut as a semicolon list", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, KNOWN);
+        await addRecipient(page, OTHER);
+
+        await page.evaluate(() => {
+            const seen: string[] = [];
+            (window as unknown as { copied: string[] }).copied = seen;
+            for (const type of ["copy", "cut"]) {
+                document.addEventListener(type, (event) => {
+                    seen.push((event as ClipboardEvent).clipboardData?.getData("text/plain") ?? "");
+                });
+            }
+        });
+
+        const input = page.locator(`${DOCK} .ts-control input`).first();
+        await input.focus();
+        await page.keyboard.press("ControlOrMeta+a");
+        await page.keyboard.press("ControlOrMeta+c");
+
+        const copied = () => page.evaluate(() => (window as unknown as { copied: string[] }).copied);
+
+        // Matched loosely: an earlier spec may have given the contact a name,
+        // and then the chip copies as `Name <address>`.
+        await expect.poll(copied).toHaveLength(1);
+        expect((await copied())[0]).toMatch(new RegExp(`${KNOWN}>?; .*${OTHER}`));
+        await expect(chips(page)).toHaveCount(2);
+
+        await page.keyboard.press("ControlOrMeta+x");
+
+        await expect.poll(copied).toHaveLength(2);
+        expect((await copied())[1]).toBe((await copied())[0]);
+        await expect(chips(page)).toHaveCount(0);
+    });
+
+    /**
+     * A chip dragged from To onto Cc moves there: it leaves To, and Cc holds
+     * the same recipient. Pointer events, because Tom Select cancels the
+     * mousedown a native drag would need.
+     */
+    test("a chip dragged from To to Cc moves there", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, KNOWN);
+        await addRecipient(page, OTHER);
+
+        await page.locator(DOCK).getByRole("button", { name: /^Cc$/ }).click();
+
+        const cc = page.locator(`${DOCK} .ts-control`).nth(1);
+        const chip = chips(page).filter({ hasText: OTHER });
+        const from = await chip.boundingBox();
+        const to = await cc.boundingBox();
+
+        if (null === from || null === to) {
+            throw new Error("the chip or the Cc field is not on screen");
+        }
+
+        await page.mouse.move(from.x + 8, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+        await expect(page.locator(`${DOCK} .ts-wrapper.ts-drop-target`)).toHaveCount(1);
+        await page.mouse.up();
+
+        await expect(chips(page)).toHaveCount(1);
+        await expect(chips(page).first()).toContainText(KNOWN);
+        await expect(cc.locator(".item")).toHaveCount(1);
+        await expect(cc.locator(".item")).toContainText(OTHER);
+        await expect(page.locator(".ts-drag-ghost")).toHaveCount(0);
+    });
+
     /** Cc and Bcc are their own fields, and must not collect the To address. */
     test("Cc and Bcc address separately", async ({ page }) => {
         await openCompose(page);
@@ -106,6 +219,31 @@ test.describe("compose recipients", () => {
         await expect(chips(page)).toHaveCount(1);
         await expect(cc.locator(".item")).toHaveCount(1);
         await expect(cc.locator(".item")).toContainText(OTHER);
+    });
+
+    /**
+     * A list copied out of another client is several recipients, not one
+     * search string: `;` from Outlook, `Name <address>,` from Gmail, or just
+     * spaces. What is not an address stays in the box and is reported.
+     */
+    test("a pasted list becomes one chip per address", async ({ page }) => {
+        await openCompose(page);
+
+        await page.locator(DOCK).getByRole("button", { name: /^Cc$/ }).click();
+
+        const cc = page.locator(`${DOCK} .ts-control`).nth(1);
+        const input = cc.locator("input");
+
+        await input.focus();
+        await input.evaluate((node, text) => {
+            const data = new DataTransfer();
+            data.setData("text/plain", text);
+            node.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+        }, `${KNOWN}; "Doe, Jane" <${OTHER}> recipients-third@example.test, not-an-address; ${KNOWN}`);
+
+        await expect(cc.locator(".item")).toHaveCount(3);
+        await expect(input).toHaveValue("not-an-address");
+        await expect(page.locator(`${DOCK} [data-compose--compose-target="errors"]`)).toContainText("not-an-address");
     });
 
     /**
@@ -492,6 +630,27 @@ test.describe("clicking out of the To field", () => {
         await page.keyboard.type("Quarterly numbers");
 
         await expect(page.locator(SUBJECT)).toHaveValue("Quarterly numbers");
+    });
+
+    /**
+     * 1c. Moving on straight after Enter. Tom Select refreshes the panel 300ms
+     * after the last keystroke, and that refresh opens the panel and focuses
+     * the field — wherever the caret had gone by then. Writing the message at
+     * 40ms a key spans that moment, and before the fix the caret jumped back
+     * into To after "The eng"; the rest became a refused address.
+     */
+    test("a refresh still pending when To is left does not pull the caret back", async ({ page }) => {
+        await openCompose(page);
+
+        await addRecipient(page, OTHER);
+
+        const editor = page.locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`);
+        await editor.press("Control+Home");
+        await editor.pressSequentially("The engine works, quietly.", { delay: 40 });
+
+        await expect(editor).toContainText("The engine works, quietly.");
+        await expect(toInput(page)).toHaveValue("");
+        await expect(chips(page)).toHaveCount(1);
     });
 
     /**

@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
@@ -291,6 +292,36 @@ final class AccountController extends AbstractController
         return $this->streamAccountList($request, 'account.colour_set');
     }
 
+    /**
+     * How often the scheduled poll syncs this account (#202).
+     *
+     * A route of its own beside colour(), for colour()'s reason: edit() refuses
+     * OAuth accounts, and the interval is every account's. One of
+     * Account::SYNC_INTERVALS and nothing else, refused rather than rounded, so
+     * the menu always has the stored value to mark.
+     *
+     * The poll measures from $lastPolledAt, so a shorter interval applies at
+     * the next tick that finds it run out, and a longer one simply waits.
+     */
+    #[Route('/{id}/sync-interval', name: 'sync_interval', methods: ['POST'])]
+    public function syncInterval(Request $request, Account $account): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->assertCsrf($request, 'account-sync-interval' . $account->id);
+
+        $minutes = filter_var($request->request->get('minutes'), FILTER_VALIDATE_INT);
+
+        if (false === in_array($minutes, Account::SYNC_INTERVALS, true)) {
+            throw new BadRequestHttpException('The interval is not one of the offered choices.');
+        }
+
+        $account->syncIntervalMinutes = $minutes;
+        $this->entityManager->flush();
+
+        return $this->streamAccountList($request, 'account.sync_interval_set');
+    }
+
     #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]
     public function testConnection(Request $request, ConnectionTester $tester, TranslatorInterface $translator): JsonResponse
     {
@@ -316,6 +347,13 @@ final class AccountController extends AbstractController
         $account->smtpHost = (string) ($payload['smtpHost'] ?? '');
         $account->smtpPort = (int) ($payload['smtpPort'] ?? 587);
         $account->smtpEncryption = (string) ($payload['smtpEncryption'] ?? 'starttls');
+
+        // The protocol decides what is probed: without it every account is
+        // tested as IMAP, and a JMAP host on 443 reads as unreachable with
+        // sending "disabled". Missing or unknown is IMAP, as on the form.
+        $account->incomingProtocol = IncomingProtocol::tryFrom((string) ($payload['incomingProtocol'] ?? '')) ?? IncomingProtocol::Imap;
+        $account->jmapSessionUrl   = (string) ($payload['jmapSessionUrl'] ?? '');
+        $account->jmapTokenAuth    = true === ($payload['jmapTokenAuth'] ?? false);
 
         // A second password for sending, only when the form says it wants one
         // — the same flag-then-value the form itself submits. See AccountType.

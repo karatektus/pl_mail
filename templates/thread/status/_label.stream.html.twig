@@ -18,6 +18,18 @@ Variables:
     </turbo-stream>
 {% endif %}
 
+{% if message is defined %}
+    {# The chips in the conversation, for a label taken off one message there. #}
+    <turbo-stream action="update" target="message_labels_{{ message.id }}">
+        <template>
+            {% include '_partials/_thread_labels.html.twig' with {
+                item: message,
+                account: message.mailbox ? message.mailbox.account : message.thread.account,
+                removable: true,
+            } %}
+        </template>
+    </turbo-stream>
+{% endif %}
 {% if undoToken|default(null) is not null %}
     {% include 'thread/status/_undo_toast.stream.html.twig' with {
         message:   (attach ? 'toast.labelled' : 'toast.unlabelled')|trans({ '%label%': label|label_name }),

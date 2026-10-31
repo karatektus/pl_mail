@@ -3,12 +3,16 @@ import { Controller } from "@hotwired/stimulus";
 /**
  * Gmail-style "details" popover next to the recipient line of a message.
  *
- * Holds two independent disclosures: the panel itself, and the raw header
- * dump inside it ("show all headers"). Outside-click closing follows the
- * same capture-phase pattern as label_menu_controller.
+ * Holds three independent disclosures: the panel itself, and inside it the
+ * raw header dump ("show all headers") and the filter test ("test my filters
+ * on this message"). Outside-click closing follows the same capture-phase
+ * pattern as label_menu_controller.
  */
 export default class extends Controller {
-    static targets = ["panel", "allHeaders", "allHeadersLabel", "caret"];
+    static targets = ["panel", "allHeaders", "allHeadersLabel", "filters", "filtersLabel", "caret"];
+
+    /** The least height the panel is squeezed to, in pixels — see #fitIntoPane(). */
+    static MIN_HEIGHT = 160;
 
     connect() {
         this._boundClose = this._closeOnOutsideClick.bind(this);
@@ -65,6 +69,43 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * Open or close the filter test, asking the server on every opening.
+     *
+     * The frame's src is set here rather than followed from a link. Turbo
+     * takes over a link only from a click that reaches the document, and
+     * #stop keeps every click in this panel from getting there — so a link
+     * was followed by the browser and the bare fragment replaced the page.
+     * Asked again each time, because the reader may have edited a filter in
+     * between, and an answer about the old one is the wrong answer.
+     */
+    toggleFilters(event) {
+        event.stopPropagation();
+
+        if (!this.hasFiltersTarget) {
+            return;
+        }
+
+        const hidden = this.filtersTarget.classList.toggle("hidden");
+
+        if (this.hasFiltersLabelTarget) {
+            const label = this.filtersLabelTarget;
+            label.textContent = hidden ? label.dataset.more : label.dataset.less;
+        }
+
+        const frame = this.filtersTarget.querySelector("turbo-frame");
+
+        if (hidden || null === frame) {
+            return;
+        }
+
+        if (frame.src) {
+            frame.reload();
+        } else {
+            frame.src = frame.dataset.src;
+        }
+    }
+
     // ── Private ───────────────────────────────────────────────────────────
 
     /**
@@ -77,6 +118,13 @@ export default class extends Controller {
      * what does not fit, and is narrowed only when the pane itself is narrower
      * than the panel. Measured on every open, since the calendar can be docked
      * or closed in between.
+     *
+     * The same for its height. With all headers and the filter test open, the
+     * panel ran past the bottom of the pane and the rest was cut off, the
+     * buttons that close them included. So it is capped at the room between
+     * its top and the bottom of the visible pane, and scrolls inside that.
+     * Never under MIN_HEIGHT: a message scrolled to the very bottom of the
+     * pane would otherwise get a panel a few pixels tall.
      */
     #fitIntoPane() {
         const panel = this.panelTarget;
@@ -84,6 +132,7 @@ export default class extends Controller {
 
         panel.style.left = "";
         panel.style.maxWidth = "";
+        panel.style.maxHeight = "";
 
         if (null === pane) {
             return;
@@ -91,6 +140,10 @@ export default class extends Controller {
 
         const margin = 8;
         const bounds = pane.getBoundingClientRect();
+        const bottom = Math.min(bounds.bottom, window.innerHeight) - margin;
+
+        panel.style.maxHeight = `${Math.max(bottom - panel.getBoundingClientRect().top, this.constructor.MIN_HEIGHT)}px`;
+
         const room = bounds.width - 2 * margin;
 
         if (panel.getBoundingClientRect().width > room) {

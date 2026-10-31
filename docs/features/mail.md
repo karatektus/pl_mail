@@ -272,8 +272,9 @@ one that decided marked — the three disagree more often than you would think, 
 won is the difference between changing a setting and changing nothing.
 
 Two things the panel will tell you that are easy to mistake for bugs. A conversation takes **one**
-category, from its newest message, so a reply can carry the whole thread out of the tab an earlier
-message belongs in; the panel says so when that has happened. And a category you set by dragging the
+category, from the newest message you received in it, so an answer can carry the whole thread out of
+the tab an earlier message belongs in; the panel says so when that has happened. Your own replies
+do not count. And a category you set by dragging the
 conversation onto a tab holds against everything else, which the panel also says.
 
 If it is simply wrong, **Report** at the bottom of the panel says where it should have gone. That
@@ -499,10 +500,25 @@ has a name, one of nine colours — gray, red, orange, amber, green, teal, blue,
 and optionally a parent, which is how nesting works. A label can be hidden from the sidebar
 without being deleted.
 
-Creating a label does nothing at the provider. Gmail gets it the first time the label is actually
-applied to a message; plain IMAP never gets a folder created for it, because a folder only matters
-when a message physically moves. Mirroring structural changes — renames and deletions — outward is
-off unless you switch it on per account; see [Accounts and aliases](accounts.md).
+Creating a label never creates a folder. Gmail gets the label the first time it is applied to a
+message, and renames and deletions are mirrored to Gmail and Microsoft; see
+[Labels at the provider](accounts.md#labels-at-the-provider). On a plain IMAP account putting a
+label on a message tags the message and moves nothing: the label stays in plMail, or, with
+[Labels as keywords](accounts.md#labels-as-keywords) switched on, becomes an IMAP keyword other mail
+apps see. On a Microsoft account a label is an Outlook category; see
+[Labels as Outlook categories](accounts.md#labels-as-outlook-categories).
+
+An IMAP account's folders show in the sidebar under the account — the inbox, Sent, and every folder
+the server has — and so do an Outlook account's mail folders. Those are places rather than tags: a
+message is in one of them, and **Move to** one of them, or dragging a conversation onto it, moves the
+mail there on the server. **Label as** offers only the labels that are tags on the account, so
+putting a label on mail never moves it. The LABELS section holds those tags; switch on **Folders in
+Labels** in **Settings → Labels** to list folders there too, where they wear a folder instead of a
+dot. Folders are made, renamed and deleted in the account's own folder list, never by making or
+renaming a label; see [Folders](accounts.md#folders).
+
+In an open conversation each message shows its labels. A folder it is in wears a folder and has no
+×, because taking mail out of a folder is a move; a label has an × that takes it off that message.
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
 are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
@@ -522,28 +538,52 @@ at once with the server's reason, and the label stays. A folder whose mail plMai
 cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
 and moves nothing.
 
+To turn a label into a folder on one account, open the label and use **Change per account** under
+**Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.
+Mail with that label on that account moves into the new folder, except mail in Trash, Spam, Sent and
+Drafts, and the dialog says how many messages will move first. On Outlook the category of that name
+is removed.
+
+**Make it a label** does the reverse on a folder with no folders inside it. Choose where its mail goes;
+plMail moves the mail, deletes the folder on the server and puts the label back on that mail as a tag.
+If the server keeps mail in the folder, the job fails and says so: the folder stays, and the mail already
+moved stays where it went, without the label.
+
 ### Move to
 
 The folder button — beside **Delete** in the toolbar above a selection, and beside the label
-button in an open conversation — files mail under one label in a single step: **the label you pick goes on, and the
-label of the list you were looking at comes off.** Every other label stays.
+button in an open conversation — moves mail to one place in a single step. What counts as a place
+depends on the account:
+
+| Account | **Move to** offers | Moving there |
+|---|---|---|
+| Plain IMAP, Microsoft | its folders, with **Inbox**, **Spam** and **Trash** | Moves the mail into the folder on the server |
+| Gmail | **Inbox**, **Spam** and **Trash**; with **Move to offers labels** on, its labels too | Puts the label on and takes the mail out of the inbox, as Gmail does |
+| JMAP | every label | Moves the mail into that mailbox |
+
+**Move to offers labels** is a switch on a Gmail account's row in **Settings → Accounts**, off until
+you turn it on. In a list whose selection spans several accounts, the picker offers what is a place
+on any of them, and each conversation is moved the way its own account does it: into the folder
+where the label is one, and labelled and out of the inbox where it is a tag. A move never makes a
+folder.
+
+Which copy moves depends on where you are:
 
 | Where you are | What "Move to *Receipts*" does |
 |---|---|
-| **Inbox** | Adds *Receipts* and archives the conversation |
-| A label | Swaps that label for *Receipts* |
-| **Trash** or **Spam** | Adds *Receipts* and takes the conversation out of the bin and out of spam — without putting it back in the inbox |
-| Anywhere else — search, **Starred**, **Sent** | Adds *Receipts*, and takes the conversation out of the inbox if it was in it |
+| **Inbox** | Moves the conversation out of the inbox into *Receipts* |
+| A folder | Moves the copy in that folder into *Receipts*; copies elsewhere stay where they are |
+| **Trash** or **Spam** | Moves the conversation into *Receipts*, out of the bin and out of spam, without putting it back in the inbox |
+| Anywhere else — search, **Starred** | Moves the conversation's copy in the inbox, or its main copy, into *Receipts* |
 
-The picker offers the **Inbox**, your labels, **Spam** and **Trash**. Picking one applies it at
-once; there is nothing to confirm. **Inbox** brings a conversation back and removes the label you
-were in; **Spam** and **Trash** do what their own buttons do. The list you are already in, any
-label the conversation already has, and **Trash** or **Spam** for mail that is already there, are
-left off the picker.
+Your own replies in **Sent** stay in Sent. Picking an entry applies it at once; there is nothing to
+confirm. **Inbox** brings a conversation back; **Spam** and **Trash** do what their own buttons do.
+The list you are already in, a folder the conversation is already in, and **Trash** or **Spam** for
+mail that is already there, are left off the picker.
 
-This is not the same as dragging a conversation onto a folder under an account, which puts it in
-that folder and takes it out of every other one. Use the label button when you want to add a label
-and leave the mail where it is.
+Dragging a conversation onto a folder under an account does the same as **Move to** that folder.
+Dragging it onto a label in the LABELS section puts the label on and leaves the mail where it is,
+like **Label as**.
 
 Moving, labelling and archiving each show an **Undo** for a few seconds. It puts back exactly the
 labels each conversation had before, which for a mixed selection is not the same as reversing the
@@ -575,7 +615,9 @@ whose body only ever says `help.wirhub.de`.
 `from:"Ada Lovelace"` works.
 
 Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
-as the lists do. The suggestions as you type leave both out.
+as the lists do. The suggestions as you type leave both out. Clicking into the search box while
+you are in Spam or the bin writes `in:spam` or `in:trash` in for you, so a search from there
+searches that folder. Delete it to search everywhere else instead.
 
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview
@@ -967,6 +1009,22 @@ Autocomplete only ever offers **your own** harvested contacts. On an install wit
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
 account cannot be put on your draft by any route.
 
+**Double-click a recipient** to correct it: the address goes back into the field, Enter puts the
+fixed one where the old one was. Leaving the field without pressing Enter puts it back as it is.
+
+**Copy recipients** by selecting their chips (a click, Shift+click, or Ctrl+A in an empty field)
+and pressing Ctrl+C: they go to the clipboard as `Name <address>; address`, which other mail clients
+read. Ctrl+X does the same and removes them, so a list moves from To to Bcc with a cut and a paste.
+
+**Drag a recipient** from one of To, Cc and Bcc onto another to move it there; a contact keeps its
+name. With a mouse or a pen: on a touch screen, cut and paste the address instead.
+
+A list of addresses pasted into **To**, **Cc** or **Bcc** becomes one recipient per address,
+whether it is separated by semicolons, commas, new lines or spaces, and with or without names
+(`jo@jo.fr; Ann <ann@example.org>`, `jo@jo.fr jo2@jo.fr`). A space inside a name does not split
+it. An address already on the field is not added twice, and a
+piece that is not an address stays in the box, reported, for you to correct.
+
 **Attach files** takes files from your machine, capped at **25 MB per file**. **Attach from a
 service** opens the file picker for any connected service plMail can download from.
 
@@ -975,6 +1033,12 @@ least five characters of body **or** a subject — a subject typed on its own is
 Closing the window, popping it out, or attaching a file all force a save first. Below that
 threshold, leaving the page interrupts rather than losing what you typed. The trash button in the
 compose window genuinely deletes the draft rather than closing the window on top of it.
+
+**Send** asks first, in the window, when the message has no subject, no text, a template blank
+still open, or **mentions an attachment that is not there**: "attached", "ci-joint", "pièce
+jointe", "Anbei", "附件" and their kin in the subject or in what you wrote, with no file attached.
+The quoted original is not read, so a reply to a mail that had an attachment does not ask. All the
+reasons come as one question, and **Send anyway** sends.
 
 On a phone the toolbar wraps rather than scrolling out of reach, and the send pill moves up into the
 window's header, where the old button used to be.

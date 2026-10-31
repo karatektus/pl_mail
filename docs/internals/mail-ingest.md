@@ -24,8 +24,9 @@ The three differ in more than protocol, and the differences are where the bugs l
 **IMAP syncs structure and content in one entry point.** `ImapAccountSyncer` runs
 `MailboxSyncer` before `MessageSyncer` so folders created by another client appear and get
 their label chains before any message tries to resolve into one. `MessageSyncer` fetches in
-batches of 50 and hands the raw RFC822 bytes forward, because webklex keeps them after
-parsing — which is why IMAP is the only path that stores the original for free.
+batches of 50 and hands the raw RFC822 bytes forward, because each message is fetched whole
+(`BODY.PEEK[]`) and parsed from those bytes — which is why IMAP is the only path that stores the
+original for free.
 
 **Gmail has no `Mailbox` rows at all.** `GmailApiSyncer` plans work directly on the account
 and fans out `SyncGmailMessageBatchMessage` jobs of 100 ids each, listing at the API's page
@@ -170,9 +171,17 @@ release, Gmail enrichment), and every one would erase a verdict kept there. The 
 `Message::$ruleCategory` instead, which nothing recomputes, and `RuleCategoryFiler` then has the
 thread re-resolve through `MessageThreader::refreshCategory()` — most-recent-wins, pin-aware, hold-aware,
 like the built-in category. `MessageThread::$userCategory` is the thread's side, resolved by the same
-two recompute statements as `category`. A message is filed only when `SenderAuthentication` says
-`Pass`; see its docblock for whose verdict is believed. The filter files Gmail-labelled mail too:
-the provider's categories outrank plMail's own sorting, not an instruction the reader wrote.
+two recompute statements as `category`. Whatever the filter matches is filed, whatever the sender
+check says (#405); `RuleConditions` leaves mail in Spam out of every filter that does not name it.
+The filter files Gmail-labelled mail too: the provider's categories outrank plMail's own sorting,
+not an instruction the reader wrote.
+
+"Most-recent" means the newest **received** message. Mail filed under Sent or Drafts
+(`Message::isFiledAsSent()`) only places a conversation nothing received has placed, so a reply
+does not take a conversation out of its tab. `MessageThread::$categoryDecidedAt` records when the
+message that placed it happened. The threader compares arrivals against it rather than
+`lastMessageAt`, which your own mail moves too. The recompute statements order your own mail last
+and write the same instant.
 
 A built-in category the reader switched off (`CategorySorting::$disabled`) takes no mail.
 `MessageCategorizer::explain()` maps whatever the cascade decided — header rule, Gmail label or

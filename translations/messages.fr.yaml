@@ -10,6 +10,16 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
+        jmap:
+            heading: 'Réception — JMAP'
+            outgoing_heading: 'Envoi — JMAP'
+            outgoing_help: 'Le serveur JMAP envoie lui-même votre courrier et en range la copie dans Envoyés : il n''y a rien à remplir ici.'
+            session_url: 'URL de session'
+            session_url_help: 'Laissez vide pour utiliser l''adresse ci-dessus. À renseigner seulement si la session JMAP de votre serveur ne se trouve pas à /.well-known/jmap.'
+            session_url_offer: 'La session JMAP de mon serveur se trouve ailleurs'
+            token_auth: 'Le mot de passe est un jeton d''API'
+            token_auth_help: 'Cochez cette case pour les serveurs comme Fastmail qui fournissent un jeton plutôt qu''un mot de passe d''application. Le nom d''utilisateur n''est alors pas envoyé.'
+            use_smtp: 'Mon serveur n''envoie pas par JMAP — utiliser SMTP'
         password: Mot de passe
         pop3:
             delete_help: 'Laissé sur le serveur, un message est reconnu à la relève suivante par son UIDL et n''est jamais relevé deux fois. Le supprimer libère de la place sur le serveur, mais la copie de plMail devient alors la seule.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Le changer plus tard conserve vos messages : la synchronisation suivante reconnaît ce qui est déjà là.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Protocole de réception'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Continuer avec Microsoft
     primary_set: Compte principal modifié
     removed: Compte supprimé
+    sync_interval_set: Intervalle de synchronisation modifié
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'La connexion n’a pas fonctionné. Vérifiez le serveur, le port et le chiffrement.'
             host_invalid: 'Saisissez uniquement un nom d’hôte ou une adresse IP — sans barre oblique, point d’interrogation ni @.'
             imap_ok: 'Connecté — %count% dossiers visibles.'
+            jmap_no_mail: 'Le serveur parle JMAP mais ne propose aucun courrier pour ce compte.'
+            jmap_ok: 'Connecté — %count% boîtes visibles.'
+            jmap_submission: 'L''envoi passe par le serveur JMAP.'
             missing_fields: 'Saisissez d’abord au moins une adresse e-mail et un serveur IMAP.'
             missing_password: 'Aucun mot de passe pour le test. Saisissez-en un ci-dessus — dans le formulaire de modification, un champ vide conserve le mot de passe enregistré, que le test ne peut utiliser qu’une fois le compte enregistré.'
             pop3_ok: 'Connecté — %count% messages dans la boîte.'
+            private_network: 'Ce serveur se trouve sur un réseau privé. Un administrateur doit d''abord autoriser son hôte dans INTEGRATIONS_ALLOWED_HOSTS avant que plMail puisse s''y connecter.'
             smtp_none: 'Aucun serveur SMTP configuré — l’envoi est désactivé pour ce compte.'
             smtp_ok: 'Connecté et authentifié.'
             timeout: 'Le serveur n’a pas répondu à temps. Vérifiez le serveur et le port, et qu’aucun pare-feu ne bloque.'
@@ -745,8 +761,8 @@ admin:
             nouvelle valeur. Environ deux secondes d’interruption, et cette page revient
             d’elle-même.
         restart_app_title: 'Redémarrer le conteneur web'
-        restart_confirm: 'Redémarrer les workers, le planificateur et le superviseur IMAP ? Le travail en cours se termine d’abord.'
-        restart_help: 'Arrête les workers, le planificateur et le superviseur IMAP pour qu’ils redémarrent à neuf. Les processus de longue durée gardent les mappings de base de données en cache toute leur vie : il faut donc ceci après une migration.'
+        restart_confirm: 'Redémarrer les workers, le planificateur et les écouteurs push ? Le travail en cours se termine d’abord.'
+        restart_help: 'Arrête les workers, le planificateur et les écouteurs push pour qu’ils redémarrent à neuf. Les processus de longue durée gardent les mappings de base de données en cache toute leur vie : il faut donc ceci après une migration.'
         restart_pending: 'Redémarrage demandé il y a %seconds% s — les processus terminent leur travail en cours, puis réapparaissent ici d’ici une minute ou deux.'
         restart_title: 'Redémarrer les processus de longue durée'
         run_help: 'Mis en file pour un worker, pas exécuté ici. Ce sont les mêmes passages que ceux que le planificateur lance tout seul.'
@@ -1836,6 +1852,7 @@ compose:
         send_anyway: L’envoyer quand même ?
         plain_text: Passer en texte brut supprime toute la mise en forme de ce message. Continuer ?
         open_variables: 'Un champ du modèle n’a pas été rempli.'
+        no_attachment: 'Le message parle d’une pièce jointe, mais aucun fichier n’est joint.'
     # Every label inside the emoji picker. The component ships its own English
     # strings and takes a replacement object; this is that object, so the
     # picker is as translated as the window around it.
@@ -2701,6 +2718,28 @@ label:
         no_color: '— aucune —'
         no_parent: '— premier niveau —'
         parent: Imbriquer sous
+        places:
+            category: 'Une catégorie Outlook sur %account% (les changements faits dans Outlook ne sont pas suivis)'
+            category_followed: 'Une catégorie Outlook sur %account%'
+            folder: 'Un dossier sur %account%'
+            keyword: 'Un mot-clé sur %account%'
+            keyword_unasked: 'Un mot-clé sur %account%, là où ses dossiers conservent les mots-clés'
+            local_off: 'Seulement dans plMail sur %account% (libellés en mots-clés désactivé)'
+            local_server: 'Seulement dans plMail sur %account% (le serveur ne conserve pas de mots-clés)'
+            make_folder: 'En faire un dossier'
+            make_folder_body: 'Crée le dossier « %name% » sur %account%, pour pouvoir y déplacer du courrier.'
+            make_folder_category: 'La catégorie Outlook de ce nom est supprimée.'
+            make_folder_done: 'Dossier créé.'
+            make_folder_failed: 'Le dossier n’a pas pu être créé : %error%'
+            make_folder_mail: '%count% messages portant ce libellé sur ce compte y seront déplacés.'
+            make_folder_nested: 'Son parent « %parent% » y devient aussi un dossier.'
+            make_folder_stay: 'Le courrier de la corbeille, des spams, des envoyés et des brouillons reste où il est.'
+            make_label: 'En faire un libellé'
+            make_label_body: 'Supprime le dossier « %name% » sur %account%. Le libellé reste, comme étiquette, et revient sur le courrier déplacé.'
+            make_label_failed_moved: 'Le courrier déplacé n’a plus ce libellé ; ajoutez-le de nouveau une fois le dossier supprimé.'
+            make_label_mail: '%count% messages de ce dossier doivent d’abord aller ailleurs.'
+            manage: 'Modifier par compte'
+            title: 'Où ce libellé est conservé'
     menu:
         create: Créer
         empty: Aucun libellé pour l’instant.
@@ -2747,6 +2786,7 @@ message:
         more: Plus
         print: Imprimer
         report_insight: Signaler un aperçu manqué
+        filter_from_message: 'Créer un filtre à partir de ce message'
         show_original: Afficher l’original
         star: Suivre
         unstar: Ne plus suivre
@@ -2804,6 +2844,19 @@ message:
         signer: Signé par %signer%
         smime_unreadable: Ce message est chiffré avec S/MIME pour un certificat que plMail n’a pas. Importez-le dans Paramètres → Chiffrement, ou ouvrez le message dans un logiciel de messagerie qui le possède.
         smime_unsupported: Ce message est chiffré avec un algorithme que plMail ne sait pas ouvrir ; seul AES est pris en charge.
+    filter_check:
+        button: 'Tester mes filtres sur ce message'
+        hide: 'Masquer le test des filtres'
+        none: 'Aucun filtre n’est activé pour ce compte.'
+        state:
+            matches: 'correspond'
+            no_match: 'ne correspond pas'
+            stopped: 'pas atteint : « %rule% » arrête après lui'
+            broken: 'ses conditions sont illisibles ; il est ignoré'
+            spam: 'ignoré : le message est dans Spam, et ce filtre ne nomme pas le dossier Spam'
+        filing:
+            Filed: 'le classerait dans %category%'
+            NoCategory: 'rien où classer : l’onglet n’existe plus'
     details:
         categorised:
             ai: 'un modèle de langage, faute de règle l’ayant reconnu : '
@@ -3263,6 +3316,10 @@ settings:
             off: 'Désactivé'
             on: 'Activé'
     accounts:
+        categories:
+            off_hint: 'Désactivé : une catégorie posée ou retirée dans Outlook ne change pas les libellés ici. L’activer relit une fois chaque dossier de ce compte.'
+            on_hint: 'Activé : une catégorie posée ou retirée dans Outlook pose ou retire le libellé ici.'
+            title: 'Suivre les catégories Outlook'
         colour:
             change: 'Changer la couleur de %account%'
             swatch:
@@ -3282,16 +3339,63 @@ settings:
         enable: Activer le compte
         folders:
             always_synced: La boîte de réception est toujours synchronisée
-            button: Choisir les dossiers à synchroniser
+            button: Dossiers
+            created: 'Dossier « %folder% » créé'
+            delete:
+                button: 'Supprimer le dossier %folder%'
+                confirm: 'Supprimer le dossier %folder% sur le serveur de messagerie ? Il est vide ; rien d’autre n’est supprimé.'
+            deleted: 'Dossier « %folder% » supprimé'
             empty: Aucun dossier pour l’instant. Ils sont listés après la première synchronisation.
+            idle_needs_sync: '%folder% n’est pas synchronisé, il ne peut donc pas être surveillé'
             intro: >-
                 Désactivez un dossier et plMail cesse de le récupérer. Le courrier
                 déjà stocké reste où il est, et réactiver le dossier reprend là où
-                cela s’était arrêté.
+                cela s’était arrêté. Un dossier à l’éclair allumé est
+                surveillé : le nouveau courrier y apparaît aussitôt ; les autres
+                sont relevés à l’intervalle du compte.
+            invalid:
+                control: 'Un nom de dossier ne peut pas contenir de saut de ligne ni d’autre caractère de contrôle.'
+                empty: 'Donnez un nom au dossier.'
+                reserved: 'INBOX est réservé à la boîte de réception.'
+                separator: 'Sur ce serveur, un nom de dossier ne peut pas contenir « %separator% » : il sépare les dossiers des dossiers qu’ils contiennent.'
+                too_long: 'Ce nom est trop long pour un dossier.'
+                wildcard: 'Un nom de dossier ne peut contenir ni * ni %.'
+            keywords:
+                allowed: 'Ce serveur conserve les mots-clés.'
+                intro: 'Pose les libellés sur le courrier de ce compte comme mots-clés IMAP, pour que les applications qui affichent les mots-clés (les étiquettes de Thunderbird, par exemple) les voient, et que les mots-clés posés là-bas arrivent ici comme libellés. Les libellés ne déplacent jamais le courrier. Désactivé : les libellés restent dans plMail.'
+                refused: 'Ce serveur ne conserve pas de mots-clés : les libellés restent dans plMail sur ce compte.'
+                title: 'Libellés en mots-clés'
+                unknown: 'Pas encore demandé : plMail interroge chaque dossier la première fois qu’il y écrit un mot-clé.'
+            new:
+                button: 'Nouveau dossier'
+                intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'
+                name: 'Nom'
+                parent: 'Dans'
+                submit: 'Créer le dossier'
+                title: 'Nouveau dossier — %account%'
+                top_level: 'Premier niveau'
             placeholder: 'Un dossier qui ne fait que regrouper d’autres dossiers — il n’y a rien à synchroniser dedans'
+            refused:
+                has_children: 'Ce dossier contient d’autres dossiers. Supprimez-les ou déplacez-les d’abord.'
+                not_empty: 'Ce dossier contient encore du courrier (%count%). Déplacez-le d’abord ; supprimer un dossier supprimerait son courrier.'
+                server: 'Le serveur de messagerie a refusé : %reason%'
+                special_use: 'La boîte de réception, Envoyés, Brouillons, Corbeille, Indésirables et Archives ne sont jamais renommés ni supprimés depuis plMail : les autres applications et plMail lui-même en dépendent.'
+            rename:
+                button: 'Renommer le dossier %folder%'
+                intro: 'Le dossier est renommé sur le serveur de messagerie, avec les dossiers qu’il contient, et toutes les applications qui lisent ce compte voient le nouveau nom.'
+                submit: 'Renommer'
+                title: 'Renommer le dossier — %folder%'
+            renamed: 'Dossier renommé en « %folder% »'
+            start_idle: 'Surveiller %folder% pour recevoir le nouveau courrier dès son arrivée'
             start_sync: 'Commencer à synchroniser %folder%'
+            stop_idle: 'Ne plus surveiller %folder% — le relever à l’intervalle du compte'
             stop_sync: 'Arrêter de synchroniser %folder%'
             title: 'Dossiers — %account%'
+            unreachable: 'Le serveur de messagerie est injoignable, rien n’a été modifié : %reason%'
+        gmail_move:
+            off_hint: 'Désactivé : pour ce compte, Déplacer vers ne liste que la boîte de réception, le spam et la corbeille. Les libellés se posent avec « Appliquer le libellé ».'
+            on_hint: 'Activé : Déplacer vers liste aussi les libellés de ce compte. Y déplacer pose le libellé et sort le message de la boîte de réception, comme dans Gmail.'
+            title: 'Déplacer vers propose les libellés'
         heading: Comptes mail
         make_primary: Définir comme principal
         make_primary_explained: 'Envoyer les nouveaux messages depuis %account% par défaut'
@@ -3318,6 +3422,7 @@ settings:
                     L’abonnement push Pub/Sub dans Google Cloud est peut-être absent ou
                     pointe ailleurs. Le courrier est toujours synchronisé selon le
                     calendrier.
+                jmap: 'Le push est activé mais rien n''arrive. Vérifiez que le serveur JMAP est joignable ; le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     L’abonnement push a expiré et rien n’arrive. Réenregistrez-le pour
                     retrouver la livraison instantanée. Le courrier est toujours
@@ -3329,6 +3434,7 @@ settings:
                     sujet Pub/Sub existant et que ce sujet accorde à
                     gmail-api-push@system.gserviceaccount.com le rôle Éditeur Pub/Sub.
                     Le compte est toujours synchronisé selon le calendrier.
+                jmap: 'Le push n''a pas pu être activé. Le compte continue d''être synchronisé à intervalles réguliers.'
                 microsoft: >-
                     Le push n’a pas pu être activé — Microsoft doit pouvoir joindre ce
                     serveur en HTTPS. Vérifiez votre proxy inverse et APP_PUBLIC_URL.
@@ -3344,6 +3450,7 @@ settings:
             off_hint: Le courrier est vérifié selon un calendrier. Activez le push pour une livraison instantanée.
             on_hint:
                 gmail: Le nouveau courrier arrive immédiatement via les notifications push de Gmail.
+                jmap: 'Les changements arrivent immédiatement : le serveur JMAP les envoie à plMail, par webhook quand il peut joindre ce serveur, sinon par une connexion maintenue ouverte.'
                 microsoft: Le nouveau courrier arrive immédiatement via les notifications push de Microsoft.
             title: Livraison instantanée
         reorder: Faites glisser pour réorganiser
@@ -3351,6 +3458,10 @@ settings:
             active: Actif
             disabled: Désactivé
         subheading: Ajoutez, modifiez, activez ou supprimez les boîtes que vous synchronisez.
+        sync_interval:
+            change: 'Relevé toutes les %minutes% min — changer la fréquence pour %account%'
+            every: 'Toutes les %minutes% min'
+            heading: 'Relever le courrier toutes les … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3433,6 +3544,12 @@ settings:
         with_keys: 'Vos clés vous accompagnent : le courrier chiffré s’ouvre tout de suite dans l’application.'
         expires: "Expire à %time%."
         open_in_app: "Ouvrir dans l’application"
+    native_apps:
+        android_hint: "Associez-la ensuite avec le bouton ci-dessous. Acheter l’application sur Google Play est, pour l’instant, le principal moyen de soutenir ce projet."
+        android_title: "Installez d’abord plMail pour Android"
+        github: "ou gratuitement depuis GitHub"
+        play_alt: "Disponible sur Google Play"
+        play_badge: images/badges/google-play-fr.png
     app_passwords:
         copy: Copier
         copy_now: Voici votre nouveau mot de passe d’application
@@ -3679,6 +3796,7 @@ settings:
             fileInCategory: "Classer dans une catégorie"
             markRead: Marquer comme lu
             markSpam: Marquer comme spam
+            moveToFolder: Déplacer dans le dossier
             removeLabel: Retirer le libellé
             saveToIntegration: Enregistrer les pièces jointes dans
             star: Le suivre
@@ -4373,6 +4491,10 @@ settings:
         delete: Supprimer le libellé « %name% »
         edit: Modifier le libellé « %name% »
         empty: Aucun libellé pour l’instant — créez-en un, ou ils apparaîtront après la première synchronisation.
+        folders_in_labels:
+            off_hint: 'Désactivé : les dossiers sont listés sous leur compte, et la section Libellés contient les libellés posés sur les messages.'
+            on_hint: 'Activé : la section Libellés de la barre latérale liste aussi les dossiers, en plus de leur place sous chaque compte.'
+            title: 'Dossiers dans Libellés'
         heading: Libellés
         hide: Masquer le libellé
         show: Afficher le libellé
@@ -4827,10 +4949,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Ajouter un compte
-        heading: Comptes
-        none: Aucun compte pour l’instant
         colour: 'Marquage de couleur de %account%'
         colour_disabled: 'Marquage de couleur de %account%, qui est désactivé'
+        folders: 'Dossiers…'
+        heading: Comptes
+        menu: 'Dossiers de %account%'
+        new_folder: 'Nouveau dossier…'
+        none: Aucun compte pour l’instant
         open: 'Ouvrir %account%'
         toggle: 'Afficher ou masquer les dossiers de %account%'
     badge:
@@ -4840,6 +4965,7 @@ sidebar:
     compose: Nouveau message
     labels:
         add: Créer un libellé
+        folder_on: 'Dossier sur %accounts%'
         heading: Libellés
         none: Aucun libellé pour l’instant
     new_mail_here: 'Nouveau courrier dans %where%'
@@ -4926,6 +5052,7 @@ thread_row:
         snooze: Mettre en attente
     answer: Nouvelle réponse à votre message
     answer_badge: Réponse
+    folder: 'Dans le dossier %label%'
     has_attachment: Contient une pièce jointe
     me: moi
     meaning: 'Trouvé par le sens, pas par les mots tapés'
@@ -4941,6 +5068,7 @@ thread_row:
         rate_limited: 'Non envoyé : votre fournisseur limitait les envois'
         refused: 'Non envoyé : le serveur de messagerie l’a refusé'
         unavailable: 'Non envoyé : votre fournisseur était injoignable'
+    remove_label: 'Retirer %label%'
     scheduled: 'Programmé %when%'
     select: Sélectionner
     sheet:
@@ -5132,6 +5260,7 @@ whats_new:
         where: 'Part par courrier à %address%, avec votre version de plMail. Une copie reste dans votre dossier Envoyés.'
     highlights: 'À la une'
     menu:
+        android: 'plMail pour Android'
         label: 'Aide et avis'
         unseen: 'Des notes de version que vous n’avez pas encore vues'
         version: 'plMail %version%'

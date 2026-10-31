@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\ImapFolderRefusedException;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
@@ -15,9 +19,6 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * Where a folder plMail creates on an IMAP server actually goes.
@@ -63,7 +64,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
      * folder is there and the request is already satisfied, anything else means
      * it is not.
      */
-    private string $refusal = 'CREATE refused';
+    private string $refusal = 'NO CREATE refused';
 
     protected function setUp(): void
     {
@@ -78,7 +79,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
 
         $this->created       = [];
         $this->serverAccepts = true;
-        $this->refusal       = 'CREATE refused';
+        $this->refusal       = 'NO CREATE refused';
 
         $this->connection->beginTransaction();
 
@@ -346,32 +347,69 @@ final class ImapFolderProvisionerTest extends KernelTestCase
         self::assertSame(['INBOX.Projekte'], $this->created, 'the server is asked for exactly what the row named');
     }
 
+    // ── a folder somebody asked for (#221) ────────────────────────────────
+
+    /**
+     * A folder asked for by name is told why it was not made, in the server's
+     * own words — its response code and text — rather than null and a line in
+     * the worker log; and nothing is recorded for it.
+     */
+    public function testAFolderAskedForByNameSaysWhyTheServerRefused(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [CANNOT] Permission denied';
+
+        try {
+            $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+            self::fail('a refused CREATE was reported as made');
+        } catch (ImapFolderRefusedException $e) {
+            self::assertSame('Clients', $e->folder);
+            self::assertSame('[CANNOT] Permission denied', $e->reason);
+        }
+
+        self::assertNull(
+            $this->em->getRepository(Mailbox::class)->findOneBy(['account' => $this->account, 'fullPath' => 'Clients']),
+            'and nothing is recorded for it',
+        );
+    }
+
+    /** Asked for by name, a folder that is already there is still the answer. */
+    public function testAFolderAskedForThatAlreadyExistsIsReturned(): void
+    {
+        $this->folder('INBOX', 'INBOX', '/');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists';
+
+        $mailbox = $this->provisioner->createFolder($this->account, $this->client(), 'Clients');
+
+        self::assertSame('Clients', $mailbox->fullPath);
+        self::assertSame('Clients', $mailbox->label?->name);
+    }
+
     // ── fixture ───────────────────────────────────────────────────────────
 
     /**
-     * A client whose createFolder writes down what it was asked for, and
-     * refuses when the test says the server would.
+     * A session on a server that writes down every CREATE it is sent, and
+     * refuses it, in the words the test chose, when the test says it would.
+     * Scripted rather than Dovecot because the refusals are the point.
      */
-    private function client(): Client
+    private function client(): ImapSession
     {
-        $client = $this->createStub(Client::class);
+        $server = new FakeImapServer(self::getContainer()->get(ImapLoop::class));
 
-        $client->method('createFolder')->willReturnCallback(
-            function (string $path): Folder {
-                if (false === $this->serverAccepts) {
-                    throw new \RuntimeException($this->refusal);
-                }
+        $server->on('CREATE', function (string $arguments): array {
+            if (false === $this->serverAccepts) {
+                return [$this->refusal];
+            }
 
-                $this->created[] = $path;
+            $this->created[] = trim($arguments, '"');
 
-                return $this->createStub(Folder::class);
-            },
-        );
+            return ['OK CREATE completed'];
+        });
+        $server->on('SUBSCRIBE', static fn (): array => ['OK SUBSCRIBE completed']);
 
-        $client->method('getConnection')->willReturn($this->createStub(ProtocolInterface::class));
-        $client->method('disconnect')->willReturnSelf();
-
-        return $client;
+        return $server->session();
     }
 
     private function folder(

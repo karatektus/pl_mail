@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:5335652d9a9068ad87eafb41deda04a22278acba -->
+<!-- translated-from: providers/imap-smtp.md sha1:fe428eb58bf0d11f2d18c18ba4e8aa1765a8890f -->
 
 # IMAP und SMTP
 
@@ -17,10 +17,12 @@ Anbieter tatsächlich uneins sind.
 **Einstellungen → E-Mail-Konten → Konto hinzufügen**, im Reiter **IMAP / SMTP**.
 
 1. Wähl deinen Anbieter aus der Auswahlliste **Anbieter**, wenn er dort steht. plMail bringt eine
-   Liste gängiger Anbieter mit und füllt daraus Server, Port und Verschlüsselung für beide Richtungen
-   aus; bei etlichen Einträgen steht zusätzlich ein kurzer Hinweis auf etwas, das dieser Anbieter
-   verlangt. Die Liste wird gegen die Domain der eingetippten Adresse abgeglichen, für die meisten
-   Postfächer sind die Einstellungen also da, bevor du die Auswahlliste überhaupt berührt hast.
+   Liste gängiger Anbieter mit und füllt daraus Server, Port und Verschlüsselung für beide
+   Richtungen aus — den POP3- oder JMAP-Server statt des IMAP-Servers, wenn das gewählte Protokoll
+   eines davon ist und plMail den des Anbieters kennt; bei etlichen Einträgen steht zusätzlich ein
+   kurzer Hinweis auf etwas, das dieser Anbieter verlangt. Die Liste wird gegen die Domain der
+   eingetippten Adresse abgeglichen, für die meisten Postfächer sind die Einstellungen also da,
+   bevor du die Auswahlliste überhaupt berührt hast.
 2. **E-Mail-Adresse** ist der Name, unter dem das Konto in plMails eigener Oberfläche erscheint.
    **Benutzername** ist das, als was der Server dich kennt, und ist auch das, was die
    Anbietererkennung liest. Auf den meisten Servern sind beide dieselbe Zeichenfolge; auf manchen
@@ -61,21 +63,30 @@ plMail hält zu jedem Postfach eine **IMAP-IDLE**-Verbindung offen, und das ist 
 Protokolls selbst zu sagen „melde dich, wenn sich etwas ändert", statt alle paar Minuten
 nachzufragen. Eine Nachricht, die auf dem Server eintrifft, erreicht plMail in Sekunden.
 
-Es gibt nichts einzuschalten. Wenn plMail die Ordner eines Kontos entdeckt, markiert es die, die der
-Server als Posteingang und als Spam-Ordner kennzeichnet, als IDLE-fähig, und der IMAP-Supervisor
-(einer der Prozesse des Worker-Containers) betreibt eine Verbindung pro solchem Ordner und startet abgebrochene mit einem
-kurzen Backoff neu. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das ist eine
-bewusste Sparsamkeit: Eine IDLE-Verbindung ist ein gehaltener TCP-Socket, und dreißig davon pro Konto
-zu halten, um von Mail zu erfahren, die in einen Archivordner wandert, kostet mehr, als es wert ist.
+Für den Posteingang gibt es nichts einzuschalten. Wenn plMail die Ordner eines Kontos entdeckt,
+markiert es den, den der Server als Posteingang kennzeichnet, als IDLE-fähig, und der IMAP-Listener
+(einer der Prozesse des Worker-Containers) hält eine Verbindung pro solchem Ordner, alle in diesem
+einen Prozess, und ersetzt abgebrochene mit einem kurzen Backoff. Ein Server, der langsam antwortet,
+hält nur seine eigenen Ordner auf. Andere Ordner werden synchronisiert, aber nicht beobachtet, und das
+ist eine bewusste Sparsamkeit: Eine IDLE-Verbindung ist ein gehaltener TCP-Socket, und dreißig davon
+pro Konto zu halten, um von Mail zu erfahren, die in einen Archivordner wandert, kostet mehr, als es
+wert ist.
 
-Dahinter synchronisiert ein geplanter Durchlauf ohnehin alle fünfzehn Minuten jedes Konto. IDLE sorgt
-dafür, dass Mail sofort eintrifft; der Durchlauf sorgt dafür, dass sie überhaupt eintrifft, wenn eine
-Verbindung von einer Firewall gekappt wurde oder ein Anbieter beschlossen hat, IDLE eine Weile nicht
-mehr zu beantworten.
+Welche Ordner beobachtet werden, entscheidest du: **Einstellungen → E-Mail-Konten → das Ordnersymbol**
+listet die Ordner des Kontos, und der Blitz neben jedem schaltet IDLE für ihn ein oder aus. Ein
+leuchtender Blitz heißt beobachtet. Schaltest du ihn auch beim Posteingang aus, wird das Konto nur
+noch abgerufen. Der Listener übernimmt die Änderung innerhalb einer Minute.
+
+Dahinter synchronisiert ein geplanter Durchlauf ohnehin jedes Konto, alle fünfzehn Minuten, solange
+du nichts anderes wählst: Das Uhrsymbol in der Zeile des Kontos bietet 1, 5, 15, 30 oder 60 Minuten.
+IDLE sorgt dafür, dass Mail sofort eintrifft; der Durchlauf sorgt dafür, dass sie überhaupt eintrifft,
+wenn eine Verbindung von einer Firewall gekappt wurde oder ein Anbieter beschlossen hat, IDLE eine
+Weile nicht mehr zu beantworten, und er ist der einzige Weg, auf dem Mail in einen Ordner kommt, der
+nicht beobachtet wird.
 
 Wenn Mail nicht von selbst eintrifft, ist das Erste zu prüfen, ob der Worker-Container läuft und
-ob das Feld „Prozesse“ im Administrationsbereich den IMAP-Supervisor schlagen zeigt. Ohne ihn hält
-nichts eine IDLE-Verbindung, und Mail trifft nur im Viertelstundentakt ein.
+ob das Feld „Prozesse“ im Administrationsbereich `imap-listen` schlagen zeigt. Ohne ihn hält
+nichts eine IDLE-Verbindung, und Mail trifft nur im Abrufintervall des Kontos ein.
 
 ## App-Passwörter bei den großen Anbietern
 
@@ -153,12 +164,13 @@ Grund.
 Verbinden, bis du es hier aktualisierst; die Kontozeile hält den Fehlschlag fest, die Kontenliste ist
 also der Ort zum Nachsehen, wenn ein Postfach still stehengeblieben ist.
 
-**Nur Posteingang und Spam-Ordner werden mit IDLE beobachtet.** Alles andere trifft im
-Viertelstunden-Durchlauf ein. Eine Nachricht, die vier Minuten nachdem eine Regel sie auf dem Server
-in einen Unterordner einsortiert hat in plMail auftaucht, ist genau das und funktioniert wie
-vorgesehen.
+**Nur der Posteingang wird mit IDLE beobachtet, solange du nicht mehr einschaltest.** Alles andere
+trifft im Abrufintervall des Kontos ein. Eine Nachricht, die vier Minuten nachdem eine Regel sie auf
+dem Server in einen Unterordner einsortiert hat in plMail auftaucht, ist genau das und funktioniert
+wie vorgesehen; lass den Blitz dieses Ordners in der Ordnerliste leuchten oder verkürze das
+Intervall, wenn es schneller gehen soll.
 
-**Ohne den IMAP-Supervisor hält nichts eine IDLE-Verbindung.** Mail trifft weiterhin ein,
+**Ohne den IMAP-Listener hält nichts eine IDLE-Verbindung.** Mail trifft weiterhin ein,
 nach Zeitplan, was das zu einem sehr leisen Fehlschlag macht — das Symptom ist „Mail ist immer ein
 paar Minuten spät" und nichts, was kaputt aussieht.
 

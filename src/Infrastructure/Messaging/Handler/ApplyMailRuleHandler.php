@@ -7,10 +7,10 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\Rule\MailRule;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
-use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Rule\RuleActionExecutor;
+use App\Service\Rule\RuleConditions;
 use App\Service\Rule\RuleRunNotifier;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,7 +42,7 @@ final readonly class ApplyMailRuleHandler
     public function __construct(
         private MailRuleRepository     $ruleRepository,
         private MessageRepository      $messageRepository,
-        private EmailFilterCompiler    $compiler,
+        private RuleConditions    $conditions,
         private RuleActionExecutor     $executor,
         private RuleRunNotifier        $notifier,
         private EntityManagerInterface $em,
@@ -112,7 +112,7 @@ final readonly class ApplyMailRuleHandler
     private function walk(MailRule $rule): MailRule
     {
         $ruleId = (int) $rule->id;
-        $filter = $this->compiler->compile($rule->conditions);
+        $filter = $this->conditions->compile($rule);
         $afterId = 0;
 
         while (true) {
@@ -141,6 +141,7 @@ final readonly class ApplyMailRuleHandler
                 }
 
                 $this->executor->execute($rule, $entity);
+
                 $rule->runProcessed++;
             }
 

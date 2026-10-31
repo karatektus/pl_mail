@@ -10,6 +10,16 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
+        jmap:
+            heading: 'Eingehend — JMAP'
+            outgoing_heading: 'Ausgehend — JMAP'
+            outgoing_help: 'Der JMAP-Server verschickt deine Mail selbst und legt die Kopie unter „Gesendet“ ab, hier ist also nichts auszufüllen.'
+            session_url: 'Session-URL'
+            session_url_help: 'Lass das Feld leer, dann wird die Adresse oben verwendet. Füll es nur aus, wenn die JMAP-Session deines Servers nicht unter /.well-known/jmap liegt.'
+            session_url_offer: 'Die JMAP-Session meines Servers liegt woanders'
+            token_auth: 'Das Passwort ist ein API-Token'
+            token_auth_help: 'Setz den Haken bei Servern wie Fastmail, die dir statt eines App-Passworts ein Token geben. Der Benutzername wird dann nicht mitgeschickt.'
+            use_smtp: 'Mein Server versendet nicht über JMAP — SMTP verwenden'
         password: Passwort
         pop3:
             delete_help: 'Bleibt eine Nachricht auf dem Server, erkennt plMail sie beim nächsten Abruf an ihrer UIDL und lädt sie nie doppelt. Löschen schafft Platz auf dem Server, dann gibt es aber nur noch die Kopie in plMail.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Wenn du das später änderst, bleibt deine Mail erhalten: Der nächste Abruf erkennt, was schon da ist.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Protokoll für eingehende Mail'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Weiter mit Microsoft
     primary_set: Primäres Konto geändert
     removed: Konto entfernt
+    sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            jmap_no_mail: 'Der Server spricht JMAP, bietet für dieses Konto aber keine Mail an.'
+            jmap_ok: 'Verbunden — %count% Postfächer sichtbar.'
+            jmap_submission: 'Gesendet wird über den JMAP-Server.'
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -564,7 +580,7 @@ admin:
         heading: 'Gemeldete Mails'
         kind:
             category: 'Falscher Tab'
-            insight: 'Keine Info'
+            insight: 'Kein Insight'
         mark_handled: 'Als erledigt markieren'
         no_body: 'Zu dieser Meldung gibt es keinen Mailtext.'
         no_sender: 'kein Absender gespeichert'
@@ -572,7 +588,7 @@ admin:
         pending: '{0}Nichts offen|{1}1 offen|]1,Inf[ %count% offen'
         pending_badge: 'Offen'
         problem:
-            no_insight: 'Keine Info'
+            no_insight: 'Kein Insight'
         received_at: 'Mail kam am %when%'
         reported_by: 'Gemeldet von %who%'
         reporter_gone: 'einem gelöschten Konto'
@@ -749,8 +765,8 @@ admin:
             übernimmt neue Werte also nie. Etwa zwei Sekunden Ausfall, danach kommt
             diese Seite von selbst zurück.
         restart_app_title: 'Web-Container neu starten'
-        restart_confirm: 'Worker, Scheduler und IMAP-Supervisor neu starten? Laufende Arbeit wird zuerst abgeschlossen.'
-        restart_help: 'Beendet Worker, Scheduler und IMAP-Supervisor, damit sie frisch neu starten. Langlaufende Prozesse halten das Datenbank-Mapping über ihre gesamte Laufzeit im Speicher und brauchen das deshalb nach einer Migration.'
+        restart_confirm: 'Worker, Scheduler und Push-Listener neu starten? Laufende Arbeit wird zuerst abgeschlossen.'
+        restart_help: 'Beendet Worker, Scheduler und Push-Listener, damit sie frisch neu starten. Langlaufende Prozesse halten das Datenbank-Mapping über ihre gesamte Laufzeit im Speicher und brauchen das deshalb nach einer Migration.'
         restart_pending: 'Neustart vor %seconds%s angefordert — die Prozesse beenden ihre laufende Arbeit und erscheinen ein bis zwei Minuten später wieder hier.'
         restart_title: 'Langlaufende Prozesse neu starten'
         run_help: 'Wird für einen Worker eingereiht, nicht hier ausgeführt. Es sind dieselben Läufe, die der Scheduler automatisch startet.'
@@ -1847,6 +1863,7 @@ compose:
         send_anyway: Trotzdem senden?
         plain_text: Der Wechsel zu Nur-Text entfernt jede Formatierung aus dieser Nachricht. Fortfahren?
         open_variables: 'Ein Platzhalter aus einer Vorlage ist noch nicht ausgefüllt.'
+        no_attachment: 'Die Nachricht erwähnt einen Anhang, aber es ist keine Datei angehängt.'
     emoji:
         activities: Aktivitäten
         animals_nature: Tiere und Natur
@@ -2688,6 +2705,28 @@ label:
         no_color: '— keine —'
         no_parent: '— oberste Ebene —'
         parent: Einordnen unter
+        places:
+            category: 'Eine Outlook-Kategorie auf %account% (Änderungen in Outlook werden nicht übernommen)'
+            category_followed: 'Eine Outlook-Kategorie auf %account%'
+            folder: 'Ein Ordner auf %account%'
+            keyword: 'Ein Schlüsselwort auf %account%'
+            keyword_unasked: 'Ein Schlüsselwort auf %account%, wo seine Ordner Schlüsselwörter speichern'
+            local_off: 'Nur in plMail auf %account% (Labels als Schlüsselwörter ist aus)'
+            local_server: 'Nur in plMail auf %account% (der Server speichert keine Schlüsselwörter)'
+            make_folder: 'Zum Ordner machen'
+            make_folder_body: 'Legt den Ordner „%name%“ auf %account% an, sodass Nachrichten dorthin verschoben werden können.'
+            make_folder_category: 'Die gleichnamige Outlook-Kategorie wird entfernt.'
+            make_folder_done: 'Ordner erstellt.'
+            make_folder_failed: 'Der Ordner konnte nicht erstellt werden: %error%'
+            make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
+            make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
+            make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
+            make_label: 'Zum Label machen'
+            make_label_body: 'Löscht den Ordner „%name%“ auf %account%. Das Label bleibt dort als Markierung und kommt wieder an die verschobenen Nachrichten.'
+            make_label_failed_moved: 'Die verschobenen Nachrichten haben dieses Label nicht mehr; füge es wieder hinzu, sobald der Ordner weg ist.'
+            make_label_mail: '%count% Nachrichten in diesem Ordner müssen zuerst woandershin.'
+            manage: 'Pro Konto ändern'
+            title: 'Wo dieses Label liegt'
     menu:
         create: Neu erstellen
         empty: Noch keine Labels.
@@ -2734,6 +2773,7 @@ message:
         more: Mehr
         print: Drucken
         report_insight: Fehlendes Insight melden
+        filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren
         unstar: Markierung entfernen
@@ -2791,6 +2831,19 @@ message:
         signer: "Signiert von %signer%"
         smime_unreadable: "Diese Nachricht ist mit S/MIME für ein Zertifikat verschlüsselt, das plMail nicht hat. Importiere es unter Einstellungen → Verschlüsselung oder öffne die Nachricht in einem Mailprogramm, das es hat."
         smime_unsupported: "Diese Nachricht ist mit einem Verfahren verschlüsselt, das plMail nicht öffnen kann; unterstützt wird nur AES."
+    filter_check:
+        button: 'Meine Filter an dieser Nachricht testen'
+        hide: 'Filtertest ausblenden'
+        none: 'Für dieses Konto ist kein Filter eingeschaltet.'
+        state:
+            matches: 'trifft zu'
+            no_match: 'trifft nicht zu'
+            stopped: 'nicht erreicht: „%rule%“ hört nach sich auf'
+            broken: 'seine Bedingungen sind nicht lesbar; er wird übersprungen'
+            spam: 'übersprungen: Die Nachricht liegt im Spam, und dieser Filter nennt den Spam-Ordner nicht'
+        filing:
+            Filed: 'würde sie in %category% ablegen'
+            NoCategory: 'nichts zum Ablegen: Der Tab existiert nicht mehr'
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
@@ -3227,6 +3280,10 @@ settings:
             off: 'Aus'
             on: 'An'
     accounts:
+        categories:
+            off_hint: 'Aus: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, ändert hier keine Labels. Beim Einschalten werden alle Ordner dieses Kontos noch einmal aufgelistet.'
+            on_hint: 'An: Eine Kategorie, die in Outlook gesetzt oder entfernt wird, setzt hier das Label oder nimmt es ab.'
+            title: 'Outlook-Kategorien folgen'
         colour:
             change: 'Farbe von %account% ändern'
             swatch:
@@ -3246,17 +3303,64 @@ settings:
         enable: Konto aktivieren
         folders:
             always_synced: Der Posteingang wird immer synchronisiert
-            button: Zu synchronisierende Ordner wählen
+            button: Ordner
+            created: 'Ordner „%folder%“ angelegt'
+            delete:
+                button: 'Ordner %folder% löschen'
+                confirm: 'Den Ordner %folder% auf dem Mailserver löschen? Er ist leer; sonst wird nichts gelöscht.'
+            deleted: 'Ordner „%folder%“ gelöscht'
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
+            idle_needs_sync: '%folder% wird nicht synchronisiert und kann deshalb nicht beobachtet werden'
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
                 Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
                 du den Ordner wieder einschaltest, geht es dort weiter, wo es
-                aufgehört hat.
+                aufgehört hat. Ein Ordner mit leuchtendem Blitz wird
+                beobachtet, neue Mail darin erscheint sofort; die anderen
+                werden im Intervall des Kontos abgerufen.
+            invalid:
+                control: 'Ein Ordnername darf keine Zeilenumbrüche oder anderen Steuerzeichen enthalten.'
+                empty: 'Gib dem Ordner einen Namen.'
+                reserved: 'INBOX ist für den Posteingang reserviert.'
+                separator: 'Auf diesem Server darf ein Ordnername kein „%separator%“ enthalten: Es trennt Ordner von den Ordnern darin.'
+                too_long: 'Dieser Name ist für einen Ordner zu lang.'
+                wildcard: 'Ein Ordnername darf kein * und kein % enthalten.'
+            keywords:
+                allowed: 'Dieser Server speichert Schlüsselwörter.'
+                intro: 'Setzt Labels auf die Mail dieses Kontos als IMAP-Schlüsselwörter, damit Mailprogramme, die Schlüsselwörter zeigen (etwa die Schlagwörter in Thunderbird), sie sehen, und dort gesetzte Schlüsselwörter hier als Labels ankommen. Labels verschieben nie Mail. Aus: Labels bleiben in plMail.'
+                refused: 'Dieser Server speichert keine Schlüsselwörter, deshalb bleiben Labels auf diesem Konto in plMail.'
+                title: 'Labels als Schlüsselwörter'
+                unknown: 'Noch nicht gefragt: plMail fragt jeden Ordner, wenn es dort zum ersten Mal ein Schlüsselwort schreibt.'
+            new:
+                button: 'Neuer Ordner'
+                intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
+                name: 'Name'
+                parent: 'In'
+                submit: 'Ordner anlegen'
+                title: 'Neuer Ordner — %account%'
+                top_level: 'Oberste Ebene'
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            refused:
+                has_children: 'In diesem Ordner liegen weitere Ordner. Lösche oder verschiebe sie zuerst.'
+                not_empty: 'In diesem Ordner liegen noch Nachrichten (%count%). Verschiebe sie zuerst; einen Ordner zu löschen löscht seine Nachrichten.'
+                server: 'Der Mailserver hat abgelehnt: %reason%'
+                special_use: 'Posteingang, Gesendet, Entwürfe, Papierkorb, Spam und Archiv werden in plMail nie umbenannt oder gelöscht: Andere Mailprogramme und plMail selbst verlassen sich auf sie.'
+            rename:
+                button: 'Ordner %folder% umbenennen'
+                intro: 'Der Ordner wird samt den Ordnern darin auf dem Mailserver umbenannt, also sieht jedes Mailprogramm, das dieses Konto liest, den neuen Namen.'
+                submit: 'Umbenennen'
+                title: 'Ordner umbenennen — %folder%'
+            renamed: 'Ordner in „%folder%“ umbenannt'
+            start_idle: '%folder% auf neue Mail beobachten, sobald sie eintrifft'
             start_sync: 'Synchronisierung von %folder% starten'
+            stop_idle: '%folder% nicht mehr beobachten — stattdessen im Intervall des Kontos abrufen'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
+            unreachable: 'Der Mailserver war nicht erreichbar, es wurde nichts geändert: %reason%'
+        gmail_move:
+            off_hint: 'Aus: „Verschieben nach“ listet für dieses Konto nur Posteingang, Spam und Papierkorb. Labels werden mit „Label vergeben“ gesetzt.'
+            on_hint: 'An: „Verschieben nach“ listet auch die Labels dieses Kontos. Ein Verschieben dorthin setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail.'
+            title: '„Verschieben nach“ bietet Labels an'
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
@@ -3284,6 +3388,7 @@ settings:
                     Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
                     oder zeigt woanders hin. E-Mails werden weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ist an, aber es kommt nichts an. Prüf, ob der JMAP-Server erreichbar ist; das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Das Push-Abonnement ist abgelaufen und es kommt nichts mehr
                     an. Registriere es neu, um die sofortige Zustellung
@@ -3297,6 +3402,7 @@ settings:
                     gmail-api-push@system.gserviceaccount.com die Rolle
                     „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ließ sich nicht einschalten. Das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Push konnte nicht aktiviert werden — Microsoft muss diesen
                     Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
@@ -3314,6 +3420,7 @@ settings:
             off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
             on_hint:
                 gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
+                jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen
@@ -3321,6 +3428,10 @@ settings:
             active: Aktiv
             disabled: Deaktiviert
         subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
+        sync_interval:
+            change: 'Alle %minutes% Min. auf neue Mail geprüft — ändern, wie oft %account% abgerufen wird'
+            every: 'Alle %minutes% Min.'
+            heading: 'Auf neue Mail prüfen alle … Min.'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3376,6 +3487,12 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    native_apps:
+        android_hint: "Danach koppelst du sie mit dem Button unten. Der Kauf der App bei Google Play ist im Moment der wichtigste Weg, wie sich dieses Projekt trägt."
+        android_title: "Installiere zuerst plMail für Android"
+        github: "oder kostenlos von GitHub"
+        play_alt: "Jetzt bei Google Play"
+        play_badge: images/badges/google-play-de.png
     app_passwords:
         copy: Kopieren
         copy_now: Hier ist dein neues App-Passwort
@@ -3626,6 +3743,7 @@ settings:
             fileInCategory: In Kategorie ablegen
             markRead: Als gelesen markieren
             markSpam: Als Spam markieren
+            moveToFolder: In Ordner verschieben
             removeLabel: Label entfernen
             saveToIntegration: Anhänge speichern in
             star: Markieren
@@ -4071,14 +4189,14 @@ settings:
             subscription_hint: Automatische Verlängerungen und endende Testphasen, mit dem Datum dazu.
             ticket: Tickets
             ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
-        heading: Radar
+        heading: Insights
         pane: Streifen über der Mailliste
         pane_hint: >-
             Zeigt dein nächstes Paket, deinen nächsten Flug oder dein
             nächstes Ticket in einem Band über dem Posteingang. Schaltest
             du ihn aus, verschwindet nur das Band — plMail liest diese
-            Angaben weiterhin aus deinen Mails, und du findest sie im
-            Radar und an der Mail selbst.
+            Angaben weiterhin aus deinen Mails, und du findest sie unter
+            „Demnächst“ in der oberen Leiste und an der Mail selbst.
         seg:
             'off': 'Aus'
             'on': 'An'
@@ -4337,6 +4455,10 @@ settings:
         delete: Label "%name%" löschen
         edit: Label "%name%" bearbeiten
         empty: Noch keine Labels — erstelle eines, oder sie erscheinen nach der ersten Synchronisierung.
+        folders_in_labels:
+            off_hint: 'Aus: Ordner stehen unter ihrem Konto, und der Bereich Labels enthält die Labels, die du auf Mails setzt.'
+            on_hint: 'An: Der Bereich Labels in der Seitenleiste listet auch Ordner, zusätzlich zu ihrem Platz unter jedem Konto.'
+            title: 'Ordner unter Labels'
         heading: Labels
         hide: Label ausblenden
         show: Label anzeigen
@@ -4417,7 +4539,7 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         images: Bilder
-        insights: Radar
+        insights: Insights
         integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
@@ -4820,10 +4942,13 @@ shortcuts:
 sidebar:
     accounts:
         add: Konto hinzufügen
-        heading: Konten
-        none: Noch keine Konten
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
+        folders: 'Ordner …'
+        heading: Konten
+        menu: 'Ordner von %account%'
+        new_folder: 'Neuer Ordner …'
+        none: Noch keine Konten
         open: '%account% öffnen'
         toggle: 'Ordner in %account% ein-/ausklappen'
     badge:
@@ -4833,6 +4958,7 @@ sidebar:
     compose: Schreiben
     labels:
         add: Label erstellen
+        folder_on: 'Ordner auf %accounts%'
         heading: Labels
         none: Noch keine Labels
     new_mail_here: 'Neue Nachrichten in %where%'
@@ -4916,6 +5042,7 @@ thread_row:
         snooze: Zurückstellen
     answer: Neue Antwort auf deine Nachricht
     answer_badge: Antwort
+    folder: 'Im Ordner %label%'
     has_attachment: Enthält Anhang
     me: ich
     meaning: 'Über die Bedeutung gefunden, nicht über die eingegebenen Wörter'
@@ -4931,6 +5058,7 @@ thread_row:
         rate_limited: 'Nicht gesendet: dein Mailanbieter hat das Senden begrenzt'
         refused: 'Nicht gesendet: der Mailserver hat sie abgelehnt'
         unavailable: 'Nicht gesendet: dein Mailanbieter war nicht erreichbar'
+    remove_label: '%label% entfernen'
     scheduled: 'Geplant %when%'
     select: Auswählen
     sheet:
@@ -5101,6 +5229,7 @@ whats_new:
         where: 'Geht per Mail an %address%, mit deiner plMail-Version. Eine Kopie bleibt in deinem Ordner „Gesendet“.'
     highlights: 'Highlights'
     menu:
+        android: 'plMail für Android'
         label: 'Hilfe und Feedback'
         unseen: 'Es gibt Versionshinweise, die du noch nicht gesehen hast'
         version: 'plMail %version%'

@@ -209,17 +209,31 @@ final class CalendarEventQueryMethodTest extends CalendarMethodTestCase
     }
 
     /**
-     * An unbounded query is refused rather than answered.
-     *
-     * Occurrences exist only inside RecurrenceMaterialiser's horizon, so
-     * "everything" would come back looking complete while stopping two years
-     * out — and a client cannot detect a truncation nobody reported.
+     * Without a window the question is which events there are, and the event
+     * rows answer it whole — the event outside every window included. The
+     * draft's clients make this query for a full read; it used to be refused.
      */
-    public function testAQueryWithNoWindowIsRefusedRatherThanTruncated(): void
+    public function testAQueryWithNoWindowNamesEveryEventInTheCalendar(): void
+    {
+        $result = $this->query->handle([
+            'accountId' => $this->accountId(),
+            'filter' => ['inCalendar' => (string) $this->work->id],
+        ], $this->context());
+
+        self::assertSame(['Design review', 'Next month', 'Standup'], $this->sortedTitles($result['ids']));
+        self::assertSame(3, $result['total']);
+    }
+
+    /**
+     * Expanding is still refused without a window: occurrences exist only
+     * inside RecurrenceMaterialiser's horizon, so every instance would come
+     * back looking complete while stopping two years out.
+     */
+    public function testAnExpandedQueryWithNoWindowIsRefusedRatherThanTruncated(): void
     {
         $this->expectException(MethodException::class);
 
-        $this->query->handle(['accountId' => $this->accountId()], $this->context());
+        $this->query->handle(['accountId' => $this->accountId(), 'expandRecurrences' => true], $this->context());
     }
 
     /** A condition that is not understood is refused, never quietly dropped: dropping one returns too much. */

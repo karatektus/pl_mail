@@ -24,7 +24,7 @@ Variables:
     <div class="flex items-center gap-2">
         <a href="{{ path('app_contacts_list') }}"
            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
-                  text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                  text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">
             <i class="fa-solid fa-address-book text-[10px]" aria-hidden="true"></i>
             {{ 'settings.contacts.open'|trans }}
         </a>
@@ -37,7 +37,7 @@ Variables:
             data-ui--modal-src-value="{{ path('app_settings_contacts_carddav_connect') }}"
             data-connect-carddav
             class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium
-                   text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer"
+                   text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors cursor-pointer"
         >
             <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
             {{ 'settings.contacts.carddav.connect'|trans }}

@@ -6,6 +6,7 @@ namespace App\Tests\Command\Backfill;
 
 use App\Command\Backfill\RepeatedHeaderBackfillTask;
 use App\Domain\Helper\RawMessageStorage;
+use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use DateTimeImmutable;
@@ -147,6 +148,25 @@ final class RepeatedHeaderBackfillTest extends KernelTestCase
             . "Content-Type: {$contentType}";
     }
 
+    private ?Mailbox $folder = null;
+
+    private int $lastUid = 0;
+
+    private function folder(): Mailbox
+    {
+        if (null === $this->folder) {
+            $this->folder                = new Mailbox();
+            $this->folder->account       = $this->account;
+            $this->folder->name          = 'INBOX';
+            $this->folder->fullPath      = 'INBOX';
+            $this->folder->isSyncEnabled = true;
+            $this->folder->isIdleEnabled = false;
+            $this->em->persist($this->folder);
+        }
+
+        return $this->folder;
+    }
+
     private function message(string $raw, ?string $bodyHtml = null, ?string $bodyText = null): int
     {
         $message                 = new Message();
@@ -155,7 +175,9 @@ final class RepeatedHeaderBackfillTest extends KernelTestCase
         $message->fromAddress    = 'parcels@example.test';
         $message->receivedAt     = new DateTimeImmutable();
         $message->hasAttachments = false;
-        $message->imapUid        = 1;
+        // The task walks IMAP rows, which are the ones a folder keeps (#415).
+        $message->mailbox        = $this->folder();
+        $message->imapUid        = ++$this->lastUid;
         $message->bodyHtml       = $bodyHtml;
         $message->bodyText       = $bodyText;
 

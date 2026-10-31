@@ -766,6 +766,24 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_SIDEBAR_COLLAPSED = 'sidebar.collapsed_sections';
 
+    /**
+     * Whether the sidebar's LABELS section lists folders too (#221 step 3).
+     *
+     * A folder is listed under its account, and LABELS holds the tags — a
+     * label that is a folder on every account it is a place on, and a tag on
+     * none, is under the accounts alone. On, LABELS lists every label again,
+     * folders with their folder mark, as it did before step 3. Off by default.
+     */
+    public const string SETTING_FOLDERS_IN_LABELS = 'sidebar.folders_in_labels';
+
+    /** Virtual, out of the settings bag — see SETTING_FOLDERS_IN_LABELS. */
+    public bool $foldersInLabels {
+        get => true === $this->getSetting(self::SETTING_FOLDERS_IN_LABELS, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_FOLDERS_IN_LABELS, $on ? true : null);
+        }
+    }
+
     /** The collapse keys for the two whole-section disclosures. */
     public const string SIDEBAR_SECTION_LABELS = 'section:labels';
     public const string SIDEBAR_SECTION_ACCOUNTS = 'section:accounts';

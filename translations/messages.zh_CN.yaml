@@ -10,6 +10,16 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
+        jmap:
+            heading: '收件 — JMAP'
+            outgoing_heading: '发件 — JMAP'
+            outgoing_help: 'JMAP 服务器会自行发送邮件，并把副本存入“已发送”，这里无需填写。'
+            session_url: '会话 URL'
+            session_url_help: '留空则使用上面的地址。只有当服务器的 JMAP 会话不在 /.well-known/jmap 时才需要填写。'
+            session_url_offer: '我的服务器的 JMAP 会话在别处'
+            token_auth: '密码是 API 令牌'
+            token_auth_help: '如果服务器（例如 Fastmail）提供的是令牌而不是应用专用密码，请勾选此项。此时不会发送用户名。'
+            use_smtp: '我的服务器不通过 JMAP 发信 — 改用 SMTP'
         password: 密码
         pop3:
             delete_help: '留在服务器上的邮件会在下次同步时按 UIDL 识别，不会重复收取。从服务器删除可以释放空间，但之后只剩 plMail 中的这一份。'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: '以后更改也会保留已有邮件：下次同步会识别已经存在的邮件。'
             imap: IMAP
+            jmap: 'JMAP'
             label: '收件协议'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: '使用 Microsoft 继续'
     primary_set: 主账户已更改
     removed: 账户已移除
+    sync_interval_set: 同步间隔已更改
     tabs:
         imap: 'IMAP / SMTP'
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 连接失败，请检查主机、端口及加密方式。
             host_invalid: '请仅输入主机名或 IP 地址，不要包含斜杠、问号或 @。'
             imap_ok: '已连接，可见 %count% 个文件夹。'
+            jmap_no_mail: '服务器支持 JMAP，但没有为此账户提供邮件。'
+            jmap_ok: '已连接，可见 %count% 个邮箱。'
+            jmap_submission: '通过 JMAP 服务器发送。'
             missing_fields: '请先至少输入电子邮件地址和 IMAP 主机。'
             missing_password: 没有可用于测试的密码。请在上方输入密码；编辑表单中留空会保留已保存的密码，但需先保存账户，测试才能使用该密码。
             pop3_ok: '已连接，邮箱中有 %count% 封邮件。'
+            private_network: '该服务器位于私有网络中。必须先由管理员在 INTEGRATIONS_ALLOWED_HOSTS 中允许其主机，plMail 才能连接。'
             smtp_none: '未配置 SMTP 主机，此账户无法发送邮件。'
             smtp_ok: 已连接并登录。
             timeout: 服务器未及时响应，请检查主机、端口以及是否受到防火墙阻拦。
@@ -1587,6 +1603,7 @@ compose:
         send_anyway: 仍要发送吗？
         plain_text: 切换到纯文本会移除此邮件中的所有格式。是否继续？
         open_variables: 有模板占位符尚未填写。
+        no_attachment: 邮件提到了附件，但没有添加任何文件。
     emoji:
         activities: 活动
         animals_nature: 动物与自然
@@ -2370,6 +2387,28 @@ label:
         no_color: '— 无 —'
         no_parent: '— 顶层 —'
         parent: '嵌套于'
+        places:
+            category: '%account% 上的 Outlook 类别（不跟随在 Outlook 中所做的更改）'
+            category_followed: '%account% 上的 Outlook 类别'
+            folder: '%account% 上的文件夹'
+            keyword: '%account% 上的关键字'
+            keyword_unasked: '%account% 上的关键字（在其文件夹保存关键字的地方）'
+            local_off: '在 %account% 上只保存在 plMail 中（以关键字保存标签已关闭）'
+            local_server: '在 %account% 上只保存在 plMail 中（服务器不保存关键字）'
+            make_folder: '设为文件夹'
+            make_folder_body: '在 %account% 上创建文件夹“%name%”，以便将邮件移入其中。'
+            make_folder_category: '同名的 Outlook 类别将被移除。'
+            make_folder_done: '文件夹已创建。'
+            make_folder_failed: '无法创建文件夹：%error%'
+            make_folder_mail: '此账户上带有此标签的 %count% 封邮件将移入其中。'
+            make_folder_nested: '其上级“%parent%”也会在那里成为文件夹。'
+            make_folder_stay: '废纸篓、垃圾邮件、已发送和草稿中的邮件保持不动。'
+            make_label: '设为标签'
+            make_label_body: '删除 %account% 上的文件夹“%name%”。标签会保留并作为标记，重新加到移动后的邮件上。'
+            make_label_failed_moved: '已移动的邮件不再带有此标签；文件夹删除后请重新添加。'
+            make_label_mail: '此文件夹中的 %count% 封邮件需要先移到别处。'
+            manage: '按账户更改'
+            title: '此标签保存在哪里'
     menu:
         create: '新建'
         empty: '暂无标签。'
@@ -2413,6 +2452,7 @@ message:
         more: '更多'
         print: '打印'
         report_insight: '报告遗漏的要点'
+        filter_from_message: 根据此邮件创建过滤器
         show_original: '查看原始邮件'
         star: '加星标'
         unstar: '移除星标'
@@ -2470,6 +2510,19 @@ message:
         signer: "签名者：%signer%"
         smime_unreadable: "此邮件使用 S/MIME 加密，但 plMail 没有对应证书。请在“设置 → 加密”中导入证书，或使用持有该证书的邮件客户端打开。"
         smime_unsupported: "此邮件使用了 plMail 无法解密的算法，目前仅支持 AES。"
+    filter_check:
+        button: '用此邮件测试我的过滤器'
+        hide: '隐藏过滤器测试'
+        none: '此账户没有启用任何过滤器。'
+        state:
+            matches: '匹配'
+            no_match: '不匹配'
+            stopped: '未执行：“%rule%”匹配后停止'
+            broken: '其条件无法读取，已跳过'
+            spam: '已跳过：此邮件在垃圾邮件中，而此过滤器未指定垃圾邮件文件夹'
+        filing:
+            Filed: '会将其归入 %category%'
+            NoCategory: '无处归档：该标签页已不存在'
     details:
         categorised:
             ai: '由语言模型判断，因为没有规则识别出它： '
@@ -2848,6 +2901,10 @@ settings:
             off: '关闭'
             on: '开启'
     accounts:
+        categories:
+            off_hint: '关闭：在 Outlook 中添加或移除的类别不会更改这里的标签。开启时会重新列出此账户的每个文件夹一次。'
+            on_hint: '开启：在 Outlook 中添加或移除类别，会在这里添加或移除对应标签。'
+            title: '跟随 Outlook 类别'
         colour:
             change: '更改 %account% 的颜色'
             swatch:
@@ -2867,13 +2924,58 @@ settings:
         enable: '启用账户'
         folders:
             always_synced: '收件箱始终保持同步'
-            button: '选择要同步的文件夹'
+            button: '文件夹'
+            created: '已创建文件夹“%folder%”'
+            delete:
+                button: '删除文件夹 %folder%'
+                confirm: '要在邮件服务器上删除文件夹 %folder% 吗？它是空的；不会删除其他内容。'
+            deleted: '已删除文件夹“%folder%”'
             empty: '尚无文件夹。首次同步后会在此列出。'
-            intro: '关闭某个文件夹的同步后，plMail 会停止获取其中的邮件。已保存的邮件会保留，重新开启后会从停止的位置继续同步。'
+            idle_needs_sync: '%folder% 未同步，因此无法监听'
+            intro: '关闭某个文件夹的同步后，plMail 会停止获取其中的邮件。已保存的邮件会保留，重新开启后会从停止的位置继续同步。闪电图标点亮的文件夹会被监听，新邮件会立即出现；其他文件夹按账户的同步间隔检查。'
+            invalid:
+                control: '文件夹名称不能包含换行符或其他控制字符。'
+                empty: '请为文件夹命名。'
+                reserved: 'INBOX 保留给收件箱使用。'
+                separator: '在此服务器上，文件夹名称不能包含“%separator%”：它用于分隔文件夹及其子文件夹。'
+                too_long: '这个名称对文件夹来说太长了。'
+                wildcard: '文件夹名称不能包含 * 或 %。'
+            keywords:
+                allowed: '此服务器会保存关键字。'
+                intro: '将此账户邮件上的标签写为 IMAP 关键字，这样能显示关键字的邮件应用（例如 Thunderbird 的标记）也能看到它们，在那里设置的关键字也会作为标签出现在这里。标签从不移动邮件。关闭时：标签只保存在 plMail 中。'
+                refused: '此服务器不保存关键字，因此此账户上的标签只保存在 plMail 中。'
+                title: '以关键字保存标签'
+                unknown: '尚未询问：plMail 首次在某个文件夹写入关键字时会询问该文件夹。'
+            new:
+                button: '新建文件夹'
+                intro: '文件夹会在邮件服务器上创建，因此会出现在所有读取此账户的邮件应用中。创建标签从不会创建文件夹；这里会。'
+                name: '名称'
+                parent: '位于'
+                submit: '创建文件夹'
+                title: '新建文件夹 — %account%'
+                top_level: '顶层'
             placeholder: '此文件夹仅用于归组其他文件夹，本身没有可同步的内容'
+            refused:
+                has_children: '此文件夹内还有文件夹。请先删除或移走它们。'
+                not_empty: '此文件夹中仍有邮件（%count%）。请先移走；删除文件夹会删除其中的邮件。'
+                server: '邮件服务器拒绝了：%reason%'
+                special_use: '收件箱、已发送、草稿、废纸篓、垃圾邮件和归档永远不会在 plMail 中被重命名或删除：其他邮件应用和 plMail 本身都依赖它们。'
+            rename:
+                button: '重命名文件夹 %folder%'
+                intro: '文件夹及其子文件夹会在邮件服务器上重命名，所有读取此账户的邮件应用都会看到新名称。'
+                submit: '重命名'
+                title: '重命名文件夹 — %folder%'
+            renamed: '文件夹已重命名为“%folder%”'
+            start_idle: '监听 %folder%，新邮件到达时立即获取'
             start_sync: '开始同步 %folder%'
+            stop_idle: '停止监听 %folder%，改为按账户的同步间隔检查'
             stop_sync: '停止同步 %folder%'
             title: '文件夹 — %account%'
+            unreachable: '无法连接邮件服务器，未做任何更改：%reason%'
+        gmail_move:
+            off_hint: '关闭：对于此账户，“移至”只列出收件箱、垃圾邮件和废纸篓。标签通过“添加标签”添加。'
+            on_hint: '开启：“移至”也会列出此账户的标签。移动到标签会添加该标签并将邮件移出收件箱，与 Gmail 一致。'
+            title: '“移至”提供标签'
         heading: '邮件账户'
         make_primary: '设为主要账户'
         make_primary_explained: '默认使用 %account% 发送新邮件'
@@ -2889,9 +2991,11 @@ settings:
             lapsed_hint: '推送注册已过期且未续期，因此无法接收推送。续期任务每天自动运行；若持续出现此问题，说明计划任务 worker 已停止。邮件仍会定时同步。'
             degraded_hint:
                 gmail: '推送已注册，但近期未收到通知。Google Cloud 中的 Pub/Sub 推送订阅可能缺失或指向其他地址。邮件仍会定时同步。'
+                jmap: '推送已开启，但没有收到任何内容。请检查 JMAP 服务器是否可访问；此账户仍会按计划同步。'
                 microsoft: '推送订阅已失效，无法接收通知。请重新注册以恢复即时收取。邮件仍会定时同步。'
             failed:
                 gmail: '无法启用推送：Google 拒绝了监视注册。请检查 GMAIL_PUBSUB_TOPIC 是否指向现有的 Pub/Sub 主题，以及该主题是否已向 gmail-api-push@system.gserviceaccount.com 授予 Pub/Sub Publisher 角色。此账户仍会定时同步。'
+                jmap: '无法开启推送。此账户仍会按计划同步。'
                 microsoft: '无法启用推送：Microsoft 需要通过 HTTPS 访问此服务器。请检查反向代理和 APP_PUBLIC_URL。此账户仍会定时同步。'
             health:
                 active: '推送'
@@ -2902,6 +3006,7 @@ settings:
             off_hint: '正在定时检查邮件。开启推送即可即时收取。'
             on_hint:
                 gmail: '通过 Gmail 推送通知即时收取新邮件。'
+                jmap: '更改会立即到达：JMAP 服务器把它们推送给 plMail——能访问本服务器时通过 webhook，否则通过保持打开的连接。'
                 microsoft: '通过 Microsoft 推送通知即时收取新邮件。'
             title: '即时收取'
         reorder: '拖动以排序'
@@ -2909,6 +3014,10 @@ settings:
             active: '已启用'
             disabled: '已停用'
         subheading: '添加、编辑、启用或移除要同步的邮箱。'
+        sync_interval:
+            change: '每 %minutes% 分钟检查一次新邮件 — 更改 %account% 的检查频率'
+            every: '每 %minutes% 分钟'
+            heading: '每隔 … 分钟检查新邮件'
         type:
             imap: 'IMAP'
             oauth: '%provider% (OAuth)'
@@ -2964,6 +3073,12 @@ settings:
         with_keys: "密钥会一同传输，加密邮件可立即在应用中打开。"
         expires: '于 %time% 过期。'
         open_in_app: '在应用中打开'
+    native_apps:
+        android_hint: '然后用下面的按钮完成配对。目前，在 Google Play 上购买这个应用是支持本项目的主要方式。'
+        android_title: '请先安装 Android 版 plMail'
+        github: '或从 GitHub 免费下载'
+        play_alt: '下载应用，请到 Google Play'
+        play_badge: images/badges/google-play-zh_CN.png
     app_passwords:
         copy: '复制'
         copy_now: '这是你的新应用密码'
@@ -3202,6 +3317,7 @@ settings:
             fileInCategory: '归入分类'
             markRead: '标为已读'
             markSpam: '标为垃圾邮件'
+            moveToFolder: '移至文件夹'
             removeLabel: '移除标签'
             saveToIntegration: '将附件保存到'
             star: '加星标'
@@ -3675,6 +3791,10 @@ settings:
         delete: '删除标签“%name%”'
         edit: '编辑标签“%name%”'
         empty: '尚无标签。你可以创建一个，或等待首次同步后自动显示。'
+        folders_in_labels:
+            off_hint: '关闭：文件夹列在各自账户下，“标签”部分只包含你添加到邮件上的标签。'
+            on_hint: '开启：侧边栏的“标签”部分也会列出文件夹，同时它们仍显示在各自账户下。'
+            title: '在“标签”中显示文件夹'
         heading: '标签'
         hide: '隐藏标签'
         show: '显示标签'
@@ -4095,10 +4215,13 @@ shortcuts:
 sidebar:
     accounts:
         add: '添加账户'
-        heading: '账户'
-        none: '暂无账户'
         colour: '%account% 的颜色标记'
         colour_disabled: '%account% 的颜色标记，该账户已停用'
+        folders: '文件夹…'
+        heading: '账户'
+        menu: '%account% 的文件夹'
+        new_folder: '新建文件夹…'
+        none: '暂无账户'
         open: '打开 %account%'
         toggle: '显示或隐藏 %account% 中的文件夹'
     badge:
@@ -4108,6 +4231,7 @@ sidebar:
     compose: '写邮件'
     labels:
         add: '创建标签'
+        folder_on: '%accounts% 上的文件夹'
         heading: '标签'
         none: '暂无标签'
     new_mail_here: '%where% 中有新邮件'
@@ -4186,6 +4310,7 @@ thread_row:
         snooze: '稍后提醒'
     answer: '你的邮件收到了新回复'
     answer_badge: '回复'
+    folder: '位于文件夹 %label%'
     has_attachment: '含附件'
     me: '我'
     meaning: '按语义找到，并非匹配输入的关键词'
@@ -4201,6 +4326,7 @@ thread_row:
         rate_limited: '未发送：邮件服务商限制了发送频率'
         refused: '未发送：邮件服务器拒绝接收'
         unavailable: '未发送：无法连接邮件服务商'
+    remove_label: '移除 %label%'
     scheduled: '定于 %when% 发送'
     select: '选择'
     sheet:
@@ -4353,6 +4479,7 @@ whats_new:
         where: '将通过邮件发送至 %address%，并附上你的 plMail 版本。副本会保存在已发送文件夹中。'
     highlights: '更新亮点'
     menu:
+        android: 'Android 版 plMail'
         label: '帮助与反馈'
         unseen: '有你尚未查看的版本说明'
         version: 'plMail %version%'

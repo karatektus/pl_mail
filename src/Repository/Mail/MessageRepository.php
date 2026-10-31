@@ -11,6 +11,8 @@ use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use Doctrine\ORM\QueryBuilder;
+use App\Entity\Mail\MessageLocation;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Mail\Pop3Uidl;
@@ -1552,7 +1554,7 @@ class MessageRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('m')
             ->andWhere('m.id > :afterId')
-            ->andWhere('m.imapUid IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.imapUid IS NOT NULL)')
             ->andWhere('m.rawPath IS NOT NULL')
             ->setParameter('afterId', $afterId);
     }
@@ -1670,14 +1672,18 @@ class MessageRepository extends ServiceEntityRepository
      * Bounded below because the syncer only ever asks the server for UIDs
      * above its high-water mark: loading every UID a large folder has ever
      * stored, on every poll, to check the handful above it was the cost.
+     *
+     * Read off the locations alone: the UIDs are theirs, and the unique index
+     * on (mailbox_id, imap_uid) answers this without touching message.
      */
     public function findSyncedUids(Mailbox $mailbox, int $aboveUid = 0): array
     {
-        return $this->createQueryBuilder('m')
-            ->select('m.imapUid')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
-            ->andWhere('m.imapUid > :aboveUid')
+        return $this->getEntityManager()->createQueryBuilder()
+            ->select('l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->andWhere('l.imapUid > :aboveUid')
             ->setParameter('mailbox', $mailbox)
             ->setParameter('aboveUid', $aboveUid)
             ->getQuery()
@@ -1727,7 +1733,7 @@ class MessageRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('m')
             ->where('m.gmailCarrierAccount IS NOT NULL')
-            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)')
             ->andWhere('m.id > :afterId')
             ->setParameter('afterId', $afterId)
             ->orderBy('m.id', 'ASC')
@@ -1746,7 +1752,7 @@ class MessageRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('m')
             ->select('COUNT(m.id)')
             ->where('m.gmailCarrierAccount IS NOT NULL')
-            ->andWhere('m.mailbox IS NOT NULL');
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m)');
 
         if (null !== $carrierId) {
             $qb->andWhere('IDENTITY(m.gmailCarrierAccount) = :carrierId')->setParameter('carrierId', $carrierId);
@@ -1784,16 +1790,21 @@ class MessageRepository extends ServiceEntityRepository
      * caller wants values to compare, and an entity it does not intend to
      * change is an entity the UnitOfWork has to track and check anyway.
      *
-     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool}>
+     * With each, its copy here: the location and the flags the server last
+     * reported for that copy, which is what a listing is compared against
+     * first (#415, see MessageLocation::$serverFlags).
+     *
+     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool,location:int,serverFlags:list<string>|null}>
      *         imapUid => its current flag state
      */
     public function findFlagStateByUid(Mailbox $mailbox): array
     {
-        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface}> $rows */
+        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface,location:int,serverFlags:list<string>|null}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
+            ->select('m.id', 'l.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt', 'l.id AS location', 'l.serverFlags')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getArrayResult();
@@ -1806,7 +1817,9 @@ class MessageRepository extends ServiceEntityRepository
                 'flags'   => $row['flags'] ?? [],
                 'seen'    => null !== $row['seenAt'],
                 'flagged' => null !== $row['starredAt'],
-                'pending' => null !== $row['flagsTouchedAt'],
+                'pending'     => null !== $row['flagsTouchedAt'],
+                'location'    => (int) $row['location'],
+                'serverFlags' => $row['serverFlags'],
             ];
         }
 
@@ -1823,7 +1836,14 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function findOneInMailboxByUid(Mailbox $mailbox, int $uid): ?Message
     {
-        return $this->findOneBy(['mailbox' => $mailbox, 'imapUid' => $uid]);
+        return $this->createQueryBuilder('m')
+            ->join('m.locations', 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid = :uid')
+            ->setParameter('mailbox', $mailbox)
+            ->setParameter('uid', $uid)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /**
@@ -1856,6 +1876,255 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Stored mail of this account that a new copy might be (#415): the rows
+     * with one of these Message-IDs or server ids. ImapCopies decides
+     * which, if any, is the same email; this only narrows the account down to
+     * the handful worth comparing.
+     *
+     * By message.account, never across accounts — see ImapCopies.
+     *
+     * @param list<string> $messageIds normalised, without angle brackets
+     * @param list<string> $serverIds  X-GM-MSGID / EMAILID values
+     *
+     * @return list<Message>
+     */
+    public function findCopyCandidates(Account $account, array $messageIds, array $serverIds): array
+    {
+        if ([] === $messageIds && [] === $serverIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->orderBy('m.id', 'ASC');
+
+        $either = $qb->expr()->orX();
+
+        if ([] !== $messageIds) {
+            $either->add('m.messageId IN (:messageIds)');
+            $qb->setParameter('messageIds', $messageIds);
+        }
+
+        if ([] !== $serverIds) {
+            $either->add('m.serverEmailId IN (:serverIds)');
+            $qb->setParameter('serverIds', $serverIds);
+        }
+
+        /** @var list<Message> */
+        return $qb->andWhere($either)->getQuery()->getResult();
+    }
+
+    /**
+     * Which of these messages the server keeps in more than one place, so that
+     * losing one copy is not losing the email (#415).
+     *
+     * @param list<int> $ids
+     *
+     * @return list<int>
+     */
+    public function findIdsWithSeveralLocations(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_map(intval(...), $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message)')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->groupBy('l.message')
+            ->having('COUNT(l.id) > 1')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
+    /**
+     * Every message with a copy in this folder.
+     *
+     * @return list<Message>
+     */
+    public function findKeptIn(Mailbox $mailbox): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Forget this folder's copies of mail that is primarily somewhere else.
+     *
+     * For a mirror folder that has been switched off: nothing lists it any
+     * more, so its copies would go on claiming an address nobody checks. By
+     * query, because only secondary copies go — a message's primary is left
+     * for MailboxSyncer::dropMirrorCopies(), which erases it as it always did —
+     * so no message's $mailbox / $imapUid changes underneath it.
+     */
+    public function dropSecondaryLocationsIn(Mailbox $mailbox): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->delete(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('EXISTS (SELECT m.id FROM ' . Message::class . ' m WHERE m = l.message AND m.mailbox <> :mailbox)')
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
+     * Every addressable server copy of these messages, for a job that has to
+     * reach each one: [messageId, mailboxId, UID].
+     *
+     * @param list<int> $ids
+     *
+     * @return list<array{int,int,int}>
+     */
+    public function findCopiesOf(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS message', 'IDENTITY(l.mailbox) AS mailbox', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.message IN (:ids)')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->orderBy('l.id', 'ASC')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): array => [(int) $row['message'], (int) $row['mailbox'], (int) $row['imapUid']],
+            $rows,
+        );
+    }
+
+    /**
+     * Emails this folder keeps that are stored as more than one message, each
+     * as the ids of its messages, the one to keep first — see ImapCopyMerger.
+     *
+     * One account, one Message-ID, one size, no two server ids that differ,
+     * and every row kept somewhere by the server. Grouped in SQL: the accounts
+     * that need this have it for most of their mail.
+     *
+     * @return list<list<int>>
+     */
+    public function findDuplicateCopyGroups(Mailbox $mailbox, int $limit): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT array_to_json(array_agg(m.id ORDER BY (m.gmail_id IS NULL), m.id))'
+            . ' FROM message m'
+            . ' WHERE m.account_id = :account'
+            . ' AND m.message_id IS NOT NULL AND m.rfc822_size IS NOT NULL'
+            . ' AND EXISTS (SELECT 1 FROM message_location l WHERE l.message_id = m.id)'
+            . ' AND (m.message_id, m.rfc822_size) IN ('
+            . '   SELECT k.message_id, k.rfc822_size FROM message k JOIN message_location kl ON kl.message_id = k.id'
+            . '   WHERE kl.mailbox_id = :mailbox AND k.rfc822_size IS NOT NULL AND k.message_id IS NOT NULL'
+            . ' )'
+            . ' GROUP BY m.message_id, m.rfc822_size'
+            . ' HAVING COUNT(*) > 1 AND COUNT(DISTINCT m.server_email_id) <= 1'
+            . ' LIMIT :limit',
+            ['account' => $mailbox->account->id, 'mailbox' => $mailbox->id, 'limit' => $limit],
+        );
+
+        return array_map(
+            static fn (string $ids): array => array_map(intval(...), json_decode($ids, true, flags: JSON_THROW_ON_ERROR)),
+            $rows,
+        );
+    }
+
+    /**
+     * Give rows stored before #415 the size their copy in this folder has.
+     *
+     * The size is what guards a Message-ID match (ImapCopies), and a row
+     * without one is never recognised: a copy of it that turns up in another
+     * folder is stored again, and a move another client made is only found by
+     * asking the server about each Message-ID. Each folder's listing fills the
+     * rows it keeps, once; after that this finds nothing to do.
+     *
+     * @param array<int, int> $sizesByUid UID => RFC822.SIZE, as the folder listed them
+     *
+     * @return int rows given a size
+     */
+    public function backfillSizes(Mailbox $mailbox, array $sizesByUid): int
+    {
+        if ([] === $sizesByUid) {
+            return 0;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+
+        $unsized = array_flip(array_map(intval(...), $connection->fetchFirstColumn(
+            'SELECT l.imap_uid FROM message_location l JOIN message m ON m.id = l.message_id'
+            . ' WHERE l.mailbox_id = ? AND l.imap_uid IS NOT NULL AND m.rfc822_size IS NULL',
+            [$mailbox->id],
+        )));
+
+        $wanted = array_intersect_key($sizesByUid, $unsized);
+        $filled = 0;
+
+        foreach (array_chunk($wanted, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $uid => $size) {
+                $values[] = '(?::int, ?::int)';
+                $params[] = $uid;
+                $params[] = $size;
+            }
+
+            // The folder's id last, as its placeholder comes after the VALUES.
+            $params[] = (int) $mailbox->id;
+
+            $filled += (int) $connection->executeStatement(
+                'UPDATE message m SET rfc822_size = v.size'
+                . ' FROM (VALUES ' . implode(', ', $values) . ') AS v(uid, size), message_location l'
+                . ' WHERE l.mailbox_id = ? AND l.imap_uid = v.uid AND l.message_id = m.id AND m.rfc822_size IS NULL',
+                $params,
+            );
+        }
+
+        return $filled;
+    }
+
+    /**
+     * Write down what the server just reported for these copies' flags.
+     *
+     * In SQL and in chunks, because the first listing after #415 records
+     * every copy in the folder, and a folder can hold a hundred thousand.
+     * After that only the copies that changed come here.
+     *
+     * @param array<int, list<string>> $flagsByLocation location id => canonical flags
+     */
+    public function recordServerFlags(array $flagsByLocation): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+
+        foreach (array_chunk($flagsByLocation, 500, true) as $chunk) {
+            $values = [];
+            $params = [];
+
+            foreach ($chunk as $locationId => $flags) {
+                $values[] = '(?::int, ?::json)';
+                $params[] = $locationId;
+                $params[] = json_encode(array_values($flags), JSON_THROW_ON_ERROR);
+            }
+
+            $connection->executeStatement(
+                'UPDATE message_location l SET server_flags = v.flags FROM (VALUES ' . implode(', ', $values) . ') AS v(id, flags) WHERE l.id = v.id',
+                $params,
+            );
+        }
+    }
+
+    /**
      * Every address this mailbox holds, as row id => UID.
      *
      * findSyncedUids() answers "have I seen this UID", which is all the
@@ -1867,10 +2136,11 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function findLocatedUidsById(Mailbox $mailbox): array
     {
-        $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.imapUid')
-            ->where('m.mailbox = :mailbox')
-            ->andWhere('m.imapUid IS NOT NULL')
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('IDENTITY(l.message) AS id', 'l.imapUid')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getArrayResult();
@@ -1947,6 +2217,28 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Drop every JMAP Email id an account's rows carry, keeping the rows.
+     *
+     * The JMAP half of unlocateAll(), for an account that stops reading over
+     * JMAP: the ids name nothing to the protocol it switches to, and a row
+     * that kept one would go on being patched and destroyed by JMAP jobs
+     * still on the queue. Recognised again by Message-ID if it ever switches
+     * back — see JmapEmailSyncer.
+     */
+    public function forgetJmapIds(Account $account): int
+    {
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->update(Message::class, 'm')
+            ->set('m.jmapId', ':nothing')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->execute();
+    }
+
+    /**
      * Strip every stored UID in this folder, keeping the rows.
      *
      * What a UIDVALIDITY change means and the most that may be done about it.
@@ -1961,6 +2253,19 @@ class MessageRepository extends ServiceEntityRepository
      */
     public function unlocateAll(Mailbox $mailbox): int
     {
+        // The locations first, in the same terms: an update by query goes past
+        // Message::mirrorLocation(), so it has to say the same thing twice
+        // until the message columns are gone (#415).
+        $this->getEntityManager()->createQueryBuilder()
+            ->update(MessageLocation::class, 'l')
+            ->set('l.imapUid', ':nothing')
+            ->where('l.mailbox = :mailbox')
+            ->andWhere('l.imapUid IS NOT NULL')
+            ->setParameter('nothing', null)
+            ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->execute();
+
         return (int) $this->getEntityManager()->createQueryBuilder()
             ->update(Message::class, 'm')
             ->set('m.imapUid', ':nothing')
@@ -2261,14 +2566,32 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
+    /**
+     * The folder's own numbers, as the server would give them: the messages it
+     * keeps, each once however many copies it holds (#415).
+     */
     public function countUnseenForMailbox(Mailbox $mailbox): int
     {
-        return $this->count(['mailbox' => $mailbox, 'seenAt' => null]);
+        return $this->countKeptIn($mailbox, true);
     }
 
     public function countTotalForMailbox(Mailbox $mailbox): int
     {
-        return $this->count(['mailbox' => $mailbox]);
+        return $this->countKeptIn($mailbox, false);
+    }
+
+    private function countKeptIn(Mailbox $mailbox, bool $unseenOnly): int
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l WHERE l.message = m AND l.mailbox = :mailbox)')
+            ->setParameter('mailbox', $mailbox);
+
+        if (true === $unseenOnly) {
+            $qb->andWhere('m.seenAt IS NULL');
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -2338,12 +2661,63 @@ class MessageRepository extends ServiceEntityRepository
                 'message.ccAddresses AS ccAddresses',
                 'message.bccAddresses AS bccAddresses',
             )
-            ->leftJoin('message.mailbox', 'mailbox')
+            // EXISTS rather than a join: one row per address set, however many
+            // folders the message is kept in.
             ->leftJoin('message.thread', 'thread')
-            ->where('mailbox.account = :account OR thread.account = :account')
+            ->where('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
             ->setParameter('account', $account)
             ->getQuery()
             ->toIterable();
+    }
+
+    /**
+     * The rows behind a set of JMAP Email ids on one account.
+     *
+     * Scoped to the account and not the user, unlike the Gmail lookups: a
+     * JMAP Email id is the server's name for a message in one mailbox store,
+     * and nothing attributes a JMAP message to a sibling account.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<Message>
+     */
+    public function findByJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Which of these JMAP Email ids the account already has, as ids only:
+     * what a page of a listing asks before it fetches anything.
+     *
+     * @param list<string> $jmapIds
+     *
+     * @return list<string>
+     */
+    public function findStoredJmapIdsForAccount(Account $account, array $jmapIds): array
+    {
+        if ([] === $jmapIds) {
+            return [];
+        }
+
+        return array_map(strval(...), $this->createQueryBuilder('m')
+            ->select('m.jmapId')
+            ->where('m.account = :account')
+            ->andWhere('m.jmapId IN (:jmapIds)')
+            ->setParameter('account', $account)
+            ->setParameter('jmapIds', $jmapIds)
+            ->getQuery()
+            ->getSingleColumnResult());
     }
 
     /**
@@ -2356,10 +2730,9 @@ class MessageRepository extends ServiceEntityRepository
     public function findOneForAccountByMessageId(Account $account, string $messageId): ?Message
     {
         return $this->createQueryBuilder('message')
-            ->leftJoin('message.mailbox', 'mailbox')
             ->leftJoin('message.thread', 'thread')
             ->where('message.messageId = :messageId')
-            ->andWhere('mailbox.account = :account OR thread.account = :account')
+            ->andWhere('EXISTS (SELECT l.id FROM ' . MessageLocation::class . ' l JOIN l.mailbox mailbox WHERE l.message = message AND mailbox.account = :account) OR thread.account = :account')
             ->setParameter('messageId', $messageId)
             ->setParameter('account', $account)
             ->setMaxResults(1)
@@ -2511,6 +2884,45 @@ class MessageRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * Rows in a mirror folder (Mailbox::$mirrorsOtherFolders) whose email the
+     * server also keeps in a real folder — the second copies #414 is about.
+     *
+     * "Keeps" means a row with an address the server has confirmed: a folder,
+     * a UID, and no vanish mark. A row waiting for its copy after a move has
+     * none of those yet, and erasing the mirror copy beside it would leave the
+     * email with no confirmed address at all. Nor does a copy in another
+     * mirror count: a message in both Starred and All Mail and nowhere else is
+     * in neither for good, and erasing by this rule would take it from both.
+     *
+     * By Message-ID, the only key two folder copies share. Rows without one
+     * are never matched, so they stay.
+     *
+     * @return list<Message>
+     */
+    public function findMirrorCopiesKeptElsewhere(Mailbox $mirror, int $limit): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('message')
+            ->where('message.mailbox = :mirror')
+            ->andWhere('message.messageId IS NOT NULL')
+            ->andWhere(
+                'EXISTS (SELECT kept.id FROM ' . Message::class . ' kept'
+                . ' JOIN kept.mailbox keptIn'
+                . ' WHERE kept.account = message.account'
+                . ' AND kept.messageId = message.messageId'
+                . ' AND kept.mailbox <> message.mailbox'
+                . ' AND kept.imapUid IS NOT NULL'
+                . ' AND kept.vanishedAt IS NULL'
+                . ' AND keptIn.mirrorsOtherFolders = false)',
+            )
+            ->setParameter('mirror', $mirror)
+            ->orderBy('message.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -2776,6 +3188,47 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * The mail a label's new folder takes in on one account: what wears the
+     * label, less what is in the bin, in spam, or sent or drafted, which is not
+     * being filed by giving a tag a folder.
+     *
+     * @return list<int>
+     */
+    public function findIdsToFileIntoFolder(int $accountId, int $labelId, int $afterId = 0, int $limit = 100): array
+    {
+        $rows = $this->toFileIntoFolder($accountId, $labelId)
+            ->select('m.id')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    public function countToFileIntoFolder(int $accountId, int $labelId): int
+    {
+        return (int) $this->toFileIntoFolder($accountId, $labelId)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function toFileIntoFolder(int $accountId, int $labelId): QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.labels', 'l')
+            ->where('m.account = :account')
+            ->andWhere('l.id = :label')
+            ->andWhere('NOT EXISTS (SELECT 1 FROM ' . Message::class . ' stays JOIN stays.labels staysIn WHERE stays = m AND staysIn.role IN (:staying))')
+            ->setParameter('account', $accountId)
+            ->setParameter('label', $labelId)
+            ->setParameter('staying', [LabelRole::Trash, LabelRole::Spam, LabelRole::Sent, LabelRole::Drafts]);
+    }
+
+    /**
      * Ids of one account's messages carrying one label, by keyset — every one
      * of them, not only those Exchange knows.
      *
@@ -2833,12 +3286,16 @@ class MessageRepository extends ServiceEntityRepository
      * Asked before a Mailbox row is removed, and the answer has to be zero:
      * message.mailbox_id cascades on delete, so removing the row of a folder
      * that still has mail recorded in it deletes that mail here.
+     *
+     * Messages, not locations: a message with two copies in one folder is
+     * still one message that would be lost.
      */
     public function countInMailbox(Mailbox $mailbox): int
     {
-        return (int) $this->createQueryBuilder('m')
-            ->select('COUNT(m.id)')
-            ->where('m.mailbox = :mailbox')
+        return (int) $this->getEntityManager()->createQueryBuilder()
+            ->select('COUNT(DISTINCT IDENTITY(l.message))')
+            ->from(MessageLocation::class, 'l')
+            ->where('l.mailbox = :mailbox')
             ->setParameter('mailbox', $mailbox)
             ->getQuery()
             ->getSingleScalarResult();

@@ -21,7 +21,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * The names are the containers' old ones, deliberately. Each child gets its
  * name as APP_CONTAINER_NAME, which is what the heartbeats are keyed by and
  * what the admin log viewer shows, so the admin dashboard, /healthz and the log
- * filters read exactly as before.
+ * filters read exactly as before. The two push listeners are the exception:
+ * they replaced the imap-supervisor (#421), whose name is kept as an alias,
+ * see ALIASES.
  *
  * ── The hub ─────────────────────────────────────────────────────────────────
  * The Mercure hub is the one child that is not PHP: the 1.x hub binary the
@@ -34,10 +36,41 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * container's proxy and MERCURE_URL reach it where they always reached the
  * hub; a stack that names it otherwise says so in MERCURE_UPSTREAM and
  * MERCURE_URL.
+ *
+ * ── All in one ──────────────────────────────────────────────────────────────
+ * With APP_ALL_IN_ONE on there is no web container either: the web server is
+ * one more child, started after the hub, and gets the supervisor's restarts
+ * like everything else. Two Caddy servers then share one network namespace,
+ * which changes two things about the hub. It cannot have :80, which is the web
+ * server's, so it listens on HUB_LOCAL_PORT, a port nothing publishes. And it
+ * runs without Caddy's admin API: both servers would bind it on
+ * localhost:2019, the second one to start would fail, and nothing ever talks
+ * to the hub's. The entrypoint points MERCURE_URL and MERCURE_UPSTREAM at that
+ * port; see docs/install/unraid.md.
  */
 final readonly class BackgroundProcesses
 {
     public const string HUB = 'mercure';
+
+    public const string WEB = 'web';
+
+    /**
+     * Names that stand for others in --only and --without.
+     *
+     * `imap-supervisor` was the process that ran both push listeners, one IDLE
+     * process per folder under it (#421). The listeners are children of their
+     * own now, and an override written for the old name — the demo stack's,
+     * or an operator's polling-only `--without=imap-supervisor` — still means
+     * what it meant.
+     *
+     * @var array<string, list<string>>
+     */
+    public const array ALIASES = [
+        'imap-supervisor' => ['imap-listener', 'jmap-listener'],
+    ];
+
+    /** Where the hub listens when it shares a container with the web server. */
+    public const int HUB_LOCAL_PORT = 3000;
 
     /**
      * The subscriber cookie with and without its prefix. The browser is handed
@@ -62,15 +95,22 @@ final readonly class BackgroundProcesses
         private ?string $trustedIssuers = null,
         #[Autowire('%env(default::MERCURE_EXTRA_DIRECTIVES)%')]
         private ?string $extraDirectives = null,
+        #[Autowire('%env(bool:APP_ALL_IN_ONE)%')]
+        private bool    $allInOne = false,
     ) {
     }
 
-    /** @return list<BackgroundProcess> in start order: the hub first, so publishing has somewhere to go */
+    /**
+     * @return list<BackgroundProcess> in start order: the hub first, so publishing has somewhere to go,
+     *                                 then the web server where it lives here (all-in-one)
+     */
     public function all(): array
     {
         return [
             $this->hub(),
-            new BackgroundProcess('imap-supervisor', ['php', 'bin/console', 'app:imap:supervise']),
+            ...(true === $this->allInOne ? [$this->web()] : []),
+            new BackgroundProcess('imap-listener', ['php', 'bin/console', 'app:imap:listen']),
+            new BackgroundProcess('jmap-listener', ['php', 'bin/console', 'app:jmap:listen']),
             ...$this->consumerProcesses(),
         ];
     }
@@ -124,6 +164,25 @@ final readonly class BackgroundProcesses
         return $processes;
     }
 
+    /**
+     * The process names a list given on the command line stands for, aliases
+     * expanded.
+     *
+     * @param list<string> $names
+     *
+     * @return list<string>
+     */
+    public static function expand(array $names): array
+    {
+        $expanded = [];
+
+        foreach ($names as $name) {
+            array_push($expanded, ...(self::ALIASES[$name] ?? [$name]));
+        }
+
+        return array_values(array_unique($expanded));
+    }
+
     /** @return list<string> */
     public function names(): array
     {
@@ -145,7 +204,7 @@ final readonly class BackgroundProcesses
             // inherited: SERVER_NAME in this image is the WEB server's, and a
             // hub that picked up a real hostname would go asking for a
             // certificate.
-            'SERVER_NAME'                   => ':80',
+            'SERVER_NAME'                   => true === $this->allInOne ? ':' . self::HUB_LOCAL_PORT : ':80',
             'MERCURE_PUBLISHER_JWT_KEY'     => $secret,
             'MERCURE_SUBSCRIBER_JWT_KEY'    => $secret,
             'MERCURE_TRUSTED_ISSUERS'       => $this->orDefault($this->trustedIssuers, $this->hubIdentifier),
@@ -162,12 +221,24 @@ final readonly class BackgroundProcesses
             // live-update subscription is a connection that never ends by
             // itself: the worker took the whole 25-second grace period to stop,
             // every time, and then killed the hub anyway. Browsers reconnect.
-            'GLOBAL_OPTIONS'                => 'grace_period 5s',
+            'GLOBAL_OPTIONS'                => true === $this->allInOne ? "grace_period 5s\nadmin off" : 'grace_period 5s',
             // The hub's Caddyfile shares these names with FrankenPHP's. Emptied
             // so nothing meant for the web server configures the hub.
             'CADDY_EXTRA_CONFIG'            => '',
             'CADDY_SERVER_EXTRA_DIRECTIVES' => '',
         ]);
+    }
+
+    /**
+     * The web server, exactly as the image's CMD starts it in a container of
+     * its own. Its environment is the container's, which the entrypoint has
+     * already filled: SERVER_NAME, the generated secrets, the hub's address.
+     * Named `web` because that is what compose calls the container, and so what
+     * its heartbeats and log entries have always been filed under.
+     */
+    private function web(): BackgroundProcess
+    {
+        return new BackgroundProcess(self::WEB, ['frankenphp', 'run', '--config', '/etc/frankenphp/Caddyfile']);
     }
 
     /**

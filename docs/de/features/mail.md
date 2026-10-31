@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e10e5d0559ab9c2a857d4c77d58875bf76e142d2 -->
+<!-- translated-from: features/mail.md sha1:bfa8370895bd295821b9a383b1b2e258cf4c1a07 -->
 
 # Mail
 
@@ -306,8 +306,9 @@ Regeln und der Assistent jeweils gesagt haben, und welcher davon entschieden hat
 Einstellung ändern“ und „gar nichts ändern“.
 
 Zwei Dinge sagt dir der Bereich, die leicht wie Fehler aussehen. Eine Konversation hat **eine**
-Kategorie, die ihrer neuesten Nachricht — eine Antwort kann also die ganze Unterhaltung aus dem Tab
-tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich es. Und eine Kategorie,
+Kategorie, die der neuesten Nachricht, die du darin bekommen hast — eine Antwort kann also die ganze
+Unterhaltung aus dem Tab tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich
+es. Deine eigenen Antworten zählen nicht. Und eine Kategorie,
 die du per Drag auf einen Tab selbst gesetzt hast, hält gegen alles andere, was ebenfalls dort steht.
 
 Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehört hätte. Das landet
@@ -553,11 +554,28 @@ Orange, Bernstein, Grün, Petrol, Blau, Violett oder Rosa — und wahlweise ein 
 Label, worüber die Verschachtelung läuft. Ein Label lässt sich aus der Seitenleiste ausblenden,
 ohne es zu löschen.
 
-Ein neu angelegtes Label ändert beim Anbieter nichts. Gmail bekommt es, sobald es das erste Mal
-wirklich auf eine Nachricht angewendet wird; bei einfachem IMAP wird nie ein Ordner dafür
-erzeugt, denn ein Ordner spielt erst dann eine Rolle, wenn eine Nachricht körperlich umzieht.
-Strukturelle Änderungen — Umbenennen und Löschen — nach außen zu spiegeln, ist abgeschaltet,
-solange du es nicht pro Konto einschaltest; siehe [Konten und Aliase](accounts.md).
+Ein Label anzulegen legt nie einen Ordner an. Gmail bekommt das Label, sobald es das erste Mal auf
+eine Nachricht angewendet wird, und Umbenennen und Löschen werden zu Gmail und Microsoft gespiegelt;
+siehe [Labels beim Anbieter](accounts.md#labels-beim-anbieter). Bei einem reinen IMAP-Konto
+markiert ein Label, das du auf eine Nachricht setzt, die Nachricht und verschiebt nichts: Es bleibt
+in plMail oder wird, wenn [Labels als Schlüsselwörter](accounts.md#labels-als-schlüsselwörter) an
+ist, ein IMAP-Schlüsselwort, das andere Mailprogramme sehen. Bei einem Microsoft-Konto ist ein Label eine
+Outlook-Kategorie; siehe [Labels als Outlook-Kategorien](accounts.md#labels-als-outlook-kategorien).
+
+Die Ordner eines IMAP-Kontos erscheinen in der Seitenleiste unter dem Konto — der Posteingang,
+Gesendet und jeder Ordner, den der Server hat —, ebenso die Mailordner eines Outlook-Kontos. Das sind
+Orte, keine Markierungen: Eine Nachricht liegt in einem davon, und **Verschieben nach** in einen davon
+oder eine Konversation darauf zu ziehen verschiebt die Mail auf dem Server dorthin. **Label vergeben**
+bietet nur die Labels an, die auf dem Konto Markierungen sind, ein Label zu setzen verschiebt Mail also
+nie. Der Bereich LABELS enthält diese Markierungen; schalte **Ordner unter Labels** unter
+**Einstellungen → Labels** ein, um dort auch Ordner aufzulisten, die dann statt eines Punkts einen
+Ordner tragen. Ordner legst du in der eigenen Ordnerliste des Kontos an, benennst sie dort um und
+löschst sie dort, nie dadurch, dass du ein Label anlegst oder umbenennst; siehe
+[Ordner](accounts.md#ordner).
+
+In einer geöffneten Konversation zeigt jede Nachricht ihre Labels. Ein Ordner, in dem sie liegt,
+trägt einen Ordner und hat kein ×, denn Mail aus einem Ordner zu nehmen ist ein Verschieben; ein Label
+hat ein ×, das es von dieser Nachricht nimmt.
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
 Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem
@@ -579,28 +597,49 @@ importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt
 oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
 und verschiebt nichts.
 
+Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
+Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.
+
+**Zum Label machen** tut das Gegenteil, bei einem Ordner ohne Unterordner. Wähle, wohin seine Nachrichten sollen; plMail verschiebt sie, löscht den Ordner auf dem Server und setzt das Label wieder als Markierung an diese Nachrichten.
+Behält der Server Nachrichten im Ordner, schlägt der Auftrag mit einem Hinweis fehl: Der Ordner bleibt, und bereits verschobene Nachrichten bleiben ohne das Label dort, wohin sie verschoben wurden.
+
 ### Verschieben nach
 
 Der Ordner-Knopf — neben **Löschen** in der Leiste über einer Auswahl und neben dem Label-Knopf in
-einer geöffneten Konversation — legt Mail in einem Schritt unter einem Label ab: **Das gewählte Label kommt dazu,
-und das Label der Liste, in der du gerade warst, fällt weg.** Alle anderen Labels bleiben.
+einer geöffneten Konversation — verschiebt Mail in einem Schritt an einen Ort. Was ein Ort ist, hängt
+vom Konto ab:
+
+| Konto | **Verschieben nach** bietet | Dorthin verschieben |
+|---|---|---|
+| Reines IMAP, Microsoft | seine Ordner, dazu **Posteingang**, **Spam** und **Papierkorb** | Verschiebt die Mail auf dem Server in den Ordner |
+| Gmail | **Posteingang**, **Spam** und **Papierkorb**; mit **„Verschieben nach“ bietet Labels an** auch seine Labels | Setzt das Label und nimmt die Mail aus dem Posteingang, wie in Gmail |
+| JMAP | jedes Label | Verschiebt die Mail in dieses Postfach |
+
+**„Verschieben nach“ bietet Labels an** ist ein Schalter in der Zeile eines Gmail-Kontos unter
+**Einstellungen → Konten**, aus, bis du ihn einschaltest. In einer Liste, deren Auswahl mehrere
+Konten umfasst, bietet die Auswahl an, was auf irgendeinem davon ein Ort ist, und jede Konversation
+wird so verschoben, wie ihr eigenes Konto es tut: in den Ordner, wo das Label einer ist, und mit dem
+Label versehen und aus dem Posteingang genommen, wo es eine Markierung ist. Ein Verschieben legt nie
+einen Ordner an.
+
+Welche Kopie verschoben wird, hängt davon ab, wo du bist:
 
 | Wo du bist | Was „Verschieben nach *Belege*“ tut |
 |---|---|
-| **Posteingang** | Vergibt *Belege* und archiviert die Konversation |
-| Ein Label | Tauscht dieses Label gegen *Belege* |
-| **Papierkorb** oder **Spam** | Vergibt *Belege* und nimmt die Konversation aus Papierkorb und Spam — ohne sie zurück in den Posteingang zu legen |
-| Sonst überall — Suche, **Markiert**, **Gesendet** | Vergibt *Belege* und nimmt die Konversation aus dem Posteingang, falls sie dort war |
+| **Posteingang** | Verschiebt die Konversation aus dem Posteingang nach *Belege* |
+| Ein Ordner | Verschiebt die Kopie in diesem Ordner nach *Belege*; Kopien anderswo bleiben, wo sie sind |
+| **Papierkorb** oder **Spam** | Verschiebt die Konversation nach *Belege*, aus Papierkorb und Spam heraus, ohne sie zurück in den Posteingang zu legen |
+| Sonst überall — Suche, **Markiert** | Verschiebt die Kopie der Konversation im Posteingang, oder ihre Hauptkopie, nach *Belege* |
 
-Zur Auswahl stehen der **Posteingang**, deine Labels, **Spam** und **Papierkorb**. Ein Klick wendet
-es sofort an; es gibt nichts zu bestätigen. **Posteingang** holt eine Konversation zurück und
-entfernt das Label, in dem du warst; **Spam** und **Papierkorb** tun, was ihre eigenen Knöpfe tun.
-Die Liste, in der du schon bist, jedes Label, das die Konversation bereits trägt, und **Papierkorb**
-oder **Spam** für Mail, die schon dort liegt, fehlen in der Auswahl.
+Deine eigenen Antworten in **Gesendet** bleiben in Gesendet. Ein Klick wendet die Wahl sofort an; es
+gibt nichts zu bestätigen. **Posteingang** holt eine Konversation zurück; **Spam** und **Papierkorb**
+tun, was ihre eigenen Knöpfe tun. Die Liste, in der du schon bist, ein Ordner, in dem die
+Konversation schon liegt, und **Papierkorb** oder **Spam** für Mail, die schon dort liegt, fehlen in
+der Auswahl.
 
-Das ist nicht dasselbe, wie eine Konversation auf einen Ordner unter einem Konto zu ziehen: Das
-legt sie in diesen Ordner und nimmt sie aus jedem anderen. Nimm den Label-Knopf, wenn du ein Label
-vergeben und die Mail lassen willst, wo sie ist.
+Eine Konversation auf einen Ordner unter einem Konto zu ziehen tut dasselbe wie **Verschieben nach**
+in diesen Ordner. Sie auf ein Label im Bereich LABELS zu ziehen setzt das Label und lässt die Mail,
+wo sie ist, wie **Label vergeben**.
 
 Verschieben, Labeln und Archivieren zeigen für ein paar Sekunden **Rückgängig**. Es stellt genau
 die Labels wieder her, die jede Konversation vorher hatte — bei einer gemischten Auswahl ist das
@@ -634,7 +673,9 @@ deren Text nur `help.wirhub.de` steht.
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
 Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
-verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus. Klickst du im Spam
+oder im Papierkorb in das Suchfeld, steht dort schon `in:spam` oder `in:trash`, und die Suche
+durchsucht diesen Ordner. Löschst du es, suchst du stattdessen überall sonst.
 
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
@@ -1067,6 +1108,26 @@ Installation mit mehreren Personen sind die Korrespondenten der einen für die a
 eine Adresse, die zu einem anderen Konto gehört, lässt sich auf keinem Weg auf deinen Entwurf
 setzen.
 
+**Doppelklicke einen Empfänger**, um ihn zu korrigieren: Die Adresse kommt zurück ins Feld, Enter
+setzt die korrigierte an die Stelle der alten. Verlässt du das Feld ohne Enter, kommt sie
+unverändert zurück.
+
+**Empfänger kopieren**: Wähle ihre Chips aus (ein Klick, Umschalt+Klick oder Strg+A in einem leeren
+Feld) und drücke Strg+C. Sie landen als `Name <Adresse>; Adresse` in der Zwischenablage, was andere
+Mailprogramme lesen. Strg+X tut dasselbe und entfernt sie, so wandert eine Liste mit Ausschneiden
+und Einfügen von An nach Bcc.
+
+**Zieh einen Empfänger** von An, Cc oder Bcc auf ein anderes dieser Felder, um ihn dorthin zu
+verschieben; ein Kontakt behält seinen Namen. Mit Maus oder Stift: Auf einem Touchscreen schneidest
+du die Adresse stattdessen aus und fügst sie ein.
+
+Eine Liste von Adressen, die du in **An**, **Cc** oder **Bcc** einfügst, wird zu einem Empfänger
+je Adresse, ob durch Semikolon, Komma, Zeilenumbruch oder Leerzeichen getrennt, mit oder ohne
+Namen (`jo@jo.fr; Ann <ann@example.org>`, `jo@jo.fr jo2@jo.fr`). Ein Leerzeichen in einem Namen
+trennt ihn nicht. Eine Adresse, die schon im Feld steht, kommt nicht doppelt
+hinzu, und was keine Adresse ist, bleibt mit einem Hinweis im Feld stehen, damit du es korrigieren
+kannst.
+
 **Dateien anhängen** nimmt Dateien von deinem Rechner, gedeckelt auf **25 MB je Datei**. **Aus
 einem Dienst anhängen** öffnet die Dateiauswahl für jeden verbundenen Dienst, aus dem plMail
 herunterladen kann.
@@ -1077,6 +1138,12 @@ getippter Betreff ist es wert, behalten zu werden. Das Fenster zu schließen, es
 eine Datei anzuhängen erzwingt jeweils vorher ein Speichern. Unterhalb dieser Schwelle fragt das
 Verlassen der Seite nach, statt das Getippte zu verlieren. Der Papierkorbknopf im Schreibfenster
 löscht den Entwurf tatsächlich, statt das Fenster darüber zuzuklappen.
+
+**Senden** fragt vorher im Fenster nach, wenn die Nachricht keinen Betreff, keinen Text oder einen
+offenen Vorlagen-Platzhalter hat, oder wenn sie **einen Anhang erwähnt, der fehlt**: „Anbei“,
+„Anhang“, „attached“, „ci-joint“, „附件“ und Verwandte im Betreff oder in dem, was du geschrieben
+hast, ohne angehängte Datei. Das zitierte Original wird nicht gelesen, eine Antwort auf eine Mail
+mit Anhang fragt also nicht. Alle Gründe kommen als eine Frage, und **Trotzdem senden** sendet.
 
 Auf dem Telefon bricht die Werkzeugleiste um, statt aus dem Bild zu scrollen, und die Sendepille
 wandert hinauf in die Kopfzeile des Fensters, dorthin, wo früher der Knopf saß.

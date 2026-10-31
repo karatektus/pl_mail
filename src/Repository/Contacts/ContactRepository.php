@@ -27,6 +27,43 @@ class ContactRepository extends ServiceEntityRepository
     }
 
     /**
+     * The ids of a user's contacts outside the bin, in one address book or all
+     * of them, by id: what ContactCard/query names. $addressBookId is a book's
+     * row id, 0 for plMail's own contacts, null for every book.
+     *
+     * @return list<int>
+     */
+    public function findIdsForCards(UserInterface $user, ?int $addressBookId): array
+    {
+        $builder = $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->where('c.usr = :user')
+            ->andWhere('c.trashedAt IS NULL')
+            ->setParameter('user', $user)
+            ->orderBy('c.id', 'ASC');
+
+        if (0 === $addressBookId) {
+            $builder->andWhere('c.addressBook IS NULL');
+        } elseif (null !== $addressBookId) {
+            $builder->andWhere('IDENTITY(c.addressBook) = :book')->setParameter('book', $addressBookId);
+        }
+
+        return array_map(intval(...), $builder->getQuery()->getSingleColumnResult());
+    }
+
+    /** A user's contact by id, outside the bin: what a ContactCard id names. */
+    public function findOneCardForUser(UserInterface $user, string $id): ?Contact
+    {
+        if (false === ctype_digit($id)) {
+            return null;
+        }
+
+        $contact = $this->findOneBy(['id' => (int) $id, 'usr' => $user]);
+
+        return null === $contact || null !== $contact->trashedAt ? null : $contact;
+    }
+
+    /**
      * Address-book hits for recipient autocomplete: one row per address, with
      * its contact, for ContactSuggester to merge with the harvest.
      *

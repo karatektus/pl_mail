@@ -341,6 +341,15 @@ feature is stupid and go looking for the switch.
   lies beyond it is contract language, warranty periods and renewal dates — real dates,
   correctly parsed, that nobody wants on a calendar.
 - **Nothing already refused**, through the same `EventSuppression` table extracted events use.
+- **Only what the sender wrote in this message.** The text comes from
+  `ReadableBody::ownWordsOf()`, which takes the quoted history of a reply or forward off
+  (`App\Domain\Helper\QuotedHistory`): at Outlook's history markers in the raw HTML, and at
+  the first quote attribution, forward separator or `Von:/Gesendet:` block in the text. The
+  detector's own filter only ever dropped lines starting with `>`, which HTML mail and Outlook
+  do not use, so a meeting arranged in one mail was proposed again for every reply quoting it,
+  each under a dedup key of its own
+  ([#437](https://github.com/karatektus/pl_mail/issues/437)). An interleaved reply — answers
+  between `>` quotes — is not cut; its quoted lines are left to the detector's filter.
 
 ### The proposal row, and what accepting means
 

@@ -6,13 +6,15 @@ namespace App\Service\Imap;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\Messaging\Message\FoldCopiesMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Client;
+use Symfony\Component\Messenger\MessageBusInterface;
+use App\Infrastructure\ImapClient\ImapSession;
 
 /**
  * Mail that left the server, and what plMail is allowed to conclude from that.
@@ -141,6 +143,8 @@ final readonly class VanishedMessageReconciler
         private MailboxRepository      $mailboxes,
         private MessageEraser          $eraser,
         private ImapFlagReconciler     $flags,
+        private ImapCopies             $copies,
+        private MessageBusInterface    $bus,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -153,7 +157,7 @@ final readonly class VanishedMessageReconciler
      *
      * @return bool whether the folder was actually listed and compared
      */
-    public function sweep(Mailbox $mailbox, Client $client, ?DateTimeImmutable $now = null): bool
+    public function sweep(Mailbox $mailbox, ImapSession $session, ?DateTimeImmutable $now = null): bool
     {
         $now = $now ?? new DateTimeImmutable();
 
@@ -161,7 +165,7 @@ final readonly class VanishedMessageReconciler
             return false;
         }
 
-        $listing = $this->listing->read($client, $mailbox);
+        $listing = $this->listing->read($session, $mailbox);
 
         if (null === $listing) {
             // No answer is not an answer. sweptAt stays where it was, so this
@@ -182,7 +186,7 @@ final readonly class VanishedMessageReconciler
      * MovedMessageReconciliationTest works through, where the test supplies the
      * answer the probe would have given.
      *
-     * @param array{uidValidity: int, uids: array<int,true>, flags?: array<int,list<string>>, readAt?: DateTimeImmutable} $listing
+     * @param array{uidValidity: int, uids: array<int,true>, flags?: array<int,list<string>>, sizes?: array<int,int>, readAt?: DateTimeImmutable} $listing
      *
      * @return bool whether the listing was believed and acted on
      */
@@ -215,6 +219,22 @@ final readonly class VanishedMessageReconciler
             return false;
         }
 
+        // A copy gone from this folder while the server still keeps the email
+        // somewhere else is a lost location, not a lost email (#415): there is
+        // nothing to wait for, and nothing to delete. Only the email's last
+        // copy goes on to the vanish marks below and the coverage they wait for.
+        $elsewhere = $this->messages->findIdsWithSeveralLocations($vanished);
+
+        foreach ($elsewhere as $messageId) {
+            $email = $this->messages->find($messageId);
+
+            if (null !== $email) {
+                $this->copies->forget($email, $mailbox);
+            }
+        }
+
+        $vanished = array_values(array_diff($vanished, $elsewhere));
+
         $marked  = $this->messages->markVanished($vanished, $now);
         $cleared = $this->messages->clearVanished($returned);
 
@@ -230,6 +250,15 @@ final readonly class VanishedMessageReconciler
             $listing['flags'] ?? [],
             $listing['readAt'] ?? $now,
         );
+
+        // Mail stored before #415 has no size, and so is never recognised
+        // when a copy of it turns up in another folder. The listing knows it.
+        $this->messages->backfillSizes($mailbox, $listing['sizes'] ?? []);
+
+        // And with their size known, copies of one email stored as separate
+        // messages before #415 are recognisable: folded in a job of its own,
+        // a bounded number per sweep, until there are none (#414).
+        $this->bus->dispatch(new FoldCopiesMessage((int) $mailbox->id));
 
         $mailbox->uidValidity = $listing['uidValidity'];
         $mailbox->sweptAt     = $now;

@@ -212,7 +212,7 @@ final class IcsUrlCalendarDriverTest extends KernelTestCase
         $calendars = $this->driver($http)->discover(CalendarSource::ofIntegration($this->integration()));
 
         self::assertCount(1, $calendars);
-        self::assertSame(IcsUrlCalendarDriver::REMOTE_ID, $calendars[0]->remoteId);
+        self::assertSame(hash('sha256', self::FEED_URL), $calendars[0]->remoteId, 'the address, hashed (#424)');
         self::assertSame('German holidays', $calendars[0]->name, 'X-WR-CALNAME names the calendar');
         self::assertSame('Europe/Berlin', $calendars[0]->timeZone);
         self::assertTrue($calendars[0]->isReadOnly, 'nothing can write to a file at a URL');
@@ -300,7 +300,7 @@ final class IcsUrlCalendarDriverTest extends KernelTestCase
         $calendar->usr         = new User();
         $calendar->integration = $this->integration();
         $calendar->role        = CalendarRole::Remote;
-        $calendar->remoteId    = IcsUrlCalendarDriver::REMOTE_ID;
+        $calendar->remoteId    = IcsUrlCalendarDriver::remoteIdOf($calendar->integration);
         $calendar->isReadOnly  = true;
 
         return $calendar;

@@ -104,7 +104,7 @@ export default class extends Controller {
         head.className = "flex flex-wrap items-center gap-2 px-3 py-2 border-b border-line"
 
         const seg = document.createElement("div")
-        seg.className = "inline-flex rounded-lg border border-field overflow-hidden"
+        seg.className = "inline-flex rounded-lg border border-field-border overflow-hidden"
 
         for (const op of OPERATORS) {
             const b = document.createElement("button")
@@ -301,6 +301,10 @@ export default class extends Controller {
                     this.actions[i].labelId = this._assignableLabels()[0]?.id
                 }
 
+                if (select.value === "moveToFolder") {
+                    this.actions[i].labelId = this._folderLabels()[0]?.id
+                }
+
                 if (select.value === "saveToIntegration") {
                     this.actions[i].integrationId = this.integrationsValue[0]?.id
                 }
@@ -316,13 +320,20 @@ export default class extends Controller {
 
             row.append(select)
 
-            if (action.type === "applyLabel" || action.type === "removeLabel") {
+            if (action.type === "applyLabel" || action.type === "removeLabel" || action.type === "moveToFolder") {
                 const label = this._selectElement("flex-1 min-w-[9rem]")
 
                 // System labels are excluded here but not from conditions:
                 // "has label Inbox" is a sensible test, while "apply label
                 // Inbox" is not — that is what the archive action means.
-                for (const l of this._assignableLabels()) {
+                // "Move to folder" offers the labels that are a folder on one
+                // of the accounts (#221 step 3); a stored one that no longer
+                // is stays listed, so the rule does not silently change.
+                const choices = action.type === "moveToFolder"
+                    ? this._assignableLabels().filter((l) => l.folder === true || Number(action.labelId) === l.id)
+                    : this._assignableLabels()
+
+                for (const l of choices) {
                     const o = document.createElement("option")
                     o.value = String(l.id)
                     o.textContent = l.name
@@ -518,7 +529,7 @@ export default class extends Controller {
         const browse = document.createElement("button")
         browse.type = "button"
         browse.className =
-            "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-field bg-field " +
+            "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-field-border bg-field " +
             "text-xs font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer"
         browse.innerHTML = '<i class="fa-solid fa-folder-open text-[10px]" aria-hidden="true"></i>'
         browse.append(document.createTextNode(this._t("folder.choose")))
@@ -666,6 +677,11 @@ export default class extends Controller {
         return this.labelsValue.filter((l) => l.system !== true)
     }
 
+    /** The labels "Move to folder" offers: a folder on one of the accounts. */
+    _folderLabels() {
+        return this._assignableLabels().filter((l) => l.folder === true)
+    }
+
     /** The connection an action names, or undefined once it is disconnected. */
     _integration(id) {
         return this.integrationsValue.find((entry) => entry.id === Number(id))
@@ -743,7 +759,7 @@ export default class extends Controller {
     }
 
     _inputClass() {
-        return "h-8 rounded-lg border border-field bg-field px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+        return "h-8 rounded-lg border border-field-border bg-field px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
     }
 
     /**

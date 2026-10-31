@@ -116,7 +116,7 @@ class ClientError
      * thousand requests about one broken line, and it is the more useful number
      * regardless: it says how many people are running into this.
      */
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => 1])]
     public int $occurrences = 1;
 
     #[ORM\Column]

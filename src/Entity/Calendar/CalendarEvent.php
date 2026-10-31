@@ -48,6 +48,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'calendar_event')]
 #[ORM\Index(name: 'idx_calendar_event_usr', columns: ['usr_id'])]
 #[ORM\Index(name: 'idx_calendar_event_calendar_starts', columns: ['calendar_id', 'starts_at'])]
+// Built `USING hash` by the migration, as is idx_calendar_event_remote below. A
+// btree refuses a row over 2704 bytes, and a sender chooses the UID, so one
+// long value would fail the insert and with it the whole pull. A hash index
+// stores only the hash, and every lookup on these columns is equality.
 #[ORM\Index(name: 'idx_calendar_event_uid', columns: ['uid'])]
 #[ORM\Index(name: 'idx_calendar_event_kind', columns: ['kind'])]
 // The pull's identity lookup: one row per remote resource within a calendar.
@@ -55,7 +59,7 @@ use Doctrine\ORM\Mapping as ORM;
 // every event on a calendar that mirrors nothing — which is most of the table,
 // and Postgres treats each null as distinct anyway, so a unique index here
 // would buy nothing the lookup does not already get.
-#[ORM\Index(name: 'idx_calendar_event_calendar_remote', columns: ['calendar_id', 'remote_id'])]
+#[ORM\Index(name: 'idx_calendar_event_remote', columns: ['remote_id'])]
 // What the pusher sweeps before every pull. Calendar leads because the sweep is
 // always scoped to one calendar and the states are four values — leading with
 // sync_state would put the whole table's clean rows in front of the answer.
@@ -69,7 +73,9 @@ use Doctrine\ORM\Mapping as ORM;
 // because without it every schema diff asks to drop it, and dropping it turns
 // the lookup into a sequential scan of every event on the install.
 #[ORM\Index(name: 'idx_calendar_event_remote_instances', columns: ['remote_instances'])]
-#[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid'])]
+// On the uid's hash for the same reason: a hash index can't be unique or span
+// two columns, and a btree can't hold the uid itself.
+#[ORM\UniqueConstraint(name: 'uniq_calendar_event_calendar_uid', columns: ['calendar_id', 'uid_hash'])]
 class CalendarEvent
 {
     use TimestampableTrait;
@@ -111,9 +117,26 @@ class CalendarEvent
      * For an invite this is the sender's own UID, verbatim, because RFC 5546
      * already decided what identity means and re-deciding it would break
      * interoperability with every other calendar.
+     *
+     * TEXT, because the sender picks the length and RFC 5545 sets no maximum: a
+     * 262-character iCalUId at varchar(255) failed every pull of an Outlook
+     * calendar. Its indexes hash it, so no length can fail an insert.
      */
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(type: Types::TEXT)]
     public string $uid = '';
+
+    /**
+     * What uniq_calendar_event_calendar_uid compares. Generated so it can't
+     * disagree with $uid, and nothing in PHP reads it.
+     */
+    #[ORM\Column(
+        type: Types::TEXT,
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        columnDefinition: 'text GENERATED ALWAYS AS (md5(uid)) STORED',
+    )]
+    public private(set) ?string $uidHash = null;
 
     /** iCalendar SEQUENCE: which revision this is. Higher wins. */
     #[ORM\Column(options: ['default' => 0])]
@@ -173,7 +196,7 @@ class CalendarEvent
      * list as they last saw it, so a stale NEEDS-ACTION in it would silently
      * un-accept a meeting somebody is already going to.
      */
-    #[ORM\Column(length: 16, nullable: true, enumType: ParticipationStatus::class)]
+    #[ORM\Column(length: 16, nullable: true, enumType: ParticipationStatus::class, options: ['comment' => "The owner's own RSVP, projected from jscalendar.participants. NULL means this is not an invitation addressed to them and is always drawn."])]
     public ?ParticipationStatus $myParticipation = null;
 
     /**
@@ -237,14 +260,12 @@ class CalendarEvent
      * own resource hrefs are and Google's encoding is long: an event exported
      * from Google and imported into Baïkal produced a 258-character href, and at
      * varchar(255) that one resource failed the whole pull for the calendar.
-     * idx_calendar_event_calendar_remote indexes it, which TEXT does not
-     * change: a btree takes a text value up to about 2.7 kB, ten times any
-     * href a server has been seen to write.
+     * idx_calendar_event_remote is a hash index, so length can't fail an insert.
      */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteId = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $remoteEtag = null;
 
     /**

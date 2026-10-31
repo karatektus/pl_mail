@@ -229,7 +229,7 @@ final readonly class PaperlessDriver implements IntegrationDriverInterface, Sear
         $response = $this->request($integration, 'GET', $this->url(
             $integration,
             '/documents/'.$id.'/download/'.(true === $original ? '?original=true' : ''),
-        ));
+        ), HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -289,7 +289,7 @@ final readonly class PaperlessDriver implements IntegrationDriverInterface, Sear
             // empty and answers 400 "No file was submitted." to a valid PDF. The
             // whole file is held in memory for it; attachments are mail-sized.
             'body'    => $form->toString(),
-        ]);
+        ] + HttpLimits::transfer());
 
         return self::TASK_PREFIX.$this->taskId($response);
     }
@@ -781,6 +781,8 @@ final readonly class PaperlessDriver implements IntegrationDriverInterface, Sear
             ['Authorization' => 'Token '.$integration->secret, 'Accept' => 'application/json'],
             $options['headers'] ?? [],
         );
+
+        $options += HttpLimits::CALL;
 
         try {
             $response = $this->httpClient->request($method, $url, $options);

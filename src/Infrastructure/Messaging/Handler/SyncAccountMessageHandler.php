@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\GmailThrottledException;
+use App\Domain\Exception\JmapThrottledException;
 use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
@@ -125,9 +126,12 @@ final readonly class SyncAccountMessageHandler
             ]);
 
             return;
-        } catch (GmailThrottledException $throttled) {
+        } catch (GmailThrottledException|JmapThrottledException $throttled) {
             // NOT A FAILURE, and so neither recorded on the account nor
             // rethrown.
+            //
+            // A JMAP server answering 429 is the same situation and gets the
+            // same answer: it said how long to wait, and the sync waits.
             //
             // Google has refused this account on quota, which while a mailbox
             // is being imported is expected — it is how the import learns
@@ -146,7 +150,7 @@ final readonly class SyncAccountMessageHandler
                 [new DelayStamp(1000 * $seconds)],
             );
 
-            $this->logger->info('Sync put back: waiting for Gmail quota', [
+            $this->logger->info('Sync put back: the provider asked us to wait', [
                 'accountId'    => $message->accountId,
                 'delaySeconds' => $seconds,
             ]);

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Service\Calendar\Sync\CalDav;
 
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Service\Integration\Driver\HttpLimits;
 use App\Service\Calendar\Sync\CalDav\DavService;
 use PHPUnit\Framework\TestCase;
 
@@ -28,6 +30,37 @@ use PHPUnit\Framework\TestCase;
  */
 final class CalDavDiscoveryTest extends TestCase
 {
+    /**
+     * Discovery runs inside a web request, where a server that never answers
+     * must fail before PHP's limit does; a worker keeps the client's default,
+     * since a large sync report may be slow to start (#449).
+     */
+    public function testAWebRequestGetsTheCallLimitsAndAWorkerDoesNot(): void
+    {
+        try {
+            set_time_limit(30);
+            $web = CalDavFixture::status(401);
+            $this->discover(new CalDavFixture($web));
+            self::assertSame(HttpLimits::CALL['timeout'], $web->getRequestOptions()['timeout']);
+            self::assertSame(HttpLimits::CALL['max_duration'], $web->getRequestOptions()['max_duration']);
+        } finally {
+            set_time_limit(0);
+        }
+
+        $worker = CalDavFixture::status(401);
+        $this->discover(new CalDavFixture($worker));
+        self::assertNotSame(HttpLimits::CALL['timeout'], $worker->getRequestOptions()['timeout']);
+    }
+
+    private function discover(CalDavFixture $fixture): void
+    {
+        try {
+            $fixture->discovery->endpointFor(CalDavFixture::integration('https://dav.example.com'));
+        } catch (CalendarSyncException) {
+            // The 401 is only there to end it: the options are what is read.
+        }
+    }
+
     public function testTheWellKnownAddressLeadsThroughThePrincipalToTheCalendarHome(): void
     {
         $fixture = new CalDavFixture(

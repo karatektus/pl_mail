@@ -198,12 +198,10 @@ final readonly class ThreadStatusUpdater
             }
 
             // Plain-IMAP: the message physically moves to the Archive folder,
-            // and gets a new UID there that only the mover can report. Until
-            // then the row names the destination and no address inside it —
-            // see Message::relocateTo().
-            if (null !== $message->imapUid && null !== $archiveMailbox && $message->mailbox !== $archiveMailbox) {
-                $message->relocateTo($archiveMailbox);
-            }
+            // and its copy keeps the address it has until the server says
+            // where it landed — ApplyImapFlagsHandler moves the location then
+            // (#415). Re-pointing it here, with no UID, left a row a purge
+            // could not reach and a sweep could not see (#427).
         }
 
         $this->finish($messages);
@@ -230,9 +228,7 @@ final readonly class ThreadStatusUpdater
                 $message->removeLabel($inboxLabel);
             }
 
-            if (null !== $message->imapUid && null !== $trashMailbox && $message->mailbox !== $trashMailbox) {
-                $message->relocateTo($trashMailbox);
-            }
+            // The copy moves when the server has moved it; see archive().
         }
 
         $this->finish($messages);
@@ -303,9 +299,7 @@ final readonly class ThreadStatusUpdater
                 }
             }
 
-            if (null !== $message->imapUid && null !== $inboxMailbox && $message->mailbox !== $inboxMailbox) {
-                $message->relocateTo($inboxMailbox);
-            }
+            // The copy moves when the server has moved it; see archive().
         }
 
         $this->finish($messages);
@@ -340,7 +334,7 @@ final readonly class ThreadStatusUpdater
      *
      * @param list<Message> $messages
      */
-    public function move(array $messages, Label $destination): void
+    public function move(array $messages, Label $destination, ?Mailbox $from = null): void
     {
         $this->dropSnooze($messages);
 
@@ -348,7 +342,7 @@ final readonly class ThreadStatusUpdater
             LabelRole::Inbox   => $this->restore($messages),
             LabelRole::Archive => $this->archive($messages),
             LabelRole::Trash   => $this->trash($messages),
-            default            => $this->moveToFolder($messages, $destination),
+            default            => $this->moveToFolder($messages, $destination, $from),
         };
     }
 
@@ -436,6 +430,22 @@ final readonly class ThreadStatusUpdater
             // Handles the IMAP location-label replacement (physical move)
             // internally; must run before flush.
             $this->propagator->detachLabel($messages, $label);
+        }
+
+        $this->finish($messages);
+    }
+
+    /**
+     * Labels the server put on or took off, already changed on the rows: the
+     * threads catch up and JMAP hears of it, and nothing goes back out — the
+     * server is where the change came from (#221 step 2, keywords read back).
+     *
+     * @param list<Message> $messages
+     */
+    public function labelsChangedOnServer(array $messages): void
+    {
+        if ([] === $messages) {
+            return;
         }
 
         $this->finish($messages);
@@ -745,15 +755,12 @@ final readonly class ThreadStatusUpdater
 
             $storedFlags = $state->storedFlags();
 
-            // Both sides canonicalised, so that a mirror captured from a server
-            // that writes `Seen` is not read as differing from a listing that
-            // writes `\Seen`. Without it the first pass over a folder would
-            // rewrite every row and log a JMAP change for each — see
-            // MessageFlag::canonicalList().
+            // Stored lists are already in MessageFlag::canonicalList() form,
+            // and storedFlags() puts the server's in it.
             if (
                 $wasSeen === $state->seen
                 && $wasFlagged === $state->flagged
-                && MessageFlag::canonicalList($message->flags) === $storedFlags
+                && $message->flags === $storedFlags
             ) {
                 continue;
             }
@@ -861,17 +868,26 @@ final readonly class ThreadStatusUpdater
      *
      * @param list<Message> $messages
      */
-    private function moveToFolder(array $messages, Label $destination): void
+    private function moveToFolder(array $messages, Label $destination, ?Mailbox $from = null): void
     {
         $sources = [];
 
         foreach ($messages as $message) {
+            // From a folder the message has a copy in, only that folder's
+            // label comes off: the copy there is the one that moves (#221
+            // step 3), and a copy in Archive or All Mail stays where it is.
+            $viewedHere = null !== $from && true === self::hasCopyIn($message, $from);
+
             foreach ($this->locationLabelsOf($message) as $label) {
                 if ($label === $destination) {
                     // Already here. Detaching and re-attaching the same label
                     // would be a physical move to the folder the mail is in,
                     // which some servers answer by giving it a new UID and
                     // others by refusing outright.
+                    continue;
+                }
+
+                if (true === $viewedHere && $label !== $from->label) {
                     continue;
                 }
 
@@ -884,17 +900,30 @@ final readonly class ThreadStatusUpdater
 
         $this->propagator->attachLabel($messages, $destination);
 
+        // The move itself, said as one. The detach below takes the old
+        // folder's label off on every provider and moves nothing more.
+        $this->propagator->moveCopies($messages, $destination, $from);
+
         foreach ($sources as $source) {
             foreach ($source['messages'] as $message) {
                 $message->removeLabel($source['label']);
             }
 
-            // Handles the IMAP location-label replacement (physical move)
-            // internally; must run before flush.
-            $this->propagator->detachLabel($source['messages'], $source['label']);
+            $this->propagator->detachLabel($source['messages'], $source['label'], moveOnImap: false);
         }
 
         $this->finish($messages);
+    }
+
+    private static function hasCopyIn(Message $message, Mailbox $folder): bool
+    {
+        foreach ($message->locations as $location) {
+            if ($location->mailbox === $folder) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -905,9 +934,9 @@ final readonly class ThreadStatusUpdater
      * those are the app's own folders, and LabelRole::hasProviderFolder() is
      * the existing spelling of "the server has one of these too". A custom
      * label is one only when it is bound to a real folder on this account,
-     * which is what LabelBinding::$mailbox records: a label that exists as an
-     * IMAP folder is somewhere mail can be, and a label that is only a row in
-     * our database is a tag the mail wears wherever it lives.
+     * which is what LabelBinding::$mailbox and $graphFolderId record: a label
+     * that exists as a folder is somewhere mail can be, and a label that is only
+     * a row in our database is a tag the mail wears wherever it lives.
      *
      * Getting this wrong in the generous direction — treating every label as a
      * location — would make a move strip every tag off the conversation, and
@@ -937,7 +966,9 @@ final readonly class ThreadStatusUpdater
                 continue;
             }
 
-            if (null !== $label->bindingFor($account)?->mailbox) {
+            $binding = $label->bindingFor($account);
+
+            if (null !== $binding?->mailbox || null !== $binding?->graphFolderId) {
                 $locations[] = $label;
             }
         }
@@ -953,8 +984,7 @@ final readonly class ThreadStatusUpdater
      * rest of the thread sits in the bin — so trashing, archiving or restoring
      * the whole thread reaches messages that are already where it is going.
      * Queueing those as well asked the server to move a message into its own
-     * folder, which IMAP refuses (#269, see ApplyImapFlagsHandler::stayInPlace()),
-     * and the relocateTo() that follows cleared a UID that was still correct.
+     * folder, which IMAP refuses (#269, see ApplyImapFlagsHandler::stayInPlace()).
      * Their labels change all the same; only the move is left out.
      *
      * @param list<Message> $messages

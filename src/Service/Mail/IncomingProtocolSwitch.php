@@ -6,14 +6,15 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\Pop3UidlRepository;
 use Psr\Log\LoggerInterface;
 
 /**
- * An account that changes how its incoming mail is read, IMAP to POP3 or back,
- * keeping the mail it has (#289).
+ * An account that changes how its incoming mail is read — IMAP, POP3 or JMAP,
+ * from any to any — keeping the mail it has (#289, #27).
  *
  * The mail on the server does not change when the protocol does; only the
  * names the server gives it do. An IMAP UID means nothing to a POP3 session
@@ -47,10 +48,11 @@ use Psr\Log\LoggerInterface;
 final readonly class IncomingProtocolSwitch
 {
     public function __construct(
-        private MailboxRepository  $mailboxes,
-        private MessageRepository  $messages,
-        private Pop3UidlRepository $uidls,
-        private LoggerInterface    $logger,
+        private MailboxRepository      $mailboxes,
+        private MessageRepository      $messages,
+        private Pop3UidlRepository     $uidls,
+        private LoggerInterface        $logger,
+        private LabelBindingRepository $bindings,
     ) {
     }
 
@@ -80,9 +82,9 @@ final readonly class IncomingProtocolSwitch
             $mailbox->failedUidAttempts = 0;
 
             // To IMAP: unplanned, so each folder is read like a first one and
-            // its rows are matched as their pages come in. To POP3: finished,
-            // because there is no IMAP import left to do and the tracker would
-            // otherwise show one running for ever.
+            // its rows are matched as their pages come in. To POP3 or JMAP:
+            // finished, because there is no IMAP import left to do and the
+            // tracker would otherwise show one running for ever.
             $mailbox->importFloorUid = $to->isImap() ? null : 0;
         }
 
@@ -92,11 +94,56 @@ final readonly class IncomingProtocolSwitch
 
         $account->pop3Adopting = $to->isPop3();
 
+        $this->switchedJmap($account, $from, $to);
+
         $this->logger->info('Account changed incoming protocol; server addresses dropped, mail kept', [
             'accountId' => $account->id,
             'from'      => $from->value,
             'to'        => $to->value,
             'unlocated' => $unlocated,
         ]);
+    }
+
+    /**
+     * The JMAP half of a switch, in either direction.
+     *
+     * To JMAP: every sync state is dropped so the first JMAP sync plans an
+     * import, and that import recognises the rows the account already holds by
+     * Message-ID and gives them their JMAP ids instead of storing them again —
+     * see JmapEmailSyncer::store(). Push is turned on, as for a JMAP account
+     * created new: its server pushes over the session the account already has.
+     *
+     * From JMAP: the Email ids and the remote mailbox ids go, for the reason
+     * unlocateAll() drops UIDs — they name nothing to the new protocol, and
+     * anything still queued for them must find nothing to act on — and so do
+     * the JMAP states, the import plan and the webhook. The webhook is only
+     * forgotten here, not destroyed on the server: that is a call to a server
+     * the account has just stopped using, and an unrenewed subscription
+     * expires by itself. Push goes off, because IMAP's equivalent is IDLE per
+     * folder, which this switch does not govern.
+     */
+    private function switchedJmap(Account $account, IncomingProtocol $from, IncomingProtocol $to): void
+    {
+        if (false === $from->isJmap() && false === $to->isJmap()) {
+            return;
+        }
+
+        foreach (['Email', 'Mailbox'] as $type) {
+            $account->rememberJmapState($type, null);
+        }
+
+        $account->jmapImport           = null;
+        $account->jmapPushSubscription = null;
+
+        if (true === $to->isJmap()) {
+            $account->pushEnabled = true;
+
+            return;
+        }
+
+        $this->messages->forgetJmapIds($account);
+        $this->bindings->forgetJmapMailboxIds($account);
+
+        $account->pushEnabled = false;
     }
 }

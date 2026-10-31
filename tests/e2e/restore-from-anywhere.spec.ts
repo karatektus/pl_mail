@@ -108,4 +108,28 @@ test.describe("getting mail back", () => {
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible({ timeout: 10_000 });
     });
+
+    // The reading pane had neither of the bin's actions, so mail opened from
+    // Trash could only be got out of it from the list — and a thrown-away
+    // draft, which opens as a mail and in no composer, not at all.
+    test("a trashed conversation opened from the bin offers the way back in its pane", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = await actionsFor(page, INBOX_SUBJECTS.trash);
+        await rowActionAwaited(page, row, "Delete", "/trash");
+
+        await page.goto("/mail/trash");
+        await mailRow(page, INBOX_SUBJECTS.trash).click();
+
+        const toolbar = page.locator('[data-mail--message-actions-entity-type-value="thread"]');
+        await expect(toolbar).toBeVisible({ timeout: 10_000 });
+        await expect(toolbar.getByRole("button", { name: "Delete", exact: true }), "Delete on mail already in the bin").toHaveCount(0);
+
+        const restored = page.waitForResponse((response) => response.url().endsWith("/restore") && response.ok());
+        await toolbar.getByRole("button", { name: /inbox/i }).click();
+        await restored;
+
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.trash)).toBeVisible({ timeout: 10_000 });
+    });
 });

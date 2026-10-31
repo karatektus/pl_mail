@@ -1,0 +1,50 @@
+{#
+mail/_message_filter_check.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What the reader's filters make of one message, in the Details panel's frame.
+Nothing here was done — it is what would happen. See RuleMessageCheck.
+
+Variables: message, rules (see RuleMessageCheck::check)
+#}
+<turbo-frame id="message-filters-{{ message.id }}" class="block">
+    <div class="px-4 py-3 text-xs space-y-2">
+        {% if rules is empty %}
+            <p class="text-ink-faint">{{ 'message.filter_check.none'|trans }}</p>
+        {% else %}
+            <ul class="space-y-1.5">
+                {% for row in rules %}
+                    <li class="flex items-start gap-2">
+                        {% if row.state == 'matches' %}
+                            <i class="fa-solid fa-check text-[10px] mt-1 text-success" aria-hidden="true"></i>
+                        {% elseif row.state == 'broken' %}
+                            <i class="fa-solid fa-triangle-exclamation text-[10px] mt-1 text-warning" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="fa-solid fa-minus text-[10px] mt-1 text-ink-faint" aria-hidden="true"></i>
+                        {% endif %}
+                        <div class="min-w-0">
+                            <span class="{{ row.state == 'matches' ? 'text-ink' : 'text-ink-faint' }} font-medium break-words">{{ row.rule.name }}</span>
+                            <span class="text-ink-faint">
+                                — {{ ('message.filter_check.state.' ~ row.state)|trans({ '%rule%': row.stoppedBy ? row.stoppedBy.name : '' }) }}
+                            </span>
+                            {% if row.actions is not empty %}
+                                <ul class="mt-0.5 space-y-0.5">
+                                    {% for action in row.actions %}
+                                        <li class="text-ink-soft">
+                                            {{ ('settings.filters.action.' ~ action.type)|trans }}
+                                            {%- if action.filing %}
+                                                {%- set filing = action.filing.name %}
+                                                <span class="{{ filing == 'Filed' ? 'text-ink-faint' : 'text-warning' }}">
+                                                    — {{ ('message.filter_check.filing.' ~ filing)|trans({ '%category%': action.category ?? '' }) }}
+                                                </span>
+                                            {%- endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</turbo-frame>

@@ -170,10 +170,8 @@ final class InboundFlagSyncTest extends KernelTestCase
     }
 
     /**
-     * Servers disagree about whether the backslash on a system flag survives
-     * being parsed — webklex hands back `Seen` from some and `\Seen` from
-     * others — and a mirror captured from one must not read as changed against
-     * a listing from the other on every pass forever.
+     * IMAP flags are case-insensitive, and a server that answers `\SEEN` must
+     * not read as changed against the stored `\Seen` on every pass forever.
      *
      * The row is left exactly as it is, which is the assertion: a difference
      * that is only punctuation is not a change, so there is no write, no JMAP
@@ -185,12 +183,12 @@ final class InboundFlagSyncTest extends KernelTestCase
     {
         $message = $this->incoming('Rechnung', 6, seen: true);
 
-        $message->flags = ['Seen'];
+        $message->flags = [MessageFlag::SEEN->value];
         $this->em->flush();
 
-        $this->sweep([6 => ['\\Seen']], now: '2026-08-11 09:00:00');
+        $this->sweep([6 => ['\\SEEN']], now: '2026-08-11 09:00:00');
 
-        self::assertSame(['Seen'], $message->flags, 'not rewritten, because nothing about it differs');
+        self::assertSame([MessageFlag::SEEN->value], $message->flags, 'not rewritten, because nothing about it differs');
         self::assertNotNull($message->seenAt, 'and nothing about the read state moved');
     }
 
@@ -202,10 +200,10 @@ final class InboundFlagSyncTest extends KernelTestCase
     {
         $message = $this->incoming('Rechnung', 6);
 
-        $message->flags = ['Answered'];
+        $message->flags = [MessageFlag::ANSWERED->value];
         $this->em->flush();
 
-        $this->sweep([6 => ['Seen', 'Answered']], now: '2026-08-11 09:00:00');
+        $this->sweep([6 => ['\\SEEN', '\\answered']], now: '2026-08-11 09:00:00');
 
         self::assertSame(
             [MessageFlag::ANSWERED->value, MessageFlag::SEEN->value],

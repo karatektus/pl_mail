@@ -4,6 +4,17 @@ plMail speaks JMAP, so a third-party mail app can read and send through it witho
 provider's credentials. It is also a progressive web app, so the browser you already use can behave
 like an installed client and notify you of new mail with the tab closed.
 
+## The plMail app for Android
+
+The native app is on [Google Play](https://play.google.com/store/apps/details?id=de.pluetzner.plmail)
+as a paid app in early access. The same app is free from the
+[GitHub releases](https://github.com/karatektus/pl_mail_android/releases/latest), which also carry a
+build without any Google code (push through UnifiedPush instead of Firebase). Buying it on Play is,
+for now, the main way this project supports itself.
+
+To connect it, open **Settings → App passwords → Pair a device** and scan the QR code with the app.
+The same panel links to both downloads.
+
 ## Connecting a JMAP client
 
 Two things: an app password, and one URL.

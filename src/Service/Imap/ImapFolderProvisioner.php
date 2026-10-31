@@ -6,14 +6,17 @@ namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Exception\ImapFolderRefusedException;
+use App\Domain\Helper\ImapUtf7Helper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Client;
 
 /**
  * Makes the folder an outgoing move needs, when the server has not got one.
@@ -59,6 +62,10 @@ use Webklex\PHPIMAP\Client;
  * destination, one log line, and the move does not happen. It must never throw,
  * because the caller is a Messenger handler whose retry would re-attempt the
  * same rejected CREATE on a schedule.
+ *
+ * createFolder() is the exception, and the only one: a person typed that name
+ * into a form and is waiting for the answer, so the server's refusal comes back
+ * as ImapFolderRefusedException with the server's own words in it.
  */
 readonly class ImapFolderProvisioner
 {
@@ -92,7 +99,7 @@ readonly class ImapFolderProvisioner
      */
     public function ensureSpecialUse(
         Account           $account,
-        Client            $client,
+        ImapSession            $session,
         MailboxSpecialUse $specialUse,
     ): ?string {
         $existing = $this->mailboxes->findOneBy(['account' => $account, 'specialUse' => $specialUse]);
@@ -108,7 +115,7 @@ readonly class ImapFolderProvisioner
             return null;
         }
 
-        return $this->create($account, $client, $this->pathFor($account, $name), $specialUse);
+        return $this->create($account, $session, $this->pathFor($account, $name), $specialUse);
     }
 
     /**
@@ -119,7 +126,7 @@ readonly class ImapFolderProvisioner
      * prefix and separator are this server's by construction and rebuilding
      * them could only introduce a difference.
      */
-    public function ensureExactPath(Account $account, Client $client, string $path): ?string
+    public function ensureExactPath(Account $account, ImapSession $session, string $path): ?string
     {
         if ('' === $path) {
             return null;
@@ -127,7 +134,56 @@ readonly class ImapFolderProvisioner
 
         $known = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
 
-        return $this->create($account, $client, $path, $known?->specialUse, record: null === $known);
+        return $this->create($account, $session, $path, $known?->specialUse, record: null === $known);
+    }
+
+    /**
+     * Create a folder a person asked for, at a path ImapFolderName built, and
+     * say why not when the server refuses.
+     *
+     * The other two entry points swallow a refusal into null, because their
+     * callers are Messenger handlers that can do nothing with it but retry.
+     * This one is called from a form, where the server's reason is the one
+     * useful thing to show — a quota, a permission, a name it will not take.
+     * A folder that is already there is still success, here as there.
+     *
+     * @throws ImapFolderRefusedException with the server's own words
+     */
+    public function createFolder(Account $account, ImapSession $session, string $path): Mailbox
+    {
+        $known = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
+
+        return $this->createOrThrow($account, $session, $path, $known?->specialUse, record: true)
+            ?? throw new \LogicException('A recorded folder came back without its row.');
+    }
+
+    /**
+     * create() for the background callers: a refusal is logged and is null.
+     */
+    private function create(
+        Account            $account,
+        ImapSession        $session,
+        string             $path,
+        ?MailboxSpecialUse $specialUse,
+        bool               $record = true,
+    ): ?string {
+        try {
+            $this->createOrThrow($account, $session, $path, $specialUse, $record);
+        } catch (ImapFolderRefusedException $e) {
+            // The caller is a Messenger handler. Throwing here would have
+            // it redeliver and re-attempt a CREATE the server has already
+            // refused, on a schedule, forever.
+            $this->logger->error('Could not create the IMAP folder a move needed', [
+                'account'   => $account->id,
+                'folder'    => $path,
+                'error'     => $e->reason,
+                'exception' => $e,
+            ]);
+
+            return null;
+        }
+
+        return $path;
     }
 
     /**
@@ -141,18 +197,22 @@ readonly class ImapFolderProvisioner
      * Recording it here means the destination exists in both places the moment
      * the CREATE returns, which is what the Gmail and Graph handlers do with
      * the ids they mint.
+     *
+     * @return Mailbox|null the recorded row, or null when $record was false
+     *
+     * @throws ImapFolderRefusedException
      */
-    private function create(
+    private function createOrThrow(
         Account            $account,
-        Client             $client,
+        ImapSession        $session,
         string             $path,
         ?MailboxSpecialUse $specialUse,
-        bool               $record = true,
-    ): ?string {
+        bool               $record,
+    ): ?Mailbox {
         $created = true;
 
         try {
-            $client->createFolder($path, expunge: false);
+            $session->create($path);
         } catch (Throwable $e) {
             // A FOLDER THAT IS ALREADY THERE IS NOT A FAILURE.
             //
@@ -174,17 +234,11 @@ readonly class ImapFolderProvisioner
             // matters here — the folder exists on the server and NOT in our
             // database, which is precisely why the caller could not resolve it.
             if (false === $this->alreadyExists($e)) {
-                // The caller is a Messenger handler. Throwing here would have
-                // it redeliver and re-attempt a CREATE the server has already
-                // refused, on a schedule, forever.
-                $this->logger->error('Could not create the IMAP folder a move needed', [
-                    'account'   => $account->id,
-                    'folder'    => $path,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
-
-                return null;
+                // Anything else is the server's answer, and kept as it said
+                // it: create() logs it, createFolder() shows it to the person
+                // who asked. It used to be logged and dropped here, so a form
+                // could only ever say "it did not work".
+                throw ImapFolderRefusedException::fromServer($path, $e);
             }
 
             $created = false;
@@ -203,7 +257,7 @@ readonly class ImapFolderProvisioner
         // already-exists path too: a folder somebody made elsewhere may be
         // unsubscribed for this account, and subscribing it is free.
         try {
-            $client->getConnection()->subscribeFolder($path);
+            $session->subscribe($path);
         } catch (Throwable $e) {
             // Worth a line and not worth failing over: the folder exists and
             // the mail can be moved into it either way.
@@ -215,21 +269,18 @@ readonly class ImapFolderProvisioner
             ]);
         }
 
-        if (true === $record) {
-            $this->record($account, $path, $specialUse, $created);
-        }
-
-        return $path;
+        return true === $record
+            ? $this->record($account, $path, $specialUse, $created)
+            : null;
     }
 
     /**
      * @param bool $empty whether this folder was made just now, by the CREATE
      *                    above, and so cannot have anything in it to import
      */
-    private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse, bool $empty): void
+    private function record(Account $account, string $path, ?MailboxSpecialUse $specialUse, bool $empty): Mailbox
     {
         $separator = $this->separatorFor($account);
-        $segments  = explode($separator, $path);
 
         // Reused rather than built, when there is already a row for this path.
         //
@@ -242,14 +293,16 @@ readonly class ImapFolderProvisioner
         $mailbox = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
 
         if (null !== $mailbox) {
-            $this->bind($account, $mailbox, $segments, $specialUse);
+            $this->bind($account, $mailbox, $specialUse);
 
-            return;
+            return $mailbox;
         }
 
         $mailbox = new Mailbox();
         $mailbox->account       = $account;
-        $mailbox->name          = (string) end($segments);
+        // The leaf as a person reads it — "Köln", not "K&APY-ln" — which is
+        // what MailboxSyncer stores from ImapFolder::name().
+        $mailbox->name          = self::leafName($path, $separator);
         $mailbox->fullPath      = $path;
         $mailbox->delimiter     = $separator;
         $mailbox->specialUse    = $specialUse;
@@ -273,7 +326,9 @@ readonly class ImapFolderProvisioner
         // has to be managed by then or the binding's FK points at nothing.
         $this->em->persist($mailbox);
 
-        $this->bind($account, $mailbox, $segments, $specialUse);
+        $this->bind($account, $mailbox, $specialUse);
+
+        return $mailbox;
     }
 
     /**
@@ -285,23 +340,27 @@ readonly class ImapFolderProvisioner
      * so recording the mailbox without binding it would fix half of the problem
      * and leave the move with nowhere to go a second time.
      *
-     * @param list<string> $segments
+     * The same rule a sync applies (LabelResolver::linkFolder()), so the label
+     * this gives a folder is the one the next sync keeps.
      */
-    private function bind(
-        Account            $account,
-        Mailbox            $mailbox,
-        array              $segments,
-        ?MailboxSpecialUse $specialUse,
-    ): void {
-        $label = null !== $specialUse
-            ? $this->labels->systemLabel(LabelRole::fromSpecialUse($specialUse), $account)
-            : $this->labels->customChain($segments, $account);
+    private function bind(Account $account, Mailbox $mailbox, ?MailboxSpecialUse $specialUse): void
+    {
+        $mailbox->specialUse ??= $specialUse;
 
-        if (null !== $label) {
-            $this->labels->bindMailbox($label, $mailbox);
-        }
+        $this->labels->linkFolder($mailbox, $account);
 
         $this->em->flush();
+    }
+
+    /**
+     * The last segment of a raw path, decoded: "INBOX.K&APY-ln" is "Köln".
+     */
+    private static function leafName(string $path, string $separator): string
+    {
+        $cut  = '' === $separator ? false : strrpos($path, $separator);
+        $leaf = false === $cut ? $path : substr($path, $cut + strlen($separator));
+
+        return ImapUtf7Helper::decode($leaf);
     }
 
     /**
@@ -319,10 +378,12 @@ readonly class ImapFolderProvisioner
      */
     private function alreadyExists(Throwable $e): bool
     {
-        $message = mb_strtolower($e->getMessage());
+        if (false === $e instanceof ImapCommandException) {
+            return false;
+        }
 
-        return str_contains($message, 'alreadyexists')
-            || str_contains($message, 'already exists');
+        return 'ALREADYEXISTS' === $e->response->code
+            || true === str_contains(mb_strtolower($e->response->text), 'already exists');
     }
 
     /**

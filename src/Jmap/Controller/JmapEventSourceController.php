@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Controller;
 
+use App\Domain\Helper\RequestTimeLimit;
 use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -71,7 +72,7 @@ final class JmapEventSourceController extends AbstractController
         // sleep() below with a MaxExecutionTimeError, logged CRITICAL, once per
         // client reconnect. The lifetime this stream is designed for is the one
         // that should bound it; the margin leaves room for the final write.
-        set_time_limit(self::MAX_LIFETIME_SECONDS + 30);
+        RequestTimeLimit::hold(self::MAX_LIFETIME_SECONDS + 30);
 
         $started = time();
         $lastPing = $started;

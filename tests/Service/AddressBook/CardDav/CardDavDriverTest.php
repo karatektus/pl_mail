@@ -267,6 +267,9 @@ final class CardDavDriverTest extends TestCase
         self::assertSame('ctag-8', $changes->syncToken, 'the ctag read before the listing');
         self::assertCount(1, $changes->cards);
         self::assertStringContainsString('addressbook-query', $fixture->body(1));
+        // Required by RFC 6352, and "allof" with no tests is what passes every
+        // card: go-webdav answers "anyof" over no tests with no cards (#350).
+        self::assertStringContainsString('<card:filter test="allof"/>', $fixture->body(1));
     }
 
     // ── Writes ────────────────────────────────────────────────────────────────

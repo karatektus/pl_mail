@@ -8,13 +8,22 @@
    The toggle answers with this same partial, so the frame replaces itself and
    nothing else on the page moves.
 
-   The name is the folder's label name, as the sidebar and the Labels list
-   print it, so a system folder reads "Drafts" or "Entwürfe" here exactly as it
-   does there; the stored name is only the fallback for a folder with no label.
+   A system folder reads by its label name, as the sidebar prints it, so it is
+   "Drafts" or "Entwürfe" here exactly as it is there. Every other folder reads
+   by its own name on the server (Mailbox::$name, decoded): this list mirrors
+   the account's tree, and a label renamed in plMail is a label, not the folder
+   (#221).
 
    The inbox gets the control but disabled and with no form behind it: it is
    always synced, and a switch that is simply absent would leave the row
    looking unfinished next to its siblings.
+
+   The bolt beside the switch is IDLE (#202): whether the IMAP listener holds
+   a connection on this folder, so new mail arrives at once instead of at the
+   account's next poll. It can be pressed on the inbox too. On a folder that
+   is not synced it is greyed out and cannot be pressed, because the listener
+   only watches synced folders; its setting is kept for when the folder is
+   synced again.
 
    A folder the server will not open (\Noselect — a placeholder that only
    groups other folders) gets the same treatment the other way round: off,
@@ -45,8 +54,16 @@
 {% set ICON_HALF = 7 %}
 {% set isInbox = mailbox.specialUse is same as enum('App\\Domain\\Enum\\Mail\\MailboxSpecialUse').INBOX %}
 {% set isPlaceholder = false == mailbox.isSelectable %}
-{% set folderName = mailbox.label ? mailbox.label|label_name : mailbox.name %}
+{% set protected = isInbox or mailbox.specialUse is not null or mailbox.fullPath|upper == 'INBOX' %}
+{% set folderName = mailbox.label and mailbox.specialUse ? mailbox.label|label_name : mailbox.name %}
 {% set enabled = mailbox.isSyncEnabled and false == isPlaceholder %}
+{% set canIdle = enabled %}
+{% set idleOn = mailbox.isIdleEnabled and canIdle %}
+{% set idleLabel = canIdle
+    ? (idleOn
+        ? 'settings.accounts.folders.stop_idle'|trans({ '%folder%': folderName })
+        : 'settings.accounts.folders.start_idle'|trans({ '%folder%': folderName }))
+    : 'settings.accounts.folders.idle_needs_sync'|trans({ '%folder%': folderName }) %}
 {% set switchLabel = isInbox
     ? 'settings.accounts.folders.always_synced'|trans
     : (isPlaceholder
@@ -81,6 +98,49 @@
           {% if isPlaceholder %}data-folder-placeholder{% endif %}>
         {{ folderName }}
     </span>
+
+    {% if canIdle %}
+        <form method="post" action="{{ path('settings_account_folder_idle_toggle', { id: account.id, mailbox: mailbox.id }) }}" class="contents" data-ui--modal-keep-open>
+            <input type="hidden" name="_token" value="{{ csrf_token('account_folder_idle_' ~ mailbox.id) }}">
+            <button type="submit"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                    aria-label="{{ idleLabel }}" title="{{ idleLabel }}" aria-pressed="{{ idleOn ? 'true' : 'false' }}"
+                    data-idle-switch="{{ idleOn ? 'on' : 'off' }}">
+                <i class="fa-solid fa-bolt text-xs {{ idleOn ? 'text-warning' : 'opacity-40' }}" aria-hidden="true"></i>
+            </button>
+        </form>
+    {% else %}
+        <button type="button" disabled
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="{{ idleLabel }}" title="{{ idleLabel }}" data-idle-switch="unavailable">
+            <i class="fa-solid fa-bolt text-xs opacity-40" aria-hidden="true"></i>
+        </button>
+    {% endif %}
+
+    {# Rename and delete (#221), for the folders that are the person's own.
+       The inbox and the special-use folders get neither: plMail never renames
+       or deletes them (ImapFolderManager::isProtected()). Both answer with the
+       whole modal, so they target it rather than this row's frame. #}
+    {% if not protected %}
+        <a href="{{ path('settings_account_folder_rename_form', { id: account.id, mailbox: mailbox.id }) }}"
+           data-turbo-frame="modal" data-folder-rename
+           class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors"
+           aria-label="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': folderName }) }}"
+           title="{{ 'settings.accounts.folders.rename.button'|trans({ '%folder%': folderName }) }}">
+            <i class="fa-solid fa-pen text-[10px]" aria-hidden="true"></i>
+        </a>
+        <form method="post" action="{{ path('settings_account_folder_delete', { id: account.id, mailbox: mailbox.id }) }}"
+              class="contents" data-turbo-frame="modal" data-ui--modal-keep-open data-folder-delete
+              data-turbo-confirm="{{ 'settings.accounts.folders.delete.confirm'|trans({ '%folder%': folderName }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('account_folder_delete_' ~ mailbox.id) }}">
+            <button type="submit"
+                    class="w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-hover transition-colors cursor-pointer"
+                    aria-label="{{ 'settings.accounts.folders.delete.button'|trans({ '%folder%': folderName }) }}"
+                    title="{{ 'settings.accounts.folders.delete.button'|trans({ '%folder%': folderName }) }}">
+                <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
+            </button>
+        </form>
+    {% endif %}
 
     {% if isInbox or isPlaceholder %}
         <button type="button" disabled

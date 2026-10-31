@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\MessageParser;
 use App\Service\Imap\MessageSyncer;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\DateTimeImmutableType;
@@ -119,7 +119,7 @@ final class MessageDateStorageTest extends TestCase
      */
     public function testAnUnparseableDateStillImports(): void
     {
-        $config = Config::make(['options' => ['fallback_date' => ImapConnectionFactory::UNPARSEABLE_DATE]]);
+        $config = Config::make(['options' => ['fallback_date' => MessageParser::UNPARSEABLE_DATE]]);
         $header = new Header("Date: sometime last tuesday-ish\r\nSubject: Test\r\n", $config);
         $now    = new \DateTimeImmutable('2026-09-23 12:00:00 UTC');
 

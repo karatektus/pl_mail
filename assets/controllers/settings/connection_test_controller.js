@@ -1,7 +1,8 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Probes the currently entered IMAP/SMTP settings without saving them.
+ * Probes the currently entered incoming and outgoing settings — IMAP, POP3
+ * or JMAP, and SMTP — without saving them.
  *
  * Inputs are resolved by name suffix (account[imapHost] → imapHost) so the
  * controller needs no per-field target attributes of its own.
@@ -62,6 +63,12 @@ export default class extends Controller {
             smtpHost: this._value("smtpHost"),
             smtpPort: this._value("smtpPort"),
             smtpEncryption: this._value("smtpEncryption"),
+            // Which protocol the account speaks decides what the server
+            // probes, so the checked radio travels too, with the two JMAP
+            // fields that only mean something when it is JMAP.
+            incomingProtocol: this._checked("incomingProtocol"),
+            jmapSessionUrl: this._value("jmapSessionUrl"),
+            jmapTokenAuth: this.element.querySelector('[name$="[jmapTokenAuth]"]')?.checked === true,
         };
 
         // A second password for sending, only while the form is asking for
@@ -90,6 +97,12 @@ export default class extends Controller {
         }
 
         return field.value.trim();
+    }
+
+    _checked(name) {
+        const field = this.element.querySelector(`[name$="[${name}]"]:checked`);
+
+        return field === null ? "" : field.value;
     }
 
     _setBusy(busy) {

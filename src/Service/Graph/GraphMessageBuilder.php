@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
@@ -13,7 +14,6 @@ use App\Service\Crypto\MessageCryptoDetector;
 use App\Service\Mail\HeaderNormalizer;
 use App\Service\Mail\InlineAttachmentDetector;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Converts a Microsoft Graph message resource into a Message entity.
@@ -59,7 +59,6 @@ final class GraphMessageBuilder
     public const string MEETING_TYPE_HEADER = 'x-plmail-meeting-message-type';
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
         private readonly GraphFolderResolver    $folderResolver,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly HeaderNormalizer       $headerNormalizer,
@@ -170,7 +169,7 @@ final class GraphMessageBuilder
             $flags[] = '\\Draft';
         }
 
-        $message->flags = $flags;
+        $message->flags = MessageFlag::canonicalList($flags);
 
         // ── Labels ────────────────────────────────────────────────────────────
         // Exchange messages live in exactly one folder, so there is exactly one
@@ -185,6 +184,13 @@ final class GraphMessageBuilder
         }
 
         $categories = array_values(array_map('strval', $payload['categories'] ?? []));
+
+        // What Exchange holds now, for telling a later change made in Outlook
+        // from one plMail made (#221 step 4). Only when the payload said: a
+        // listing without `categories` is not "none".
+        if (true === array_key_exists('categories', $payload)) {
+            $message->graphCategories = $categories;
+        }
 
         foreach ($this->folderResolver->resolveCategories($categories, $account) as $categoryLabel) {
             $message->addLabel($categoryLabel);
@@ -281,7 +287,7 @@ final class GraphMessageBuilder
             $part->storagePath = 'msgraph://' . $attachmentId;
             $part->isInline    = $isInline;
 
-            $this->em->persist($part);
+            $message->addMessagePart($part);
 
             if (false === $isInline) {
                 $found = true;

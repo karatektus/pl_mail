@@ -170,7 +170,7 @@ final class GoogleDriveDriver extends AbstractOAuthDriver implements SearchableD
 
         $response = $this->request($integration, 'GET', self::API.'/files/'.rawurlencode($fileId), [
             'query' => ['alt' => 'media', 'supportsAllDrives' => 'true'],
-        ]);
+        ] + HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -216,7 +216,7 @@ final class GoogleDriveDriver extends AbstractOAuthDriver implements SearchableD
                 'Content-Type' => 'multipart/related; boundary='.$form->getPreparedHeaders()->getHeaderParameter('Content-Type', 'boundary'),
             ],
             'body' => $form->bodyToIterable(),
-        ]);
+        ] + HttpLimits::transfer());
 
         $id = $this->stringOrNull($payload['id'] ?? null);
 
@@ -260,7 +260,7 @@ final class GoogleDriveDriver extends AbstractOAuthDriver implements SearchableD
         // our bearer token — sending one would be rejected as a mismatched
         // credential.
         try {
-            $response = $this->httpClient->request('GET', $link);
+            $response = $this->httpClient->request('GET', $link, HttpLimits::CALL);
 
             if (200 !== $response->getStatusCode()) {
                 return null;

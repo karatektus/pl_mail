@@ -373,14 +373,17 @@ final class WritingStreamTest extends KernelTestCase
     /**
      * The REAL recorder over a Connection that remembers instead of writing.
      *
-     * A stub would have made every assertion above impossible — the whole
-     * subject of this file is how many rows exist and what is in them. The real
-     * class rather than a fake so that a change to its constructor or its
-     * parameter names breaks here, where it is cheap.
+     * A stub that only answered would have made every assertion above
+     * impossible — the whole subject of this file is how many rows exist and
+     * what is in them — so this one keeps what it is given. A stub rather than
+     * a mock all the same: nothing is expected of the Connection itself, the
+     * rows are what is checked, and PHPUnit flags a mock with no expectations.
+     * The real class rather than a fake so that a change to its constructor or
+     * its parameter names breaks here, where it is cheap.
      */
     private function recorder(): AiCallRecorder
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
 
         $connection
             ->method('executeStatement')

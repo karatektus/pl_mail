@@ -57,7 +57,7 @@ fields belong to the surrounding form, and HTML has no nested forms.
                             data-ui--modal-src-value="{{ path('app_integration_browse', { id: source.id, mode: 'avatar' }) }}"
                             data-action="click->ui--modal#open"
                             class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-sm font-medium border transition-colors cursor-pointer
-                                   border-field bg-field text-ink-soft hover:bg-hover">
+                                   border-field-border bg-field text-ink-soft hover:bg-hover">
                         <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
                         {{ source.name }}
                     </button>
@@ -70,7 +70,7 @@ fields belong to the surrounding form, and HTML has no nested forms.
                               {% if isOpen %}
                                 border-accent bg-accent/10 text-accent
                               {% else %}
-                                border-field bg-field text-ink-soft hover:bg-hover
+                                border-field-border bg-field text-ink-soft hover:bg-hover
                               {% endif %}">
                         <i class="{{ source.provider.icon }} text-xs" aria-hidden="true"></i>
                         {{ source.name }}

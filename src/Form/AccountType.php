@@ -12,6 +12,7 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -19,6 +20,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Constraints\Url;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class AccountType extends AbstractType
@@ -77,13 +79,14 @@ class AccountType extends AbstractType
             // and what port they start on. Not mapped to a setting but to the
             // column itself: this is what every syncer branches on.
             //
-            // The choices are a plain radio pair rather than a dropdown. There
-            // are two, they are mutually exclusive, and the one that is not
-            // the default is the whole reason somebody opens this form.
+            // The choices are plain radios rather than a dropdown. There are
+            // three, they are mutually exclusive, and the ones that are not
+            // the default are the whole reason somebody opens this form.
             ->add('incomingProtocol', ChoiceType::class, [
                 'choices'  => [
                     'account.form.protocol.imap' => IncomingProtocol::Imap,
                     'account.form.protocol.pop3' => IncomingProtocol::Pop3,
+                    'account.form.protocol.jmap' => IncomingProtocol::Jmap,
                 ],
                 'choice_value' => static fn (?IncomingProtocol $protocol): string => $protocol->value ?? '',
                 'expanded'     => true,
@@ -121,6 +124,26 @@ class AccountType extends AbstractType
                 'label'        => 'account.form.pop3.delete_label',
                 'help'         => 'account.form.pop3.delete_help',
                 'attr'         => ['class' => 'form-select'],
+            ])
+            ->add('jmapSessionUrl', UrlType::class, [
+                // Rendered only for a JMAP account, like pop3DeleteMode for a
+                // POP3 one. Mapped to the virtual property, which keeps it in
+                // the settings bag: blank — nearly always — means the session
+                // is found at the well-known path on the host above.
+                'required'         => false,
+                'default_protocol' => 'https',
+                'label'            => 'account.form.jmap.session_url',
+                'help'             => 'account.form.jmap.session_url_help',
+                'attr'             => [
+                    'placeholder' => 'https://mail.example.com/jmap/session',
+                    'class'       => 'form-input',
+                ] + PasswordManagerIgnore::ATTR,
+                'constraints'      => [new Url(protocols: ['https'], requireTld: false)],
+            ])
+            ->add('jmapTokenAuth', CheckboxType::class, [
+                'required' => false,
+                'label'    => 'account.form.jmap.token_auth',
+                'help'     => 'account.form.jmap.token_auth_help',
             ])
             ->add('imapHost', TextType::class, [
                 'attr' => [

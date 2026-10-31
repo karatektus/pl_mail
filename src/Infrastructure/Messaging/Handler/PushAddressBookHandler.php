@@ -6,6 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Repository\AddressBook\AddressBookRepository;
@@ -62,6 +63,13 @@ final readonly class PushAddressBookHandler
             }
 
             return;
+        } catch (CalendarSyncThrottledException $e) {
+            // Rethrown without a line of its own. GiveUpQuietlyOnThrottling
+            // puts the job back to wait out the quota and logs that at info;
+            // an ERROR here, on top, was the loudest of three reports of a
+            // provider being busy for a minute (#435). The failure is still
+            // written on the book for the settings list.
+            throw $e;
         } catch (CalendarSyncException $e) {
             if ($error !== $e->getMessage()) {
                 $this->logger->error('AddressBookSync: push failed', [

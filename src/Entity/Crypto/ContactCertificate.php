@@ -31,7 +31,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_contact_certificate_address_fingerprint', columns: ['usr_id', 'email', 'fingerprint'])]
 // At most one certificate in use per address, for the reason ContactKey gives
 // for its own index of the same shape.
-#[ORM\UniqueConstraint(name: 'uniq_contact_certificate_current', columns: ['usr_id', 'email'], options: ['where' => "status = 'current'"])]
+#[ORM\UniqueConstraint(name: 'uniq_contact_certificate_current', columns: ['usr_id', 'email'], options: ['where' => "((status)::text = 'current'::text)"])]
 #[ORM\HasLifecycleCallbacks]
 class ContactCertificate
 {

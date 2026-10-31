@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Pop3\Pop3ConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use App\Service\Imap\ImapDeadline;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\SmtpDsnFactory;
-use PHPUnit\Framework\TestCase;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\Mailer\Transport\Dsn;
 use Symfony\Component\Translation\IdentityTranslator;
 
@@ -20,7 +24,7 @@ use Symfony\Component\Translation\IdentityTranslator;
  * take a hostname or an IP and nothing that parses as more URL; and a failed
  * connection test says what kind of failure it was, not what the server said.
  */
-final class MailServerHostTest extends TestCase
+final class MailServerHostTest extends KernelTestCase
 {
     public function testAHostCarryingDsnOptionsIsRefusedBeforeItReachesTheDsn(): void
     {
@@ -59,14 +63,14 @@ final class MailServerHostTest extends TestCase
         $account->smtpHost = 'smtp.example.com';
         $account->smtpPort = 587;
 
-        $imap = $this->createStub(ImapConnectionFactory::class);
-        $imap->method('connect')->willThrowException(new \RuntimeException(
-            'connection setup failed',
-            0,
-            new \RuntimeException('* OK Dovecot (Ubuntu) 2.3.16 ready, AUTHENTICATIONFAILED Authentication failed.'),
-        ));
+        // A server that talks about itself in its refusal, as Dovecot does.
+        self::bootKernel();
 
-        $result = new ConnectionTester($imap, new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger(), new Pop3ConnectionFactory(new ImapDeadline(new NullLogger())))->test($account);
+        $server = new FakeImapServer(static::getContainer()->get(ImapLoop::class), capabilities: 'IMAP4rev1 Dovecot-2.3.16');
+        $server->on('LOGIN', static fn (): array => ['NO [AUTHENTICATIONFAILED] Dovecot (Ubuntu) 2.3.16: Authentication failed.']);
+        $server->pointAt($account);
+
+        $result = new ConnectionTester(static::getContainer()->get(ImapConnector::class), new SmtpDsnFactory(), new IdentityTranslator(), new NullLogger(), new Pop3ConnectionFactory(new ImapDeadline(new NullLogger())), new JmapClient(new MockHttpClient()))->test($account);
 
         self::assertFalse($result->imapOk);
         self::assertSame('account.test.result.auth', $result->imapMessage);

@@ -18,11 +18,11 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
@@ -190,6 +190,7 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
                 $this->createStub(LabelRepository::class),
                 new GraphLabelPolicy(),
                 new NullLogger(),
+                $this->createStub(MessageRepository::class),
             ),
             new ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
             $integrationRepository,
@@ -199,10 +200,10 @@ final class RuleActionExecutorIntegrationActionTest extends TestCase
             // about attachments.
             new RuleCategoryFiler(
                 $this->createStub(InboxCategoryRepository::class),
-                new SenderAuthentication(),
                 $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),
+            new GraphLabelPolicy(),
         );
     }
 

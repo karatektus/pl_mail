@@ -4,29 +4,27 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
-use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\MessageIdHelper;
-use App\Service\Imap\ImapFolderProvisioner;
-use App\Service\Imap\ImapQuery;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Infrastructure\ImapClient\Exception\ImapAuthenticationException;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\Exception\ImapConnectionException;
+use App\Infrastructure\ImapClient\ImapFolder;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
-use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapConnector;
+use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
-use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
-use Webklex\PHPIMAP\Exceptions\ImapServerErrorException;
-use Webklex\PHPIMAP\Folder;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 /**
  * Outgoing IMAP state sync.
@@ -66,11 +64,12 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  *
  * A successful move ends by writing the destination UID back onto the row, so
  * the row is addressable again immediately rather than at the next sync of the
- * destination. The write-back is checked against the Message-ID first —
- * webklex predicts the new UID from the folder's UIDNEXT, which is a
- * prediction, and adopting an unverified prediction would point the row at
- * some other message that happened to land in the meantime. Unverified, the
- * row simply stays unlocated, which costs a sync and nothing else.
+ * destination. The UID is the server's own, from COPYUID (RFC 4315), which
+ * MOVE and COPY answer with on every server with UIDPLUS. Where a server does
+ * not say, the destination is searched for the Message-ID and a copy is only
+ * adopted once its Message-ID is seen to match: a row pointing at somebody
+ * else's mail is worse than one with no address, which costs a sync and
+ * nothing else.
  *
  * ## A UID that is not there any more
  *
@@ -106,16 +105,21 @@ final class ApplyImapFlagsHandler
     // — the same reason 'archive' and 'trash' are their own actions.
     private const array MOVE_ACTIONS = ['archive', 'trash', 'restore', 'move'];
 
+    /** The flag each in-place action sets or clears. */
+    private const array FLAG_ACTIONS = [
+        'flag'   => ['+', '\\Flagged'],
+        'unflag' => ['-', '\\Flagged'],
+        'seen'   => ['+', '\\Seen'],
+        'unseen' => ['-', '\\Seen'],
+    ];
+
     public function __construct(
         private readonly MessageRepository      $messageRepository,
         private readonly MailboxRepository      $mailboxRepository,
         private readonly LoggerInterface        $logger,
-        private readonly ImapConnectionFactory  $imapConnectionFactory,
+        private readonly ImapConnector          $connector,
         private readonly EntityManagerInterface $em,
         private readonly ImapFolderProvisioner  $folders,
-        // Appended rather than placed where it reads best: the existing tests
-        // construct this positionally, and inserting a parameter silently
-        // shifts every argument after it into the wrong slot.
         private readonly AccountRepository      $accountRepository,
     ) {}
 
@@ -136,23 +140,38 @@ final class ApplyImapFlagsHandler
     {
         $this->refusedThisRun = [];
 
-        $messages = $this->messageRepository->findBy(['id' => array_keys($message->messageIds)]);
+        $addresses = $message->addressesByMailbox();
+        $ids       = [];
+
+        foreach ($addresses as $pairs) {
+            foreach ($pairs as [$messageId]) {
+                $ids[$messageId] = true;
+            }
+        }
+
+        $messages = [];
+
+        foreach ($this->messageRepository->findBy(['id' => array_keys($ids)]) as $found) {
+            $messages[(int) $found->id] = $found;
+        }
 
         if (count($messages) === 0) {
             $this->logger->warning('ApplyImapFlagsHandler: no messages found', [
-                'ids'    => array_keys($message->messageIds),
+                'ids'    => array_keys($ids),
                 'action' => $message->action,
             ]);
 
             return;
         }
 
-        /** @var array<int, array<int, Message[]>> $byAccount  accountId → sourceMailboxId → Message[] */
+        // Folder by folder, each copy with the UID it has there: one per
+        // message for a move, every copy for a flag (#415). A UID of null is
+        // an envelope from before UIDs travelled; see processMailbox().
+        /** @var array<int, array<int, list<array{Message, int|null}>>> $byAccount  accountId → sourceMailboxId → [message, UID] */
         $byAccount = [];
 
-        foreach ($messages as $msg) {
-            $sourceMailboxId = $message->messageIds[$msg->id];
-            $sourceMailbox   = $this->mailboxRepository->find($sourceMailboxId);
+        foreach ($addresses as $sourceMailboxId => $pairs) {
+            $sourceMailbox = $this->mailboxRepository->find($sourceMailboxId);
 
             if (null === $sourceMailbox) {
                 $this->logger->warning('ApplyImapFlagsHandler: source mailbox not found', [
@@ -161,9 +180,13 @@ final class ApplyImapFlagsHandler
                 continue;
             }
 
-            $accountId = $sourceMailbox->account->id;
+            foreach ($pairs as [$messageId, $uid]) {
+                $msg = $messages[$messageId] ?? null;
 
-            $byAccount[$accountId][$sourceMailboxId][] = $msg;
+                if (null !== $msg) {
+                    $byAccount[$sourceMailbox->account->id][$sourceMailboxId][] = [$msg, 0 === $uid ? null : $uid];
+                }
+            }
         }
 
         foreach ($byAccount as $accountId => $byMailbox) {
@@ -171,10 +194,14 @@ final class ApplyImapFlagsHandler
             $account        = $this->mailboxRepository->find($firstMailboxId)->account;
 
             try {
-                $client = $this->imapConnectionFactory->connect($account);
-                $this->processAccount($client, $account, $byMailbox, $message);
-                $client->disconnect();
-            } catch (ConnectionFailedException | ImapServerErrorException $e) {
+                $session = $this->connector->session($account);
+
+                try {
+                    $this->processAccount($session, $account, $byMailbox, $message);
+                } finally {
+                    $session->logout();
+                }
+            } catch (ImapConnectionException $e) {
                 // The one failure worth redelivering for. See the class
                 // docblock: nothing was applied, and nothing else will ever
                 // come looking for it.
@@ -187,12 +214,17 @@ final class ApplyImapFlagsHandler
 
                 throw $e;
             } catch (Throwable $e) {
-                $this->logger->error('ApplyImapFlagsHandler: IMAP error', [
-                    'accountId' => $accountId,
-                    'action'    => $message->action,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
+                // A refused login lands here, deliberately: see the class
+                // docblock on why it is not retried.
+                $this->logger->error(
+                    $e instanceof ImapAuthenticationException ? 'ApplyImapFlagsHandler: login refused' : 'ApplyImapFlagsHandler: IMAP error',
+                    [
+                        'accountId' => $accountId,
+                        'action'    => $message->action,
+                        'error'     => $e->getMessage(),
+                        'exception' => $e,
+                    ],
+                );
 
                 $this->refusedThisRun[$accountId] ??= $e->getMessage();
             }
@@ -205,10 +237,10 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param array<int, Message[]> $byMailbox  sourceMailboxId → Message[]
+     * @param array<int, list<array{Message, int|null}>> $byMailbox  sourceMailboxId → [message, UID]
      */
     private function processAccount(
-        Client                $client,
+        ImapSession           $session,
         Account               $account,
         array                 $byMailbox,
         ApplyImapFlagsMessage $envelope,
@@ -217,7 +249,7 @@ final class ApplyImapFlagsHandler
         $destinationPath = $envelope->destinationPath;
 
         if (true === in_array($action, ['archive', 'trash', 'restore'], true)) {
-            $destinationPath = $this->resolveDestinationPath($client, $account, $action);
+            $destinationPath = $this->resolveDestinationPath($session, $account, $action);
         }
 
         // An explicit move names a folder plMail has a row for, which is not
@@ -226,7 +258,7 @@ final class ApplyImapFlagsHandler
         // message with nothing that says why. Making it is cheaper than losing
         // the move, and it is the same folder the row already describes.
         if ('move' === $action && null !== $destinationPath) {
-            $destinationPath = $this->ensureDestinationExists($client, $account, $destinationPath);
+            $destinationPath = $this->ensureDestinationExists($session, $account, $destinationPath);
         }
 
         $needsDestination = in_array($action, self::MOVE_ACTIONS, true);
@@ -248,7 +280,11 @@ final class ApplyImapFlagsHandler
             }
 
             try {
-                $this->processMailbox($client, $sourceMailbox, $messages, $envelope, $destinationPath);
+                $this->processMailbox($session, $sourceMailbox, $messages, $envelope, $destinationPath);
+            } catch (ImapConnectionException $e) {
+                // Not about this folder: every later one would fail the same
+                // way. Out to the account level, which redelivers.
+                throw $e;
             } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: mailbox error', [
                     'mailboxId' => $sourceMailboxId,
@@ -261,10 +297,10 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages each with its UID here
      */
     private function processMailbox(
-        Client                $client,
+        ImapSession           $session,
         Mailbox               $sourceMailbox,
         array                 $messages,
         ApplyImapFlagsMessage $envelope,
@@ -276,28 +312,33 @@ final class ApplyImapFlagsHandler
             return;
         }
 
-        $folder = ImapFolderLocator::of($client, $sourceMailbox);
+        $path = $sourceMailbox->serverPath();
 
-        if (null === $folder) {
+        try {
+            $session->select($path);
+        } catch (ImapCommandException $refused) {
             $this->logger->warning('ApplyImapFlagsHandler: source folder not found on server', [
-                'mailbox' => $sourceMailbox->name,
+                'mailbox' => $path,
+                'error'   => $refused->getMessage(),
             ]);
 
             return;
         }
 
-        foreach ($messages as $msg) {
+        foreach ($messages as [$msg, $uid]) {
             // Envelope first: the row's own UID is cleared the moment a move is
             // queued, so for every move this is the only surviving copy of the
             // source address. The fallback carries envelopes queued before that.
-            $uid = $envelope->sourceUidFor((int) $msg->id) ?? $msg->imapUid;
+            $uid ??= $msg->imapUid;
 
             if (null === $uid) {
                 continue;
             }
 
             try {
-                $this->applyToMessage($client, $folder, $msg, $uid, $envelope->action, $destinationPath);
+                $this->applyToMessage($session, $sourceMailbox, $msg, $uid, $envelope->action, $destinationPath);
+            } catch (ImapConnectionException $e) {
+                throw $e;
             } catch (Throwable $e) {
                 $this->logger->error('ApplyImapFlagsHandler: per-message error', [
                     'messageId' => $msg->id,
@@ -311,7 +352,7 @@ final class ApplyImapFlagsHandler
                 // at all: the flag is already set HERE and the server refused
                 // it, so plMail and the mailbox now disagree and the next sync
                 // decides in the server's favour. Nothing said so.
-                $accountId = $msg->account?->id;
+                $accountId = $msg->account->id;
 
                 if (null !== $accountId) {
                     $this->refusedThisRun[(int) $accountId] ??= $e->getMessage();
@@ -321,29 +362,21 @@ final class ApplyImapFlagsHandler
     }
 
     /**
-     * A move into the folder the messages are already in: nothing to send, and
-     * the rows get their address back.
+     * A move into the folder the messages are already in: nothing to send.
+     * (Sending the MOVE anyway once failed outright, #269, and is a wasted
+     * command at best.)
      *
-     * Not merely a wasted command. webklex's move() opens the destination,
-     * EXAMINEs it, then opens the source again — and Client::openFolder() skips
-     * the SELECT when that folder is the one already open. With source and
-     * destination the same, the connection is left read-only and the server
-     * answers the MOVE with "NO Not permitted in EXAMINE state" (#269). That
-     * was logged as an error and recorded as a refused export, for a message
-     * that was exactly where it was meant to be.
+     * A copy keeps its address while its move is queued (#415), so there is
+     * nothing to give back either — except to a row from a job queued before
+     * that, which was stripped of its UID when the move was queued and gets the
+     * envelope's back: the message never left the folder. A row that something
+     * else has re-pointed since, or that has a UID again, is left to the sync.
      *
-     * The caller cleared each row's UID when it queued the move
-     * (Message::relocateTo()), so the envelope's UID goes back on: the message
-     * never left the folder, and the address it had is still its address. A row
-     * that something else has re-pointed since, or that has a UID again, is
-     * left to the sync, as adopt() leaves it.
-     *
-     * @param Message[] $messages
+     * @param list<array{Message, int|null}> $messages
      */
     private function stayInPlace(Mailbox $mailbox, array $messages, ApplyImapFlagsMessage $envelope): void
     {
-        foreach ($messages as $msg) {
-            $uid = $envelope->sourceUidFor((int) $msg->id);
+        foreach ($messages as [$msg, $uid]) {
 
             if (null === $uid || null !== $msg->imapUid || $msg->mailbox?->fullPath !== $mailbox->fullPath) {
                 continue;
@@ -360,63 +393,84 @@ final class ApplyImapFlagsHandler
     }
 
     private function applyToMessage(
-        Client  $client,
-        Folder  $folder,
-        Message $msg,
-        int     $uid,
-        string  $action,
-        ?string $destinationPath,
+        ImapSession $session,
+        Mailbox     $mailbox,
+        Message     $msg,
+        int         $uid,
+        string      $action,
+        ?string     $destinationPath,
     ): void {
-        // ImapQuery, so a message whose header repeats a once-only line is
-        // flagged and moved like any other (#357); see its class docblock.
-        $imapMessage = ImapQuery::of($folder)
-            ->whereUid($uid)
-            ->setFetchBody(false)
-            ->get()
-            ->first();
+        $path  = $mailbox->serverPath();
+        $flags = $session->uidFetch($path, (string) $uid, ['FLAGS'], readOnly: false)[$uid]['FLAGS'] ?? null;
 
-        if (null === $imapMessage) {
-            $this->reResolveVanishedUid($client, $msg, $uid, $folder, $action, $destinationPath);
+        if (false === is_array($flags)) {
+            $this->reResolveVanishedUid($session, $msg, $mailbox, $uid, $action, $destinationPath);
 
             return;
         }
 
         $isMove = in_array($action, self::MOVE_ACTIONS, true);
 
-        // A move that a previous attempt got halfway through. Servers without
-        // RFC 6851 MOVE make webklex fall back to COPY + STORE \Deleted +
-        // EXPUNGE, and a connection that dies between the COPY and the EXPUNGE
-        // leaves the copy in the destination and the original still here,
-        // flagged. Messenger then redelivers — and moving it again would put a
-        // *second* copy in the destination, which is the one way this handler
-        // could manufacture duplicates on the server rather than merely in the
+        // A move that a previous attempt got halfway through. A server without
+        // RFC 6851 MOVE is sent COPY + STORE \Deleted + EXPUNGE instead, and a
+        // connection that dies between the COPY and the EXPUNGE leaves the
+        // copy in the destination and the original still here, flagged.
+        // Messenger then redelivers — and moving it again would put a *second*
+        // copy in the destination, which is the one way this handler could
+        // manufacture duplicates on the server rather than merely in the
         // database. The flag is the evidence that the copy already exists.
-        if (true === $isMove && true === $this->isDeleted($imapMessage)) {
+        if (true === $isMove && true === self::hasFlag($flags, '\\Deleted')) {
             $this->logger->info('ApplyImapFlagsHandler: source already flagged deleted, not copying again', [
                 'messageId' => $msg->id,
                 'uid'       => $uid,
-                'folder'    => $folder->path,
+                'folder'    => $path,
             ]);
 
-            $this->adoptFromDestination($client, $msg, $destinationPath);
+            $this->adoptFromDestination($session, $msg, $mailbox, $uid, $destinationPath);
 
             return;
         }
 
         if (true === $isMove) {
-            $this->completeMove($msg, $imapMessage, (string) $destinationPath);
+            $moved = $session->uidMove($path, (string) $uid, (string) $destinationPath);
+
+            if (true === isset($moved[$uid])) {
+                $this->adoptUid($msg, $mailbox, $uid, (string) $destinationPath, $moved[$uid]);
+            } else {
+                $this->adoptFromDestination($session, $msg, $mailbox, $uid, $destinationPath);
+            }
 
             return;
         }
 
-        match ($action) {
-            'flag'   => $imapMessage->setFlag('Flagged'),
-            'unflag' => $imapMessage->unsetFlag('Flagged'),
-            'seen'   => $imapMessage->setFlag('Seen'),
-            'unseen' => $imapMessage->unsetFlag('Seen'),
-            'delete' => $this->deleteOne($client, $imapMessage, $uid),
-            default  => $this->logger->warning('ApplyImapFlagsHandler: unknown action', ['action' => $action]),
-        };
+        if ('delete' === $action) {
+            $this->deleteOne($session, $path, $uid);
+
+            return;
+        }
+
+        $change = self::FLAG_ACTIONS[$action] ?? null;
+
+        if (null === $change) {
+            $this->logger->warning('ApplyImapFlagsHandler: unknown action', ['action' => $action]);
+
+            return;
+        }
+
+        $session->uidStore($path, (string) $uid, $change[0], [$change[1]]);
+
+        // What this copy now says is our own doing, and the next listing must
+        // not read it back as somebody's change — see
+        // MessageLocation::$serverFlags (#415).
+        $copy = $msg->locationAt($mailbox, $uid);
+
+        if (null !== $copy) {
+            $now = array_values(array_filter($flags, is_string(...)));
+
+            $copy->serverFlags = MessageFlag::canonicalList('+' === $change[0]
+                ? [...$now, $change[1]]
+                : array_values(array_filter($now, static fn (string $flag): bool => 0 !== strcasecmp($flag, $change[1]))));
+        }
 
         // The server has the change now, so the inbound pass may read this row
         // again. Until this line runs, Message::$flagsTouchedAt is what keeps
@@ -424,29 +478,24 @@ final class ApplyImapFlagsHandler
         // reverting the user — see the entity property, and note that only the
         // flag actions clear it. A move is not a flag change, and 'delete' is
         // on its way to having no row at all.
-        if (true === in_array($action, ['flag', 'unflag', 'seen', 'unseen'], true)) {
-            $msg->flagsTouchedAt = null;
-        }
+        $msg->flagsTouchedAt = null;
     }
 
     /**
      * Delete this one message, and nothing else in the folder.
      *
-     * webklex's delete(expunge: true) is STORE \Deleted followed by a plain
-     * EXPUNGE, and a plain EXPUNGE removes every message in the folder that
-     * carries \Deleted — including mail another client only marked for
-     * deletion and may still undelete. UID EXPUNGE (RFC 4315, UIDPLUS) names
-     * the one UID. A server without UIDPLUS gets the flag and no expunge: the
-     * message stays until that server's own client or policy expunges it,
-     * which is the server's call rather than ours.
+     * A plain EXPUNGE removes every message in the folder that carries
+     * \Deleted — including mail another client only marked for deletion and
+     * may still undelete. UID EXPUNGE (RFC 4315, UIDPLUS) names the one UID. A
+     * server without UIDPLUS gets the flag and no expunge: the message stays
+     * until that server's own client or policy expunges it, which is the
+     * server's call rather than ours.
      */
-    private function deleteOne(Client $client, ImapMessage $imapMessage, int $uid): void
+    private function deleteOne(ImapSession $session, string $path, int $uid): void
     {
-        $imapMessage->setFlag('Deleted');
+        $session->uidStore($path, (string) $uid, '+', ['\\Deleted']);
 
-        $connection = $client->getConnection();
-
-        if (false === $connection instanceof ImapProtocol || false === self::hasUidPlus($connection)) {
+        if (false === $session->connection->supports('UIDPLUS')) {
             $this->logger->info('ApplyImapFlagsHandler: no UIDPLUS, message flagged \Deleted but not expunged', [
                 'uid' => $uid,
             ]);
@@ -454,65 +503,7 @@ final class ApplyImapFlagsHandler
             return;
         }
 
-        $connection->requestAndResponse('UID EXPUNGE', [(string) $uid])->validatedData();
-
-        // The library caches the folder's UID list and forgets it on its own
-        // EXPUNGE only.
-        $connection->setUidCache(null);
-    }
-
-    private static function hasUidPlus(ImapProtocol $connection): bool
-    {
-        $capabilities = $connection->getCapabilities()->validatedData();
-
-        foreach ((array) $capabilities as $capability) {
-            if (true === is_string($capability) && 'UIDPLUS' === strtoupper($capability)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Whether a Message-ID can go into a SEARCH as a quoted string.
-     *
-     * webklex writes the value between double quotes and escapes nothing, and
-     * the Message-ID here came in on a mail somebody else wrote. A `"` in it
-     * ends the string early and lets the rest of the header become search
-     * syntax; a CR or LF ends the command line and starts another. RFC 3501
-     * quoted strings allow neither `"` nor `\` unescaped and no CR/LF at all,
-     * and a real Message-ID has no use for any of them — or for anything
-     * outside printable ASCII — so such an id is simply not searched for.
-     */
-    public static function isSearchableMessageId(string $messageId): bool
-    {
-        return '' !== $messageId && 1 === preg_match('/^[\x21\x23-\x5B\x5D-\x7E]+$/', $messageId);
-    }
-
-    /**
-     * Move the message, then record where it landed.
-     *
-     * webklex hands back the message as it now exists in the destination, which
-     * is the only cheap way to learn the new UID — but it finds it by
-     * predicting UIDNEXT, so the answer is checked against the Message-ID
-     * before the row is allowed to believe it. A wrong UID is worse than none:
-     * none is reconcilable, wrong is a row pointing at somebody else's mail.
-     */
-    private function completeMove(Message $msg, ImapMessage $imapMessage, string $destinationPath): void
-    {
-        // utf7: the path is a Mailbox row's, stored as the server spells it.
-        // Without the flag webklex encodes it a second time, finds no folder
-        // there, and hands moveMessage() null: every move into a folder with a
-        // non-ASCII name failed, GMX's "Gelöscht" included. See
-        // ImapFolderLocator::atPath().
-        $moved = $imapMessage->move($destinationPath, utf7: true);
-
-        if (null === $moved) {
-            return;
-        }
-
-        $this->adopt($msg, $moved, $destinationPath);
+        $session->expunge($path, (string) $uid);
     }
 
     /**
@@ -520,38 +511,35 @@ final class ApplyImapFlagsHandler
      *
      * Ordinary rather than exceptional: the message has already moved. Either
      * an earlier attempt of this very job completed and Messenger redelivered
-     * it, or another client moved the mail while the job sat in the queue. What
-     * matters is that the row must not be left claiming the address, because a
-     * stale address is precisely what makes the destination's next sync insert
-     * a second row instead of recognising the first.
+     * it, or another client moved the mail while the job sat in the queue.
+     *
+     * For a move, the destination is searched and a copy found there is where
+     * this one went. Otherwise the copy is left as it is (#415): it used to be
+     * stripped of its UID here, which made it a row with a folder and no
+     * address — the state a purge could not reach and a sweep could not see
+     * (#427). The folder's next sweep is what decides about an absent UID, and
+     * a copy of the email that turns up elsewhere is recognised there.
      */
     private function reResolveVanishedUid(
-        Client  $client,
-        Message $msg,
-        int     $uid,
-        Folder  $folder,
-        string  $action,
-        ?string $destinationPath,
+        ImapSession $session,
+        Message     $msg,
+        Mailbox     $source,
+        int         $uid,
+        string      $action,
+        ?string     $destinationPath,
     ): void {
         $this->logger->info('ApplyImapFlagsHandler: UID has left the source folder, re-resolving', [
             'messageId' => $msg->id,
             'uid'       => $uid,
-            'folder'    => $folder->path,
+            'folder'    => $source->fullPath,
             'action'    => $action,
         ]);
-
-        // Drop the stale claim whatever else happens. A row with no UID is
-        // reconcilable by Message-ID on the next sync; a row with a UID the
-        // server disowns is the ghost that gets counted twice.
-        if ($msg->imapUid === $uid) {
-            $msg->relocateTo($msg->mailbox);
-        }
 
         if (false === in_array($action, self::MOVE_ACTIONS, true)) {
             return;
         }
 
-        $this->adoptFromDestination($client, $msg, $destinationPath);
+        $this->adoptFromDestination($session, $msg, $source, $uid, $destinationPath);
     }
 
     /**
@@ -560,8 +548,10 @@ final class ApplyImapFlagsHandler
      *
      * Matched on the Message-ID alone — the identity that survives a move, the
      * one v0.0.23 established for the Sent copies. Never on subject or sender.
+     * HEADER search matches substrings, so each candidate's Message-ID is read
+     * back and compared whole before it is adopted.
      */
-    private function adoptFromDestination(Client $client, Message $msg, ?string $destinationPath): void
+    private function adoptFromDestination(ImapSession $session, Message $msg, Mailbox $source, int $sourceUid, ?string $destinationPath): void
     {
         $wanted = MessageIdHelper::normalise((string) $msg->messageId);
 
@@ -569,74 +559,69 @@ final class ApplyImapFlagsHandler
             return;
         }
 
-        // The next sync reconciles the row by Message-ID without a SEARCH, so
-        // refusing an id that cannot be quoted safely costs one sync at most.
-        if (false === self::isSearchableMessageId($wanted)) {
-            $this->logger->warning('ApplyImapFlagsHandler: Message-ID is not safe to search for, not re-resolving', [
-                'messageId' => $msg->id,
-            ]);
-
-            return;
-        }
-
         try {
-            $destination = ImapFolderLocator::atPath($client, $destinationPath);
+            $candidates = $session->uidSearchHeader($destinationPath, 'Message-ID', $wanted);
 
-            if (null === $destination) {
+            if ([] === $candidates) {
                 return;
             }
 
-            $candidates = ImapQuery::of($destination)
-                ->where('HEADER Message-ID', '<' . $wanted . '>')
-                ->setFetchBody(false)
-                ->get();
+            foreach ($session->uidFetchHeader($destinationPath, ImapSession::uidSet($candidates), 'Message-ID') as $uid => $found) {
+                if ($wanted === MessageIdHelper::normalise((string) $found)) {
+                    $this->adoptUid($msg, $source, $sourceUid, $destinationPath, $uid);
 
-            foreach ($candidates as $candidate) {
-                $this->adopt($msg, $candidate, $destinationPath);
-
-                return;
+                    return;
+                }
             }
-        } catch (Throwable $e) {
+        } catch (ImapCommandException $e) {
             // Best effort by design. Failing to find it here costs one sync,
             // which will reconcile the row by Message-ID anyway.
             $this->logger->info('ApplyImapFlagsHandler: could not re-resolve in destination', [
                 'messageId'   => $msg->id,
                 'destination' => $destinationPath,
                 'error'       => $e->getMessage(),
-                'exception'   => $e,
             ]);
         }
     }
 
     /**
-     * Give the row the address of a server copy, once that copy has proved it
-     * is the same message.
+     * Move the copy that was at ($source, $sourceUid) to the address the
+     * server says it has now (#415).
      *
-     * The row's own mailbox pointer has to already name the destination — the
-     * caller re-pointed it before queueing the job. If it does not, something
-     * else has moved this message since and the sync layer is better placed to
-     * work out where it belongs than this handler is.
+     * The copy kept its real address until this moment; nothing re-pointed it
+     * when the move was queued. A copy that is no longer where the job found it
+     * has been dealt with by something else since — the sync is better placed
+     * than this handler to say where it is. So is a destination plMail has no
+     * row for yet: the folder's first sync recognises the copy.
+     *
+     * Jobs queued before #415 find their row re-pointed at the destination
+     * already, with no UID, and get one the way they always did.
      */
-    private function adopt(Message $msg, ImapMessage $candidate, string $destinationPath): void
+    private function adoptUid(Message $msg, Mailbox $source, int $sourceUid, string $destinationPath, int $uid): void
     {
-        $wanted = MessageIdHelper::normalise((string) $msg->messageId);
-        $found  = MessageIdHelper::normalise((string) $candidate->getMessageId());
+        if (null === $msg->imapUid && $msg->mailbox?->fullPath === $destinationPath) {
+            $msg->relocateTo($msg->mailbox, $uid);
 
-        if ('' === $wanted || $wanted !== $found) {
             return;
         }
 
-        if ($msg->mailbox?->fullPath !== $destinationPath) {
+        $copy        = $msg->locationAt($source, $sourceUid);
+        $destination = $this->mailboxRepository->findOneBy(['account' => $source->account, 'fullPath' => $destinationPath]);
+
+        if (null === $copy || null === $destination) {
             return;
         }
 
-        $msg->relocateTo($msg->mailbox, $candidate->getUid());
+        $msg->moveLocation($copy, $destination, $uid);
     }
 
-    private function isDeleted(ImapMessage $imapMessage): bool
+    /**
+     * @param list<mixed> $flags as the server sent them
+     */
+    private static function hasFlag(array $flags, string $wanted): bool
     {
-        foreach ($imapMessage->getFlags()->toArray() as $flag) {
-            if ('deleted' === strtolower(ltrim((string) $flag, '\\'))) {
+        foreach ($flags as $flag) {
+            if (true === is_string($flag) && 0 === strcasecmp($flag, $wanted)) {
                 return true;
             }
         }
@@ -653,19 +638,15 @@ final class ApplyImapFlagsHandler
      * namespace and separator are already whatever this server uses, which is
      * the thing ImapFolderProvisioner otherwise has to work out.
      */
-    private function ensureDestinationExists(Client $client, Account $account, string $destinationPath): ?string
+    private function ensureDestinationExists(ImapSession $session, Account $account, string $destinationPath): ?string
     {
-        try {
-            if (null !== ImapFolderLocator::atPath($client, $destinationPath)) {
+        foreach ($session->folders() as $folder) {
+            if ($destinationPath === $folder->path) {
                 return $destinationPath;
             }
-        } catch (Throwable) {
-            // Not found, or the server would not say. Either way the create
-            // below settles it, and a CREATE for a folder that does exist is
-            // rejected harmlessly.
         }
 
-        return $this->folders->ensureExactPath($account, $client, $destinationPath);
+        return $this->folders->ensureExactPath($account, $session, $destinationPath);
     }
 
     /**
@@ -680,7 +661,7 @@ final class ApplyImapFlagsHandler
      * ImapFolderProvisioner for how the namespace is worked out, which is the
      * part that cannot be guessed.
      */
-    private function resolveDestinationPath(Client $client, Account $account, string $action): ?string
+    private function resolveDestinationPath(ImapSession $session, Account $account, string $action): ?string
     {
         $specialUse = match ($action) {
             'archive' => MailboxSpecialUse::ARCHIVE,
@@ -704,20 +685,26 @@ final class ApplyImapFlagsHandler
 
         $candidates = $nameMap[$specialUse->value] ?? [];
 
-        foreach ($candidates as $candidate) {
-            try {
-                $folder = $client->getFolder($candidate);
+        if ([] !== $candidates) {
+            $byName = [];
 
-                if (null !== $folder) {
+            // The first folder of each name, as the server lists them.
+            foreach ($session->folders() as $folder) {
+                $byName[$folder->name()] ??= $folder;
+            }
+
+            foreach ($candidates as $candidate) {
+                $folder = $byName[$candidate] ?? null;
+
+                if ($folder instanceof ImapFolder) {
                     return $folder->path;
                 }
-            } catch (Throwable) {
-                // Not found — try next.
             }
         }
 
-        return $this->folders->ensureSpecialUse($account, $client, $specialUse);
+        return $this->folders->ensureSpecialUse($account, $session, $specialUse);
     }
+
     /**
      * Write down what the server refused for this account, or clear it.
      *

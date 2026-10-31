@@ -1553,7 +1553,7 @@ Understanding where mail comes from helps you set the right expectations in your
 
 | Account type | Ingest | Instant delivery |
 |---|---|---|
-| IMAP | `webklex/php-imap`, one IDLE connection per mailbox, supervised | IMAP IDLE — works on a LAN, no public URL needed |
+| IMAP | plMail's own IMAP client, one IDLE connection per folder, all in one supervised process | IMAP IDLE — works on a LAN, no public URL needed |
 | Gmail | Gmail REST + Batch API over OAuth2 | Google Cloud Pub/Sub watch → `/gmail/push` (requires public HTTPS + one-time instance setup) |
 | Outlook / M365 | Microsoft Graph over OAuth2 (**not IMAP** — Exchange Online blocks it under Security Defaults) | Graph subscriptions → `/webhook/graph` (requires public HTTPS) |
 

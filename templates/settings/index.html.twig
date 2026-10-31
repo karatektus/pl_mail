@@ -647,7 +647,15 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         {# The editor opens below the list rather than replacing it, so the
                                            rule being edited stays visible next to its siblings. #}
                                         <div class="mt-4">
-                                            {% include 'settings/filters/_editor_empty.html.twig' %}
+                                            {# Opened from a message ("Create a filter from this
+                                               message"): the editor loads on that message's draft
+                                               rather than waiting to be asked for. #}
+                                            {% if filterFromMessage %}
+                                                <turbo-frame id="filter-editor"
+                                                             src="{{ path('app_settings_filters_new', { message: filterFromMessage }) }}"></turbo-frame>
+                                            {% else %}
+                                                {% include 'settings/filters/_editor_empty.html.twig' %}
+                                            {% endif %}
                                         </div>
 
                                     {% elseif section == 'notifications' %}

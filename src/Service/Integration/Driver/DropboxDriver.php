@@ -187,7 +187,7 @@ final class DropboxDriver extends AbstractOAuthDriver implements SearchableDrive
             throw new IntegrationException('No file selected.');
         }
 
-        $response = $this->contentRequest($integration, 'POST', self::CONTENT.'/files/download', ['path' => $path]);
+        $response = $this->contentRequest($integration, 'POST', self::CONTENT.'/files/download', ['path' => $path], limits: HttpLimits::transfer());
 
         try {
             $contents = $response->getContent();
@@ -240,7 +240,7 @@ final class DropboxDriver extends AbstractOAuthDriver implements SearchableDrive
                 'mode' => 'add',
                 'autorename' => true,
                 'mute' => true,
-            ], $handle, 'application/octet-stream');
+            ], $handle, 'application/octet-stream', limits: HttpLimits::transfer());
 
             $payload = $response->toArray(false);
         } catch (HttpExceptionInterface $e) {
@@ -334,6 +334,7 @@ final class DropboxDriver extends AbstractOAuthDriver implements SearchableDrive
      *
      * @param array<string,mixed>  $args
      * @param resource|string|null $body
+     * @param array<string,mixed>  $limits HttpLimits::transfer() when this moves a file
      */
     private function contentRequest(
         Integration $integration,
@@ -343,6 +344,7 @@ final class DropboxDriver extends AbstractOAuthDriver implements SearchableDrive
         mixed $body = null,
         ?string $contentType = null,
         bool $throwOnError = true,
+        array $limits = [],
     ): ResponseInterface {
         $headers = ['Dropbox-API-Arg' => $this->apiArg($args)];
 
@@ -350,7 +352,7 @@ final class DropboxDriver extends AbstractOAuthDriver implements SearchableDrive
             $headers['Content-Type'] = $contentType;
         }
 
-        $options = ['headers' => $headers];
+        $options = ['headers' => $headers] + $limits;
 
         if (null !== $body) {
             $options['body'] = $body;

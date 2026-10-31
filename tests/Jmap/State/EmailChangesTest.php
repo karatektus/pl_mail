@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\State;
 
 use App\Domain\DTO\Mail\IngestedMessage;
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Service\Imap\ImapConnector;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -406,7 +406,7 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MailboxRepository::class),
             $this->em,
             new MailSenderRegistry([$sender]),
-            $container->get(ImapConnectionFactory::class),
+            $container->get(ImapConnector::class),
             $container->get(AttachmentResolver::class),
             $container->get(LabelResolver::class),
             $container->get(LabelRepository::class),

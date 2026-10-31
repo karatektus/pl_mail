@@ -2,12 +2,10 @@
 
 namespace App\Service\Imap;
 
-use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Crypto\PlaintextSource;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -54,7 +52,7 @@ class MessageSendService
         private readonly MailboxRepository       $mailboxRepository,
         private readonly EntityManagerInterface  $em,
         private readonly MailSenderRegistry      $senderRegistry,
-        private readonly ImapConnectionFactory   $imapConnectionFactory,
+        private readonly ImapConnector           $imapConnector,
         private readonly AttachmentResolver      $attachmentResolver,
         private readonly LabelResolver           $labelResolver,
         private readonly LabelRepository         $labelRepository,
@@ -392,21 +390,28 @@ class MessageSendService
      */
     public function appendToSentFolder(Email $email, Account $account): void
     {
+        // A JMAP account that sends over SMTP — its server offers no
+        // submission — leaves the Sent copy to the server, which files what
+        // its own SMTP relay sent. It has no IMAP to append over in any case,
+        // and the Sent folder row an account switched from IMAP still holds
+        // would only lead the connection factory to refuse it.
+        if (true === $account->isJmap()) {
+            return;
+        }
+
         $sentMailbox = $this->mailboxRepository->findSentMailboxForAccount($account);
 
         if (null === $sentMailbox) {
             return;
         }
 
-        $client = $this->imapConnectionFactory->connect($account);
-        $folder = ImapFolderLocator::of($client, $sentMailbox);
+        $session = $this->imapConnector->session($account);
 
-        $folder->appendMessage(
-            $email->toString(),
-            [MessageFlag::SEEN->value],
-        );
-
-        $client->disconnect();
+        try {
+            $session->append($sentMailbox->serverPath(), $email->toString(), [MessageFlag::SEEN->value]);
+        } finally {
+            $session->logout();
+        }
     }
 
     private function buildEmail(Message $message, Account $account): Email
