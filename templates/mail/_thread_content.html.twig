@@ -34,9 +34,9 @@ self-contained: no {% extends %}, no block dependencies.
    min-height on the bar, because the bar's border counts toward its own
    height and the list's row carries none. #}
 <div class="px-3 py-1 border-b border-line flex-shrink-0">
-{# Wraps because words on the buttons (#459) can be wider than the pane. The
-   subject has no width of its own (`basis-0`) so it takes what is left of the
-   line and is never what starts a new one. #}
+{# Wraps because words on the buttons (#459) can be wider than the pane. No
+   subject in this row: it is the heading right below, and the buttons need the
+   room. #}
 <div class="flex flex-wrap items-center gap-1 min-h-[var(--pane-header-h)]">
     <button
         type="button"
@@ -159,10 +159,6 @@ self-contained: no {% extends %}, no block dependencies.
         carried:  threadOwnLabelIds,
         placement: mail_placement(thread),
     } only %}
-
-    <span class="ml-2 flex-1 basis-0 text-sm text-ink-faint truncate min-w-0">
-        {{ thread.subject ?: ('thread.no_subject'|trans) }}
-    </span>
 </div>
 </div>{# /toolbar #}
 
