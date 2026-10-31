@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Service\Imap\ImapConnector;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Imap\ImapCopies;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
@@ -97,16 +100,18 @@ final class MailboxRemovalGuardTest extends KernelTestCase
     {
         $container = self::getContainer();
 
-        $factory = self::createStub(ImapConnectionFactory::class);
-        $factory->method('connect')->willReturn(new FakeListingClient(array_fill_keys($paths, [])));
+        // The LIST another server would give, which the test stack's Dovecot
+        // cannot be made to: see FakeImapServer.
+        new FakeImapServer($container->get(ImapLoop::class), array_fill_keys($paths, []), '.')->pointAt($this->account);
 
         $syncer = new MailboxSyncer(
             $container->get(MailboxRepository::class),
             $this->em,
-            $factory,
+            $container->get(ImapConnector::class),
             $container->get(LabelResolver::class),
             $container->get(MessageRepository::class),
             $container->get(MessageEraser::class),
+            $container->get(ImapCopies::class),
             new NullLogger(),
         );
 

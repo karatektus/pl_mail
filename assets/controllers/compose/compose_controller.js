@@ -313,9 +313,53 @@ export default class extends Controller {
             input.setAttribute('aria-describedby', this._errorsId());
 
             this._tameAddressField(this._tomSelectFor(row.querySelector('.ts-wrapper')), input);
+            this._acceptDraggedChips(this._tomSelectFor(row.querySelector('.ts-wrapper')));
         }
 
         this._markInvalid(this.hasErrorsTarget && false === this.errorsTarget.classList.contains('hidden'));
+    }
+
+    /**
+     * Put the selected chips on the clipboard as `Name <address>; address`.
+     *
+     * Tom Select lets chips be selected and does nothing with Ctrl+C, so the
+     * browser copied the empty text box: there was no way to take a list of
+     * recipients from one message to another. Semicolons because Outlook
+     * reads nothing else, and a name holding a separator is quoted so it does
+     * not come back as two recipients. Cut removes them too, which is how a
+     * list moves from To to Bcc from the keyboard.
+     *
+     * Text typed in the box is the browser's to copy, as everywhere else.
+     */
+    _copyChips(event, select, cut) {
+        if ('' !== select.control_input.value || 0 === (select.activeItems ?? []).length) {
+            return;
+        }
+
+        const chosen = select.activeItems.map((chip) => chip.dataset.value);
+        const values = select.items.filter((value) => chosen.includes(value));
+
+        const text = values.map((value) => {
+            const label = String(select.options[value]?.text ?? value).trim();
+            const match = label.match(/^(.*?)\s*<([^<>]+)>$/);
+
+            if (null === match || '' === match[1].trim()) {
+                return null !== match ? match[2] : label;
+            }
+
+            const name = match[1].trim().replace(/^"(.*)"$/, '$1');
+
+            return /[,;"<>@]/.test(name)
+                ? `"${name.replace(/"/g, '')}" <${match[2]}>`
+                : `${name} <${match[2]}>`;
+        }).join('; ');
+
+        event.clipboardData.setData('text/plain', text);
+        event.preventDefault();
+
+        if (true === cut) {
+            values.forEach((value) => select.removeItem(value));
+        }
     }
 
     /**
@@ -474,9 +518,30 @@ export default class extends Controller {
             select.plmailTyped = input.value;
         });
 
+        // Tom Select does not refresh the panel on each keystroke: it waits
+        // `refreshThrottle` (300ms) after the last one, then opens the panel —
+        // and opening it focuses the field. Nothing cancels that wait when the
+        // field is left. Type an address, press Enter and start writing the
+        // message within 300ms, and the caret jumped back into To mid-word:
+        // the rest of the sentence became a refused "address", commas and all
+        // eaten as delimiters (seen as compose-signature-sent.spec.ts and
+        // compose-recipients.spec.ts failing on the v0.4.0 tag's run, where the
+        // tests type faster than anybody, and reproduced at 40ms a key). A
+        // refresh for a field nobody is in any more has nobody to show it to.
+        input?.addEventListener('blur', () => this._cancelPanelRefresh(select));
+
+        // A chip with a typo in it used to mean deleting it and typing the
+        // whole address again. A double click puts it back in the box, in its
+        // place in the list, to be corrected and committed with Enter.
+        select.control.addEventListener('dblclick', (event) => this._editChip(event, select));
+
+        input?.addEventListener('paste', (event) => this._pasteAddresses(event, select));
+
         select.on('item_add', () => {
             // The query that produced this chip is spent. Left in place it is
-            // what the reopened panel searches for.
+            // what the reopened panel searches for — and its refresh still
+            // pending is what reopened it (see the blur listener above).
+            this._cancelPanelRefresh(select);
             select.setTextboxValue('');
             select.plmailTyped = '';
             select.close();
@@ -493,7 +558,253 @@ export default class extends Controller {
             this._fillTemplateVariables();
         });
 
+        // Chips selected with a click, Shift+click or Ctrl+A copy as the list
+        // another mail client — or this one's paste — reads back.
+        input?.addEventListener('copy', (event) => this._copyChips(event, select, false));
+        input?.addEventListener('cut', (event) => this._copyChips(event, select, true));
+
         this._reserveRoomForPanel(select, input);
+    }
+
+    /**
+     * Drop the panel refresh Tom Select has queued for the last keystroke.
+     *
+     * `refreshTimeout` is Tom Select's own field, not an API: there is no
+     * public way to cancel the throttle. If a later version renames it, this
+     * clears nothing and the focus test in compose-recipients.spec.ts fails.
+     */
+    _cancelPanelRefresh(select) {
+        if (null === select.refreshTimeout || undefined === select.refreshTimeout) {
+            return;
+        }
+
+        window.clearTimeout(select.refreshTimeout);
+        select.refreshTimeout = null;
+    }
+
+    /**
+     * The address a chip stands for.
+     *
+     * A typed or pasted chip's value IS its address, but a suggested contact's
+     * value is the contact's id, with `Name <address>` as its text — so the
+     * address is read from the text, and falls back to the value.
+     */
+    _chipAddress(select, value) {
+        const text  = String(select.options[value]?.text ?? value);
+        const match = text.match(/<([^<>]+)>\s*$/);
+
+        return (null !== match ? match[1] : text).trim();
+    }
+
+    /**
+     * Turn a double-clicked chip back into text in the box.
+     *
+     * The bare address, not `Name <address>`: Enter commits what createFilter
+     * accepts, and a name in front of the address is not that. A known
+     * contact typed back in is suggested again as soon as the box is edited.
+     *
+     * The corrected address goes back where the chip was, not at the end: the
+     * first To recipient is who a template's greeting is addressed to, and
+     * fixing a typo in it must not hand the greeting to somebody else.
+     * Tom Select's own setCaret() cannot do this — without its caret_position
+     * plugin it always answers "the end" — so the list is re-ordered once the
+     * next chip arrives, and only that one.
+     *
+     * Leaving the box without pressing Enter puts the chip back, corrected or
+     * not. Tom Select empties the box on blur, so a double click and a click
+     * elsewhere used to make the recipient vanish.
+     */
+    _editChip(event, select) {
+        const chip = event.target.closest('.item');
+
+        if (null === chip || false === select.control.contains(chip)) {
+            return;
+        }
+
+        const value = chip.dataset.value;
+        const index = select.items.indexOf(value);
+
+        if (undefined === value || -1 === index) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const address = this._chipAddress(select, value);
+
+        select.removeItem(value);
+
+        const forget  = () => {
+            select.off('item_add', restore);
+            select.control_input.removeEventListener('blur', later);
+        };
+        const later   = () => {
+            const pending = (select.plmailTyped ?? '').trim();
+
+            if (pending === address && undefined !== select.options[value]) {
+                select.addItem(value);
+            } else if (true === this.constructor.ADDRESS.test(pending)) {
+                select.createItem(pending, false);
+            }
+
+            window.setTimeout(forget, 0);
+        };
+        // Moved in place rather than through setValue(): that clears and
+        // re-adds, and with `persist: false` clearing deletes every option
+        // that was typed rather than suggested — the whole list but the known
+        // contacts went with it.
+        const restore = (added) => {
+            forget();
+
+            const from = select.items.indexOf(added);
+            const to   = Math.min(index, select.items.length - 1);
+
+            if (-1 === from || from === to) {
+                return;
+            }
+
+            select.items.splice(from, 1);
+            select.items.splice(to, 0, added);
+            select.getItem(select.items[to + 1])?.before(select.getItem(added));
+            select.updateOriginalInput();
+        };
+
+        select.on('item_add', restore);
+        select.control_input.addEventListener('blur', later);
+
+        select.setTextboxValue(address);
+        select.plmailTyped = address;
+        select.focus();
+        select.control_input.select();
+    }
+
+    /**
+     * Let a chip be dragged out of this field and dropped into another one.
+     *
+     * Moving somebody from To to Bcc meant removing the chip and typing the
+     * address again in the other row. Dragging takes the chip itself: a
+     * suggested contact keeps its contact (and so its name), because the
+     * option travels with it rather than being re-made from the address.
+     * Dropped on a field that already has the address, the chip only leaves
+     * the one it came from.
+     *
+     * Pointer events, not HTML drag and drop. Tom Select cancels `mousedown`
+     * on a chip (to keep focus in the field), and a cancelled mousedown never
+     * starts a native drag: `draggable` chips simply did not move. Mouse and
+     * pen only — on a touch screen a finger landing on a chip has to scroll
+     * the window, and Ctrl+X / Ctrl+V is the way across there.
+     */
+    _acceptDraggedChips(select) {
+        if (null === select || true === select.plmailDraggable) {
+            return;
+        }
+
+        select.plmailDraggable = true;
+
+        select.wrapper.addEventListener('pointerdown', (event) => {
+            const chip = event.target.closest?.('.item');
+
+            if ('touch' === event.pointerType || 0 !== event.button || null === chip || undefined === chip
+                || false === select.control.contains(chip) || null !== event.target.closest('.remove')) {
+                return;
+            }
+
+            this._startChipDrag(select, chip, event);
+        });
+    }
+
+    /** Follow the pointer from a chip until it is released over a field. */
+    _startChipDrag(from, chip, down) {
+        const value  = chip.dataset.value;
+        let ghost    = null;
+        let target   = null;
+
+        const wrapperAt = (x, y) => {
+            const wrapper = document.elementFromPoint(x, y)?.closest('.ts-wrapper') ?? null;
+
+            if (null === wrapper || wrapper === from.wrapper) {
+                return null;
+            }
+
+            const row = this._addressRows().find((candidate) => candidate.contains(wrapper));
+
+            return undefined === row ? null : wrapper;
+        };
+
+        const move = (event) => {
+            if (null === ghost) {
+                // A click is not a drag: it has to go somewhere first.
+                if (Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) < 6) {
+                    return;
+                }
+
+                // Inside a .ts-control of its own, so the chip's styles —
+                // all scoped under that class — still apply on <body>.
+                ghost = document.createElement('div');
+                ghost.className = 'ts-control ts-drag-ghost';
+                ghost.append(chip.cloneNode(true));
+                document.body.append(ghost);
+                chip.classList.add('ts-dragging');
+            }
+
+            ghost.style.left = `${event.clientX + 8}px`;
+            ghost.style.top  = `${event.clientY + 8}px`;
+
+            const over = wrapperAt(event.clientX, event.clientY);
+
+            if (over !== target) {
+                target?.classList.remove('ts-drop-target');
+                over?.classList.add('ts-drop-target');
+                target = over;
+            }
+        };
+
+        const end = (event) => {
+            document.removeEventListener('pointermove', move);
+            document.removeEventListener('pointerup', end);
+            document.removeEventListener('pointercancel', end);
+
+            ghost?.remove();
+            chip.classList.remove('ts-dragging');
+            target?.classList.remove('ts-drop-target');
+
+            if (null !== ghost && null !== target && 'pointerup' === event.type) {
+                this._moveChip(from, this._tomSelectFor(target), value);
+            }
+        };
+
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', end);
+        document.addEventListener('pointercancel', end);
+    }
+
+    /** Take the chip `value` out of `from` and put it in `to`, once. */
+    _moveChip(from, to, value) {
+        if (null === to || to === from) {
+            return;
+        }
+
+        const address = this._chipAddress(from, value).toLowerCase();
+        const option  = from.options[value];
+        const present = to.items.some((item) => this._chipAddress(to, item).toLowerCase() === address);
+
+        if (false === present) {
+            // Tom Select's own bookkeeping stays behind: $order and $id
+            // number the options of the field they were made in.
+            if (undefined !== option && undefined === to.options[value]) {
+                const { $order, $id, ...copy } = option;
+
+                to.addOption(copy);
+            }
+
+            if (undefined !== to.options[value]) {
+                to.addItem(value);
+            } else {
+                to.createItem(this._chipAddress(from, value), false);
+            }
+        }
+
+        from.removeItem(value);
     }
 
     /**
@@ -1196,6 +1507,83 @@ export default class extends Controller {
         select.createItem(typed, false);
         select.setTextboxValue('');
         select.focus();
+    }
+
+    /**
+     * A pasted list of addresses becomes one chip per address.
+     *
+     * What other clients put on the clipboard is a list — `a@x.fr; b@y.fr`
+     * from Outlook, `Ann <a@x.fr>, Bob <b@y.fr>` from Gmail, one per line from
+     * a spreadsheet, or simply `a@x.fr b@y.fr` — and Tom Select took it as a
+     * single search string, which matched nothing and could not become a chip
+     * either. Its own `splitOn` does not help: it splits on commas inside a
+     * quoted name, and its pieces still go through createFilter whole, so
+     * every `Name <address>` failed.
+     *
+     * Anything that is not an address stays in the box and is reported, the
+     * way Send treats it: the rest of the list is still added.
+     */
+    _pasteAddresses(event, select) {
+        const text = event.clipboardData?.getData('text/plain') ?? '';
+
+        // `;`, `,`, a new line or a space separates two addresses, but a space
+        // inside a name does not: `Jean Dupont <jd@x.fr>` is one recipient,
+        // and so is `"Doe, Jane" <j@d.fr>`. A name runs up to its `<…>` and
+        // has no `@` outside quotes, so the address in front of it in
+        // `a@x.fr Jean <jd@x.fr>` is not swallowed into the name.
+        const pieces = (text.match(/(?:"[^"]*"|[^<>"@;,\r\n])*<[^<>]*>|[^\s<>;,"]+/g) ?? [])
+            .map((piece) => piece.trim())
+            .filter((piece) => '' !== piece)
+            .map((piece) => {
+                const bracketed = piece.match(/<([^<>]*)>$/);
+
+                return {
+                    piece,
+                    address: (null !== bracketed ? bracketed[1] : piece).trim().replace(/^mailto:/i, ''),
+                };
+            });
+
+        const valid = pieces.filter(({ address }) => true === this.constructor.ADDRESS.test(address));
+
+        // Left to Tom Select, so its suggestions still open on what was
+        // pasted: one plain address, and anything with no address in it at all
+        // — `Jean Dupont` is a contact to look up, not two bad addresses.
+        if (0 === valid.length || (1 === pieces.length && pieces[0].piece === pieces[0].address)) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const refused = [];
+
+        // A chip for a known contact has the contact's id as its value, so
+        // createItem() would not see the address as taken and add it twice.
+        const present = select.items.map((value) => String(select.options[value]?.text ?? value).toLowerCase());
+
+        for (const { piece, address } of pieces) {
+            if (false === this.constructor.ADDRESS.test(address)) {
+                refused.push(piece);
+
+                continue;
+            }
+
+            const lower = address.toLowerCase();
+
+            if (present.some((text) => text === lower || text.endsWith(`<${lower}>`))) {
+                continue;
+            }
+
+            present.push(lower);
+            select.createItem(address, false);
+        }
+
+        select.setTextboxValue(refused.join('; '));
+        select.plmailTyped = refused.join('; ');
+
+        // After the chips: adding one clears the error line.
+        if (refused.length > 0) {
+            this._reportError(this._t('invalidAddress', '"%s" is not a valid email address').replace('%s', refused[0]));
+        }
     }
 
     /** The Tom Select instance behind a rendered `.ts-wrapper`. */
@@ -2625,16 +3013,59 @@ export default class extends Controller {
         return subject + this._typedLength();
     }
 
+    /**
+     * Words that say a file comes with the message, in the languages plMail
+     * speaks. Matched against what the user wrote, not against the interface
+     * language: a German interface writing to a French client still writes
+     * "ci-joint". Whole words only, so "attachement" or "Anhänger" do not
+     * count — except the Chinese ones, which have no spaces around them to be
+     * whole words by. A quote is never read: a reply to a mail that had an
+     * attachment would otherwise ask every time.
+     */
+    static ATTACHMENT_WORDS = /(?<![\p{L}\p{N}])(?:attached|attaching|attachments?|enclosed|ci-jointe?s?|pi[eè]ces? jointes?|en pj|pj|anbei|anhang|angeh[aä]ngt|im anhang)(?![\p{L}\p{N}])|附件|附上/iu;
+
+    /**
+     * Does what the user wrote promise a file the window does not carry?
+     *
+     * Asked only at Send, alongside the empty subject and body, and with the
+     * same "Send it anyway?" way out: a false alarm costs one click, a missed
+     * attachment costs a second mail saying "sorry, here it is". Inline images
+     * do not count as attachments — they are in the body, and "see the
+     * attached file" is not about them.
+     */
+    _mentionsMissingAttachment() {
+        const attached = true === this.hasAttachmentsTarget
+            ? this.attachmentsTarget.querySelectorAll('[data-compose-part]').length
+            : 0;
+
+        if (attached > 0) {
+            return false;
+        }
+
+        const subject = this.hasSubjectTarget ? this.subjectTarget.value : '';
+
+        return this.constructor.ATTACHMENT_WORDS.test(`${subject}\n${this._typedText()}`);
+    }
+
     /** Characters the user has actually written, quote excluded. */
     _typedLength() {
+        return this._typedText().length;
+    }
+
+    /**
+     * What the user has actually written, quote excluded — the text both the
+     * emptiness check and the forgotten-attachment check read, so the two
+     * cannot disagree about what "the message" is.
+     */
+    _typedText() {
         // Plain-text mode: the textarea IS the body, and none of the markup
         // this method strips below can exist in it.
         if (true === this._isPlainText()) {
-            return this.plainBodyTarget.value.trim().length;
+            return this.plainBodyTarget.value.trim();
         }
 
         if (false === this.hasBodyTarget) {
-            return 0;
+            return '';
         }
 
         const clone = this.bodyTarget.cloneNode(true);
@@ -2665,7 +3096,7 @@ export default class extends Controller {
             }
         });
 
-        return clone.textContent.trim().length;
+        return clone.textContent.trim();
     }
 
     /**
@@ -2847,6 +3278,10 @@ export default class extends Controller {
 
         if (true === this._hasOpenTemplateVariables()) {
             missing.push(this._t('confirmOpenVariables', 'A template placeholder has not been filled in.'));
+        }
+
+        if (true === this._mentionsMissingAttachment()) {
+            missing.push(this._t('confirmNoAttachment', 'The message mentions an attachment, but nothing is attached.'));
         }
 
         if (0 === missing.length) {

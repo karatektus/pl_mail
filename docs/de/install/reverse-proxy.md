@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:e7259a3c63272e17ea0f24d184b27cee8f22a3f5 -->
+<!-- translated-from: install/reverse-proxy.md sha1:eea1259bc1ad7c632903d8139fa3fdba092aca9c -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -65,7 +65,8 @@ entfernten Validierungsfehler zu wiederholen:
 
 Scheitert eines von beidem, registrieren sich Kalender-Push und Microsoft-Graph-Mail-Push nicht.
 **Das ist kein Fehlerzustand** — eine Installation ohne öffentlich erreichbare Adresse pollt
-schlicht, und am Polling ändert nichts davon etwas: `app:mail:sync` läuft alle 15 Minuten und
+schlicht, und am Polling ändert nichts davon etwas: `app:mail:sync` ruft jedes Konto in seinem
+eigenen Intervall ab (15 Minuten, solange in der Zeile des Kontos nichts anderes gewählt ist) und
 `app:calendar:sync --stale` alle 15 Minuten, versetzt gegen die Viertelstunde. Push sorgt nur dafür,
 dass Mail- und Kalenderänderungen sofort statt verspätet ankommen.
 

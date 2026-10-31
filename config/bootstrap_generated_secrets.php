@@ -137,6 +137,17 @@ declare(strict_types=1);
         $_ENV['MERCURE_PUBLIC_URL']    = $derived;
     }
 
+    // All in one container (Unraid), the hub is a sibling process on a local
+    // port rather than the container called `mercure` that .env's MERCURE_URL
+    // names (BackgroundProcesses::HUB_LOCAL_PORT says why that port). Here and
+    // not only in the entrypoint, for the reason this whole file exists: a
+    // `docker exec` console session never runs the entrypoint, and a command
+    // that publishes would otherwise go looking for a container that is not
+    // there. An operator's own MERCURE_URL still wins.
+    if (true === filter_var($_SERVER['APP_ALL_IN_ONE'] ?? $_ENV['APP_ALL_IN_ONE'] ?? false, FILTER_VALIDATE_BOOL)) {
+        $put('MERCURE_URL', 'http://127.0.0.1:3000/.well-known/mercure');
+    }
+
     // The subscriber cookie takes the `__Secure-` prefix where a browser will
     // accept it, which is exactly where the page arrives over HTTPS, and the
     // public address is the one thing here that says whether it does. Without

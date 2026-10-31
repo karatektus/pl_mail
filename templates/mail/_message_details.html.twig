@@ -168,6 +168,7 @@ mailed-by and signed-by were silently missing from every IMAP message.
         data-mail--message-details-target="panel"
         data-action="click->mail--message-details#stop"
         class="hidden absolute left-0 top-full mt-1 z-30 w-[28rem] max-w-[85vw]
+               overflow-y-auto overscroll-contain
                rounded-pane bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop
                text-xs cursor-default"
@@ -450,6 +451,41 @@ mailed-by and signed-by were silently missing from every IMAP message.
                 </div>
             </div>
         {% endif %}
+
+        {# "Test my filters on this message": a disclosure like "Show all
+           headers" below, opened and closed by the same button. Nothing is
+           asked of the server until it is opened — most panels are opened for
+           an address or a date — and it asks again on every opening, so an
+           edited filter is answered for. See MessageFilterCheckController.
+
+           The frame's src is set by mail--message-details#toggleFilters, not
+           followed from a link: the panel stops every click from bubbling
+           (#stop), and Turbo takes over a link only from a click that reaches
+           the document, so a link here left the page for the bare fragment. #}
+        <div class="border-t border-line">
+            <button
+                type="button"
+                data-action="click->mail--message-details#toggleFilters"
+                class="w-full flex items-center gap-2 px-4 py-2 text-left
+                       text-ink-faint hover:text-ink-soft hover:bg-hover
+                       transition-colors cursor-pointer"
+            >
+                <i class="fa-solid fa-filter w-3.5" aria-hidden="true"></i>
+                <span
+                    data-mail--message-details-target="filtersLabel"
+                    data-more="{{ 'message.filter_check.button'|trans }}"
+                    data-less="{{ 'message.filter_check.hide'|trans }}"
+                >{{ 'message.filter_check.button'|trans }}</span>
+            </button>
+
+            <div data-mail--message-details-target="filters" class="hidden border-t border-line">
+                <turbo-frame
+                    id="message-filters-{{ message.id }}"
+                    data-src="{{ path('app_mail_message_filters', { id: message.id }) }}"
+                    class="block"
+                ></turbo-frame>
+            </div>
+        </div>
 
         {# Copy the whole block. The source is hidden rather than assembled in
            JavaScript: the text owed to the clipboard is the panel's own

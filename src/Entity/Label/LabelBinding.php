@@ -35,6 +35,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_label_binding_gmail_label_id', columns: ['gmail_label_id'])]
 #[ORM\Index(name: 'idx_label_binding_graph_folder_id', columns: ['graph_folder_id'])]
 #[ORM\Index(name: 'idx_label_binding_graph_category_id', columns: ['graph_category_id'])]
+#[ORM\Index(name: 'idx_label_binding_jmap_mailbox_id', columns: ['jmap_mailbox_id'])]
 #[ORM\Index(name: 'idx_label_binding_account', columns: ['account_id'])]
 class LabelBinding
 {
@@ -101,6 +102,22 @@ class LabelBinding
      */
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $graphCategoryId = null;
+
+    /**
+     * The JMAP Mailbox this label is on the account's remote server, or null.
+     *
+     * The client side of JMAP, and not to be confused with the server side in
+     * the class docblock: plMail's own JMAP server names a mailbox by this
+     * row's id, while this is the id a remote JMAP account's server gave it.
+     *
+     * One column for every JMAP label, role or not, because a JMAP Mailbox is
+     * both things Exchange keeps apart: a message is in any number of them at
+     * once, so attaching a label is adding a mailbox id and never a move. That
+     * is the Gmail shape — compare $gmailLabelId — and why JMAP needs no
+     * folder-or-category policy of its own.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $jmapMailboxId = null;
 
     /**
      * The IMAP folder this label is fed by on this account. Null for

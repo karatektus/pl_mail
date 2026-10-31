@@ -15,12 +15,12 @@ enum MessageFlag: string
      * One flag list in the spelling this enum uses, so that two lists can be
      * compared for meaning rather than for punctuation.
      *
-     * The backslash on a system flag is IMAP wire syntax and not part of the
-     * name, and servers differ on whether it survives being parsed — webklex
-     * hands back `Seen` from some and `\Seen` from others. Without this, a row
-     * whose mirror was captured from one server would read as changed against
-     * every listing forever, and inbound flag sync would rewrite the whole
-     * folder on every pass and log a JMAP change for each row.
+     * Every stored flag list is in this form (Version20261028120000 rewrote
+     * the older ones), so a stored list is compared as it is; what comes in
+     * from a server goes through here first. IMAP flags are case-insensitive,
+     * and a provider's own spelling (`Seen`, `\SEEN`) must not read as a
+     * change against every listing, or inbound flag sync would rewrite the
+     * whole folder on every pass and log a JMAP change for each row.
      *
      * Unknown flags are kept verbatim: a keyword another client sets is not
      * plMail's to discard, and this enum is the list of flags that mean
@@ -31,7 +31,8 @@ enum MessageFlag: string
      * moment anybody else looks — so storing it guarantees a spurious
      * difference on the next comparison.
      *
-     * Sorted, because two lists that differ only in order say the same thing.
+     * Sorted bytewise, because two lists that differ only in order say the
+     * same thing — and bytewise so the migration's SQL sorts the same way.
      *
      * @param list<string> $flags
      *
@@ -59,7 +60,7 @@ enum MessageFlag: string
 
         $canonical = array_values(array_unique($canonical));
 
-        sort($canonical);
+        sort($canonical, SORT_STRING);
 
         return $canonical;
     }

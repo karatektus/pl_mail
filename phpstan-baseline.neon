@@ -1,36 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to an undefined method Webklex\\PHPIMAP\\Connection\\Protocols\\ProtocolInterface\:\:nextLine\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Command/Imap/ImapIdleCommand.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between true and false will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 2
-			path: src/Command/Imap/ImapIdleCommand.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Command/Imap/ImapSuperviseCommand.php
-
-		-
-			message: '#^Parameter \#2 \$options of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects array\|null, string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Command/Imap/ImapTestCommand.php
-
-		-
-			message: '#^Parameter \#3 \$internal_date of method Webklex\\PHPIMAP\\Folder\:\:appendMessage\(\) expects Carbon\\Carbon\|string\|null, DateTimeImmutable given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Command/Imap/ImapTestCommand.php
-
-		-
 			message: '#^Strict comparison using \=\=\= between false and true will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1
@@ -585,12 +555,6 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: src/Service/Label/LabelChangePropagator.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>gmailLabelId" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: src/Service/Label/LabelStructurePropagator.php
 
 		-
 			message: '#^Method App\\Service\\Mail\\GraphApiClient\:\:batchWrite\(\) never assigns null to &\$resultIds so it can be removed from the by\-ref type\.$#'

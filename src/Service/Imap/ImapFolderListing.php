@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use App\Domain\Helper\ImapEmptyAnswer;
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapSession;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
-use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\IMAP;
 
 /**
  * What a folder actually holds right now: its UIDVALIDITY and every UID in it.
@@ -54,22 +50,20 @@ use Webklex\PHPIMAP\IMAP;
  * answers from one instant, so "what is here" and "what state is it in" cannot
  * disagree.
  *
- * The cost that is real is memory rather than bytes: webklex accumulates the
- * whole response into an array before returning it, so a fifty-thousand-message
- * folder builds a fifty-thousand-entry map. That is tens of megabytes at the
- * top end and it is the honest reason a bigger installation might want this
- * chunked. It is not chunked here because chunking needs UID ranges to chunk
- * *by*, and learning the ranges is the very question this command answers.
+ * The cost that is real is memory rather than bytes: the whole response is
+ * read before it is returned, so a fifty-thousand-message folder builds a
+ * fifty-thousand-entry map. That is tens of megabytes at the top end and it is
+ * the honest reason a bigger installation might want this chunked. It is not
+ * chunked here because chunking needs UID ranges to chunk *by*, and learning
+ * the ranges is the very question this command answers.
  *
  * ## Why UID FETCH and not QRESYNC
  *
- * RFC 7162 is the right answer to this problem and plMail cannot use it:
- * webklex/php-imap implements neither QRESYNC nor CONDSTORE — there is no
- * ENABLE, no MODSEQ parsing, no VANISHED response handling anywhere in the
- * library — so there is no supported path to a server-computed diff. Adding one
- * means implementing a protocol extension inside a vendored client, which is a
- * great deal more code than this and fails closed on every server that does not
- * advertise it anyway.
+ * RFC 7162 is the right answer to this problem, and it fails closed on every
+ * server that does not advertise it, which many do not. It was out of reach
+ * while IMAP went through webklex, which implements neither QRESYNC nor
+ * CONDSTORE; plMail's own client could learn it, and this would remain the
+ * path for the servers without it.
  *
  * `EXAMINE` followed by `UID FETCH 1:* (FLAGS)` is two round trips, universally
  * supported since IMAP4rev1, and hands back a couple of megabytes for a folder
@@ -95,24 +89,25 @@ final readonly class ImapFolderListing
     }
 
     /**
-     * @return array{uidValidity: int, uids: array<int,true>, flags: array<int,list<string>>, readAt: \DateTimeImmutable}|null
+     * @return array{uidValidity: int, uids: array<int,true>, flags: array<int,list<string>>, sizes: array<int,int>, readAt: \DateTimeImmutable}|null
      *         null when the server did not answer. `uids` is a set rather than a
      *         list: the caller's only question of it is membership, once per
      *         local row. `flags` is keyed by the same UIDs, and `readAt` is when
      *         the question was put to the server — which the flag reconciler
      *         needs, because "what the server said" is only meaningful together
-     *         with "and when".
+     *         with "and when". `sizes` is each message's RFC822.SIZE, a few
+     *         bytes a message, which is how mail stored before #415 is given
+     *         the size the sync recognises its copies by (see
+     *         MessageRepository::backfillSizes()).
      */
-    public function read(Client $client, Mailbox $mailbox): ?array
+    public function read(ImapSession $session, Mailbox $mailbox): ?array
     {
-        $path = (string) ($mailbox->fullPath ?? $mailbox->name);
+        $path = $mailbox->serverPath();
 
         try {
-            $connection = $client->getConnection();
+            $examined = $session->examine($path);
 
-            $examined = $connection->examineFolder($path)->validatedData();
-
-            if (false === is_array($examined) || false === isset($examined['uidvalidity'])) {
+            if (null === $examined->uidValidity) {
                 // A server that selects a folder without telling us its
                 // UIDVALIDITY has not given us enough to be safe with. Every
                 // conclusion below rests on the UIDs being comparable to the
@@ -131,38 +126,43 @@ final readonly class ImapFolderListing
             // one the user made.
             $readAt = new \DateTimeImmutable();
 
-            $found = $this->listWithFlags($connection);
-
-            if (false === is_array($found)) {
-                return null;
-            }
+            // An empty folder answers OK and nothing, which is the listing of
+            // a folder with no messages — a fact, and the commonest one a
+            // Trash or a Junk folder ever gives. Whether to BELIEVE an empty
+            // listing is the sweep's decision, with its bulk guard.
+            $found = 0 === $examined->exists
+                ? []
+                : $session->uidFetch($path, '1:*', ['FLAGS', 'RFC822.SIZE']);
 
             $uids  = [];
             $flags = [];
+            $sizes = [];
 
-            foreach ($found as $uid => $messageFlags) {
-                $uid = (int) $uid;
-
+            foreach ($found as $uid => $items) {
                 $uids[$uid] = true;
+
+                $size = $items['RFC822.SIZE'] ?? null;
+
+                if (true === is_string($size) && 1 === preg_match('~^\d+$~', $size)) {
+                    $sizes[$uid] = (int) $size;
+                }
 
                 // A message with no flags at all answers with an empty list,
                 // which is a fact — "this message is unread and unstarred" —
                 // and not a missing answer. Anything that is not a list is the
                 // missing answer, and it is left out rather than read as empty.
-                if (false === is_array($messageFlags)) {
+                if (false === is_array($items['FLAGS'] ?? null)) {
                     continue;
                 }
 
-                $flags[$uid] = array_values(array_map(
-                    static fn (mixed $flag): string => (string) $flag,
-                    $messageFlags,
-                ));
+                $flags[$uid] = array_values(array_filter($items['FLAGS'], is_string(...)));
             }
 
             return [
-                'uidValidity' => (int) $examined['uidvalidity'],
+                'uidValidity' => $examined->uidValidity,
                 'uids'        => $uids,
                 'flags'       => $flags,
+                'sizes'       => $sizes,
                 'readAt'      => $readAt,
             ];
         } catch (Throwable $e) {
@@ -174,83 +174,5 @@ final readonly class ImapFolderListing
 
             return null;
         }
-    }
-
-    /**
-     * Every UID in the selected folder with its flags, in as few commands as
-     * this connection allows.
-     *
-     * On the socket client — what plMail actually uses — that is one command:
-     * `UID FETCH 1:* (FLAGS)`, which webklex spells as a $to of INF. With a $to
-     * set at all its single-message filter is skipped, so every FETCH line in
-     * the response is collected and keyed by UID, and that keying is what makes
-     * presence and flags a single answer from a single instant.
-     *
-     * fetch() is on ImapProtocol rather than on ProtocolInterface, so the
-     * narrowing is real and not a formality: webklex also ships LegacyProtocol,
-     * which wraps the ext-imap functions and has no such method. That path
-     * falls back to what the interface does guarantee — a UID SEARCH for
-     * presence, then flags() for the flags — which is the two commands and two
-     * instants this class exists to avoid, and is still better than a
-     * legacy-backed account never learning a flag changed.
-     *
-     * @return array<int|string,mixed>|false  false when the server did not
-     *         answer in a shape worth reading
-     */
-    private function listWithFlags(ProtocolInterface $connection): array|false
-    {
-        if (true === $connection instanceof ImapProtocol) {
-            // INF is how webklex spells the open-ended `1:*`, and it says so in
-            // that method's own docblock — which then types the parameter
-            // int|null, a float being the one value that actually reaches the
-            // `$to == INF` branch. The library is inconsistent with itself
-            // here; the call is right.
-            try {
-                // @phpstan-ignore argument.type
-                $found = $connection->fetch(['FLAGS'], 1, INF, IMAP::ST_UID)->validatedData();
-            } catch (Throwable $e) {
-                // "OK, and here is nothing" is the listing of a folder with no
-                // messages in it — an answer, and the commonest one a Trash or
-                // a Junk folder ever gives. webklex raises it as a failure
-                // (see ImapEmptyAnswer), which this class then reported as the
-                // server not answering: the folder was never swept, so mail
-                // deleted from it elsewhere stayed here, and an unswept folder
-                // withholds reaping from the whole account.
-                //
-                // Returned as the empty listing it is. Whether to BELIEVE an
-                // empty listing is the sweep's decision and it has a rule for
-                // exactly this — VanishedMessageReconciler's bulk guard.
-                if (true === ImapEmptyAnswer::is($e)) {
-                    return [];
-                }
-
-                throw $e;
-            }
-
-            return is_array($found) ? $found : false;
-        }
-
-        $found = $connection->search(['ALL'], IMAP::ST_UID)->validatedData();
-
-        if (false === is_array($found)) {
-            return false;
-        }
-
-        $uids = array_map(intval(...), array_values($found));
-
-        if ([] === $uids) {
-            return [];
-        }
-
-        $flags = $connection->flags($uids, IMAP::ST_UID)->validatedData();
-
-        if (false === is_array($flags)) {
-            // Presence without flags is still a usable listing: the sweep is
-            // the half that deletes mail, and it loses nothing here. The flag
-            // pass simply has nothing to say this cycle.
-            return array_fill_keys($uids, []);
-        }
-
-        return $flags;
     }
 }

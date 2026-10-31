@@ -162,6 +162,12 @@ final class SettingsController extends AbstractController
             'labels'             => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
             'calendars'          => $this->calendarRepository->findForUser($this->getUser()),
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
+            // "Create a filter from this message" lands here with the message
+            // it came from, and the editor frame opens on that draft. Only an
+            // id: MailRuleController::new() checks it belongs to the reader.
+            'filterFromMessage'  => 'filters' === $section && $request->query->getInt('from_message') > 0
+                ? $request->query->getInt('from_message')
+                : null,
             // Only the Categories section draws them, and every other settings
             // page would otherwise pay a read for a list it never shows. Every
             // tab, switched off or not, in the reader's order.

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/ics-feeds.md sha1:00166017b769d17d8a4327da6b26213522c6414a -->
+<!-- translated-from: providers/ics-feeds.md sha1:a1bc51892e4f1505d888be04c6e0b0feb39880d3 -->
 
 # ICS-Feeds
 
@@ -36,6 +36,9 @@ deinen Einstellungen zu sitzen, an der es außer der Adresse selbst nichts zu ko
 das ist mit einigem Abstand der wahrscheinlichste Fehlschlag: Ein **Subscribe**-Knopf kopiert ungefähr
 genauso oft einen Link auf eine *Webseite* wie einen Link auf eine `.ics`, und die beiden sind nicht
 zu unterscheiden, bis etwas versucht, eine davon zu parsen.
+
+Eine Adresse, die du schon abonniert hast, wird genauso abgelehnt: Eine Adresse ist ein Kalender,
+und ein zweites Abo davon würde nur jeden Termin doppelt anzeigen.
 
 ## `webcal://` ist https unter anderem Namen
 

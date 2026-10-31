@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Messaging;
 
+use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphThrottledException;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
+use App\Infrastructure\Messaging\Message\PushAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
+use App\Infrastructure\Messaging\Message\SyncAddressBookMessage;
 use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Infrastructure\Messaging\Middleware\GiveUpQuietlyOnThrottling;
 use App\Infrastructure\Messaging\Stamp\ThrottleDeferralStamp;
@@ -125,6 +128,46 @@ final class GiveUpQuietlyOnThrottlingTest extends TestCase
         self::assertLessThanOrEqual(55_000, $delay);
     }
 
+    /**
+     * #435: one 429 on a fully synced address book came out as an ERROR, a
+     * WARNING with two stack traces per retry, and a CRITICAL if the minute
+     * had not cleared by the last. A calendar or contacts quota is waited out
+     * like Gmail's, from the queue the job came from.
+     */
+    public function testACalendarOrContactsQuotaIsWaitedOutTheSameWay(): void
+    {
+        $sync = new SyncAddressBookMessage(3);
+        $push = new PushAddressBookMessage(3);
+
+        $this->handle(new Envelope($sync, [new ReceivedStamp('ingest')]), $this->refusedByGoogle());
+        $this->handle(new Envelope($push, [new ReceivedStamp('export')]), $this->refusedByGoogle());
+
+        self::assertCount(1, $this->ingest->getSent());
+        self::assertSame($sync, $this->ingest->getSent()[0]->getMessage());
+        self::assertCount(1, $this->export->getSent());
+        self::assertSame($push, $this->export->getSent()[0]->getMessage());
+
+        $delay = $this->ingest->getSent()[0]->last(DelayStamp::class)?->getDelay();
+
+        self::assertGreaterThan(60_000, $delay, 'no Retry-After: the exception\'s own minute');
+        self::assertLessThanOrEqual(70_000, $delay);
+    }
+
+    /**
+     * Graph's mail throttling is not in that group: it is still left to the
+     * retry ladder, and to the last-attempt rules written for it.
+     */
+    public function testGraphMailThrottlingIsStillLeftToTheRetryLadder(): void
+    {
+        $this->expectException(HandlerFailedException::class);
+
+        try {
+            $this->handle(new Envelope(new SyncAccountMessage(7), [new ReceivedStamp('ingest')]), $this->throttled());
+        } finally {
+            self::assertSame([], $this->ingest->getSent());
+        }
+    }
+
     public function testAQuotaThatNeverClearsIsAFailureInTheEnd(): void
     {
         $envelope = (new Envelope(new ApplyGmailLabelsMessage(7, ['m1'], ['STARRED'], []), [new ReceivedStamp('export')]))
@@ -223,6 +266,11 @@ final class GiveUpQuietlyOnThrottlingTest extends TestCase
     private function throttled(): GraphThrottledException
     {
         return new GraphThrottledException('Graph answered 429 (TooManyRequests)');
+    }
+
+    private function refusedByGoogle(): CalendarSyncThrottledException
+    {
+        return new CalendarSyncThrottledException('Google is rate-limiting this account while reading the contact groups.');
     }
 
     private function refusedByGmail(): GmailThrottledException

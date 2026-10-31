@@ -10,6 +10,16 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
+        jmap:
+            heading: 'Eingehend — JMAP'
+            outgoing_heading: 'Ausgehend — JMAP'
+            outgoing_help: 'Der JMAP-Server verschickt deine Mail selbst und legt die Kopie unter „Gesendet“ ab, hier ist also nichts auszufüllen.'
+            session_url: 'Session-URL'
+            session_url_help: 'Lass das Feld leer, dann wird die Adresse oben verwendet. Füll es nur aus, wenn die JMAP-Session deines Servers nicht unter /.well-known/jmap liegt.'
+            session_url_offer: 'Die JMAP-Session meines Servers liegt woanders'
+            token_auth: 'Das Passwort ist ein API-Token'
+            token_auth_help: 'Setz den Haken bei Servern wie Fastmail, die dir statt eines App-Passworts ein Token geben. Der Benutzername wird dann nicht mitgeschickt.'
+            use_smtp: 'Mein Server versendet nicht über JMAP — SMTP verwenden'
         password: Passwort
         pop3:
             delete_help: 'Bleibt eine Nachricht auf dem Server, erkennt plMail sie beim nächsten Abruf an ihrer UIDL und lädt sie nie doppelt. Löschen schafft Platz auf dem Server, dann gibt es aber nur noch die Kopie in plMail.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Wenn du das später änderst, bleibt deine Mail erhalten: Der nächste Abruf erkennt, was schon da ist.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Protokoll für eingehende Mail'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Weiter mit Microsoft
     primary_set: Primäres Konto geändert
     removed: Konto entfernt
+    sync_interval_set: Abrufintervall geändert
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
             host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
             imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            jmap_no_mail: 'Der Server spricht JMAP, bietet für dieses Konto aber keine Mail an.'
+            jmap_ok: 'Verbunden — %count% Postfächer sichtbar.'
+            jmap_submission: 'Gesendet wird über den JMAP-Server.'
             missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
             missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
             pop3_ok: 'Verbunden — %count% Nachrichten im Postfach.'
+            private_network: 'Dieser Server liegt in einem privaten Netz. Eine Administratorin oder ein Administrator muss seinen Host erst in INTEGRATIONS_ALLOWED_HOSTS freigeben, bevor plMail sich verbinden darf.'
             smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
             smtp_ok: 'Verbunden und angemeldet.'
             timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
@@ -564,7 +580,7 @@ admin:
         heading: 'Gemeldete Mails'
         kind:
             category: 'Falscher Tab'
-            insight: 'Keine Info'
+            insight: 'Kein Insight'
         mark_handled: 'Als erledigt markieren'
         no_body: 'Zu dieser Meldung gibt es keinen Mailtext.'
         no_sender: 'kein Absender gespeichert'
@@ -572,7 +588,7 @@ admin:
         pending: '{0}Nichts offen|{1}1 offen|]1,Inf[ %count% offen'
         pending_badge: 'Offen'
         problem:
-            no_insight: 'Keine Info'
+            no_insight: 'Kein Insight'
         received_at: 'Mail kam am %when%'
         reported_by: 'Gemeldet von %who%'
         reporter_gone: 'einem gelöschten Konto'
@@ -749,8 +765,8 @@ admin:
             übernimmt neue Werte also nie. Etwa zwei Sekunden Ausfall, danach kommt
             diese Seite von selbst zurück.
         restart_app_title: 'Web-Container neu starten'
-        restart_confirm: 'Worker, Scheduler und IMAP-Supervisor neu starten? Laufende Arbeit wird zuerst abgeschlossen.'
-        restart_help: 'Beendet Worker, Scheduler und IMAP-Supervisor, damit sie frisch neu starten. Langlaufende Prozesse halten das Datenbank-Mapping über ihre gesamte Laufzeit im Speicher und brauchen das deshalb nach einer Migration.'
+        restart_confirm: 'Worker, Scheduler und Push-Listener neu starten? Laufende Arbeit wird zuerst abgeschlossen.'
+        restart_help: 'Beendet Worker, Scheduler und Push-Listener, damit sie frisch neu starten. Langlaufende Prozesse halten das Datenbank-Mapping über ihre gesamte Laufzeit im Speicher und brauchen das deshalb nach einer Migration.'
         restart_pending: 'Neustart vor %seconds%s angefordert — die Prozesse beenden ihre laufende Arbeit und erscheinen ein bis zwei Minuten später wieder hier.'
         restart_title: 'Langlaufende Prozesse neu starten'
         run_help: 'Wird für einen Worker eingereiht, nicht hier ausgeführt. Es sind dieselben Läufe, die der Scheduler automatisch startet.'
@@ -1847,6 +1863,7 @@ compose:
         send_anyway: Trotzdem senden?
         plain_text: Der Wechsel zu Nur-Text entfernt jede Formatierung aus dieser Nachricht. Fortfahren?
         open_variables: 'Ein Platzhalter aus einer Vorlage ist noch nicht ausgefüllt.'
+        no_attachment: 'Die Nachricht erwähnt einen Anhang, aber es ist keine Datei angehängt.'
     emoji:
         activities: Aktivitäten
         animals_nature: Tiere und Natur
@@ -2734,6 +2751,7 @@ message:
         more: Mehr
         print: Drucken
         report_insight: Fehlendes Insight melden
+        filter_from_message: 'Filter aus dieser Nachricht erstellen'
         show_original: Original anzeigen
         star: Markieren
         unstar: Markierung entfernen
@@ -2791,6 +2809,19 @@ message:
         signer: "Signiert von %signer%"
         smime_unreadable: "Diese Nachricht ist mit S/MIME für ein Zertifikat verschlüsselt, das plMail nicht hat. Importiere es unter Einstellungen → Verschlüsselung oder öffne die Nachricht in einem Mailprogramm, das es hat."
         smime_unsupported: "Diese Nachricht ist mit einem Verfahren verschlüsselt, das plMail nicht öffnen kann; unterstützt wird nur AES."
+    filter_check:
+        button: 'Meine Filter an dieser Nachricht testen'
+        hide: 'Filtertest ausblenden'
+        none: 'Für dieses Konto ist kein Filter eingeschaltet.'
+        state:
+            matches: 'trifft zu'
+            no_match: 'trifft nicht zu'
+            stopped: 'nicht erreicht: „%rule%“ hört nach sich auf'
+            broken: 'seine Bedingungen sind nicht lesbar; er wird übersprungen'
+            spam: 'übersprungen: Die Nachricht liegt im Spam, und dieser Filter nennt den Spam-Ordner nicht'
+        filing:
+            Filed: 'würde sie in %category% ablegen'
+            NoCategory: 'nichts zum Ablegen: Der Tab existiert nicht mehr'
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
@@ -3248,13 +3279,18 @@ settings:
             always_synced: Der Posteingang wird immer synchronisiert
             button: Zu synchronisierende Ordner wählen
             empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
+            idle_needs_sync: '%folder% wird nicht synchronisiert und kann deshalb nicht beobachtet werden'
             intro: >-
                 Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
                 Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
                 du den Ordner wieder einschaltest, geht es dort weiter, wo es
-                aufgehört hat.
+                aufgehört hat. Ein Ordner mit leuchtendem Blitz wird
+                beobachtet, neue Mail darin erscheint sofort; die anderen
+                werden im Intervall des Kontos abgerufen.
             placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            start_idle: '%folder% auf neue Mail beobachten, sobald sie eintrifft'
             start_sync: 'Synchronisierung von %folder% starten'
+            stop_idle: '%folder% nicht mehr beobachten — stattdessen im Intervall des Kontos abrufen'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'
         heading: E-Mail-Konten
@@ -3284,6 +3320,7 @@ settings:
                     Pub/Sub-Push-Abonnement in Google Cloud fehlt möglicherweise
                     oder zeigt woanders hin. E-Mails werden weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ist an, aber es kommt nichts an. Prüf, ob der JMAP-Server erreichbar ist; das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Das Push-Abonnement ist abgelaufen und es kommt nichts mehr
                     an. Registriere es neu, um die sofortige Zustellung
@@ -3297,6 +3334,7 @@ settings:
                     gmail-api-push@system.gserviceaccount.com die Rolle
                     „Pub/Sub Publisher“ gewährt. Das Konto wird weiterhin nach
                     Zeitplan synchronisiert.
+                jmap: 'Push ließ sich nicht einschalten. Das Konto wird weiterhin nach Zeitplan abgerufen.'
                 microsoft: >-
                     Push konnte nicht aktiviert werden — Microsoft muss diesen
                     Server über HTTPS erreichen. Prüfe deinen Reverse Proxy und
@@ -3314,6 +3352,7 @@ settings:
             off_hint: E-Mails werden nach Zeitplan abgerufen. Aktiviere Push für sofortige Zustellung.
             on_hint:
                 gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
+                jmap: 'Änderungen kommen sofort an: Der JMAP-Server schickt sie an plMail – per Webhook, wenn er diesen Server erreicht, sonst über eine offen gehaltene Verbindung.'
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen
@@ -3321,6 +3360,10 @@ settings:
             active: Aktiv
             disabled: Deaktiviert
         subheading: Postfächer hinzufügen, bearbeiten, aktivieren oder entfernen.
+        sync_interval:
+            change: 'Alle %minutes% Min. auf neue Mail geprüft — ändern, wie oft %account% abgerufen wird'
+            every: 'Alle %minutes% Min.'
+            heading: 'Auf neue Mail prüfen alle … Min.'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3376,6 +3419,12 @@ settings:
         with_keys: "Deine Schlüssel kommen mit: Verschlüsselte Mails öffnen sich in der App sofort."
         expires: "Läuft um %time% ab."
         open_in_app: "In der App öffnen"
+    native_apps:
+        android_hint: "Danach koppelst du sie mit dem Button unten. Der Kauf der App bei Google Play ist im Moment der wichtigste Weg, wie sich dieses Projekt trägt."
+        android_title: "Installiere zuerst plMail für Android"
+        github: "oder kostenlos von GitHub"
+        play_alt: "Jetzt bei Google Play"
+        play_badge: images/badges/google-play-de.png
     app_passwords:
         copy: Kopieren
         copy_now: Hier ist dein neues App-Passwort
@@ -4071,14 +4120,14 @@ settings:
             subscription_hint: Automatische Verlängerungen und endende Testphasen, mit dem Datum dazu.
             ticket: Tickets
             ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
-        heading: Radar
+        heading: Insights
         pane: Streifen über der Mailliste
         pane_hint: >-
             Zeigt dein nächstes Paket, deinen nächsten Flug oder dein
             nächstes Ticket in einem Band über dem Posteingang. Schaltest
             du ihn aus, verschwindet nur das Band — plMail liest diese
-            Angaben weiterhin aus deinen Mails, und du findest sie im
-            Radar und an der Mail selbst.
+            Angaben weiterhin aus deinen Mails, und du findest sie unter
+            „Demnächst“ in der oberen Leiste und an der Mail selbst.
         seg:
             'off': 'Aus'
             'on': 'An'
@@ -4417,7 +4466,7 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         images: Bilder
-        insights: Radar
+        insights: Insights
         integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
@@ -4466,6 +4515,12 @@ settings:
             plMail zum Home-Bildschirm hinzugefügt wurde: in Safari öffnen, auf
             Teilen tippen, dann "Zum Home-Bildschirm", und dort
             Benachrichtigungen aktivieren.
+        notify_for: 'Benachrichtigen bei'
+        notify_for_hint: 'Für welche Posteingang-Tabs eine Browser-Benachrichtigung erscheint. Gilt für alle deine Browser; die Android-App entscheidet selbst. Mindestens einer bleibt an.'
+        'off': 'Aus'
+        'on': 'An'
+        skip_read: 'Nur bei ungelesener Mail benachrichtigen'
+        skip_read_hint: 'Bevor eine Browser-Benachrichtigung erscheint, wartet plMail einige Sekunden und prüft, ob im Posteingang noch Ungelesenes liegt. Hast du die Nachricht schon gelesen oder gelöscht, etwa auf dem Handy, erscheint nichts.'
         state_denied: >-
             In deinen Browser-Einstellungen blockiert. Erlaube
             Benachrichtigungen für diese Seite und versuche es erneut.
@@ -5101,6 +5156,7 @@ whats_new:
         where: 'Geht per Mail an %address%, mit deiner plMail-Version. Eine Kopie bleibt in deinem Ordner „Gesendet“.'
     highlights: 'Highlights'
     menu:
+        android: 'plMail für Android'
         label: 'Hilfe und Feedback'
         unseen: 'Es gibt Versionshinweise, die du noch nicht gesehen hast'
         version: 'plMail %version%'

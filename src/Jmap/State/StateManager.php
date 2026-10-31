@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\State;
 
 use App\Entity\User\User;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Jmap\Protocol\Exception\MethodException;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -46,6 +47,20 @@ final class StateManager
      * @var array<int,bool>
      */
     private array $arrivals = [];
+
+    /**
+     * What KIND of mail arrived, per account: accountId => category value => true.
+     *
+     * Read by the users who asked to be notified for some categories only
+     * (User::$pushCategories). Mostly a subset of $arrivals: held mail is in
+     * $arrivals and not here, because nobody knows its tab yet. The exception
+     * is mail released from a hold, which is here and NOT in $arrivals,
+     * because everybody else was told when it arrived. See
+     * recordReleasedArrival().
+     *
+     * @var array<int,array<string,true>>
+     */
+    private array $categorisedArrivals = [];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -120,9 +135,26 @@ final class StateManager
      * Callers must be sure the message is genuinely new mail, not merely a
      * created Email. See PostIngestPipeline, the one place that decides.
      */
-    public function recordArrival(int $accountId): void
+    public function recordArrival(int $accountId, ?MessageCategory $category = MessageCategory::Primary): void
     {
         $this->arrivals[$accountId] = true;
+
+        if (null !== $category) {
+            $this->categorisedArrivals[$accountId][$category->value] = true;
+        }
+    }
+
+    /**
+     * Mail the assistant has just put into a tab, which was held back when it
+     * arrived.
+     *
+     * Not an arrival for everybody: it was announced when it came in, before
+     * anybody knew which tab it belonged in. It is one for a user who chose
+     * categories, who was deliberately told nothing then.
+     */
+    public function recordReleasedArrival(int $accountId, MessageCategory $category): void
+    {
+        $this->categorisedArrivals[$accountId][$category->value] = true;
     }
 
     /**
@@ -138,6 +170,28 @@ final class StateManager
         $this->arrivals = [];
 
         return array_values($arrived);
+    }
+
+    /**
+     * The categories mail arrived in since the last drain, per account,
+     * emptying that buffer. See $categorisedArrivals.
+     *
+     * @return array<int,list<MessageCategory>>
+     */
+    public function drainArrivalCategories(): array
+    {
+        $byAccount = [];
+
+        foreach ($this->categorisedArrivals as $accountId => $categories) {
+            $byAccount[(int) $accountId] = array_map(
+                static fn (string $value): MessageCategory => MessageCategory::from($value),
+                array_keys($categories),
+            );
+        }
+
+        $this->categorisedArrivals = [];
+
+        return $byAccount;
     }
 
     /**

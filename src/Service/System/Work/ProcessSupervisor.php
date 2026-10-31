@@ -17,8 +17,7 @@ use Symfony\Component\Process\Process;
  * its hourly --time-limit, or told to by the restart signal) comes back at once;
  * one that failed backs off, from one second doubling to thirty, so a process
  * that cannot start (the database is down) does not spin. A child that has run
- * two minutes has its backoff forgotten, the rule app:imap:supervise uses for
- * its own children.
+ * two minutes has its backoff forgotten.
  *
  * ── Output ──────────────────────────────────────────────────────────────────
  * Every child's output is passed through as it is, a whole line at a time. In

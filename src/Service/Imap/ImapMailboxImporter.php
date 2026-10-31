@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use Throwable;
-use App\Domain\Helper\ImapEmptyAnswer;
 use App\Entity\Mail\Mailbox;
-use App\Domain\Helper\ImapFolderLocator;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Client;
 
 /**
  * One page of a folder's history: the newest messages it holds that are not
@@ -60,6 +58,8 @@ final readonly class ImapMailboxImporter
         private MessageSyncer          $messageSyncer,
         private ImapImportPlan         $plan,
         private ImapPagedFetch         $pagedFetch,
+        private ImapCopies             $copies,
+        private PurgedCopies           $purgedCopies,
         private MailboxRepository      $mailboxes,
         private MessageRepository      $messages,
         private EntityManagerInterface $em,
@@ -72,7 +72,7 @@ final readonly class ImapMailboxImporter
      * @return ImapImportOutcome what became of it; the caller schedules what
      *                           follows
      */
-    public function importPage(int $mailboxId, Client $client): ImapImportOutcome
+    public function importPage(int $mailboxId, ImapSession $session): ImapImportOutcome
     {
         $mailbox = $this->mailboxes->find($mailboxId);
 
@@ -81,7 +81,7 @@ final readonly class ImapMailboxImporter
         }
 
         // Met here before any sync got to it — a folder created a moment ago.
-        if (null === $mailbox->importFloorUid && false === $this->plan->begin($mailbox, $client)) {
+        if (null === $mailbox->importFloorUid && false === $this->plan->begin($mailbox, $session)) {
             return ImapImportOutcome::Waiting;
         }
 
@@ -91,18 +91,19 @@ final readonly class ImapMailboxImporter
             return ImapImportOutcome::Finished;
         }
 
-        $folder = ImapFolderLocator::of($client, $mailbox);
+        $path = $mailbox->serverPath();
 
-        if (null === $folder) {
+        try {
+            $missing = $this->missingBelow($mailbox, $session, $path, $floor);
+        } catch (ImapCommandException $refused) {
             $this->logger->warning('Import: the folder is not on the server; nothing imported', [
                 'mailboxId' => $mailboxId,
-                'mailbox'   => $mailbox->fullPath,
+                'mailbox'   => $path,
+                'error'     => $refused->getMessage(),
             ]);
 
             return ImapImportOutcome::Waiting;
         }
-
-        $missing = $this->missingBelow($mailbox, $folder, $floor);
 
         // Written at once: storing a page clears the entity manager, and a
         // total set on this object and flushed "later" would be set on nothing.
@@ -119,60 +120,34 @@ final readonly class ImapMailboxImporter
             return ImapImportOutcome::Finished;
         }
 
-        $page = array_slice($missing, 0, self::PAGE_SIZE);
-        $path = (string) $mailbox->fullPath;
-
-        // Not emptyWhenNoSuchMessage(): these UIDs were all on the server a
-        // moment ago, and a refusal of the set may be about one of them alone.
-        // Read as "none", the floor would move past the rest for good.
-        $query      = ImapQuery::of($folder)->where(MessageSyncer::uidSetCriteria($page));
+        $page       = array_slice($missing, 0, self::PAGE_SIZE);
         $lowestHeld = null;
 
-        try {
-            foreach ($this->pagedFetch->pages($query, self::PAGE_SIZE) as [$batch, $unreadable]) {
-                // Found again for each: storing a page clears the entity manager.
-                $current = $this->mailboxes->find($mailboxId);
+        // A UID the server listed and then returned nothing for comes back
+        // as unreadable, like one that will not parse, and is held and in
+        // the end passed over by the attempts counted below. iCloud lists a
+        // message in SEARCH that it has hidden from FETCH, most likely one
+        // deleted and not yet expunged (#96); that used to stop the import at
+        // 486 of 487 for good. A dropped connection or a refused FETCH is
+        // thrown, and says nothing about the messages.
+        // Copies of mail already here — All Mail's, most of all — become
+        // locations of it and are not downloaded (#415).
+        [$attached, $identities] = $this->copies->attachKnownCopies($mailbox, $session, $page);
+        $toFetch                 = array_values(array_diff($page, $attached));
 
-                if (null === $current) {
-                    return ImapImportOutcome::Finished;
-                }
+        foreach ($this->pagedFetch->pages($session, $path, $toFetch, self::PAGE_SIZE) as [$batch, $unreadable]) {
+            // Found again for each: storing a page clears the entity manager.
+            $current = $this->mailboxes->find($mailboxId);
 
-                $held = $this->messageSyncer->storeImportPage($current, $batch, $unreadable);
-
-                if (null !== $held) {
-                    $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);
-                }
-            }
-        } catch (Throwable $e) {
-            // The server listed these UIDs and then returned nothing for any
-            // of them. A page of a hundred never gets here — one UID that will
-            // not come back is simply absent among ninety-nine that do — so
-            // this is the LAST page, holding only what the server will not
-            // hand over: iCloud lists a message in SEARCH that it has hidden
-            // from FETCH, most likely one deleted and not yet expunged (#96).
-            //
-            // It used to leave this method as an exception, before the
-            // attempts below were counted, so the rule that gives up after
-            // MAX_PAGE_ATTEMPTS never applied: the import was retried every
-            // few minutes for good, at 486 of 487, and every folder of the
-            // account ranked after this one waited behind it.
-            //
-            // Counted as a page that held something back, which is what it
-            // is. Only this failure: a dropped connection or a refusal says
-            // nothing about the messages, and passing over mail because the
-            // network was down for an hour is not a trade to make.
-            if (false === ImapEmptyAnswer::is($e)) {
-                throw $e;
+            if (null === $current) {
+                return ImapImportOutcome::Finished;
             }
 
-            $this->logger->info('Import: the server lists messages it returned nothing for', [
-                'mailboxId' => $mailboxId,
-                'mailbox'   => $path,
-                'from'      => min($page),
-                'to'        => max($page),
-            ]);
+            $held = $this->messageSyncer->storeImportPage($current, $session, $batch, $unreadable, $identities);
 
-            $lowestHeld = min($page);
+            if (null !== $held) {
+                $lowestHeld = null === $lowestHeld ? $held : min($lowestHeld, $held);
+            }
         }
 
         $mailbox = $this->mailboxes->find($mailboxId);
@@ -197,20 +172,21 @@ final readonly class ImapMailboxImporter
      *
      * @return list<int>
      */
-    private function missingBelow(Mailbox $mailbox, \Webklex\PHPIMAP\Folder $folder, int $floor): array
+    private function missingBelow(Mailbox $mailbox, ImapSession $session, string $path, int $floor): array
     {
-        $onServer = ImapQuery::of($folder)
-            ->emptyWhenNoSuchMessage()
-            ->where(MessageSyncer::uidRangeCriteria(sprintf('1:%d', $floor - 1)))
-            ->search()
-            ->all();
+        $onServer = ImapUidSearch::range($session, $path, sprintf('1:%d', $floor - 1));
 
         // `1:n` on a folder whose highest UID is below n answers with that
         // highest one, the way `*` does. Anything at or above the floor has
         // been dealt with and is not history.
-        $onServer = array_filter(array_map('intval', $onServer), static fn (int $uid): bool => $uid < $floor);
+        $onServer = array_filter($onServer, static fn (int $uid): bool => $uid < $floor);
 
-        $stored  = array_flip(array_map('intval', $this->messages->findSyncedUids($mailbox, 0)));
+        // Purged here and not yet confirmed gone on the server count as
+        // stored: importing them would bring back mail deleted forever (#427).
+        $stored  = array_flip([
+            ...array_map('intval', $this->messages->findSyncedUids($mailbox, 0)),
+            ...$this->purgedCopies->uidsIn($mailbox),
+        ]);
         $missing = array_values(array_filter($onServer, static fn (int $uid): bool => false === isset($stored[$uid])));
 
         rsort($missing);

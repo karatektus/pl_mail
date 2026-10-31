@@ -105,6 +105,28 @@ class Mailbox
     public bool $isSelectable = true;
 
     /**
+     * Whether this folder is the server's view of mail it keeps in other
+     * folders, rather than a place of its own (#414).
+     *
+     * RFC 6154's virtual collections: \Flagged ("Starred"), and \All ("All
+     * Mail") on an account that also has an Archive folder. Proton Bridge has
+     * both. A message row is one folder copy (until #415), so syncing such a
+     * folder stores every message a second time, and the conversation shows
+     * each one twice.
+     *
+     * \All only beside an Archive, because without one — Gmail over IMAP —
+     * All Mail is where archived mail lives and nowhere else. Switching it off
+     * there would trade duplicates for missing mail.
+     *
+     * Written by MailboxSyncer on every folder sync, in both directions, like
+     * $isSelectable. It is also the record of what was already acted on: the
+     * sync is switched off when this turns true, not every time it is true, so
+     * a person who switches the folder back on keeps it on.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $mirrorsOtherFolders = false;
+
+    /**
      * Which label this folder feeds is recorded on LabelBinding, alongside the
      * Gmail and Graph ids for the same label — one row per (label, account)
      * describes every provider. Mailbox reads through it and does not carry a
@@ -238,6 +260,21 @@ class Mailbox
     public function isImporting(): bool
     {
         return 0 !== $this->importFloorUid;
+    }
+
+    /**
+     * The name to hand the server: the path as it spelled it.
+     *
+     * The leaf name is only for a row that predates the column, and was what
+     * the folder used to be looked up by — which, on an account with
+     * "Archive/Invoices" and "Projects/Invoices", found the same folder for
+     * both. A row synced since has its path.
+     *
+     * Stays a method: it chooses between two properties.
+     */
+    public function serverPath(): string
+    {
+        return '' !== (string) $this->fullPath ? (string) $this->fullPath : (string) $this->name;
     }
 
 

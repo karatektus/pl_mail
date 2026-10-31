@@ -1,4 +1,4 @@
-<!-- translated-from: install/platforms.md sha1:dce16f9c1eabb5de1efada87ad7bc87a7a4ec7a2 -->
+<!-- translated-from: install/platforms.md sha1:722fae0fdc1b8af23933b000fd5177ac16bb623d -->
 # Plattform-Hinweise
 
 plMail führt überall dieselben Container aus, deshalb geht es auf dieser Seite fast nur um die
@@ -111,7 +111,7 @@ Punkte hat hier bereits etwas kaputtgemacht.
 ## NAS-Geräte
 
 Ein NAS ist genau die Art Maschine, für die plMail gedacht ist. Auf TrueNAS installierst du plMail
-aus dem App-Katalog. Überall sonst sind das die Entscheidungen, vor denen du stehen wirst.
+aus dem App-Katalog, auf Unraid aus Community Applications (siehe [Unraid](unraid.md)). Überall sonst sind das die Entscheidungen, vor denen du stehen wirst.
 
 **Ports.** Ein NAS, dessen eigene Verwaltungsoberfläche bereits 80 und 443 belegt, verlangt, dass
 plMail umzieht. Setze `HTTP_PORT` und `HTTPS_PORT` (und `HTTP3_PORT`, falls du HTTP/3 direkt

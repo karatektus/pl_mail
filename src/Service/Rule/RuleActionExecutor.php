@@ -75,6 +75,15 @@ final readonly class RuleActionExecutor
 
             $type = (string) ($action['type'] ?? '');
 
+            // A tab, not a label: nothing about the message's labels or its
+            // place at the provider changes, so there is no propagator call
+            // and no thread label re-sync to ask for.
+            if (self::FILE_IN_CATEGORY === $type) {
+                $this->categoryFiler->file($rule, $message, $action);
+
+                continue;
+            }
+
             $touchedLabels = $this->one($type, $action, $message, $rule) || $touchedLabels;
         }
 
@@ -153,15 +162,6 @@ final readonly class RuleActionExecutor
 
             case self::SAVE_TO_INTEGRATION:
                 $this->queueUpload($action, $message, $rule);
-
-                return false;
-
-            case self::FILE_IN_CATEGORY:
-                // A tab, not a label: nothing about the message's labels or its
-                // place at the provider changes, so there is no propagator call
-                // and no thread label re-sync to ask for. Whether it is allowed
-                // to file at all is RuleCategoryFiler's decision.
-                $this->categoryFiler->file($rule, $message, $action);
 
                 return false;
 

@@ -17,7 +17,7 @@ are built from the same files.
 
 ### 📱 Apps for your phone
 
-- **Android** — [karatektus/pl_mail_android](https://github.com/karatektus/pl_mail_android)
+- **Android** — [Google Play](https://play.google.com/store/apps/details?id=de.pluetzner.plmail) (paid, early access), or free from [karatektus/pl_mail_android](https://github.com/karatektus/pl_mail_android/releases/latest). Buying it on Play is, for now, the main way this project supports itself.
 - **iOS** — [karatektus/pl_mail_ios](https://github.com/karatektus/pl_mail_ios)
 
 Both connect to your own plMail server.

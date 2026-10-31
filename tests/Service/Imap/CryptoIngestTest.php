@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
+use App\Infrastructure\ImapClient\ImapLoop;
 use App\Service\Imap\ImapUidPresence;
 use App\Service\Imap\MessageSyncer;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -192,7 +193,7 @@ final class CryptoIngestTest extends KernelTestCase
 
         $synced   = [];
         $lowest   = null;
-        $presence = new ImapUidPresence($this->account, static::getContainer()->get(ImapConnectionFactory::class), new NullLogger());
+        $presence = new ImapUidPresence(new FakeImapServer(static::getContainer()->get(ImapLoop::class))->session(), new NullLogger());
 
         new \ReflectionMethod(MessageSyncer::class, 'processBatch')->invokeArgs(
             static::getContainer()->get(MessageSyncer::class),

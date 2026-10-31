@@ -49,6 +49,7 @@ mechanism behind it.
 |---|---|
 | [Docker Compose](install/docker.md) | The supported path, start to finish |
 | [Platform notes](install/platforms.md) | Linux, Windows via WSL2, macOS, and NAS boxes |
+| [Unraid](install/unraid.md) | One plMail container beside a Postgres container, from Community Applications |
 | [Behind a reverse proxy](install/reverse-proxy.md) | TLS, `APP_PUBLIC_URL`, `TRUSTED_PROXIES`, and what breaks without them |
 | [Configuration reference](install/configuration.md) | Every environment variable, what it does and what happens if it is wrong |
 | [Backup and restore](install/backup-restore.md) | What to back up, the encryption key, and restoring onto a new host |
@@ -66,6 +67,7 @@ Each page names the exact console, the exact checkboxes and the exact redirect U
 | [Google](providers/google.md) | Cloud project, OAuth client, scopes for mail and calendar, Pub/Sub for Gmail push, calendar watch channels and domain verification |
 | [Microsoft](providers/microsoft.md) | Azure app registration, redirect URIs, delegated permissions, tenant choice, Graph subscriptions |
 | [IMAP and SMTP](providers/imap-smtp.md) | Plain mailboxes, IDLE, and the settings servers disagree about |
+| [JMAP](providers/jmap.md) | Stalwart, Fastmail and other JMAP servers: mail, calendars and contacts over one login, sending through the server, and push |
 | [CalDAV](providers/caldav.md) | Discovery, app passwords, and the servers that have been tested |
 | [CardDAV](providers/carddav.md) | Address books from Nextcloud and other servers: suggestions while writing, editing, and two-way sync |
 | [ICS feeds](providers/ics-feeds.md) | Subscribing to a published calendar by URL, and why some addresses are refused |

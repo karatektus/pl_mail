@@ -72,6 +72,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmNoBody:    'compose.confirm.no_body'|trans,
              confirmSendAnyway: 'compose.confirm.send_anyway'|trans,
              confirmOpenVariables: 'compose.confirm.open_variables'|trans,
+             confirmNoAttachment: 'compose.confirm.no_attachment'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
@@ -1362,7 +1363,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                               placeholder="{{ 'compose.ai.prompt.placeholder'|trans }}"
                                               class="w-full resize-y rounded-lg px-2 py-1.5
                                                      text-sm leading-snug text-ink
-                                                     bg-field border border-field
+                                                     bg-field border border-field-border
                                                      focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
                                                      transition-colors">{{ app.user ? app.user.aiPreferences.systemPrompt : '' }}</textarea>
 

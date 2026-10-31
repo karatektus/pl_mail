@@ -237,6 +237,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
+            $container->get('App\Service\JmapClient\JmapMailboxWriter'),
         );
     }
 
@@ -245,7 +246,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
         $container = self::getContainer();
 
         return new RemoteLabelRemover(
-            $container->get('App\Domain\Helper\ImapConnectionFactory'),
+            $container->get('App\Service\Imap\ImapConnector'),
             $container->get('App\Service\Mail\GmailApiClient'),
             $this->graph(),
             $container->get('App\Repository\Mail\MessageRepository'),
@@ -253,6 +254,7 @@ final class GraphLabelDeleteTest extends KernelTestCase
             $container->get(LabelResolver::class),
             $this->em,
             new NullLogger(),
+            $container->get('App\Service\JmapClient\JmapMailboxWriter'),
         );
     }
 

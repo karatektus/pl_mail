@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
+use App\Service\Imap\PurgedCopies;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -62,6 +63,7 @@ final readonly class MessagePurger
         private EntityManagerInterface $entityManager,
         private MessageBusInterface    $bus,
         private MessageEraser          $eraser,
+        private PurgedCopies           $purgedCopies,
     ) {
     }
 
@@ -104,7 +106,7 @@ final readonly class MessagePurger
      *
      * Grouped by account because an envelope authenticates as one account, and
      * split by the coordinate each provider understands: IMAP wants a folder
-     * and a UID, Gmail its own message id, Graph its own. A message with none
+     * and a UID, Gmail its own message id, Graph and JMAP theirs. A message with none
      * of them — a draft that never reached a server, or one whose account has
      * gone — simply contributes nothing, and the job is not sent at all if the
      * whole batch is like that.
@@ -113,7 +115,7 @@ final readonly class MessagePurger
      */
     private function dispatchRemotePurge(array $messages): void
     {
-        /** @var array<int, array{imap: array<string, list<int>>, gmail: list<string>, graph: list<string>}> $byAccount */
+        /** @var array<int, array{imap: array<string, list<int>>, gmail: list<string>, graph: list<string>, jmap: list<string>}> $byAccount */
         $byAccount = [];
 
         foreach ($messages as $message) {
@@ -124,12 +126,13 @@ final readonly class MessagePurger
             }
 
             $accountId             = (int) $account->id;
-            $byAccount[$accountId] ??= ['imap' => [], 'gmail' => [], 'graph' => []];
+            $byAccount[$accountId] ??= ['imap' => [], 'gmail' => [], 'graph' => [], 'jmap' => []];
 
-            $folder = $message->mailbox?->fullPath;
-
-            if (null !== $message->imapUid && null !== $folder) {
-                $byAccount[$accountId]['imap'][$folder][] = $message->imapUid;
+            // Every copy the server keeps, each left on record until the
+            // server confirms, so no sync in between brings the mail back
+            // (#415, #427).
+            foreach ($this->purgedCopies->record($message) as $folder => $uids) {
+                $byAccount[$accountId]['imap'][$folder] = [...($byAccount[$accountId]['imap'][$folder] ?? []), ...$uids];
             }
 
             if (null !== $message->gmailId && '' !== $message->gmailId) {
@@ -139,6 +142,10 @@ final readonly class MessagePurger
             if (null !== $message->graphId && '' !== $message->graphId) {
                 $byAccount[$accountId]['graph'][] = $message->graphId;
             }
+
+            if (null !== $message->jmapId && '' !== $message->jmapId && true === $account->isJmap()) {
+                $byAccount[$accountId]['jmap'][] = $message->jmapId;
+            }
         }
 
         foreach ($byAccount as $accountId => $coordinates) {
@@ -147,6 +154,7 @@ final readonly class MessagePurger
                 $coordinates['imap'],
                 $coordinates['gmail'],
                 $coordinates['graph'],
+                $coordinates['jmap'],
             );
 
             if (false === $job->isEmpty()) {

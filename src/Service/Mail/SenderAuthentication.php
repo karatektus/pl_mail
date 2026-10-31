@@ -56,17 +56,15 @@ use App\Entity\Mail\Message;
  *
  * WHAT THIS IS FOR
  * ────────────────
- * Two decisions, and the second has the higher stakes.
- *
  * Whether mail may change a calendar without being asked (EventReconciler):
  * an `Unknown` or a `Fail` only ever means "ask the person first".
  *
- * Whether a filter may file a message into an inbox tab the reader made
- * (RuleCategoryFiler): only a `Pass` does, so that a forged sender cannot sit
- * in a tab named after the real one. There an `Unknown` or a `Fail` means the
- * message is left to the ordinary rules, and nothing is shown to say a filter
- * declined — which is why the believed-server rules above are a security
- * property of that feature and not only of calendar updates.
+ * It used to decide whether a filter could file a message into a tab the
+ * reader made, too. It no longer does (#405): the reader's own sent mail has
+ * no verdict, mail sent through a platform on somebody's behalf rarely aligns,
+ * and a filter that silently filed a third of what it matched was worse than
+ * the forgery it guarded against — which Spam is for, and filters leave Spam
+ * alone (RuleConditions).
  *
  * Nothing here shows a warning or blocks a message.
  */
@@ -125,7 +123,17 @@ final readonly class SenderAuthentication
                 static fn (mixed $line): string => trim((string) preg_replace('/\s+/', ' ', (string) $line)),
                 (array) $raw,
             ),
-            static fn (string $line): bool => '' !== $line,
+            // Not a line: webklex/php-imap hands a header back as the whole value plus
+            // its leading token on its own, so an IMAP message carries
+            // ["mx.google.com; dkim=pass …", "mx.google.com"]. Taken for a
+            // second line from the believed server, the bare name passed
+            // nothing and failed every message, which kept File in category
+            // from filing anything at all on an IMAP account. A real line
+            // always has a `;` (RFC 8601 — "authserv-id; none" when there is
+            // nothing to say) or, nameless from Microsoft, an `=`; a token with
+            // neither carries no verdict either way. A library workaround: #82
+            // replaces the parsing and removes it with the others.
+            static fn (string $line): bool => '' !== $line && 1 === preg_match('/[;=]/', $line),
         ));
 
         if ([] === $lines) {

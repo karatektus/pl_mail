@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Contacts\ContactsPaneMode;
 use App\Domain\Enum\Contacts\ContactsSwitchSkip;
 use App\Domain\Enum\Crypto\KeyringRoot;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
@@ -1365,6 +1366,96 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         set(bool $on) {
             $this->setSetting(self::SETTING_DISPOSAL_DELETE_NOW, $on ? true : null);
         }
+    }
+
+    /**
+     * Whether a browser push for new mail is dropped when the Inbox has nothing
+     * unread left by the time the browser acts on it.
+     *
+     * A web push is content-free (a StateChange cannot say WHICH mail arrived)
+     * and cannot be recalled, so a message that is read or deleted on a phone a
+     * minute after it arrived has already told every other browser. The service
+     * worker therefore waits a moment, asks WebPushController::inboxState()
+     * whether anything is still unread, and shows nothing when not. Per USER,
+     * not per device: the same mail notifying on one browser and not on another
+     * is the confusing outcome, not the setting.
+     *
+     * OFF unless somebody switches it on, so nothing changes for anybody who
+     * does not. Only a stored true is on, so the key is absent for nearly
+     * everybody and no migration writes it.
+     */
+    public const string SETTING_PUSH_SKIP_READ = 'notifications.skip_read';
+
+    /** Virtual, out of the settings bag — see SETTING_PUSH_SKIP_READ. */
+    public bool $pushSkipsRead {
+        get => true === $this->getSetting(self::SETTING_PUSH_SKIP_READ, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_PUSH_SKIP_READ, $on ? true : null);
+        }
+    }
+
+    /**
+     * Which inbox tabs a browser is told about new mail in. Everything, until
+     * somebody chooses.
+     *
+     * A web push is content-free, so the browser cannot tell a Primary message
+     * from a promotion and notified for both. The server can, which is why the
+     * choice is made where the push is sent (PushDispatcher). Per USER, not per
+     * device, and for the browsers only: the Android app narrows to Primary by
+     * itself.
+     *
+     * Stored only when it differs from all five, so the key is absent for
+     * nearly everybody and no migration writes it. "Everything" is also what
+     * mail is announced as before the tab is known, so a user who has not
+     * chosen is told exactly as they always were.
+     */
+    public const string SETTING_PUSH_CATEGORIES = 'notifications.categories';
+
+    /**
+     * The tabs that notify; all of them unless chosen otherwise. Never empty:
+     * a browser told about no tab at all is notifications switched off, and
+     * that has a switch of its own.
+     *
+     * @var list<MessageCategory>
+     */
+    public array $pushCategories {
+        get {
+            $stored = $this->getSetting(self::SETTING_PUSH_CATEGORIES);
+
+            if (false === is_array($stored)) {
+                return MessageCategory::cases();
+            }
+
+            $chosen = array_values(array_filter(
+                MessageCategory::cases(),
+                static fn (MessageCategory $category): bool => true === in_array($category->value, $stored, true),
+            ));
+
+            return [] === $chosen ? MessageCategory::cases() : $chosen;
+        }
+        set (array $categories) {
+            $chosen = array_values(array_filter(
+                MessageCategory::cases(),
+                static fn (MessageCategory $category): bool => true === in_array($category, $categories, true),
+            ));
+
+            $this->setSetting(
+                self::SETTING_PUSH_CATEGORIES,
+                [] === $chosen || count($chosen) === count(MessageCategory::cases())
+                    ? null
+                    : array_map(static fn (MessageCategory $category): string => $category->value, $chosen),
+            );
+        }
+    }
+
+    /** Whether the user chose some tabs and not all of them — see $pushCategories. */
+    public bool $pushFiltersCategories {
+        get => count($this->pushCategories) < count(MessageCategory::cases());
+    }
+
+    public function pushNotifiesFor(MessageCategory $category): bool
+    {
+        return true === in_array($category, $this->pushCategories, true);
     }
 
     /**

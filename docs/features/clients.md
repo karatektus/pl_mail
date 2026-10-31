@@ -4,6 +4,17 @@ plMail speaks JMAP, so a third-party mail app can read and send through it witho
 provider's credentials. It is also a progressive web app, so the browser you already use can behave
 like an installed client and notify you of new mail with the tab closed.
 
+## The plMail app for Android
+
+The native app is on [Google Play](https://play.google.com/store/apps/details?id=de.pluetzner.plmail)
+as a paid app in early access. The same app is free from the
+[GitHub releases](https://github.com/karatektus/pl_mail_android/releases/latest), which also carry a
+build without any Google code (push through UnifiedPush instead of Firebase). Buying it on Play is,
+for now, the main way this project supports itself.
+
+To connect it, open **Settings → App passwords → Pair a device** and scan the QR code with the app.
+The same panel links to both downloads.
+
 ## Connecting a JMAP client
 
 Two things: an app password, and one URL.
@@ -115,6 +126,22 @@ arrival time plMail cannot work out from its headers is not announced.
 Mail counts as new only once your [filters](filters.md) have run. A message a filter marks as read,
 archives, or moves to Trash or Spam is not announced, and neither is mail that was already read when
 plMail fetched it — opened on your phone a moment earlier, say.
+
+**Choosing what notifies.** Two settings in **Settings → Notifications**, both for you rather than
+for one device. **Notify for** has a box for each inbox tab (Primary, Social, Promotions, Updates,
+Forums), all ticked until you choose; a browser is then told only about mail that lands in the tabs
+you left ticked, so "Primary only" is Primary alone. plMail decides that on the server, because the
+notification itself carries nothing the browser could judge by. Mail the assistant is still sorting
+is announced once it has been put in a tab, and only if that tab is one you ticked. At least one tab
+stays ticked: none at all would be notifications switched off, which has its own switch. This
+applies to browsers only; the Android app narrows to Primary on its own and ignores it.
+
+**Only notify for unread mail** (off by default) deals with a push that cannot be recalled: with notifications on in
+several browsers each one says "New mail" even when you read or deleted the message on your phone a
+minute later. A browser with this on waits twenty seconds after the push and asks whether the Inbox
+still has anything unread. If not, it shows nothing, and it takes down a notification it had shown
+for earlier mail. It looks at the Inbox as a whole, not at the one message, so an older unread
+message keeps the notification.
 
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is

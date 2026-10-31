@@ -43,6 +43,9 @@ final class ThemeInkContrastTest extends TestCase
     /** WCAG 2.x AA for body text, which is what these tiers draw. */
     private const float AA_BODY_TEXT = 4.5;
 
+    /** WCAG 2.1 1.4.11: the boundary that identifies a control. */
+    private const float NON_TEXT = 3.0;
+
     /** The four roles drawn as text on a status wash or on their own. */
     private const array STATUS = ['--rgb-danger', '--rgb-warning', '--rgb-success', '--rgb-info'];
 
@@ -239,6 +242,60 @@ final class ThemeInkContrastTest extends TestCase
                 );
             }
         }
+    }
+
+    /**
+     * A field's border is all that marks it where its fill matches what it
+     * sits on — a white field on a white pane — so it is held to the 3:1 a
+     * control's boundary needs, against everything on either side of it: the
+     * surface, sunken, the field's own fill on each, and the page, where the
+     * topbar's search box sits (#303).
+     *
+     * No theme met it. The tokens painted 1.0–1.5:1, and the field classes
+     * drew `border-field`, which is the fill, so the border that did exist
+     * never reached the screen.
+     */
+    #[DataProvider('everyPalette')]
+    public function testAFieldsBorderStandsOutFromWhatItSitsOn(string $selector): void
+    {
+        $palette = self::palettes()[$selector];
+        $surface = $palette['--rgb-surface'];
+        $sunken  = self::wash($palette['--rgb-sunken'], self::alpha($selector, '--sunken-alpha'), $surface);
+        $field   = $palette['--rgb-field'];
+        $alpha   = self::alpha($selector, '--field-alpha');
+
+        $backgrounds = [
+            'the surface'           => $surface,
+            'sunken'                => $sunken,
+            'the field on surface'  => self::wash($field, $alpha, $surface),
+            'the field on sunken'   => self::wash($field, $alpha, $sunken),
+        ];
+
+        foreach (self::pageColours($selector) as $page) {
+            $backgrounds['the page (' . implode(' ', $page) . ')'] = $page;
+        }
+
+        $borderAlpha = self::alpha($selector, '--field-border-alpha');
+
+        foreach ($backgrounds as $where => $background) {
+            $ratio = self::ratio(self::wash($palette['--rgb-field-border'], $borderAlpha, $background), $background);
+
+            self::assertGreaterThanOrEqual(
+                self::NON_TEXT,
+                $ratio,
+                sprintf('%s --rgb-field-border on %s is %.2f:1', $selector, $where, $ratio),
+            );
+        }
+    }
+
+    /** A theme block's alpha variable, as a fraction. */
+    private static function alpha(string $selector, string $name): float
+    {
+        $pattern = sprintf('/%s\s*\{[^}]*?%s\s*:\s*([\d.]+)\s*;/', preg_quote($selector, '/'), preg_quote($name, '/'));
+
+        self::assertSame(1, preg_match($pattern, self::css(), $match), sprintf('%s declares no %s', $selector, $name));
+
+        return (float) $match[1];
     }
 
     /**

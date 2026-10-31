@@ -11,8 +11,10 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
 use App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
+use App\Infrastructure\Messaging\Message\ApplyJmapChangesMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -24,6 +26,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
  *
  * Provider mapping:
  *   Gmail — every operation is a label mutation via messages.batchModify.
+ *   JMAP  — the same, as Email/set patches: a label is a mailbox the
+ *           message is in, read and starred are keywords, and Trash is the
+ *           one move that takes the message out of everything else.
  *   IMAP  — star/read map to flags; archive/trash/delete map to moves as
  *           before; custom label attach is DB-only (the physical folder is
  *           untouched while the location label stays); custom label detach
@@ -48,6 +53,7 @@ final readonly class LabelChangePropagator
         private LabelRepository     $labelRepository,
         private GraphLabelPolicy    $labelPolicy,
         private LoggerInterface     $logger,
+        private MessageRepository   $messageRepository,
     ) {}
 
     /**
@@ -66,6 +72,7 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailStarPayload($starred));
         $this->dispatchGraph($messages, flagged: $starred);
+        $this->dispatchJmap($messages, keywords: ['$flagged' => $starred]);
     }
 
     /**
@@ -84,6 +91,7 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, $imapAction);
         $this->dispatchGmail($messages, $this->gmailReadPayload($read));
         $this->dispatchGraph($messages, isRead: $read);
+        $this->dispatchJmap($messages, keywords: ['$seen' => $read]);
     }
 
     /**
@@ -97,6 +105,7 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, 'archive');
         $this->dispatchGmail($messages, ['add' => [], 'remove' => ['INBOX']]);
         $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Archive));
+        $this->dispatchJmap($messages, add: [self::role(LabelRole::Archive)], remove: [self::role(LabelRole::Inbox)]);
     }
 
     /**
@@ -107,6 +116,7 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, 'trash');
         $this->dispatchGmail($messages, ['add' => ['TRASH'], 'remove' => ['INBOX']]);
         $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Trash));
+        $this->dispatchJmap($messages, only: LabelRole::Trash);
     }
 
     /**
@@ -132,6 +142,19 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, 'restore');
         $this->dispatchGmail($messages, ['add' => ['INBOX'], 'remove' => ['TRASH', 'SPAM']]);
         $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Inbox));
+        $this->dispatchJmap($messages, add: [self::role(LabelRole::Inbox)], remove: [self::role(LabelRole::Trash), self::role(LabelRole::Spam)]);
+    }
+
+    /**
+     * The IMAP half of restore() alone: the move back into the inbox folder,
+     * for a caller whose labels reach the other providers another way
+     * (ThreadSnoozeService::wake()).
+     *
+     * @param iterable<Message> $messages
+     */
+    public function restoreOnImap(iterable $messages): void
+    {
+        $this->dispatchFlags($messages, 'restore');
     }
 
     /**
@@ -156,6 +179,9 @@ final readonly class LabelChangePropagator
         $this->dispatchFlags($messages, 'delete');
         $this->dispatchGmail($messages, ['add' => ['TRASH'], 'remove' => []]);
         $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Trash));
+        // Destroyed outright: a JMAP draft is an Email like any other, and
+        // the bin would keep the copy this exists to get rid of.
+        $this->dispatchJmap($messages, destroy: true);
     }
 
     /**
@@ -167,6 +193,7 @@ final readonly class LabelChangePropagator
     public function attachLabel(iterable $messages, Label $label): void
     {
         $this->dispatchGmail($messages, ['add' => [(string) $label->id], 'remove' => []]);
+        $this->dispatchJmap($messages, add: [self::entryFor($label)]);
 
         // Graph: a folder-backed label is a move into that folder; a plain
         // (category) label is derived from DB state by the handler. Folder
@@ -185,8 +212,8 @@ final readonly class LabelChangePropagator
      * Detach a custom label. IMAP: physical move only when the detached
      * label was the message's location label — resolved per message.
      *
-     * MUST be called after the DB label mutation but BEFORE re-pointing or
-     * flushing message->mailbox; this method handles the re-point itself.
+     * MUST be called after the DB label mutation. The message's folder changes
+     * when the server has moved it (ApplyImapFlagsHandler), not here.
      *
      * @param iterable<Message> $messages
      */
@@ -194,6 +221,7 @@ final readonly class LabelChangePropagator
     {
         $this->dispatchGmail($messages, ['add' => [], 'remove' => [(string) $label->id]]);
         $this->dispatchGraph($messages);
+        $this->dispatchJmap($messages, remove: [self::entryFor($label)]);
 
         // ── IMAP location handling ────────────────────────────────────────
         /** @var array<string, array<int,int>> $moves  destinationPath → messageId => sourceMailboxId */
@@ -226,10 +254,8 @@ final readonly class LabelChangePropagator
             $moves[$destinationMailbox->fullPath][$message->id]    = $sourceMailbox->id;
             $moveUids[$destinationMailbox->fullPath][$message->id] = $message->imapUid;
 
-            // Optimistic re-point. The source address goes with it: the UID
-            // this row held belongs to the folder it is leaving, and the
-            // destination will issue its own. See Message::relocateTo().
-            $message->relocateTo($destinationMailbox);
+            // No re-point: the copy keeps its address until the server says
+            // where it landed, and ApplyImapFlagsHandler moves it then (#415).
         }
 
         foreach ($moves as $destinationPath => $idMap) {
@@ -355,7 +381,13 @@ final readonly class LabelChangePropagator
             return;
         }
 
-        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action, null, $uidMap));
+        // A flag goes to every copy the server keeps, since IMAP keeps flags
+        // per copy (#415); a move moves the one copy named above.
+        $copies = true === in_array($action, ['flag', 'unflag', 'seen', 'unseen'], true)
+            ? $this->messageRepository->findCopiesOf(array_keys($idMap))
+            : [];
+
+        $this->bus->dispatch(new ApplyImapFlagsMessage($idMap, $action, null, $uidMap, $copies));
     }
 
     /**
@@ -441,6 +473,61 @@ final readonly class LabelChangePropagator
 
             $this->bus->dispatch(new ApplyGraphChangesMessage($accountId, $messageIds, $moveToLabel, $isRead, $flagged));
         }
+    }
+
+    /**
+     * Queue the change for the JMAP accounts among these messages.
+     *
+     * One job per account, carrying label entries rather than mailbox ids:
+     * the handler resolves those against the account's bindings, and makes
+     * the mailbox on the server when the label has none yet. A row with no
+     * JMAP id — a draft that never reached the server — is not the server's
+     * business.
+     *
+     * @param iterable<Message>   $messages
+     * @param list<string>        $add
+     * @param list<string>        $remove
+     * @param array<string, bool> $keywords
+     */
+    private function dispatchJmap(
+        iterable   $messages,
+        array      $add = [],
+        array      $remove = [],
+        array      $keywords = [],
+        ?LabelRole $only = null,
+        bool       $destroy = false,
+    ): void {
+        /** @var array<int, list<int>> $byAccount */
+        $byAccount = [];
+
+        foreach ($messages as $message) {
+            if (null === $message->jmapId || false === $this->accountOf($message)->isJmap()) {
+                continue;
+            }
+
+            $byAccount[(int) $message->account->id][] = (int) $message->id;
+        }
+
+        foreach ($byAccount as $accountId => $messageIds) {
+            $this->bus->dispatch(new ApplyJmapChangesMessage($accountId, $messageIds, $add, $remove, $keywords, $only?->value, $destroy));
+        }
+    }
+
+    /** A system label's entry for ApplyJmapChangesMessage. */
+    private static function role(LabelRole $role): string
+    {
+        return ApplyJmapChangesMessage::ROLE_PREFIX . $role->value;
+    }
+
+    /**
+     * A label's entry: its role for a system label, so the handler can make
+     * the Archive mailbox; its id for any other.
+     */
+    private static function entryFor(Label $label): string
+    {
+        $role = $label->role;
+
+        return true === $label->isSystem && null !== $role ? self::role($role) : (string) $label->id;
     }
 
     /**

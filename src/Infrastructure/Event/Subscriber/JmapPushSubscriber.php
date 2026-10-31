@@ -64,7 +64,8 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
         // Drained even when nothing changed. The arrivals buffer is separate
         // from the dirty set, and if it were left behind on an early return it
         // would be announced as new mail by whichever unit of work came next.
-        $arrived = $this->stateManager->drainArrivals();
+        $arrived        = $this->stateManager->drainArrivals();
+        $categories     = $this->stateManager->drainArrivalCategories();
 
         if (0 === count($changed)) {
             return;
@@ -75,7 +76,7 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
         $this->browsers->publish($changed);
 
         try {
-            $this->dispatcher->dispatch($changed, $arrived);
+            $this->dispatcher->dispatch($changed, $arrived, $categories);
         } catch (\Throwable $exception) {
             // Never let a push failure surface as a request or handler error:
             // the data change already succeeded and is what matters.

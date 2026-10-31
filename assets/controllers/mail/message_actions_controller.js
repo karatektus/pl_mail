@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { listView } from "../../list_view.js";
 import { announceWrite } from "../../mail_writes.js";
+import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 
 /**
@@ -118,6 +119,38 @@ export default class extends Controller {
         this._close();
 
         if (false === await this._post(this._url("trash"))) {
+            return;
+        }
+
+        this._closePane();
+    }
+
+    /** Out of the bin, as the row's Restore does. */
+    async restore(event) {
+        event.stopPropagation();
+        this._close();
+
+        if (false === await this._post(this._url("restore"))) {
+            return;
+        }
+
+        this._closePane();
+    }
+
+    /**
+     * Delete for good, asked first in the application's dialog — see
+     * mail--message-row#purge, which asks the same question for the row.
+     */
+    async purge(event) {
+        const { purgeConfirm } = event.params;
+        event.stopPropagation();
+        this._close();
+
+        if (false === await askConfirm(purgeConfirm)) {
+            return;
+        }
+
+        if (false === await this._post(this._url("purge"))) {
             return;
         }
 

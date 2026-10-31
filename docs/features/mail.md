@@ -272,8 +272,9 @@ one that decided marked — the three disagree more often than you would think, 
 won is the difference between changing a setting and changing nothing.
 
 Two things the panel will tell you that are easy to mistake for bugs. A conversation takes **one**
-category, from its newest message, so a reply can carry the whole thread out of the tab an earlier
-message belongs in; the panel says so when that has happened. And a category you set by dragging the
+category, from the newest message you received in it, so an answer can carry the whole thread out of
+the tab an earlier message belongs in; the panel says so when that has happened. Your own replies
+do not count. And a category you set by dragging the
 conversation onto a tab holds against everything else, which the panel also says.
 
 If it is simply wrong, **Report** at the bottom of the panel says where it should have gone. That
@@ -575,7 +576,9 @@ whose body only ever says `help.wirhub.de`.
 `from:"Ada Lovelace"` works.
 
 Search leaves out Spam and the bin unless you ask for them with `in:spam` or `in:trash`, the same
-as the lists do. The suggestions as you type leave both out.
+as the lists do. The suggestions as you type leave both out. Clicking into the search box while
+you are in Spam or the bin writes `in:spam` or `in:trash` in for you, so a search from there
+searches that folder. Delete it to search everywhere else instead.
 
 Suggestions appear as you type, and so do **actual results** — the ten most recent matching
 conversations, under the operator suggestions, from about the third character. They are a preview
@@ -967,6 +970,22 @@ Autocomplete only ever offers **your own** harvested contacts. On an install wit
 person, nobody's correspondents are visible to anybody else, and an address belonging to another
 account cannot be put on your draft by any route.
 
+**Double-click a recipient** to correct it: the address goes back into the field, Enter puts the
+fixed one where the old one was. Leaving the field without pressing Enter puts it back as it is.
+
+**Copy recipients** by selecting their chips (a click, Shift+click, or Ctrl+A in an empty field)
+and pressing Ctrl+C: they go to the clipboard as `Name <address>; address`, which other mail clients
+read. Ctrl+X does the same and removes them, so a list moves from To to Bcc with a cut and a paste.
+
+**Drag a recipient** from one of To, Cc and Bcc onto another to move it there; a contact keeps its
+name. With a mouse or a pen: on a touch screen, cut and paste the address instead.
+
+A list of addresses pasted into **To**, **Cc** or **Bcc** becomes one recipient per address,
+whether it is separated by semicolons, commas, new lines or spaces, and with or without names
+(`jo@jo.fr; Ann <ann@example.org>`, `jo@jo.fr jo2@jo.fr`). A space inside a name does not split
+it. An address already on the field is not added twice, and a
+piece that is not an address stays in the box, reported, for you to correct.
+
 **Attach files** takes files from your machine, capped at **25 MB per file**. **Attach from a
 service** opens the file picker for any connected service plMail can download from.
 
@@ -975,6 +994,12 @@ least five characters of body **or** a subject — a subject typed on its own is
 Closing the window, popping it out, or attaching a file all force a save first. Below that
 threshold, leaving the page interrupts rather than losing what you typed. The trash button in the
 compose window genuinely deletes the draft rather than closing the window on top of it.
+
+**Send** asks first, in the window, when the message has no subject, no text, a template blank
+still open, or **mentions an attachment that is not there**: "attached", "ci-joint", "pièce
+jointe", "Anbei", "附件" and their kin in the subject or in what you wrote, with no file attached.
+The quoted original is not read, so a reply to a mail that had an attachment does not ask. All the
+reasons come as one question, and **Send anyway** sends.
 
 On a phone the toolbar wraps rather than scrolling out of reach, and the send pill moves up into the
 window's header, where the old button used to be.

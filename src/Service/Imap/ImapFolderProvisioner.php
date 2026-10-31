@@ -8,12 +8,13 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Client;
 
 /**
  * Makes the folder an outgoing move needs, when the server has not got one.
@@ -92,7 +93,7 @@ readonly class ImapFolderProvisioner
      */
     public function ensureSpecialUse(
         Account           $account,
-        Client            $client,
+        ImapSession            $session,
         MailboxSpecialUse $specialUse,
     ): ?string {
         $existing = $this->mailboxes->findOneBy(['account' => $account, 'specialUse' => $specialUse]);
@@ -108,7 +109,7 @@ readonly class ImapFolderProvisioner
             return null;
         }
 
-        return $this->create($account, $client, $this->pathFor($account, $name), $specialUse);
+        return $this->create($account, $session, $this->pathFor($account, $name), $specialUse);
     }
 
     /**
@@ -119,7 +120,7 @@ readonly class ImapFolderProvisioner
      * prefix and separator are this server's by construction and rebuilding
      * them could only introduce a difference.
      */
-    public function ensureExactPath(Account $account, Client $client, string $path): ?string
+    public function ensureExactPath(Account $account, ImapSession $session, string $path): ?string
     {
         if ('' === $path) {
             return null;
@@ -127,7 +128,7 @@ readonly class ImapFolderProvisioner
 
         $known = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
 
-        return $this->create($account, $client, $path, $known?->specialUse, record: null === $known);
+        return $this->create($account, $session, $path, $known?->specialUse, record: null === $known);
     }
 
     /**
@@ -144,7 +145,7 @@ readonly class ImapFolderProvisioner
      */
     private function create(
         Account            $account,
-        Client             $client,
+        ImapSession             $session,
         string             $path,
         ?MailboxSpecialUse $specialUse,
         bool               $record = true,
@@ -152,7 +153,7 @@ readonly class ImapFolderProvisioner
         $created = true;
 
         try {
-            $client->createFolder($path, expunge: false);
+            $session->create($path);
         } catch (Throwable $e) {
             // A FOLDER THAT IS ALREADY THERE IS NOT A FAILURE.
             //
@@ -203,7 +204,7 @@ readonly class ImapFolderProvisioner
         // already-exists path too: a folder somebody made elsewhere may be
         // unsubscribed for this account, and subscribing it is free.
         try {
-            $client->getConnection()->subscribeFolder($path);
+            $session->subscribe($path);
         } catch (Throwable $e) {
             // Worth a line and not worth failing over: the folder exists and
             // the mail can be moved into it either way.
@@ -319,10 +320,12 @@ readonly class ImapFolderProvisioner
      */
     private function alreadyExists(Throwable $e): bool
     {
-        $message = mb_strtolower($e->getMessage());
+        if (false === $e instanceof ImapCommandException) {
+            return false;
+        }
 
-        return str_contains($message, 'alreadyexists')
-            || str_contains($message, 'already exists');
+        return 'ALREADYEXISTS' === $e->response->code
+            || true === str_contains(mb_strtolower($e->response->text), 'already exists');
     }
 
     /**

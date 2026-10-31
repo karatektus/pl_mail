@@ -1,8 +1,8 @@
-<!-- translated-from: features/accounts.md sha1:1089d79f26ee0fc5d02fb1ecfb99314e7ce21530 -->
+<!-- translated-from: features/accounts.md sha1:e9173d595210dba54af18c10d5e388e88ed12c90 -->
 
 # Konten und Aliase
 
-Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP- oder POP3-Server,
+Ein plMail-Konto ist ein Postfach, das du anderswo hast — auf einem IMAP-, POP3- oder JMAP-Server,
 bei Gmail oder bei Outlook —, an dem plMail sich anmeldet und das es synchronisiert. Du kannst
 so viele verbinden, wie du magst; sie synchronisieren unabhängig voneinander und lesen sich als
 ein einziger Posteingang.
@@ -50,8 +50,10 @@ Server uneinig sind.
 
 Manche Anbieter bieten POP3 und SMTP an, aber gar kein IMAP. Für diese wählst du im selben
 Formular unter **Protokoll für eingehende Mail** die Option **POP3**; der Port für eingehende Mail
-startet dann bei 995, also POP3 über SSL. Die Liste **Anbieter** enthält IMAP-Einstellungen —
-wählst du dort einen Eintrag, stellt sich das Formular wieder auf IMAP.
+startet dann bei 995, also POP3 über SSL. Wählst du einen Eintrag aus der Liste **Anbieter**,
+trägt plMail dessen POP3-Server ein, wo es einen kennt; ein Anbieter ohne, etwa iCloud, stellt das
+Formular wieder auf IMAP, und POP3 bleibt ausgegraut, bis du den Anbieter leerst oder einen anderen
+wählst.
 
 POP3 kennt ein Postfach und sonst nichts: keine Ordner, keine Markierungen und keinen Weg, dem
 Server etwas anderes mitzuteilen als „lösch das“. Ein POP3-Konto ist in plMail deshalb ein
@@ -75,6 +77,20 @@ Seine Mail bleibt: Der nächste Abruf erkennt, was plMail schon hat, und legt es
 ab — an der Message-ID oder, bei der seltenen Nachricht ohne eine, an Absender, Betreff und Datum.
 Wird ein Konto zu POP3, behalten die Ordner außer dem Posteingang ihre Mail und werden nicht mehr
 synchronisiert.
+
+## Ein JMAP-Konto hinzufügen
+
+Ein Server, der JMAP spricht — Stalwart, Fastmail, Cyrus —, wird im selben Formular hinzugefügt:
+Wähl unter **Protokoll für eingehende Mail** **JMAP** und gib den Hostnamen des Servers und ein
+App-Passwort an, oder ein API-Token mit gesetztem Haken bei **Das Passwort ist ein API-Token**. Eine
+Anmeldung bringt die Mail des Kontos, und wo der Server sie hat, auch seine Kalender und Kontakte;
+gesendet wird über den Server, sofern er Submission anbietet — deshalb klappt das Formular unter
+JMAP die SMTP-Felder weg, hinter **Mein Server versendet nicht über JMAP — SMTP verwenden**.
+Fastmail steht mit seinem JMAP-Server in der Liste **Anbieter**. Änderungen auf dem Server kommen an,
+sobald sie passieren. Ein bestehendes Konto lässt sich im Bearbeiten-Formular zwischen IMAP und
+JMAP umstellen, und seine Mail bleibt erhalten.
+
+Den Rest findest du unter [JMAP](../providers/jmap.md).
 
 ## Gmail oder Outlook hinzufügen
 
@@ -243,6 +259,15 @@ Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nich
 bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
 weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
 Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+
+Zwei Arten von Ordnern beginnen ausgeschaltet: **Markiert** (Starred) und **Alle Nachrichten** (All
+Mail), wenn das Konto auch einen Archiv-Ordner hat — Proton Mail Bridge hat beide. Sie sind die
+Sicht des Servers auf Mail, die er in deinen anderen Ordnern aufbewahrt, und sie abzurufen zeigte
+jede Nachricht doppelt. Die Kopien von Mail, die anderswo liegt und die plMail vorher aus ihnen
+gespeichert hat, werden über die nächsten Synchronisierungen entfernt; Mail, die nur sie enthalten,
+bleibt. Bei Gmail über IMAP bleibt All Mail eingeschaltet, denn archivierte Mail liegt dort und
+nirgends sonst. Schaltest du einen wieder ein, holt plMail die entfernten
+Kopien erneut ab.
 
 Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
 zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der

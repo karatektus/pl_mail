@@ -124,7 +124,7 @@ rather than as a dozen data attributes.
 {# Inside the block: the layout's class variables are not visible up top. #}
 {% set ui = {
     field:  fieldCls,
-    select: 'h-9 rounded-lg border border-field bg-field px-2 text-sm text-ink shrink-0',
+    select: 'h-9 rounded-lg border border-field-border bg-field px-2 text-sm text-ink shrink-0',
     icon:   iconBtn,
 } %}
 <form method="post" action="{{ postUrl }}" class="flex flex-col h-full min-h-0" id="contact-form"
@@ -187,7 +187,7 @@ rather than as a dozen data attributes.
                 <div class="flex items-start gap-3 py-2 border-b border-accent/15 last:border-b-0" data-suggestion>
                     <input type="checkbox" class="mt-0.5 w-4 h-4 accent-[var(--color-accent)] shrink-0" data-check>
                     <span class="w-36 shrink-0 text-xs font-semibold text-ink-muted pt-px" data-kind></span>
-                    <select class="h-7 w-36 shrink-0 -mt-1 rounded-md border border-field bg-field px-1 text-xs font-semibold text-ink" data-kind-select hidden></select>
+                    <select class="h-7 w-36 shrink-0 -mt-1 rounded-md border border-field-border bg-field px-1 text-xs font-semibold text-ink" data-kind-select hidden></select>
                     <span class="flex-1 min-w-0 flex flex-col gap-0.5">
                         <span class="text-sm text-ink break-words" data-value></span>
                         <span class="text-xs" data-note>
@@ -217,7 +217,7 @@ rather than as a dozen data attributes.
                     <label for="f-displayName" class="text-xs font-semibold text-ink-muted">{{ 'contacts.display_name'|trans }}</label>
                     <input id="f-displayName" name="displayName" required maxlength="255" value="{{ c.displayName }}" autocomplete="off"
                            placeholder="{{ 'contacts.editor.name_placeholder'|trans }}"
-                           class="w-full h-11 rounded-lg border border-transparent hover:border-line focus:border-field bg-transparent px-2 -ml-2 text-xl font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                           class="w-full h-11 rounded-lg border border-transparent hover:border-line focus:border-field-border bg-transparent px-2 -ml-2 text-xl font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                            data-contacts--editor-target="name" data-action="input->contacts--editor#nameTyped">
                     <div class="flex flex-wrap items-center gap-1.5 text-xs min-h-6">
                         <span class="contents" data-contacts--editor-target="partsSummary"></span>

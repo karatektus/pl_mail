@@ -23,9 +23,7 @@ class MessageModel
     public function addFlag(MessageFlag $flag): static
     {
         if ($this instanceof Message) {
-            if (false === in_array($flag->value, $this->flags, true)) {
-                $this->flags = [...$this->flags, $flag->value];
-            }
+            $this->flags = MessageFlag::canonicalList([...$this->flags, $flag->value]);
 
             return $this;
         }

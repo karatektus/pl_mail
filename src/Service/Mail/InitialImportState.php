@@ -61,6 +61,12 @@ final readonly class InitialImportState
             return [] !== $account->graphDeltaLinks && false === $account->needsGraphImport();
         }
 
+        // Planned and finished both say so on the account: a baseline with no
+        // plan left. No baseline is an account whose import has not begun.
+        if (true === $account->isJmap()) {
+            return null !== $account->jmapState('Email') && false === $account->needsJmapImport();
+        }
+
         // Read from the database rather than off $account->mailboxes: the
         // callers are long-running workers whose entity manager is cleared
         // between messages, and a collection hydrated before a clear answers

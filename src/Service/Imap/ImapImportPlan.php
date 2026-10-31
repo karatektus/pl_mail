@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Imap;
 
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapSession;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
-use Webklex\PHPIMAP\Client;
 
 /**
  * The moment a folder is first met: where new mail begins, and where its
@@ -43,9 +43,9 @@ final readonly class ImapImportPlan
     ) {}
 
     /** @return bool whether the folder is planned now */
-    public function begin(Mailbox $mailbox, Client $client): bool
+    public function begin(Mailbox $mailbox, ImapSession $session): bool
     {
-        $top = $this->highestUid($mailbox, $client);
+        $top = $this->highestUid($mailbox, $session);
 
         if (null === $top) {
             return false;
@@ -74,12 +74,12 @@ final readonly class ImapImportPlan
         return true;
     }
 
-    private function highestUid(Mailbox $mailbox, Client $client): ?int
+    private function highestUid(Mailbox $mailbox, ImapSession $session): ?int
     {
-        $path = (string) ($mailbox->fullPath ?? $mailbox->name);
+        $path = $mailbox->serverPath();
 
         try {
-            $examined = $client->getConnection()->examineFolder($path)->validatedData();
+            $examined = $session->examine($path);
         } catch (Throwable $e) {
             $this->logger->info('Import not planned: the folder could not be examined', [
                 'mailbox' => $path,
@@ -89,7 +89,7 @@ final readonly class ImapImportPlan
             return null;
         }
 
-        if (false === is_array($examined) || false === isset($examined['uidnext'])) {
+        if (null === $examined->uidNext) {
             $this->logger->info('Import not planned: no UIDNEXT in the EXAMINE response', [
                 'mailbox' => $path,
             ]);
@@ -97,6 +97,6 @@ final readonly class ImapImportPlan
             return null;
         }
 
-        return max(0, (int) $examined['uidnext'] - 1);
+        return max(0, $examined->uidNext - 1);
     }
 }

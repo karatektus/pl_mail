@@ -10,6 +10,16 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
+        jmap:
+            heading: 'Incomin'' — JMAP'
+            outgoing_heading: 'Outgoin'' — JMAP'
+            outgoing_help: 'The JMAP harbour sends yer letters itself an'' stows the copy in Sent, so there be nothin'' to fill in here.'
+            session_url: 'Session URL'
+            session_url_help: 'Leave it empty an'' the port above be used. Fill it in only if yer server''s JMAP session don''t be moored at /.well-known/jmap.'
+            session_url_offer: 'Me harbour''s JMAP session be moored elsewhere'
+            token_auth: 'The password be an API token'
+            token_auth_help: 'Tick this fer harbours like Fastmail that hand ye a token instead o'' an app password. The username then stays ashore.'
+            use_smtp: 'Me harbour don''t send o''er JMAP — use SMTP'
         password: Secret word
         pop3:
             delete_help: 'Left in port, a message be spotted next time by its UIDL and never hauled in twice. Scuttlin'' it frees the harbour''s space, but then plMail''s copy be the only one afloat.'
@@ -24,6 +34,7 @@ account:
         protocol:
             help: 'Change this later and ye keep yer haul: the next voyage knows what be aboard already.'
             imap: IMAP
+            jmap: 'JMAP'
             label: 'Incomin'' protocol'
             pop3: POP3
         smtp:
@@ -40,6 +51,7 @@ account:
         microsoft: Sail on with Microsoft
     primary_set: A new flagship be named
     removed: Crew member put ashore
+    sync_interval_set: Th' watch be reset
     tabs:
         imap: IMAP / SMTP
         oauth: OAuth
@@ -56,9 +68,13 @@ account:
             failed: 'The line didn''t hold. Check the host, port an'' encryption.'
             host_invalid: 'A host name or IP address only, sailor — no slashes, question marks nor @.'
             imap_ok: 'Aboard — %count% holds in sight.'
+            jmap_no_mail: 'The server speaks JMAP but offers no mail fer this account.'
+            jmap_ok: 'Aboard — %count% holds in sight.'
+            jmap_submission: 'Messages sail out through the JMAP server.'
             missing_fields: 'Give us an email address an'' an IMAP host first.'
             missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
             pop3_ok: 'Aye, connected — %count% messages in the hold.'
+            private_network: 'This server lies in private waters. The captain must allow its host in INTEGRATIONS_ALLOWED_HOSTS afore plMail may sail to it.'
             smtp_none: 'No SMTP host charted — this ship sends no letters.'
             smtp_ok: 'Aboard an'' signed in.'
             timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
@@ -675,8 +691,8 @@ admin:
         restart_app: "Rouse it now"
         restart_app_help: "Ends the hand servin' this page so compose signs on a fresh one. Needed after the generated secrets be rotated: the entrypoint hands them out as environment variables and the kernel boots once in worker mode, so a runnin' web container never learns a new value. About two seconds o' dead water, and this page comes back on its own."
         restart_app_title: "Rouse the web container"
-        restart_confirm: 'Rouse the crew, the timekeeper and the IMAP bosun? They finish the task in hand first.'
-        restart_help: 'Sends the crew, the timekeeper and the IMAP bosun below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
+        restart_confirm: 'Rouse the crew, the timekeeper and the lookouts? They finish the task in hand first.'
+        restart_help: 'Sends the crew, the timekeeper and the lookouts below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
         restart_pending: 'Rousin'' called %seconds%s past — the crew finish the task in hand, then muster back here within a minute or two.'
         restart_title: 'Rouse the long-servin'' hands'
         run_help: 'Put to the crew, not done here on the spot. Same rounds the timekeeper makes on its own.'
@@ -1732,6 +1748,7 @@ compose:
         send_anyway: Cast it off regardless?
         plain_text: "Strikin' to plain text scrubs every flourish from this scroll. Carry on?"
         open_variables: 'A blank in yer form letter be still unfilled.'
+        no_attachment: 'Ye speak o'' cargo in the hold, but the hold be empty.'
     emoji:
         activities: Sport and mischief
         animals_nature: Beasts and the wilds
@@ -2612,6 +2629,7 @@ message:
         more: More
         print: Print
         report_insight: "Report what the spyglass missed"
+        filter_from_message: 'Rig a sorting order from this yarn'
         show_original: Show the original scroll
         star: Mark with an X
         unstar: Rub out the X
@@ -2669,6 +2687,19 @@ message:
         signer: "Signed by %signer%"
         smime_unreadable: "This letter be S/MIME-sealed fer a certificate plMail don't hold. Bring it aboard in Settings → Encryption, or open th' letter in a mail program that holds it."
         smime_unsupported: "This letter be sealed with a cipher plMail can't open; only AES serves."
+    filter_check:
+        button: 'Try me sortin'' orders on this yarn'
+        hide: 'Stow the sortin'' trial'
+        none: 'No sortin'' order be hoisted for this ship.'
+        state:
+            matches: 'catches it'
+            no_match: 'lets it pass'
+            stopped: 'never reached: "%rule%" drops anchor after itself'
+            broken: 'its orders be unreadable; it be skipped'
+            spam: 'passed over: she lies in the Spam bilge, an'' this sortin'' never names it'
+        filing:
+            Filed: 'would stow it in %category%'
+            NoCategory: 'nowhere to stow it: the hold be gone'
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "
@@ -3112,12 +3143,17 @@ settings:
             always_synced: The inbox be always hauled aboard
             button: Pick which folders to haul aboard
             empty: No folders yet. They be listed after the first haul.
+            idle_needs_sync: 'Naught be hauled from %folder%, so there be no lookout to post on it'
             intro: >-
                 Switch a folder off and plMail stops haulin it aboard. Post
                 already stowed stays where it lies, and switchin the folder back
-                on picks up where it left off.
+                on picks up where it left off. A folder with the bolt lit has a
+                lookout posted, so new bottles show at once; the rest be checked
+                on the ship's watch.
             placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
+            start_idle: 'Post a lookout on %folder% to spot new bottles the moment they land'
             start_sync: 'Start haulin %folder%'
+            stop_idle: 'Call the lookout off %folder% — check it on the ship''s watch instead'
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'
         heading: Th' crew
@@ -3144,6 +3180,7 @@ settings:
                     The cannon be loaded but naught has been heard lately. The
                     Pub/Sub push subscription in Google Cloud may be missin' or
                     aimed elsewhere. Mail still comes aboard on the watch bell.
+                jmap: 'Push be on but nothin'' comes aboard. Check the JMAP server can be reached; the account still sails on schedule.'
                 microsoft: >-
                     The push subscription has run out and naught be arrivin'.
                     Load the cannon again to bring word back. Mail still comes
@@ -3155,6 +3192,7 @@ settings:
                     that truly exists, and that the topic grants
                     gmail-api-push@system.gserviceaccount.com the Pub/Sub Publisher
                     role. Mail still comes aboard on the watch bell.
+                jmap: 'Push couldn''t be hoisted. The account still sails on schedule.'
                 microsoft: >-
                     The cannon couldn't be readied — Microsoft must reach this
                     ship over HTTPS. Check yer reverse proxy and APP_PUBLIC_URL.
@@ -3170,6 +3208,7 @@ settings:
             off_hint: Mail comes aboard on the watch bell. Load the cannon for word the moment it lands.
             on_hint:
                 gmail: New mail lands the instant Gmail fires the cannon.
+                jmap: 'Changes come aboard at once: the JMAP server sends ''em to plMail, by webhook when it can reach this port an'' over a line held open when it can''t.'
                 microsoft: New mail lands the instant Microsoft fires the cannon.
             title: Word the moment it lands
         reorder: Drag to reorder the line
@@ -3177,6 +3216,10 @@ settings:
             active: Sailin'
             disabled: Beached
         subheading: Sign on, amend, restore or put ashore the crew ye sail with.
+        sync_interval:
+            change: 'Checked for bottles every %minutes% min — change the watch for %account%'
+            every: 'Every %minutes% min'
+            heading: 'Check for bottles every … min'
         type:
             imap: IMAP
             oauth: '%provider% (OAuth)'
@@ -3232,6 +3275,12 @@ settings:
         with_keys: "Yer keys sail along: ciphered letters open in the app straight away."
         expires: "Fades at %time%."
         open_in_app: "Open it in th' app"
+    native_apps:
+        android_hint: "Then sign it on with th' button below. Buyin' th' app on Google Play be, fer now, the main way this crew keeps afloat."
+        android_title: "Fetch plMail fer Android first"
+        github: "or take it free from GitHub"
+        play_alt: "Get it on Google Play"
+        play_badge: images/badges/google-play-en.png
     app_passwords:
         copy: Copy
         copy_now: Here be yer new spare key
@@ -4245,6 +4294,12 @@ settings:
             On iPhone and iPad, the lookout only calls once plMail be added to
             the Home Screen: open her in Safari, tap Share, then "Add to Home
             Screen", and allow the callin' from there.
+        notify_for: 'Sound the bell for'
+        notify_for_hint: 'Which Inbox tabs make a notice in yer browser. Holds for all yer browsers; the Android app picks for itself. At least one stays on.'
+        'off': Off
+        'on': On
+        skip_read: 'Only for bottles still unread'
+        skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if any unread bottle be left in yer Inbox. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-
             Barred in yer browser settin's. Allow the lookout to call for this
             site, then try again.
@@ -4870,6 +4925,7 @@ whats_new:
         where: 'Goes by bottle to %address%, with yer plMail version. A copy stays in yer Sent hold.'
     highlights: 'Treasures'
     menu:
+        android: 'plMail fer Android'
         label: 'Help an'' word'
         unseen: 'There be ship''s log entries ye haven''t seen'
         version: 'plMail %version%'

@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\ThrowableSeverity;
-use App\Domain\Helper\ImapConnectionFactory;
-use App\Domain\Helper\ImapFolderLocator;
 use App\Entity\Mail\Account;
+use App\Infrastructure\ImapClient\Exception\ImapCommandException;
+use App\Infrastructure\ImapClient\ImapSession;
+use App\Infrastructure\JmapClient\JmapCapability;
+use App\Infrastructure\JmapClient\JmapClient;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
-use App\Service\Imap\ImapQuery;
+use App\Service\Imap\ImapConnector;
+use App\Service\Imap\PurgedCopies;
+use App\Service\JmapClient\JmapMailboxSyncer;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\GraphApiClient;
 use Psr\Log\LoggerInterface;
@@ -48,10 +52,13 @@ final readonly class PurgeRemoteMessagesHandler
 {
     public function __construct(
         private AccountRepository     $accountRepository,
-        private ImapConnectionFactory $imapConnectionFactory,
+        private ImapConnector         $connector,
         private GmailApiClient        $gmail,
         private GraphApiClient        $graph,
         private LoggerInterface       $logger,
+        private JmapClient            $jmap,
+        private JmapMailboxSyncer     $jmapMailboxes,
+        private PurgedCopies          $purgedCopies,
     ) {
     }
 
@@ -85,80 +92,109 @@ final readonly class PurgeRemoteMessagesHandler
         if ([] !== $message->graphIds) {
             $this->purgeGraph($account, $message->graphIds);
         }
+
+        if ([] !== $message->jmapIds) {
+            $this->purgeJmap($account, $message->jmapIds);
+        }
     }
 
     /**
      * \Deleted plus an EXPUNGE, folder by folder.
      *
-     * Expunged per folder rather than per message: EXPUNGE renumbers, and doing
-     * it once at the end of each folder is both fewer round trips and the
-     * ordering the protocol is happiest with.
+     * One STORE and one EXPUNGE per folder rather than per message: EXPUNGE
+     * renumbers, and doing it once at the end of each folder is both fewer
+     * round trips and the ordering the protocol is happiest with. A UID that
+     * is already gone is the common case and a success — the end state wanted
+     * is that the message does not exist — and UID STORE passes over a UID
+     * the folder no longer has without complaint.
+     *
+     * UID EXPUNGE where the server has UIDPLUS, so only these messages go and
+     * not whatever else another client has marked \Deleted and may still
+     * undelete. Without it, the folder's EXPUNGE, as before.
      *
      * @param array<string, list<int>> $byFolder
      */
     private function purgeImap(Account $account, array $byFolder): void
     {
-        $client = $this->imapConnectionFactory->connect($account);
+        $session = $this->connector->session($account);
 
-        foreach ($byFolder as $path => $uids) {
-            // A Mailbox row's path, UTF-7 as stored. getFolder() re-encoded it,
-            // so a folder with a non-ASCII name was "not found on the server"
-            // and nothing in it was ever purged there.
-            $folder = ImapFolderLocator::atPath($client, (string) $path);
-
-            if (null === $folder) {
-                $this->logger->warning('PurgeRemoteMessages: folder not found on the server', [
-                    'accountId' => $account->id,
-                    'folder'    => $path,
-                ]);
-
-                continue;
+        try {
+            foreach ($byFolder as $path => $uids) {
+                $this->purgeFolder($session, $account, (string) $path, $uids);
             }
+        } finally {
+            $session->logout();
+        }
+    }
 
-            foreach ($uids as $uid) {
-                try {
-                    // setFetchBody(false): the body is about to stop existing,
-                    // and fetching it to mark it deleted would download every
-                    // attachment of every message being purged. ImapQuery,
-                    // so a header that repeats a once-only line does not
-                    // keep the message from being deleted (#357).
-                    ImapQuery::of($folder)
-                        ->whereUid($uid)
-                        ->setFetchBody(false)
-                        ->get()
-                        ->first()
-                        ?->delete(expunge: false);
-                } catch (Throwable $e) {
-                    // Already gone is the common case, and it is a success:
-                    // the end state this job wants is that the message does
-                    // not exist.
-                    $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: could not delete by UID', [
-                        'accountId' => $account->id,
-                        'folder'    => $path,
-                        'uid'       => $uid,
-                        'error'     => $e->getMessage(),
-                        'exception' => $e,
-                    ]);
-                }
-            }
+    /** @param list<int> $uids */
+    private function purgeFolder(ImapSession $session, Account $account, string $path, array $uids): void
+    {
+        if ([] === $uids) {
+            return;
+        }
 
-            // Once per folder, after the whole batch. EXPUNGE renumbers, so
-            // expunging per message would be both more round trips and a
-            // sequence the server is entitled to reorder underneath us.
-            try {
-                $client->expunge();
-            } catch (Throwable $e) {
-                $this->logger->warning('PurgeRemoteMessages: expunge failed', [
+        $set = ImapSession::uidSet($uids);
+
+        try {
+            $session->uidStore($path, $set, '+', ['\\Deleted']);
+            $session->expunge($path, $set);
+
+            $this->purgedCopies->confirm($account, $path, $uids);
+        } catch (ImapCommandException $e) {
+            // The folder is gone, or the server will not let it be changed.
+            // Not retried here: the copies stay on record, the sync passes
+            // over them and asks the server again (PurgedCopies::settle()).
+            $this->logger->warning('PurgeRemoteMessages: could not purge a folder', [
+                'accountId' => $account->id,
+                'folder'    => $path,
+                'error'     => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /** @param list<string> $graphIds */
+    /**
+     * Email/set destroy, in one call: JMAP takes the whole list at once and
+     * answers for each id, and an id it no longer has is notFound — already
+     * the end state wanted, so not reported.
+     *
+     * @param list<string> $jmapIds
+     */
+    private function purgeJmap(Account $account, array $jmapIds): void
+    {
+        if (false === $account->isJmap()) {
+            return;
+        }
+
+        try {
+            $result = $this->jmap->call($account, [JmapCapability::MAIL], [
+                ['Email/set', ['accountId' => $this->jmapMailboxes->mailAccountId($account), 'destroy' => $jmapIds], 's'],
+            ])->get('s', 'Email/set');
+        } catch (Throwable $e) {
+            $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: JMAP destroy failed', [
+                'accountId' => $account->id,
+                'count'     => count($jmapIds),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
+            ]);
+
+            return;
+        }
+
+        foreach (is_array($result['notDestroyed'] ?? null) ? $result['notDestroyed'] : [] as $id => $error) {
+            $type = is_array($error) && is_string($error['type'] ?? null) ? $error['type'] : 'unknown';
+
+            if ('notFound' !== $type) {
+                $this->logger->warning('PurgeRemoteMessages: JMAP refused to destroy an Email', [
                     'accountId' => $account->id,
-                    'folder'    => $path,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
+                    'emailId'   => $id,
+                    'type'      => $type,
                 ]);
             }
         }
     }
 
-    /** @param list<string> $graphIds */
     private function purgeGraph(Account $account, array $graphIds): void
     {
         foreach ($graphIds as $graphId) {

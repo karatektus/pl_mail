@@ -54,6 +54,12 @@ class MailInsightRepository extends ServiceEntityRepository
      * parcel that landed this morning is still the answer to "where is my
      * parcel?" — and the near future. Undismissed, active accounts only.
      *
+     * A one-time code gets none of that past. Its happensAt is the expiry its
+     * mail states (OtpExtractor), and an expired code is no answer to anything:
+     * the look-back kept it on the radar and in the strip, readable, for
+     * eighteen hours after it stopped working (#355). It leaves the moment it
+     * expires, as the undated code leaves after its fifteen minutes below.
+     *
      * @return list<MailInsight> soonest first
      */
     public function upcomingForUser(
@@ -71,6 +77,7 @@ class MailInsightRepository extends ServiceEntityRepository
             ->andWhere('i.happensAt IS NOT NULL')
             ->andWhere('i.happensAt >= :from')
             ->andWhere('i.happensAt <= :until')
+            ->andWhere('(i.kind <> :otp OR i.happensAt >= :now)')
             ->orderBy('i.happensAt', 'ASC')
             // Ties here are the common case, not the exotic one: a parcel's ETA
             // is a DAY, so every parcel due on the same day sits at that day's
@@ -82,6 +89,8 @@ class MailInsightRepository extends ServiceEntityRepository
             ->setParameter('user', $user)
             ->setParameter('from', $now->modify(sprintf('-%d hours', $hoursBack)))
             ->setParameter('until', $now->modify(sprintf('+%d days', $daysAhead)))
+            ->setParameter('otp', InsightKind::Otp->value)
+            ->setParameter('now', $now)
             ->getQuery()
             ->getResult();
     }

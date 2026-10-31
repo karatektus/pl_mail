@@ -7,8 +7,6 @@ namespace App\Service\Imap;
 use App\Domain\Interface\DeadlineClosable;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\Protocol;
 use WeakReference;
 
 /**
@@ -71,9 +69,6 @@ final class ImapDeadline implements ResetInterface
 {
     public const int SECONDS = 300;
 
-    /** @var list<WeakReference<Client>> */
-    private array $clients = [];
-
     /** How many handlers deep the worker is; only the outermost owns the alarm. */
     private int $depth = 0;
 
@@ -85,24 +80,12 @@ final class ImapDeadline implements ResetInterface
     ) {
     }
 
-    /** A connection that an expiring deadline should close. Held weakly: this must not keep one alive. */
-    public function watch(Client $client): void
-    {
-        $this->clients = array_values(array_filter(
-            $this->clients,
-            static fn (WeakReference $reference): bool => null !== $reference->get(),
-        ));
-
-        $this->clients[] = WeakReference::create($client);
-    }
-
     /**
-     * The same for a POP3 session, whose connection is a bare stream.
+     * A connection an expiring deadline should shut down: an IMAP connection
+     * (ImapConnection) or a POP3 session (Pop3Connection), both of which
+     * implement DeadlineClosable.
      *
-     * A resource cannot be weakly referenced, so the reference is taken to the
-     * session object that owns it — see Pop3Connection, which implements
-     * DeadlineClosable. Held weakly for the same reason the clients are: this
-     * class must not be what keeps a connection open.
+     * Held weakly: this class must not be what keeps a connection open.
      */
     public function watchSession(DeadlineClosable $session): void
     {
@@ -143,7 +126,7 @@ final class ImapDeadline implements ResetInterface
         }
 
         // Only what is opened from here on belongs to this message.
-        $this->clients = [];
+        $this->sessions = [];
 
         pcntl_alarm($this->seconds);
     }
@@ -161,7 +144,6 @@ final class ImapDeadline implements ResetInterface
         }
 
         pcntl_alarm(0);
-        $this->clients = [];
         $this->sessions = [];
     }
 
@@ -177,44 +159,6 @@ final class ImapDeadline implements ResetInterface
     {
         $closed = 0;
 
-        foreach ($this->clients as $reference) {
-            $client = $reference->get();
-
-            if (null === $client) {
-                continue;
-            }
-
-            try {
-                $connection = $client->getConnection();
-                $stream     = $connection instanceof Protocol ? $connection->getStream() : null;
-
-                if (true === is_resource($stream)) {
-                    // Shut down, not fclose()d. Both end the conversation;
-                    // only this one leaves the library holding something it
-                    // can still ask questions of. With the resource closed
-                    // outright, its logout() — which every caller's `finally`
-                    // reaches, and its destructor after them — dies on
-                    // stream_get_meta_data() with a TypeError, from a
-                    // destructor, wherever the garbage collector happens to
-                    // be. Shut down, every read is simply at end-of-file: the
-                    // library reports a lost connection, as it does when a
-                    // network drops, and tidies up after itself.
-                    if (false === @stream_socket_shutdown($stream, STREAM_SHUT_RDWR)) {
-                        fclose($stream);
-                    }
-
-                    ++$closed;
-                }
-            } catch (\Throwable) {
-                // Already gone, or never connected: nothing is being read from it.
-            }
-        }
-
-        $this->clients = [];
-
-        // POP3 sessions, shut down the same way and counted in the same total:
-        // the warning below is about a handler that took too long, and which
-        // protocol it was talking is not what the reader of that log line needs.
         foreach ($this->sessions as $reference) {
             $session = $reference->get();
 
@@ -244,7 +188,6 @@ final class ImapDeadline implements ResetInterface
 
     public function reset(): void
     {
-        $this->clients  = [];
         $this->sessions = [];
     }
 }

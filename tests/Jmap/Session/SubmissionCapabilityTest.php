@@ -61,6 +61,18 @@ final class SubmissionCapabilityTest extends JmapTestCase
     }
 
     /**
+     * RFC 8620 has primaryAccounts name an account for every capability the
+     * server has. Without submission there, plMail's own JMAP client, syncing
+     * this server from another plMail, sent through SMTP instead.
+     */
+    public function testTheMailAccountIsThePrimaryOneForSubmission(): void
+    {
+        $session = $this->sessions->build($this->user);
+
+        self::assertSame($this->accountId(), $session['primaryAccounts'][Capability::SUBMISSION]);
+    }
+
+    /**
      * @return array<string,mixed>
      */
     private function submissionCapabilities(): array

@@ -196,17 +196,24 @@
                 aria-expanded="false"
                 aria-controls="search-listbox"
                 aria-haspopup="listbox"
-                {# "list", not "both": nothing is ever written into the box on
-                   the user's behalf, and claiming inline completion would have
-                   a screen reader expect selected text that is not there. #}
+                {# "list", not "both": no completion is written into the box as
+                   you type, and claiming inline completion would have a screen
+                   reader expect selected text that is not there. (The in:trash
+                   or in:spam that focusing the box in that folder puts there is
+                   not a completion: it is there before anything is typed, and
+                   is not selected. See SCOPE_BY_PATH, #341.) #}
                 aria-autocomplete="list"
                 aria-label="{{ 'header.search.placeholder'|trans }}"
                 data-mail--search-target="input"
                 data-ui--mobile-search-target="field"
                 data-action="keydown->mail--search#onKeydown focus->mail--search#onFocus input->mail--search#onInput"
+                {# The field border, not a transparent one: the box sits on the
+                   page, and a sunken fill on a pale page gradient was all but
+                   flush with it (#303). The border is held to 3:1 on every
+                   page stop for this. #}
                 class="w-full pl-10 pr-4 py-2 text-sm
                        bg-sunken
-                       border border-transparent rounded-xl
+                       border border-field-border rounded-xl focus:border-transparent
                        text-ink
                        placeholder:text-ink-faint
                        focus:outline-none focus:ring-2 focus:ring-accent
@@ -346,7 +353,7 @@
                    transition-colors flex-shrink-0
                    text-ink-muted hover:bg-hover
                    {{ clockOnSoon
-                       ? 'gap-1.5 justify-center min-w-9 max-sm:min-w-8 sm:px-2.5 sm:bg-sunken' ~ (soonest ? '' : ' max-sm:hidden')
+                       ? 'gap-1.5 justify-center min-w-9 max-sm:min-w-8 sm:px-2.5 sm:bg-sunken sm:border sm:border-field-border' ~ (soonest ? '' : ' max-sm:hidden')
                        : 'justify-center w-9 max-sm:w-8' }}"
             aria-label="{{ 'calendar.soon.open'|trans }}"
             title="{{ soonest
@@ -618,6 +625,16 @@
                         {{ 'whats_new.feedback.title'|trans }}
                     </button>
                 {% endif %}
+                {# Where to get the phone app (#402): the Play listing, whose
+                   page links the free GitHub build too. #}
+                <a href="https://play.google.com/store/apps/details?id=de.pluetzner.plmail"
+                   target="_blank" rel="noopener noreferrer" role="menuitem"
+                   data-action="click->ui--user-menu#toggle"
+                   class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left text-ink-soft hover:bg-hover hover:text-ink transition-colors">
+                    <i class="fa-brands fa-android w-4 text-center text-ink-faint" aria-hidden="true"></i>
+                    <span class="flex-1">{{ 'whats_new.menu.android'|trans }}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-ink-faint" aria-hidden="true"></i>
+                </a>
                 <div class="my-1 border-t border-line"></div>
                 <p class="px-3 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
             </div>
@@ -890,6 +907,14 @@
                             {{ 'whats_new.feedback.title'|trans }}
                         </button>
                     {% endif %}
+                    <a href="https://play.google.com/store/apps/details?id=de.pluetzner.plmail"
+                       target="_blank" rel="noopener noreferrer"
+                       data-action="click->ui--user-menu#toggle"
+                       class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left">
+                        <i class="fa-brands fa-android w-4 text-gray-400" aria-hidden="true"></i>
+                        <span class="flex-1">{{ 'whats_new.menu.android'|trans }}</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-ink-faint" aria-hidden="true"></i>
+                    </a>
                     <p class="px-4 pt-1 pb-1.5 text-xs text-ink-faint">{{ 'whats_new.menu.version'|trans({ '%version%': app_version.label }) }}</p>
                 </div>
             </div>

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Calendar;
 
 use App\Jmap\Account\CalendarAccountResolver;
+use App\Jmap\Calendar\IetfCalendarShape;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Mapper\CalendarEventMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Jmap\Protocol\Capability;
 use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
@@ -50,12 +52,20 @@ final class CalendarEventGetMethod implements JmapMethod
      */
     private const int MAX_OBJECTS = 100;
 
+    /**
+     * The same ceiling under the IETF URN, where the draft gives a client no
+     * calendar limit to obey and the Session's maxObjectsInGet is the only one
+     * it knows. Kept in step with that number, which a client chunks by.
+     */
+    private const int MAX_OBJECTS_IETF = 500;
+
     public function __construct(
         private readonly CalendarAccountResolver $accountResolver,
         private readonly CalendarEventRepository $events,
         private readonly CalendarEventOccurrenceRepository $occurrences,
         private readonly CalendarEventMapper $mapper,
         private readonly CalendarChangeReader $changes,
+        private readonly IetfCalendarShape $ietf,
     ) {
     }
 
@@ -78,14 +88,23 @@ final class CalendarEventGetMethod implements JmapMethod
             throw new MethodException('invalidArguments', '"ids" must be an array.');
         }
 
-        if (count($requestedIds) > self::MAX_OBJECTS) {
-            throw new MethodException('requestTooLarge', sprintf('At most %d ids per CalendarEvent/get.', self::MAX_OBJECTS));
+        $maxObjects = $context->uses(Capability::IETF_CALENDARS) ? self::MAX_OBJECTS_IETF : self::MAX_OBJECTS;
+
+        if (count($requestedIds) > $maxObjects) {
+            throw new MethodException('requestTooLarge', sprintf('At most %d ids per CalendarEvent/get.', $maxObjects));
         }
 
         $properties = $arguments['properties'] ?? null;
 
         if (null !== $properties && false === is_array($properties)) {
             throw new MethodException('invalidArguments', '"properties" must be an array or null.');
+        }
+
+        // Asked for in the draft's names under its URN; answered in them too.
+        $ietf = $context->uses(Capability::IETF_CALENDARS);
+
+        if (true === $ietf) {
+            $properties = $this->ietf->properties(null === $properties ? null : array_values(array_map('strval', $properties)));
         }
 
         $list = [];
@@ -107,7 +126,7 @@ final class CalendarEventGetMethod implements JmapMethod
                     continue;
                 }
 
-                $list[] = $object;
+                $list[] = true === $ietf ? $this->ietf->event($object) : $object;
 
                 continue;
             }
@@ -122,7 +141,8 @@ final class CalendarEventGetMethod implements JmapMethod
                 continue;
             }
 
-            $list[] = $this->mapper->toJmap($event, $properties);
+            $object = $this->mapper->toJmap($event, $properties);
+            $list[] = true === $ietf ? $this->ietf->event($object) : $object;
         }
 
         return [

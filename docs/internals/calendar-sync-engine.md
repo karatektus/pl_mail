@@ -315,10 +315,12 @@ feed, no change token, no per-event resource id, nobody to ask for permission.
   promises never to call them, so reaching either is a bug, and silence there would present as
   edits that vanish on the next sweep with no trace.
 
-`REMOTE_ID` is the literal `'feed'` rather than the URL, twice over: `Calendar::$remoteId` is
-255 characters and a signed feed address exceeds that routinely, and an address the user
-later corrects would orphan the calendar mirroring it. The address lives on the
-`Integration`. See [ICS feeds](../providers/ics-feeds.md).
+The remote id is the SHA-256 of the address as stored on the `Integration`, not the address
+itself: `Calendar::$remoteId` is 255 characters and a signed feed address exceeds that routinely,
+and the address is the credential for a published calendar, which the subscribe screen would
+otherwise render back as a tick-box value. It used to be the literal `'feed'`, which made every
+feed after the first read as already mirrored through it, so none of them was ever subscribed
+(#424). See [ICS feeds](../providers/ics-feeds.md).
 
 ## Instance identity, and the bare tombstone
 

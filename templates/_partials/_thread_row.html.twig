@@ -130,8 +130,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {# Not `latest`: the collection is not ordered by date, so the draft is
        looked up by flag rather than assumed to be the last message. #}
     {% set draftMessage = row.draft %}
+    {# Not on the bin's side, where every message is thrown away: a draft
+       there opens as the mail it is, with the bin's Restore and Delete
+       forever, and not in the composer (see mail/_thread_message). #}
     {% set draft = draftMessage
-        and (draft_scope or count == 1) %}
+        and (draft_scope or count == 1)
+        and not bin_view() %}
     {% set draftId = draft ? draftMessage.id : null %}
 
     {# In Drafts the who column asked the wrong question. Every draft is from
@@ -614,6 +618,20 @@ be a worse regression than the one this feature fixes.
                            the environment's, which is already the user's, but
                            it is spelled out here so the two halves of one
                            timestamp cannot be read as coming from two clocks. #}
+                        {# A row in the bin whose side is one draft. Anywhere
+                           else such a row opens the composer, which says what
+                           it is; here it opens as a mail (see `draft` above),
+                           and the sender is you and the snippet your words, so
+                           it would pass for something you sent. Defaulted
+                           because only a conversation row sets `draftMessage`;
+                           a bare message row has none. #}
+                        {% if draftMessage|default(null) and count == 1 and bin_view() %}
+                            <span class="shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-danger/10 text-danger whitespace-nowrap"
+                                  data-draft-badge>
+                                {{ 'message.draft'|trans }}
+                            </span>
+                        {% endif %}
+
                         {% if scheduledAt is not null %}
                             {# Badge and cancel are one pill, not a badge with a
                                button parked next to it: the × means nothing on

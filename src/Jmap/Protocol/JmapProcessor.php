@@ -29,7 +29,7 @@ final class JmapProcessor
     {
         $this->assertCapabilities($request->using);
 
-        $context = new JmapContext($user, $request->createdIds);
+        $context = new JmapContext($user, $request->createdIds, array_values(array_map('strval', $request->using)));
 
         foreach ($request->methodCalls as $invocation) {
             $this->processInvocation($invocation, $context);

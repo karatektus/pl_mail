@@ -1,6 +1,6 @@
 # Accounts and aliases
 
-A plMail account is one mailbox you have somewhere else — an IMAP or POP3 server, Gmail, or
+A plMail account is one mailbox you have somewhere else — an IMAP, POP3 or JMAP server, Gmail, or
 Outlook — that plMail signs into and syncs. You can connect as many as you like; they sync
 independently and read as one inbox.
 
@@ -41,8 +41,10 @@ See [IMAP and SMTP](../providers/imap-smtp.md) for the settings servers disagree
 ## Adding a POP3 mailbox
 
 Some providers serve POP3 and SMTP and no IMAP at all. For those, choose **POP3** under **Incoming
-protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. The
-**Provider** list is IMAP settings, so picking an entry there switches the form back to IMAP.
+protocol** on the same form; the incoming port starts at 995, which is POP3 over SSL. Picking a
+provider from the **Provider** list fills in its POP3 server where plMail knows one; a provider
+without one, such as iCloud, switches the form back to IMAP, and POP3 stays greyed out until you
+clear the provider or pick another.
 
 POP3 has one mailbox and nothing else: no folders, no flags, and no way to tell the server
 anything but "delete this". So in plMail a POP3 account is a single inbox. Reading, starring,
@@ -63,6 +65,19 @@ You can switch an existing account between IMAP and POP3 on its edit form. Its m
 next sync recognises what plMail already holds and does not store it again — by its Message-ID, or
 for the rare message without one, by its sender, subject and date. Folders other than the inbox
 keep their mail when an account becomes POP3, and stop syncing.
+
+## Adding a JMAP account
+
+A server that speaks JMAP — Stalwart, Fastmail, Cyrus — is added on the same form: choose **JMAP**
+under **Incoming protocol** and give the server's host name and an app password, or an API token
+with **The password is an API token** ticked. One login brings the account's mail, and its
+calendars and contacts too where the server has them, and sending goes through the server unless it
+offers no submission — which is why the form folds the SMTP fields away under JMAP, behind **My
+server does not send over JMAP — use SMTP**. Fastmail is in the **Provider** list with its JMAP
+server. Changes on the server arrive as they happen. An existing account can be switched between
+IMAP and JMAP on its edit form, keeping its mail.
+
+See [JMAP](../providers/jmap.md) for the rest.
 
 ## Adding Gmail or Outlook
 
@@ -215,6 +230,13 @@ folders instead, and nothing has to be re-tagged.
 on. Switching one off stops plMail fetching it: the mail already stored stays where it is, and
 switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
 that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
+
+Two kinds of folder start off: **Starred**, and **All Mail** on an account that also has an Archive
+folder — Proton Mail Bridge has both. They are the server's view of mail it keeps in your other
+folders, and fetching them would show every message twice. The copies of mail kept elsewhere that
+plMail stored from them before are removed over the next syncs; mail only they hold stays. On Gmail
+over IMAP All Mail stays on, because archived mail lives there and nowhere else. Switching
+either back on fetches the copies it had removed again.
 
 Nested folders are indented under their parent. A folder that only groups others and holds no mail
 of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:

@@ -8,6 +8,7 @@ use App\Entity\User\User;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
+use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\RecurrenceMaterialiser;
 
@@ -30,11 +31,15 @@ use App\Service\Calendar\RecurrenceMaterialiser;
  *
  * Two deliberate absences:
  *
- * **The window is required.** An unbounded query cannot be answered from this
- * index at all: occurrences are materialised only to
- * RecurrenceMaterialiser's horizon, so "everything" would come back looking
- * complete while stopping two years out, and a client cannot detect a truncation
- * nobody reported. Refusing is the only answer that does not lie.
+ * **A window is required to expand.** An unbounded query cannot be answered
+ * from this index: occurrences are materialised only to RecurrenceMaterialiser's
+ * horizon, so "every instance" would come back looking complete while stopping
+ * two years out, and a client cannot detect a truncation nobody reported. An
+ * unbounded query that does NOT expand asks something else — which events
+ * there are — and the event rows answer that whole (CalendarEventRepository::
+ * findIdsInCalendars()). That is the query the JMAP Calendars draft's clients
+ * make for a full read, Stalwart's and plMail's own among them; it used to be
+ * refused, so no other JMAP client could read these calendars at all.
  *
  * **No FilterOperator.** AND/OR/NOT over a range overlap would have to be
  * evaluated outside the index, which is the sequential scan the index exists to
@@ -55,6 +60,7 @@ final class CalendarEventQueryRunner
     public function __construct(
         private readonly CalendarRepository $calendars,
         private readonly CalendarEventOccurrenceRepository $occurrences,
+        private readonly CalendarEventRepository $events,
     ) {
     }
 
@@ -63,12 +69,7 @@ final class CalendarEventQueryRunner
      */
     public function run(User $user, ?array $filter, int $position, int $limit, bool $expandRecurrences = false): CalendarEventQueryResult
     {
-        if (null === $filter || 0 === count($filter)) {
-            throw new MethodException(
-                'unsupportedFilter',
-                'CalendarEvent/query needs "after" and "before": occurrences are materialised only to a horizon, so an unbounded query would look complete while stopping at it.',
-            );
-        }
+        $filter ??= [];
 
         if (true === array_key_exists('operator', $filter)) {
             throw new MethodException('unsupportedFilter', 'A FilterOperator is not supported; every condition in a CalendarEvent/query filter is ANDed.');
@@ -78,6 +79,23 @@ final class CalendarEventQueryRunner
             if (false === in_array($property, ['inCalendar', 'after', 'before'], true)) {
                 throw new MethodException('unsupportedFilter', sprintf('Filter condition "%s" is not supported.', $property));
             }
+        }
+
+        if (false === array_key_exists('after', $filter) && false === array_key_exists('before', $filter)) {
+            if (true === $expandRecurrences) {
+                throw new MethodException(
+                    'unsupportedFilter',
+                    'Expanding needs "after" and "before": occurrences are materialised only to a horizon, so an unbounded expansion would look complete while stopping at it.',
+                );
+            }
+
+            $ids = $this->events->findIdsInCalendars($user, $this->calendarIds($user, $filter['inCalendar'] ?? null));
+
+            return new CalendarEventQueryResult(
+                $position,
+                array_map('strval', array_slice($ids, $position, $limit)),
+                count($ids),
+            );
         }
 
         $after = $this->utcDate($filter['after'] ?? null, 'after');

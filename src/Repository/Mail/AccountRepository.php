@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Account\IncomingProtocol;
 use App\Entity\Mail\Account;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Criteria;
@@ -16,6 +17,24 @@ class AccountRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Account::class);
+    }
+
+    /**
+     * Every account a JMAP push channel should be held open for.
+     *
+     * Active, JMAP, and push left on — the same switch the Gmail and Graph
+     * subscriptions honour. Fetched whole: the listener needs the credentials
+     * on each to open its stream.
+     *
+     * @return list<Account>
+     */
+    public function findJmapForPush(): array
+    {
+        return $this->findBy([
+            'isActive'         => true,
+            'incomingProtocol' => IncomingProtocol::Jmap,
+            'pushEnabled'      => true,
+        ], ['id' => 'ASC']);
     }
 
     /**
@@ -92,7 +111,8 @@ class AccountRepository extends ServiceEntityRepository
      * Volume and last activity per account, for the admin sync overview.
      *
      * Raw SQL and correlated subqueries because a message attaches to an
-     * account through its mailbox (IMAP) or through its thread (Gmail API), and
+     * account through the folders that keep it (IMAP) or through its thread
+     * (Gmail API) — counted once however many folders keep it — and
      * that OR is not something Doctrine's API can traverse. Counted in the
      * database rather than by hydrating accounts and walking their collections:
      * the whole page is three numbers per account, and the alternative loads
@@ -110,9 +130,10 @@ class AccountRepository extends ServiceEntityRepository
                 (SELECT COUNT(*) FROM message_thread t WHERE t.account_id = a.id) AS threads,
                 (SELECT COUNT(*)
                    FROM message m
-                   LEFT JOIN mailbox mb ON m.mailbox_id = mb.id
                    LEFT JOIN message_thread mt ON m.thread_id = mt.id
-                  WHERE mb.account_id = a.id OR mt.account_id = a.id) AS messages,
+                  WHERE mt.account_id = a.id
+                     OR EXISTS (SELECT 1 FROM message_location l JOIN mailbox mb ON mb.id = l.mailbox_id
+                                 WHERE l.message_id = m.id AND mb.account_id = a.id)) AS messages,
                 (SELECT MAX(t.last_message_at) FROM message_thread t WHERE t.account_id = a.id) AS last_activity
              FROM account a
              ORDER BY a.email',

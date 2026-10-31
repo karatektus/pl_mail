@@ -8,8 +8,8 @@ use App\Entity\Mail\Account;
 use App\Service\Imap\ImapDeadline;
 
 /**
- * Opens a POP3 session for an account, the way ImapConnectionFactory opens an
- * IMAP one.
+ * Opens a POP3 session for an account, the way ImapConnector opens an IMAP
+ * one.
  *
  * The account's incoming server lives in the imap* columns whichever protocol
  * it speaks — see Account::$imapHost — so this is where those columns are read

@@ -7,6 +7,7 @@ namespace App\Service\Mail;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\ContactRepository;
@@ -201,7 +202,14 @@ final readonly class PostIngestPipeline
             $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
 
             if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
-                $this->changes->mailArrived((int) $arrived->account->id);
+                // Which tab it is in counts for a user who chose categories, and a
+                // held message's tab is not known yet: it is announced to them
+                // when the hold ends (HeldMailReleaser). Everybody else is told
+                // now, as they always were.
+                $this->changes->mailArrived(
+                    (int) $arrived->account->id,
+                    true === $arrived->isCategoryHeld() ? null : ($arrived->category ?? MessageCategory::Primary),
+                );
             }
         }
 

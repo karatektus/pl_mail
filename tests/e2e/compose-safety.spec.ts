@@ -289,6 +289,50 @@ test.describe("compose safety", () => {
     });
 
     /**
+     * "Please find attached" with nothing attached is the mail people send
+     * twice. It is the same question as an empty subject, asked the same way —
+     * and only about what was written: an attachment word in the subject
+     * counts, a quoted one would not.
+     */
+    test("a message that mentions an attachment it does not carry asks before sending", async ({ page }) => {
+        const sends = watchSends(page);
+
+        await openCompose(page);
+
+        await toInput(page).fill(VALID);
+        await toInput(page).press("Enter");
+        await page.locator(`${DOCK} [data-compose--compose-target="subject"]`).fill("Quote");
+        await page
+            .locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`)
+            .fill("Bonjour, vous trouverez ci-joint le devis.");
+
+        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+        const panel = page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`);
+
+        await expect(panel).toBeVisible();
+        await expect(panel).toContainText(/mentions an attachment/i);
+        await expect(panel).not.toContainText(/no subject/i);
+
+        await panel.getByRole("button", { name: "Keep editing" }).click();
+        await page.waitForTimeout(1_000);
+        expect(sends).toHaveLength(0);
+    });
+
+    /** Without the word, nothing is asked: the check must not cry wolf. */
+    test("a message that mentions no attachment is sent without asking", async ({ page }) => {
+        const sends = watchSends(page);
+
+        await openCompose(page);
+        await fillMessage(page, VALID);
+
+        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0, { timeout: 10_000 });
+        expect(sends.length).toBeGreaterThan(0);
+    });
+
+    /**
      * Closing the window with the question still on screen takes its Escape
      * handler with it.
      *

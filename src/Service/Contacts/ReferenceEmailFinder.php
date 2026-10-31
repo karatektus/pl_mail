@@ -43,10 +43,13 @@ final class ReferenceEmailFinder
         // NOTE: four separate :emailsN placeholders — DBAL does not reliably
         // allow the same named parameter twice in one statement.
         $sql = 'SELECT m.id, m.subject, m.from_address, m.from_name, m.received_at,'
-            . ' m.starred_at, m.has_attachments, mb.name AS mailbox_name'
+            // One folder name per message, whichever location came first: the
+            // list shows one, and a join would repeat the message per copy.
+            . ' m.starred_at, m.has_attachments,'
+            . ' (SELECT mb.name FROM message_location l JOIN mailbox mb ON mb.id = l.mailbox_id'
+            . '   WHERE l.message_id = m.id ORDER BY l.id LIMIT 1) AS mailbox_name'
             . ' FROM message m'
             . ' JOIN account a ON a.id = m.account_id'
-            . ' LEFT JOIN mailbox mb ON mb.id = m.mailbox_id'
             . ' WHERE a.usr_id = :userId'
             . ' AND m.vanished_at IS NULL'
             . ' AND ('

@@ -67,6 +67,37 @@ final class DevicePairingEndpointTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    /**
+     * The panel says where to get the app before it offers to pair one (#402),
+     * as does the help menu, and the badge comes from this instance: opening Settings must not make
+     * the browser ask Google for anything.
+     */
+    public function testThePairingPanelLinksTheAndroidApp(): void
+    {
+        $client = $this->boot();
+        $client->loginUser($this->seedUser());
+
+        $crawler = $client->request('GET', '/settings?section=app-passwords');
+
+        self::assertResponseIsSuccessful();
+
+        $play = $crawler->filter('a[data-testid="native-apps-play"]');
+        self::assertSame(1, $play->count(), 'the settings page links no Google Play listing');
+        self::assertSame('https://play.google.com/store/apps/details?id=de.pluetzner.plmail', $play->attr('href'));
+
+        $badge = (string) $play->filter('img')->attr('src');
+        self::assertStringContainsString('images/badges/google-play-', $badge);
+        self::assertStringStartsWith('/', $badge, 'the badge is loaded from somewhere other than this instance');
+
+        self::assertSame(1, $crawler->filter('a[href="https://github.com/karatektus/pl_mail_android/releases/latest"]')->count());
+
+        // The help menu links it too, and so does its copy in the user menu
+        // that a phone gets instead.
+        $listing = 'a[href="https://play.google.com/store/apps/details?id=de.pluetzner.plmail"]';
+        self::assertSame(1, $crawler->filter('[data-whats-new-menu] ' . $listing)->count());
+        self::assertSame(1, $crawler->filter('[data-whats-new-user-menu] ' . $listing)->count());
+    }
+
     public function testASignedInUserGetsAQrAndADeepLink(): void
     {
         $client = $this->boot();

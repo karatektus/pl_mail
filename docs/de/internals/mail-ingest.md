@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:3d50d39448dfbac508b6da8e9c06a2145c197aa2 -->
+<!-- translated-from: internals/mail-ingest.md sha1:1927bac8825b9243d8259ebb3392b88707813017 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -27,8 +27,9 @@ Fehler.
 `ImapAccountSyncer` lässt `MailboxSyncer` vor `MessageSyncer` laufen, damit Ordner, die ein
 anderer Client angelegt hat, erst auftauchen und ihre Labelketten bekommen, bevor eine
 Nachricht versucht, sich in eine davon aufzulösen. `MessageSyncer` holt in Stapeln zu 50 und
-reicht die rohen RFC822-Bytes weiter, weil webklex sie nach dem Parsen behält — deshalb ist
-IMAP der einzige Weg, auf dem das Original gratis gespeichert wird.
+reicht die rohen RFC822-Bytes weiter, weil jede Nachricht als Ganzes geholt (`BODY.PEEK[]`) und
+aus diesen Bytes geparst wird — deshalb ist IMAP der einzige Weg, auf dem das Original gratis
+gespeichert wird.
 
 **Gmail hat überhaupt keine `Mailbox`-Zeilen.** `GmailApiSyncer` plant die Arbeit direkt auf dem
 Konto und fächert `SyncGmailMessageBatchMessage`-Jobs zu je 100 Ids auf, während er mit der
@@ -195,10 +196,18 @@ davon würde ein dort abgelegtes Urteil löschen. Das Urteil steht stattdessen i
 `Message::$ruleCategory`, das nichts neu berechnet, und `RuleCategoryFiler` lässt dann die
 Konversation über `MessageThreader::refreshCategory()` neu auflösen — neueste gewinnt, pin-bewusst,
 Hold-bewusst, wie bei der eingebauten Kategorie. `MessageThread::$userCategory` ist die Seite der
-Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Eine Nachricht
-wird nur abgelegt, wenn `SenderAuthentication` `Pass` sagt; wessen Urteil geglaubt wird, steht in
-dessen Docblock. Der Filter legt auch Mail mit Gmail-Labels ab: Die Kategorien des Anbieters haben
-Vorrang vor plMails eigener Sortierung, nicht vor einer Anweisung, die die Nutzerin geschrieben hat.
+Konversation, aufgelöst von denselben zwei Neuberechnungs-Statements wie `category`. Abgelegt wird,
+worauf der Filter zutrifft, was auch immer die Absenderprüfung sagt (#405); `RuleConditions` lässt
+Mail im Spam aus jedem Filter heraus, der ihn nicht nennt. Der Filter legt auch Mail mit
+Gmail-Labels ab: Die Kategorien des Anbieters haben Vorrang vor plMails eigener Sortierung, nicht
+vor einer Anweisung, die die Nutzerin geschrieben hat.
+
+„Neueste“ heißt die neueste **empfangene** Nachricht. Mail unter Gesendet oder Entwürfe
+(`Message::isFiledAsSent()`) legt eine Konversation nur ab, die nichts Empfangenes abgelegt hat;
+eine Antwort nimmt eine Konversation also nicht aus ihrem Tab. `MessageThread::$categoryDecidedAt`
+hält fest, wann die Nachricht geschah, die sie abgelegt hat. Der Threader misst Neuankömmlinge
+daran statt an `lastMessageAt`, das auch deine eigene Mail bewegt. Die Neuberechnungs-Statements
+sortieren deine eigene Mail ans Ende und schreiben denselben Zeitpunkt.
 
 Eine eingebaute Kategorie, die die Nutzerin ausgeschaltet hat (`CategorySorting::$disabled`),
 bekommt keine Mail. `MessageCategorizer::explain()` macht aus dem, was die Kaskade entschieden hat —

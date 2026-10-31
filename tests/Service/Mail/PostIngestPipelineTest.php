@@ -7,6 +7,7 @@ namespace App\Tests\Service\Mail;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Jmap\State\StateManager;
 use App\Entity\Mail\Account;
@@ -297,6 +298,36 @@ final class PostIngestPipelineTest extends KernelTestCase
      * would set it at persist. The stamper itself needs provider headers this
      * fixture does not carry, so the place is written here.
      */
+    /**
+     * Which tabs notify is judged on the server, so the pipeline has to say
+     * which tab an arrival is in: an Inbox arrival Gmail filed under Promotions
+     * is new mail for everybody and Promotions mail for the user who chose tabs.
+     */
+    public function testAnArrivalIsRecordedWithItsTab(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+        $state->drainArrivalCategories();
+
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $promotion = $this->seedArrival(ArrivalPlace::Inbox);
+        $promotion->gmailLabelIds = ['INBOX', 'CATEGORY_PROMOTIONS'];
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [new IngestedMessage($promotion, $this->account)]);
+
+        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'it is new mail');
+        self::assertSame([MessageCategory::Promotions], $state->drainArrivalCategories()[(int) $this->account->id], 'it is filed under Promotions');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+
+        self::assertSame([MessageCategory::Primary], $state->drainArrivalCategories()[(int) $this->account->id], 'presence: an ordinary arrival is Primary');
+    }
+
     private function seedArrival(?ArrivalPlace $arrivedIn): Message
     {
         $message = $this->seedMessage('arrival-' . uniqid('', true));

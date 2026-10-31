@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:e08e0c778097638bb9172b46a2136343942b0428 -->
+<!-- translated-from: features/clients.md sha1:448e0f236540832019a2d13b6a4f3a00fa0d5768 -->
 
 # Andere Clients
 
@@ -6,6 +6,17 @@ plMail spricht JMAP, eine Mail-App eines Drittanbieters kann also darüber lesen
 ohne den Zugangsdaten deines Anbieters nahezukommen. Es ist außerdem eine Progressive Web App,
 der Browser, den du ohnehin benutzt, kann sich also wie ein installierter Client verhalten und
 dich über neue Mail benachrichtigen, während der Tab geschlossen ist.
+
+## Die plMail-App für Android
+
+Die native App gibt es bei [Google Play](https://play.google.com/store/apps/details?id=de.pluetzner.plmail)
+als kostenpflichtige App im Vorabzugriff. Dieselbe App gibt es kostenlos bei den
+[GitHub-Releases](https://github.com/karatektus/pl_mail_android/releases/latest), dort auch als
+Build ganz ohne Google-Code (Push über UnifiedPush statt Firebase). Der Kauf bei Google Play ist im
+Moment der wichtigste Weg, wie sich dieses Projekt trägt.
+
+Zum Verbinden öffnest du **Einstellungen → App-Passwörter → Gerät koppeln** und scannst den QR-Code
+mit der App. Dasselbe Panel verlinkt beide Downloads.
 
 ## Einen JMAP-Client verbinden
 
@@ -129,6 +140,24 @@ Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine N
 Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschiebt, wird nicht
 gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
 dem Handy geöffnet.
+
+**Was benachrichtigt.** Zwei Einstellungen unter **Einstellungen → Benachrichtigungen**, beide für
+dich, nicht für ein einzelnes Gerät. **Benachrichtigen bei** hat ein Kästchen für jeden Tab des
+Posteingangs (Allgemein, Soziale Netzwerke, Werbung, Benachrichtigungen, Foren), alle angekreuzt, bis du wählst; ein Browser
+erfährt dann nur von Post, die in den angekreuzten Tabs landet, „nur Allgemein“ ist also Allgemein allein.
+plMail entscheidet das auf dem Server, weil die Benachrichtigung selbst nichts enthält, wonach der
+Browser urteilen könnte. Post, die der Assistent noch einsortiert, wird gemeldet, sobald sie in einem
+Tab liegt, und nur wenn dieser Tab angekreuzt ist. Mindestens ein Tab bleibt angekreuzt: keiner wäre
+„Benachrichtigungen aus“, wofür es einen eigenen Schalter gibt. Das gilt nur für Browser; die
+Android-App beschränkt sich von selbst auf „Allgemein“ und ignoriert es.
+
+**Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht zurückrufen lässt:
+Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch wenn du die
+Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit dieser Option
+wartet nach dem Push zwanzig Sekunden und fragt, ob im Posteingang noch etwas Ungelesenes liegt.
+Wenn nicht, zeigt er nichts an und nimmt eine Benachrichtigung zurück, die er für frühere Post
+gezeigt hatte. Maßgeblich ist der Posteingang als Ganzes, nicht die einzelne Nachricht; eine ältere
+ungelesene Nachricht hält die Benachrichtigung also aufrecht.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

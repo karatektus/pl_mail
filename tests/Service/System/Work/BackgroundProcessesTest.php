@@ -19,9 +19,20 @@ final class BackgroundProcessesTest extends TestCase
     public function testEveryProcessKeepsTheNameItsContainerHad(): void
     {
         self::assertSame(
-            ['mercure', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            ['mercure', 'imap-listener', 'jmap-listener', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
             new BackgroundProcesses(self::IDENTIFIER)->names(),
         );
+    }
+
+    /**
+     * The process that ran both push listeners is gone (#421), and an override
+     * that names it — the demo stack's `--without=imap-supervisor`, or an
+     * operator's polling-only setup — still leaves both of them out.
+     */
+    public function testTheOldSupervisorsNameStillMeansBothListeners(): void
+    {
+        self::assertSame(['imap-listener', 'jmap-listener', 'worker-bulk'], BackgroundProcesses::expand(['imap-supervisor', 'worker-bulk']));
+        self::assertSame(['imap-listener'], BackgroundProcesses::expand(['imap-listener', 'imap-listener']));
     }
 
     public function testTheHubIsConfiguredAsItsContainerWas(): void
@@ -42,6 +53,35 @@ final class BackgroundProcessesTest extends TestCase
 
         self::assertSame('https://issuer.example', $overridden->env['MERCURE_TRUSTED_ISSUERS'], 'what an operator sets wins');
         self::assertSame('cookie_name plmail', $overridden->env['MERCURE_EXTRA_DIRECTIVES']);
+    }
+
+    /**
+     * All in one container (Unraid): the web server is a child too, started
+     * right after the hub, and the hub gets out of its way, off :80 and
+     * without the admin API both Caddy servers would otherwise bind.
+     */
+    public function testAllInOneAddsTheWebServerAndMovesTheHubAside(): void
+    {
+        $processes = new BackgroundProcesses(self::IDENTIFIER, hubSecret: 's', allInOne: true);
+
+        self::assertSame(
+            ['mercure', 'web', 'imap-listener', 'jmap-listener', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            $processes->names(),
+        );
+
+        $all = $processes->all();
+
+        self::assertSame(['frankenphp', 'run', '--config', '/etc/frankenphp/Caddyfile'], $all[1]->command, 'the image\'s own CMD, so the web server starts as it does in a container of its own');
+        self::assertSame(':3000', $all[0]->env['SERVER_NAME']);
+        self::assertSame("grace_period 5s\nadmin off", $all[0]->env['GLOBAL_OPTIONS']);
+    }
+
+    public function testWithoutAllInOneTheHubKeepsPort80AndItsAdminApi(): void
+    {
+        $hub = new BackgroundProcesses(self::IDENTIFIER, hubSecret: 's')->all()[0];
+
+        self::assertSame(':80', $hub->env['SERVER_NAME']);
+        self::assertSame('grace_period 5s', $hub->env['GLOBAL_OPTIONS'], 'compose and TrueNAS run the hub alone in its container, exactly as before');
     }
 
     /**

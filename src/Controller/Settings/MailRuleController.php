@@ -22,6 +22,7 @@ use App\Repository\Rule\MailRuleRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Rule\FilterDescriber;
 use App\Service\Rule\RuleActionExecutor;
+use App\Service\Rule\RuleDraftFromMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -62,12 +63,33 @@ final class MailRuleController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface    $bus,
         private readonly FilterDescriber        $describer,
+        private readonly RuleDraftFromMessage   $draftFromMessage,
     ) {}
 
+    /**
+     * A blank editor, or — with `?message=` — one already holding that
+     * message's sender, which is what "Create a filter from this message"
+     * opens. See RuleDraftFromMessage.
+     */
     #[Route('/new', name: 'new', methods: ['GET'])]
-    public function new(): Response
+    public function new(Request $request): Response
     {
-        return $this->editor(new MailRule());
+        $messageId = $request->query->getInt('message');
+
+        if (0 === $messageId) {
+            return $this->editor(new MailRule());
+        }
+
+        $message = $this->messageRepository->find($messageId);
+
+        if (null === $message) {
+            throw $this->createNotFoundException();
+        }
+
+        // Somebody else's message must not even lend its sender to the form.
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        return $this->editor($this->draftFromMessage->draft($message));
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET'])]

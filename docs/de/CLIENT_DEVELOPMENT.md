@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:3d5274133cdebe0d8c225ec3205f749c8b6b306d -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ca091d2ed6af5c69de1bed6388bfaab801a918d8 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1702,7 +1702,7 @@ setzen:
 
 | Kontoart | Einlesen | Sofortige Zustellung |
 |---|---|---|
-| IMAP | `webklex/php-imap`, eine IDLE-Verbindung je Postfach, beaufsichtigt | IMAP IDLE — funktioniert im LAN, keine öffentliche URL nötig |
+| IMAP | plMails eigener IMAP-Client, eine IDLE-Verbindung je Ordner, alle in einem beaufsichtigten Prozess | IMAP IDLE — funktioniert im LAN, keine öffentliche URL nötig |
 | Gmail | Gmail REST + Batch API über OAuth2 | Google Cloud Pub/Sub watch → `/gmail/push` (verlangt öffentliches HTTPS und eine einmalige Einrichtung der Instanz) |
 | Outlook / M365 | Microsoft Graph über OAuth2 (**nicht IMAP** — Exchange Online blockiert es unter den Security Defaults) | Graph-Subscriptions → `/webhook/graph` (verlangt öffentliches HTTPS) |
 

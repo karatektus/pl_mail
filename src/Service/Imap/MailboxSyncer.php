@@ -6,9 +6,11 @@ namespace App\Service\Imap;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
-use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Entity\Mail\MessageLocation;
+use App\Infrastructure\ImapClient\ImapFolder;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Label\LabelResolver;
@@ -16,8 +18,6 @@ use App\Service\Mail\MessageEraser;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Folder;
 
 /**
  * Mirrors the IMAP folder tree into Mailbox rows (pure sync infrastructure)
@@ -101,6 +101,17 @@ readonly class MailboxSyncer
     ];
 
     /**
+     * How many copies a mirror folder loses in one folder sync — see
+     * dropMirrorCopies().
+     *
+     * An account's All Mail is every message it has, and erasing one is a few
+     * deletes and a thread recount. A cap keeps the first sync after the
+     * change from holding the account's sync for the length of the whole
+     * mailbox; the rest goes over the next polls.
+     */
+    private const int MIRROR_ERASE_BATCH = 500;
+
+    /**
      * How many listings in a row have to leave a folder out, and for how long,
      * before its row — and with it, by cascade, every message in it — goes.
      *
@@ -128,10 +139,11 @@ readonly class MailboxSyncer
     public function __construct(
         private MailboxRepository      $mailboxRepository,
         private EntityManagerInterface $em,
-        private ImapConnectionFactory  $imapConnectionFactory,
+        private ImapConnector          $connector,
         private LabelResolver          $labelResolver,
         private MessageRepository      $messageRepository,
         private MessageEraser          $eraser,
+        private ImapCopies             $copies,
         private LoggerInterface        $logger,
     ) {}
 
@@ -156,10 +168,10 @@ readonly class MailboxSyncer
         }
 
         $now    = $now ?? new DateTimeImmutable();
-        $client = $this->imapConnectionFactory->connect($account);
+        $session = $this->connector->session($account);
 
         try {
-            $serverFolders = $this->listFolders($client);
+            $serverFolders = $this->listFolders($session);
 
             // Every IMAP account has at least INBOX, so an empty answer is a
             // failed answer. Believing it would mark every folder missing.
@@ -173,6 +185,7 @@ readonly class MailboxSyncer
 
             $specialUses  = self::assignSpecialUses($serverFolders);
             $unselectable = self::unselectablePaths($serverFolders);
+            $mirrors      = self::mirrorPaths($serverFolders, $specialUses);
             $existing     = $this->mailboxRepository->findIndexedByFullPath($account);
             $unmatched    = [];
 
@@ -187,7 +200,7 @@ readonly class MailboxSyncer
 
                 unset($existing[$folder->path]);
                 $selectable = false === isset($unselectable[$folder->path]);
-                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable);
+                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable, isset($mirrors[$folder->path]));
                 $this->clearMissing($mailbox);
                 $result['updated']++;
             }
@@ -198,10 +211,11 @@ readonly class MailboxSyncer
             foreach ($unmatched as $folder) {
                 $specialUse = $specialUses[$folder->path] ?? null;
                 $selectable = false === isset($unselectable[$folder->path]);
-                $source     = $this->findRenameSource($client, $folder, $specialUse, $existing);
+                $mirror     = isset($mirrors[$folder->path]);
+                $source     = $this->findRenameSource($session, $folder, $specialUse, $existing);
 
                 if (null === $source) {
-                    $this->create($account, $folder, $specialUse, $selectable);
+                    $this->create($account, $folder, $specialUse, $selectable, $mirror);
                     $result['created']++;
 
                     continue;
@@ -214,7 +228,7 @@ readonly class MailboxSyncer
                 ]);
 
                 unset($existing[(string) $source->fullPath]);
-                $this->update($source, $folder, $specialUse, $account, $selectable);
+                $this->update($source, $folder, $specialUse, $account, $selectable, $mirror);
                 $this->clearMissing($source);
                 $result['renamed']++;
             }
@@ -224,8 +238,10 @@ readonly class MailboxSyncer
             }
 
             $this->em->flush();
+
+            $this->dropMirrorCopies($account);
         } finally {
-            $client->disconnect();
+            $session->logout();
         }
 
         return $result;
@@ -279,7 +295,28 @@ readonly class MailboxSyncer
      */
     private function remove(Mailbox $mailbox): void
     {
-        $erased = $this->eraser->eraseAll($this->messageRepository->findBy(['mailbox' => $mailbox]));
+        // Mail the server keeps in another folder too loses this copy and
+        // stays (#415); only mail this folder was the last place of goes. The
+        // flush comes first, so that no message still names this folder as
+        // its primary when the folder's row and its cascade go.
+        $lastCopies = [];
+
+        foreach ($this->messageRepository->findKeptIn($mailbox) as $message) {
+            if (count($message->locations) > count(array_filter(
+                $message->locations->toArray(),
+                static fn (MessageLocation $location): bool => $location->mailbox === $mailbox,
+            ))) {
+                $this->copies->forget($message, $mailbox);
+
+                continue;
+            }
+
+            $lastCopies[] = $message;
+        }
+
+        $this->em->flush();
+
+        $erased = $this->eraser->eraseAll($lastCopies);
 
         $this->em->remove($mailbox);
 
@@ -307,7 +344,7 @@ readonly class MailboxSyncer
      *
      * @param array<string, Mailbox> $missing
      */
-    private function findRenameSource(Client $client, Folder $folder, ?MailboxSpecialUse $specialUse, array $missing): ?Mailbox
+    private function findRenameSource(ImapSession $session, ImapFolder $folder, ?MailboxSpecialUse $specialUse, array $missing): ?Mailbox
     {
         if ([] === $missing) {
             return null;
@@ -328,12 +365,10 @@ readonly class MailboxSyncer
         }
 
         try {
-            $status = $client->getConnection()->folderStatus($folder->path, ['UIDVALIDITY'])->validatedData();
+            $uidValidity = $session->status($folder->path, ['UIDVALIDITY'])['UIDVALIDITY'] ?? null;
         } catch (\Throwable) {
             return null;
         }
-
-        $uidValidity = is_array($status) ? ($status['uidvalidity'] ?? null) : null;
 
         if (null === $uidValidity) {
             return null;
@@ -347,33 +382,17 @@ readonly class MailboxSyncer
     /**
      * The folder list, each folder with the attributes its LIST line carried.
      *
-     * Asked of the connection rather than through Client::getFolders(), which
-     * builds the same Folder objects from the same response and then drops the
-     * attribute list: Folder keeps \NoSelect and \HasChildren as booleans and
-     * nothing else, so the \Sent the server sent is gone by the time anything
-     * could read it. It is one LIST either way.
+     * An empty answer comes back empty; the caller decides what an empty list
+     * means.
      *
-     * An empty answer comes back empty here rather than as the library's
-     * FolderFetchingException; the caller decides what an empty list means.
-     *
-     * @return list<array{folder: Folder, attributes: list<string>}>
+     * @return list<array{folder: ImapFolder, attributes: list<string>}>
      */
-    private function listFolders(Client $client): array
+    private function listFolders(ImapSession $session): array
     {
-        $items = $client->getConnection()->folders('', '*')->validatedData();
-
-        $folders = [];
-
-        foreach ((array) $items as $path => $item) {
-            $attributes = array_values(array_map('strval', (array) ($item['flags'] ?? [])));
-
-            $folders[] = [
-                'folder'     => new Folder($client, (string) $path, (string) ($item['delimiter'] ?? '.'), $attributes),
-                'attributes' => $attributes,
-            ];
-        }
-
-        return $folders;
+        return array_map(
+            static fn (ImapFolder $folder): array => ['folder' => $folder, 'attributes' => $folder->attributes],
+            $session->folders(),
+        );
     }
 
     /**
@@ -388,7 +407,7 @@ readonly class MailboxSyncer
      * Public and static because it is the whole of the rule, and a test should
      * be able to hand it a listing without standing up a syncer.
      *
-     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      *
      * @return array<string, MailboxSpecialUse> keyed by the folder's raw path
      */
@@ -429,12 +448,12 @@ readonly class MailboxSyncer
      * The folders the server marked \Noselect: placeholders that hold no mail
      * and cannot be opened, Gmail's "[Gmail]" being the usual one.
      *
-     * Read off the raw attribute list rather than Folder::$no_select. RFC 3501
-     * makes attributes case-insensitive and the library matches two spellings.
+     * Compared without case: RFC 3501 makes attributes case-insensitive, and
+     * servers write `\Noselect` and `\NoSelect` both.
      *
      * Public and static for the same reason as assignSpecialUses().
      *
-     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
      *
      * @return array<string, true> keyed by the folder's raw path
      */
@@ -456,6 +475,86 @@ readonly class MailboxSyncer
     }
 
     /**
+     * The folders that are the server's view of mail it keeps elsewhere — see
+     * Mailbox::$mirrorsOtherFolders for which, and why \All only beside an
+     * Archive.
+     *
+     * By attribute, and for \All by the name "All Mail" too, the same fallback
+     * SPECIAL_USE_NAMES gives the other roles for servers that do not say.
+     * "Starred" gets no such fallback: on a server that does not mark it, it
+     * is as likely to be a folder somebody made.
+     *
+     * Public and static for the same reason as assignSpecialUses().
+     *
+     * @param list<array{folder: ImapFolder, attributes: list<string>}> $folders
+     * @param array<string, MailboxSpecialUse>                       $specialUses what assignSpecialUses() made of the same listing
+     *
+     * @return array<string, true> keyed by the folder's raw path
+     */
+    public static function mirrorPaths(array $folders, array $specialUses): array
+    {
+        $hasArchive = in_array(MailboxSpecialUse::ARCHIVE, $specialUses, true);
+        $paths      = [];
+
+        foreach ($folders as ['folder' => $folder, 'attributes' => $attributes]) {
+            $attributes = array_map('strtolower', $attributes);
+
+            $all = in_array('\\all', $attributes, true)
+                || 'all mail' === mb_strtolower(trim($folder->name()));
+
+            if (in_array('\\flagged', $attributes, true) || ($all && $hasArchive)) {
+                $paths[$folder->path] = true;
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Erase what the account's switched-off mirror folders stored while they
+     * were synced: the copies whose email a real folder also keeps (#414).
+     *
+     * Every folder sync and not once, so the work is spread over polls
+     * (MIRROR_ERASE_BATCH) and nothing has to remember where it stopped. Only
+     * while the folder is off: somebody who switches it back on has asked for
+     * its copies, and gets them.
+     *
+     * A copy that is the email's only one stays — on a server where All Mail
+     * holds something no other folder does, erasing it would lose mail — and
+     * so does its folder's label on it. Local only: MessageEraser never tells
+     * the server, which is right, as the server never had a second message.
+     */
+    private function dropMirrorCopies(Account $account): void
+    {
+        $mirrors = $this->mailboxRepository->findBy([
+            'account'             => $account,
+            'mirrorsOtherFolders' => true,
+            'isSyncEnabled'       => false,
+        ]);
+
+        foreach ($mirrors as $mirror) {
+            // Copies that are not the email's primary are locations only, and
+            // go without a word: the email stays where it is primarily kept.
+            $this->messageRepository->dropSecondaryLocationsIn($mirror);
+
+            $copies = $this->messageRepository->findMirrorCopiesKeptElsewhere($mirror, self::MIRROR_ERASE_BATCH);
+
+            if ([] === $copies) {
+                continue;
+            }
+
+            $erased = $this->eraser->eraseAll($copies);
+            $this->em->flush();
+
+            $this->logger->info('Erased copies a mirror folder stored of mail kept elsewhere', [
+                'accountId' => $account->id,
+                'folder'    => $mirror->fullPath,
+                'erased'    => $erased,
+            ]);
+        }
+    }
+
+    /**
      * @param list<string> $attributes
      */
     private static function specialUseFromAttributes(array $attributes): ?MailboxSpecialUse
@@ -471,7 +570,7 @@ readonly class MailboxSyncer
         return null;
     }
 
-    private static function specialUseFromName(Folder $folder): ?MailboxSpecialUse
+    private static function specialUseFromName(ImapFolder $folder): ?MailboxSpecialUse
     {
         // INBOX is special by protocol rather than by name: RFC 3501 reserves
         // it, case-insensitively, as the path itself.
@@ -479,20 +578,21 @@ readonly class MailboxSyncer
             return MailboxSpecialUse::INBOX;
         }
 
-        return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name))] ?? null;
+        return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name()))] ?? null;
     }
 
-    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse, bool $selectable): void
+    private function create(Account $account, ImapFolder $folder, ?MailboxSpecialUse $specialUse, bool $selectable, bool $mirror): void
     {
         $mailbox = new Mailbox();
         $mailbox->account = $account;
-        $mailbox->isSyncEnabled = $selectable;
+        $mailbox->isSyncEnabled = $selectable && false === $mirror;
         $mailbox->isSelectable  = $selectable;
-        $mailbox->isIdleEnabled = in_array(
-            $specialUse?->value,
-            ['\\Inbox', '\\Junk'],
-            true,
-        );
+        $mailbox->mirrorsOtherFolders = $mirror;
+        // The inbox alone (#202). Junk used to be watched as well, which cost
+        // an IDLE connection per account for mail nobody waits on; it is
+        // polled like every other folder now, and the folders dialog switches
+        // IDLE on for any folder somebody does want to hear from at once.
+        $mailbox->isIdleEnabled = MailboxSpecialUse::INBOX === $specialUse;
         // Persist before hydrate: hydrate() binds the folder to a label, and
         // LabelResolver flushes to mint the binding id — the mailbox has to be
         // managed by then or the binding's FK points at nothing. Every
@@ -501,8 +601,17 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable): void
+    private function update(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable, bool $mirror): void
     {
+        // Off when the folder is first seen to be a mirror, and only then. A
+        // folder synced before this rule existed is healed on its next sync;
+        // one somebody switched back on afterwards is theirs to keep on.
+        if ($mirror && false === $mailbox->mirrorsOtherFolders) {
+            $mailbox->isSyncEnabled = false;
+        }
+
+        $mailbox->mirrorsOtherFolders = $mirror;
+
         // Switches off, never on: a folder somebody turned off stays off, and a
         // row created enabled before this rule existed is healed here. The
         // other direction is deliberately not handled — nothing records whether
@@ -520,9 +629,9 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function hydrate(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
+    private function hydrate(Mailbox $mailbox, ImapFolder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
     {
-        $mailbox->name = $folder->name;
+        $mailbox->name = $folder->name();
         $mailbox->fullPath = $folder->path;
         $mailbox->delimiter = $folder->delimiter;
         $mailbox->specialUse = $specialUse;

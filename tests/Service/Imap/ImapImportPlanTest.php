@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Service\Imap;
 
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Service\Imap\ImapImportPlan;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Webklex\PHPIMAP\Client;
-use Webklex\PHPIMAP\Connection\Protocols\ProtocolInterface;
-use Webklex\PHPIMAP\Connection\Protocols\Response;
 
 /**
  * The first time a folder is met, the mark for new mail goes to its top and
@@ -20,17 +21,22 @@ use Webklex\PHPIMAP\Connection\Protocols\Response;
  * That one move is what makes a new account show today's mail first. Without
  * it the mark starts at nothing and the first sync asks for `1:*` — the whole
  * folder, oldest first, in the job that was only meant to look (#42).
+ *
+ * Against the test stack's Dovecot, whose UIDNEXT is a real one, and against
+ * FakeImapServer for the server that does not say what its next UID will be.
  */
 final class ImapImportPlanTest extends TestCase
 {
+    use UsesDovecot;
+
     public function testAFolderIsPlannedFromItsTopWithEverythingBelowLeftAsHistory(): void
     {
         $mailbox = $this->mailbox();
 
-        self::assertTrue($this->plan()->begin($mailbox, $this->serverSaying(['uidnext' => 4712])));
+        self::assertTrue($this->plan()->begin($mailbox, $this->holding(3)));
 
-        self::assertSame(4711, $mailbox->lastSeenUid, 'new mail is whatever comes after the newest message there is');
-        self::assertSame(4712, $mailbox->importFloorUid, 'and all of what is there is history');
+        self::assertSame(3, $mailbox->lastSeenUid, 'new mail is whatever comes after the newest message there is');
+        self::assertSame(4, $mailbox->importFloorUid, 'and all of what is there is history');
         self::assertTrue($mailbox->isImporting());
     }
 
@@ -39,7 +45,7 @@ final class ImapImportPlanTest extends TestCase
     {
         $mailbox = $this->mailbox();
 
-        $this->plan()->begin($mailbox, $this->serverSaying(['uidnext' => 1]));
+        $this->plan()->begin($mailbox, $this->holding(0));
 
         self::assertSame(0, $mailbox->importFloorUid);
         self::assertFalse($mailbox->isImporting());
@@ -51,17 +57,19 @@ final class ImapImportPlanTest extends TestCase
      */
     public function testAMarkLeftInTheMiddleOfAFolderOnlyEverMovesUp(): void
     {
+        $session = $this->holding(3);
+
         $mailbox              = $this->mailbox();
-        $mailbox->lastSeenUid = 900;
+        $mailbox->lastSeenUid = 1;
 
-        $this->plan()->begin($mailbox, $this->serverSaying(['uidnext' => 4712]));
+        $this->plan()->begin($mailbox, $session);
 
-        self::assertSame(4711, $mailbox->lastSeenUid);
+        self::assertSame(3, $mailbox->lastSeenUid);
 
         $ahead              = $this->mailbox();
         $ahead->lastSeenUid = 9000;
 
-        $this->plan()->begin($ahead, $this->serverSaying(['uidnext' => 4712]));
+        $this->plan()->begin($ahead, $session);
 
         self::assertSame(9000, $ahead->lastSeenUid);
     }
@@ -73,9 +81,12 @@ final class ImapImportPlanTest extends TestCase
      */
     public function testAServerThatDoesNotNameItsNextUidLeavesTheFolderUnplanned(): void
     {
+        $server = new FakeImapServer(new ImapLoop());
+        $server->on('EXAMINE', static fn (): array => ['* 3 EXISTS', '* OK [UIDVALIDITY 7] UIDs valid', 'OK [READ-ONLY] Examined']);
+
         $mailbox = $this->mailbox();
 
-        self::assertFalse($this->plan()->begin($mailbox, $this->serverSaying(['uidvalidity' => 7])));
+        self::assertFalse($this->plan()->begin($mailbox, $server->session()));
 
         self::assertNull($mailbox->importFloorUid);
         self::assertNull($mailbox->lastSeenUid);
@@ -95,40 +106,15 @@ final class ImapImportPlanTest extends TestCase
         return $mailbox;
     }
 
-    /**
-     * @param array<string, int> $examined what the server answers an EXAMINE with
-     *
-     * A subclass rather than a stub of Client: the library's client disconnects
-     * in its destructor, and a stub answers that call with another stub of
-     * itself, which is then destroyed in turn — without end.
-     */
-    private function serverSaying(array $examined): Client
+    /** A Dovecot INBOX with this many messages in it, UIDs 1 to $count. */
+    private function holding(int $count): ImapSession
     {
-        $response = $this->createStub(Response::class);
-        $response->method('validatedData')->willReturn($examined);
+        $session = $this->dovecotSession();
 
-        $connection = $this->createStub(ProtocolInterface::class);
-        $connection->method('examineFolder')->willReturn($response);
+        for ($uid = 1; $uid <= $count; ++$uid) {
+            $session->append('INBOX', sprintf("Subject: %d\r\n\r\nBody.\r\n", $uid));
+        }
 
-        $client = new \ReflectionClass(ExaminedClient::class)->newInstanceWithoutConstructor();
-        $client->server = $connection;
-
-        return $client;
-    }
-}
-
-/** A client that is connected to whatever it is handed and never hangs up. */
-final class ExaminedClient extends Client
-{
-    public ProtocolInterface $server;
-
-    public function getConnection(): ProtocolInterface
-    {
-        return $this->server;
-    }
-
-    public function disconnect(): Client
-    {
-        return $this;
+        return $session;
     }
 }

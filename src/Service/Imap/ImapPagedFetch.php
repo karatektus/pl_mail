@@ -4,65 +4,94 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
-use Webklex\PHPIMAP\Query\Query;
-use Webklex\PHPIMAP\Support\MessageCollection;
+use App\Domain\Enum\Mail\MessageFlag;
+use App\Domain\Helper\MessageParser;
+use App\Infrastructure\ImapClient\Exception\ImapException;
+use App\Infrastructure\ImapClient\ImapSession;
+use Webklex\PHPIMAP\Message as ImapMessage;
+use Webklex\PHPIMAP\Support\FlagCollection;
 
 /**
- * A search fetched a page at a time, in which a message the library cannot
- * read costs that message and not the folder.
+ * Messages fetched a page at a time, in which a message that cannot be read
+ * costs that message and not the folder.
  *
- * The library has a loop for this, Query::chunked(), and the syncer used it.
- * It has two properties that between them let one message stop a folder for
- * good (#45):
+ * Each page is one `UID FETCH (FLAGS BODY.PEEK[])` for its UIDs, and each
+ * message is parsed from the bytes the server sent. Parsing is the library's
+ * (MessageParser, until #82), and it is only parsing: no part of it talks to
+ * the server, so a message it cannot read is a fact about that message, and a
+ * connection that drops is never mistaken for one.
  *
- *   - **It gives up the whole fetch for one message.** A message whose MIME
- *     structure the parser will not take throws while the page is being built,
- *     and with the library's default the exception leaves the loop whole. The
- *     page is lost, the pages after it are never asked for, and the syncer's
- *     own retry-then-skip (MessageSyncer::holdForRetry()) never hears of the
- *     message, because it is only ever handed messages that were built. The
- *     mark does not move, so the next sync asks for the same range and dies at
- *     the same place, every poll, for as long as the message exists.
+ * Handed over with each page are the UIDs of it that did not become messages,
+ * with why, for MessageSyncer::holdForRetry() to retry and eventually let go:
  *
- *   - **Its soft-fail setting cannot be used to fix that.** With soft-fail on,
- *     the unreadable message is dropped and the page comes back — but the loop
- *     runs until the messages it has HANDED OVER add up to the messages the
- *     search found, and one dropped message means they never do. It then asks
- *     for page after empty page without end.
+ *   - one the parser threw on (#45, and the repeated-header case of #357,
+ *     which MessageParser repairs first);
+ *   - one the server listed and then returned nothing for. iCloud does this
+ *     for a message deleted and not yet expunged (#96), and a page asking for
+ *     it gets every other message and not that one.
  *
- * So the pages are counted here, from the search, which is a number that does
- * not depend on how many messages survived. Soft-fail is on, and what it
- * dropped on each page is handed over beside the page, keyed by UID, so the
- * caller can hold each for a retry like any other message it could not store.
+ * What ends the fetch is what should: the server going away, or refusing the
+ * FETCH. That is not about one message, and the next page would fail too.
  *
- * What still ends the fetch is what should: the server going away. That is not
- * a property of one message, and trying the next page would only fail again.
+ * WHAT A MESSAGE CARRIES
+ * ──────────────────────
+ * Its UID, and its flags in the app's own spelling (MessageFlag::canonicalList:
+ * `\Seen`, keywords kept, \Recent dropped), the form every stored list is
+ * in. Webklex, which fetched these before, stored `Seen` and dropped every
+ * keyword, so an IMAP draft stored as `Draft` was not a draft to the app.
  */
 final readonly class ImapPagedFetch
 {
     /**
-     * @return iterable<array{MessageCollection, array<int, \Throwable>}> each
-     *         page as the library built it, and the messages of that page it
-     *         could not build: UID => what was thrown
+     * @param list<int> $uids in the order to fetch them
+     *
+     * @return iterable<array{list<ImapMessage>, array<int, \Throwable>}> each page's
+     *         messages, and its UIDs that did not become one: UID => why
      */
-    public function pages(Query $query, int $pageSize): iterable
+    public function pages(ImapSession $session, string $path, array $uids, int $pageSize): iterable
     {
-        $query->setSoftFail(true);
+        foreach (array_chunk($uids, max(1, $pageSize)) as $page) {
+            $fetched    = $session->uidFetch($path, ImapSession::uidSet($page), ['FLAGS', 'BODY.PEEK[]']);
+            $messages   = [];
+            $unreadable = [];
 
-        $found = $query->search();
-        $pages = (int) ceil($found->count() / $pageSize);
+            foreach ($page as $uid) {
+                $items = $fetched[$uid] ?? null;
+                $raw   = $items['BODY[]'] ?? null;
 
-        // The library keeps every failure of a query in one list, so each page
-        // is handed only what was added to it since the page before.
-        $reported = [];
+                if (false === is_string($raw)) {
+                    $unreadable[$uid] = new ImapException(sprintf('The server listed message %d and returned nothing for it.', $uid));
 
-        for ($page = 1; $page <= $pages; ++$page) {
-            $batch = $query->limit($pageSize, $page)->curate_messages($found);
+                    continue;
+                }
 
-            $unreadable = array_diff_key($query->errors(), $reported);
-            $reported  += $unreadable;
+                try {
+                    $messages[] = self::message($uid, $raw, is_array($items['FLAGS'] ?? null) ? $items['FLAGS'] : []);
+                } catch (\Throwable $failure) {
+                    $unreadable[$uid] = new \RuntimeException(
+                        sprintf('Message %d could not be read: %s', $uid, $failure->getMessage()),
+                        0,
+                        $failure,
+                    );
+                }
+            }
 
-            yield [$batch, $unreadable];
+            yield [$messages, $unreadable];
         }
+    }
+
+    /**
+     * One message as the syncer takes it.
+     *
+     * @param list<mixed> $flags as the server sent them
+     */
+    public static function message(int $uid, string $raw, array $flags): ImapMessage
+    {
+        $message = MessageParser::fromString($raw, MessageParser::config());
+
+        $message->setUid($uid);
+        $message->setFlags(FlagCollection::make(MessageFlag::canonicalList(array_values(array_filter($flags, is_string(...))))));
+
+        return $message;
     }
 }

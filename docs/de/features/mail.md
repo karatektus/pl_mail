@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e10e5d0559ab9c2a857d4c77d58875bf76e142d2 -->
+<!-- translated-from: features/mail.md sha1:adb342d108f7734a108833febc05714573867d45 -->
 
 # Mail
 
@@ -306,8 +306,9 @@ Regeln und der Assistent jeweils gesagt haben, und welcher davon entschieden hat
 Einstellung ändern“ und „gar nichts ändern“.
 
 Zwei Dinge sagt dir der Bereich, die leicht wie Fehler aussehen. Eine Konversation hat **eine**
-Kategorie, die ihrer neuesten Nachricht — eine Antwort kann also die ganze Unterhaltung aus dem Tab
-tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich es. Und eine Kategorie,
+Kategorie, die der neuesten Nachricht, die du darin bekommen hast — eine Antwort kann also die ganze
+Unterhaltung aus dem Tab tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich
+es. Deine eigenen Antworten zählen nicht. Und eine Kategorie,
 die du per Drag auf einen Tab selbst gesetzt hast, hält gegen alles andere, was ebenfalls dort steht.
 
 Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehört hätte. Das landet
@@ -634,7 +635,9 @@ deren Text nur `help.wirhub.de` steht.
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
 Die Suche lässt Spam und Papierkorb aus, solange du sie nicht mit `in:spam` oder `in:trash`
-verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus.
+verlangst, so wie die Listen auch. Die Vorschläge beim Tippen lassen beide aus. Klickst du im Spam
+oder im Papierkorb in das Suchfeld, steht dort schon `in:spam` oder `in:trash`, und die Suche
+durchsucht diesen Ordner. Löschst du es, suchst du stattdessen überall sonst.
 
 Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
 Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
@@ -1067,6 +1070,26 @@ Installation mit mehreren Personen sind die Korrespondenten der einen für die a
 eine Adresse, die zu einem anderen Konto gehört, lässt sich auf keinem Weg auf deinen Entwurf
 setzen.
 
+**Doppelklicke einen Empfänger**, um ihn zu korrigieren: Die Adresse kommt zurück ins Feld, Enter
+setzt die korrigierte an die Stelle der alten. Verlässt du das Feld ohne Enter, kommt sie
+unverändert zurück.
+
+**Empfänger kopieren**: Wähle ihre Chips aus (ein Klick, Umschalt+Klick oder Strg+A in einem leeren
+Feld) und drücke Strg+C. Sie landen als `Name <Adresse>; Adresse` in der Zwischenablage, was andere
+Mailprogramme lesen. Strg+X tut dasselbe und entfernt sie, so wandert eine Liste mit Ausschneiden
+und Einfügen von An nach Bcc.
+
+**Zieh einen Empfänger** von An, Cc oder Bcc auf ein anderes dieser Felder, um ihn dorthin zu
+verschieben; ein Kontakt behält seinen Namen. Mit Maus oder Stift: Auf einem Touchscreen schneidest
+du die Adresse stattdessen aus und fügst sie ein.
+
+Eine Liste von Adressen, die du in **An**, **Cc** oder **Bcc** einfügst, wird zu einem Empfänger
+je Adresse, ob durch Semikolon, Komma, Zeilenumbruch oder Leerzeichen getrennt, mit oder ohne
+Namen (`jo@jo.fr; Ann <ann@example.org>`, `jo@jo.fr jo2@jo.fr`). Ein Leerzeichen in einem Namen
+trennt ihn nicht. Eine Adresse, die schon im Feld steht, kommt nicht doppelt
+hinzu, und was keine Adresse ist, bleibt mit einem Hinweis im Feld stehen, damit du es korrigieren
+kannst.
+
 **Dateien anhängen** nimmt Dateien von deinem Rechner, gedeckelt auf **25 MB je Datei**. **Aus
 einem Dienst anhängen** öffnet die Dateiauswahl für jeden verbundenen Dienst, aus dem plMail
 herunterladen kann.
@@ -1077,6 +1100,12 @@ getippter Betreff ist es wert, behalten zu werden. Das Fenster zu schließen, es
 eine Datei anzuhängen erzwingt jeweils vorher ein Speichern. Unterhalb dieser Schwelle fragt das
 Verlassen der Seite nach, statt das Getippte zu verlieren. Der Papierkorbknopf im Schreibfenster
 löscht den Entwurf tatsächlich, statt das Fenster darüber zuzuklappen.
+
+**Senden** fragt vorher im Fenster nach, wenn die Nachricht keinen Betreff, keinen Text oder einen
+offenen Vorlagen-Platzhalter hat, oder wenn sie **einen Anhang erwähnt, der fehlt**: „Anbei“,
+„Anhang“, „attached“, „ci-joint“, „附件“ und Verwandte im Betreff oder in dem, was du geschrieben
+hast, ohne angehängte Datei. Das zitierte Original wird nicht gelesen, eine Antwort auf eine Mail
+mit Anhang fragt also nicht. Alle Gründe kommen als eine Frage, und **Trotzdem senden** sendet.
 
 Auf dem Telefon bricht die Werkzeugleiste um, statt aus dem Bild zu scrollen, und die Sendepille
 wandert hinauf in die Kopfzeile des Fensters, dorthin, wo früher der Knopf saß.

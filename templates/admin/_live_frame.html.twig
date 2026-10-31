@@ -16,11 +16,15 @@
     <div class="space-y-6">
 
         {# ── Processes ─────────────────────────────────────────────────── #}
-        {% set processesDown = heartbeats|filter(row => not row.healthy)|length %}
+        {# A stale IDLE folder counts as down like a process: it is the one
+           thing the folder icons below exist to show. #}
+        {% set processesDown = processes|reduce((down, row) => down
+            + (row.healthy ? 0 : 1)
+            + row.folders|filter(folder => not folder.healthy)|length, 0) %}
         {{ cards.open('fa-heart-pulse', 'admin.processes.heading'|trans, 'processes', collapsedPanels,
             processesDown > 0
                 ? 'admin.summary.down'|trans({ '%count%': processesDown })
-                : 'admin.summary.healthy'|trans({ '%count%': heartbeats|length }),
+                : 'admin.summary.healthy'|trans({ '%count%': processes|length }),
             processesDown > 0 ? 'danger' : null) }}
             {#
             A restart CLEARS heartbeat rows rather than reddening them —
@@ -28,9 +32,10 @@
             this banner the table just loses rows for ~30s, which reads as an
             outage rather than the restart the admin just asked for.
             #}
-            {# 150s, not 30: measured worst case is the IMAP supervisor, which
-               only checks the signal once per 60s reconcile poll, plus its
-               children's shutdown and the container coming back. #}
+            {# 150s, not 30: measured worst case was the IMAP supervisor, which
+               only checked the signal once per 60s reconcile poll, plus its
+               children's shutdown and the container coming back. The push
+               listeners that replaced it check on the same cadence. #}
             {% if restartRequestedAgo is not null and restartRequestedAgo < 150 %}
                 <div class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-info text-sm text-accent">
                     <i class="fa-solid fa-arrows-rotate mt-0.5 shrink-0 text-accent/70" aria-hidden="true"></i>
@@ -38,7 +43,7 @@
                 </div>
             {% endif %}
 
-            {% if heartbeats|length == 0 %}
+            {% if processes|length == 0 %}
                 <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.processes.empty'|trans }}</p>
             {% else %}
                 <table class="w-full text-sm">
@@ -52,11 +57,25 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for row in heartbeats %}
+                        {% for row in processes %}
                             <tr class="border-t border-line text-ink-soft">
                                 <td class="px-4 py-2 w-8">{{ ui.dot(row.healthy) }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.type }}</td>
-                                <td class="px-2 py-2 font-mono text-xs">{{ row.key }}</td>
+                                <td class="px-2 py-2 font-mono text-xs">
+                                    {{ row.key }}
+                                    {# The IDLE folders the IMAP listener holds, one icon each.
+                                       See AdminMonitoringService::processes(). #}
+                                    {% if row.folders is not empty %}
+                                        <span class="ml-2 inline-flex flex-wrap items-center gap-1 align-middle">
+                                            {% for folder in row.folders %}
+                                                {% set folderTitle = folder.label ~ ' · ' ~ 'admin.ago'|trans({ '%age%': folder.age }) %}
+                                                <i class="fa-solid fa-folder {{ folder.healthy ? 'text-emerald-500' : 'text-red-500' }}"
+                                                   role="img" title="{{ folderTitle }}" aria-label="{{ folderTitle }}"
+                                                   data-idle-folder="{{ folder.healthy ? 'healthy' : 'stale' }}"></i>
+                                            {% endfor %}
+                                        </span>
+                                    {% endif %}
+                                </td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.pid ?? '—' }}</td>
                                 <td class="px-2 py-2 text-xs {{ row.healthy ? '' : 'text-danger' }}">
                                     {{ 'admin.ago'|trans({ '%age%': row.age }) }}

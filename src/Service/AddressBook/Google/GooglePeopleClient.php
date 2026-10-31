@@ -241,7 +241,14 @@ final readonly class GooglePeopleClient
         }
 
         if (429 === $status || (403 === $status && [] !== array_intersect($all, self::THROTTLED))) {
-            return new CalendarSyncThrottledException(sprintf('Google is rate-limiting this account while %s.', $what), $status, $this->retryAfter($response));
+            // Google's own words kept: they name the quota that was hit (per
+            // user or per project, reads or writes), which is the only way to
+            // tell afterwards what spent it (#435).
+            return new CalendarSyncThrottledException(
+                sprintf('Google is rate-limiting this account while %s.', $what) . ('' === $message ? '' : ' Google said: ' . $message),
+                $status,
+                $this->retryAfter($response),
+            );
         }
 
         if (true === in_array('EXPIRED_SYNC_TOKEN', $all, true) || 410 === $status) {
@@ -285,7 +292,7 @@ final readonly class GooglePeopleClient
         return [
             is_string($error['status'] ?? null) ? $error['status'] : '',
             $reasons,
-            mb_substr(trim(is_string($error['message'] ?? null) ? $error['message'] : ''), 0, 200),
+            mb_substr(trim(is_string($error['message'] ?? null) ? $error['message'] : ''), 0, 400),
         ];
     }
 

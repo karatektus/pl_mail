@@ -112,4 +112,54 @@ test.describe("message details", () => {
         await details.getByRole("button", { name: /show all headers/i }).click();
         await expect(all).toBeVisible();
     });
+
+    /**
+     * "Test my filters on this message" answers inside the panel and closes
+     * again from the same button, like "Show all headers". As a link it left
+     * the page for the bare fragment: the panel stops every click from
+     * bubbling, and Turbo only takes over a link whose click reaches the
+     * document.
+     */
+    test("the filter test opens in the panel, stays on the message and closes again", async ({ page }) => {
+        await openThread(page);
+
+        const url = page.url();
+        const details = page.locator(DETAILS).first();
+        await details.getByRole("button").first().click();
+
+        const answer = details.locator('[data-mail--message-details-target="filters"]');
+
+        await details.getByRole("button", { name: "Test my filters on this message" }).click();
+
+        // The frame starts empty; the answer is the first thing put in it.
+        await expect(answer.locator("turbo-frame > div")).toBeVisible();
+        await expect(details.locator(PANEL)).toBeVisible();
+        expect(page.url()).toBe(url);
+
+        await details.getByRole("button", { name: "Hide the filter test" }).click();
+
+        await expect(answer).toBeHidden();
+        await expect(details.getByRole("button", { name: "Test my filters on this message" })).toBeVisible();
+    });
+
+    /**
+     * Everything open at once — all headers and the filter test — still ends
+     * inside the visible pane, scrolling rather than running off its bottom
+     * edge and taking the buttons that close it along.
+     */
+    test("with everything open the panel scrolls instead of leaving the pane", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 600 });
+        await openThread(page);
+
+        const details = page.locator(DETAILS).first();
+        await details.getByRole("button").first().click();
+        await details.getByRole("button", { name: /show all headers/i }).click();
+        await details.getByRole("button", { name: "Test my filters on this message" }).click();
+        await expect(details.locator('[data-mail--message-details-target="filters"] turbo-frame > div')).toBeVisible();
+
+        const panel = await details.locator(PANEL).boundingBox();
+
+        expect(panel).not.toBeNull();
+        expect((panel?.y ?? 0) + (panel?.height ?? 0)).toBeLessThanOrEqual(600);
+    });
 });

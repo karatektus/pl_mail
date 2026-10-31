@@ -301,6 +301,41 @@
     text-overflow: ellipsis;
 }
 
+/* A chip being dragged towards another of To, Cc and Bcc: it stays in place,
+ * faded, a copy follows the pointer, and the field it would land in says so.
+ * See compose_controller._acceptDraggedChips(). */
+.ts-control .item.ts-dragging {
+    opacity: 0.4;
+}
+
+.ts-control.ts-drag-ghost {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    min-height: 0;
+}
+
+.ts-drag-ghost .item {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+/* Outranks `.ts-control .item .remove` below, which would otherwise win. */
+.ts-control.ts-drag-ghost .item .remove {
+    display: none;
+}
+
+/* On the wrapper: .ts-control forces `outline: none !important`. */
+.ts-wrapper.ts-drop-target {
+    outline: 2px dashed rgb(var(--rgb-accent));
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+    background-color: rgb(var(--rgb-accent) / 0.06);
+}
+
 /* × remove button — per chip (remove_button plugin) */
 .ts-control .item .remove {
     display: inline-flex;
@@ -326,6 +361,14 @@
 
 .ts-control .item .remove:hover {
     opacity: 1;
+}
+
+/* A chip selected by a click, Shift+click or Ctrl+A — what Ctrl+C copies and
+ * Backspace removes. Tom Select marks it `.active` and this sheet drew nothing
+ * for it, so a selection was invisible and so was the fact that one existed. */
+.ts-wrapper.multi .ts-control .item.active {
+    background-color: rgb(var(--rgb-accent));
+    color: rgb(var(--rgb-accent-ink));
 }
 
 /* ── Dropdown panel ──────────────────────────────────────────────────── */

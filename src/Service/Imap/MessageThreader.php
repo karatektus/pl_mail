@@ -459,8 +459,16 @@ final class MessageThreader
             return;
         }
 
-        if ($occurredAt > $currentLastMessageAt) {
+        $advanced = $occurredAt > $currentLastMessageAt;
+
+        if (true === $advanced) {
             $thread->lastMessageAt = $occurredAt;
+        }
+
+        // Received mail is weighed against what placed the conversation, not
+        // against lastMessageAt: a reply you sent last is not what a received
+        // message has to be newer than. adoptCategory() decides.
+        if (true === $advanced || false === $message->isFiledAsSent()) {
             $this->adoptCategory($message, $thread);
         }
     }
@@ -470,22 +478,14 @@ final class MessageThreader
      * recategorised in place — the Gmail re-read path, where new CATEGORY_*
      * labels land on a row the thread has held for months.
      *
-     * recordActivity() cannot do this job. It adopts only while moving
-     * lastMessageAt forward, and a message being re-read is already counted in
-     * that key, so its gate never opens. Most-recent-wins here is therefore the
-     * other half of the same test: adopt when this message IS the newest the
-     * thread has, which is to say the one lastMessageAt was last set from. Ties
-     * adopt, matching the backfill's DISTINCT ON — it picks between two rows of
-     * equal received_at without ceremony either.
+     * recordActivity() cannot do this job: a message being re-read is already
+     * counted in the thread. Most-recent-wins is adoptCategory()'s own test —
+     * adopt when this message is at least as new as the received message that
+     * placed the conversation. Ties adopt, matching the backfill's DISTINCT ON —
+     * it picks between two rows of equal date without ceremony either.
      */
     public function refreshCategory(Message $message, MessageThread $thread): void
     {
-        $lastMessageAt = $thread->lastMessageAt;
-
-        if (null !== $lastMessageAt && $this->occurredAt($message) < $lastMessageAt) {
-            return;
-        }
-
         $this->adoptCategory($message, $thread);
     }
 
@@ -547,17 +547,38 @@ final class MessageThreader
 
         $category = $message->category;
 
-        if (null !== $category) {
-            $thread->category = $category;
-
-            // The reader's own tab follows the same rule and moves in the same
-            // breath, including BACK to none: a newer message no filter claimed
-            // takes the conversation out of "Shipping" exactly as a newer
-            // Promotions message takes it out of Updates. Only a message that
-            // has a category counts — an uncategorised draft is not an opinion
-            // about where the conversation belongs. See
-            // MessageThread::$userCategory.
-            $thread->userCategory = $message->ruleCategory;
+        if (null === $category) {
+            return;
         }
+
+        // Your own mail never moves a conversation that something received has
+        // placed — answering a recruiter must not take the conversation out of
+        // the tab the recruiter's mail was filed in (#405). It only places one
+        // nothing else has: a conversation you started, until the answer.
+        if (true === $message->isFiledAsSent()) {
+            if (null !== $thread->categoryDecidedAt) {
+                return;
+            }
+        } else {
+            $occurredAt = $this->occurredAt($message);
+
+            // Older than what placed it: a late copy, a backfilled folder.
+            if (null !== $thread->categoryDecidedAt && $occurredAt < $thread->categoryDecidedAt) {
+                return;
+            }
+
+            $thread->categoryDecidedAt = $occurredAt;
+        }
+
+        $thread->category = $category;
+
+        // The reader's own tab follows the same rule and moves in the same
+        // breath, including BACK to none: a newer message no filter claimed
+        // takes the conversation out of "Shipping" exactly as a newer
+        // Promotions message takes it out of Updates. Only a message that
+        // has a category counts — an uncategorised draft is not an opinion
+        // about where the conversation belongs. See
+        // MessageThread::$userCategory.
+        $thread->userCategory = $message->ruleCategory;
     }
 }

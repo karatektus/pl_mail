@@ -4,131 +4,109 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
-use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\ImapClient\ImapLoop;
+use App\Infrastructure\ImapClient\ImapSession;
 use App\Service\Imap\ImapPagedFetch;
+use App\Tests\Infrastructure\ImapClient\FakeImapServer;
+use App\Tests\Infrastructure\ImapClient\UsesDovecot;
 use PHPUnit\Framework\TestCase;
-use Webklex\PHPIMAP\Exceptions\GetMessagesFailedException;
-use Webklex\PHPIMAP\Exceptions\MessageContentFetchingException;
-use Webklex\PHPIMAP\Message;
 
 /**
- * One message the library cannot read costs that message, not the fetch.
+ * One message that cannot be read costs that message, not the fetch.
  *
  * The library's own paging gave up the whole fetch for one unreadable message,
- * so the folder it was in never synced again (#45). Its soft-fail setting is
- * the obvious answer and cannot be used with its own loop, which runs until
- * the messages handed over add up to the messages found — a number a dropped
- * message makes unreachable, so it asks for empty pages for ever. Both faults
- * are pinned here: every page is fetched exactly once, and what was dropped is
- * handed over with the page it was dropped from.
+ * so the folder it was in never synced again (#45), and its soft-fail mode
+ * asked for empty pages for ever once a message was dropped. Pinned here:
+ * every page is fetched once, a message the parser throws on is handed over
+ * with the page it was on, and so is one the server listed and then
+ * returned nothing for (#96).
  *
- * Against a scripted query (see FakeQuery) rather than a server: the claims
- * are about a loop — how many times it goes round, and what it reports each
- * time — and a server adds nothing to them but a way to be slow.
+ * Against Dovecot where a real server shows it — a message that will not
+ * parse is put on the server as it is, and the flags come back as the server
+ * set them — and against FakeImapServer for the message that is listed and
+ * never returned, which no well-run server does on request.
  */
 final class ImapPagedFetchTest extends TestCase
 {
+    use UsesDovecot;
+
+    private const string PLAIN = "From: a@example.test\r\nSubject: Fine\r\nMessage-ID: <fine-%d@example.test>\r\n\r\nHello.\r\n";
+
+    /** A multipart message with no boundary: the parser finds no content and throws. */
+    private const string UNREADABLE = "From: a@example.test\r\nSubject: Broken\r\nMessage-ID: <broken@example.test>\r\nContent-Type: multipart/mixed\r\n\r\n--\r\nhello\r\n";
+
     public function testAnUnreadableMessageIsReportedWithItsPageAndTheRestStillArrive(): void
     {
-        $query = FakeQuery::finding([
-            1 => $this->mail(1),
-            2 => new MessageContentFetchingException('no content found'),
-            3 => $this->mail(3),
-            4 => $this->mail(4),
-            5 => $this->mail(5),
-        ]);
+        $session = $this->dovecotSession();
 
-        $pages = $this->collect($query, 2);
+        foreach ([1, 2, 3, 4, 5] as $uid) {
+            $session->append('INBOX', 3 === $uid ? self::UNREADABLE : sprintf(self::PLAIN, $uid));
+        }
 
-        self::assertSame([[1], [3, 4], [5]], array_column($pages, 'uids'), 'everything readable arrives, page by page');
-        self::assertSame([[2], [], []], array_column($pages, 'unreadable'), 'and the one that is not is named once, with its page');
+        $pages = $this->pages($session, [1, 2, 3, 4, 5], 2);
+
+        $session->logout();
+
+        self::assertSame([
+            ['uids' => [1, 2], 'unreadable' => []],
+            ['uids' => [4], 'unreadable' => [3]],
+            ['uids' => [5], 'unreadable' => []],
+        ], $pages, 'every page once, the unreadable one reported beside its page');
     }
 
     /**
-     * The loop this replaces counted what it handed over until it reached what
-     * the search found. With one message dropped it never got there.
+     * Flags arrive in the app's own spelling, keywords kept: webklex stored
+     * `Seen` and dropped every keyword, and an IMAP draft stored as `Draft`
+     * was not a draft to the app.
      */
-    public function testEveryPageIsAskedForOnceEvenWhenAMessageIsDropped(): void
+    public function testFlagsArriveAsTheAppSpellsThem(): void
     {
-        $query = FakeQuery::finding([
-            1 => new MessageContentFetchingException('no content found'),
-            2 => $this->mail(2),
-            3 => $this->mail(3),
-        ]);
+        $session = $this->dovecotSession();
+        $session->append('INBOX', sprintf(self::PLAIN, 1), ['\\Draft', '\\Seen', '$Forwarded']);
 
-        $this->collect($query, 2);
+        [[$messages]] = iterator_to_array(new ImapPagedFetch()->pages($session, 'INBOX', [1], 10));
 
-        self::assertSame([1, 2], $query->fetchedPages);
+        $session->logout();
+
+        self::assertSame(['$Forwarded', '\\Draft', '\\Seen'], array_values($messages[0]->getFlags()->toArray()));
+        self::assertSame(1, $messages[0]->getUid());
     }
 
-    /** A whole page of them is still a page: nothing arrives, and the fetch goes on. */
-    public function testAPageOfNothingButUnreadableMessagesDoesNotEndTheFetch(): void
+    public function testAMessageTheServerListsAndNeverReturnsIsReportedRatherThanLost(): void
     {
-        $query = FakeQuery::finding([
-            1 => new MessageContentFetchingException('no content found'),
-            2 => new MessageContentFetchingException('no content found'),
-            3 => $this->mail(3),
-        ]);
+        $server = new FakeImapServer(new ImapLoop());
+        $server->messages['INBOX'] = [1 => sprintf(self::PLAIN, 1), 2 => null, 3 => sprintf(self::PLAIN, 3)];
 
-        $pages = $this->collect($query, 2);
-
-        self::assertSame([[], [3]], array_column($pages, 'uids'));
-        self::assertSame([[1, 2], []], array_column($pages, 'unreadable'));
+        self::assertSame(
+            [['uids' => [1, 3], 'unreadable' => [2]]],
+            $this->pages($server->session(), [1, 2, 3], 10),
+        );
     }
 
-    public function testASearchThatFindsNothingFetchesNothing(): void
+    public function testNothingToFetchFetchesNothing(): void
     {
-        $query = FakeQuery::finding([]);
+        $server = new FakeImapServer(new ImapLoop());
 
-        self::assertSame([], $this->collect($query, 50));
-        self::assertSame([], $query->fetchedPages);
+        self::assertSame([], $this->pages($server->session(), [], 10));
+        self::assertSame([], $server->received('UID FETCH'));
     }
 
     /**
-     * The contrast that says the fake is honest: left as the library ships,
-     * the same script ends at the unreadable message. If this did not throw,
-     * the tests above would be passing against a query that never failed.
-     */
-    public function testWithoutSoftFailTheSameSearchEndsAtTheUnreadableMessage(): void
-    {
-        $query = FakeQuery::finding([
-            1 => $this->mail(1),
-            2 => new MessageContentFetchingException('no content found'),
-        ]);
-
-        $this->expectException(GetMessagesFailedException::class);
-
-        $query->limit(50, 1)->curate_messages($query->search());
-    }
-
-    /**
+     * @param list<int> $uids
+     *
      * @return list<array{uids: list<int>, unreadable: list<int>}>
      */
-    private function collect(FakeQuery $query, int $pageSize): array
+    private function pages(ImapSession $session, array $uids, int $pageSize): array
     {
         $pages = [];
 
-        foreach (new ImapPagedFetch()->pages($query, $pageSize) as [$batch, $unreadable]) {
-            $uids = [];
-
-            foreach ($batch as $message) {
-                $uids[] = (int) $message->getUid();
-            }
-
-            $pages[] = ['uids' => $uids, 'unreadable' => array_keys($unreadable)];
+        foreach (new ImapPagedFetch()->pages($session, 'INBOX', $uids, $pageSize) as [$messages, $unreadable]) {
+            $pages[] = [
+                'uids'       => array_map(static fn ($message): int => (int) $message->getUid(), $messages),
+                'unreadable' => array_keys($unreadable),
+            ];
         }
 
         return $pages;
-    }
-
-    private function mail(int $uid): Message
-    {
-        $raw = "From: sender@example.test\r\n"
-            . sprintf("Subject: Mail %d\r\n", $uid)
-            . "Content-Type: text/plain; charset=utf-8\r\n"
-            . "\r\n"
-            . "hello\r\n";
-
-        return Message::fromString($raw, ImapConnectionFactory::config())->setUid($uid);
     }
 }

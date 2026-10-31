@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Middleware;
 
+use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Domain\Exception\GraphThrottledException;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
@@ -79,6 +80,21 @@ use Symfony\Component\Messenger\Transport\Sender\SenderInterface;
  * because nothing about the job went wrong. It is bounded all the same:
  * after QUOTA_WAITS of them in a row the refusal is handed to the ladder like
  * any other failure, and from there to everything above.
+ *
+ * ## Nor is a calendar or contacts quota
+ *
+ * CalendarSyncThrottledException — Google's People and Calendar APIs, Graph's
+ * calendar and contacts endpoints, a CalDAV server under load — is the same
+ * question with the same answer, and is waited out the same way. It used to
+ * reach the ladder, and one 429 on a fully synced address book came out as an
+ * ERROR from the handler, a WARNING with two stack traces per retry, and a
+ * CRITICAL and a parked job if the minute had not cleared by the fifth (#435).
+ * Nothing was at stake in any of it: an edit not sent stays pending, and the
+ * sweep asks again every quarter of an hour.
+ *
+ * Graph's mail throttling (GraphThrottledException) is not in this group. It
+ * is still left to the ladder and to the last-attempt rules above, which were
+ * written for it.
  */
 final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
 {
@@ -124,7 +140,7 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
         try {
             return $stack->next()->handle($envelope, $stack);
         } catch (HandlerFailedException $failure) {
-            if (true === $this->waitsOutGmailQuota($envelope, $failure)) {
+            if (true === $this->waitsOutQuota($envelope, $failure)) {
                 return $envelope;
             }
 
@@ -176,13 +192,14 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
     }
 
     /**
-     * Put a job Gmail refused on quota back onto its own queue, to run when
-     * the refusal has cleared.
+     * Put a job refused on quota — Gmail's, or a calendar or contacts
+     * provider's — back onto its own queue, to run when the refusal has
+     * cleared.
      *
      * @return bool whether that was done; false leaves the failure to
      *              everything else this class and Messenger do with one
      */
-    private function waitsOutGmailQuota(Envelope $envelope, HandlerFailedException $failure): bool
+    private function waitsOutQuota(Envelope $envelope, HandlerFailedException $failure): bool
     {
         $received = $envelope->last(ReceivedStamp::class);
         $wrapped  = $failure->getWrappedExceptions();
@@ -196,7 +213,8 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
         $delay = 0;
 
         foreach ($wrapped as $exception) {
-            if (false === $exception instanceof GmailThrottledException) {
+            if (false === $exception instanceof GmailThrottledException
+                && false === $exception instanceof CalendarSyncThrottledException) {
                 return false;
             }
 
@@ -230,8 +248,11 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
             new ThrottleDeferralStamp($waits + 1),
         ]));
 
-        $this->logger->info('Put back: waiting for Gmail quota', [
+        // The refusal's own message: Google's names the quota that was hit,
+        // which is the only clue to what spent it.
+        $this->logger->info('Put back: waiting for the provider\'s quota', [
             'class'        => $message::class,
+            'reason'       => $wrapped[array_key_first($wrapped)]->getMessage(),
             'queue'        => $received->getTransportName(),
             'delaySeconds' => intdiv($delay, 1000),
             'wait'         => $waits + 1,

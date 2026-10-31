@@ -87,6 +87,25 @@ const ADDRESS_OPERATORS = ["from", "to", "cc"];
 
 const MAX_SUGGESTIONS = 8;
 
+/**
+ * The folders search leaves out unless asked (#268, #304), and how to ask.
+ *
+ * Standing in Trash and searching found nothing that was in it, because the
+ * folder on screen was not an explicit request and the query was (#341). So
+ * focusing an empty box in one of them writes the request in for you: seen,
+ * and deleted in one keystroke by anyone who did mean everywhere. Sending the
+ * folder with the request instead would have scoped the search invisibly, and
+ * the box would no longer say what the results were filtered by.
+ *
+ * By path, not by a value rendered into the topbar: the topbar survives the
+ * frame visit that opens a folder, so a rendered value would name the folder
+ * the page was loaded on.
+ */
+const SCOPE_BY_PATH = {
+    "/mail/trash": "in:trash",
+    "/mail/spam":  "in:spam",
+};
+
 export default class extends Controller {
     static targets = [
         "input", "dropdown", "recentsList", "dropdownTitle", "clear", "header",
@@ -246,6 +265,13 @@ export default class extends Controller {
     }
 
     onFocus() {
+        const scope = SCOPE_BY_PATH[window.location.pathname];
+
+        if (scope !== undefined && this.inputTarget.value === "") {
+            this.inputTarget.value = `${scope} `;
+            this.inputTarget.setSelectionRange(this.inputTarget.value.length, this.inputTarget.value.length);
+        }
+
         this.#refresh();
     }
 

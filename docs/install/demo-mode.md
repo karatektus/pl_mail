@@ -79,8 +79,8 @@ works; writing `${APP_DEMO_MODE:-1}` into a compose file does not, and fails in 
 stack comes up healthy and simply is not a demo. So the overlay hardcodes it, and
 `ComposeEnvironmentTest` keeps it that way.
 
-It also leaves the IMAP supervisor out of the worker (`app:work --without=imap-supervisor`), which
-would otherwise spend the whole time failing to connect to mailboxes a demo does not have.
+It also leaves the push listeners out of the worker (`app:work --without=imap-supervisor`, the
+name of the process they replaced, which still stands for both), which would otherwise spend the whole time failing to connect to mailboxes a demo does not have.
 
 The install still needs a first user before anything is reachable — `/install` or `app:setup`, as
 on any other deployment. That user is yours, not a visitor's: the reaper only ever deletes
@@ -198,7 +198,7 @@ network, and a per-account flag would move that promise into every outbound path
 where it holds until the first one that forgets to ask.
 
 **Turning it on stops mail syncing, and nothing says so on the page.** The scheduler still fires
-`app:mail:sync` every fifteen minutes and it returns immediately. If mail has quietly stopped
+`app:mail:sync --due` every minute and it returns immediately. If mail has quietly stopped
 arriving on an install you thought was normal, check this variable first.
 
 **Sent mail on a demo is not sent.** It lands in Sent and looks exactly like mail that left. This

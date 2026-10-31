@@ -56,7 +56,7 @@ Nothing about it is hidden from the person sending it.
             <label for="whats-new-message" class="mb-1.5 block text-xs font-medium text-ink-muted">{{ 'whats_new.feedback.message.label'|trans }}</label>
             <textarea id="whats-new-message" name="message" rows="5"
                       placeholder="{{ 'whats_new.feedback.message.placeholder'|trans }}"
-                      class="block w-full resize-y rounded-lg border border-field bg-field px-3 py-2 text-base text-ink shadow-sm shadow-zinc-950/5
+                      class="block w-full resize-y rounded-lg border border-field-border bg-field px-3 py-2 text-base text-ink shadow-sm shadow-zinc-950/5
                              placeholder:text-ink-faint focus:border-transparent focus:outline-none focus:ring-2 focus:ring-accent md:text-sm">{{ form.message|default('') }}</textarea>
         </div>
 
@@ -64,7 +64,7 @@ Nothing about it is hidden from the person sending it.
             <label class="inline-flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink-soft md:min-h-0">
                 <input type="checkbox" data-whats-new--feedback-target="toggle"
                        data-action="change->whats-new--feedback#toggle"
-                       class="size-4 cursor-pointer rounded border-field bg-field accent-accent focus:ring-2 focus:ring-accent">
+                       class="size-4 cursor-pointer rounded border-field-border bg-field accent-accent focus:ring-2 focus:ring-accent">
                 {{ 'whats_new.feedback.screenshot.label'|trans }}
             </label>
             <input type="hidden" name="screenshot" value="" data-whats-new--feedback-target="data">

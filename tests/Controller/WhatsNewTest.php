@@ -33,6 +33,14 @@ final class WhatsNewTest extends WebTestCase
     private const string BOOT = '[data-controller~="whats-new--autostart"]';
     private const string DOT  = '[data-whats-new-dot]';
 
+    /**
+     * The menu's What's new and feedback entries, by the dialog each opens.
+     * Not "every menu item": the menu also links the Android app (#402), for
+     * everybody, and counting items made that link a failure here.
+     */
+    private const string MENU_WHATS_NEW = '[data-whats-new-menu] [role="menuitem"][data-ui--modal-src-value="/whats-new"]';
+    private const string MENU_FEEDBACK  = '[data-whats-new-menu] [role="menuitem"][data-ui--modal-src-value="/whats-new?pane=feedback"]';
+
     private KernelBrowser $client;
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -163,7 +171,7 @@ final class WhatsNewTest extends WebTestCase
 
         self::assertCount(0, $page->filter(self::BOOT));
         self::assertCount(0, $page->filter(self::DOT));
-        self::assertCount(1, $page->filter('[data-whats-new-menu] [role="menuitem"]'), 'What\'s new is still in the menu');
+        self::assertCount(1, $page->filter(self::MENU_WHATS_NEW), 'What\'s new is still in the menu');
 
         $settings = $this->client->request('GET', '/settings?section=general');
 
@@ -239,7 +247,10 @@ final class WhatsNewTest extends WebTestCase
     {
         $this->signIn('0.3.5');
 
-        self::assertCount(1, $this->page()->filter('[data-whats-new-menu] [role="menuitem"]'));
+        $page = $this->page();
+
+        self::assertCount(1, $page->filter(self::MENU_WHATS_NEW));
+        self::assertCount(0, $page->filter(self::MENU_FEEDBACK));
         self::assertCount(0, $this->client->request('GET', '/whats-new?pane=feedback')->filter('form[action="/whats-new/feedback"]'));
     }
 

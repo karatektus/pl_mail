@@ -54,7 +54,7 @@ Variables:
                        value="{{ link ? link.name : '' }}"
                        maxlength="120"
                        autocomplete="off"
-                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                       class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <p class="text-[11px] text-ink-faint leading-snug">{{ 'calendar.share.form.name_help'|trans }}</p>
             </div>
@@ -69,7 +69,7 @@ Variables:
                                name="details[]"
                                value="{{ detail.value }}"
                                {{ link and link.reveals(detail) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field-border accent-accent focus:ring-accent">
                         {{ detail.transKey|trans }}
                     </label>
                 {% endfor %}
@@ -84,7 +84,7 @@ Variables:
                                name="calendars[]"
                                value="{{ calendar.id }}"
                                {{ link is null or link.calendars.contains(calendar) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field-border accent-accent focus:ring-accent">
                         <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
                         {{ calendar.name }}
                     </label>
@@ -99,7 +99,7 @@ Variables:
                            name="windowMode"
                            value="rolling"
                            {{ link is null or link.windowMode.value == 'rolling' ? 'checked' : '' }}
-                           class="h-4 w-4 border-field accent-accent focus:ring-accent">
+                           class="h-4 w-4 border-field-border accent-accent focus:ring-accent">
                     {{ 'calendar.share.window.rolling'|trans }}
                 </label>
 
@@ -111,7 +111,7 @@ Variables:
                            min="1"
                            max="366"
                            value="{{ link ? link.rollingDays : 14 }}"
-                           class="w-24 h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="w-24 h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                     <span class="ml-1 text-xs text-ink-faint">{{ 'calendar.share.form.days'|trans }}</span>
                 </div>
@@ -121,7 +121,7 @@ Variables:
                            name="windowMode"
                            value="fixed"
                            {{ link and link.windowMode.value == 'fixed' ? 'checked' : '' }}
-                           class="h-4 w-4 border-field accent-accent focus:ring-accent">
+                           class="h-4 w-4 border-field-border accent-accent focus:ring-accent">
                     {{ 'calendar.share.window.fixed'|trans }}
                 </label>
 
@@ -131,7 +131,7 @@ Variables:
                            id="share-starts-on"
                            name="startsOn"
                            value="{{ link and link.startsOn ? link.startsOn|date('Y-m-d') : '' }}"
-                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
 
                     <span class="text-xs text-ink-faint">–</span>
@@ -141,7 +141,7 @@ Variables:
                            id="share-ends-on"
                            name="endsOn"
                            value="{{ link and link.endsOn ? link.endsOn|date('Y-m-d') : '' }}"
-                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
+                           class="h-9 px-3 rounded-lg text-sm bg-field border border-field-border text-ink
                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 </div>
             </fieldset>
@@ -156,7 +156,7 @@ Variables:
             <button type="button"
                     data-action="click->ui--modal#close"
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
-                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
+                           text-ink-soft bg-field border border-field-border hover:bg-hover transition-colors">{{ 'form.cancel'|trans }}</button>
 
             <button type="submit"
                     class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink

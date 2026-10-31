@@ -56,6 +56,17 @@ final class SenderAuthenticationTest extends TestCase
         yield 'imap: a server somewhere else is not believed' => ['imap', 'imap.example.org', 'a@airline.example', 'mx.other.example; ' . $pass, SenderVerdict::Unknown];
         yield 'imap: a nameless line is not believed' => ['imap', 'imap.example.org', 'a@airline.example', $pass, SenderVerdict::Unknown];
         yield 'imap on gmail: google receives it' => ['imap', 'imap.gmail.com', 'a@airline.example', 'mx.google.com; ' . $pass, SenderVerdict::Pass];
+        yield 'imap on gmail: php-imap\'s bare server name beside the line is not a second line' => [
+            'imap', 'imap.gmail.com', 'a@airline.example',
+            ['mx.google.com; ' . $pass, 'mx.google.com'],
+            SenderVerdict::Pass,
+        ];
+        yield 'imap: a bare server name alone says nothing' => ['imap', 'imap.example.org', 'a@airline.example', 'mx.example.org', SenderVerdict::Unknown];
+        yield 'microsoft: the bare token does not make the single line two' => [
+            'microsoft', null, 'a@airline.example',
+            ['spf=pass smtp.mailfrom=airline.example; dmarc=pass header.from=airline.example', 'spf'],
+            SenderVerdict::Pass,
+        ];
         yield 'imap: two lines under the believed name that disagree' => [
             'imap', 'imap.example.org', 'a@airline.example',
             ['mx.example.org; dmarc=fail header.from=airline.example', 'mx.example.org; ' . $pass],

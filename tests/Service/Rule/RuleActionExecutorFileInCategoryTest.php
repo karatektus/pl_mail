@@ -20,11 +20,11 @@ use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Graph\GraphLabelPolicy;
 use App\Service\Label\LabelChangePropagator;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
-use App\Service\Mail\SenderAuthentication;
 use App\Service\Rule\RuleActionExecutor;
 use App\Service\Rule\RuleCategoryFiler;
 use App\Tests\Support\Mail\BuildsThreaderWithoutDatabase;
@@ -90,6 +90,25 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
         self::assertNull($message->thread?->userCategory);
     }
 
+    /** No sender check on the message — your own sent mail — and it files all the same (#405). */
+    public function testAMessageWithoutASenderCheckIsFiled(): void
+    {
+        $owner          = new User();
+        $category       = new InboxCategory();
+        $category->usr  = $owner;
+        $category->name = 'Shipping';
+
+        $rule          = new MailRule();
+        $rule->usr     = $owner;
+        $rule->actions = [['type' => 'fileInCategory', 'categoryId' => 3]];
+
+        $message          = $this->message($owner);
+        $message->headers = [];
+
+        $this->executor($category)->execute($rule, $message);
+        self::assertSame($category, $message->ruleCategory);
+    }
+
     // ── fixture ──────────────────────────────────────────────────────────────
 
     private function executor(?InboxCategory $found): RuleActionExecutor
@@ -119,6 +138,7 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
                 $this->createStub(LabelRepository::class),
                 new GraphLabelPolicy(),
                 new NullLogger(),
+                $this->createStub(MessageRepository::class),
             ),
             new ThreadLabelSynchronizer($this->createStub(EntityManagerInterface::class)),
             $this->createStub(IntegrationRepository::class),
@@ -126,7 +146,6 @@ final class RuleActionExecutorFileInCategoryTest extends TestCase
             new NullLogger(),
             new RuleCategoryFiler(
                 $categories,
-                new SenderAuthentication(),
                 $this->threaderWithoutDatabase(),
                 new NullLogger(),
             ),

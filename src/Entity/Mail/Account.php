@@ -236,6 +236,53 @@ class Account extends AccountModel
     public ?DateTimeImmutable $lastSyncedAt = null;
 
     /**
+     * How often, in minutes, the scheduled poll syncs this account (#202).
+     *
+     * One of SYNC_INTERVALS. Per account rather than one setting for the
+     * install, because the account that needs it short is the one without a
+     * faster path: an IMAP account whose folders have IDLE switched off, or a
+     * POP3 one. The rest keep the old quarter hour, which is the default, so an
+     * upgrade changes nothing until somebody picks another value.
+     *
+     * The scheduler asks every minute (`app:mail:sync --due`) and dispatches
+     * only the accounts this has run out for; see $lastPolledAt.
+     */
+    #[ORM\Column(options: ['default' => 15])]
+    public int $syncIntervalMinutes = 15;
+
+    /** The choices the account list offers for $syncIntervalMinutes. */
+    public const array SYNC_INTERVALS = [1, 5, 15, 30, 60];
+
+    /**
+     * When the scheduled poll last dispatched a sync for this account.
+     *
+     * Not $lastSyncedAt. That one is when a sync FINISHED cleanly, and it is
+     * also written by syncs nobody scheduled (IDLE, push, the refresh button),
+     * so measuring the interval from it would let a busy account go unpolled
+     * and a failing one be re-polled every minute. This is written by the poll
+     * alone, at dispatch, which is the moment the interval is about.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $lastPolledAt = null;
+
+    /**
+     * Whether the scheduled poll should sync this account at $now.
+     *
+     * Thirty seconds early counts as due. The scheduler fires on the minute
+     * and the dispatch is stamped a moment later, so an account polled at
+     * 10:00:02 is asked again at 10:05:00, 2 seconds short of five minutes;
+     * without the slack every interval would come out one minute long.
+     */
+    public function isPollDue(DateTimeImmutable $now): bool
+    {
+        if (null === $this->lastPolledAt) {
+            return true;
+        }
+
+        return $now->getTimestamp() - $this->lastPolledAt->getTimestamp() >= $this->syncIntervalMinutes * 60 - 30;
+    }
+
+    /**
      * Why this account's last sync failed, or null when it did not.
      *
      * A mail account recorded NOTHING about failing. Calendar has had a full
@@ -531,6 +578,24 @@ class Account extends AccountModel
      */
     public const string SETTING_POP3_ADOPTING = 'sync.pop3.adopting';
 
+    /**
+     * Where a JMAP account's session resource is, when it is not at the
+     * well-known path on the incoming host. See $jmapSessionUrl.
+     */
+    public const string SETTING_JMAP_SESSION_URL = 'sync.jmap.session_url';
+
+    /** Whether a JMAP account's password is a bearer token. See $jmapTokenAuth. */
+    public const string SETTING_JMAP_TOKEN_AUTH = 'sync.jmap.token_auth';
+
+    /** A JMAP account's sync states, by data type. See jmapState(). */
+    public const string SETTING_JMAP_STATES = 'sync.jmap.states';
+
+    /** Where a JMAP account's first import has got to. See $jmapImport. */
+    public const string SETTING_JMAP_IMPORT = 'sync.jmap.import';
+
+    /** A JMAP account's PushSubscription on its server. See $jmapPushSubscription. */
+    public const string SETTING_JMAP_PUSH_SUBSCRIPTION = 'sync.jmap.push_subscription';
+
     /** Unfetched messages the listing under way has found so far. */
     public const string SETTING_BACKFILL_PENDING = 'sync.backfill_pending';
 
@@ -761,7 +826,22 @@ class Account extends AccountModel
     {
         return false === $this->isGmail()
             && false === $this->isMicrosoft()
-            && false === $this->isPop3();
+            && false === $this->isPop3()
+            && false === $this->isJmap();
+    }
+
+    /**
+     * Whether this account's mail is read over JMAP.
+     *
+     * Shaped like isPop3(): a question about the protocol column, answerable
+     * without opening anything. Excluded from isPlainImap() for the reason POP3
+     * is — every caller of that predicate goes on to open an IMAP connection —
+     * and from the Gmail and Microsoft answers by construction, since a JMAP
+     * account signs in with a password or a token and never with OAuth.
+     */
+    public function isJmap(): bool
+    {
+        return $this->incomingProtocol->isJmap();
     }
 
     /**
@@ -1056,6 +1136,176 @@ class Account extends AccountModel
         }
     }
 
+    /**
+     * The JMAP session URL, when the server does not answer at
+     * https://{imapHost}/.well-known/jmap.
+     *
+     * In the settings bag rather than a column: it is null for nearly every
+     * account, since RFC 8620 §2.2 has servers publish the well-known path and
+     * Stalwart, Fastmail and Cyrus all do. It exists for the server behind a
+     * reverse proxy that only forwards /jmap, which is the one setup where the
+     * host is right and the path is not.
+     */
+    public ?string $jmapSessionUrl {
+        get {
+            $url = $this->getSetting(self::SETTING_JMAP_SESSION_URL);
+
+            return true === is_string($url) && '' !== trim($url) ? trim($url) : null;
+        }
+        set (?string $url) {
+            $url = null === $url ? null : trim($url);
+
+            $this->setSetting(self::SETTING_JMAP_SESSION_URL, '' === $url ? null : $url);
+        }
+    }
+
+    /**
+     * Whether the JMAP password is sent as `Authorization: Bearer`.
+     *
+     * Off means HTTP Basic with the username, which is what Stalwart's app
+     * passwords are for. On is Fastmail's shape: an API token that is the
+     * whole credential, with no username in it. Stored in the same encrypted
+     * password column either way, because it is the same secret and the
+     * column already keeps it the way a secret should be kept.
+     */
+    public bool $jmapTokenAuth {
+        get => true === $this->getSetting(self::SETTING_JMAP_TOKEN_AUTH, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_JMAP_TOKEN_AUTH, $on ? true : null);
+        }
+    }
+
+    /**
+     * The state string this account last synced a JMAP data type to.
+     *
+     * One map, keyed by type name (`Mailbox`, `Email`, `CalendarEvent`, …),
+     * because they are one concept: RFC 8620's state is per type, every
+     * `/changes` call starts from one, and push announces new ones by type
+     * name. Per-calendar and per-address-book states do not live here — those
+     * belong on the Calendar and AddressBook rows, as every other provider's
+     * sync tokens do.
+     *
+     * Stays a method: it takes the type name.
+     */
+    public function jmapState(string $type): ?string
+    {
+        $states = $this->getSetting(self::SETTING_JMAP_STATES);
+        $state  = true === is_array($states) ? ($states[$type] ?? null) : null;
+
+        return true === is_string($state) && '' !== $state ? $state : null;
+    }
+
+    /**
+     * Where a JMAP account's import of its history has got to, or null when
+     * there is none to do.
+     *
+     * Two phases, Inbox first and then everything, read newest first with
+     * Email/query. `anchor` is the last Email id read, which is what the next
+     * page starts after: an anchor stays put when mail arrives or is deleted
+     * above it, where a position would shift and skip. `position` is kept
+     * beside it for the one case an anchor cannot serve — the Email it names
+     * was destroyed in the meantime — when it is the best guess there is.
+     *
+     * Virtual, out of the settings bag, like $graphImport.
+     *
+     * @var array{phase: string, anchor: string|null, position: int}|null
+     */
+    public ?array $jmapImport {
+        get {
+            $plan = $this->getSetting(self::SETTING_JMAP_IMPORT);
+
+            if (false === is_array($plan) || false === in_array($plan['phase'] ?? null, ['inbox', 'all'], true)) {
+                return null;
+            }
+
+            $anchor = $plan['anchor'] ?? null;
+
+            return [
+                'phase'    => (string) $plan['phase'],
+                'anchor'   => is_string($anchor) && '' !== $anchor ? $anchor : null,
+                'position' => max(0, (int) ($plan['position'] ?? 0)),
+            ];
+        }
+        set (?array $plan) {
+            $this->setSetting(self::SETTING_JMAP_IMPORT, $plan);
+        }
+    }
+
+    public function needsJmapImport(): bool
+    {
+        return null !== $this->jmapImport;
+    }
+
+    /**
+     * The PushSubscription this account holds on its JMAP server, or null.
+     *
+     * `verified` is whether the server has proved it can reach plMail's
+     * callback — RFC 8620 §7.2.2 has it POST a verification code first, and
+     * nothing is pushed until the client echoes it back. `expires` is a Unix
+     * timestamp. `token` is the secret in the callback URL, which is how the
+     * callback knows a POST came from the server it was given to. Virtual,
+     * out of the settings bag: one small record that only the subscription
+     * manager writes.
+     *
+     * @var array{id: string, verified: bool, expires: int, token: string}|null
+     */
+    public ?array $jmapPushSubscription {
+        get {
+            $subscription = $this->getSetting(self::SETTING_JMAP_PUSH_SUBSCRIPTION);
+
+            if (false === is_array($subscription) || false === is_string($subscription['id'] ?? null)) {
+                return null;
+            }
+
+            return [
+                'id'       => $subscription['id'],
+                'verified' => true === ($subscription['verified'] ?? false),
+                'expires'  => (int) ($subscription['expires'] ?? 0),
+                'token'    => (string) ($subscription['token'] ?? ''),
+            ];
+        }
+        set (?array $subscription) {
+            $this->setSetting(self::SETTING_JMAP_PUSH_SUBSCRIPTION, $subscription);
+        }
+    }
+
+    /**
+     * Whether the server is pushing to plMail's callback right now, so the
+     * EventSource stream app:jmap:listen would otherwise hold is not needed.
+     *
+     * Verified and not yet expired: an unverified subscription is one the
+     * server could not reach, and that is exactly the install the stream is
+     * for.
+     */
+    public function hasLiveJmapPushSubscription(?DateTimeImmutable $now = null): bool
+    {
+        $subscription = $this->jmapPushSubscription;
+
+        return null !== $subscription
+            && true === $subscription['verified']
+            && $subscription['expires'] > ($now ?? new DateTimeImmutable())->getTimestamp();
+    }
+
+    /**
+     * Record the state a JMAP data type has been synced to, or forget it.
+     *
+     * Null forgets it, which is what a resync does: the next pass reads the
+     * whole collection instead of asking for changes.
+     */
+    public function rememberJmapState(string $type, ?string $state): static
+    {
+        $states = $this->getSetting(self::SETTING_JMAP_STATES);
+        $states = true === is_array($states) ? $states : [];
+
+        if (null === $state || '' === $state) {
+            unset($states[$type]);
+        } else {
+            $states[$type] = $state;
+        }
+
+        return $this->setSetting(self::SETTING_JMAP_STATES, [] === $states ? null : $states);
+    }
+
     /** Whether a Microsoft account has folders whose history is still to be read. */
     public function needsGraphImport(): bool
     {
@@ -1085,13 +1335,15 @@ class Account extends AccountModel
     }
 
     /**
-     * Only Gmail and Microsoft can mirror label structure. On plain IMAP a
-     * label is a physical folder, so create/delete would move real mail —
-     * a different and riskier operation than this toggle promises.
+     * Only Gmail, Microsoft and JMAP can mirror label structure. On plain
+     * IMAP a label is a physical folder, so create/delete would move real
+     * mail — a different and riskier operation than this toggle promises. A
+     * JMAP mailbox is a label in the Gmail sense: a message in it stays in
+     * every other one, and destroying it is refused while it holds mail.
      */
     public function supportsLabelSync(): bool
     {
-        return true === $this->isGmail() || true === $this->isMicrosoft();
+        return true === $this->isGmail() || true === $this->isMicrosoft() || true === $this->isJmap();
     }
 
     public function addAlias(EmailAlias $alias): static

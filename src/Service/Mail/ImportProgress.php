@@ -119,6 +119,23 @@ final readonly class ImportProgress
                 continue;
             }
 
+            if (true === $account->isJmap()) {
+                if (true === $account->needsJmapImport()) {
+                    // Stored over the server's count when the import was
+                    // planned, capped at it for the reason the Gmail line is:
+                    // mail that arrived since is stored too.
+                    $done = $this->messages->countForAccount($account);
+
+                    if (null !== $account->importTotal) {
+                        $done = min($done, $account->importTotal);
+                    }
+
+                    $lines[] = new ImportLine($account, $done, $account->importTotal, null, $this->isWaiting($account));
+                }
+
+                continue;
+            }
+
             $totals = $folders[(int) $account->id] ?? null;
 
             if (null === $totals || 0 === $totals['importing']) {
