@@ -34,6 +34,7 @@ final readonly class DemoProvisioner
         private UserPasswordHasherInterface $passwordHasher,
         private DemoMailbox                 $demoMailbox,
         private DemoTemplates               $demoTemplates,
+        private DemoContacts                $demoContacts,
         private DemoMode                    $demoMode,
     ) {
     }
@@ -89,6 +90,10 @@ final readonly class DemoProvisioner
         // And a few templates. An empty tree and an empty picker are both
         // accurate and neither shows what the feature does — see DemoTemplates.
         $this->demoTemplates->seed($user, $account);
+
+        // And an address book, which the mailbox's harvested addresses are not.
+        // See DemoContacts.
+        $this->demoContacts->seed($user);
 
         return $user;
     }
