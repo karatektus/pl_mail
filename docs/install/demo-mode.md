@@ -20,6 +20,8 @@ Following `/demo` provisions a throwaway user, signs them in and drops them in a
   product would look broken while working perfectly.
 - **Ten seeded threads**, with labels, contacts and dates — the same mailbox the README screenshots
   are taken against, so the demo and the pictures of it cannot drift apart.
+- **An address book of nine people**, most of them the people writing in that mailbox, at the same
+  addresses, so **Contacts** has phones, birthdays and addresses to show.
 - **A week of calendar events and six templates.** The templates sit in **Settings → Templates** and
   behind **Insert template** in the compose window: a few under the demo account, some in a folder
   inside it, two at the top level. Between them they use every variable, so inserting one shows a

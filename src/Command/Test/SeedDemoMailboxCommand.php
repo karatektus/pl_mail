@@ -7,6 +7,7 @@ namespace App\Command\Test;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
+use App\Service\Demo\DemoContacts;
 use App\Service\Demo\DemoMailbox;
 use App\Service\Demo\DemoTemplates;
 use Doctrine\ORM\EntityManagerInterface;
@@ -61,6 +62,7 @@ final class SeedDemoMailboxCommand extends Command
         private readonly LabelRepository         $labelRepository,
         private readonly DemoMailbox             $demoMailbox,
         private readonly DemoTemplates           $demoTemplates,
+        private readonly DemoContacts            $demoContacts,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
     ) {
@@ -134,13 +136,15 @@ final class SeedDemoMailboxCommand extends Command
         // the mailbox is the same one: a screenshot of the picker should be a
         // picture of the demo.
         $templates = $this->demoTemplates->seed($user, $account);
+        $contacts  = $this->demoContacts->seed($user);
 
         $io->success(sprintf(
-            'Seeded %d demo threads, %d labels, %d calendar events and %d templates for %s.',
+            'Seeded %d demo threads, %d labels, %d calendar events, %d templates and %d contacts for %s.',
             count($messages),
             count(DemoMailbox::LABELS),
             $events,
             $templates,
+            $contacts,
             $userEmail,
         ));
 
