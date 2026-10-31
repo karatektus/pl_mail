@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Session;
 
+use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
@@ -398,6 +399,7 @@ final class SessionBuilder
             'backgroundKinds' => array_column(BackgroundKind::cases(), 'value'),
             'backgroundPresets' => array_column(BackgroundPreset::cases(), 'value'),
             'unreadEmphases' => array_column(UnreadEmphasis::cases(), 'value'),
+            'actionButtonStyles' => array_column(ActionButtonStyle::cases(), 'value'),
             'fontFamilies' => array_column(FontFamily::cases(), 'value'),
             'layoutDefaults' => array_combine(
                 array_column(Layout::cases(), 'value'),

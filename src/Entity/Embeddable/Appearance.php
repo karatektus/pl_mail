@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Embeddable;
 
+use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
@@ -434,6 +435,10 @@ final class Appearance
     #[ORM\Column(type: 'string', length: 16, enumType: UnreadEmphasis::class, options: ['default' => 'standard'])]
     public UnreadEmphasis $unreadEmphasis = UnreadEmphasis::Standard;
 
+    /** Icons, words or both on the action buttons; see ActionButtonStyle (#459). */
+    #[ORM\Column(type: 'string', length: 16, enumType: ActionButtonStyle::class, options: ['default' => 'icons'])]
+    public ActionButtonStyle $actionButtons = ActionButtonStyle::Icons;
+
     /* ── Typography ───────────────────────────────────────────────────────── */
 
     #[ORM\Column(type: 'string', length: 16, enumType: FontFamily::class, options: ['default' => 'system'])]
@@ -541,6 +546,7 @@ final class Appearance
             'tabUnreadCount' => $this->tabUnreadCount,
             'previewLines' => $this->previewLines,
             'unreadEmphasis' => $this->unreadEmphasis->value,
+            'actionButtons' => $this->actionButtons->value,
             'fontFamily' => $this->fontFamily->value,
             'fontScale' => $this->fontScale,
             'sidebarDensity' => $this->sidebarDensity?->value,
@@ -680,6 +686,10 @@ final class Appearance
 
         if (true === isset($data['unreadEmphasis'])) {
             $this->unreadEmphasis = UnreadEmphasis::tryFrom((string) $data['unreadEmphasis']) ?? $this->unreadEmphasis;
+        }
+
+        if (true === isset($data['actionButtons'])) {
+            $this->actionButtons = ActionButtonStyle::tryFrom((string) $data['actionButtons']) ?? $this->actionButtons;
         }
 
         if (true === isset($data['fontFamily'])) {

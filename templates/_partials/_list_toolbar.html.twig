@@ -29,10 +29,8 @@ not `only`):
 
 {#
 tbtn macro — icon button with tooltip.
-Tooltip is a sibling <span> inside the relative-positioned <button>.
-Uses plain `group` + `group-hover:` (no named variant) so it works
-with any Tailwind v4 setup regardless of CLI version.
-The button itself carries `group` and `relative`.
+The label is the native title, and on the button too when the user asked for
+words (Settings → Appearance; see @utility action-btn).
 #}
 {% macro tbtn(action, icon, label, extra_classes) %}
     <button
@@ -40,14 +38,15 @@ The button itself carries `group` and `relative`.
         data-action="{{ action }}"
         aria-label="{{ label }}"
         title="{{ label }}"
-        class="flex items-center justify-center
-           w-8 h-8 rounded-full
+        class="action-btn flex items-center justify-center
+           h-8 rounded-full
            text-ink-muted
            hover:text-ink
            hover:bg-hover
            transition-colors duration-100 cursor-pointer {{ extra_classes ?? '' }}"
     >
         <i class="{{ icon }} text-[15px]" aria-hidden="true"></i>
+        <span class="action-btn-label">{{ label }}</span>
     </button>
 {% endmacro %}
 
@@ -278,7 +277,7 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
     {# Bulk actions — hidden until ≥1 selected #}
     <div
         data-mail--list-toolbar-target="actions"
-        class="hidden items-center gap-2"
+        class="hidden flex-wrap items-center gap-2 min-w-0"
         aria-hidden="true"
     >
         {{ m.tbtn('click->mail--list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
@@ -326,11 +325,12 @@ closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
                 aria-haspopup="menu"
                 aria-label="{{ 'toolbar.actions.more'|trans }}"
                 title="{{ 'toolbar.actions.more'|trans }}"
-                class="flex items-center justify-center w-8 h-8 rounded-full
+                class="action-btn flex items-center justify-center h-8 rounded-full
                        text-ink-muted hover:text-ink hover:bg-hover
                        transition-colors duration-100 cursor-pointer"
             >
                 <i class="fa-solid fa-ellipsis-vertical text-[15px]" aria-hidden="true"></i>
+                <span class="action-btn-label">{{ 'toolbar.actions.more'|trans }}</span>
             </button>
 
             <div data-ui--dropdown-target="menu" hidden role="menu"

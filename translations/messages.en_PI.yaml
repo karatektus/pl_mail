@@ -3418,6 +3418,12 @@ settings:
         list:
             accountCorner: Crew colours
             accountCornerHint: The wee coloured pennant in a row's corner, namin' which berth the message sailed in on. Only ever flown when the manifest mixes berths.
+            actionButton:
+                both: 'Pictures and words'
+                icons: 'Pictures'
+                text: 'Words'
+            actionButtons: 'Action buttons'
+            actionButtonsHint: "What the buttons atop a conversation or a haul be showin'."
             heading: Manifest
             listAvatars: Sender medallions
             listAvatarsHint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.

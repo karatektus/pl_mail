@@ -93,6 +93,12 @@ final readonly class AppearanceRenderer
             '--unread-emphasis'     => self::number($appearance->unreadEmphasis->tintScale()),
             '--unread-bar-w'        => $appearance->unreadEmphasis->barWidth(),
 
+            // ── Action buttons ────────────────────────────────────────────
+            '--action-icon-display'  => $appearance->actionButtons->iconDisplay(),
+            '--action-label-display' => $appearance->actionButtons->labelDisplay(),
+            '--action-btn-px'        => $appearance->actionButtons->paddingX(),
+            '--action-btn-gap'       => $appearance->actionButtons->gap(),
+
             // The preview is four variables rather than a line count, and each
             // of them is a value CSS can use directly. Nothing in CSS derives
             // "hidden" from a count (`-webkit-line-clamp: 0` shows the text),

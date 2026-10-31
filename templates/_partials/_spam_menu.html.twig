@@ -41,11 +41,12 @@ Variables:
             {% if variant == 'row' %}
             class="p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors"
             {% else %}
-            class="flex items-center justify-center w-8 h-8 rounded-full
+            class="action-btn flex items-center justify-center h-8 rounded-full
                    text-ink-muted hover:text-danger hover:bg-hover
                    transition-colors duration-100 cursor-pointer"
             {% endif %}>
         <i class="fa-solid fa-circle-exclamation {{ variant == 'row' ? 'w-4 h-4' : 'text-[15px]' }}" aria-hidden="true"></i>
+        {% if variant != 'row' %}<span class="action-btn-label">{{ 'toolbar.actions.spam'|trans }}</span>{% endif %}
     </button>
 
     {# A click anywhere in the panel stays in the panel. In a list it is a

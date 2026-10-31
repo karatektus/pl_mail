@@ -74,6 +74,7 @@ final class AppearanceMapper
         'tabUnreadCount',
         'previewLines',
         'unreadEmphasis',
+        'actionButtons',
         'fontFamily',
         'fontScale',
         'sidebarDensity',
@@ -189,6 +190,7 @@ final class AppearanceMapper
             'tabUnreadCount' => $appearance->tabUnreadCount,
             'previewLines' => $appearance->previewLines,
             'unreadEmphasis' => $appearance->unreadEmphasis->value,
+            'actionButtons' => $appearance->actionButtons->value,
             'fontFamily' => $appearance->fontFamily->value,
             'fontScale' => $appearance->fontScale,
             // Null is a value here and not an absence: it means the surface

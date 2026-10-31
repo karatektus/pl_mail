@@ -3620,6 +3620,12 @@ settings:
         list:
             accountCorner: Coin du compte
             accountCornerHint: Le triangle coloré dans le coin d’une ligne, qui indique sur quel compte elle est arrivée. Seulement dessiné dans une liste qui mélange les comptes.
+            actionButton:
+                both: 'Icônes et texte'
+                icons: 'Icônes'
+                text: 'Texte'
+            actionButtons: "Boutons d'action"
+            actionButtonsHint: "Ce qu'affichent les boutons au-dessus d'une conversation ou d'une sélection."
             heading: Liste des messages
             listAvatars: Pastilles d’expéditeur
             listAvatarsHint: Le cercle coloré portant l’initiale de l’expéditeur. Désactivé, il devient un simple cercle au lieu de disparaître — c’est aussi la case à cocher de la ligne.

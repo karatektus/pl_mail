@@ -34,18 +34,23 @@ self-contained: no {% extends %}, no block dependencies.
    min-height on the bar, because the bar's border counts toward its own
    height and the list's row carries none. #}
 <div class="px-3 py-1 border-b border-line flex-shrink-0">
-<div class="flex items-center gap-1 min-h-[var(--pane-header-h)]">
+{# Wraps because words on the buttons (#459) can be wider than the pane. The
+   subject has no width of its own (`basis-0`) so it takes what is left of the
+   line and is never what starts a new one. #}
+<div class="flex flex-wrap items-center gap-1 min-h-[var(--pane-header-h)]">
     <button
         type="button"
         data-action="click->mail--mail-pane#close"
         aria-label="{{ 'message.back'|trans }}"
-        class="flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
+        title="{{ 'message.back'|trans }}"
+        class="action-btn flex items-center justify-center h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
     >
         <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+        <span class="action-btn-label">{{ 'message.back'|trans }}</span>
     </button>
 
     <div
-        class="flex items-center gap-1"
+        class="flex flex-wrap items-center gap-1"
         data-controller="mail--message-actions"
         data-mail--message-actions-entity-id-value="{{ thread.id }}"
         data-mail--message-actions-entity-type-value="thread"
@@ -80,10 +85,11 @@ self-contained: no {% extends %}, no block dependencies.
                         data-mail--message-actions-purge-confirm-param="{{ 'discarded.actions.purge_confirm'|trans }}"
                         aria-label="{{ 'discarded.actions.purge'|trans }}"
                         title="{{ 'discarded.actions.purge'|trans }}"
-                        class="flex items-center justify-center w-8 h-8 rounded-full
+                        class="action-btn flex items-center justify-center h-8 rounded-full
                                text-ink-muted hover:text-danger hover:bg-danger-soft
                                transition-colors duration-100 cursor-pointer">
                     <i class="fa-solid fa-fire text-[15px]" aria-hidden="true"></i>
+                    <span class="action-btn-label">{{ 'discarded.actions.purge'|trans }}</span>
                 </button>
             {% endif %}
         {% endif %}
@@ -114,10 +120,11 @@ self-contained: no {% extends %}, no block dependencies.
                         data-shortcut="snooze"
                         aria-label="{{ 'toolbar.actions.snooze'|trans }}"
                         title="{{ 'toolbar.actions.snooze'|trans }}"
-                        class="flex items-center justify-center w-8 h-8 rounded-full
+                        class="action-btn flex items-center justify-center h-8 rounded-full
                                text-ink-muted hover:text-ink hover:bg-hover
                                transition-colors duration-100 cursor-pointer">
                     <i class="fa-solid fa-clock text-[15px]" aria-hidden="true"></i>
+                    <span class="action-btn-label">{{ 'toolbar.actions.snooze'|trans }}</span>
                 </button>
 
                 {% include '_partials/_snooze_menu.html.twig' with {
@@ -153,7 +160,7 @@ self-contained: no {% extends %}, no block dependencies.
         placement: mail_placement(thread),
     } only %}
 
-    <span class="ml-2 text-sm text-ink-faint truncate min-w-0">
+    <span class="ml-2 flex-1 basis-0 text-sm text-ink-faint truncate min-w-0">
         {{ thread.subject ?: ('thread.no_subject'|trans) }}
     </span>
 </div>

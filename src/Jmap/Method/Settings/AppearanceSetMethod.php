@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Settings;
 
+use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
@@ -224,6 +225,7 @@ final class AppearanceSetMethod implements JmapMethod
                 'paneAlpha', 'popoverAlpha', 'radius', 'scrimAlpha', 'fontScale' => $this->requireNumber($value, $property, false),
                 'mainAlpha' => $this->requireNumber($value, $property, true),
                 'unreadEmphasis' => $this->requireEnum(UnreadEmphasis::class, $value, $property, false),
+                'actionButtons' => $this->requireEnum(ActionButtonStyle::class, $value, $property, false),
                 'fontFamily' => $this->requireEnum(FontFamily::class, $value, $property, false),
                 // Nullable: null is the value meaning "follow the global
                 // density", not an omission — see AppearanceMapper.
