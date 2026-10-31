@@ -214,6 +214,12 @@
     --unread-emphasis:  1;
     --unread-bar-w:     0px;
 
+    /* Icons, words or both on the action buttons (#459); see ActionButtonStyle. */
+    --action-icon-display:  inline-block;
+    --action-label-display: none;
+    --action-btn-px:        0px;
+    --action-btn-gap:       0px;
+
     /* Per-surface density. AppearanceRenderer resolves each surface to a
        concrete pair — a surface with no override of its own is emitted
        carrying the global density's values, so these defaults only ever serve
@@ -3499,6 +3505,27 @@ html {
    for the contact layer. Changing the gutter without revisiting these numbers
    brings the arc back.
 */
+/* An action button: a 32px circle holding an icon until the user asks for words
+   (#459). min-width rather than the w-8 these used to carry, because a label has
+   to be able to widen it. `:not(label)` and not `i`, because Move draws an <svg>. */
+@utility action-btn {
+    min-width: 2rem;
+    padding-inline: var(--action-btn-px);
+    gap: var(--action-btn-gap);
+    white-space: nowrap;
+
+    /* Important because Font Awesome's own `display` sits outside every layer,
+       and an unlayered rule beats any layered one whatever its specificity. */
+    & > :not(.action-btn-label) {
+        display: var(--action-icon-display) !important;
+    }
+}
+
+@utility action-btn-label {
+    display: var(--action-label-display);
+    font-size: 0.8125rem;
+}
+
 /* The STRUCTURAL surfaces read --pane-alpha: the sidebar, the top bar and the
    insight strip here, the mail/calendar/settings ground in main-pane below.
    They are the layout, so there is nothing stacked behind them and glass costs

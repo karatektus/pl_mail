@@ -3141,6 +3141,12 @@ settings:
         list:
             accountCorner: '账户角标'
             accountCornerHint: '每行角落的彩色三角形，表示邮件所属账户。仅在混合多个账户的列表中显示。'
+            actionButton:
+                both: '图标和文字'
+                icons: '图标'
+                text: '文字'
+            actionButtons: '操作按钮'
+            actionButtonsHint: '会话或所选邮件上方的按钮显示的内容。'
             heading: '邮件列表'
             listAvatars: '发件人圆形头像'
             listAvatarsHint: '显示发件人姓名首字母的彩色圆圈。关闭后会变为普通圆圈而非消失，因为它同时也是该行的复选框。'

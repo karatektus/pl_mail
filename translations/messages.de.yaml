@@ -3564,6 +3564,12 @@ settings:
         list:
             accountCorner: Konto-Ecke
             accountCornerHint: Das farbige Dreieck in der Ecke einer Zeile, das zeigt, über welches Konto sie eingegangen ist. Wird nur in Listen gezeichnet, die mehrere Konten mischen.
+            actionButton:
+                both: 'Symbole und Text'
+                icons: 'Symbole'
+                text: 'Text'
+            actionButtons: 'Aktionsschaltflächen'
+            actionButtonsHint: 'Was die Schaltflächen über einer Konversation oder Auswahl zeigen.'
             heading: Nachrichtenliste
             listAvatars: Absenderkreise
             listAvatarsHint: Der farbige Kreis mit der Initiale des Absenders. Ausgeschaltet wird daraus ein schlichter Kreis, statt zu verschwinden — er ist zugleich das Auswahlkästchen der Zeile.

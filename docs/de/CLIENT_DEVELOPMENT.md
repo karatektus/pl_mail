@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:ca091d2ed6af5c69de1bed6388bfaab801a918d8 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e5027294303f3e82e99a18bdee61e1d69b7d9ac3 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1777,7 +1777,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Einstellungen**
 - Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
-  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
+  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `actionButtons`, `accountCorner`, `listAvatars`, `tabUnreadCount`,
   den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.

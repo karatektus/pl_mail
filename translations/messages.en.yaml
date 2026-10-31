@@ -3570,6 +3570,12 @@ settings:
         list:
             accountCorner: Account corner
             accountCornerHint: The coloured triangle in a row's corner, saying which account it arrived on. Only ever drawn in a list that mixes accounts.
+            actionButton:
+                both: 'Icons and text'
+                icons: 'Icons'
+                text: 'Text'
+            actionButtons: 'Action buttons'
+            actionButtonsHint: 'What the buttons above a conversation or a selection show.'
             heading: Message list
             listAvatars: Sender discs
             listAvatarsHint: The coloured circle carrying the sender's initial. Switched off it becomes a plain circle rather than disappearing — it is also the row's checkbox.
