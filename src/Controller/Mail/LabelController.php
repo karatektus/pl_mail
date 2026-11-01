@@ -6,10 +6,14 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
+use App\Domain\Enum\Job\JobKind;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
 use App\Entity\User\User;
 use App\Form\LabelDeleteType;
 use App\Form\LabelType;
+use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
+use App\Repository\Job\BackgroundJobRepository;
 use App\Repository\Label\LabelRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
@@ -23,6 +27,7 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -55,6 +60,8 @@ final class LabelController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly LabelNotifier          $labelNotifier,
         private readonly LabelDeletion          $deletion,
+        private readonly BackgroundJobRepository $jobs,
+        private readonly MessageBusInterface    $bus,
         private readonly LabelPlaces            $places,
     ) {}
 
@@ -139,10 +146,8 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * The delete dialog: what deleting this label will do, or why it will not
-     * when the label is a folder on a mail server.
-     *
-     * Shown for every label, so the two delete buttons behave the same.
+     * The delete dialog: what deleting this label will do, and — when it sits
+     * on a folder on a mail server — that the folder stays.
      */
     #[Route('/{id}/delete', name: 'delete_confirm', methods: ['GET'])]
     public function deleteConfirm(Label $label): Response
@@ -153,14 +158,14 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * Delete a label that is only a tag: a Gmail label, an Exchange category, a
-     * label that exists only here. It holds no mail and goes straight away.
+     * Delete a label. The label goes from plMail; a folder on a mail server
+     * behind it does not (#221).
      *
-     * A label that is a folder on a mail server is refused (409). A folder is a
-     * place, not a tag; it is removed where folders are managed, or turned into a
-     * tag first with "Make it a label" (#221). Removing the row here would only
-     * be undone by the next sync (issue #40), and removing the folder with it
-     * would move mail the person did not ask to move.
+     * A folder is a place and a label is an attribute, and deleting the
+     * attribute must not delete the place: the folder, and the mail in it,
+     * stay on the server and in every other client. LabelStructurePropagator
+     * skips folder bindings for exactly that reason; a Gmail label or an
+     * Exchange category is still removed at the provider.
      */
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Label $label): Response
@@ -170,14 +175,6 @@ final class LabelController extends AbstractController
         // This is the destructive action of the three and was the only one
         // without a CSRF check.
         $this->assertCsrf($request, 'label-delete' . $label->id);
-
-        // A folder is a place, not a tag: deleting "the label" would delete the
-        // folder on the server (and its mail would have to go somewhere), or
-        // the next sync would bring it back. Neither is what a label delete
-        // says it does, so the label route leaves folders alone (#221).
-        if (true === $this->deletion->isOnAServer($label)) {
-            return $this->renderDeleteDialog($label, $this->deleteForm($label), Response::HTTP_CONFLICT);
-        }
 
         // Dispatch before removal: the propagator reads the remote id and
         // name off the bindings, and there is nothing to read afterwards.
@@ -372,30 +369,23 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * The delete dialog's form: no fields, and an error when the label is a
-     * folder on a mail server, which this route does not delete.
+     * The delete dialog's form: no fields. Deleting a label never moves mail
+     * and never touches a folder on a mail server, so there is nothing to ask.
      */
     private function deleteForm(Label $label): FormInterface
     {
-        $form = $this->createForm(LabelDeleteType::class, null, [
+        return $this->createForm(LabelDeleteType::class, null, [
             'action' => $this->generateUrl('app_label_delete', ['id' => $label->id]),
         ]);
-
-        if (true === $this->deletion->isOnAServer($label)) {
-            $form->addError(new FormError(
-                $this->translator->trans('label.delete.is_folder', ['%name%' => $label->fullName]),
-            ));
-        }
-
-        return $form;
     }
 
     private function renderDeleteDialog(Label $label, FormInterface $form, int $status = Response::HTTP_OK): Response
     {
         return $this->render('label/_delete.html.twig', [
-            'label'  => $label,
-            'form'   => $form,
-            'nested' => count($this->deletion->subtree($label)) - 1,
+            'label'     => $label,
+            'form'      => $form,
+            'onServer'  => $this->deletion->isOnAServer($label),
+            'nested'    => count($this->deletion->subtree($label)) - 1,
         ], new Response(status: $status));
     }
 

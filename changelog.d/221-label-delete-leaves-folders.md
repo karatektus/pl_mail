@@ -1,3 +1,3 @@
-**Deleting a label no longer deletes a folder.** A label that is a folder on a mail server is not
-removed from the label list any more: the dialog says why and points at "Make it a label" and the
-account's folder list. Labels that are only tags are deleted as before.
+**Deleting a label no longer deletes a folder.** A label that is also a folder on a mail server is
+removed from plMail only; the folder and its mail stay on the server. The dialog no longer asks where
+the mail goes. Gmail labels and Outlook categories are still removed at the provider.

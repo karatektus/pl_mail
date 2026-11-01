@@ -2687,7 +2687,7 @@ label:
         failed_not_empty: 'Im Ordner "%name%" liegt auf dem Server noch Mail, deshalb wurde er nicht gelöscht. Verschiebe diese Mail in deinem Mailprogramm und lösche das Label dann noch einmal.'
         failed_server: 'Der Mailserver hat "%name%" nicht gelöscht: %error%'
         mail_count: 'Darin liegen %count% Nachricht(en). Sie werden an das Ziel verschoben, das du unten wählst, bevor der Ordner gelöscht wird.'
-        is_folder: '„%name%“ ist ein Ordner auf deinem Mailserver und wird deshalb nicht als Label gelöscht. Verwalte ihn unter Einstellungen → Mail-Konten → Ordner, oder mach ihn zuerst im Bearbeiten-Dialog des Labels mit „Zum Label machen“ zu einem Label.'
+        on_server: 'Es ist auch ein Ordner auf deinem Mailserver. Der Ordner und seine Nachrichten bleiben dort; nur das Label verschwindet aus plMail.'
         still_importing: 'plMail importiert die Mail in "%name%" noch vom Server. Lösche es, sobald der Import fertig ist, damit nichts davon zurückbleibt.'
         title: '"%name%" löschen'
         waiting: 'Wartet, bis "%name%" auf dem Mailserver leer ist, und löscht den Ordner dann.'

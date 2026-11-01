@@ -1,13 +1,14 @@
 {#
 label/_delete.html.twig — the delete dialog, inside the modal frame.
 
-Replaces the browser confirm() both delete buttons used to raise. A label that
-is a folder on a mail server is not deleted from here (#221): the form carries
-an error that says so, and the route answers 409.
+Replaces the browser confirm() both delete buttons used to raise. Deleting a
+label never deletes a folder on the mail server (#221), and says so when the
+label sits on one.
 
 Variables:
   label      the label being deleted
   form       LabelDeleteType, with no field
+  onServer   whether the label (or one nested under it) is a folder on a server
   nested     how many labels are nested under this one
 #}
 {% extends '_layout/app.html.twig' %}
@@ -16,6 +17,7 @@ Variables:
     {% embed '_partials/_modal_form.html.twig' with {
         form: form,
         label: label,
+        onServer: onServer,
         nested: nested,
         title: 'label.delete.title'|trans({ '%name%': label|label_name }),
         submit_label: 'label.form.delete'|trans,
@@ -28,6 +30,10 @@ Variables:
                         ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': nested })
                         : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}
                 </p>
+
+                {% if onServer %}
+                    <p>{{ 'label.delete.on_server'|trans }}</p>
+                {% endif %}
             </div>
         {% endblock %}
 

@@ -2700,7 +2700,7 @@ label:
         failed_not_empty: 'Le dossier « %name% » contient encore du courrier sur le serveur, il n’a donc pas été supprimé. Déplacez ce courrier dans votre client de messagerie, puis supprimez à nouveau le libellé.'
         failed_server: 'Le serveur de messagerie n’a pas supprimé « %name% » : %error%'
         mail_count: 'Il contient %count% message(s). Ils sont déplacés vers la destination choisie ci-dessous avant la suppression du dossier.'
-        is_folder: '« %name% » est un dossier sur votre serveur de messagerie ; il n’est donc pas supprimé comme libellé. Gérez-le dans Paramètres → Comptes de messagerie → Dossiers, ou transformez-le d’abord en libellé avec « En faire un libellé » dans la fenêtre de modification du libellé.'
+        on_server: 'C’est aussi un dossier sur votre serveur de messagerie. Le dossier et ses messages y restent ; seule l’étiquette disparaît de plMail.'
         still_importing: 'plMail importe encore le courrier de « %name% » depuis le serveur. Supprimez-le une fois l’import terminé, pour que rien n’en reste en arrière.'
         title: 'Supprimer « %name% »'
         waiting: 'En attente que le serveur de messagerie vide « %name% » avant de le supprimer.'

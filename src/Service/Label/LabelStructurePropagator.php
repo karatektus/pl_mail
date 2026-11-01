@@ -92,6 +92,12 @@ final readonly class LabelStructurePropagator
                 continue;
             }
 
+            // Deleting a label never deletes a folder: it is a place, with mail
+            // in it, and other clients are looking at it (#221).
+            if (ApplyLabelStructureMessage::ACTION_DELETE === $action && true === LabelDeletion::isFolder($binding)) {
+                continue;
+            }
+
             $this->bus->dispatch(new ApplyLabelStructureMessage(
                 accountId: (int) $account->id,
                 action: $action,

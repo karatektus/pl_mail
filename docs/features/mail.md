@@ -526,11 +526,11 @@ as well as from **Settings → Labels**, and the dialog says plainly that the la
 account and how many nested labels are going with it — rather than asking you to agree to something
 whose reach it has not mentioned.
 
-A label that is a folder on your mail server — any folder on a plain IMAP account, or a mail
-folder on Outlook — is not deleted from here: the dialog says so and nothing happens. A folder is a
-place, not a tag, and deleting it is a folder action. Turn it into a label first with **Make it a
-label** (below), or manage it in the account's folder list. A Gmail label or an Outlook category is
-a tag rather than a place, so deleting one asks nothing and moves nothing.
+When the label is also a folder on your mail server — any folder on a plain IMAP account, or a mail
+folder on Outlook — only the label is deleted. The folder and the mail in it stay on the server and
+in your other mail clients, and the dialog says so. A folder is a place and a label is an attribute,
+so deleting one never deletes the other. A Gmail label or an Outlook category is a tag rather than a
+place, so it is removed at the provider as well.
 
 To turn a label into a folder on one account, open the label and use **Change per account** under
 **Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:9d823364c3d58808b0bb6753c31615ea0b0c2a27 -->
+<!-- translated-from: features/mail.md sha1:b919f447980ff2b24ecae3fe029530993362cbd2 -->
 
 # Mail
 
@@ -583,12 +583,11 @@ Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und d
 dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen — statt
 dich etwas bestätigen zu lassen, dessen Reichweite er verschwiegen hat.
 
-Ist das Label ein Ordner auf deinem Mailserver — jeder Ordner eines reinen IMAP-Kontos oder ein
-Mailordner bei Outlook —, wird es hier nicht gelöscht: Der Dialog sagt das, und es passiert nichts.
-Ein Ordner ist ein Ort und keine Markierung, und ihn zu löschen ist eine Ordneraktion. Mach ihn
-zuerst zum Label (**Zum Label machen**, siehe unten) oder verwalte ihn in der Ordnerliste des
-Kontos. Ein Gmail-Label oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt
-das Löschen dort nichts und verschiebt nichts.
+Ist das Label zugleich ein Ordner auf deinem Mailserver — jeder Ordner eines reinen IMAP-Kontos oder
+ein Mailordner bei Outlook —, wird nur das Label gelöscht. Der Ordner und die Mail darin bleiben auf
+dem Server und in deinen anderen Mailprogrammen erhalten, und der Dialog sagt das. Ein Ordner ist ein
+Ort und ein Label ein Merkmal; das Löschen des einen löscht nie das andere. Ein Gmail-Label oder eine
+Outlook-Kategorie ist eine Markierung und kein Ort und wird deshalb auch beim Anbieter entfernt.
 
 Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
 Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.

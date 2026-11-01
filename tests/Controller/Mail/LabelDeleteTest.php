@@ -7,6 +7,7 @@ namespace App\Tests\Controller\Mail;
 use App\Domain\Enum\Job\JobKind;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Message;
 use App\Service\Label\LabelResolver;
 use App\Tests\Support\Mail\SeedsFolderLabels;
 use Doctrine\DBAL\Connection;
@@ -18,8 +19,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The delete dialog and the route behind it (issue #40).
  *
  * A tag is deleted on the spot, as it always was. A label that is a folder on
- * the mail server is not deleted from here at all (#221): the route answers 409
- * and the folder, its mail and its label stay.
+ * the mail server is handed to a job, and when its folder has mail in it the
+ * route refuses to start until it is told where that mail goes — a refusal
+ * that holds whatever the dropdown offered.
  */
 final class LabelDeleteTest extends WebTestCase
 {
@@ -58,18 +60,17 @@ final class LabelDeleteTest extends WebTestCase
         parent::tearDown();
     }
 
-    /** A folder is not a tag: the dialog says so, asks nothing and offers no destination. */
-    public function testTheDialogSaysAFolderIsNotDeletedHere(): void
+    /** Nothing to choose: deleting a label never moves mail, so the dialog has no destination. */
+    public function testTheDialogNeverAsksWhereTheMailGoes(): void
     {
         $full = $this->folderLabel(['Full']);
-
         $this->messageIn($full, 'Something');
 
         $this->client->request('GET', sprintf('/labels/%d/delete', $full->id));
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('[role="alert"]', 'is a folder on your mail server');
         self::assertSelectorNotExists('select[name="label_delete[destination]"]');
+        self::assertSelectorTextContains('body', 'The folder and its mail stay there');
     }
 
     /** A tag holds no mail: gone at once, no job, no question. */
@@ -88,36 +89,27 @@ final class LabelDeleteTest extends WebTestCase
         self::assertNull($this->em->find(Label::class, $id));
     }
 
-    /** Full or empty, a folder is left alone: no job, the label and its folder stay. */
-    public function testAFolderIsNotDeleted(): void
+    /**
+     * A label that is a folder goes from plMail like any other, with its mail
+     * left where it is and no job that would delete the folder on the server
+     * (#221).
+     */
+    public function testAFolderLabelIsDeletedWithoutTouchingTheFolder(): void
     {
-        $full  = $this->folderLabel(['Full']);
-        $empty = $this->folderLabel(['Empty']);
+        $label = $this->folderLabel(['Full']);
+        $message = $this->messageIn($label, 'Something');
+        $id    = $label->id;
+        $msgId = $message->id;
 
-        $this->messageIn($full, 'Something');
+        $this->delete($label);
 
-        foreach ([$full, $empty] as $label) {
-            $this->delete($label);
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, $this->jobsFor($id));
 
-            self::assertResponseStatusCodeSame(409);
-            self::assertSame(0, $this->jobsFor($label->id));
-            self::assertNotNull($this->em->find(Label::class, $label->id));
-        }
-    }
+        $this->em->clear();
 
-    /** Deleting a parent deletes what is nested under it, so a folder nested under it counts. */
-    public function testATagWithAFolderNestedUnderItIsNotDeletedEither(): void
-    {
-        $child  = $this->folderLabel(['Work', 'Invoices']);
-        $parent = $child->parent;
-
-        self::assertNotNull($parent);
-
-        $this->delete($parent);
-
-        self::assertResponseStatusCodeSame(409);
-        self::assertNotNull($this->em->find(Label::class, $parent->id));
-        self::assertNotNull($this->em->find(Label::class, $child->id));
+        self::assertNull($this->em->find(Label::class, $id));
+        self::assertNotNull($this->em->find(Message::class, $msgId));
     }
 
     public function testADeleteWithoutAValidTokenIsRefused(): void
