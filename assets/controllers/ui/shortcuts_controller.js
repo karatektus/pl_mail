@@ -207,7 +207,9 @@ export default class extends Controller {
             case "?": return this.#press(document.querySelector("[data-shortcut='help']"));
             case "z": return this.#press(document.querySelector("#toast-region button[data-action$='#abort']"));
 
+            case "ArrowDown":
             case "j": return this.#step(1);
+            case "ArrowUp":
             case "k": return this.#step(-1);
             case "o":
             case "Enter": return this.#openCursor();
