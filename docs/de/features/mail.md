@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bfa8370895bd295821b9a383b1b2e258cf4c1a07 -->
+<!-- translated-from: features/mail.md sha1:9d823364c3d58808b0bb6753c31615ea0b0c2a27 -->
 
 # Mail
 
