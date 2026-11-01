@@ -59,7 +59,7 @@ final class LabelDeleteType extends AbstractType
 
         // value => what the dropdown shows. Values are the keys of
         // LabelDeletion::destinations(): a role ("archive") or "label:{id}".
-        $resolver->setRequired('destinations');
+        $resolver->setDefault('destinations', []);
         $resolver->setAllowedTypes('destinations', 'array');
     }
 

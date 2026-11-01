@@ -6,14 +6,10 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
-use App\Domain\Enum\Job\JobKind;
-use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
 use App\Entity\User\User;
 use App\Form\LabelDeleteType;
 use App\Form\LabelType;
-use App\Infrastructure\Messaging\Message\DeleteLabelMessage;
-use App\Repository\Job\BackgroundJobRepository;
 use App\Repository\Label\LabelRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelDeletion;
@@ -27,7 +23,6 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -60,8 +55,6 @@ final class LabelController extends AbstractController
         private readonly TranslatorInterface    $translator,
         private readonly LabelNotifier          $labelNotifier,
         private readonly LabelDeletion          $deletion,
-        private readonly BackgroundJobRepository $jobs,
-        private readonly MessageBusInterface    $bus,
         private readonly LabelPlaces            $places,
     ) {}
 
@@ -146,13 +139,10 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * The delete dialog: what deleting this label will do, and — when it is a
-     * folder on a mail server with mail in it — where that mail goes.
+     * The delete dialog: what deleting this label will do, or why it will not
+     * when the label is a folder on a mail server.
      *
-     * A dialog rather than the browser's confirm(), which is what both delete
-     * buttons used: a confirm can ask "are you sure" and cannot ask "where to".
-     * Shown for every label, so the two buttons behave the same whether or not
-     * there is a question to ask.
+     * Shown for every label, so the two delete buttons behave the same.
      */
     #[Route('/{id}/delete', name: 'delete_confirm', methods: ['GET'])]
     public function deleteConfirm(Label $label): Response
@@ -163,19 +153,14 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * Delete a label — straight away when it is only a tag, through a job when
-     * it is a folder on a mail server.
+     * Delete a label that is only a tag: a Gmail label, an Exchange category, a
+     * label that exists only here. It holds no mail and goes straight away.
      *
-     * The split is issue #40. A label that is a folder on IMAP or Exchange was
-     * removed here and left standing there, and the next sync put it back. The
-     * folder has to go too, and a folder cannot go with mail in it without the
-     * mail going with it — so its mail is moved to the place the person picked
-     * first, and only then is the folder deleted, then the label. That is
-     * minutes of work on a big folder and has to wait for the server, so it
-     * is DeleteLabelHandler's, and this answers with the jobs indicator.
-     *
-     * A tag — a Gmail label, an Exchange category, a label that exists only
-     * here — holds no mail, and goes as it always did.
+     * A label that is a folder on a mail server is refused (409). A folder is a
+     * place, not a tag; it is removed where folders are managed, or turned into a
+     * tag first with "Make it a label" (#221). Removing the row here would only
+     * be undone by the next sync (issue #40), and removing the folder with it
+     * would move mail the person did not ask to move.
      */
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Label $label): Response
@@ -186,8 +171,12 @@ final class LabelController extends AbstractController
         // without a CSRF check.
         $this->assertCsrf($request, 'label-delete' . $label->id);
 
+        // A folder is a place, not a tag: deleting "the label" would delete the
+        // folder on the server (and its mail would have to go somewhere), or
+        // the next sync would bring it back. Neither is what a label delete
+        // says it does, so the label route leaves folders alone (#221).
         if (true === $this->deletion->isOnAServer($label)) {
-            return $this->startFolderDelete($request, $label);
+            return $this->renderDeleteDialog($label, $this->deleteForm($label), Response::HTTP_CONFLICT);
         }
 
         // Dispatch before removal: the propagator reads the remote id and
@@ -383,103 +372,18 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * Hand a folder-backed label to DeleteLabelHandler, once there is a place
-     * for its mail to go.
-     */
-    private function startFolderDelete(Request $request, Label $label): Response
-    {
-        $user = $this->currentUser();
-        $form = $this->deleteForm($label);
-
-        // Pressed twice, or from two tabs. The first job is already moving the
-        // mail; a second would move whatever the first had not reached yet
-        // somewhere else, if the two dialogs were answered differently.
-        foreach ($this->jobs->findVisibleForUser($user) as $job) {
-            if (JobKind::DeleteLabel === $job->kind && true === $job->isActive() && $label->id === ($job->view['labelId'] ?? null)) {
-                return $this->renderTurboStream('_partials/_toast.stream.html.twig', [
-                    'message' => $this->translator->trans('label.delete.already_running', ['%name%' => $label->fullName]),
-                    'type'    => 'info',
-                ]);
-            }
-        }
-
-        // Mail still arriving from the server: the count the dialog showed is
-        // short, and the folder would not empty. See LabelDeletion::stillImporting().
-        if (0 < count($form->getErrors())) {
-            return $this->renderDeleteDialog($label, $form, Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $destination = null;
-
-        if (true === $form->has('destination')) {
-            $form->handleRequest($request);
-
-            $value       = $form->get('destination')->getData();
-            $destination = $this->deletion->destination($label, $user, is_string($value) ? $value : '');
-
-            // Blank, or a value the dialog did not offer. Either way the mail
-            // has nowhere to go, and the folder is not deleted around it.
-            if (null === $destination) {
-                $form->get('destination')->addError(new FormError(
-                    $this->translator->trans('label.delete.destination_required'),
-                ));
-
-                return $this->renderDeleteDialog($label, $form, Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-        }
-
-        $job = new BackgroundJob($user, JobKind::DeleteLabel);
-
-        // The scope and value every job carries, so anything reading a job as
-        // a view over mail reads this one as the label it is emptying.
-        $job->view = [
-            'scope'         => 'label',
-            'value'         => (string) $label->id,
-            'unreadOnly'    => false,
-            'labelId'       => $label->id,
-            'destinationId' => $destination?->id,
-        ];
-
-        $this->em->persist($job);
-        $this->em->flush();
-
-        $this->bus->dispatch(new DeleteLabelMessage((int) $job->id));
-
-        return $this->renderTurboStream('mail/_job_started.stream.html.twig', [
-            'job' => $job,
-        ]);
-    }
-
-    /**
-     * The delete dialog's form — with the destination question when there is
-     * mail in the label's folders, and with nothing to fill in otherwise.
+     * The delete dialog's form: no fields, and an error when the label is a
+     * folder on a mail server, which this route does not delete.
      */
     private function deleteForm(Label $label): FormInterface
     {
-        $destinations = [];
-
-        $candidates = 0 === $this->deletion->mailInFolders($label)
-            ? []
-            : $this->deletion->destinations($label, $this->currentUser());
-
-        foreach ($candidates as $value => $destination) {
-            $destinations[$value] = null === $destination->role
-                ? $destination->fullName
-                : $this->translator->trans('sidebar.nav.' . $destination->role->value);
-        }
-
         $form = $this->createForm(LabelDeleteType::class, null, [
-            'action'       => $this->generateUrl('app_label_delete', ['id' => $label->id]),
-            'destinations' => $destinations,
+            'action' => $this->generateUrl('app_label_delete', ['id' => $label->id]),
         ]);
 
-        // Said on the dialog itself, before anybody presses anything, and
-        // refused by the route if they press Delete anyway.
-        $importing = $this->deletion->stillImporting($label);
-
-        if (null !== $importing) {
+        if (true === $this->deletion->isOnAServer($label)) {
             $form->addError(new FormError(
-                $this->translator->trans('label.delete.still_importing', ['%name%' => $importing]),
+                $this->translator->trans('label.delete.is_folder', ['%name%' => $label->fullName]),
             ));
         }
 
@@ -489,11 +393,9 @@ final class LabelController extends AbstractController
     private function renderDeleteDialog(Label $label, FormInterface $form, int $status = Response::HTTP_OK): Response
     {
         return $this->render('label/_delete.html.twig', [
-            'label'     => $label,
-            'form'      => $form,
-            'onServer'  => $this->deletion->isOnAServer($label),
-            'mailCount' => $this->deletion->mailInFolders($label),
-            'nested'    => count($this->deletion->subtree($label)) - 1,
+            'label'  => $label,
+            'form'   => $form,
+            'nested' => count($this->deletion->subtree($label)) - 1,
         ], new Response(status: $status));
     }
 

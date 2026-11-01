@@ -526,17 +526,11 @@ as well as from **Settings → Labels**, and the dialog says plainly that the la
 account and how many nested labels are going with it — rather than asking you to agree to something
 whose reach it has not mentioned.
 
-When the label is a folder on your mail server — any folder on a plain IMAP account, or a mail
-folder on Outlook — the folder is deleted there as well, so the next sync does not bring the label
-back. A folder cannot be deleted with mail still in it, so if there is any, the dialog asks where it
-goes first: **Inbox**, **Archive**, **Trash**, or one of your other folders. The mail is moved, the
-folder is deleted once the server says it is empty, and only then does the label go. This runs in
-the background and shows in the activity indicator, which says which folder it is waiting for. If
-the server still holds mail plMail never imported, nothing is deleted: the folder and the label stay,
-and the indicator says which folder it was. If the server refuses to delete the folder, the job stops
-at once with the server's reason, and the label stays. A folder whose mail plMail is still importing
-cannot be deleted until the import has finished; the dialog says so. A Gmail label or an Outlook category is a tag rather than a place, so deleting one asks nothing
-and moves nothing.
+A label that is a folder on your mail server — any folder on a plain IMAP account, or a mail
+folder on Outlook — is not deleted from here: the dialog says so and nothing happens. A folder is a
+place, not a tag, and deleting it is a folder action. Turn it into a label first with **Make it a
+label** (below), or manage it in the account's folder list. A Gmail label or an Outlook category is
+a tag rather than a place, so deleting one asks nothing and moves nothing.
 
 To turn a label into a folder on one account, open the label and use **Change per account** under
 **Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.

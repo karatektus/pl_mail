@@ -584,18 +584,11 @@ dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels 
 dich etwas bestätigen zu lassen, dessen Reichweite er verschwiegen hat.
 
 Ist das Label ein Ordner auf deinem Mailserver — jeder Ordner eines reinen IMAP-Kontos oder ein
-Mailordner bei Outlook —, wird der Ordner dort ebenfalls gelöscht, damit die nächste Synchronisierung
-das Label nicht zurückbringt. Ein Ordner lässt sich nicht löschen, solange Mail darin liegt; liegt
-welche darin, fragt der Dialog deshalb zuerst, wohin sie soll: **Posteingang**, **Archiv**,
-**Papierkorb** oder einer deiner anderen Ordner. Die Mail wird verschoben, der Ordner wird gelöscht,
-sobald der Server ihn leer meldet, und erst dann verschwindet das Label. Das läuft im Hintergrund und
-erscheint in der Aktivitätsanzeige, die auch sagt, auf welchen Ordner sie wartet. Liegt auf dem
-Server noch Mail, die plMail nie importiert hat, wird nichts gelöscht: Ordner und Label bleiben, und
-die Anzeige nennt den Ordner. Lehnt der Server das Löschen des Ordners ab, endet der Vorgang sofort
-mit der Begründung des Servers, und das Label bleibt. Einen Ordner, dessen Mail plMail noch
-importiert, kannst du erst löschen, wenn der Import fertig ist; der Dialog sagt dir das. Ein Gmail-Label
-oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt das Löschen dort nichts
-und verschiebt nichts.
+Mailordner bei Outlook —, wird es hier nicht gelöscht: Der Dialog sagt das, und es passiert nichts.
+Ein Ordner ist ein Ort und keine Markierung, und ihn zu löschen ist eine Ordneraktion. Mach ihn
+zuerst zum Label (**Zum Label machen**, siehe unten) oder verwalte ihn in der Ordnerliste des
+Kontos. Ein Gmail-Label oder eine Outlook-Kategorie ist eine Markierung und kein Ort, deshalb fragt
+das Löschen dort nichts und verschiebt nichts.
 
 Um ein Label auf einem Konto zum Ordner zu machen, öffne das Label und wähle unter **Wo dieses Label liegt** erst **Pro Konto ändern** und dann **Zum Ordner machen**. Das geht auf einfachen IMAP- und auf Outlook-Konten.
 Nachrichten mit diesem Label auf diesem Konto werden in den neuen Ordner verschoben, außer denen in Papierkorb, Spam, Gesendet und Entwürfe; der Dialog nennt vorher die Anzahl. Auf Outlook wird die gleichnamige Kategorie entfernt.

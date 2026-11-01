@@ -1,17 +1,13 @@
 {#
 label/_delete.html.twig — the delete dialog, inside the modal frame.
 
-Replaces the browser confirm() both delete buttons used to raise. A confirm can
-ask "are you sure"; it cannot ask where the mail in a folder should go, and for
-a label that is a folder on the mail server that is the question (issue #40):
-the folder is deleted there too, and only once its mail has been moved out.
+Replaces the browser confirm() both delete buttons used to raise. A label that
+is a folder on a mail server is not deleted from here (#221): the form carries
+an error that says so, and the route answers 409.
 
 Variables:
   label      the label being deleted
-  form       LabelDeleteType — with a `destination` field when there is mail
-             to move, empty otherwise
-  onServer   whether the label (or one nested under it) is a folder on a server
-  mailCount  messages in those folders
+  form       LabelDeleteType, with no field
   nested     how many labels are nested under this one
 #}
 {% extends '_layout/app.html.twig' %}
@@ -20,8 +16,6 @@ Variables:
     {% embed '_partials/_modal_form.html.twig' with {
         form: form,
         label: label,
-        onServer: onServer,
-        mailCount: mailCount,
         nested: nested,
         title: 'label.delete.title'|trans({ '%name%': label|label_name }),
         submit_label: 'label.form.delete'|trans,
@@ -34,14 +28,6 @@ Variables:
                         ? 'label.delete_confirm_children'|trans({ '%name%': label|label_name, '%count%': nested })
                         : 'label.delete_confirm'|trans({ '%name%': label|label_name }) }}
                 </p>
-
-                {% if onServer %}
-                    <p>{{ 'label.delete.on_server'|trans }}</p>
-                {% endif %}
-
-                {% if mailCount > 0 %}
-                    <p class="text-ink">{{ 'label.delete.mail_count'|trans({ '%count%': mailCount }) }}</p>
-                {% endif %}
             </div>
         {% endblock %}
 

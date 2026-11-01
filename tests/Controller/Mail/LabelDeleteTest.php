@@ -18,9 +18,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * The delete dialog and the route behind it (issue #40).
  *
  * A tag is deleted on the spot, as it always was. A label that is a folder on
- * the mail server is handed to a job, and when its folder has mail in it the
- * route refuses to start until it is told where that mail goes — a refusal
- * that holds whatever the dropdown offered.
+ * the mail server is not deleted from here at all (#221): the route answers 409
+ * and the folder, its mail and its label stay.
  */
 final class LabelDeleteTest extends WebTestCase
 {
@@ -59,22 +58,17 @@ final class LabelDeleteTest extends WebTestCase
         parent::tearDown();
     }
 
-    public function testTheDialogAsksWhereTheMailGoesOnlyWhenThereIsSome(): void
+    /** A folder is not a tag: the dialog says so, asks nothing and offers no destination. */
+    public function testTheDialogSaysAFolderIsNotDeletedHere(): void
     {
-        $full  = $this->folderLabel(['Full']);
-        $empty = $this->folderLabel(['Empty']);
+        $full = $this->folderLabel(['Full']);
 
         $this->messageIn($full, 'Something');
 
         $this->client->request('GET', sprintf('/labels/%d/delete', $full->id));
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('select[name="label_delete[destination]"]');
-        self::assertSelectorExists('option[value="archive"]');
-
-        $this->client->request('GET', sprintf('/labels/%d/delete', $empty->id));
-
-        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[role="alert"]', 'is a folder on your mail server');
         self::assertSelectorNotExists('select[name="label_delete[destination]"]');
     }
 
@@ -94,92 +88,36 @@ final class LabelDeleteTest extends WebTestCase
         self::assertNull($this->em->find(Label::class, $id));
     }
 
-    /**
-     * No destination, no delete. The folder cannot go with mail in it, and
-     * nothing else is a safe guess.
-     */
-    public function testAFolderWithMailIsNotDeletedWithoutADestination(): void
+    /** Full or empty, a folder is left alone: no job, the label and its folder stay. */
+    public function testAFolderIsNotDeleted(): void
     {
-        $label = $this->folderLabel(['Full']);
-        $this->messageIn($label, 'Something');
+        $full  = $this->folderLabel(['Full']);
+        $empty = $this->folderLabel(['Empty']);
 
-        $this->delete($label);
+        $this->messageIn($full, 'Something');
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->jobsFor($label->id));
-        self::assertNotNull($this->em->find(Label::class, $label->id));
+        foreach ([$full, $empty] as $label) {
+            $this->delete($label);
+
+            self::assertResponseStatusCodeSame(409);
+            self::assertSame(0, $this->jobsFor($label->id));
+            self::assertNotNull($this->em->find(Label::class, $label->id));
+        }
     }
 
-    /** Not the label itself, and not one the dialog never offered. */
-    public function testADestinationTheDialogDidNotOfferIsRefused(): void
+    /** Deleting a parent deletes what is nested under it, so a folder nested under it counts. */
+    public function testATagWithAFolderNestedUnderItIsNotDeletedEither(): void
     {
-        $label = $this->folderLabel(['Full']);
-        $this->messageIn($label, 'Something');
+        $child  = $this->folderLabel(['Work', 'Invoices']);
+        $parent = $child->parent;
 
-        $this->delete($label, 'label:' . $label->id);
+        self::assertNotNull($parent);
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->jobsFor($label->id));
-    }
+        $this->delete($parent);
 
-    /**
-     * A destination starts the job and leaves the label where it is: it is
-     * removed by the job, after its folder.
-     */
-    public function testADestinationStartsTheJobAndTheLabelStays(): void
-    {
-        $label = $this->folderLabel(['Full']);
-        $this->messageIn($label, 'Something');
-
-        $this->delete($label, 'archive');
-
-        self::assertResponseIsSuccessful();
-        self::assertSame(1, $this->jobsFor($label->id));
-        self::assertNotNull($this->em->find(Label::class, $label->id));
-
-        $job = $this->em->getRepository(BackgroundJob::class)->findOneBy(['kind' => JobKind::DeleteLabel], ['id' => 'DESC']);
-
-        self::assertNotNull($job);
-        self::assertNotNull($job->view['destinationId'] ?? null);
-    }
-
-    /**
-     * A folder still being imported has mail on the server that is not here
-     * yet: the count would be short and the folder would never empty. The
-     * dialog says so, and the route will not start.
-     */
-    public function testAFolderStillBeingImportedIsNotDeletedYet(): void
-    {
-        $label = $this->folderLabel(['Arriving']);
-        $mailbox = $label->bindingFor($this->account)?->mailbox;
-
-        self::assertNotNull($mailbox);
-
-        $mailbox->importFloorUid = 40;
-        $this->em->flush();
-
-        $this->client->request('GET', sprintf('/labels/%d/delete', $label->id));
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('[role="alert"]', 'still importing');
-
-        $this->delete($label);
-
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->jobsFor($label->id));
-    }
-
-    /** Pressed twice: the second press says it is under way, and starts nothing. */
-    public function testASecondPressDoesNotStartASecondJob(): void
-    {
-        $label = $this->folderLabel(['Empty']);
-
-        $this->delete($label);
-        $this->delete($label);
-
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('already being deleted', (string) $this->client->getResponse()->getContent());
-        self::assertSame(1, $this->jobsFor($label->id));
+        self::assertResponseStatusCodeSame(409);
+        self::assertNotNull($this->em->find(Label::class, $parent->id));
+        self::assertNotNull($this->em->find(Label::class, $child->id));
     }
 
     public function testADeleteWithoutAValidTokenIsRefused(): void

@@ -2565,7 +2565,7 @@ label:
         failed_not_empty: 'The hold "%name%" still has post in it on the server, so it were not scuttled. Haul that post out in yer other mail client, then strike the flag again.'
         failed_server: 'The mail server refused to scuttle "%name%": %error%'
         mail_count: '%count% yarn(s) be in it. They be hauled to the hold ye pick below afore the hold be scuttled.'
-        on_server: 'It be a hold on yer mail server, so the hold be scuttled there too.'
+        is_folder: '“%name%” be a hold on yer mail server, so it be not scuttled as a label. Tend to it in Settings → Mail accounts → Folders, or turn it into a label first with “Make it a flag” in the label’s edit window.'
         still_importing: 'plMail be still haulin'' the post in "%name%" off the server. Strike it once the haulin'' be done, so none o'' that post be left behind.'
         title: 'Strike "%name%"'
         waiting: 'Waitin'' fer the mail server to empty the hold "%name%" afore it be scuttled.'
