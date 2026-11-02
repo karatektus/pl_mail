@@ -165,8 +165,9 @@ final readonly class PostIngestPipeline
                 $message->categoryHeldAt = new DateTimeImmutable();
             }
 
+            // Without the arrival half, which waits for the rules below.
             try {
-                $this->messageThreader->assignThread($message, $item->account);
+                $this->messageThreader->assignThread($message, $item->account, recordArrival: false);
             } catch (\Throwable $e) {
                 $this->logger->error('PostIngest: threading failed', [
                     'messageId' => $message->id,
@@ -202,6 +203,22 @@ final readonly class PostIngestPipeline
 
             if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
                 $this->changes->mailArrived((int) $arrived->account->id);
+            }
+        }
+
+        // AFTER THE RULES, because a rule is what files a message as spam, and
+        // spam must not move the conversation it joined: a reply a filter sent
+        // to Spam brought its thread back to the top of the Inbox as new mail
+        // (#470). See MessageThreader::recordArrival().
+        foreach ($messages as $message) {
+            try {
+                $this->messageThreader->recordArrival($message);
+            } catch (\Throwable $e) {
+                $this->logger->error('PostIngest: recording the arrival failed', [
+                    'messageId' => $message->id,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
+                ]);
             }
         }
 
