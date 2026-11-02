@@ -203,21 +203,16 @@ readonly class MessageEraser
      */
     private function recount(MessageThread $thread): void
     {
-        $unread          = 0;
         $withAttachments = 0;
 
         foreach ($thread->messages as $remaining) {
-            if (null === $remaining->seenAt) {
-                ++$unread;
-            }
-
             if (true === $remaining->hasAttachments) {
                 ++$withAttachments;
             }
         }
 
         $thread->messageCount    = $thread->messages->count();
-        $thread->unreadCount     = $unread;
+        $thread->unreadCount     = MessageThread::unreadAmong($thread->messages);
         $thread->attachmentCount = $withAttachments;
     }
 }

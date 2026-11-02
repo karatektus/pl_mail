@@ -9,6 +9,7 @@ use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\MessageRepository;
@@ -593,20 +594,15 @@ final readonly class SentCopyReconciler
             $thread->removeMessage($ghost);
             $thread->messageCount = $thread->messages->count();
 
-            $unread = 0;
             $withAttachments = 0;
 
             foreach ($thread->messages as $remaining) {
-                if (null === $remaining->seenAt) {
-                    ++$unread;
-                }
-
                 if (true === $remaining->hasAttachments) {
                     ++$withAttachments;
                 }
             }
 
-            $thread->unreadCount     = $unread;
+            $thread->unreadCount     = MessageThread::unreadAmong($thread->messages);
             $thread->attachmentCount = $withAttachments;
         }
 

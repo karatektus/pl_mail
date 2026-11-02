@@ -2565,6 +2565,46 @@ class MessageRepository extends ServiceEntityRepository
         return $result !== null;
     }
 
+    /**
+     * Does the thread hold stored mail that is neither in Spam nor in the bin?
+     *
+     * Asked by MessageThreader::recordArrival() before a set-aside message may
+     * move a conversation: one that lives in the Inbox must not be brought to
+     * the top by the spam a filter has just taken out of it.
+     *
+     * Stored rows only, which is what the question needs: the arriving message
+     * is not in the thread in the database yet, and is left out by id in case
+     * it is. A literal and one row, for the reason existsWithAnyFromAddressInThread()
+     * gives.
+     */
+    public function existsNotSetAsideInThread(MessageThread $thread, Message $except): bool
+    {
+        if (null === $thread->id) {
+            return false;
+        }
+
+        $qb = $this->createQueryBuilder('m');
+
+        $qb->select('1')
+            ->where('m.thread = :thread')
+            ->andWhere($qb->expr()->notIn(
+                'm.id',
+                'SELECT asideMessage.id FROM ' . Message::class . ' asideMessage'
+                    . ' JOIN asideMessage.labels asideLabel'
+                    . ' WHERE asideMessage.thread = :thread AND asideLabel.role IN (:asideRoles)',
+            ))
+            ->setParameter('thread', $thread)
+            ->setParameter('asideRoles', [LabelRole::Spam, LabelRole::Trash])
+            ->setMaxResults(1);
+
+        if (null !== $except->id) {
+            $qb->andWhere('m.id <> :except')
+                ->setParameter('except', $except->id);
+        }
+
+        return null !== $qb->getQuery()->getOneOrNullResult();
+    }
+
     /** A null criterion is Doctrine's IS NULL, so this needs no query of its own. */
     /**
      * The folder's own numbers, as the server would give them: the messages it
