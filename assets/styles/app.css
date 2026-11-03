@@ -5895,14 +5895,17 @@ html[data-dnd-active] [data-dnd-ghost] {
    and a cursor has to be legible on a row that is all four at once. An outline
    takes no box and paints over none of them.
 
-   Not :focus. Focus would have been the honest mechanism and was the wrong one:
-   moving it onto a row scrolls and announces on every keypress, and the rows
-   are replaced under it by every refresh, each time dropping focus to <body>.
-   The attribute is repainted from a remembered id instead.
+   Not :focus alone. `j` and `k` leave the focus where it is, and the rows are
+   replaced under it by every refresh, so the attribute is repainted from a
+   remembered id. ↓ and ↑ do move the focus (#469), and the cursor follows it,
+   so a focused row is the cursor's row: its focus ring is this same outline
+   rather than the browser's drawn over it. Losing the focus to a refresh is
+   handled in ui--shortcuts, which puts it back on the row's successor.
 
    Unlayered, like the rules above and for the same reason.
 */
-[data-kbd-cursor] {
+[data-kbd-cursor],
+#message-list li[data-mail--message-row-id-value]:focus-visible {
     outline: 2px solid rgb(var(--rgb-accent) / 0.7);
     outline-offset: -2px;
 }

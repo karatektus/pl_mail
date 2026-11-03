@@ -754,6 +754,7 @@ keyboard button above a mail list; the ones worth knowing first:
 | Key | Does |
 |---|---|
 | `j` / `k` | Move down and up a list. With a conversation open, open the next or previous one. |
+| `↓` / `↑` | Move down and up a list too, but only while the list has the keyboard: a row is highlighted by a click or by `Tab`, or nothing else is open. In an open conversation they scroll it, as they would anywhere. |
 | `o` or `Enter` | Open the highlighted conversation. `u` goes back to the list. |
 | `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
 | `e` · `#` · `!` | Archive · delete · mark as spam. |
