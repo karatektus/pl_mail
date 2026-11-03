@@ -29,12 +29,13 @@ for the list to mark as current.
 
 ## What it reports
 
-Six things can appear, and each one says what it means for your mail rather than what the provider
+Seven things can appear, and each one says what it means for your mail rather than what the provider
 called it:
 
 | What | What it means | Repair |
 |---|---|---|
 | **An account needs you to sign in again** | The stored sign-in no longer works, so nothing about this account is running — no new mail, no calendar syncing, no filters on delivery, no sending. Mail already downloaded is untouched. | **Reconnect this account** |
+| **An account is behind on new mail** | No sync has gone through for three of the account's sync intervals (at least thirty minutes), and nothing has failed often enough to explain it. The connection may be fine: the syncs are waiting in the queue behind other work, or starting and not finishing. The card shows when a sync last went through, last started and was last asked for; one asked for after the last start is still waiting its turn. | None — it usually catches up on its own |
 | **A calendar has stopped syncing** | That calendar shows what it knew when it last worked. Changes made elsewhere are not arriving, and changes you make here are not going out. | **Try syncing now** |
 | **Instant delivery expired** | The push registration's own expiry passed and nothing renewed it, so nothing is being pushed at all. | **Re-register push** |
 | **Instant delivery is registered but not arriving** | The registration is alive and unexpired, and mail has arrived that it never announced. The notifications are being lost on the way in. | **Re-register push** |

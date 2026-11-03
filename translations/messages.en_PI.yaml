@@ -3732,6 +3732,7 @@ settings:
         fact:
             granted_at: 'Signed on'
             last_full_resync: 'Counted the whole hold again (%count%×)'
+            last_synced: 'Last sync that made port'
             never: 'never'
             never_delivered: 'naught ever came ashore'
             never_run: 'no run in th'' log'
@@ -3740,6 +3741,8 @@ settings:
             push_expires: 'Registration runs out'
             push_last_delivered: 'Last signal heard'
             push_last_renewal: 'Renewal last sailed'
+            sync_began: 'Last sync set out'
+            sync_requested: 'Last sync called for by the schedule'
         flash:
             calendar_resync: >-
                 %calendar% be signed up fer a sync. She''s runnin'' below decks
@@ -3816,6 +3819,19 @@ settings:
                     provider, and be undone at the next reckonin'. Sign on again
                     and grant all that ye be asked.
                 title: '%account% never got full leave'
+            account_sync_behind:
+                body: >-
+                    No sync o' this account has made port for longer than its
+                    sailin' interval explains, though nothin' has foundered
+                    often enough to say why, so new post may be waitin' at yer
+                    provider. The line can be sound all the while: the syncs
+                    plMail called for be waitin' in the queue behind other work,
+                    or settin' out and never makin' harbour. The dates below
+                    tell which: a sync called for after the last one set out be
+                    still waitin' its turn. It mostly catches up on its own; if
+                    it don't, the server's background hands be the place to
+                    look.
+                title: '%account% be lagging behind on new post'
             account_sync_failing:
                 body: >-
                     Several tries in a row have foundered, so no new post be

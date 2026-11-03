@@ -1,4 +1,4 @@
-<!-- translated-from: features/health.md sha1:7ff829ccadb403e034cd7bb9278e2a2c95456f38 -->
+<!-- translated-from: features/health.md sha1:a675235ac91315dfe378c02fabf9a0d132f7600b -->
 
 # Zustand der Konten
 
@@ -35,12 +35,13 @@ als aktuell markieren kann.
 
 ## Was sie meldet
 
-Sechs Dinge können auftauchen, und jedes sagt, was es für deine Post bedeutet, statt wie der Anbieter
+Sieben Dinge können auftauchen, und jedes sagt, was es für deine Post bedeutet, statt wie der Anbieter
 es genannt hat:
 
 | Was | Was es bedeutet | Reparatur |
 |---|---|---|
 | **Ein Konto braucht eine erneute Anmeldung** | Die gespeicherte Anmeldung funktioniert nicht mehr, also läuft an diesem Konto nichts mehr — keine neue Post, keine Kalendersynchronisierung, keine Filter beim Eintreffen, kein Senden. Bereits geladene Post bleibt unangetastet. | **Konto neu verbinden** |
+| **Ein Konto hängt bei neuer Mail hinterher** | Seit drei Sync-Intervallen des Kontos (mindestens dreißig Minuten) ist kein Abgleich mehr durchgelaufen, und nichts ist oft genug fehlgeschlagen, um das zu erklären. Die Verbindung kann in Ordnung sein: Die Abgleiche warten in der Warteschlange hinter anderer Arbeit, oder sie starten und werden nicht fertig. Die Karte zeigt, wann zuletzt ein Abgleich durchlief, gestartet und angefordert wurde; einer, der nach dem letzten Start angefordert wurde, wartet noch, bis er dran ist. | Keine — meist holt das Konto von selbst auf |
 | **Ein Kalender synchronisiert nicht mehr** | Dieser Kalender zeigt, was er beim letzten funktionierenden Lauf wusste. Änderungen von anderswo kommen nicht an, und deine Änderungen gehen nicht hinaus. | **Jetzt synchronisieren** |
 | **Die Sofortzustellung ist abgelaufen** | Die Registrierung ist abgelaufen und niemand hat sie erneuert, es wird also gar nichts mehr gepusht. | **Push neu registrieren** |
 | **Die Sofortzustellung ist registriert, kommt aber nicht an** | Die Registrierung lebt und ist nicht abgelaufen, und es ist Post eingegangen, die sie nie angekündigt hat. Die Benachrichtigungen gehen auf dem Weg hierher verloren. | **Push neu registrieren** |
