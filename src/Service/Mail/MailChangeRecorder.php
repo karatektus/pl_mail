@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
@@ -82,20 +81,16 @@ final readonly class MailChangeRecorder
      *
      * Recorded by the caller in addition to emailChanged(created: true), never
      * instead of it: the Email still changed for everybody else.
+     *
+     * $scopes are the notification switches the mail falls under
+     * (NotifyScopes::forMessage()); a device is told only when its user has
+     * one of them on.
+     *
+     * @param list<string> $scopes
      */
-    public function mailArrived(int $accountId, ?MessageCategory $category = MessageCategory::Primary): void
+    public function mailArrived(int $accountId, array $scopes): void
     {
-        $this->stateManager->recordArrival($accountId, $category);
-    }
-
-    /**
-     * Held mail has been released into a tab: new mail for a user who chose
-     * categories, and not for anybody else, who heard of it on arrival.
-     * See StateManager::recordReleasedArrival().
-     */
-    public function mailReleasedTo(int $accountId, MessageCategory $category): void
-    {
-        $this->stateManager->recordReleasedArrival($accountId, $category);
+        $this->stateManager->recordArrival($accountId, $scopes);
     }
 
     /**

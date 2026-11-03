@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\ArrivalPlace;
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\MessageThreadRepository;
@@ -45,6 +44,7 @@ final readonly class HeldMailReleaser
     public function __construct(
         private MessageThreadRepository $threads,
         private MailChangeRecorder      $changes,
+        private NotifyScopes            $notifyScopes,
         private SyncNotifier            $notifier,
         private EntityManagerInterface  $em,
     ) {
@@ -90,17 +90,25 @@ final readonly class HeldMailReleaser
 
         $this->announce($released);
 
-        // The verdict is in, so "which tab" can finally be answered for the user
-        // who chose categories. The same tests the pipeline applied on arrival,
-        // asked again because the mail may have been read, filed or sorted into
-        // another tab in the meantime.
+        // The verdict is in, so "which tab" can finally be answered, and this
+        // is the arrival the pipeline did not record (#369): held mail falls
+        // under no switch while it waits. The pipeline's tests asked again,
+        // because in the meantime it may have been read, filed or trashed.
+        // Only live mail is ever held, so every message here is one the
+        // pipeline would have announced; where it was fetched decides, as
+        // there, whether its tab counts or only its labels.
         foreach ($released as $message) {
-            if (ArrivalPlace::Inbox === $message->arrivedIn
-                && null === $message->seenAt
-                && true === $message->isInInbox()
-                && false === $message->isSetAside()) {
-                $this->changes->mailReleasedTo((int) $message->account->id, $message->category ?? MessageCategory::Primary);
+            if (null !== $message->seenAt || true === $message->isSetAside()) {
+                continue;
             }
+
+            $this->changes->mailArrived(
+                (int) $message->account->id,
+                $this->notifyScopes->forMessage(
+                    $message,
+                    inInbox: ArrivalPlace::Inbox === $message->arrivedIn && true === $message->isInInbox(),
+                ),
+            );
         }
 
         return count($released);

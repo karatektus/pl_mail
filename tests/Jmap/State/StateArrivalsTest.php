@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Jmap\State;
 
-use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\DTO\Push\NotifyScope;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Tests\Jmap\JmapTestCase;
@@ -24,10 +24,10 @@ final class StateArrivalsTest extends JmapTestCase
         $state     = self::getContainer()->get(StateManager::class);
         $accountId = (int) $this->account->id;
 
-        $state->recordArrival($accountId);
-        $state->recordArrival($accountId);
+        $state->recordArrival($accountId, [NotifyScope::PRIMARY]);
+        $state->recordArrival($accountId, [NotifyScope::PRIMARY]);
 
-        self::assertSame([$accountId], $state->drainArrivals(), 'the account arrived once');
+        self::assertSame([$accountId => [NotifyScope::PRIMARY]], $state->drainArrivals(), 'the account arrived once');
         self::assertSame([], $state->drainArrivals(), 'a second drain finds the buffer empty');
     }
 
@@ -36,14 +36,14 @@ final class StateArrivalsTest extends JmapTestCase
         $state     = self::getContainer()->get(StateManager::class);
         $accountId = (int) $this->account->id;
 
-        $state->recordArrival($accountId);
+        $state->recordArrival($accountId, [NotifyScope::PRIMARY]);
         $state->recordUpdated($accountId, JmapObjectType::Email, '9');
         $this->em->flush();
 
         $dirty = $state->drainDirty();
 
         self::assertArrayHasKey($accountId, $dirty, 'the update is still drained as dirty');
-        self::assertSame([$accountId], $state->drainArrivals(), 'the arrival is still drained as an arrival');
+        self::assertSame([$accountId => [NotifyScope::PRIMARY]], $state->drainArrivals(), 'the arrival is still drained as an arrival');
     }
 
     public function testAnUpdateIsNotAnArrival(): void
@@ -58,42 +58,22 @@ final class StateArrivalsTest extends JmapTestCase
         self::assertArrayHasKey($accountId, $state->drainDirty(), 'presence: the update is dirty');
     }
 
-    public function testAnArrivalRemembersItsTabAndHeldMailHasNone(): void
+    /**
+     * An arrival is kept with the scopes it fell under (#369), each once per
+     * account, and one that fell under none is no arrival at all.
+     */
+    public function testAnArrivalKeepsItsScopesOnceEach(): void
     {
         $state     = self::getContainer()->get(StateManager::class);
         $accountId = (int) $this->account->id;
 
-        $state->recordArrival($accountId, MessageCategory::Promotions);
-        $state->recordArrival($accountId, MessageCategory::Promotions);
-        $state->recordArrival($accountId, MessageCategory::Social);
+        $state->recordArrival($accountId, ['category:promotions']);
+        $state->recordArrival($accountId, ['category:promotions', 'label:7']);
 
-        self::assertSame([$accountId], $state->drainArrivals(), 'it arrived');
-        self::assertEqualsCanonicalizing(
-            [MessageCategory::Promotions, MessageCategory::Social],
-            $state->drainArrivalCategories()[$accountId],
-            'each tab once',
-        );
-        self::assertSame([], $state->drainArrivalCategories(), 'draining empties it');
+        self::assertSame([$accountId => ['category:promotions', 'label:7']], $state->drainArrivals(), 'each scope once');
 
-        $state->recordArrival($accountId, null);
+        $state->recordArrival($accountId, []);
 
-        self::assertSame([$accountId], $state->drainArrivals(), 'held mail still arrived');
-        self::assertSame([], $state->drainArrivalCategories(), 'presence: it has no tab yet');
-
-        $state->recordArrival($accountId);
-
-        self::assertSame([MessageCategory::Primary], $state->drainArrivalCategories()[$accountId], 'Primary is the default');
-    }
-
-    /** Released mail is news to a user who chose tabs, and to nobody else. */
-    public function testAReleasedArrivalHasATabAndIsNotAnArrivalForEverybody(): void
-    {
-        $state     = self::getContainer()->get(StateManager::class);
-        $accountId = (int) $this->account->id;
-
-        $state->recordReleasedArrival($accountId, MessageCategory::Updates);
-
-        self::assertSame([], $state->drainArrivals(), 'everybody else was told when it arrived');
-        self::assertSame([MessageCategory::Updates], $state->drainArrivalCategories()[$accountId], 'presence: users who chose tabs are told now');
+        self::assertSame([], $state->drainArrivals(), 'mail under no scope, held mail say, is nobody\'s arrival');
     }
 }

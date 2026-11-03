@@ -4565,16 +4565,18 @@ settings:
         error_subscribe: 'The browser''s push service gave this device no address (%error%). In Brave, turn on "Use Google services for push messaging" first.'
         error_worker: 'plMail''s background worker did not start (%error%). Try again, and if it keeps happening, tell your administrator.'
         heading: Notifications
+        inbox: 'Inbox'
         ios_hint: >-
             On iPhone and iPad, notifications only work once plMail is added to
             the Home Screen: open it in Safari, tap Share, then "Add to Home
             Screen", and enable notifications from there.
+        labels: 'Labels'
         notify_for: 'Notify for'
-        notify_for_hint: 'Which inbox tabs make a browser notification. Applies to every browser of yours; the Android app chooses for itself. At least one stays on.'
+        notify_for_hint: 'Which mail makes a notification: a box for each inbox tab and each label. Applies to every browser of yours and to the Android app. With nothing ticked, no mail notifies.'
         'off': 'Off'
         'on': 'On'
         skip_read: 'Only notify for unread mail'
-        skip_read_hint: 'Before showing a browser notification, plMail waits a few seconds and checks whether your Inbox still has unread mail. If you have already read or deleted the message, for example on your phone, nothing is shown.'
+        skip_read_hint: 'Before showing a browser notification, plMail waits a few seconds and checks whether the new mail is still unread. If you have already read or deleted it, for example on your phone, nothing is shown.'
         state_denied: >-
             Blocked in your browser settings. Allow notifications for this site,
             then try again.

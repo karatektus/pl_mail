@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Session;
 
+use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\Theme\ActionButtonStyle;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
@@ -176,6 +177,13 @@ final class SessionBuilder
                 Capability::TEMPLATES => $this->templatesCapabilities(),
                 Capability::KEYS => $this->keysCapabilities(),
                 Capability::INBOX_TABS => new \stdClass(),
+                // What a scope key may look like, and the list a user who has
+                // not chosen gets — so a client can draw its switches before
+                // the first NotificationSettings/get answers.
+                Capability::NOTIFICATIONS => [
+                    'scopePrefixes' => [NotifyScope::CATEGORY_PREFIX, NotifyScope::TAB_PREFIX, NotifyScope::LABEL_PREFIX],
+                    'defaultScopes' => [NotifyScope::PRIMARY],
+                ],
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jmap\Push;
 
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
@@ -46,17 +45,15 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<int,array<string,string>> $changed           accountId => type => state
-     * @param list<int>                       $arrivedAccountIds accounts on which mail arrived since the last drain
-     * @param array<int,list<MessageCategory>> $arrivalCategories the tabs mail arrived in, or was released into, per account
+     * @param array<int,array<string,string>> $changed  accountId => type => state
+     * @param array<int,list<string>>         $arrivals accountId => the notification scopes mail
+     *                                                  arrived under since the last drain
      */
-    public function dispatch(array $changed, array $arrivedAccountIds, array $arrivalCategories = []): void
+    public function dispatch(array $changed, array $arrivals): void
     {
         if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
-
-        $arrived        = array_map('intval', $arrivedAccountIds);
 
         foreach ($this->groupByUser($changed) as $userId => $userChanges) {
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
@@ -77,13 +74,13 @@ final class PushDispatcher
                 // own mail is what the PWA is waiting for, and another user's
                 // arrival says nothing about it.
                 //
-                // And judged by what this user asked to hear about: a user who
-                // chose categories is told of arrivals in those tabs, which is a
-                // different question from "mail arrived" (see
-                // StateManager::$categorisedArrivals). Android narrows to
-                // Primary on its own and is not an arrivals-only row, so this
-                // reaches the browser and nothing else.
-                if (true === $subscription->arrivalsOnly && false === $this->arrivalIsWanted($subscription->usr, $userChanges, $arrived, $arrivalCategories)) {
+                // And judged by what this user asked to hear about (#369): mail
+                // arrived under one of the switches they have on — a tab, a
+                // label — or the browser is not woken at all. The phone apps
+                // are not arrivals-only rows: their pushes also drive their
+                // sync, so they get every StateChange and apply the same
+                // switches themselves (NotificationSettings/get).
+                if (true === $subscription->arrivalsOnly && false === $this->arrivalIsWanted($subscription->usr, $userChanges, $arrivals)) {
                     continue;
                 }
 
@@ -128,25 +125,14 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<string,array<string,string>> $userChanges        accountId => type => state, for one user
-     * @param list<int>                          $arrived            accounts on which mail arrived
-     * @param array<int,list<MessageCategory>>   $arrivalCategories the tabs it arrived in, per account
+     * @param array<string,array<string,string>> $userChanges accountId => type => state, for one user
+     * @param array<int,list<string>>            $arrivals    accountId => scopes mail arrived under
      */
-    private function arrivalIsWanted(User $user, array $userChanges, array $arrived, array $arrivalCategories): bool
+    private function arrivalIsWanted(User $user, array $userChanges, array $arrivals): bool
     {
         foreach (array_keys($userChanges) as $accountId) {
-            $accountId = (int) $accountId;
-
-            if (false === $user->pushFiltersCategories) {
-                if (true === in_array($accountId, $arrived, true)) {
-                    return true;
-                }
-
-                continue;
-            }
-
-            foreach ($arrivalCategories[$accountId] ?? [] as $category) {
-                if (true === $user->pushNotifiesFor($category)) {
+            foreach ($arrivals[(int) $accountId] ?? [] as $scope) {
+                if (true === $user->notifiesFor($scope)) {
                     return true;
                 }
             }

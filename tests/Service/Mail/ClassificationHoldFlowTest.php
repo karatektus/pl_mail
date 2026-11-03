@@ -250,39 +250,34 @@ final class ClassificationHoldFlowTest extends KernelTestCase
     }
 
     /**
-     * Notifying for chosen tabs (#369): held mail has no tab on arrival, so
-     * a user who chose tabs is not told then, and is told when the hold ends.
-     * Everybody else hears of it on arrival, and not again.
+     * Held mail is announced once, when the hold ends, under the tab it ended
+     * in (#369). On arrival its tab is not known, so it falls under no switch;
+     * announcing it then as Primary would tell a Primary-only reader about a
+     * promotion, and announcing it twice would ring every phone twice.
      */
-    public function testHeldMailIsTabNewsOnlyWhenItIsReleased(): void
+    public function testHeldMailIsAnnouncedWhenItIsReleasedUnderItsTab(): void
     {
         $this->assistantSorts();
         $this->importFinished();
 
         $state = self::getContainer()->get(StateManager::class);
         $state->drainArrivals();
-        $state->drainArrivalCategories();
 
         $message = $this->inboxMessage('fresh', '-1 minute');
         $this->ingest($message);
 
         self::assertTrue($message->isCategoryHeld());
-        self::assertSame([(int) $message->account->id], $state->drainArrivals(), 'new mail for everybody, on arrival');
-        self::assertSame([], $state->drainArrivalCategories(), 'its tab is not known yet');
+        self::assertSame([], $state->drainArrivals(), 'its tab is not known yet');
 
         $message->category = MessageCategory::Updates;
         $this->em->flush();
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
 
-        self::assertSame([], $state->drainArrivals(), 'everybody else was already told');
-
-        $categories = $state->drainArrivalCategories();
-
         self::assertSame(
-            [(int) $message->account->id => [MessageCategory::Updates]],
-            $categories,
-            'presence: users who chose tabs are told now, with the tab it ended in',
+            [(int) $message->account->id => ['category:updates']],
+            $state->drainArrivals(),
+            'presence: announced now, with the tab it ended in',
         );
     }
 
@@ -300,11 +295,11 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $message->seenAt = new DateTimeImmutable();
         $this->em->flush();
 
-        $state->drainArrivalCategories();
+        $state->drainArrivals();
 
         self::getContainer()->get(HeldMailReleaser::class)->release([$message]);
 
-        self::assertSame([], $state->drainArrivalCategories());
+        self::assertSame([], $state->drainArrivals());
     }
 
     /**
@@ -691,8 +686,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->em->flush();
     }
 
-    /** Persisted and flushed, which is the pipeline's stated precondition. */
-    /** An Inbox arrival, which is the only kind the push ever announces. */
+    /** An Inbox arrival, the kind a hold applies to. */
     private function inboxMessage(string $slug, string $received): Message
     {
         $message = $this->message($slug, $received);
@@ -703,6 +697,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         return $message;
     }
 
+    /** Persisted and flushed, which is the pipeline's stated precondition. */
     private function message(string $slug, string $received): Message
     {
         $message = new Message();

@@ -238,6 +238,32 @@ account; every account answers with the same list.
 Creating, renaming, switching and ordering tabs is done on the web today. `Thread.category` and
 `threadCategory` are unchanged, and `inboxTabs` above still says whether to draw tabs at all.
 
+### Notification settings (`urn:plmail:params:jmap:notifications`)
+
+Which mail is worth a notification, chosen once per **user** and not per device: the same switches
+on the web, in every browser and in your app. The server applies them to browser pushes itself. Your
+app still receives every `StateChange` (it needs them to sync) and applies them before it rings.
+
+- **`NotificationSettings/get`** (no `accountId`; the singleton id is `"singleton"`) returns
+  `{ id, scopes, skipRead }`. `scopes` is the list of switches that are **on**, always spelled out:
+  `["category:primary"]` for a user who never chose. A key is `category:<built-in>`,
+  `tab:c<id>` for a tab of the user's own (the `InboxTab` id after the prefix), or
+  `label:<labelId>` (`Mailbox.labelId`, so one switch covers the label in every account).
+  `skipRead` is the browsers' "Only notify for unread mail"; an app that already knows what is read
+  has no need for it.
+- **`NotificationSettings/set`** `update: { "singleton": { "scopes": [...], "skipRead": bool } }`.
+  `scopes` replaces the whole list; a key that could never be a scope is `invalidProperties`. A key
+  for a tab or label that no longer exists is kept and simply never matches. `create` and `destroy`
+  are refused with `singleton`.
+- The state is a hash of the object, not a sequence: there is no `/changes`. Read it again when you
+  open your notification screen and on each sync.
+- The Session's capability carries `scopePrefixes` and `defaultScopes`.
+
+Which scopes one message falls under: the tab the web shows it in when it is in the Inbox
+(`Thread.inboxTab`; `category:primary` for everything in the Inbox when `inboxTabs` is false), plus
+`label:<id>` for each label without a role. Where the inbox has no tabs the Inbox label also counts.
+Sent mail and drafts fall under nothing.
+
 > **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
 > capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `logoMotifs`, `layouts`, `densities`,

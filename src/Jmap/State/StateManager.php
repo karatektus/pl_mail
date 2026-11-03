@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jmap\State;
 
 use App\Entity\User\User;
-use App\Domain\Enum\Mail\MessageCategory;
 use App\Jmap\Protocol\Exception\MethodException;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -34,33 +33,25 @@ final class StateManager
     private array $dirty = [];
 
     /**
-     * Accounts on which mail ARRIVED since the last drain, keyed by account id
-     * so a batch of a hundred messages is one entry.
+     * Mail that ARRIVED since the last drain: account id => notification scope
+     * => true, so a batch of a hundred messages is one entry per account and
+     * scope.
      *
      * A separate buffer rather than a flag on $dirty, because an Email being
      * CREATED is not the same question as mail ARRIVING: drafts, sent copies
      * and imported history are creates too. $dirty answers "did anything
-     * change" for every JMAP client; this answers "is there new mail" for the
-     * one device that is only interested in that. Keeping them apart is what
-     * lets that device be told less without any other client being told less.
+     * change" for every JMAP client; this answers "is there new mail worth a
+     * notification" for the one device that is only interested in that.
+     * Keeping them apart is what lets that device be told less without any
+     * other client being told less.
      *
-     * @var array<int,bool>
-     */
-    private array $arrivals = [];
-
-    /**
-     * What KIND of mail arrived, per account: accountId => category value => true.
-     *
-     * Read by the users who asked to be notified for some categories only
-     * (User::$pushCategories). Mostly a subset of $arrivals: held mail is in
-     * $arrivals and not here, because nobody knows its tab yet. The exception
-     * is mail released from a hold, which is here and NOT in $arrivals,
-     * because everybody else was told when it arrived. See
-     * recordReleasedArrival().
+     * The scopes (NotifyScope) are kept rather than a bare "something arrived"
+     * because the answer depends on whose device it is: the dispatcher sends
+     * the push only to a user who has one of them switched on (#369).
      *
      * @var array<int,array<string,true>>
      */
-    private array $categorisedArrivals = [];
+    private array $arrivals = [];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -128,68 +119,40 @@ final class StateManager
     }
 
     /**
-     * Record that mail arrived in this account's Inbox. Idempotent per account
-     * within one drain. Writes no change-log row: the Email's own create is
-     * recorded separately, by the same caller.
+     * Record that mail arrived, under the notification scopes it falls under
+     * (NotifyScopes::forMessage()). Idempotent per account and scope within
+     * one drain. Writes no change-log row: the Email's own create is recorded
+     * separately, by the same caller.
      *
      * Callers must be sure the message is genuinely new mail, not merely a
-     * created Email. See PostIngestPipeline, the one place that decides.
+     * created Email. See PostIngestPipeline and HeldMailReleaser, the two
+     * places that decide.
+     *
+     * @param list<string> $scopes
      */
-    public function recordArrival(int $accountId, ?MessageCategory $category = MessageCategory::Primary): void
+    public function recordArrival(int $accountId, array $scopes): void
     {
-        $this->arrivals[$accountId] = true;
-
-        if (null !== $category) {
-            $this->categorisedArrivals[$accountId][$category->value] = true;
+        foreach ($scopes as $scope) {
+            $this->arrivals[$accountId][$scope] = true;
         }
     }
 
     /**
-     * Mail the assistant has just put into a tab, which was held back when it
-     * arrived.
+     * The scopes mail arrived under since the last drain, per account,
+     * emptying that buffer. Independent of drainDirty(): draining one leaves
+     * the other.
      *
-     * Not an arrival for everybody: it was announced when it came in, before
-     * anybody knew which tab it belonged in. It is one for a user who chose
-     * categories, who was deliberately told nothing then.
-     */
-    public function recordReleasedArrival(int $accountId, MessageCategory $category): void
-    {
-        $this->categorisedArrivals[$accountId][$category->value] = true;
-    }
-
-    /**
-     * The accounts on which mail arrived since the last drain, emptying that
-     * buffer. Independent of drainDirty(): draining one leaves the other.
-     *
-     * @return list<int>
+     * @return array<int,list<string>>
      */
     public function drainArrivals(): array
     {
-        $arrived = array_map('intval', array_keys($this->arrivals));
-
-        $this->arrivals = [];
-
-        return array_values($arrived);
-    }
-
-    /**
-     * The categories mail arrived in since the last drain, per account,
-     * emptying that buffer. See $categorisedArrivals.
-     *
-     * @return array<int,list<MessageCategory>>
-     */
-    public function drainArrivalCategories(): array
-    {
         $byAccount = [];
 
-        foreach ($this->categorisedArrivals as $accountId => $categories) {
-            $byAccount[(int) $accountId] = array_map(
-                static fn (string $value): MessageCategory => MessageCategory::from($value),
-                array_keys($categories),
-            );
+        foreach ($this->arrivals as $accountId => $scopes) {
+            $byAccount[(int) $accountId] = array_map('strval', array_keys($scopes));
         }
 
-        $this->categorisedArrivals = [];
+        $this->arrivals = [];
 
         return $byAccount;
     }
