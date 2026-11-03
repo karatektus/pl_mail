@@ -31,6 +31,12 @@ use WeakReference;
  * network drops — which all of this code already expects — and Messenger puts
  * the message back on its retry ladder, behind whatever was waiting.
  *
+ * Except a sync of new mail, which asks hasExpired() and lets the failure go
+ * instead (#418). An import page has nothing but the ladder to bring it back;
+ * a sync has the account's poll and the folder's next IDLE notice, and five
+ * more tries of five minutes each were five more waits for every other
+ * account on the queue.
+ *
  * ── Why close the socket, rather than throw from the alarm ─────────────────
  * A signal handler runs between any two statements of whatever was executing.
  * An exception thrown from there would surface in the middle of a Doctrine
@@ -73,6 +79,9 @@ final class ImapDeadline implements ResetInterface
     private int $depth = 0;
 
     private bool $installed = false;
+
+    /** Whether the alarm closed anything while the current message was handled. */
+    private bool $expired = false;
 
     public function __construct(
         private readonly LoggerInterface $logger,
@@ -127,6 +136,7 @@ final class ImapDeadline implements ResetInterface
 
         // Only what is opened from here on belongs to this message.
         $this->sessions = [];
+        $this->expired  = false;
 
         pcntl_alarm($this->seconds);
     }
@@ -177,6 +187,8 @@ final class ImapDeadline implements ResetInterface
         $this->sessions = [];
 
         if ($closed > 0) {
+            $this->expired = true;
+
             $this->logger->warning('An IMAP conversation outlasted its deadline and was closed', [
                 'seconds'     => $this->seconds,
                 'connections' => $closed,
@@ -186,8 +198,18 @@ final class ImapDeadline implements ResetInterface
         return $closed;
     }
 
+    /**
+     * Whether the message in hand failed because this cut it off, rather than
+     * because the server or the network did.
+     */
+    public function hasExpired(): bool
+    {
+        return $this->expired;
+    }
+
     public function reset(): void
     {
         $this->sessions = [];
+        $this->expired  = false;
     }
 }
