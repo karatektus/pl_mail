@@ -11,6 +11,10 @@ controller's own switch is in, so the two can be read side by side.
 
 `kbd` because that is what these are. "then" is a word and not an arrow: `g`
 followed by `i` is two presses, and a "+" would say they are held together.
+
+↓ and ↑ stand beside `j` and `k` in the list group and not in the
+conversation one: in an open conversation they scroll it (#469). They are
+handled before the controller's switch rather than in it — see #arrow() there.
 #}
 {% set then = 'shortcuts.then'|trans %}
 {% set or = 'shortcuts.or'|trans %}
@@ -28,8 +32,8 @@ followed by `i` is two presses, and a "+" would say they are held together.
         [['?'], 'shortcuts.keys.help'],
     ] },
     { title: 'shortcuts.groups.list', rows: [
-        [['j'], 'shortcuts.keys.next'],
-        [['k'], 'shortcuts.keys.previous'],
+        [['j', or, '↓'], 'shortcuts.keys.next'],
+        [['k', or, '↑'], 'shortcuts.keys.previous'],
         [['o', or, 'Enter'], 'shortcuts.keys.open'],
         [['x'], 'shortcuts.keys.select'],
         [['*', then, 'a'], 'shortcuts.keys.select_all'],

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bfa8370895bd295821b9a383b1b2e258cf4c1a07 -->
+<!-- translated-from: features/mail.md sha1:074134058250b79d3285f2896cba4bddefe616e2 -->
 
 # Mail
 
@@ -828,6 +828,7 @@ kennen:
 | Taste | Wirkung |
 |---|---|
 | `j` / `k` | In einer Liste nach unten und nach oben. Ist eine Unterhaltung geöffnet: die nächste oder vorherige öffnen. |
+| `↓` / `↑` | Ebenfalls in einer Liste nach unten und nach oben, aber nur, solange die Liste die Tastatur hat: Eine Zeile ist per Klick oder `Tab` hervorgehoben, oder sonst ist nichts geöffnet. In einer geöffneten Unterhaltung scrollen sie diese, wie überall sonst auch. |
 | `o` oder `Enter` | Die hervorgehobene Unterhaltung öffnen. `u` führt zurück zur Liste. |
 | `x` | Die hervorgehobene Unterhaltung auswählen. `*` dann `a` wählt die Seite aus, `*` dann `n` hebt die Auswahl auf. |
 | `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
