@@ -4369,10 +4369,18 @@ settings:
         error_subscribe: 'Th'' browser''s push service gave this device no berth (%error%). In Brave, turn on "Use Google services for push messaging" first.'
         error_worker: 'plMail''s below-decks hand never woke (%error%). Try again, an'' if it keeps happenin'', tell yer quartermaster.'
         heading: Word from the crow's nest
+        inbox: 'Bottles washed ashore'
         ios_hint: >-
             On iPhone and iPad, the lookout only calls once plMail be added to
             the Home Screen: open her in Safari, tap Share, then "Add to Home
             Screen", and allow the callin' from there.
+        labels: 'Flags'
+        notify_for: 'Sound the bell for'
+        notify_for_hint: 'Which bottles ring the bell: a box for each Inbox tab an'' each flag. Holds for all yer browsers an'' the Android app. Tick nothin'' an'' no bottle rings it.'
+        'off': Off
+        'on': On
+        skip_read: 'Only for bottles still unread'
+        skip_read_hint: 'Afore showin'' a notice in yer browser, plMail waits a few seconds an'' checks if the new bottle be still unread. If ye already read or sunk it, say on yer phone, nothing be shown.'
         state_denied: >-
             Barred in yer browser settin's. Allow the lookout to call for this
             site, then try again.

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:e5027294303f3e82e99a18bdee61e1d69b7d9ac3 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:c69fdab5368e19d73831708f1146bbb6b426c72c -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -263,6 +263,33 @@ Konto; jedes Konto antwortet mit derselben Liste.
 Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
 `threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
 werden.
+
+### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
+
+Welche Mail eine Benachrichtigung wert ist, einmal pro **Person** gewählt und nicht pro Gerät:
+dieselben Schalter im Web, in jedem Browser und in deiner App. Die Browser-Pushes filtert der Server
+selbst. Deine App bekommt weiterhin jeden `StateChange` (sie braucht ihn zum Synchronisieren) und
+wendet die Schalter an, bevor sie klingelt.
+
+- **`NotificationSettings/get`** (ohne `accountId`; die Singleton-Id ist `"singleton"`) liefert
+  `{ id, scopes, skipRead }`. `scopes` ist die Liste der Schalter, die **an** sind, immer
+  ausgeschrieben: `["category:primary"]` für jemanden, der nie gewählt hat. Ein Schlüssel ist
+  `category:<eingebaut>`, `tab:c<id>` für einen eigenen Tab (die `InboxTab`-Id nach dem Präfix) oder
+  `label:<labelId>` (`Mailbox.labelId`, damit ein Schalter das Label in jedem Konto abdeckt).
+  `skipRead` ist „Nur bei ungelesener Mail benachrichtigen“ der Browser; eine App, die schon weiß,
+  was gelesen ist, braucht es nicht.
+- **`NotificationSettings/set`** `update: { "singleton": { "scopes": [...], "skipRead": bool } }`.
+  `scopes` ersetzt die ganze Liste; ein Schlüssel, der nie ein Scope sein könnte, ist
+  `invalidProperties`. Ein Schlüssel für einen Tab oder ein Label, das es nicht mehr gibt, bleibt
+  stehen und passt einfach nie. `create` und `destroy` werden mit `singleton` abgelehnt.
+- Der State ist ein Hash des Objekts, keine Folge: Es gibt kein `/changes`. Lies es erneut, wenn du
+  deinen Benachrichtigungs-Bildschirm öffnest, und bei jeder Synchronisierung.
+- Die Capability in der Session trägt `scopePrefixes` und `defaultScopes`.
+
+Unter welche Scopes eine Nachricht fällt: der Tab, in dem das Web sie zeigt, wenn sie im Posteingang
+liegt (`Thread.inboxTab`; `category:primary` für alles im Posteingang, wenn `inboxTabs` false ist),
+dazu `label:<id>` für jedes Label ohne Rolle. Wo der Posteingang keine Tabs hat, zählt auch das
+Posteingangs-Label. Gesendete Mail und Entwürfe fallen unter nichts.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die

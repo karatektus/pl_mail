@@ -6,9 +6,12 @@ namespace App\Tests\Service\Mail;
 
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\DTO\Mail\PostIngestResult;
+use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Interface\PostIngestStepInterface;
 use App\Jmap\State\StateManager;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -19,6 +22,7 @@ use App\Service\Mail\InitialImportState;
 use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\NotifyScopes;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\RawMessageResolver;
@@ -260,7 +264,7 @@ final class PostIngestPipelineTest extends KernelTestCase
         $this->pipeline()->run($this->account, [
             new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
         ]);
-        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'an Inbox arrival is new mail');
+        self::assertSame([(int) $this->account->id => [NotifyScope::PRIMARY]], $state->drainArrivals(), 'an Inbox arrival is new mail');
     }
 
     /**
@@ -287,7 +291,68 @@ final class PostIngestPipelineTest extends KernelTestCase
         $this->pipeline()->run($this->account, [
             new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
         ]);
-        self::assertSame([(int) $this->account->id], $state->drainArrivals(), 'presence: once the import is done, it is');
+        self::assertSame([(int) $this->account->id => [NotifyScope::PRIMARY]], $state->drainArrivals(), 'presence: once the import is done, it is');
+    }
+
+    /**
+     * Which mail notifies is judged on the server (#369), so the pipeline has
+     * to say which switches an arrival falls under: an Inbox arrival Gmail
+     * filed under Promotions is Promotions mail, an ordinary one Primary.
+     */
+    public function testAnArrivalIsRecordedUnderItsTab(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $promotion = $this->seedArrival(ArrivalPlace::Inbox);
+        $promotion->gmailLabelIds = ['INBOX', 'CATEGORY_PROMOTIONS'];
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [new IngestedMessage($promotion, $this->account)]);
+
+        self::assertSame([(int) $this->account->id => ['category:promotions']], $state->drainArrivals(), 'it is filed under Promotions');
+
+        $this->pipeline()->run($this->account, [
+            new IngestedMessage($this->seedArrival(ArrivalPlace::Inbox), $this->account),
+        ]);
+
+        self::assertSame([(int) $this->account->id => [NotifyScope::PRIMARY]], $state->drainArrivals(), 'presence: an ordinary arrival is Primary');
+    }
+
+    /**
+     * Mail that arrives outside the Inbox — a provider's own filter filed it
+     * under Work — is news under its label, and only there: it has no tab. A
+     * sent copy in the same conversation is news to nobody.
+     */
+    public function testMailFiledElsewhereArrivesUnderItsLabelAndASentCopyUnderNothing(): void
+    {
+        $state = self::getContainer()->get(StateManager::class);
+        $state->drainArrivals();
+
+        $this->mailbox->isSyncEnabled = false;
+        $this->em->flush();
+
+        $work = $this->seedLabel('Work');
+
+        $filed = $this->seedArrival(ArrivalPlace::Elsewhere);
+        $filed->addLabel($work);
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [new IngestedMessage($filed, $this->account)]);
+
+        self::assertSame([(int) $this->account->id => ['label:' . $work->id]], $state->drainArrivals(), 'Work mail, and no tab');
+
+        $sent = $this->seedArrival(ArrivalPlace::Elsewhere);
+        $sent->addLabel($work);
+        $sent->addLabel($this->seedLabel('Sent', LabelRole::Sent));
+        $this->em->flush();
+
+        $this->pipeline()->run($this->account, [new IngestedMessage($sent, $this->account)]);
+
+        self::assertSame([], $state->drainArrivals(), 'what you sent is never news to you');
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
@@ -326,10 +391,25 @@ final class PostIngestPipelineTest extends KernelTestCase
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
             $container->get(MailChangeRecorder::class),
+            $container->get(NotifyScopes::class),
             $this->em,
             $container->get(LoggerInterface::class),
             $steps,
         );
+    }
+
+    private function seedLabel(string $name, ?LabelRole $role = null): Label
+    {
+        $label            = new Label();
+        $label->usr       = $this->account->usr;
+        $label->name      = $name;
+        $label->role      = $role;
+        $label->isVisible = true;
+
+        $this->em->persist($label);
+        $this->em->flush();
+
+        return $label;
     }
 
     /** Persisted and flushed, which is the pipeline's stated precondition. */

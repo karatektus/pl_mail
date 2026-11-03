@@ -117,15 +117,37 @@ endpoint provably reaches this user's device.
 Re-subscribing from the same browser replaces its registration rather than piling up dead endpoints
 — browsers rotate the endpoint URL, and plMail keys on an id the browser keeps.
 
-**What it notifies about.** A device registered here is told when mail **arrives in the Inbox** of a
-mailbox that has finished importing, and about nothing else: not reading, starring, archiving or
-moving something, not spam, not a draft or a copy of something you sent, and not mail being
-imported. The notification says only "New mail"; it carries no sender or subject. A message whose
-arrival time plMail cannot work out from its headers is not announced.
+**What it notifies about.** A device registered here is told when new mail arrives that falls under
+one of your notification switches (below), and about nothing else: not reading, starring, archiving
+or moving something, not spam, not a draft or a copy of something you sent, and not mail being
+imported or arriving in a mailbox that is still importing. The notification says only "New mail";
+it carries no sender or subject. A message whose arrival time plMail cannot work out from its
+headers is not announced.
 
-Mail counts as new only once your [filters](filters.md) have run. A message a filter marks as read,
-archives, or moves to Trash or Spam is not announced, and neither is mail that was already read when
-plMail fetched it — opened on your phone a moment earlier, say.
+Mail counts as new only once your [filters](filters.md) have run. A message a filter marks as read
+or moves to Trash or Spam is not announced, and one it archives only for a label you ticked (below).
+Neither is mail that was already read when plMail fetched it — opened on your phone a moment
+earlier, say.
+
+**Choosing what notifies.** **Settings → Notifications → Notify for** has a box for each inbox tab
+and one for each of your labels. Until you choose, only **Primary** is ticked, as in Gmail and in
+the Android app. Mail notifies when it lands in a tab you ticked, or carries a label you ticked —
+also when a filter took it out of the Inbox, so "file under Work and archive" still reaches you if
+Work is ticked. If you keep your inbox as one list (no tabs), there is a single **Inbox** box
+instead of the tabs. With nothing ticked, no mail notifies.
+
+The choice is yours, not one device's: it applies to every browser you registered and to the Android
+app, which reads it from plMail. A browser is told only about mail you ticked, because plMail decides
+on the server; the app gets every change (it needs them to stay in sync) and decides with the same
+boxes on the phone. Mail the assistant is still sorting is announced once it has been put in its tab,
+a few seconds late and only once.
+
+**Only notify for unread mail** (off by default) deals with a push that cannot be recalled: with
+notifications on in several browsers, each one says "New mail" even when you read or deleted the
+message on your phone a minute later. A browser with this on waits twenty seconds after the push and
+asks whether mail from the last fifteen minutes that falls under a ticked box is still unread. If
+not, it shows nothing, and it takes down a notification it had shown for earlier mail. Old unread
+mail does not count, and neither does unread mail in a tab or label you did not tick.
 
 Two other kinds of push go to the same devices and are not affected: a reminder from
 [Calendar alerts](calendar-alerts.md), and the notice an administrator gets when a newer plMail is

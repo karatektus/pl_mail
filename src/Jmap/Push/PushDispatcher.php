@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Push;
 
 use App\Entity\User\PushSubscription;
+use App\Entity\User\User;
 use App\Jmap\Protocol\StateChangeBuilder;
 use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\User\UserRepository;
@@ -44,16 +45,15 @@ final class PushDispatcher
     }
 
     /**
-     * @param array<int,array<string,string>> $changed           accountId => type => state
-     * @param list<int>                       $arrivedAccountIds accounts on which mail arrived since the last drain
+     * @param array<int,array<string,string>> $changed  accountId => type => state
+     * @param array<int,list<string>>         $arrivals accountId => the notification scopes mail
+     *                                                  arrived under since the last drain
      */
-    public function dispatch(array $changed, array $arrivedAccountIds): void
+    public function dispatch(array $changed, array $arrivals): void
     {
         if (0 === count($changed) || false === $this->senders->anyConfigured()) {
             return;
         }
-
-        $arrived = array_map('intval', $arrivedAccountIds);
 
         foreach ($this->groupByUser($changed) as $userId => $userChanges) {
             $deliverable = $this->subscriptions->findDeliverableForUser($userId);
@@ -73,7 +73,14 @@ final class PushDispatcher
                 // Judged per user, not per change: a StateChange for this user's
                 // own mail is what the PWA is waiting for, and another user's
                 // arrival says nothing about it.
-                if (true === $subscription->arrivalsOnly && false === $this->anyArrived($userChanges, $arrived)) {
+                //
+                // And judged by what this user asked to hear about (#369): mail
+                // arrived under one of the switches they have on — a tab, a
+                // label — or the browser is not woken at all. The phone apps
+                // are not arrivals-only rows: their pushes also drive their
+                // sync, so they get every StateChange and apply the same
+                // switches themselves (NotificationSettings/get).
+                if (true === $subscription->arrivalsOnly && false === $this->arrivalIsWanted($subscription->usr, $userChanges, $arrivals)) {
                     continue;
                 }
 
@@ -119,13 +126,15 @@ final class PushDispatcher
 
     /**
      * @param array<string,array<string,string>> $userChanges accountId => type => state, for one user
-     * @param list<int>                          $arrived     accounts on which mail arrived
+     * @param array<int,list<string>>            $arrivals    accountId => scopes mail arrived under
      */
-    private function anyArrived(array $userChanges, array $arrived): bool
+    private function arrivalIsWanted(User $user, array $userChanges, array $arrivals): bool
     {
         foreach (array_keys($userChanges) as $accountId) {
-            if (true === in_array((int) $accountId, $arrived, true)) {
-                return true;
+            foreach ($arrivals[(int) $accountId] ?? [] as $scope) {
+                if (true === $user->notifiesFor($scope)) {
+                    return true;
+                }
             }
         }
 

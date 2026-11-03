@@ -18,6 +18,7 @@ use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\InitialImportState;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
+use App\Service\Mail\NotifyScopes;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\RawMessageResolver;
@@ -189,6 +190,7 @@ final class RuleSpamReplyTest extends KernelTestCase
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
             $container->get(MailChangeRecorder::class),
+            $container->get(NotifyScopes::class),
             $this->em,
             $container->get(LoggerInterface::class),
             [],

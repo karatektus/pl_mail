@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:7572727e02295e1e0c6cb23f8c03ef55a4df9326 -->
+<!-- translated-from: features/clients.md sha1:23ed96492efacd6f213489e63de7c8aaca465619 -->
 
 # Andere Clients
 
@@ -129,17 +129,40 @@ Sich aus demselben Browser erneut anzumelden ersetzt dessen Registrierung, statt
 anzuhäufen — Browser rotieren die Endpunkt-URL, und plMail schlüsselt nach einer Id, die der
 Browser behält.
 
-**Worüber es benachrichtigt.** Ein hier registriertes Gerät erfährt, wenn Post **im Posteingang**
-eines Postfachs **eintrifft**, dessen Import abgeschlossen ist, und sonst von nichts: nicht vom
+**Worüber es benachrichtigt.** Ein hier registriertes Gerät erfährt, wenn neue Post eintrifft, die
+unter einen deiner Benachrichtigungs-Schalter fällt (siehe unten), und sonst von nichts: nicht vom
 Lesen, Markieren, Archivieren oder Verschieben, nicht von Spam, nicht von einem Entwurf oder einer
-Kopie von etwas, das du gesendet hast, und nicht von Post, die gerade importiert wird. Die
-Benachrichtigung sagt nur „New mail“; Absender und Betreff trägt sie nicht. Eine Nachricht, deren
-Ankunftszeit plMail aus ihren Headern nicht ermitteln kann, wird nicht gemeldet.
+Kopie von etwas, das du gesendet hast, und nicht von Post, die importiert wird oder in einem Postfach
+ankommt, dessen Import noch läuft. Die Benachrichtigung sagt nur „New mail“; Absender und Betreff
+trägt sie nicht. Eine Nachricht, deren Ankunftszeit plMail aus ihren Headern nicht ermitteln kann,
+wird nicht gemeldet.
 
 Als neu gilt Post erst, nachdem deine [Filter](filters.md) gelaufen sind. Eine Nachricht, die ein
-Filter als gelesen markiert, archiviert oder in den Papierkorb oder Spam verschiebt, wird nicht
-gemeldet, ebenso wenig Post, die beim Abruf durch plMail schon gelesen war — etwa kurz vorher auf
-dem Handy geöffnet.
+Filter als gelesen markiert oder in den Papierkorb oder Spam verschiebt, wird nicht gemeldet, und
+eine, die er archiviert, nur für ein angehaktes Label (siehe unten). Ebenso wenig Post, die beim
+Abruf durch plMail schon gelesen war — etwa kurz vorher auf dem Handy geöffnet.
+
+**Was benachrichtigt.** **Einstellungen → Benachrichtigungen → Benachrichtigen bei** hat ein
+Kästchen für jeden Tab des Posteingangs und eines für jedes deiner Labels. Bis du wählst, ist nur
+**Allgemein** angehakt, wie in Gmail und in der Android-App. Post benachrichtigt, wenn sie in einem
+angehakten Tab landet oder ein angehaktes Label trägt — auch wenn ein Filter sie aus dem Posteingang
+genommen hat; „unter Arbeit ablegen und archivieren“ erreicht dich also, wenn Arbeit angehakt ist.
+Führst du deinen Posteingang als eine Liste (ohne Tabs), gibt es statt der Tabs ein einziges
+Kästchen **Posteingang**. Ist nichts angehakt, benachrichtigt keine Post.
+
+Die Wahl gehört dir, nicht einem Gerät: Sie gilt für jeden Browser, den du registriert hast, und für
+die Android-App, die sie bei plMail abruft. Ein Browser erfährt nur von angehakter Post, weil plMail
+auf dem Server entscheidet; die App bekommt jede Änderung (sie braucht sie, um synchron zu bleiben)
+und entscheidet mit denselben Kästchen auf dem Handy. Post, die der Assistent noch einsortiert, wird
+gemeldet, sobald sie in ihrem Tab liegt — ein paar Sekunden später und nur einmal.
+
+**Nur bei ungelesener Mail benachrichtigen** (standardmäßig aus) begegnet einem Push, der sich nicht
+zurückrufen lässt: Sind die Benachrichtigungen in mehreren Browsern an, meldet jeder „New mail“, auch
+wenn du die Nachricht eine Minute später auf dem Handy gelesen oder gelöscht hast. Ein Browser mit
+dieser Option wartet nach dem Push zwanzig Sekunden und fragt, ob Post aus den letzten fünfzehn
+Minuten, die unter ein angehaktes Kästchen fällt, noch ungelesen ist. Wenn nicht, zeigt er nichts an
+und nimmt eine Benachrichtigung zurück, die er für frühere Post gezeigt hatte. Alte ungelesene Post
+zählt nicht, ebenso wenig ungelesene Post in einem Tab oder Label, das du nicht angehakt hast.
 
 Zwei andere Arten von Push gehen an dieselben Geräte und sind nicht betroffen: eine Erinnerung aus
 den [Kalender-Erinnerungen](calendar-alerts.md) und der Hinweis, den ein Administrator bekommt, wenn

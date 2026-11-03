@@ -3610,6 +3610,43 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Unread mail stored since $since in this user's active accounts — what
+     * NotifyScopes::hasRecentUnread() sorts into switches.
+     *
+     * By when plMail STORED it (createdAt), not by the date it carries: the
+     * question is about mail a push has just announced, and a message stamped
+     * by a sender's slow clock arrived just now all the same. createdAt has no
+     * index, though, so the date it carries narrows the search first, through
+     * idx_message_account_received_at, with a day of slack for that slow
+     * clock. A message dated more than a day before it arrived is missed, and
+     * the cost of that is one notification not shown.
+     *
+     * Bounded on purpose. The answer is "is there at least one", so a few
+     * dozen candidates are plenty. Labels are not fetch-joined for the same
+     * reason: a LIMIT over a joined collection limits rows, not messages.
+     *
+     * @return list<Message>
+     */
+    public function findRecentUnreadForUser(User $user, DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->join('m.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('m.seenAt IS NULL')
+            ->andWhere('m.receivedAt >= :dated')
+            ->andWhere('m.createdAt >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('dated', $since->modify('-1 day'))
+            ->setParameter('since', $since)
+            ->orderBy('m.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * How long holding mail for the assistant has actually delayed it.
      *
      * The number Admin → AI puts beside the switch, so that "is the wait worth

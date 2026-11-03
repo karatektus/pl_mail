@@ -81,10 +81,16 @@ final readonly class MailChangeRecorder
      *
      * Recorded by the caller in addition to emailChanged(created: true), never
      * instead of it: the Email still changed for everybody else.
+     *
+     * $scopes are the notification switches the mail falls under
+     * (NotifyScopes::forMessage()); a device is told only when its user has
+     * one of them on.
+     *
+     * @param list<string> $scopes
      */
-    public function mailArrived(int $accountId): void
+    public function mailArrived(int $accountId, array $scopes): void
     {
-        $this->stateManager->recordArrival($accountId);
+        $this->stateManager->recordArrival($accountId, $scopes);
     }
 
     /**

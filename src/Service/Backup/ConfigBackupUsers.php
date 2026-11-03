@@ -222,6 +222,14 @@ final readonly class ConfigBackupUsers
         // what senders may learn of one's reading, so a restore must not
         // quietly undo it in either direction. A boolean, no id.
         User::SETTING_IMAGES_ALWAYS_SHOW,
+        // Which tabs and labels notify, and whether a browser skips mail
+        // already read (#369). Choices about how one wants to be interrupted,
+        // which a restore must not quietly undo: back to Primary alone is
+        // exactly what somebody who chose more did not want. The scopes name
+        // tab and label ids, which mean nothing on another install; a key
+        // that names nothing there is harmless and simply never matches.
+        User::SETTING_NOTIFY_SCOPES,
+        User::SETTING_NOTIFY_SKIP_READ,
         // Whether an account's own inbox has the category tabs. How the
         // mailbox is drawn, like the reading pane above; a boolean, no id.
         User::SETTING_ACCOUNT_INBOX_TABS,

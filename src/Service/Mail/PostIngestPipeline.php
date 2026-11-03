@@ -53,6 +53,7 @@ final readonly class PostIngestPipeline
         private MessageThreader        $messageThreader,
         private MailRuleEngine         $ruleEngine,
         private MailChangeRecorder     $changes,
+        private NotifyScopes           $notifyScopes,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
         #[AutowireIterator('app.post_ingest_step')]
@@ -144,7 +145,12 @@ final readonly class PostIngestPipeline
             // PWA's "new mail" push reads (see StateManager::recordArrival()),
             // and a rule may still read, archive or trash the message, so the
             // verdict is given after the rules have run.
-            if (true === $live && ArrivalPlace::Inbox === $message->arrivedIn) {
+            //
+            // Elsewhere too, for its labels alone: mail a provider's own filter
+            // filed under Work without the Inbox is what a Work switch is for
+            // (#369). It is news only to somebody who switched that label on,
+            // and a sent copy is never news — see NotifyScopes::forMessage().
+            if (true === $live && (ArrivalPlace::Inbox === $message->arrivedIn || ArrivalPlace::Elsewhere === $message->arrivedIn)) {
                 $arrivals[] = [$message, $message->isInInbox()];
             }
 
@@ -199,11 +205,26 @@ final readonly class PostIngestPipeline
         // otherwise never count as arriving at all. Only a label a rule took
         // away is evidence that it left.
         foreach ($arrivals as [$arrived, $wasInInbox]) {
+            if (null !== $arrived->seenAt || true === $arrived->isSetAside()) {
+                continue;
+            }
+
             $leftInbox = true === $wasInInbox && false === $arrived->isInInbox();
 
-            if (null === $arrived->seenAt && false === $leftInbox && false === $arrived->isSetAside()) {
-                $this->changes->mailArrived((int) $arrived->account->id);
-            }
+            // Under the switches it falls under (#369): the tab it is in, and
+            // its labels. A message a rule took out of the Inbox keeps its
+            // labels, so "file under Work and archive" still reaches somebody
+            // who switched Work on. Mail held for the assistant falls under
+            // nothing yet, because its tab is not known, and is announced when
+            // the hold ends instead (HeldMailReleaser) — a few seconds late,
+            // and once, in the tab it ends up in.
+            $this->changes->mailArrived(
+                (int) $arrived->account->id,
+                $this->notifyScopes->forMessage(
+                    $arrived,
+                    inInbox: ArrivalPlace::Inbox === $arrived->arrivedIn && false === $leftInbox,
+                ),
+            );
         }
 
         // AFTER THE RULES, because a rule is what files a message as spam, and

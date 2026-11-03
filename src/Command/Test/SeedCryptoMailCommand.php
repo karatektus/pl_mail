@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
+use App\Domain\DTO\Push\NotifyScope;
 use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -171,7 +172,8 @@ final class SeedCryptoMailCommand extends Command
         // After the flush that minted the ids, and riding out on the next one,
         // as MailChangeRecorder asks.
         $this->changes->emailChanged((int) $account->id, (string) $message->id, true, $thread);
-        $this->changes->mailArrived((int) $account->id);
+        // Seeded mail is Inbox mail, so it is Primary's for the push.
+        $this->changes->mailArrived((int) $account->id, [NotifyScope::PRIMARY]);
 
         $this->raw->store($message, $raw);
         $this->entityManager->flush();

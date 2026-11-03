@@ -24,6 +24,7 @@ use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Mail\InboxTabs;
+use App\Service\Mail\NotifyScopes;
 use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\PushSubscriptionRepository;
@@ -113,6 +114,7 @@ final class SettingsController extends AbstractController
         private readonly AiAssistant $ai,
         private readonly LabelResolver $labelResolver,
         private readonly TemplateLibrary $templateLibrary,
+        private readonly NotifyScopes $notifyScopes,
     ) {
     }
 
@@ -174,6 +176,11 @@ final class SettingsController extends AbstractController
             'categoryTabs'       => 'categories' === $section && $user instanceof User
                 ? $this->inboxTabs->managedFor($user)
                 : [],
+            // The notification switches, for the same reason only where they
+            // are drawn: the tabs and the labels, each a read (#369).
+            'notifySwitches'     => 'notifications' === $section && $user instanceof User
+                ? $this->notifyScopes->offeredTo($user)
+                : ['inbox' => [], 'labels' => []],
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
             // A refused profile save forwards here with its form, so the page
