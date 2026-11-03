@@ -28,6 +28,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
         private LoggerInterface       $logger,
         private EntityManagerInterface $em,
         private ManagerRegistry       $registry,
+        private ImapDeadline          $deadline,
     ) {}
 
     public function supports(Account $account): bool
@@ -95,6 +96,18 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                     continue;
                 }
 
+                // A connection an earlier folder lost is replaced, not reused.
+                // Every later folder failed on it at once, each logged as its
+                // own failure. A new session also starts with nothing
+                // selected, so it SELECTs before its first UID command: the
+                // library before v0.4.1 reconnected underneath the sync and
+                // went on as if the old folder were still selected, which the
+                // server answered with `BAD UID SEARCH not allowed now` (#418).
+                if (false === $session->connection->isOpen()) {
+                    $session->logout();
+                    $session = $this->connector->session($mailbox->account);
+                }
+
                 try {
                     $this->messageSyncer->syncMailbox($mailbox, $session);
                     $syncedMailboxIds[] = $mailboxId;
@@ -122,6 +135,14 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                         $this->registry->resetManager();
                     } else {
                         $this->em->clear();
+                    }
+
+                    // Except a cut by the deadline, which ends the walk: the
+                    // message's time is up, a connection opened after the
+                    // alarm would be watched by nothing, and the account must
+                    // not be recorded as synced when it was not (#418).
+                    if (true === $this->deadline->hasExpired()) {
+                        throw $e;
                     }
                 }
             }
