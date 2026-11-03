@@ -3451,6 +3451,7 @@ settings:
         fact:
             granted_at: '登录时间'
             last_full_resync: '重新列出整个邮箱（%count% 次）'
+            last_synced: '最近一次成功同步'
             never: '从未'
             never_delivered: '从未收到通知'
             never_run: '无运行记录'
@@ -3459,6 +3460,8 @@ settings:
             push_expires: '注册到期时间'
             push_last_delivered: '上次收到通知'
             push_last_renewal: '上次运行续期'
+            sync_began: '最近一次开始同步'
+            sync_requested: '最近一次计划请求的同步'
         flash:
             calendar_resync: '已请求同步 %calendar%。同步正在后台运行，下方卡片会显示结果。'
             push_repair_failed: '无法为 %account% 重新注册即时收取。仍会定时检查，因此邮件会继续到达。下方卡片显示已知信息。'
@@ -3493,6 +3496,9 @@ settings:
             account_scope_missing:
                 body: '连接此账户时，plMail 请求的部分权限未获授权，因此相关功能无法使用。日历可能无法同步；你在此处执行的标为已读、归档、加星标等更改可能会在界面上生效，却被服务商拒绝，并在下次同步时撤销。请重新连接账户，并允许请求的所有权限。'
                 title: '%account% 未获完整访问权限'
+            account_sync_behind:
+                body: '此账户已有超出其同步间隔所能解释的时间没有成功同步，但也没有足够多的失败记录说明原因，因此新邮件可能仍停留在你的邮件服务商处。连接本身可能完全正常：plMail 请求的同步正在队列中排在其他任务后面，或者已经开始却没有完成。下面的时间可以区分这两种情况：如果最近一次请求同步晚于最近一次开始同步，说明同步仍在排队。通常它会自行赶上；如果没有，请检查服务器的后台 worker。'
+                title: '%account% 的新邮件同步滞后'
             account_sync_failing:
                 body: '连续多次同步失败，此账户无法收到新邮件，依赖收信运行的过滤器和未读计数也已停止更新。已有邮件安全保留，没有变化。登录正常，因此问题在于邮件服务器拒绝连接或无法访问：请检查服务器是否在线，以及主机、端口或密码是否发生变化。'
                 title: '%account% 持续同步失败'

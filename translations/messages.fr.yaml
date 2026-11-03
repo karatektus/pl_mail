@@ -3948,6 +3948,7 @@ settings:
         fact:
             granted_at: 'Connecté le'
             last_full_resync: 'Toute la boîte relistée (%count%×)'
+            last_synced: 'Dernière synchronisation réussie'
             never: 'jamais'
             never_delivered: 'rien n’est jamais arrivé'
             never_run: 'aucune exécution enregistrée'
@@ -3956,6 +3957,8 @@ settings:
             push_expires: 'L’enregistrement expire'
             push_last_delivered: 'Dernière notification reçue'
             push_last_renewal: 'Dernier renouvellement'
+            sync_began: 'Dernière synchronisation démarrée'
+            sync_requested: 'Dernière synchronisation demandée par le planning'
         flash:
             calendar_resync: >-
                 La synchronisation de %calendar% a été demandée. Elle tourne
@@ -4044,6 +4047,21 @@ settings:
                     et annulés par la synchronisation suivante. Connectez à nouveau le
                     compte et autorisez tout ce qui vous est demandé.
                 title: '%account% n’a pas reçu un accès complet'
+            account_sync_behind:
+                body: >-
+                    Aucune synchronisation de ce compte n’a abouti depuis plus
+                    longtemps que son intervalle ne l’explique, sans que rien
+                    n’ait échoué assez souvent pour dire pourquoi : du nouveau
+                    courrier attend peut-être chez votre fournisseur. La
+                    connexion peut très bien fonctionner pendant ce temps : les
+                    synchronisations demandées par plMail attendent dans la file
+                    derrière d’autres tâches, ou démarrent sans aboutir. Les
+                    dates ci-dessous disent laquelle : une synchronisation
+                    demandée après le début de la dernière attend encore son
+                    tour. Le compte rattrape généralement son retard tout seul ;
+                    sinon, regardez du côté des workers en arrière-plan du
+                    serveur.
+                title: '%account% est en retard sur le nouveau courrier'
             account_sync_failing:
                 body: >-
                     Plusieurs tentatives d’affilée ont échoué : le nouveau courrier

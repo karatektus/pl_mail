@@ -12,6 +12,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Imap\ImapDeadline;
 use App\Service\Mail\MailImporter;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
@@ -40,6 +41,7 @@ final readonly class SyncAccountMessageHandler
         private SyncOrigin          $origin,
         private MailImporter        $importer,
         private MessageBusInterface $bus,
+        private ImapDeadline        $deadline,
     ) {}
 
     public function __invoke(SyncAccountMessage $message): void
@@ -174,6 +176,20 @@ final readonly class SyncAccountMessageHandler
             // Reloaded first because a syncer clears the EntityManager mid-run,
             // so the instance above may be detached by the time it throws.
             $this->recordFailure($message->accountId, $failure);
+
+            // Except when the IMAP deadline cut it off. Recorded all the same,
+            // so the account says its sync is failing, but not retried: five
+            // more tries of up to five minutes each held every other account's
+            // mail behind this one, and the poll asks again within minutes
+            // anyway (#418). Only IMAP and POP3 connections are ever cut, so
+            // this is never true for an API account.
+            if (true === $this->deadline->hasExpired()) {
+                $this->logger->info('Sync cut off by the IMAP deadline, not retried', [
+                    'accountId' => $message->accountId,
+                ]);
+
+                return;
+            }
 
             throw $failure;
         }

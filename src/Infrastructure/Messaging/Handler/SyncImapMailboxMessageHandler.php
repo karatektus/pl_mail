@@ -8,6 +8,8 @@ use App\Entity\Mail\Mailbox;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\ImapConnector;
+use App\Service\Imap\ImapDeadline;
+use App\Service\Imap\MailboxSyncQueue;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
@@ -33,6 +35,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * symptom is bandwidth rather than an error, so nobody would find out from a
  * log. Refusing at the handler makes the cost of a duplicate a lookup rather
  * than a folder listing, whoever queued it.
+ *
+ * It only sees syncs that WORKED, though: syncedAt is written on success. A
+ * folder whose syncs ran into the deadline never wrote it, so every queued
+ * duplicate went through and spent its five minutes (#418). MailboxSyncQueue
+ * is what stops those now, by not letting them be queued in the first place,
+ * and a sync the deadline cut off is not retried — see handle().
  */
 #[AsMessageHandler]
 final readonly class SyncImapMailboxMessageHandler
@@ -60,6 +68,8 @@ final readonly class SyncImapMailboxMessageHandler
         private SyncNotifier          $syncNotifier,
         private LoggerInterface       $logger,
         private SyncOrigin            $origin,
+        private MailboxSyncQueue      $syncQueue,
+        private ImapDeadline          $deadline,
     ) {}
 
     public function __invoke(SyncImapMailboxMessage $message): void
@@ -71,6 +81,10 @@ final readonly class SyncImapMailboxMessageHandler
 
     private function handle(SyncImapMailboxMessage $message): void
     {
+        // First, before anything can return or throw: from here on a change
+        // in the folder is not covered by this sync, and must queue its own.
+        $this->syncQueue->taken($message->mailboxId);
+
         $mailbox = $this->mailboxRepository->find($message->mailboxId);
 
         if (null === $mailbox) {
@@ -95,6 +109,22 @@ final readonly class SyncImapMailboxMessageHandler
 
         try {
             $this->messageSyncer->syncMailbox($mailbox, $session);
+        } catch (\Throwable $failure) {
+            // Cut off by the deadline: let it go rather than retry it. Each
+            // retry would be another five minutes with every other account's
+            // mail waiting behind it, and the folder's next IDLE notice or the
+            // account's poll asks for this sync again anyway (#418).
+            // ImapDeadline has already logged the cut as a warning.
+            if (true === $this->deadline->hasExpired()) {
+                $this->logger->info('Mailbox sync cut off by the IMAP deadline, not retried', [
+                    'mailboxId' => $message->mailboxId,
+                    'error'     => $failure->getMessage(),
+                ]);
+
+                return;
+            }
+
+            throw $failure;
         } finally {
             $session->logout();
         }

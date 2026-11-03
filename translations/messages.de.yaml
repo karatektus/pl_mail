@@ -3889,6 +3889,7 @@ settings:
         fact:
             granted_at: 'Angemeldet am'
             last_full_resync: 'Postfach komplett neu gelistet (%count%×)'
+            last_synced: 'Letzter erfolgreicher Abgleich'
             never: 'nie'
             never_delivered: 'es kam noch nie etwas an'
             never_run: 'kein Lauf aufgezeichnet'
@@ -3897,6 +3898,8 @@ settings:
             push_expires: 'Registrierung läuft ab'
             push_last_delivered: 'Letzte Benachrichtigung erhalten'
             push_last_renewal: 'Erneuerung lief zuletzt'
+            sync_began: 'Letzter Abgleich gestartet'
+            sync_requested: 'Letzter planmäßig angeforderter Abgleich'
         flash:
             calendar_resync: >-
                 %calendar% wurde zur Synchronisierung angemeldet. Sie läuft
@@ -3989,6 +3992,21 @@ settings:
                     zurückgesetzt. Verbinde das Konto neu und erlaube alles,
                     wonach du gefragt wirst.
                 title: '%account% hat nicht alle Rechte bekommen'
+            account_sync_behind:
+                body: >-
+                    Seit längerer Zeit, als das Sync-Intervall dieses Kontos
+                    erklärt, ist kein Abgleich mehr durchgelaufen, ohne dass
+                    etwas oft genug fehlgeschlagen wäre, um den Grund zu nennen.
+                    Neue Mail wartet also womöglich noch bei deinem Anbieter.
+                    Die Verbindung kann dabei in Ordnung sein: Die Abgleiche,
+                    die plMail angefordert hat, warten in der Warteschlange
+                    hinter anderer Arbeit, oder sie starten und werden nicht
+                    fertig. Die Daten unten zeigen, was davon: Ein Abgleich, der
+                    nach dem Start des letzten angefordert wurde, wartet noch,
+                    bis er dran ist. Meist holt das Konto von selbst auf; wenn
+                    nicht, lohnt ein Blick auf die Hintergrund-Worker des
+                    Servers.
+                title: '%account% hängt bei neuer Mail hinterher'
             account_sync_failing:
                 body: >-
                     Mehrere Versuche hintereinander sind fehlgeschlagen — für

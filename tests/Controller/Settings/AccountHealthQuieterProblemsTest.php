@@ -601,6 +601,62 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    // ── mail that is late ───────────────────────────────────────────────────
+
+    /**
+     * #418: an account whose syncs sat on the queue all night looked healthy —
+     * connected, nothing failed. Late mail with no error behind it is said.
+     */
+    public function testAnAccountWithNoSyncForThreeIntervalsIsReportedAsBehind(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'behind@joder.dev');
+
+        $account->syncIntervalMinutes = 15;
+        $account->lastSyncedAt        = new DateTimeImmutable('-2 hours');
+        $account->lastPolledAt        = new DateTimeImmutable('-5 minutes');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
+    }
+
+    /** One missed poll is a busy queue, not news. */
+    public function testAnAccountThatSyncedWithinItsIntervalsIsNotBehind(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'current@joder.dev');
+
+        $account->syncIntervalMinutes = 15;
+        $account->lastSyncedAt        = new DateTimeImmutable('-20 minutes');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
+    }
+
+    /** Syncs that keep failing have the card with the reason on it; one card. */
+    public function testAnAccountWhoseSyncsKeepFailingIsNotAlsoReportedAsBehind(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'failing@joder.dev');
+
+        $account->lastSyncedAt     = new DateTimeImmutable('-2 hours');
+        $account->lastSyncError    = 'connection refused';
+        $account->syncFailureCount = 3;
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(1, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-behind-' . $account->id . '"]')->count());
+    }
+
     // ── integrations ─────────────────────────────────────────────────────────
 
     /**

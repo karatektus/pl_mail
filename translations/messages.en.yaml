@@ -3898,6 +3898,7 @@ settings:
         fact:
             granted_at: 'Signed in on'
             last_full_resync: 'Re-listed the whole mailbox (%count%×)'
+            last_synced: 'Last sync that went through'
             never: 'never'
             never_delivered: 'nothing has ever arrived'
             never_run: 'no run recorded'
@@ -3906,6 +3907,8 @@ settings:
             push_expires: 'Registration expires'
             push_last_delivered: 'Last notification received'
             push_last_renewal: 'Renewal last ran'
+            sync_began: 'Last sync started'
+            sync_requested: 'Last sync asked for by the schedule'
         flash:
             calendar_resync: >-
                 %calendar% has been asked to sync. It is running in the
@@ -3989,6 +3992,19 @@ settings:
                     next sync. Connect the account again and allow everything
                     you are asked for.
                 title: '%account% was not given full access'
+            account_sync_behind:
+                body: >-
+                    No sync of this account has gone through for longer than its
+                    sync interval explains, although nothing has failed often
+                    enough to say why, so new mail may be waiting at your
+                    provider. The connection can be fine while this happens: the
+                    syncs plMail asked for are waiting in the queue behind other
+                    work, or are starting and not finishing. The dates below
+                    tell which: a sync asked for after the last one started is
+                    still waiting its turn. It usually catches up on its own; if
+                    it does not, the server's background workers are the place
+                    to look.
+                title: '%account% is behind on new mail'
             account_sync_failing:
                 body: >-
                     Several attempts in a row have failed, so new mail is not
