@@ -31,7 +31,7 @@ use Twig\Markup;
  *
  * THE BRIDGE FROM THREADS TO MESSAGES. `ts_headline` runs over a MESSAGE: the
  * subject and text part it highlights are columns of `message`, and the search
- * vector it agrees with is generated from those same columns. A result page is
+ * vector it agrees with is built from those same columns. A result page is
  * a list of THREADS and spans every account in a unified mailbox, so this walks
  * the rows the page is already holding — ThreadRows has fetched their
  * messages' ids by the time this runs, so the ids cost nothing — groups them by the
@@ -54,9 +54,10 @@ use Twig\Markup;
  * it is HTML pasted in as text. That is why MessageSnippet prefers the rendered
  * body, and none of it is undone here — because this class REPLACES the preview
  * only when the fragment actually contains a hit, and a hit in `body_text` is
- * the literal reason the row is in the list: `search_vector` is generated from
- * subject, from_name, from_address and `body_text`, so the words the search
- * matched on are in that column and nowhere else.
+ * the literal reason the row is in the list: `search_vector` is built from
+ * subject, from_name, from_address and the body — `body_html_text` where it is
+ * set, `body_text` otherwise, which is what findSearchTexts() hands back — so
+ * the words the search matched on are in that body and nowhere else.
  *
  * So the junk cases sort themselves out rather than needing to be recognised.
  * "This email is only available in HTML" does not contain the search term, so

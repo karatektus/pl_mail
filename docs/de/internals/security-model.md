@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:c7f393a3d638a6c6b6f693758f682c20dcaf62f0 -->
+<!-- translated-from: internals/security-model.md sha1:56f4e2cb63f91185c8e870952fdc87691725f0e7 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -1337,8 +1337,8 @@ Umweg über den Server, keine eigene Fehlermeldung je Padding-Fehler.
 **Ein Kontakt-Zertifikat wird nicht erneut gegen die Stellen geprüft.** `verified` ist, was beim
 letzten Sehen galt. Eine Stelle, die später aus dem System verschwindet, macht es nicht unbestätigt.
 
-**Eine Krypto-Art, die erst nach dem ersten Flush gesetzt wird, kommt zu spät.** `search_vector`
-ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon indexiert.
+**Eine Krypto-Art, die erst nach dem ersten Flush gesetzt wird, kommt zu spät.** Ein Trigger baut
+`search_vector` beim INSERT, also hat das INSERT mit dem Chiffrat-Body es schon indexiert.
 `MessageCryptoDetector::seal()` gehört in die Builder, vor `persist()`.
 
 **Wer `_frame_document.html.twig` ändert, ändert beide Wege, und genau so soll es sein.** Das

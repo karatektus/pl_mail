@@ -106,7 +106,10 @@ final class HtmlBodyTextBackfillTest extends KernelTestCase
         );
     }
 
-    /** A message as it was stored before the column: the flush fills it, so it is emptied again. */
+    /**
+     * A message as it was before Version20261105120000: no body_html_text (the
+     * flush fills it, so it is emptied again) and waiting to be indexed.
+     */
     private function legacy(string $text, string $html): int
     {
         $message                 = new Message();
@@ -123,7 +126,7 @@ final class HtmlBodyTextBackfillTest extends KernelTestCase
         $this->em->flush();
 
         $id = (int) $message->id;
-        $this->connection->executeStatement('UPDATE message SET body_html_text = NULL WHERE id = ?', [$id]);
+        $this->connection->executeStatement('UPDATE message SET body_html_text = NULL, search_vector = NULL WHERE id = ?', [$id]);
 
         return $id;
     }

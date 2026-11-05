@@ -201,9 +201,9 @@ class MessageRepository extends ServiceEntityRepository
      * Postgres answer means there is exactly one implementation of what a
      * filter means — an in-memory twin was tried and deleted, because two
      * implementations can drift and the symptom is mail quietly filed in the
-     * wrong place. It also makes `text` usable in rules: search_vector is a
-     * STORED generated column, so full-text works here and could never be
-     * reproduced faithfully in PHP.
+     * wrong place. It also makes `text` usable in rules: search_vector is
+     * built by Postgres as the row is written, so full-text works here and
+     * could never be reproduced faithfully in PHP.
      *
      * The messages must already be flushed — they are, since rules run after
      * the id-granting flush in every sync path.

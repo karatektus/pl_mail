@@ -45,9 +45,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *   • threads of one, a few, and occasionally eighty messages;
  *   • dates spread over years, since almost every list here is ordered by one.
  *
- * `search_vector` is a generated column, so it is built by Postgres as the
- * rows land — inserting through this path exercises the same index maintenance
- * a real sync does.
+ * `search_vector` is built by a trigger as the rows land — inserting through
+ * this path exercises the same index maintenance a real sync does.
  *
  * Raw SQL and one INSERT per chunk, deliberately. The ORM would need an entity,
  * a UnitOfWork slot and a flush per message; at this size that is the

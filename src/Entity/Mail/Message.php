@@ -76,6 +76,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_message_category_held', columns: ['category_held_at'], options: ['where' => "(category_held_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_flags_touched_at', columns: ['flags_touched_at'], options: ['where' => "(flags_touched_at IS NOT NULL)"])]
 #[ORM\Index(name: 'idx_message_unseen_mailbox', columns: ['mailbox_id'], options: ['where' => "(seen_at IS NULL)"])]
+#[ORM\Index(name: 'idx_message_search_vector_pending', columns: ['id'], options: ['where' => '(search_vector IS NULL)'])]
 #[ORM\Index(name: 'idx_message_epoch_ghost', columns: ['id'], options: ['where' => "(received_at < '1971-01-01 00:00:00'::timestamp without time zone)"])]
 // Built `USING gin` with gin_trgm_ops by the migration. Declared plain, the same
 // trick as idx_calendar_event_remote_instances: the comparator matches an index
@@ -340,10 +341,11 @@ class Message extends MessageModel
      * Kept by deriveBodyHtmlText() on every flush that changed a body, so no
      * builder can forget it: there are five of them (IMAP, Gmail, Graph, JMAP
      * import, decrypted mail) and the lazy body loads besides. Mail stored
-     * before the column existed is filled by `app:backfill html-body-text`.
+     * before the column existed is filled by SearchIndexRebuilder, on its own
+     * from the schedule.
      *
-     * search_vector reads it in place of body_text when it is set, and so do
-     * the substring passes and the snippets.
+     * search_vector's trigger reads it in place of body_text when it is set,
+     * and so do the substring passes and the snippets.
      */
     #[ORM\Column(name: 'body_html_text', type: Types::TEXT, nullable: true)]
     public private(set) ?string $bodyHtmlText = null;
@@ -352,7 +354,7 @@ class Message extends MessageModel
      * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
      * mail. Set by each provider's builder before the row is first written —
      * an encrypted message's body is blanked there, because search_vector is
-     * generated from body_text on insert and would otherwise index ciphertext.
+     * built from body_text on insert and would otherwise index ciphertext.
      * See App\Service\Crypto\MessageCryptoDetector.
      */
     #[ORM\Column(length: 32, nullable: true, enumType: MessageCrypto::class)]
@@ -462,8 +464,16 @@ class Message extends MessageModel
     /**
      * The only field here that is not public, and deliberately: Postgres writes
      * it, PHP never does, and no caller reads it either — the searches that use
-     * it match on the column in SQL. It exists so the generated column is part
-     * of the mapping and stays in the schema.
+     * it match on the column in SQL. It exists so the column is part of the
+     * mapping and stays in the schema.
+     *
+     * Kept by a trigger (plmail_message_search_vector(), Version20261105120000),
+     * not generated any more: changing a generated column's expression rewrote
+     * the whole table inside the migration. NULL means "not indexed yet", and
+     * SearchIndexRebuilder is what fills those, newest first; the trigger
+     * leaves a NULL row alone until it does. The columnDefinition is only for
+     * a schema built from the mapping, which has no trigger: the comparator
+     * does not read it.
      */
     #[ORM\Column(
         name: 'search_vector',
@@ -471,18 +481,7 @@ class Message extends MessageModel
         nullable: true,
         insertable: false,
         updatable: false,
-        columnDefinition: "tsvector GENERATED ALWAYS AS (
-        setweight(to_tsvector('english', coalesce(subject, '')), 'A') ||
-        setweight(to_tsvector('english', coalesce(from_name, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(from_address, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(body_html_text, body_text, '')), 'C') ||
-        setweight(to_tsvector('simple', plmail_token_parts(
-            coalesce(subject, '') || ' ' ||
-            coalesce(from_name, '') || ' ' ||
-            coalesce(from_address, '') || ' ' ||
-            coalesce(body_html_text, body_text, '')
-        )), 'D')
-    ) STORED"
+        columnDefinition: 'tsvector DEFAULT NULL',
     )]
     private ?string $searchVector = null;
 
@@ -1138,7 +1137,7 @@ class Message extends MessageModel
      * PreFlush, like mirrorLocation(), because it runs before Doctrine works
      * out what changed — for a new row and for a loaded one alike — so the
      * column is simply part of the change set, and on an INSERT it is there
-     * when Postgres generates search_vector from it.
+     * when the trigger builds search_vector from it.
      */
     #[ORM\PreFlush]
     public function deriveBodyHtmlText(): void

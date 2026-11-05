@@ -476,7 +476,7 @@ final class EmailFilterCompiler
      * search rather than a substring scan.
      *
      * The 'english' config and websearch_to_tsquery both have to match how the
-     * column is generated (Message::$searchVector) and how MessageThread search
+     * column is built (Message::$searchVector) and how MessageThread search
      * queries it — a mismatched config silently returns nothing, since the
      * stemmed tokens never line up.
      *
