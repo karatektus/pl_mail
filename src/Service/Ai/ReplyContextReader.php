@@ -6,6 +6,7 @@ namespace App\Service\Ai;
 
 use App\Domain\Enum\Ai\ReplyContext;
 use App\Entity\Ai\AiFeature;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
@@ -109,10 +110,11 @@ final readonly class ReplyContextReader
 
     /**
      * The message's text, unless it is decrypted mail its account does not
-     * let the models read. See DecryptedMailPolicy::allowsAi().
+     * let the models read. See DecryptedMailPolicy::allowsAi(). The text as
+     * ReadableBody reads it, so an HTML-only message has one (#477).
      */
     private function readable(Message $message): ?string
     {
-        return false === ($this->decrypted?->allowsAi($message, AiFeature::WritingHelp) ?? true) ? null : $message->bodyText;
+        return false === ($this->decrypted?->allowsAi($message, AiFeature::WritingHelp) ?? true) ? null : ReadableBody::of($message);
     }
 }

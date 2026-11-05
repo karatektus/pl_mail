@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:1927bac8825b9243d8259ebb3392b88707813017 -->
+<!-- translated-from: internals/mail-ingest.md sha1:f371b353fe6008718102229e1a8b57bcdbce2c01 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -637,6 +637,16 @@ Konversation entgegen.
 Methode nie ansieht. Ohne die Deklaration will jeder Schema-Diff den Index löschen —
 und der gelöschte Index macht aus der Suche einen sequenziellen Scan, ohne dass irgendetwas
 fehlschlägt.
+
+**`body_text` ist der Klartextteil, den der Absender geschickt hat, und eine reine HTML-Nachricht
+hat keinen.** Die Suche liest an seiner Stelle `body_html_text`: die Wörter des HTML-Bodys
+(`ReadableBody::htmlWordsOf()`), nur dort gespeichert, wo `body_text` sie nicht enthält, und von
+`Message::deriveBodyHtmlText()` bei jedem Flush gefüllt, der einen Body geändert hat.
+`search_vector`, der Teilstring-Durchlauf, der JMAP-Filter `body` und die Snippets lesen ihn alle.
+`body_text` stattdessen zu füllen hätte dem Antwortzitat, dem Textteil von JMAP und der Reparatur
+falsch abgelegter Bodys einen Teil vorgegaukelt, den der Absender nie geschrieben hat. Code, der
+Mail einem Modell gibt, liest `ReadableBody::of()`, nicht `bodyText`. Mail von vor der Spalte füllt
+`app:backfill html-body-text` (#477).
 
 **Das Label `Archive` ist Ortsbuchführung, kein Zustand.** „Archiviert" heißt im Domänenmodell
 „trägt kein Posteingang-Label"; das Label `Archive` gibt es, damit die Ortslabel-Invariante auch

@@ -7,6 +7,7 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Domain\DTO\Ai\AiChatResult;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Ai\AiFeature;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Repository\Mail\MessageRepository;
@@ -458,12 +459,13 @@ final readonly class ClassifyMailHandler
 
     private function describe(Message $mail): string
     {
-        $body = trim((string) ($mail->bodyText ?? ''));
+        // ReadableBody, so a message sent as HTML alone is classified by what
+        // it says and not only by who sent it (#477).
+        $body = ReadableBody::of($mail);
 
         if ('' === $body) {
-            // No text part. The subject and sender are still a great deal, and
-            // stripping HTML here would mean shipping a parser into a handler
-            // that has one job.
+            // No words at all — an image-only mail. The subject and sender are
+            // still a great deal.
             $body = '(no plain text part)';
         }
 

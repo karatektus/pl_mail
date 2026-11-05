@@ -12,6 +12,7 @@ use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Enum\Mail\SendFailure;
 use App\Domain\Enum\Mail\SyncTrigger;
+use App\Domain\Helper\ReadableBody;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
 use App\Repository\Mail\MessageRepository;
@@ -81,6 +82,7 @@ use Doctrine\ORM\Mapping as ORM;
 // on its name and columns and never looks at the method.
 #[ORM\Index(name: 'idx_message_subject_trgm', columns: ['subject'])]
 #[ORM\Index(name: 'idx_message_body_text_trgm', columns: ['body_text'])]
+#[ORM\Index(name: 'idx_message_body_html_text_trgm', columns: ['body_html_text'])]
 #[ORM\Index(name: 'idx_message_from_name_trgm', columns: ['from_name'])]
 #[ORM\Index(name: 'idx_message_from_address_trgm', columns: ['from_address'])]
 #[ORM\Index(name: 'idx_message_gmail_carrier_account', columns: ['gmail_carrier_account_id'])]
@@ -320,6 +322,33 @@ class Message extends MessageModel
     public ?string $bodyHtmlSafe = null;
 
     /**
+     * The words of the HTML body, for the code that searches mail: what is
+     * left of it with the markup, the stylesheet and the comments taken away.
+     * Only where bodyText does not already hold them — a message sent as HTML
+     * alone, and a Graph message, whose bodyText is a 255-character preview.
+     * Null for everything else, so mail with a plain part costs nothing here.
+     * See ReadableBody::htmlWordsOf().
+     *
+     * A COLUMN OF ITS OWN, AND NOT bodyText FILLED IN. That was the obvious fix
+     * (#477) and it would have worked for search, but bodyText means "the plain
+     * part the sender sent", and code reads it that way: the reply quotes it,
+     * JMAP offers it as the text part, the category report records whether
+     * there was one, and the misfiled-body repair looks for mail whose text
+     * part went missing by finding it empty. Every one of those would have been
+     * told something the sender never wrote.
+     *
+     * Kept by deriveBodyHtmlText() on every flush that changed a body, so no
+     * builder can forget it: there are five of them (IMAP, Gmail, Graph, JMAP
+     * import, decrypted mail) and the lazy body loads besides. Mail stored
+     * before the column existed is filled by `app:backfill html-body-text`.
+     *
+     * search_vector reads it in place of body_text when it is set, and so do
+     * the substring passes and the snippets.
+     */
+    #[ORM\Column(name: 'body_html_text', type: Types::TEXT, nullable: true)]
+    public private(set) ?string $bodyHtmlText = null;
+
+    /**
      * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
      * mail. Set by each provider's builder before the row is first written —
      * an encrypted message's body is blanked there, because search_vector is
@@ -412,6 +441,20 @@ class Message extends MessageModel
 
     private ?int $mirroredUid = null;
 
+    /**
+     * The three bodies and the Graph id as bodyHtmlText was last derived from
+     * them — mirroredMailbox's trick, for the same reason. A flush touches
+     * every managed message, and taking the markup off a 100 KB newsletter
+     * each time to find it unchanged would make a sync pay for every message
+     * it holds. Compared with ===, which for the very string that was read is
+     * a pointer comparison and not a scan. Taken on load, so mail stored
+     * before the column existed is left to the backfill rather than rewritten
+     * by whatever happens to flush it. Not mapped.
+     *
+     * @var array{?string, ?string, ?string, ?string}|null
+     */
+    private ?array $bodyHtmlTextFrom = null;
+
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     public ?MessageThread $thread = null;
@@ -432,7 +475,13 @@ class Message extends MessageModel
         setweight(to_tsvector('english', coalesce(subject, '')), 'A') ||
         setweight(to_tsvector('english', coalesce(from_name, '')), 'B') ||
         setweight(to_tsvector('english', coalesce(from_address, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(body_text, '')), 'C')
+        setweight(to_tsvector('english', coalesce(body_html_text, body_text, '')), 'C') ||
+        setweight(to_tsvector('simple', plmail_token_parts(
+            coalesce(subject, '') || ' ' ||
+            coalesce(from_name, '') || ' ' ||
+            coalesce(from_address, '') || ' ' ||
+            coalesce(body_html_text, body_text, '')
+        )), 'D')
     ) STORED"
     )]
     private ?string $searchVector = null;
@@ -1075,6 +1124,33 @@ class Message extends MessageModel
     {
         $this->mirroredMailbox = $this->mailbox;
         $this->mirroredUid     = $this->imapUid;
+    }
+
+    #[ORM\PostLoad]
+    public function rememberBodyHtmlTextSource(): void
+    {
+        $this->bodyHtmlTextFrom = [$this->bodyText, $this->bodyHtml, $this->bodyHtmlSafe, $this->graphId];
+    }
+
+    /**
+     * Bring bodyHtmlText up to date with the bodies, when they changed.
+     *
+     * PreFlush, like mirrorLocation(), because it runs before Doctrine works
+     * out what changed — for a new row and for a loaded one alike — so the
+     * column is simply part of the change set, and on an INSERT it is there
+     * when Postgres generates search_vector from it.
+     */
+    #[ORM\PreFlush]
+    public function deriveBodyHtmlText(): void
+    {
+        $from = [$this->bodyText, $this->bodyHtml, $this->bodyHtmlSafe, $this->graphId];
+
+        if ($from === $this->bodyHtmlTextFrom) {
+            return;
+        }
+
+        $this->bodyHtmlText     = ReadableBody::htmlWordsOf($this);
+        $this->bodyHtmlTextFrom = $from;
     }
 
     /**

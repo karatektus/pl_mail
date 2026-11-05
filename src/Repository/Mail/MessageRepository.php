@@ -660,6 +660,10 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * Highlighted subject and body fragments for a SearchSnippet/get.
      *
+     * The body is the one search_vector indexed: body_html_text where it is
+     * set, the text part otherwise (#477). Headlining body_text alone would
+     * find nothing to mark in an HTML-only message the search just matched.
+     *
      * Raw SQL because `ts_headline` is the whole point — it is a Postgres
      * full-text function with no DQL equivalent, and reproducing "which words
      * matched, in context" in PHP would be a second, disagreeing implementation
@@ -680,7 +684,7 @@ class MessageRepository extends ServiceEntityRepository
                 m.id,
                 ts_headline('english', coalesce(m.subject, ''),
                     websearch_to_tsquery('english', :text), :options) AS subject,
-                ts_headline('english', coalesce(m.body_text, ''),
+                ts_headline('english', coalesce(m.body_html_text, m.body_text, ''),
                     websearch_to_tsquery('english', :text), :options) AS preview
             FROM message m
             WHERE m.account_id = :account
@@ -737,6 +741,10 @@ class MessageRepository extends ServiceEntityRepository
      * for. Keyed by id rather than returned as a list, because a lookup is the
      * only thing its one caller can do with it.
      *
+     * "body_text" in the result is the body findSearchHeadlines() headlined,
+     * body_html_text where there is one, so that the fallback looks for the
+     * hit in the same words.
+     *
      * @param list<int> $ids       every message whose subject or body is wanted
      * @param list<int> $withBody  the subset whose body_text is actually wanted
      *
@@ -752,7 +760,7 @@ class MessageRepository extends ServiceEntityRepository
             SELECT
                 m.id,
                 m.subject,
-                CASE WHEN m.id IN (:withBody) THEN m.body_text END AS body_text
+                CASE WHEN m.id IN (:withBody) THEN coalesce(m.body_html_text, m.body_text) END AS body_text
             FROM message m
             WHERE m.account_id = :account
               AND m.id IN (:ids)

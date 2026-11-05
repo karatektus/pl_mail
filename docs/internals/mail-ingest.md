@@ -565,6 +565,15 @@ comparator matches an index on its name and columns and never looks at the metho
 the declaration makes every schema diff ask to drop the index, and dropping the index turns
 search into a sequential scan without failing anything.
 
+**`body_text` is the plain part the sender sent, and an HTML-only message has none.** Search
+reads `body_html_text` in its place: the words of the HTML body (`ReadableBody::htmlWordsOf()`),
+stored only where `body_text` does not hold them, and filled by `Message::deriveBodyHtmlText()`
+on every flush that changed a body. `search_vector`, the substring pass, the JMAP `body` filter
+and the snippets all read it. Filling `body_text` instead would have told the reply quote, JMAP's
+text part and the misfiled-body repair about a part the sender never wrote. Code that hands mail
+to a model reads `ReadableBody::of()`, not `bodyText`. Mail stored before the column existed is
+filled by `app:backfill html-body-text` (#477).
+
 **The `Archive` label is location bookkeeping, not a state.** "Archived" in the domain model
 means "carries no Inbox label"; the `Archive` label exists so the location-label invariant
 holds for plain IMAP accounts whose server has a physical Archive folder. It is created

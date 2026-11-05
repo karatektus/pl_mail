@@ -128,6 +128,26 @@ final class MessageSearchTest extends KernelTestCase
     }
 
     /**
+     * A message sent as HTML alone is found by its words (#477): "Teams"
+     * returned nothing although the HTML body said "Microsoft Teams".
+     */
+    public function testAnHtmlOnlyBodyIsSearchedByItsWords(): void
+    {
+        $this->seedMessage(subject: 'Invitation', body: '', html: '<table><tr><td>Join on Microsoft&nbsp;<b>Teams</b></td></tr></table>');
+        $this->seedMessage(subject: 'Other', body: 'Nothing relevant in here.');
+
+        self::assertSame(['Invitation'], $this->search('teams'));
+    }
+
+    /** The substring pass reads it too: a fragment full-text cannot see. */
+    public function testTheSubstringPassReadsAnHtmlOnlyBody(): void
+    {
+        $this->seedMessage(subject: 'Delivery', body: '', html: '<p>Parcel ZX81QQ4471 is out for delivery</p>');
+
+        self::assertSame(['Delivery'], $this->search('81QQ447'));
+    }
+
+    /**
      * The table from the bug report, verbatim.
      *
      * One mail, five ways of reaching for it, four of which used to come back
@@ -1266,6 +1286,7 @@ final class MessageSearchTest extends KernelTestCase
         string $receivedAt = '2026-01-01',
         bool $seen = false,
         ?Account $account = null,
+        ?string $html = null,
     ): void {
         $account ??= $this->account;
 
@@ -1285,6 +1306,7 @@ final class MessageSearchTest extends KernelTestCase
         $message->toAddresses    = $to;
         $message->ccAddresses    = $cc;
         $message->bodyText       = $body;
+        $message->bodyHtml       = $html;
         $message->receivedAt     = new DateTimeImmutable($receivedAt);
         $message->sentAt         = $message->receivedAt;
         $message->hasAttachments = false;
