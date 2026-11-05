@@ -66,8 +66,9 @@ final readonly class PostIngestPipeline
      *
      * PRECONDITION: the caller has already persisted and flushed every message.
      * Ids must exist before threading queries them, and MailRuleEngine matches
-     * in SQL — against search_vector, a generated column — so a message that
-     * has not reached the database is invisible to the user's own rules.
+     * in SQL — against search_vector, built as the row is written — so a
+     * message that has not reached the database is invisible to the user's
+     * own rules.
      *
      * Runs its flushes even for an empty batch. IMAP calls this after updating
      * the mailbox's last-seen UID, and that write has to land whether or not

@@ -294,7 +294,7 @@ keyring on the password cannot use the proof-free route: it would bypass the thr
 ## Reading encrypted and signed mail
 
 Phase 3 of issue #28. `MessageCryptoDetector` classifies every message in each provider's builder,
-**before the row is first written** — `search_vector` is generated from `body_text` on insert, so a
+**before the row is first written** — a trigger builds `search_vector` from `body_text` on insert, so a
 body blanked any later would already be indexed. It reads the top-level Content-Type and its
 `protocol=` / `smime-type=` parameters (parsed by hand: webklex's extension attributes are
 first-come across every header and turn `-` into `_`), falls back to the attachment list only for
@@ -492,7 +492,7 @@ through `GET /mail/decrypted/pending`) and on reading (`mail--encrypted-message`
 trusts none of it: it parses the MIME with the parser sync uses, sanitises the HTML itself, stores
 attachments as sync does, keeps the decrypted message beside the raw source
 (`SealedMessageStorage::DECRYPTED`; the raw source stays the ciphertext) and marks the row
-`plaintext_source = client`. Then what ingest would have done: the search vector (generated from
+`plaintext_source = client`. Then what ingest would have done: the search vector (built from
 `body_text`), insights, date proposals, events from `.ics` parts, and the rules — only while unread.
 
 The models are a separate consent (`Account::$keepDecryptedAi`). `DecryptedMailPolicy::allowsAi()` is
@@ -1213,7 +1213,7 @@ failure.
 **A contact certificate is not re-checked against the authorities.** `verified` is what was true
 when it was last seen. An authority removed from the system bundle later does not unverify it.
 
-**A crypto kind set after the first flush is too late.** `search_vector` is a generated column, so
+**A crypto kind set after the first flush is too late.** A trigger builds `search_vector` on insert, so
 the INSERT that wrote a ciphertext body indexed it. Keep `MessageCryptoDetector::seal()` in the
 builders, before `persist()`.
 

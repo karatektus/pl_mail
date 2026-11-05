@@ -62,6 +62,12 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // when nothing is due — which is almost always.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:wake-snoozed')),
 
+                // The search index rebuild after an update that changed how
+                // search_vector is built (#477): a twenty-second pass, newest
+                // mail first, until no message is waiting. Then one probe of an
+                // empty partial index. See IndexPendingSearchCommand.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:search:index-pending')),
+
                 // The backstop for mail held out of the tabs for the assistant.
                 // Two things release it sooner and both live on the live
                 // worker; this is what releases it if that worker is not

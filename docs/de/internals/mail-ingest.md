@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:1927bac8825b9243d8259ebb3392b88707813017 -->
+<!-- translated-from: internals/mail-ingest.md sha1:fc061955991717bc78ba23ce424a5c9e5a982825 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -163,7 +163,7 @@ sind, und alles, was auf neue Mail reagieren wollte, musste in alle drei verdrah
 
 Die Vorbedingung steht im Docblock und ist nicht verhandelbar: **Der Aufrufer hat jede Nachricht
 bereits persistiert und geflusht.** Ids müssen existieren, bevor die Konversationsbildung sie
-abfragt, und `MailRuleEngine` matcht in SQL gegen `search_vector`, eine generierte Spalte — eine
+abfragt, und `MailRuleEngine` matcht in SQL gegen `search_vector`, das ein Trigger beim Schreiben der Zeile baut — eine
 Nachricht, die die Datenbank nicht erreicht hat, ist für die eigenen Regeln der Nutzerin
 unsichtbar.
 
@@ -630,13 +630,35 @@ Deshalb kündigt `PostIngestPipeline` Konversationen in einem zweiten Durchgang 
 ihrer Schleife, und deshalb nimmt `MailChangeRecorder::emailChanged()` überhaupt eine nullbare
 Konversation entgegen.
 
-**`search_vector` ist eine generierte Spalte, und kein PHP liest sie.** Sie ist rein deshalb als
-`insertable: false, updatable: false` gemappt, damit sie im Schema bleibt;
+**`search_vector` pflegt ein Trigger, und kein PHP liest es.** `plmail_message_search_vector()`
+baut es beim INSERT und bei einem UPDATE der Spalten, die es liest. Früher war es eine generierte
+Spalte, und den Ausdruck einer generierten Spalte zu ändern hat die ganze Tabelle innerhalb der
+Migration neu geschrieben; deshalb hat Version20261105120000 daraus eine schlichte Spalte gemacht.
+Sie ist rein deshalb als `insertable: false, updatable: false` gemappt, damit sie im Schema bleibt;
 `idx_message_search_vector` ist als schlichter Index deklariert und wird von der Migration
 `USING gin` gebaut, weil Doctrines Vergleicher einen Index an Name und Spalten erkennt und die
 Methode nie ansieht. Ohne die Deklaration will jeder Schema-Diff den Index löschen —
 und der gelöschte Index macht aus der Suche einen sequenziellen Scan, ohne dass irgendetwas
 fehlschlägt.
+
+**Ein `search_vector` von NULL heißt „noch nicht indexiert“, und der Trigger lässt es bei NULL.**
+Nach dem Umbau der Spalte war jede Zeile NULL. `SearchIndexRebuilder` füllt sie, die neuesten
+zuerst, jede Minute aus `app:search:index-pending` oder alle auf einmal aus
+`app:backfill html-body-text`. Es setzt die Spalte auf einen leeren Vektor, und das sagt dem
+Trigger, dass er sie bauen soll. Bei jedem anderen UPDATE bleibt eine NULL-Zeile NULL: Ein
+Vektor, den eine Flag-Änderung baut, entstünde vor dem `body_html_text` der Zeile und nähme sie
+für immer von der Liste des Neuaufbaus. Bis eine Zeile dran ist, findet die Volltextsuche sie
+nicht; der Teilstring-Durchlauf schon.
+
+**`body_text` ist der Klartextteil, den der Absender geschickt hat, und eine reine HTML-Nachricht
+hat keinen.** Die Suche liest an seiner Stelle `body_html_text`: die Wörter des HTML-Bodys
+(`ReadableBody::htmlWordsOf()`), nur dort gespeichert, wo `body_text` sie nicht enthält, und von
+`Message::deriveBodyHtmlText()` bei jedem Flush gefüllt, der einen Body geändert hat.
+`search_vector`, der Teilstring-Durchlauf, der JMAP-Filter `body` und die Snippets lesen ihn alle.
+`body_text` stattdessen zu füllen hätte dem Antwortzitat, dem Textteil von JMAP und der Reparatur
+falsch abgelegter Bodys einen Teil vorgegaukelt, den der Absender nie geschrieben hat. Code, der
+Mail einem Modell gibt, liest `ReadableBody::of()`, nicht `bodyText`. Mail von vor der Spalte
+bekommt ihn aus demselben Neuaufbau (#477).
 
 **Das Label `Archive` ist Ortsbuchführung, kein Zustand.** „Archiviert" heißt im Domänenmodell
 „trägt kein Posteingang-Label"; das Label `Archive` gibt es, damit die Ortslabel-Invariante auch

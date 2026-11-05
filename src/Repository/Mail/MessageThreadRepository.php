@@ -2460,7 +2460,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             // values arrived, and the second only runs when the first came up
             // short.
             if (true === $withBodyRescue && null !== $free->substring) {
+                // Two arms, one per column and each on its own trigram index:
+                // the words of an HTML-only body are in body_html_text (#477).
                 $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_text ILIKE :freeLike";
+                $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_html_text ILIKE :freeLike";
 
                 // The one lexical arm whose per-row form is not free: it reads
                 // the body of every row the statement is about to return, which
@@ -2470,7 +2473,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                 // "found by meaning", which is the one thing this column exists
                 // not to get wrong. Only ever in the rescue statement, which is
                 // rare by construction and already the expensive one.
-                $lexical[] = 'm.body_text ILIKE :freeLike';
+                $lexical[] = '(m.body_text ILIKE :freeLike OR m.body_html_text ILIKE :freeLike)';
             }
 
             $where[] = 'm.id IN (' . implode(' UNION ', $cheap) . ')';

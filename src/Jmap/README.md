@@ -489,7 +489,7 @@ Get these wrong and things fail quietly rather than loudly.
   plain-IMAP path populates and is a strict subset of `seen_at`. flags *is*
   authoritative for `$draft` / `$answered`, which have no column.
 - **Full-text must use `websearch_to_tsquery('english', …)`** to match how
-  `Message::$searchVector` is generated. A mismatched config returns nothing at
+  `Message::$searchVector` is built. A mismatched config returns nothing at
   all, silently.
 - **The change log's PK is one sequence shared by every (account, objectType)**,
   so the first row of a type can sit at any number. `changesSince()` must treat
