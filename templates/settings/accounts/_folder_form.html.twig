@@ -15,7 +15,8 @@
      mode      'new' | 'rename'
      mailbox   Mailbox|null         the folder being renamed
      rows      list<FolderTreeRow>  the account's tree, for the parent picker (new only)
-     parentId  int|null             the preselected parent
+     parentId  int|null             the preselected parent: ?parent=, else the
+                                    account's last choice (NewFolderPlace)
      name      string               what was typed, kept across a refusal
      error     string|null          why the last try did not work, in words #}
 {% extends '_layout/app.html.twig' %}
@@ -65,21 +66,13 @@
             </div>
 
             {% if not renaming %}
-            <div class="space-y-1.5">
-                <label for="folder-parent" class="block text-xs font-medium text-ink-soft">{{ 'settings.accounts.folders.new.parent'|trans }}</label>
-                <select id="folder-parent" name="parent" class="select-field w-full h-9 text-sm">
-                    <option value="" {{ parentId is null ? 'selected' : '' }}>{{ 'settings.accounts.folders.new.top_level'|trans }}</option>
-                    {% for row in rows %}
-                        {% set m = row.mailbox %}
-                        {# Indented with non-breaking spaces, the one way an
-                           <option> can show a tree. #}
-                        <option value="{{ m.id }}" {{ parentId == m.id ? 'selected' : '' }}>
-                            {%- if row.depth > 0 %}{% for i in 1..row.depth %}&nbsp;&nbsp;&nbsp;{% endfor %}{% endif -%}
-                            {{ m.label and m.specialUse ? m.label|label_name : m.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+                {% include 'settings/accounts/_folder_place_select.html.twig' with {
+                    rows: rows,
+                    selectedId: parentId,
+                    id: 'folder-parent',
+                    label: 'settings.accounts.folders.new.parent'|trans,
+                    help: 'settings.accounts.folders.new.parent_help'|trans,
+                } only %}
             {% endif %}
         </div>
 

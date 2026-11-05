@@ -10,6 +10,10 @@ account:
         imap:
             heading: Eingehend — IMAP
             host: Server
+            labels_help: 'Mit Schlüsselwörtern werden Labels, die du in plMail vergibst, auch auf dem Server gespeichert, und andere Mailprogramme, die Schlüsselwörter zeigen (etwa Thunderbird), zeigen sie an. Du kannst das später in den Ordnern des Kontos ändern.'
+            labels_keywords: 'In plMail und auf dem Server, als IMAP-Schlüsselwörter'
+            labels_label: 'Labels'
+            labels_local: 'Nur in plMail'
         jmap:
             heading: 'Eingehend — JMAP'
             outgoing_heading: 'Ausgehend — JMAP'
@@ -2727,8 +2731,10 @@ label:
             make_folder_category: 'Die gleichnamige Outlook-Kategorie wird entfernt.'
             make_folder_done: 'Ordner erstellt.'
             make_folder_failed: 'Der Ordner konnte nicht erstellt werden: %error%'
+            make_folder_inside: 'Er kommt in den Ordner „%folder%“, in dem sein übergeordnetes Label liegt.'
             make_folder_mail: '%count% Nachrichten mit diesem Label auf diesem Konto werden dorthin verschoben.'
             make_folder_nested: 'Das übergeordnete Label „%parent%“ wird dort ebenfalls zum Ordner.'
+            make_folder_place: '„%name%“ anlegen in'
             make_folder_stay: 'Nachrichten in Papierkorb, Spam, Gesendet und Entwürfe bleiben, wo sie sind.'
             make_label: 'Zum Label machen'
             make_label_body: 'Löscht den Ordner „%name%“ auf %account%. Das Label bleibt dort als Markierung und kommt wieder an die verschobenen Nachrichten.'
@@ -3345,6 +3351,7 @@ settings:
                 intro: 'Der Ordner wird auf dem Mailserver angelegt und erscheint deshalb in jedem Mailprogramm, das dieses Konto liest. Ein Label anzulegen legt nie einen Ordner an; das hier schon.'
                 name: 'Name'
                 parent: 'In'
+                parent_help: 'plMail merkt sich das für den nächsten Ordner dieses Kontos.'
                 submit: 'Ordner anlegen'
                 title: 'Neuer Ordner — %account%'
                 top_level: 'Oberste Ebene'

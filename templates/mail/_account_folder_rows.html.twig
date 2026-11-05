@@ -52,8 +52,9 @@
 
     {# "+ New folder" as the last row of the account's folders (#221): the
        place a tree is added to, the way "Create new label" ends a label list
-       elsewhere. It opens New folder for this account, at the top level; the
-       form's own picker chooses anywhere else. Plain IMAP only. #}
+       elsewhere. It opens New folder for this account, in the place chosen
+       last time (NewFolderPlace); the form's own picker chooses anywhere
+       else. Plain IMAP only. #}
     {% if account.plainImap %}
         <div class="nav-item flex items-center text-xs" data-nav-tier="tree" style="--label-depth: 12px">
             <button type="button"

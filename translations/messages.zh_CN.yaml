@@ -10,6 +10,10 @@ account:
         imap:
             heading: '收件 — IMAP'
             host: 主机
+            labels_help: '使用关键字时，您在 plMail 中给邮件加的标签也会保存在服务器上，显示关键字的其他邮件应用（例如 Thunderbird）也会显示它们。之后可以在账户的文件夹中更改。'
+            labels_keywords: '在 plMail 和服务器上，作为 IMAP 关键字'
+            labels_label: '标签'
+            labels_local: '仅在 plMail 中'
         jmap:
             heading: '收件 — JMAP'
             outgoing_heading: '发件 — JMAP'
@@ -2409,8 +2413,10 @@ label:
             make_folder_category: '同名的 Outlook 类别将被移除。'
             make_folder_done: '文件夹已创建。'
             make_folder_failed: '无法创建文件夹：%error%'
+            make_folder_inside: '它会放在其上级标签所在的文件夹“%folder%”中。'
             make_folder_mail: '此账户上带有此标签的 %count% 封邮件将移入其中。'
             make_folder_nested: '其上级“%parent%”也会在那里成为文件夹。'
+            make_folder_place: '将“%name%”创建在'
             make_folder_stay: '废纸篓、垃圾邮件、已发送和草稿中的邮件保持不动。'
             make_label: '设为标签'
             make_label_body: '删除 %account% 上的文件夹“%name%”。标签会保留并作为标记，重新加到移动后的邮件上。'
@@ -2960,6 +2966,7 @@ settings:
                 intro: '文件夹会在邮件服务器上创建，因此会出现在所有读取此账户的邮件应用中。创建标签从不会创建文件夹；这里会。'
                 name: '名称'
                 parent: '位于'
+                parent_help: 'plMail 会为此账户的下一个文件夹记住这个选择。'
                 submit: '创建文件夹'
                 title: '新建文件夹 — %account%'
                 top_level: '顶层'

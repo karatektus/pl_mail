@@ -10,6 +10,10 @@ account:
         imap:
             heading: Réception — IMAP
             host: Serveur
+            labels_help: 'Avec les mots-clés, les libellés que vous donnez aux messages dans plMail sont aussi enregistrés sur le serveur, et les autres logiciels de messagerie qui affichent les mots-clés (Thunderbird, par exemple) les montrent. Vous pourrez changer cela plus tard dans les dossiers du compte.'
+            labels_keywords: 'Dans plMail et sur le serveur, comme mots-clés IMAP'
+            labels_label: 'Libellés'
+            labels_local: 'Seulement dans plMail'
         jmap:
             heading: 'Réception — JMAP'
             outgoing_heading: 'Envoi — JMAP'
@@ -2740,8 +2744,10 @@ label:
             make_folder_category: 'La catégorie Outlook de ce nom est supprimée.'
             make_folder_done: 'Dossier créé.'
             make_folder_failed: 'Le dossier n’a pas pu être créé : %error%'
+            make_folder_inside: 'Il va dans le dossier « %folder% », où se trouve son libellé parent.'
             make_folder_mail: '%count% messages portant ce libellé sur ce compte y seront déplacés.'
             make_folder_nested: 'Son parent « %parent% » y devient aussi un dossier.'
+            make_folder_place: 'Créer « %name% » dans'
             make_folder_stay: 'Le courrier de la corbeille, des spams, des envoyés et des brouillons reste où il est.'
             make_label: 'En faire un libellé'
             make_label_body: 'Supprime le dossier « %name% » sur %account%. Le libellé reste, comme étiquette, et revient sur le courrier déplacé.'
@@ -3380,6 +3386,7 @@ settings:
                 intro: 'Le dossier est créé sur le serveur de messagerie et apparaît donc dans toutes les applications qui lisent ce compte. Créer un libellé ne crée jamais de dossier ; ceci, oui.'
                 name: 'Nom'
                 parent: 'Dans'
+                parent_help: 'plMail s’en souvient pour le prochain dossier de ce compte.'
                 submit: 'Créer le dossier'
                 title: 'Nouveau dossier — %account%'
                 top_level: 'Premier niveau'

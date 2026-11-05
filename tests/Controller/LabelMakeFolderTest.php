@@ -115,6 +115,70 @@ final class LabelMakeFolderTest extends WebTestCase
         self::assertSame('Make Parent.Make Child', $this->folderOn($child, $account));
     }
 
+    /**
+     * The dialog asks where the folder goes, starts on the place chosen last
+     * time on the account, makes it there and remembers the choice (#221).
+     */
+    public function testTheFolderGoesWhereThePersonPicksAndThePlaceIsRemembered(): void
+    {
+        $account = $this->imap('make-placed');
+        $inbox   = $this->folderAt($account, 'INBOX');
+        $clients = $this->folderAt($account, 'INBOX.Clients');
+        $label   = $this->label('Make Placed');
+
+        $account->newFolderParentPath = 'INBOX.Clients';
+        $this->em->flush();
+
+        $this->server = new FakeFolderServer(static::getContainer()->get(ImapLoop::class));
+        $this->server->pointAt($account);
+        $this->em->flush();
+
+        $url     = '/labels/' . $label->id . '/folder-on/' . $account->id;
+        $crawler = $this->client->request('GET', $url);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame((string) $clients->id, $crawler->filter('select[data-folder-place] option[selected]')->attr('value'), 'the last choice');
+
+        $token = (string) $crawler->filter('form input[name=_token]')->attr('value');
+        $this->client->request('POST', $url, ['_token' => $token, 'parent' => (string) $inbox->id]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('INBOX.Make Placed', $this->folderOn($label, $account));
+        self::assertSame('INBOX', $this->em->getRepository(Account::class)->find($account->id)?->newFolderParentPath);
+    }
+
+    /** No picker where the parent label is a folder already: it goes inside it. */
+    public function testALabelUnderAFolderSaysWhereItGoesInsteadOfAsking(): void
+    {
+        $account = $this->imap('make-inside');
+        $parent  = $this->label('Make Inside Parent');
+        $child   = $this->label('Make Inside Child', $parent);
+        $this->makeFolderOn($parent, $account);
+
+        $crawler = $this->client->request('GET', '/labels/' . $child->id . '/folder-on/' . $account->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('select[data-folder-place]'));
+        self::assertStringContainsString('Make Inside Parent', $crawler->filter('[data-label-make-folder-inside]')->text());
+    }
+
+    public function testAPlaceOnAnotherAccountIsRefused(): void
+    {
+        $account = $this->imap('make-place-mine');
+        $other   = $this->imap('make-place-other');
+        $foreign = $this->folderAt($other, 'INBOX');
+        $label   = $this->label('Make Foreign Place');
+
+        $url     = '/labels/' . $label->id . '/folder-on/' . $account->id;
+        $crawler = $this->client->request('GET', $url);
+        $token   = (string) $crawler->filter('form input[name=_token]')->attr('value');
+
+        $this->client->request('POST', $url, ['_token' => $token, 'parent' => (string) $foreign->id]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertNull($this->folderOn($label, $account));
+    }
+
     public function testARefusalStaysInTheDialogWithTheReason(): void
     {
         $account = $this->imap('make-refused');
@@ -279,6 +343,20 @@ final class LabelMakeFolderTest extends WebTestCase
         $binding->mailbox      = $mailbox;
         $mailbox->labelBinding = $binding;
         $this->em->flush();
+    }
+
+    private function folderAt(Account $account, string $path): \App\Entity\Mail\Mailbox
+    {
+        $mailbox = new \App\Entity\Mail\Mailbox();
+        $mailbox->account       = $account;
+        $mailbox->name          = $path;
+        $mailbox->fullPath      = $path;
+        $mailbox->delimiter     = '.';
+        $mailbox->isSyncEnabled = true;
+        $this->em->persist($mailbox);
+        $this->em->flush();
+
+        return $mailbox;
     }
 
     private function labelResolver(): LabelResolver

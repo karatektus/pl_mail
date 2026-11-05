@@ -289,6 +289,10 @@ final readonly class ConfigBackupUsers
         // step 2): a standing choice its owner made, and the same server keeps
         // the keywords wherever plMail reads it from.
         Account::SETTING_LABELS_AS_KEYWORDS,
+        // Where a new folder goes (#221): the path of a folder on the same
+        // server, which a restore reads back from the same place; a path the
+        // server no longer has reads as the top level (NewFolderPlace).
+        Account::SETTING_NEW_FOLDER_PARENT,
         // Whether category changes made in Outlook are followed (#221 step 4):
         // a choice, carried like the one above.
         Account::SETTING_FOLLOW_OUTLOOK_CATEGORIES,

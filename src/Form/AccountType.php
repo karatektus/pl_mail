@@ -125,6 +125,25 @@ class AccountType extends AbstractType
                 'help'         => 'account.form.pop3.delete_help',
                 'attr'         => ['class' => 'form-select'],
             ])
+            ->add('labelsAsKeywords', ChoiceType::class, [
+                // IMAP only; hidden like pop3DeleteMode for the other two and
+                // kept on the form for the same reason. Asked when the account
+                // is added (#221, Adrian), so nobody has to find the switch in
+                // the account's folders to have their labels on the server.
+                // Only in plMail first: the default, and what an account that
+                // never answered has always had.
+                'choices' => [
+                    'account.form.imap.labels_local'    => 'local',
+                    'account.form.imap.labels_keywords' => 'keywords',
+                ],
+                'mapped'     => false,
+                'expanded'   => true,
+                'required'   => true,
+                'empty_data' => 'local',
+                'label'      => 'account.form.imap.labels_label',
+                'help'       => 'account.form.imap.labels_help',
+                'attr'       => ['class' => 'form-radio-group'],
+            ])
             ->add('jmapSessionUrl', UrlType::class, [
                 // Rendered only for a JMAP account, like pop3DeleteMode for a
                 // POP3 one. Mapped to the virtual property, which keeps it in
@@ -239,6 +258,18 @@ class AccountType extends AbstractType
 
             if ($account instanceof Account) {
                 $event->getForm()->get('pop3DeleteMode')->setData($account->pop3DeleteMode);
+                $event->getForm()->get('labelsAsKeywords')->setData(true === $account->labelsAsKeywords ? 'keywords' : 'local');
+            }
+        });
+
+        // Labels as keywords: the same bag, the same one writer. The account's
+        // own getter answers false off plain IMAP, so a POP3 or JMAP account
+        // that carries the field's value back is not changed by it.
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event): void {
+            $account = $event->getData();
+
+            if ($account instanceof Account) {
+                $account->labelsAsKeywords = 'keywords' === $event->getForm()->get('labelsAsKeywords')->getData();
             }
         });
 

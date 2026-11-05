@@ -10,6 +10,10 @@ account:
         imap:
             heading: Incomin' — IMAP
             host: Port o' call
+            labels_help: 'With keywords, the labels ye give yer letters in plMail be stowed on the server too, and other mail vessels that show keywords (Thunderbird, for one) show them. Ye can change this later in the ship’s holds.'
+            labels_keywords: 'In plMail and on the server, as IMAP keywords'
+            labels_label: 'Labels'
+            labels_local: 'Only in plMail'
         jmap:
             heading: 'Incomin'' — JMAP'
             outgoing_heading: 'Outgoin'' — JMAP'
@@ -2605,8 +2609,10 @@ label:
             make_folder_category: 'The Outlook category o'' this name be thrown overboard.'
             make_folder_done: 'Hold built.'
             make_folder_failed: 'The hold could not be built: %error%'
+            make_folder_inside: 'It goes inside the hold “%folder%”, where its parent label be.'
             make_folder_mail: '%count% yarns flyin'' this flag on this ship be stowed in it.'
             make_folder_nested: 'Its parent “%parent%” becomes a hold there too.'
+            make_folder_place: 'Build “%name%” in'
             make_folder_stay: 'Yarns in the Brig, Spam, Sent an'' Drafts stay where they be.'
             make_label: 'Make it a flag'
             make_label_body: 'Scuttles the hold “%name%” on %account%. The flag stays, as a tag there, an'' goes back on the yarns that move.'
@@ -3208,6 +3214,7 @@ settings:
                 intro: 'The folder be built on the mail server, so every mail app readin this account sees it. Makin a label never builds a folder; this does.'
                 name: 'Name'
                 parent: 'Inside'
+                parent_help: 'plMail remembers this for the next hold on this ship.'
                 submit: 'Build folder'
                 title: 'New folder — %account%'
                 top_level: 'Top deck'

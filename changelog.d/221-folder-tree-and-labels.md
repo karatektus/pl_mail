@@ -4,6 +4,9 @@ label on the other account, and deleting it there deleted the folder. A folder o
 now listed under LABELS, and offered by **Label as** for a selection, only once it has been put on
 another account's mail as a label. Under each account, a folder inside another, such as one in the
 Inbox, is now inside it in the sidebar as in other mail apps, and a folder with folders in it
-collapses on its own. **Migration:** quick: one row in `label_binding` for each account whose mail
+collapses on its own. **Make it a folder** on an IMAP account asks where the folder goes, and both
+it and **New folder** start on the place chosen last time on that account, so a server whose
+folders live under the inbox is answered once. Adding an IMAP account asks whether labels stay in
+plMail or are stored on the server as IMAP keywords. **Migration:** quick: one row in `label_binding` for each account whose mail
 carries a label it had none for. [#221](https://github.com/karatektus/pl_mail/issues/221),
-reported by @adrianfurgol.
+reported by @adrianfurgol and phdelodder.

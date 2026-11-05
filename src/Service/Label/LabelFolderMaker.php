@@ -6,6 +6,7 @@ namespace App\Service\Label;
 
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use App\Service\Imap\ImapFolderManager;
 use App\Service\Mail\GraphApiClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,16 +48,32 @@ final readonly class LabelFolderMaker
     }
 
     /**
+     * Where the folder will go on this plain IMAP account: inside its parent
+     * label's folder when the parent is one there already, which is not the
+     * person's to choose; null when it goes where they pick (the label has no
+     * parent, or its parent becomes a folder too and takes the place).
+     */
+    public function fixedPlace(Label $label, Account $account): ?Mailbox
+    {
+        return $label->parent?->bindingFor($account)?->mailbox;
+    }
+
+    /**
+     * $place is where the folder goes on a plain IMAP account when its parent
+     * label does not decide (fixedPlace()): inside that folder, or at the top
+     * level for null. A parent label that becomes a folder first takes it, and
+     * the folder goes inside the parent's.
+     *
      * @throws \Throwable with the server's reason when it refuses
      */
-    public function make(Label $label, Account $account): void
+    public function make(Label $label, Account $account, ?Mailbox $place = null): void
     {
         if (true === $this->isFolder($label, $account)) {
             return;
         }
 
         if (null !== $label->parent && null === $label->parent->role) {
-            $this->make($label->parent, $account);
+            $this->make($label->parent, $account, $place);
         }
 
         $binding = $this->labels->binding($label, $account);
@@ -74,7 +91,7 @@ final readonly class LabelFolderMaker
             return;
         }
 
-        $mailbox = $this->imapFolders->create($account, $label->parent?->bindingFor($account)?->mailbox, (string) $label->name);
+        $mailbox = $this->imapFolders->create($account, $this->fixedPlace($label, $account) ?? $place, (string) $label->name);
 
         // The row a sync would make binds by path, which leads back here for
         // every name but one differing only in case. The person chose this label.

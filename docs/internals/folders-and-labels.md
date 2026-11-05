@@ -296,7 +296,14 @@ that message, and the answer redraws that message's chips (`message_labels_{id}`
 
 **Per account, in the label dialog.** Under "Where this label is kept", **Change per account**
 offers **Make it a folder** on each plain IMAP and Microsoft account where the label is not one
-(`LabelFolderMaker`). A nested label's parent becomes a folder first. The dialog counts the mail
+(`LabelFolderMaker`). A nested label's parent becomes a folder first. On plain IMAP the dialog asks
+where the folder goes (top level or inside any folder of the account) unless the label's parent is
+a folder there already (`LabelFolderMaker::fixedPlace()`); New folder asks the same, and both start
+on the account's last choice, a path in its settings bag (`NewFolderPlace`,
+`Account::$newFolderParentPath`). The top level itself is the server's answer to NAMESPACE, which
+on Stalwart is beside the system folders while FranklyMail's users keep theirs under the inbox:
+remembering the choice answers that once per account. Adding an IMAP account asks whether labels
+are kept as keywords (`AccountType`, the same `Account::$labelsAsKeywords` as the folders' switch). The dialog counts the mail
 that will move; `MakeLabelFolderHandler` then moves it, leaving Trash, Spam, Sent and Drafts alone,
 and on Outlook removes the master category.
 

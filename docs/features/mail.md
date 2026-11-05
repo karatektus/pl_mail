@@ -540,6 +540,9 @@ and moves nothing.
 
 To turn a label into a folder on one account, open the label and use **Change per account** under
 **Where this label is kept**, then **Make it a folder**. This works on plain IMAP and Outlook accounts.
+On IMAP the dialog asks where the folder goes, **Top level** or inside any folder of the account, and
+starts on the place you chose last time there; a label nested under one that is already a folder
+there goes inside that folder, and the dialog says so.
 Mail with that label on that account moves into the new folder, except mail in Trash, Spam, Sent and
 Drafts, and the dialog says how many messages will move first. On Outlook the category of that name
 is removed.
