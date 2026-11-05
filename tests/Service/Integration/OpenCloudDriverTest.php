@@ -27,6 +27,8 @@ final class OpenCloudDriverTest extends TestCase
     use AssertsHttpLimits;
 
     private const string DRIVE = '681b0dfd-c984-46dd-8f92-f6b555514d0b$5f7ddbca-7b85-4422-a250-35bad2a4b0d8';
+    private const string PROJECT = '681b0dfd-c984-46dd-8f92-f6b555514d0b$61d1a76f-09f5-4f9f-84f1-7eacf6d49f3b';
+    private const string MOUNT = 'a0ca6a90$a0ca6a90!681b0dfd:cbae1193:a7880601';
 
     /** @var list<array{method:string,url:string,options:array<string,mixed>,body:string}> */
     private array $requests = [];
@@ -56,11 +58,14 @@ final class OpenCloudDriverTest extends TestCase
                 <d:propstat><d:prop><d:resourcetype/><d:getcontentlength>15</d:getcontentlength>
                 <d:getcontenttype>text/plain</d:getcontenttype></d:prop></d:propstat></d:response>
             </d:multistatus>
-            XML, ['http_code' => 207])]);
+            XML, ['http_code' => 207]), $this->myDrives()]);
 
         $listing = $driver->list($this->integration());
 
-        self::assertSame(['Docs A', 'report.txt'], array_map(static fn ($e) => $e->id, $listing->entries));
+        // Project spaces first, then the personal files as on Nextcloud.
+        self::assertSame(['space:'.self::PROJECT, 'Docs A', 'report.txt'], array_map(static fn ($e) => $e->id, $listing->entries));
+        self::assertSame('Team Docs', $listing->entries[0]->name);
+        self::assertTrue($listing->entries[0]->isFolder);
         self::assertSame('OpenCloud', $listing->breadcrumb[0]->name);
         self::assertSame('PROPFIND', $this->requests[0]['method']);
         self::assertSame('https://cloud.example.com/remote.php/dav/files/alice/', $this->requests[0]['url']);
@@ -69,21 +74,31 @@ final class OpenCloudDriverTest extends TestCase
 
     /**
      * The search service answers under the spaces tree, for every space the
-     * user can reach. Only the personal space's hits are paths we can open.
+     * user can reach. Each hit becomes the id it would have in a listing:
+     * a path for the personal space, Shares/… for a share, space:… for a
+     * project space. A space the drive list does not know is dropped.
      */
-    public function testSearchMapsPersonalSpaceHitsAndDropsOtherSpaces(): void
+    public function testSearchMapsHitsFromEverySpace(): void
     {
-        $driver = $this->driver([$this->searchHits(), $this->myDrive()]);
+        $driver = $this->driver([$this->searchHits(), $this->myDrives()]);
 
         $listing = $driver->search($this->integration(), 'rep');
 
-        self::assertSame(['Docs A/report one.txt', 'report root.txt'], array_map(static fn ($e) => $e->id, $listing->entries));
-        self::assertSame('text/plain', $listing->entries[0]->mime);
+        self::assertSame([
+            'Shares/Bob Shared',
+            'space:'.self::PROJECT,
+            'Shares/Bob Shared/plan bob.txt',
+            'Docs A/report one.txt',
+            'report root.txt',
+            'space:'.self::PROJECT.'/team report.txt',
+        ], array_map(static fn ($e) => $e->id, $listing->entries));
+        self::assertSame('Team Docs', $listing->entries[1]->name, 'the top of a space is named after it');
+        self::assertSame('text/plain', $listing->entries[3]->mime, 'Docs A/report one.txt keeps its type');
 
         self::assertSame('REPORT', $this->requests[0]['method']);
         self::assertSame('https://cloud.example.com/remote.php/dav/files/alice/', $this->requests[0]['url']);
         self::assertStringContainsString('<oc:pattern>name:"*rep*"</oc:pattern>', $this->requests[0]['body']);
-        self::assertSame('https://cloud.example.com/graph/v1.0/me/drive', $this->requests[1]['url']);
+        self::assertSame('https://cloud.example.com/graph/v1.0/me/drives', $this->requests[1]['url']);
 
         self::assertEveryRequestIsACall($this->requests);
     }
@@ -91,7 +106,7 @@ final class OpenCloudDriverTest extends TestCase
     /** The server cannot scope a search to a folder, so the driver does. */
     public function testSearchInsideAFolderKeepsOnlyItsHits(): void
     {
-        $driver = $this->driver([$this->searchHits(), $this->myDrive()]);
+        $driver = $this->driver([$this->searchHits(), $this->myDrives()]);
 
         $listing = $driver->search($this->integration(), 'rep', 'Docs A');
 
@@ -101,7 +116,7 @@ final class OpenCloudDriverTest extends TestCase
     /** KQL has no escape inside a quoted phrase; the characters go instead. */
     public function testSearchDropsQuotesAndWildcardsFromTheTerm(): void
     {
-        $driver = $this->driver([$this->searchHits(), $this->myDrive()]);
+        $driver = $this->driver([$this->searchHits(), $this->myDrives()]);
 
         $driver->search($this->integration(), 'a"b*c');
 
@@ -110,7 +125,7 @@ final class OpenCloudDriverTest extends TestCase
 
     public function testASearchOfOnlyWildcardsIsAListing(): void
     {
-        $driver = $this->driver([new MockResponse('<d:multistatus xmlns:d="DAV:"/>', ['http_code' => 207])]);
+        $driver = $this->driver([new MockResponse('<d:multistatus xmlns:d="DAV:"/>', ['http_code' => 207]), $this->myDrives()]);
 
         $driver->search($this->integration(), '"*"');
 
@@ -208,9 +223,90 @@ final class OpenCloudDriverTest extends TestCase
         self::assertContains('Content-Length: 18', $this->requests[0]['options']['headers']);
     }
 
+    public function testAProjectSpaceIsListedFromTheSpacesTreeWithItsNameInTheBreadcrumb(): void
+    {
+        $project = self::PROJECT;
+        $driver = $this->driver([new MockResponse(<<<XML
+            <d:multistatus xmlns:d="DAV:">
+              <d:response><d:href>/remote.php/dav/spaces/{$project}/Sub/</d:href>
+                <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
+              <d:response><d:href>/remote.php/dav/spaces/{$project}/Sub/red.png</d:href>
+                <d:propstat><d:prop><d:resourcetype/><d:getcontenttype>image/png</d:getcontenttype></d:prop></d:propstat></d:response>
+            </d:multistatus>
+            XML, ['http_code' => 207]), $this->myDrives()]);
+
+        $listing = $driver->list($this->integration(), 'space:'.self::PROJECT.'/Sub');
+
+        self::assertSame(['space:'.self::PROJECT.'/Sub/red.png'], array_map(static fn ($e) => $e->id, $listing->entries));
+        self::assertSame('red.png', $listing->entries[0]->name);
+        self::assertSame(['OpenCloud', 'Team Docs', 'Sub'], array_map(static fn ($e) => $e->name, $listing->breadcrumb));
+        self::assertSame(['', 'space:'.self::PROJECT, 'space:'.self::PROJECT.'/Sub'], array_map(static fn ($e) => $e->id, $listing->breadcrumb));
+        self::assertSame('https://cloud.example.com/remote.php/dav/spaces/'.rawurlencode(self::PROJECT).'/Sub', $this->requests[0]['url']);
+    }
+
+    public function testTheRootStillListsWhenTheSpacesCannotBeAskedFor(): void
+    {
+        $driver = $this->driver([
+            new MockResponse('<d:multistatus xmlns:d="DAV:"><d:response><d:href>/remote.php/dav/files/alice/a.txt</d:href></d:response></d:multistatus>', ['http_code' => 207]),
+            new MockResponse('', ['http_code' => 403]),
+        ]);
+
+        self::assertSame(['a.txt'], array_map(static fn ($e) => $e->id, $driver->list($this->integration())->entries));
+    }
+
+    /** The top of a space exists by itself; only the folders below it are made. */
+    public function testUploadingIntoASpaceMakesFoldersBelowItsTopOnly(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'oc');
+        file_put_contents($file, 'x');
+
+        try {
+            $driver = $this->driver([
+                new MockResponse('', ['http_code' => 201]),
+                new MockResponse('', ['http_code' => 201]),
+            ]);
+
+            $id = $driver->upload($this->integration(), $file, 'a.txt', 'text/plain', 'space:'.self::PROJECT.'/New');
+        } finally {
+            unlink($file);
+        }
+
+        self::assertSame('space:'.self::PROJECT.'/New/a.txt', $id);
+        self::assertSame(['MKCOL', 'PUT'], array_column($this->requests, 'method'));
+        self::assertStringEndsWith('/remote.php/dav/spaces/'.rawurlencode(self::PROJECT).'/New', $this->requests[0]['url']);
+    }
+
+    public function testAShareLinkInASpaceNamesTheSpace(): void
+    {
+        $driver = $this->driver([new JsonMockResponse([
+            'ocs' => ['meta' => ['statuscode' => 200], 'data' => ['url' => 'https://cloud.example.com/s/xyz']],
+        ])]);
+
+        $driver->shareLink($this->integration(), 'space:'.self::PROJECT.'/Sub/red.png');
+
+        parse_str($this->requests[0]['body'], $body);
+        self::assertSame('/Sub/red.png', $body['path']);
+        self::assertSame(self::PROJECT, $body['space_ref']);
+    }
+
+    /** A dot segment as a space would name the spaces tree's parent. */
+    public function testASpaceIdThatIsADotSegmentIsRefused(): void
+    {
+        $driver = $this->driver([]);
+
+        $this->expectException(IntegrationException::class);
+
+        try {
+            $driver->list($this->integration(), 'space:../etc');
+        } finally {
+            self::assertSame([], $this->requests);
+        }
+    }
+
     private function searchHits(): MockResponse
     {
         $drive = self::DRIVE;
+        $project = self::PROJECT;
 
         return new MockResponse(<<<XML
             <d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
@@ -219,15 +315,30 @@ final class OpenCloudDriverTest extends TestCase
                 <d:getcontentlength>15</d:getcontentlength></d:prop></d:propstat></d:response>
               <d:response><d:href>/remote.php/dav/spaces/{$drive}/report%20root.txt</d:href>
                 <d:propstat><d:prop><d:resourcetype></d:resourcetype></d:prop></d:propstat></d:response>
-              <d:response><d:href>/remote.php/dav/spaces/project-space-id\$abc/report%20of%20the%20team.txt</d:href>
+              <d:response><d:href>/remote.php/dav/spaces/unknown-space\$abc/report%20of%20the%20team.txt</d:href>
                 <d:propstat><d:prop><d:resourcetype></d:resourcetype></d:prop></d:propstat></d:response>
+              <d:response><d:href>/remote.php/dav/spaces/{$project}/team%20report.txt</d:href>
+                <d:propstat><d:prop><d:resourcetype></d:resourcetype></d:prop></d:propstat></d:response>
+              <d:response><d:href>/remote.php/dav/spaces/{$project}</d:href>
+                <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
+              <d:response><d:href>/remote.php/dav/spaces/a0ca6a90%21681b0dfd:cbae1193:a7880601/plan%20bob.txt</d:href>
+                <d:propstat><d:prop><d:resourcetype></d:resourcetype></d:prop></d:propstat></d:response>
+              <d:response><d:href>/remote.php/dav/spaces/a0ca6a90%21681b0dfd:cbae1193:a7880601/</d:href>
+                <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
             </d:multistatus>
             XML, ['http_code' => 207]);
     }
 
-    private function myDrive(): JsonMockResponse
+    private function myDrives(): JsonMockResponse
     {
-        return new JsonMockResponse(['id' => self::DRIVE, 'driveType' => 'personal']);
+        return new JsonMockResponse(['value' => [
+            ['id' => self::DRIVE, 'driveType' => 'personal', 'name' => 'Alice'],
+            ['id' => self::PROJECT, 'driveType' => 'project', 'name' => 'Team Docs'],
+            ['id' => self::MOUNT, 'driveType' => 'mountpoint', 'name' => 'Bob Shared'],
+            ['id' => 'a0ca6a90$a0ca6a90', 'driveType' => 'virtual', 'name' => 'Shares'],
+            // Disabled: listed by Graph, not openable.
+            ['id' => 'x$gone', 'driveType' => 'project', 'name' => 'Old', 'root' => ['deleted' => ['state' => 'trashed']]],
+        ]]);
     }
 
     /** @return array{string,string} */

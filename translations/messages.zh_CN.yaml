@@ -634,7 +634,7 @@ admin:
                 step_secret: '在 Certificates & secrets 下创建客户端密钥，并立即复制其值；该值只显示一次。'
                 tenant_note: '个人 Microsoft 账户使用 common 租户；若仅允许自己的组织访问，请使用自己的租户 ID。'
             open_cloud:
-                intro: 'OpenCloud 使用每位用户各自的应用令牌进行认证，因此这里无需注册。plMail 可访问每位用户的个人空间；项目空间和共享给用户的文件暂不显示。'
+                intro: 'OpenCloud 使用每位用户各自的应用令牌进行认证，因此这里无需注册。plMail 会显示每位用户的个人空间、所属的项目空间以及共享给他的文件。'
                 security: '应用令牌可访问用户的全部文件；使用外部身份提供方时，即使账户在那里被停用，令牌仍然有效。用户应删除不再需要的令牌。'
                 share_password: 'OpenCloud 默认拒绝没有密码的公开链接。若要允许以链接方式附加大文件，请设置 OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false；否则只能附加副本。'
                 step_app_auth: '确认 OpenCloud 通过 WebDAV 接受应用令牌。视版本而定，需要将 auth-app 加入 OC_ADD_RUN_SERVICES 并设置 PROXY_ENABLE_APP_AUTH=true。'

@@ -741,7 +741,7 @@ admin:
                 step_secret: 'Unter Zertifikate & Geheimnisse ein Client-Secret erstellen und den Wert sofort kopieren — er wird nur einmal angezeigt.'
                 tenant_note: 'Für private Microsoft-Konten den Tenant „common“ verwenden, oder die eigene Tenant-ID, um den Zugriff auf die Organisation zu beschränken.'
             open_cloud:
-                intro: 'OpenCloud meldet sich mit einem App-Token pro Benutzer an, hier ist also nichts zu registrieren. plMail erreicht den persönlichen Bereich jedes Benutzers; Projektbereiche und mit ihm geteilte Dateien werden noch nicht angezeigt.'
+                intro: 'OpenCloud meldet sich mit einem App-Token pro Benutzer an, hier ist also nichts zu registrieren. plMail zeigt jedem Benutzer seinen persönlichen Bereich, seine Projektbereiche und was mit ihm geteilt wurde.'
                 security: 'App-Tokens erreichen alle Dateien eines Benutzers und funktionieren mit einem externen Identitätsanbieter weiter, auch wenn das Konto dort deaktiviert ist. Nicht mehr benötigte Tokens sollten gelöscht werden.'
                 share_password: 'OpenCloud lehnt öffentliche Links ohne Passwort standardmäßig ab. Damit große Dateien als Link angehängt werden können, setze OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; sonst lassen sich nur Kopien anhängen.'
                 step_app_auth: 'Stell sicher, dass OpenCloud App-Tokens über WebDAV annimmt. Je nach Version heißt das: auth-app zu OC_ADD_RUN_SERVICES hinzufügen und PROXY_ENABLE_APP_AUTH=true setzen.'

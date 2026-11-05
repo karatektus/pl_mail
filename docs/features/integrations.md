@@ -114,9 +114,11 @@ expiry when you create it — an expired token stops working, and the connection
 single sign-on the username may be the ID shown on OpenCloud's preferences page rather than your
 login name.
 
-plMail browses your **personal space**. Project spaces and files others shared with you are not
-listed yet, and search only finds files in your personal space for the same reason. Search matches
-anywhere in a file name, like Nextcloud's.
+The picker opens on your **personal space**, with every **project space** you are a member of listed
+first as a folder of its own. Files others shared with you are in the **Shares** folder, as in
+OpenCloud's own web interface. You can attach from, save into and make folders in all three, as far
+as your permissions there allow. Search covers all of them at once and matches anywhere in a file
+name, like Nextcloud's; searching inside a folder keeps to that folder.
 
 There are no calendars or contacts behind an OpenCloud connection. If your server has a calendar
 server beside it, connect that as CalDAV.

@@ -673,7 +673,7 @@ admin:
                 step_secret: 'Under Certificates & secrets, mint a client secret and copy its value at once — it be shown but once.'
                 tenant_note: 'Use th'' common tenant for personal Microsoft accounts, or yer tenant ID to keep it to yer own crew.'
             open_cloud:
-                intro: 'OpenCloud checks each sailor''s own app token, so there be nothin'' to register here. plMail reaches each sailor''s personal space; project spaces and files shared with them be not charted yet.'
+                intro: 'OpenCloud checks each sailor''s own app token, so there be nothin'' to register here. plMail charts each sailor''s personal space, the project spaces they sail with and what was shared with them.'
                 security: 'An app token reaches all o'' a sailor''s files and, with an outside identity provider, keeps workin'' after th'' account be struck there. Sailors should sink tokens they no longer need.'
                 share_password: 'OpenCloud refuses public links without a password by default. To let sailors attach big cargo as links, set OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; otherwise they can only attach copies.'
                 step_app_auth: 'Make sure OpenCloud takes app tokens over WebDAV. Dependin'' on th'' version, that means addin'' auth-app to OC_ADD_RUN_SERVICES and settin'' PROXY_ENABLE_APP_AUTH=true.'

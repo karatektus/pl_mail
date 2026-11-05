@@ -130,7 +130,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
             $entries[] = $this->entry($item);
         }
 
-        return new Listing($this->sorted($entries), $this->breadcrumb($folder));
+        return new Listing($this->sorted($entries), $this->breadcrumb($integration, $folder));
     }
 
     public function download(Integration $integration, string $fileId): RemoteFile
@@ -279,8 +279,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
                 'Accept'         => 'application/json',
             ],
             'query' => $this->shareQuery(),
-            'body'  => [
-                'path'        => '/'.$path,
+            'body'  => $this->shareTarget($path) + [
                 'shareType'   => self::SHARE_TYPE_PUBLIC_LINK,
                 'permissions' => 1, // read only
             ],
@@ -333,6 +332,37 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         return [];
     }
 
+    /**
+     * Which file a share is for, in the OCS call's own terms: a path from
+     * the user's files root, here.
+     *
+     * @return array<string,string>
+     */
+    protected function shareTarget(string $id): array
+    {
+        return ['path' => '/'.$id];
+    }
+
+    /**
+     * Turn a path relative to the collection that was listed into an entry id.
+     * The identity here, where every id is a path from the files root; a
+     * driver whose ids also name a space prefixes it.
+     */
+    protected function qualify(string $listed, string $relative): string
+    {
+        return $relative;
+    }
+
+    /**
+     * Whether an id is the top of a tree that exists by itself — the files
+     * root here, a whole space for OpenCloud — and so is never created on the
+     * way to a folder below it.
+     */
+    protected function isTreeRoot(string $id): bool
+    {
+        return '' === $id;
+    }
+
     /** The error for a share the server would not create. */
     protected function shareRefused(string $message): IntegrationException
     {
@@ -364,7 +394,10 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
             throw $this->translate($e);
         }
 
-        return $this->parseMultistatus($xml, $this->davRoot($integration));
+        return array_map(
+            fn (array $item): array => ['path' => $this->qualify($path, $item['path'])] + $item,
+            $this->parseMultistatus($xml, $this->davRoot($integration, $path)),
+        );
     }
 
     /**
@@ -455,6 +488,10 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
 
         foreach ($segments as $segment) {
             $walked = '' === $walked ? $segment : $walked.'/'.$segment;
+
+            if (true === $this->isTreeRoot($walked)) {
+                continue;
+            }
 
             $status = $this->request($integration, 'MKCOL', $this->davUrl($integration, $walked), [], false)
                 ->getStatusCode();
@@ -598,8 +635,12 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
         return rtrim(is_string($prefix) ? $prefix : '', '/');
     }
 
-    /** Path prefix every href in a multistatus body is expected to carry. */
-    protected function davRoot(Integration $integration): string
+    /**
+     * Path prefix every href in a multistatus body is expected to carry, for
+     * a listing of $id. One files tree here, so $id does not matter; it does
+     * where an id can name a space.
+     */
+    protected function davRoot(Integration $integration, string $id = ''): string
     {
         return $this->basePath($integration)
             .self::FILES_PATH.'/'.rawurlencode((string) $integration->username).'/';
@@ -645,7 +686,7 @@ abstract readonly class AbstractWebDavDriver implements IntegrationDriverInterfa
     }
 
     /** @return list<Entry> */
-    protected function breadcrumb(string $folder): array
+    protected function breadcrumb(Integration $integration, string $folder): array
     {
         $crumbs = [Entry::folder('', $this->provider()->label())];
 

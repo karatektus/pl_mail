@@ -737,7 +737,7 @@ admin:
                 step_secret: 'Sous Certificats et secrets, créez un secret client et copiez sa valeur immédiatement — elle n’est affichée qu’une fois.'
                 tenant_note: 'Utilisez le tenant common pour les comptes Microsoft personnels, ou l’ID de votre tenant pour restreindre l’accès à votre organisation.'
             open_cloud:
-                intro: 'OpenCloud s’authentifie avec un jeton d’application par utilisateur : il n’y a rien à enregistrer ici. plMail accède à l’espace personnel de chaque utilisateur ; les espaces projet et les fichiers partagés avec lui ne sont pas encore affichés.'
+                intro: 'OpenCloud s’authentifie avec un jeton d’application par utilisateur : il n’y a rien à enregistrer ici. plMail affiche à chaque utilisateur son espace personnel, ses espaces projet et ce qui a été partagé avec lui.'
                 security: 'Un jeton d’application donne accès à tous les fichiers de l’utilisateur et, avec un fournisseur d’identité externe, reste valide après la désactivation du compte chez celui-ci. Les jetons inutiles devraient être supprimés.'
                 share_password: 'Par défaut, OpenCloud refuse les liens publics sans mot de passe. Pour permettre de joindre de gros fichiers sous forme de lien, définissez OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false ; sinon seules des copies peuvent être jointes.'
                 step_app_auth: 'Vérifiez qu’OpenCloud accepte les jetons d’application via WebDAV. Selon la version, il faut ajouter auth-app à OC_ADD_RUN_SERVICES et définir PROXY_ENABLE_APP_AUTH=true.'

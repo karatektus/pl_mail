@@ -1,4 +1,4 @@
-<!-- translated-from: features/integrations.md sha1:d45f542d260c377f341882e4ccbb1e7a884afc3b -->
+<!-- translated-from: features/integrations.md sha1:2ee2168a97ba2ad514b6156b906a5432db2e0eab -->
 
 # Dateien und Integrationen
 
@@ -130,9 +130,11 @@ und füg es mit deinem Benutzernamen ein. Wähl beim Anlegen eine lange Laufzeit
 Token funktioniert nicht mehr, und die Verbindung sagt das dann. Mit Single Sign-on ist der
 Benutzername eventuell die ID auf der Einstellungsseite von OpenCloud statt deines Anmeldenamens.
 
-plMail durchsucht deinen **persönlichen Bereich**. Projektbereiche und Dateien, die andere mit dir
-geteilt haben, werden noch nicht angezeigt, und die Suche findet aus demselben Grund nur Dateien in
-deinem persönlichen Bereich. Sie trifft irgendwo im Dateinamen, wie bei Nextcloud.
+Die Dateiauswahl öffnet in deinem **persönlichen Bereich**, und jeder **Projektbereich**, in dem du
+Mitglied bist, steht als eigener Ordner davor. Dateien, die andere mit dir geteilt haben, liegen im
+Ordner **Shares**, wie in der Weboberfläche von OpenCloud. In allen dreien kannst du anhängen,
+speichern und Ordner anlegen, soweit deine Rechte dort reichen. Die Suche umfasst alle auf einmal und
+trifft irgendwo im Dateinamen, wie bei Nextcloud; eine Suche in einem Ordner bleibt in diesem Ordner.
 
 Hinter einer OpenCloud-Verbindung stehen keine Kalender und keine Kontakte. Hat dein Server einen
 Kalenderserver daneben, verbinde ihn als CalDAV.
