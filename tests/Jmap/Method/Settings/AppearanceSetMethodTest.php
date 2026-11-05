@@ -86,6 +86,39 @@ final class AppearanceSetMethodTest extends JmapTestCase
         }
     }
 
+    /**
+     * android#11: the web's "Show the inbox in tabs", switched from a phone.
+     * Stored where the category card stores it, so the web and every other
+     * client follow, and the state moves so a client holding the old one
+     * learns it is stale.
+     */
+    public function testTheInboxTabsSwitchIsWrittenWhereTheWebKeepsIt(): void
+    {
+        self::assertTrue($this->user->categorySorting->tabs);
+        $before = $this->get->handle([], $this->context())['state'];
+
+        $result = $this->update(['inboxTabs' => false]);
+
+        self::assertSame([], (array) $result['notUpdated']);
+        self::assertNull($result['updated'][AppearanceMapper::SINGLETON_ID]);
+        self::assertFalse($this->user->categorySorting->tabs);
+        self::assertFalse($this->read()['inboxTabs']);
+        self::assertNotSame($before, $result['newState']);
+
+        $this->update(['inboxTabs' => true]);
+
+        self::assertTrue($this->user->categorySorting->tabs);
+    }
+
+    /** A real boolean, for the reason requireBool() gives. */
+    public function testTheInboxTabsSwitchRefusesAnythingButABoolean(): void
+    {
+        $error = $this->updateError(['inboxTabs' => '0']);
+
+        self::assertSame('invalidProperties', $error['type']);
+        self::assertTrue($this->user->categorySorting->tabs);
+    }
+
     /** Nulling the optional properties is a real value, not a missing one. */
     public function testTheOptionalColoursClearToNull(): void
     {

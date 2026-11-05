@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:c69fdab5368e19d73831708f1146bbb6b426c72c -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1e1e3a31adfacbdaaa4b08bb3ef719491ca1b0b6 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -234,8 +234,12 @@ Dieselbe Capability trägt einen Boolean, der keine Appearance-Eigenschaft ist: 
 Eine Nutzerin kann die Kategorie-Tabs des Posteingangs ausschalten und möchte dann eine einzige
 Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund weiter einsortiert
 wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
-wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
-daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
+wenn `inboxTabs` `false` ist. Hier ist der Wert, wie das kompakte `appearance` daneben, ein
+Hinweis, der in einer gecachten Session veraltet sein kann. `Appearance/get` liefert den aktuellen
+Wert als Eigenschaft `inboxTabs` des Singletons, und `Appearance/set` ändert ihn (ein
+JSON-Boolean). Es ist derselbe Schalter wie „Tabs im Posteingang“ im Web, gespeichert bei
+den Kategorie-Einstellungen statt bei der Appearance, und Umschalten verschiebt keine Mail zwischen
+Kategorien.
 
 ### Posteingangs-Tabs (`urn:plmail:params:jmap:inboxtabs`)
 

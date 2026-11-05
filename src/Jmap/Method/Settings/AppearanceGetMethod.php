@@ -45,8 +45,7 @@ final class AppearanceGetMethod implements JmapMethod
             );
         }
 
-        $appearance = $context->user->appearance;
-        $object = $this->mapper->toJmap($appearance);
+        $object = $this->mapper->forUser($context->user);
 
         $properties = $this->requestedProperties($arguments['properties'] ?? null);
 
@@ -74,7 +73,7 @@ final class AppearanceGetMethod implements JmapMethod
         }
 
         return [
-            'state' => $this->mapper->state($appearance),
+            'state' => $this->mapper->userState($context->user),
             'list' => $list,
             'notFound' => $notFound,
         ];
