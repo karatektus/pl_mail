@@ -198,7 +198,8 @@ final class AccountInboxTabsTest extends WebTestCase
         self::assertStringNotContainsString(sprintf('/mail/account/%d?tab=', $this->account->id), $html);
 
         // The unified inbox keeps its tabs: the switch is about this page only.
-        self::assertStringContainsString('/mail/inbox?tab=promotions', (string) $this->client->request('GET', '/mail/inbox')->html());
+        // Its tab links name the unified inbox they belong to (#265).
+        self::assertMatchesRegularExpression('#/mail/inbox/\d+\?tab=promotions#', (string) $this->client->request('GET', '/mail/inbox')->html());
     }
 
     /**

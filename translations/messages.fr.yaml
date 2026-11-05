@@ -4591,6 +4591,36 @@ settings:
         right:
             label: Balayer vers la droite
         subheading: Ce que fait un balayage sur une ligne, sur téléphone.
+    unified_inboxes:
+        account_label: 'Boîte unifiée pour %account%'
+        account_off: 'Désactivé — aucun de ses messages n’est affiché tant que vous ne le réactivez pas.'
+        accounts_heading: 'Comptes'
+        accounts_subheading: 'La boîte dans laquelle s’affichent les messages de chaque compte. Un nouveau compte va dans votre première boîte.'
+        add: 'Ajouter'
+        created: '« %name% » créée.'
+        delete: 'Supprimer %inbox%'
+        delete_confirm: 'Supprimer « %name% » ? Ses comptes passent dans %other%. Aucun message n’est supprimé.'
+        deleted: 'Boîte supprimée. Ses comptes sont maintenant dans la boîte fourre-tout.'
+        heading: 'Boîtes de réception unifiées'
+        hint: 'Chaque boîte affiche les messages des comptes que vous y mettez en une seule liste, avec ses propres onglets. Laissez le nom vide pour utiliser le nom standard.'
+        icon_label: 'Icône de %inbox%'
+        icon_new: 'Icône de la nouvelle boîte'
+        last_stays: 'Gardez au moins une boîte à vous.'
+        move_down: 'Descendre %inbox%'
+        move_up: 'Monter %inbox%'
+        name_label: 'Nom'
+        name_required: 'Une boîte a besoin d’un nom.'
+        name_too_long: 'Ce nom est trop long (40 caractères au maximum).'
+        no_accounts: 'Aucun compte de messagerie pour l’instant.'
+        not_found: 'Cette boîte n’existe plus.'
+        other_hint: 'Rassemble chaque compte que vous retirez de vos propres boîtes. Elle n’apparaît pas dans la barre latérale tant qu’elle n’en contient aucun.'
+        other_option: 'fourre-tout'
+        other_stays: 'La boîte fourre-tout ne peut pas être supprimée : les comptes qui ne sont dans aucune de vos boîtes y sont affichés.'
+        placeholder: 'p. ex. Travail'
+        reorder: 'Glisser pour réordonner'
+        save: 'Enregistrer'
+        saved: 'Enregistré.'
+        subheading: 'Donnez-leur un nom et une icône, et glissez-les dans l’ordre où la barre latérale les affiche.'
     whats_new:
         heading: 'Nouveautés'
         'off': 'Désactivé'
@@ -4620,6 +4650,7 @@ settings:
             personal: Personnel
         health: 'Santé des comptes'
         images: Images
+        inboxes: 'Boîtes de réception unifiées'
         insights: Aperçus
         integrations: Intégrations
         labels: Libellés
@@ -5028,6 +5059,7 @@ sidebar:
         calendar: Agenda
         drafts: Brouillons
         inbox: Boîte de réception
+        inbox_other: 'Autres'
         more: Plus
         sent: Envoyés
         snoozed: En attente

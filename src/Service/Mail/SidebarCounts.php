@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\UnifiedInbox;
 use App\Entity\Mail\Mailbox;
 use App\Entity\User\User;
 use App\Repository\Label\LabelBindingRepository;
@@ -109,6 +110,7 @@ class SidebarCounts implements ResetInterface
         $this->folderAccounts     = null;
         $this->folders            = [];
         $this->folderOn           = [];
+        $this->inboxUnread        = null;
     }
 
     public function __construct(
@@ -118,7 +120,68 @@ class SidebarCounts implements ResetInterface
         private readonly ChangeLogRepository     $changeLog,
         private readonly MessageRepository       $messages,
         private readonly LabelBindingRepository  $bindings,
+        private readonly UnifiedInboxes          $inboxes,
     ) {}
+
+    /** @var array<int, int>|null account id => conversations holding unread mail in its Inbox */
+    private ?array $inboxUnread = null;
+
+    /**
+     * The unified inboxes the sidebar draws, in the reader's order (#265) —
+     * where the one Inbox row used to be.
+     *
+     * @return list<UnifiedInbox>
+     */
+    public function inboxes(): array
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User ? $this->inboxes->shown($user) : [];
+    }
+
+    /**
+     * The inbox the bare /mail/inbox opens — the reader's first that is not
+     * Other, which is not always the first row drawn: Other can be moved to
+     * the top.
+     */
+    public function firstInboxId(): ?int
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User ? $this->inboxes->first($user)->id : null;
+    }
+
+    /**
+     * The badge on one unified inbox: conversations holding unread mail in
+     * its accounts' Inbox. The badges of every inbox add up to forRole(Inbox),
+     * the number the one Inbox row showed, since a conversation belongs to
+     * one account and an account to one inbox.
+     */
+    public function forInbox(UnifiedInbox $inbox): int
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return 0;
+        }
+
+        // Every account in it — one inbox over everything, as before #265:
+        // the Inbox badge's own number, from the grouped read the other rows'
+        // badges come from anyway.
+        if (null === $this->inboxes->scopeOf($user, $inbox)) {
+            return $this->forRole(LabelRole::Inbox);
+        }
+
+        $this->inboxUnread ??= $this->threadRepository->countUnreadInboxPerAccount($user);
+
+        $count = 0;
+
+        foreach ($this->inboxes->accountIdsOf($user, $inbox) as $accountId) {
+            $count += $this->inboxUnread[$accountId] ?? 0;
+        }
+
+        return $count;
+    }
 
     /**
      * How far along this user's mail was when these counts were read: the

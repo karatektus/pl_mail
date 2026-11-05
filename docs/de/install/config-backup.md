@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:30f868dd0600d3cda9a3a9fc7a6b482b8bc3676b -->
+<!-- translated-from: install/config-backup.md sha1:9178bc20078dec9fb38b16f1a6cfb9b98fa25e67 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -32,7 +32,7 @@ Betreibers und sie überschreibt niemals eine Person.
 | **Die Datei mit den erzeugten Geheimnissen** | `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`APP_SECRET` und `MERCURE_JWT_SECRET` liegen ebenfalls hier, bleiben aber außerhalb der Sicherung — jede Maschine behält ihre eigenen) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
 | **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
 | **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter, die Assistenten-Konfiguration, die gewählte Log-Stufe — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
-| **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Posteingangs-Tabs, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
+| **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Posteingangs-Tabs, Sammel-Posteingänge, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
 
 **Das ist nicht dieselbe Aussage, die plMail früher gemacht hat.** Frühere Versionen führten jeden
 Umgebungswert als etwas auf, das nur der Betreiber setzen kann, und druckten zwei Dutzend Zeilen zum
@@ -196,6 +196,10 @@ Posteingangs-Tabs    die Tabs, die du selbst angelegt hast, die Reihenfolge
                      Welche Mail darin abgelegt ist, wird nicht mitgenommen
                      — das ist Mail, und ein Filter, der dort ablegt, füllt
                      den Tab wieder
+Sammel-Posteingänge  ihre Namen, Symbole und Reihenfolge, das Sammelbecken
+                     Sonstige und in welchen Posteingang jedes Mailkonto gelegt
+                     wurde — über die Kontonummern in dieser Datei, beim Import
+                     umgeschrieben
 Kalender             Name, Farbe, Zeitzone, Rolle und von welchem Mailkonto oder
                      welcher Integration er eine Spiegelung ist
 veröffentlichte      Kalender-Freigabelinks und Buchungsseiten, über ihren
@@ -397,7 +401,7 @@ Zugeordnet über die E-Mail-Adresse. Es gibt genau zwei Ausgänge und keinen dri
 
 - **Die Adresse gibt es hier nicht** → die Person wird angelegt, mit Passwort-Hash, zweitem Faktor,
   Wiederherstellungscodes, App-Passwörtern, Postfächern, Aliassen, Integrationen, Filtern, Labels,
-  Posteingangs-Tabs, Kalendern und veröffentlichten Links. Sie kann sich sofort mit dem Passwort anmelden, das sie schon
+  Posteingangs-Tabs, Sammel-Posteingängen, Kalendern und veröffentlichten Links. Sie kann sich sofort mit dem Passwort anmelden, das sie schon
   kennt, ihre Authenticator-App funktioniert weiter, und ihre bestehenden App-Passwörter halten ihre
   JMAP-Clients verbunden.
 - **Die Adresse gibt es hier** → es passiert nichts. Nicht das Passwort, nicht der zweite Faktor,

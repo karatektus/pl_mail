@@ -106,6 +106,9 @@ final class SessionBuilder
                 // The user's tabs, answered by every account — see
                 // Capability::INBOX_TABS.
                 Capability::INBOX_TABS => new \stdClass(),
+                // The user's unified inboxes, likewise — see
+                // Capability::UNIFIED_INBOXES.
+                Capability::UNIFIED_INBOXES => new \stdClass(),
             ];
 
             if ($accountId === $calendarAccountId) {
@@ -138,6 +141,7 @@ final class SessionBuilder
             $primaryAccounts[Capability::SUBMISSION] = $primaryId;
             $primaryAccounts[Capability::CONTACTS] = $primaryId;
             $primaryAccounts[Capability::INBOX_TABS] = $primaryId;
+            $primaryAccounts[Capability::UNIFIED_INBOXES] = $primaryId;
         }
 
         if (null !== $calendarAccountId) {
@@ -177,6 +181,14 @@ final class SessionBuilder
                 Capability::TEMPLATES => $this->templatesCapabilities(),
                 Capability::KEYS => $this->keysCapabilities(),
                 Capability::INBOX_TABS => new \stdClass(),
+                // The icon names an inbox can carry, so a client can map the
+                // whole set to its own glyphs before the first get answers.
+                Capability::UNIFIED_INBOXES => [
+                    'icons' => array_map(
+                        static fn (\App\Domain\Enum\Mail\UnifiedInboxIcon $icon): string => $icon->value,
+                        \App\Domain\Enum\Mail\UnifiedInboxIcon::cases(),
+                    ),
+                ],
                 // What a scope key may look like, and the list a user who has
                 // not chosen gets — so a client can draw its switches before
                 // the first NotificationSettings/get answers.

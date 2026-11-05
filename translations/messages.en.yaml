@@ -4529,6 +4529,36 @@ settings:
         right:
             label: Swipe right
         subheading: What a swipe across a row does on a phone.
+    unified_inboxes:
+        account_label: 'Unified inbox for %account%'
+        account_off: 'Switched off — none of its mail is listed until you switch it back on.'
+        accounts_heading: 'Accounts'
+        accounts_subheading: 'Which inbox each account''s mail is listed in. A new account goes into your first inbox.'
+        add: 'Add'
+        created: 'Created "%name%".'
+        delete: 'Delete %inbox%'
+        delete_confirm: 'Delete "%name%"? Its accounts move to %other%. No mail is deleted.'
+        deleted: 'Inbox deleted. Its accounts are listed in the catch-all inbox now.'
+        heading: 'Unified inboxes'
+        hint: 'Each inbox shows the mail of the accounts you put in it as one list, with its own tabs. Leave a name empty to use the standard one.'
+        icon_label: 'Icon for %inbox%'
+        icon_new: 'Icon for the new inbox'
+        last_stays: 'Keep at least one inbox of your own.'
+        move_down: 'Move %inbox% down'
+        move_up: 'Move %inbox% up'
+        name_label: 'Name'
+        name_required: 'An inbox needs a name.'
+        name_too_long: 'That name is too long (40 characters at most).'
+        no_accounts: 'No mail accounts yet.'
+        not_found: 'That inbox does not exist any more.'
+        other_hint: 'Collects every account you take out of your own inboxes. It stays out of the sidebar while it holds none.'
+        other_option: 'catch-all'
+        other_stays: 'The catch-all inbox cannot be deleted: accounts that are in none of your own inboxes are listed there.'
+        placeholder: 'e.g. Work'
+        reorder: 'Drag to reorder'
+        save: 'Save'
+        saved: 'Saved.'
+        subheading: 'Name them, give them an icon and drag them into the order the sidebar shows them in.'
     whats_new:
         heading: 'What''s new'
         'off': 'Off'
@@ -4558,6 +4588,7 @@ settings:
             personal: Personal
         health: 'Account health'
         images: Images
+        inboxes: 'Unified inboxes'
         insights: Insights
         integrations: Integrations
         labels: Labels
@@ -4990,6 +5021,7 @@ sidebar:
         calendar: Calendar
         drafts: Drafts
         inbox: Inbox
+        inbox_other: 'Other'
         more: More
         sent: Sent
         snoozed: Snoozed

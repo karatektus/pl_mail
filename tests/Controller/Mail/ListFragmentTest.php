@@ -206,7 +206,8 @@ final class ListFragmentTest extends WebTestCase
 
         self::assertStringContainsString('name="csrf-token"', $body);
         self::assertStringContainsString('name="turbo-cache-control" content="no-cache"', $body);
-        self::assertStringContainsString('name="title-count-key" content="role:inbox"', $body);
+        // The open inbox's own badge (#265): `inbox:<id>`.
+        self::assertMatchesRegularExpression('/name="title-count-key" content="inbox:\\d+"/', $body);
     }
 
     /**
@@ -400,8 +401,8 @@ final class ListFragmentTest extends WebTestCase
 
         $client->request('GET', '/mail/inbox');
 
-        self::assertStringContainsString(
-            'name="title-count-key" content="role:inbox"',
+        self::assertMatchesRegularExpression(
+            '/name="title-count-key" content="inbox:\\d+"/',
             (string) $client->getResponse()->getContent(),
             'the sidebar rewrites the title from this key after a sync',
         );

@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SidebarRow;
 use App\Entity\Label\Label;
 use App\Entity\User\User;
+use App\Service\Mail\UnifiedInboxes;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -354,9 +355,13 @@ final class SidebarMoreTest extends WebTestCase
         $router     = static::getContainer()->get(RouterInterface::class);
         $unreadView = static fn (SidebarRow $row): string => $router->generate($row->route(), ['unread' => 1]);
 
+        // The Inbox slot is the reader's unified inboxes (#265): one here, the
+        // first, keyed and linked by its id.
+        $first = static::getContainer()->get(UnifiedInboxes::class)->first($this->user);
+
         // count key => [element, badge kind, href, quiet]
         $expected = [
-            'role:inbox'   => ['a', 'unread', $unreadView(SidebarRow::Inbox), false],
+            'inbox:' . $first->id => ['a', 'unread', $router->generate('app_mail_inbox', ['inbox' => $first->id, 'unread' => 1]), false],
             'unread'       => ['span', 'unread', null, false],
             'starred'      => ['a', 'unread', $unreadView(SidebarRow::Starred), false],
             'role:sent'    => ['span', 'unread', null, false],

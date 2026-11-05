@@ -1,0 +1,52 @@
+{#
+settings/_unified_inbox_accounts.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Which unified inbox each account is listed in (#265). One select per account,
+posted the moment it changes (ui--auto-submit), like the switches elsewhere on
+these pages.
+
+Here, beside the inboxes, rather than on each row of Settings → Mail accounts:
+that row is a strip of icon buttons, and a select there would be the one control
+of its kind — while here the reader sees the inboxes they are choosing between.
+
+Other is one of the choices, and choosing it is how an account is taken out of
+the reader's own inboxes. A switched-off account is listed too, marked: its
+place is kept for when it is switched back on, and nothing of it is listed in
+any inbox meanwhile.
+
+Accepts:
+  inboxes     UnifiedInbox[]    every inbox of the reader's, in order
+  accounts    Account[]         every account, in the reader's order
+  inboxOf     array<int, int>   account id => inbox id
+#}
+<ul class="divide-y divide-line">
+    {% for account in accounts %}
+        <li class="flex flex-wrap items-center gap-3 px-4 py-2.5" data-unified-inbox-account="{{ account.id }}">
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium {{ account.isActive ? 'text-ink' : 'text-ink-faint' }}">{{ account.displayAddress }}</p>
+                {% if not account.isActive %}
+                    <p class="text-[11px] text-ink-faint">{{ 'settings.unified_inboxes.account_off'|trans }}</p>
+                {% endif %}
+            </div>
+            <form method="post" action="{{ path('app_settings_inboxes_assign', { account: account.id }) }}"
+                  data-controller="ui--auto-submit" class="shrink-0">
+                <input type="hidden" name="_token" value="{{ csrf_token('settings-inboxes') }}">
+                <select name="inbox"
+                        data-action="change->ui--auto-submit#submit"
+                        aria-label="{{ 'settings.unified_inboxes.account_label'|trans({ '%account%': account.displayAddress }) }}"
+                        class="h-8 max-w-[14rem] rounded-pane border border-line bg-surface px-2 text-sm text-ink">
+                    {% for inbox in inboxes %}
+                        <option value="{{ inbox.id }}" {{ inboxOf[account.id] is defined and inboxOf[account.id] == inbox.id ? 'selected' : '' }}>
+                            {{ unified_inbox_name(inbox) }}{% if inbox.isOther %} — {{ 'settings.unified_inboxes.other_option'|trans }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <noscript>
+                    <button type="submit" class="h-8 px-2.5 rounded-pane border border-line text-xs">{{ 'settings.unified_inboxes.save'|trans }}</button>
+                </noscript>
+            </form>
+        </li>
+    {% else %}
+        <li class="px-4 py-3 text-sm text-ink-faint">{{ 'settings.unified_inboxes.no_accounts'|trans }}</li>
+    {% endfor %}
+</ul>

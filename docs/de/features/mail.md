@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:074134058250b79d3285f2896cba4bddefe616e2 -->
+<!-- translated-from: features/mail.md sha1:92cc40170865db1d7803dd455901c7ef70e2cd9c -->
 
 # Mail
 
@@ -16,7 +16,7 @@ gleich, wo es angekommen ist.
 
 | Eintrag | Was er auflistet |
 |---|---|
-| **Posteingang** | Alles, was noch im Posteingang liegt, über alle Konten hinweg, neueste Konversation zuerst |
+| **Posteingang** | Alles, was noch im Posteingang liegt, über alle Konten hinweg, neueste Konversation zuerst — oder eine Zeile je Posteingang, sobald du deine Konten auf mehrere verteilst (siehe [Mehrere Posteingänge](#mehrere-posteingänge)) |
 | **Ungelesen** | Jede ungelesene Konversation in einer Liste, egal wo sie abgelegt ist — aus, bis du es einschaltest |
 | **Markiert** | Konversationen mit mindestens einer markierten Nachricht |
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
@@ -108,6 +108,31 @@ Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt 
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
+
+### Mehrere Posteingänge
+
+Ein **Posteingang** über alle Konten ist der Anfang für alle. Willst du Arbeit und Privates getrennt
+lesen, legt **Einstellungen → Sammel-Posteingänge** weitere an: einen hinzufügen, ihm Namen und
+Symbol geben und unter **Konten** wählen, in welchem Posteingang die Mail jedes Kontos erscheint.
+Jeder Posteingang ist eine eigene Zeile in der Seitenleiste, in der Reihenfolge, in die du sie
+ziehst, mit eigenem Ungelesen-Zähler, eigenem „Neu“-Punkt und eigenen Tabs — die Tabs eines
+Posteingangs zählen nur die Mail seiner Konten, und **Alle auswählen** reicht darin nicht weiter.
+Der erste Posteingang ist der, den die einfache **Posteingang**-Adresse öffnet, und ein neues Konto
+landet dort, bis du es verschiebst.
+
+Ein Konto ist immer in genau einem Posteingang. Nimmst du eines aus all deinen heraus, landet es in
+**Sonstige**, einem Posteingang, den plMail genau dafür bereithält, damit es weiter nur einen Klick
+entfernt ist. Sonstige erscheint in der Seitenleiste nur, solange es ein eingeschaltetes Konto
+enthält; du kannst es umbenennen, ihm ein anderes Symbol geben und es verschieben wie die anderen,
+aber nicht löschen. Löschst du einen eigenen Posteingang, wandern seine Konten ebenfalls dorthin —
+in keinem Fall wird Mail gelöscht, ein Posteingang ist nur eine Art, sie aufzulisten. Lässt du den
+Namen leer, heißt der Posteingang in deiner Sprache **Posteingang** (oder **Sonstige**).
+
+**Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen weiterhin über
+alle Konten, und der Browser-Tab zählt den Posteingang, den du offen hast. Jedes Konto behält unter
+**Konten** seinen eigenen Posteingang. Eine Konfigurationssicherung enthält die Posteingänge und
+welches Konto in welchem liegt. Apps auf dem Telefon können sie über JMAP lesen (`UnifiedInbox/get`);
+angeordnet werden sie nur hier.
 
 ## Tabs
 

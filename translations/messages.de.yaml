@@ -4554,6 +4554,36 @@ settings:
         right:
             label: Nach rechts wischen
         subheading: Was eine Wischbewegung über eine Zeile auf dem Telefon bewirkt.
+    unified_inboxes:
+        account_label: 'Sammel-Posteingang für %account%'
+        account_off: 'Ausgeschaltet — nichts davon wird angezeigt, bis du es wieder einschaltest.'
+        accounts_heading: 'Konten'
+        accounts_subheading: 'In welchem Posteingang die Mail jedes Kontos erscheint. Ein neues Konto landet in deinem ersten Posteingang.'
+        add: 'Hinzufügen'
+        created: '„%name%“ angelegt.'
+        delete: '%inbox% löschen'
+        delete_confirm: '„%name%“ löschen? Seine Konten wandern nach %other%. Es wird keine Mail gelöscht.'
+        deleted: 'Posteingang gelöscht. Seine Konten stehen jetzt im Sammelbecken.'
+        heading: 'Sammel-Posteingänge'
+        hint: 'Jeder Posteingang zeigt die Mail der Konten, die du ihm zuordnest, als eine Liste mit eigenen Tabs. Lass den Namen leer, um den Standardnamen zu verwenden.'
+        icon_label: 'Symbol für %inbox%'
+        icon_new: 'Symbol für den neuen Posteingang'
+        last_stays: 'Mindestens ein eigener Posteingang muss bleiben.'
+        move_down: '%inbox% nach unten'
+        move_up: '%inbox% nach oben'
+        name_label: 'Name'
+        name_required: 'Ein Posteingang braucht einen Namen.'
+        name_too_long: 'Der Name ist zu lang (höchstens 40 Zeichen).'
+        no_accounts: 'Noch keine Mailkonten.'
+        not_found: 'Diesen Posteingang gibt es nicht mehr.'
+        other_hint: 'Sammelt jedes Konto, das du aus deinen eigenen Posteingängen nimmst. In der Seitenleiste erscheint er erst, wenn er eins enthält.'
+        other_option: 'Sammelbecken'
+        other_stays: 'Das Sammelbecken kann nicht gelöscht werden: Dort stehen die Konten, die in keinem deiner Posteingänge sind.'
+        placeholder: 'z. B. Arbeit'
+        reorder: 'Zum Sortieren ziehen'
+        save: 'Speichern'
+        saved: 'Gespeichert.'
+        subheading: 'Gib ihnen Namen und Symbole und zieh sie in die Reihenfolge, in der die Seitenleiste sie zeigt.'
     whats_new:
         heading: 'Was ist neu'
         'off': 'Aus'
@@ -4583,6 +4613,7 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         images: Bilder
+        inboxes: 'Sammel-Posteingänge'
         insights: Insights
         integrations: Integrationen
         labels: Labels
@@ -5021,6 +5052,7 @@ sidebar:
         calendar: Kalender
         drafts: Entwürfe
         inbox: Posteingang
+        inbox_other: 'Sonstige'
         more: Mehr
         sent: Gesendet
         snoozed: Zurückgestellt

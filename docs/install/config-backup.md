@@ -27,7 +27,7 @@ oppositely — it overwrites the operator's settings and it never overwrites a p
 | **The generated secrets file** | `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`APP_SECRET` and `MERCURE_JWT_SECRET` live here too but stay out of the backup — each machine keeps its own) | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
 | **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings, the assistant configuration, the chosen log level — everything an admin typed into a form rather than into a file | **Yes**, immediately |
-| **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, inbox tabs, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
+| **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, inbox tabs, unified inboxes, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
 
 **This is not the same claim plMail used to make.** Earlier versions listed every environment value
 as something only the operator could set, and printed two dozen lines to paste into `.env.local`.
@@ -180,6 +180,9 @@ inbox tabs           the tabs you made yourself, the order of every tab and
                      which built-in ones are switched off. Which mail is
                      filed in them is not carried — that is mail, and a
                      filter that files into one fills it again
+unified inboxes      their names, icons and order, the catch-all Other, and
+                     which inbox each mail account was put in — by the
+                     accounts' ids in this file, rewritten on import
 calendars            name, colour, time zone, role, and which mail account or
                      integration each one is a mirror of
 published links      calendar share links and booking pages, by token digest —
@@ -367,7 +370,7 @@ the way out first rather than framing an empty list as work.
 Matched by email address. There are exactly two outcomes and no third.
 
 - **The address is not here** → the person is created, with their password hash, second factor,
-  recovery codes, app passwords, mailboxes, aliases, integrations, filters, labels, inbox tabs,
+  recovery codes, app passwords, mailboxes, aliases, integrations, filters, labels, inbox tabs, unified inboxes,
   calendars and published links. They can sign in immediately with the password they already know, their
   authenticator app keeps working, and their existing app passwords keep their JMAP clients
   connected.

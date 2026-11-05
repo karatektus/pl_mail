@@ -18,4 +18,6 @@ enum JmapObjectType: string
     // The reader's inbox tabs — per user, recorded once for each of their
     // accounts, the way a label is (MailChangeRecorder::labelChanged()).
     case InboxTab = 'InboxTab';
+    // The reader's unified inboxes (#265), recorded the same way.
+    case UnifiedInbox = 'UnifiedInbox';
 }
