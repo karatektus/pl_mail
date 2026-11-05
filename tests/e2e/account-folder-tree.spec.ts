@@ -13,23 +13,38 @@ import { seed } from "./support/config";
 
 test.beforeEach(() => seed("seed-mail", "seed-label --path='E2E Parent'", "seed-label --path='E2E Parent/E2E Inside'"));
 
-/** Leave the parent open: the preference outlives the test. */
+/**
+ * Put back what this spec changed for the worker's user: the parent open, the
+ * account's folders folded away again (the state everybody starts in), and
+ * both folders gone. Those outlive the test, and account-folders.spec.ts
+ * expects this account with no folders and its row not expanded.
+ */
 test.afterEach(async ({ page }) => {
+    await reopenParent(page);
+    await post(page, "/mail/sidebar/account-expanded", { account: null });
+    seed("seed-label --path='E2E Parent/E2E Inside' --remove", "seed-label --path='E2E Parent' --remove");
+});
+
+async function reopenParent(page: Page): Promise<void> {
     const key = await parentTree(page).getAttribute("data-collapse-key", { timeout: 2000 }).catch(() => null);
 
     if (null === key) {
         return;
     }
 
+    await post(page, "/mail/sidebar/section-collapsed", { key, collapsed: false });
+}
+
+async function post(page: Page, url: string, data: object): Promise<void> {
     const token = await page.locator("meta[name='csrf-token']").getAttribute("content", { timeout: 2000 }).catch(() => null);
 
     if (null !== token) {
-        await page.request.post("/mail/sidebar/section-collapsed", {
+        await page.request.post(url, {
             headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
-            data: { key, collapsed: false },
+            data,
         });
     }
-});
+}
 
 const link = (page: Page, name: RegExp) => page.locator("a[data-ui--sidebar-target='link']", { hasText: name });
 

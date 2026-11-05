@@ -29,7 +29,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * With `--path=<a/b>` it seeds a folder at that path instead, named after its
  * last segment and nested under the label of the one before it, as a folder
- * sync would: for the folder tree under the account (#221).
+ * sync would: for the folder tree under the account (#221). `--remove` takes
+ * it away again, so a spec leaves the shared account's folder list as it found
+ * it (account-folders.spec.ts expects it empty).
  *
  * Mirrors what LabelController::new persists: a Label with account + name
  * (+ colour), role left null (custom), everything else default. Fields are
@@ -64,6 +66,7 @@ final class SeedTestLabelCommand extends Command
         $this->configureUserOption();
         $this->addOption('folder', null, InputOption::VALUE_NONE, 'Seed "' . self::FOLDER_NAME . '", a folder on the account, instead');
         $this->addOption('path', null, InputOption::VALUE_REQUIRED, 'Seed a folder at this path ("/"-separated) instead');
+        $this->addOption('remove', null, InputOption::VALUE_NONE, 'With --path: take that folder and its label away again');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -108,6 +111,23 @@ final class SeedTestLabelCommand extends Command
             'usr'  => $user,
             'name' => $name,
         ]);
+
+        if (null !== $path && true === $input->getOption('remove')) {
+            $mailbox = null !== $label ? $label->bindingFor($account)?->mailbox : null;
+
+            if (null !== $mailbox) {
+                $this->entityManager->remove($mailbox);
+            }
+
+            if (null !== $label) {
+                $this->entityManager->remove($label);
+            }
+
+            $this->entityManager->flush();
+            $io->success(sprintf('Removed folder "%s".', $path));
+
+            return Command::SUCCESS;
+        }
 
         if (null === $label) {
             $label         = new Label();
