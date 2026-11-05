@@ -740,6 +740,14 @@ admin:
                 step_register: 'Im Azure-Portal unter Microsoft Entra ID → App-Registrierungen eine Anwendung registrieren.'
                 step_secret: 'Unter Zertifikate & Geheimnisse ein Client-Secret erstellen und den Wert sofort kopieren — er wird nur einmal angezeigt.'
                 tenant_note: 'Für private Microsoft-Konten den Tenant „common“ verwenden, oder die eigene Tenant-ID, um den Zugriff auf die Organisation zu beschränken.'
+            open_cloud:
+                intro: 'OpenCloud meldet sich mit einem App-Token pro Benutzer an, hier ist also nichts zu registrieren. plMail erreicht den persönlichen Bereich jedes Benutzers; Projektbereiche und mit ihm geteilte Dateien werden noch nicht angezeigt.'
+                security: 'App-Tokens erreichen alle Dateien eines Benutzers und funktionieren mit einem externen Identitätsanbieter weiter, auch wenn das Konto dort deaktiviert ist. Nicht mehr benötigte Tokens sollten gelöscht werden.'
+                share_password: 'OpenCloud lehnt öffentliche Links ohne Passwort standardmäßig ab. Damit große Dateien als Link angehängt werden können, setze OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; sonst lassen sich nur Kopien anhängen.'
+                step_app_auth: 'Stell sicher, dass OpenCloud App-Tokens über WebDAV annimmt. Je nach Version heißt das: auth-app zu OC_ADD_RUN_SERVICES hinzufügen und PROXY_ENABLE_APP_AUTH=true setzen.'
+                step_base_url: 'Optional die Serveradresse festlegen, zum Beispiel https://cloud.example.com.'
+                step_enable: 'Oben „Diesen Dienst Benutzern anbieten“ einschalten.'
+                step_user: 'Jeder Benutzer erstellt in OpenCloud unter Kontoeinstellungen → App-Tokens ein Token mit langer Laufzeit und trägt es mit seinem Benutzernamen in seine eigenen Integrationseinstellungen ein.'
             paperless:
                 asynchronous: 'Beim Speichern übergibt plMail den Anhang an den Paperless-Consumer, der ihn ein paar Sekunden später ablegt. Gemeldet wird die Übergabe, nicht das fertige Dokument — ein Testdokument taucht also kurz nach der Erfolgsmeldung in Paperless auf, und eine Datei, die Paperless als Dublette ablehnt, gar nicht.'
                 intro: 'Paperless-ngx authentifiziert sich mit einem API-Token pro Benutzer, hier ist also nichts zu registrieren.'
@@ -2611,6 +2619,7 @@ integration:
             immich: 'Ein Foto beschreiben, z. B. Strand bei Sonnenuntergang'
             nextcloud: 'Nextcloud durchsuchen'
             oneDrive: 'OneDrive durchsuchen'
+            openCloud: 'OpenCloud durchsuchen'
             paperless: 'Titel und gescannten Text durchsuchen'
         status:
             attach_failed: 'Anhängen fehlgeschlagen'
@@ -4238,6 +4247,15 @@ settings:
         badge:
             ask_admin: 'nicht freigeschaltet'
             soon: 'bald verfügbar'
+        browser_login:
+            button: 'Im Browser bestätigen'
+            cancel: Abbrechen
+            failed: 'Die Bestätigung im Browser konnte nicht starten (%status%).'
+            help: 'Öffnet %provider% in einem neuen Tab. Melde dich dort an und bestätige plMail (Zwei-Faktor-Anmeldung funktioniert wie gewohnt), dann wird die Verbindung hier von selbst gespeichert.'
+            open_again: 'Bestätigungsseite erneut öffnen'
+            or_manual: 'Oder füll die Felder unten selbst aus.'
+            revoke_note: 'Eine neue Bestätigung ersetzt die gespeicherte Anmeldung, widerruft die alte aber nicht. Entferne das alte Gerät selbst in %provider%.'
+            waiting: 'Warte auf deine Bestätigung in %provider% …'
         checked: 'geprüft %date%'
         connect: Verbinden
         disabled: 'Verbindung pausiert'
@@ -4264,6 +4282,7 @@ settings:
                 immich: 'API-Schlüssel'
                 nextcloud: 'App-Passwort'
                 oneDrive: 'Zugriffstoken'
+                openCloud: 'App-Token'
                 paperless: 'API-Token'
             secret_help:
                 dropbox: ''
@@ -4272,6 +4291,7 @@ settings:
                 immich: 'In Immich unter Account Settings → API Keys erzeugen.'
                 nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
                 oneDrive: ''
+                openCloud: 'Erstelle eines in OpenCloud unter Kontoeinstellungen → App-Tokens und wähl eine lange Laufzeit: Ein abgelaufenes Token funktioniert nicht mehr. Mit Single Sign-on ist der Benutzername eventuell die ID unter Einstellungen.'
                 paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername

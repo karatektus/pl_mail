@@ -127,6 +127,7 @@ Three different answers, and the choice is deliberate each time.
 | Trusted-device cookie | SHA-256 | 32 bytes of CSPRNG |
 | Share link / booking page token | SHA-256 | 32 bytes of CSPRNG |
 | Device pairing code | SHA-256, as a cache key | 32 bytes of CSPRNG, dead in two minutes |
+| Browser-approval id (#235) | SHA-256, as a cache key; the service's poll token beside it is `Encryptor`-encrypted | 24 bytes of CSPRNG, dead in 20 minutes, bound to the user who started it |
 | TOTP recovery codes | SHA-256 digests, in a jsonb list | 64 bits of CSPRNG each |
 | TOTP secret | `encrypted_string` — reversible | the server must be able to *use* it |
 
@@ -833,6 +834,16 @@ shorter than a deploy.
 
 `CODE_BYTES` is 32, and that is why `/device/pair` needs no lockout of its own: there is
 nothing to brute-force.
+
+The same pattern runs the other way for an integration (#235).
+`App\Service\Integration\BrowserLogin\BrowserLoginService` lets a person connect Nextcloud by
+approving in their own browser instead of pasting an app password. The service's poll token is as
+good as an app password for whoever presents it first, so it never reaches the browser: the
+browser holds a random id, the cache holds the token under `hash('sha256', $id)`, encrypted with
+the key the stored credentials use, and only the user who started the approval can poll it. The
+login and poll addresses must be on the origin plMail started from, and the address a server names
+in its answer is never stored, so a server cannot move the connection or the token to another
+host. What comes back is saved through the same probe as a typed credential.
 
 ## The SSRF guard
 

@@ -26,6 +26,21 @@ namespace App\Domain\Enum\Integration;
 enum Provider: string
 {
     case Nextcloud = 'nextcloud';
+
+    /**
+     * OpenCloud, the fork of ownCloud Infinite Scale (#476).
+     *
+     * Its own case rather than "Nextcloud, pointed elsewhere", although both
+     * speak the same WebDAV: the credential is an app token minted under
+     * OpenCloud's own sign-in, search is a REPORT rather than SEARCH, previews
+     * come from the DAV path itself, and there is no CalDAV or CardDAV behind
+     * the same address. Choosing Nextcloud for an OpenCloud server would fail at
+     * the first search and offer calendars that are not there.
+     *
+     * camelCase like the other two-word values; slug() makes it open_cloud for
+     * the tutorial partial.
+     */
+    case OpenCloud = 'openCloud';
     case Immich = 'immich';
 
     /**
@@ -98,6 +113,7 @@ enum Provider: string
     {
         return match ($this) {
             self::Nextcloud    => 'Nextcloud',
+            self::OpenCloud    => 'OpenCloud',
             self::Immich       => 'Immich',
             self::Paperless    => 'Paperless-ngx',
             self::GoogleDrive  => 'Google Drive',
@@ -115,6 +131,9 @@ enum Provider: string
     {
         return match ($this) {
             self::Nextcloud    => 'fa-solid fa-cloud',
+            // Not the same cloud as Nextcloud: someone moving from one to the
+            // other may have both connected for a while, side by side.
+            self::OpenCloud    => 'fa-solid fa-cloud-arrow-up',
             self::Immich       => 'fa-solid fa-images',
             // An archive box rather than a document glyph: the settings list
             // puts every service in one column, and a single sheet of paper
@@ -150,6 +169,7 @@ enum Provider: string
     {
         return match ($this) {
             self::Nextcloud,
+            self::OpenCloud,
             self::Immich,
             self::Paperless,
             self::GoogleDrive,
@@ -181,6 +201,10 @@ enum Provider: string
             self::Nextcloud,
             self::CalDav,
             self::Ics          => true,
+            // OpenCloud serves files only: there is no CalDAV behind its DAV
+            // root. An install that adds a calendar server beside it is a
+            // CalDAV connection like any other.
+            self::OpenCloud,
             self::Immich,
             self::Paperless,
             self::GoogleDrive,
@@ -201,6 +225,7 @@ enum Provider: string
         return match ($this) {
             self::Nextcloud,
             self::CardDav      => true,
+            self::OpenCloud,
             self::Immich,
             self::Paperless,
             self::GoogleDrive,
@@ -222,6 +247,10 @@ enum Provider: string
     {
         return match ($this) {
             self::Nextcloud,
+            // An app token from OpenCloud's auth-app service, sent as HTTP
+            // Basic with the username — the same shape as a Nextcloud app
+            // password, minted under whatever sign-in OpenCloud uses (OIDC).
+            self::OpenCloud,
             self::Immich,
             // Paperless mints per-user API tokens under the user's own profile,
             // the same shape as an Immich key — and it is self-hosted, which is
@@ -306,7 +335,11 @@ enum Provider: string
                 Capability::Upload,
                 Capability::Thumbnail,
             ],
+            // OpenCloud has all of them, with one caveat the tutorial states:
+            // by default it refuses a public link without a password, and
+            // plMail does not invent one, so links need that policy off.
             self::Nextcloud,
+            self::OpenCloud,
             self::GoogleDrive,
             self::OneDrive,
             self::Dropbox => [
@@ -364,6 +397,7 @@ enum Provider: string
             // Self-hosted first, then the registered ones, which is also the
             // order an admin meets them in.
             self::Nextcloud,
+            self::OpenCloud,
             self::Immich,
             self::Paperless,
             self::CalDav,

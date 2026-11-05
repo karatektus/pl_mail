@@ -736,6 +736,14 @@ admin:
                 step_register: 'Ouvrez le portail Azure et inscrivez une application sous Microsoft Entra ID → Inscriptions d’applications.'
                 step_secret: 'Sous Certificats et secrets, créez un secret client et copiez sa valeur immédiatement — elle n’est affichée qu’une fois.'
                 tenant_note: 'Utilisez le tenant common pour les comptes Microsoft personnels, ou l’ID de votre tenant pour restreindre l’accès à votre organisation.'
+            open_cloud:
+                intro: 'OpenCloud s’authentifie avec un jeton d’application par utilisateur : il n’y a rien à enregistrer ici. plMail accède à l’espace personnel de chaque utilisateur ; les espaces projet et les fichiers partagés avec lui ne sont pas encore affichés.'
+                security: 'Un jeton d’application donne accès à tous les fichiers de l’utilisateur et, avec un fournisseur d’identité externe, reste valide après la désactivation du compte chez celui-ci. Les jetons inutiles devraient être supprimés.'
+                share_password: 'Par défaut, OpenCloud refuse les liens publics sans mot de passe. Pour permettre de joindre de gros fichiers sous forme de lien, définissez OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false ; sinon seules des copies peuvent être jointes.'
+                step_app_auth: 'Vérifiez qu’OpenCloud accepte les jetons d’application via WebDAV. Selon la version, il faut ajouter auth-app à OC_ADD_RUN_SERVICES et définir PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'Facultatif : fixez l’adresse du serveur, par exemple https://cloud.example.com.'
+                step_enable: 'Activez « Proposer ce service aux utilisateurs » ci-dessus.'
+                step_user: 'Chaque utilisateur crée dans OpenCloud, sous Paramètres du compte → Jetons d’application, un jeton à longue durée de validité, puis le colle avec son nom d’utilisateur dans ses propres réglages d’intégration.'
             paperless:
                 asynchronous: 'Enregistrer une pièce jointe la confie au consommateur de Paperless, qui la classe quelques secondes plus tard. plMail signale la remise, pas le document final — un enregistrement de test apparaît donc dans Paperless peu après avoir été indiqué comme fait, et un fichier que Paperless rejette comme doublon n’apparaît jamais.'
                 intro: 'Paperless-ngx s’authentifie avec un jeton d’API propre à chaque utilisateur : il n’y a rien à enregistrer ici.'
@@ -2624,6 +2632,7 @@ integration:
             immich: 'Décrivez une photo, p. ex. plage au coucher du soleil'
             nextcloud: 'Rechercher dans Nextcloud'
             oneDrive: 'Rechercher dans OneDrive'
+            openCloud: 'Rechercher dans OpenCloud'
             paperless: 'Rechercher dans les titres et le texte numérisé'
         status:
             attach_failed: 'Impossible de joindre'
@@ -4275,6 +4284,15 @@ settings:
         badge:
             ask_admin: 'non activé'
             soon: 'bientôt'
+        browser_login:
+            button: 'Se connecter par validation dans le navigateur'
+            cancel: Annuler
+            failed: 'La validation dans le navigateur n’a pas pu démarrer (%status%).'
+            help: 'Ouvre %provider% dans un nouvel onglet. Connectez-vous et autorisez plMail (la double authentification fonctionne comme d’habitude) : la connexion est ensuite enregistrée ici toute seule.'
+            open_again: 'Rouvrir la page de validation'
+            or_manual: 'Ou remplissez vous-même les champs ci-dessous.'
+            revoke_note: 'Une nouvelle validation remplace l’identifiant enregistré mais ne révoque pas l’ancien. Supprimez vous-même l’ancien appareil dans %provider%.'
+            waiting: 'En attente de votre validation dans %provider%…'
         checked: 'vérifié le %date%'
         connect: Connecter
         disabled: 'Connexion en pause'
@@ -4301,6 +4319,7 @@ settings:
                 immich: 'Clé d’API'
                 nextcloud: 'Mot de passe d’application'
                 oneDrive: 'Jeton d’accès'
+                openCloud: 'Jeton d’application'
                 paperless: 'Jeton d’API'
             secret_help:
                 dropbox: ''
@@ -4309,6 +4328,7 @@ settings:
                 immich: 'Créez-en une dans Immich sous Paramètres du compte → Clés API.'
                 nextcloud: 'Créez-en un dans Nextcloud sous Paramètres → Sécurité → Appareils et sessions. N’utilisez pas votre mot de passe de connexion.'
                 oneDrive: ''
+                openCloud: 'Créez-en un dans OpenCloud sous Paramètres du compte → Jetons d’application et choisissez une longue durée : un jeton expiré ne fonctionne plus. Avec l’authentification unique, le nom d’utilisateur peut être l’identifiant affiché dans les préférences.'
                 paperless: 'Copiez-le depuis Paperless sous Mon profil → Jeton d’authentification API.'
             secret_unchanged: 'Laissez vide pour conserver l’identifiant enregistré'
             username: Nom d’utilisateur

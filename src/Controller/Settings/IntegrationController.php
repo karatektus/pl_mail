@@ -18,9 +18,12 @@ use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Subscription\CalendarSubscriber;
+use App\Domain\Exception\IntegrationException;
+use App\Service\Integration\BrowserLogin\BrowserLoginService;
 use App\Service\Integration\IntegrationConnector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -45,6 +48,9 @@ final class IntegrationController extends AbstractController
 {
     use ChecksCsrf;
 
+    /** The token the browser-approval button sends with both of its calls. */
+    public const string BROWSER_LOGIN_CSRF = 'integration-browser-login';
+
     public function __construct(
         private readonly IntegrationRepository               $integrationRepository,
         private readonly IntegrationProviderConfigRepository $configRepository,
@@ -53,6 +59,7 @@ final class IntegrationController extends AbstractController
         private readonly CalendarSubscriber                  $calendarSubscriber,
         private readonly CalendarRepository                  $calendarRepository,
         private readonly AddressBookRepository               $addressBookRepository,
+        private readonly BrowserLoginService                 $browserLogin,
     ) {
     }
 
@@ -153,6 +160,89 @@ final class IntegrationController extends AbstractController
         return $this->listStream('settings.integrations.disconnected');
     }
 
+    /**
+     * Begin connecting by approving in the browser (#235).
+     *
+     * JSON in and out, from the button beside the manual fields: the name and
+     * address are read from those fields as they stand, so a person who typed
+     * them first does not type them twice. `integration` is the connection
+     * being edited — or, from the setup wizard, the one it would edit.
+     *
+     * The answer carries the address to approve at and where to ask for the
+     * outcome. The flow's own token never reaches the browser.
+     */
+    #[Route('/browser-login/{provider}/start', name: 'browser_login_start', methods: ['POST'])]
+    public function browserLoginStart(Provider $provider, Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, self::BROWSER_LOGIN_CSRF);
+
+        $payload = $request->toArray();
+        $existing = null;
+
+        if (true === isset($payload['integration']) && '' !== (string) $payload['integration']) {
+            $existing = $this->integrationRepository->find((int) $payload['integration']);
+
+            if (null === $existing) {
+                throw $this->createNotFoundException();
+            }
+
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $existing);
+        }
+
+        $baseUrl = isset($payload['baseUrl']) && is_string($payload['baseUrl']) ? $payload['baseUrl'] : null;
+
+        try {
+            $started = $this->browserLogin->start(
+                $this->user(),
+                $provider,
+                $existing,
+                is_string($payload['name'] ?? null) ? $payload['name'] : '',
+                $baseUrl,
+            );
+        } catch (IntegrationException $e) {
+            return new JsonResponse(['message' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse([
+            'loginUrl' => $started['loginUrl'],
+            'pollUrl'  => $this->generateUrl('app_settings_integrations_browser_login_poll', ['id' => $started['id']]),
+        ]);
+    }
+
+    /**
+     * Whether the person has approved yet; asked every couple of seconds.
+     *
+     * Once connected the answer also carries the same Turbo Stream a manual
+     * save answers with — the refreshed list and its toast — so the settings
+     * page ends up exactly where a typed app password would have left it.
+     */
+    #[Route('/browser-login/poll/{id}', name: 'browser_login_poll', requirements: ['id' => '[A-Za-z0-9_-]{16,64}'], methods: ['POST'])]
+    public function browserLoginPoll(string $id, Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, self::BROWSER_LOGIN_CSRF);
+
+        $result = $this->browserLogin->poll($this->user(), $id);
+
+        if (true === $result->isPending) {
+            return new JsonResponse(['status' => 'pending']);
+        }
+
+        if (false === $result->isConnected()) {
+            return new JsonResponse(['status' => 'failed', 'message' => $result->failure]);
+        }
+
+        return new JsonResponse([
+            'status' => 'connected',
+            'ok'     => null === $result->probeError,
+            'stream' => $this->renderView('settings/integrations/_saved.stream.html.twig', [
+                ...$this->listData(),
+                'toastMessage' => null === $result->probeError
+                    ? 'settings.integrations.saved'
+                    : 'settings.integrations.saved_with_error',
+            ]),
+        ]);
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
@@ -188,10 +278,11 @@ final class IntegrationController extends AbstractController
         }
 
         return $this->render('settings/integrations/_form.html.twig', [
-            'provider'    => $provider,
-            'integration' => null === $integration->id ? null : $integration,
-            'config'      => $config,
-            'form'        => $form,
+            'provider'     => $provider,
+            'integration'  => null === $integration->id ? null : $integration,
+            'config'       => $config,
+            'form'         => $form,
+            'browserLogin' => $this->browserLogin->supports($provider),
         ]);
     }
 

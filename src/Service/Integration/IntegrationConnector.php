@@ -90,6 +90,35 @@ final readonly class IntegrationConnector
     }
 
     /**
+     * Save a credential the service handed over itself — a browser approval
+     * (#235) — and try it, exactly as save() does for a typed one.
+     *
+     * A second entry point rather than save() reshaped to work without a form:
+     * save()'s "blank keeps the stored secret" rule is about a form field that
+     * never renders its value, and has no meaning here, where there is always
+     * a secret. Keeping save() untouched means the manual path cannot regress
+     * because of this one.
+     *
+     * The caller has already set the address and username on the entity.
+     *
+     * @return string|null the failure message, or null when the service answered
+     */
+    public function saveObtained(Integration $integration, #[\SensitiveParameter] string $secret): ?string
+    {
+        if (null === $integration->id) {
+            $this->entityManager->persist($integration);
+        }
+
+        $integration->secret = $secret;
+
+        $error = $this->probe($integration);
+
+        $this->entityManager->flush();
+
+        return $error;
+    }
+
+    /**
      * Try an existing connection again, for when a service was down or a
      * credential was rotated at the other end.
      *
