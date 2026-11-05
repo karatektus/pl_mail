@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, TEST_USER, bulkMore, consoleCommand, mailRow, seed } from "./support/config";
+import { INBOX_BADGE } from "./support/sidebar";
 
 /**
  * The numbers beside the list keep up with the list.
@@ -32,7 +33,6 @@ import { INBOX_SUBJECTS, TEST_USER, bulkMore, consoleCommand, mailRow, seed } fr
  * badge still one too high while the server had the right number all along.
  */
 
-const INBOX_BADGE = '[data-count-key="role:inbox"]';
 const TOOLBAR = '[data-controller="mail--list-toolbar"]';
 
 /** No reload anywhere in this file. That is the entire point of it. */

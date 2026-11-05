@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, TEST_ADMIN, login, mailRow, seed, seedUser } from "./support/config";
+import { INBOX_LINK } from "./support/sidebar";
 
 /**
  * Opening a folder swaps the list and leaves the page around it alone.
@@ -104,7 +105,7 @@ test.describe("navigating the list frame", () => {
         await expect(page.locator(ROWS)).toHaveCount(inboxRows);
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
         await expect(
-            page.locator("#sidebar a[href='/mail/inbox']").first()
+            page.locator(INBOX_LINK)
                 .locator("xpath=ancestor-or-self::*[contains(@class,'nav-item')][1]"),
         ).toHaveClass(/is-active/);
     });
@@ -165,7 +166,7 @@ test.describe("reaching a mail list from a page that has no list frame", () => {
         await page.goto("/admin");
         await expect(page.locator("#sidebar")).toBeVisible();
 
-        const inbox = page.locator("#sidebar a[href='/mail/inbox']").first();
+        const inbox = page.locator(INBOX_LINK);
 
         // Long enough for Turbo to start and finish the prefetch, so the click
         // has something cached to consume. Without this the click issues its
