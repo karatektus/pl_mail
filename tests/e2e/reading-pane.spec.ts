@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
+import { INBOX_LINK } from "./support/sidebar";
 
 /**
  * The reading pane beside the message list.
@@ -272,7 +273,7 @@ test.describe("reading pane right", () => {
 
         // …but the pane still knows which message it is showing: back in the
         // folder it came from, the row is marked again.
-        await swapList(page, "#sidebar a[href='/mail/inbox']");
+        await swapList(page, INBOX_LINK);
         await expect(page).toHaveURL(/\/mail\/inbox/);
         await expect(page.locator('li[data-selected="true"]')).toContainText(INBOX_SUBJECTS.read);
         await expect(reading(page)).toContainText(INBOX_SUBJECTS.read);

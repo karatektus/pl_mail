@@ -119,6 +119,7 @@ const SECTIONS = [
     "notifications",
     "general",
     "categories",
+    "inboxes",
     "reading-pane",
     "shortcuts",
     "disposal",

@@ -1,4 +1,5 @@
 import { test, expect } from "./support/test";
+import { INBOX_LINK } from "./support/sidebar";
 
 /**
  * The application-wide tooltip.
@@ -90,7 +91,7 @@ test.describe("tooltips", () => {
 
         // Scoped to the desktop sidebar: the mobile drawer holds a second copy
         // of every one of these links, and it is not the one on screen here.
-        await page.locator('#sidebar a[href="/mail/inbox"]').first().hover();
+        await page.locator(INBOX_LINK).hover();
         await page.waitForTimeout(400);
 
         await expect(page.locator(".app-tooltip")).toBeHidden();
@@ -107,7 +108,7 @@ test.describe("tooltips", () => {
 
         await page.evaluate(() => document.documentElement.classList.add("sidebar-rail"));
 
-        const inbox = page.locator('#sidebar a[href="/mail/inbox"]').first();
+        const inbox = page.locator(INBOX_LINK);
 
         // useInnerText, because the point is what is *rendered*: the label is
         // still in textContent, just `display: none`. That distinction is the

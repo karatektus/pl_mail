@@ -1,6 +1,7 @@
 import { test, expect } from "./support/test";
 import type { Locator, Page } from "@playwright/test";
 import { INBOX_SUBJECTS, TEST_USER, mailRow, seed } from "./support/config";
+import { INBOX_LINK, INBOX_NEW_DOT } from "./support/sidebar";
 import { execSync } from "node:child_process";
 
 /**
@@ -108,7 +109,7 @@ test.describe("the new-mail marker", () => {
 
         // The desktop sidebar and the mobile drawer both render one.
         const dot = page
-            .locator('#sidebar [data-new-dot][data-count-key="new:role:inbox"]');
+            .locator(INBOX_NEW_DOT);
 
         await expect(dot).toHaveCount(1);
         await expect(dot).toBeVisible();
@@ -209,7 +210,7 @@ test.describe("the badge and real navigation", () => {
             "precondition: the seeded inbox has not been shown yet",
         ).toBe(false);
 
-        const inboxLink = page.locator('#sidebar a[href="/mail/inbox"]').first();
+        const inboxLink = page.locator(INBOX_LINK);
 
         // Hover first, and let the prefetch actually fire. Without this the
         // click is a plain fetch and the test proves nothing about the bug.
@@ -237,7 +238,7 @@ test.describe("the badge and real navigation", () => {
     test("the badge does not survive a reload", async ({ page }) => {
         await page.goto("/mail/starred");
 
-        const inboxLink = page.locator('#sidebar a[href="/mail/inbox"]').first();
+        const inboxLink = page.locator(INBOX_LINK);
         await hoverAndPrefetch(page, inboxLink);
         await inboxLink.click();
 
@@ -254,7 +255,7 @@ test.describe("the badge and real navigation", () => {
     test("the badge does not survive navigating away and back", async ({ page }) => {
         await page.goto("/mail/starred");
 
-        const inboxLink = page.locator('#sidebar a[href="/mail/inbox"]').first();
+        const inboxLink = page.locator(INBOX_LINK);
         const starredLink = page.locator('#sidebar a[href="/mail/starred"]').first();
 
         await hoverAndPrefetch(page, inboxLink);
