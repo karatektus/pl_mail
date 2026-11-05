@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:dd311daaff4feeb70f4da91bf54177f857045c5f -->
+<!-- translated-from: features/accounts.md sha1:d34e16f1cee3ef05c2fb07601e81731451f87e45 -->
 
 # Konten und Aliase
 
@@ -365,7 +365,9 @@ zwei Namen trägt.
 **Neuer Ordner** fragt nach einem Namen und danach, wohin der Ordner kommt: **Oberste Ebene** oder in
 einen beliebigen Ordner, den der Server aufgelistet hat. plMail legt den Ordner auf dem Server an,
 damit er in jedem Mailprogramm erscheint, das dieses Konto liest, abonniert ihn und zeigt ihn in der
-Seitenleiste wie die anderen Ordner des Kontos.
+Seitenleiste wie die anderen Ordner des Kontos. Dort steht ein Ordner in dem Ordner, in dem er auf
+dem Server liegt, auch im Posteingang, und einen Ordner mit Unterordnern kannst du für sich
+zuklappen.
 
 Du tippst einen Namen, nie einen Pfad. Wo die oberste Ebene liegt und welches Zeichen einen Ordner
 von den Ordnern darin trennt, bestimmt der Server, und plMail fragt ihn: Bei den meisten Servern ist

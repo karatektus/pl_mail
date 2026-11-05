@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Service\Label\AccountFolderTree;
 use App\Service\Label\LabelKinds;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
@@ -19,12 +20,16 @@ use Twig\TwigFunction;
  *
  * `is_place(label, account)` for the folder rows under an account, and
  * `in_labels(label)` for the sidebar's LABELS section, which holds the tags.
+ *
+ * `account_folder_tree(account, labels)` for the folder rows under an account,
+ * nested the way the server nests them (AccountFolderTree).
  */
 final class LabelKindsExtension extends AbstractExtension
 {
     public function __construct(
-        private readonly LabelKinds $kinds,
-        private readonly Security   $security,
+        private readonly LabelKinds        $kinds,
+        private readonly Security          $security,
+        private readonly AccountFolderTree $folderTree,
     ) {
     }
 
@@ -35,6 +40,7 @@ final class LabelKindsExtension extends AbstractExtension
             new TwigFunction('tag_labels', $this->tags(...)),
             new TwigFunction('is_place', $this->kinds->isPlaceOn(...)),
             new TwigFunction('in_labels', $this->inLabels(...)),
+            new TwigFunction('account_folder_tree', $this->folderTree->of(...)),
         ];
     }
 

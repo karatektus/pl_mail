@@ -322,7 +322,9 @@ they do in the sidebar ("Drafts", "Trash"), so the same folder is not called two
 
 **New folder** asks for a name and for where it goes: **Top level**, or inside any folder the
 server listed. plMail makes the folder on the server, so it appears in every mail app that reads the
-account, subscribes to it, and shows it in the sidebar like the account's other folders.
+account, subscribes to it, and shows it in the sidebar like the account's other folders. There a
+folder sits inside the folder it is in on the server, the Inbox included, and a folder with folders
+in it can be collapsed on its own.
 
 You type a name, never a path. Where the top level is and which character separates a folder from
 the folders inside it are the server's to say, and plMail asks it: on most servers the top level is

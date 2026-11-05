@@ -27,6 +27,10 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * the account — what "Move to" offers on plain IMAP since #221 step 3, where
  * a label that is only a tag is put on with "Label as" and never moved to.
  *
+ * With `--path=<a/b>` it seeds a folder at that path instead, named after its
+ * last segment and nested under the label of the one before it, as a folder
+ * sync would: for the folder tree under the account (#221).
+ *
  * Mirrors what LabelController::new persists: a Label with account + name
  * (+ colour), role left null (custom), everything else default. Fields are
  * assigned as public properties to match the entity's property-hook style.
@@ -59,6 +63,7 @@ final class SeedTestLabelCommand extends Command
     {
         $this->configureUserOption();
         $this->addOption('folder', null, InputOption::VALUE_NONE, 'Seed "' . self::FOLDER_NAME . '", a folder on the account, instead');
+        $this->addOption('path', null, InputOption::VALUE_REQUIRED, 'Seed a folder at this path ("/"-separated) instead');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -91,18 +96,25 @@ final class SeedTestLabelCommand extends Command
             return Command::FAILURE;
         }
 
-        $folder = true === $input->getOption('folder');
-        $name   = $folder ? self::FOLDER_NAME : self::LABEL_NAME;
-        $label  = $this->labelRepository->findOneBy([
+        $path     = $input->getOption('path');
+        $path     = is_string($path) && '' !== $path ? $path : null;
+        $folder   = null !== $path || true === $input->getOption('folder');
+        $segments = null !== $path ? explode('/', $path) : [];
+        $name     = null !== $path ? (string) end($segments) : ($folder ? self::FOLDER_NAME : self::LABEL_NAME);
+        $parent   = count($segments) > 1
+            ? $this->labelRepository->findOneBy(['usr' => $user, 'name' => $segments[count($segments) - 2]])
+            : null;
+        $label    = $this->labelRepository->findOneBy([
             'usr'  => $user,
             'name' => $name,
         ]);
 
         if (null === $label) {
-            $label        = new Label();
-            $label->usr   = $user;
-            $label->name  = $name;
-            $label->color = $folder ? 'green' : 'blue';
+            $label         = new Label();
+            $label->usr    = $user;
+            $label->name   = $name;
+            $label->color  = $folder ? 'green' : 'blue';
+            $label->parent = $parent;
 
             $this->entityManager->persist($label);
             $this->entityManager->flush();
@@ -116,8 +128,8 @@ final class SeedTestLabelCommand extends Command
         if ($folder && null === $binding->mailbox) {
             $mailbox                = new Mailbox();
             $mailbox->account       = $account;
-            $mailbox->name          = self::FOLDER_NAME;
-            $mailbox->fullPath      = self::FOLDER_NAME;
+            $mailbox->name          = $name;
+            $mailbox->fullPath      = $path ?? self::FOLDER_NAME;
             $mailbox->delimiter     = '/';
             $mailbox->isSyncEnabled = true;
 
