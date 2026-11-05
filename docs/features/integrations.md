@@ -1,8 +1,9 @@
 # Files and integrations
 
 plMail can pull a file out of a service you already use and attach it to a message, and push an
-attachment the other way into that service. Seven services are supported: **Nextcloud**, **Immich**,
-**Paperless-ngx**, **Google Drive**, **Google Photos**, **OneDrive** and **Dropbox**.
+attachment the other way into that service. Eight services are supported: **Nextcloud**,
+**OpenCloud**, **Immich**, **Paperless-ngx**, **Google Drive**, **Google Photos**, **OneDrive** and
+**Dropbox**.
 
 Connections belong to one user and are revocable one at a time. Which services are offered at all
 is an administrator's decision — see [Administration](admin.md).
@@ -18,7 +19,8 @@ How you connect depends on the service:
 
 | Service | How it authenticates | What you supply |
 |---|---|---|
-| Nextcloud | App password | Server address, username, app password |
+| Nextcloud | App password, or approval in the browser | Server address, username, app password — or just the address |
+| OpenCloud | App token | Server address, username, app token |
 | Immich | API key | Server address, API key |
 | Paperless-ngx | API token | Server address, API token |
 | Google Drive | Sign-in | Nothing — the consent screen |
@@ -34,10 +36,29 @@ If your administrator has pinned a server address for a self-hosted service, the
 absent rather than disabled, and a submitted value is ignored regardless.
 
 For the self-hosted services, create a credential on the service rather than using your login
-password. Nextcloud puts app passwords under **Settings → Security → Devices & sessions**; Immich
+password. Nextcloud puts app passwords under **Settings → Security → Devices & sessions**; OpenCloud
+puts app tokens under your account settings → **App Tokens**; Immich
 puts API keys under **Account Settings → API Keys**; Paperless-ngx shows an API token under **My
 Profile → API Auth Token**. An app password or token is individually revocable and works alongside
 two-factor authentication; a login password is neither.
+
+### Connecting Nextcloud by approving in the browser
+
+Nextcloud does not need the copy and paste. The connect form has **Connect with browser approval**
+above the fields: it opens your Nextcloud in a new tab, you log in there — two-factor sign-in and
+single sign-on work as usual — and approve plMail, and the connection is saved by itself, with the
+same check as a typed app password. Under the hood this is Nextcloud's Login Flow v2: Nextcloud
+creates an app password named *plMail* and hands it over, so it appears under **Devices & sessions**
+like any other and is revoked there the same way.
+
+Fill in the **Name** and, unless your administrator pinned it, the **Server address** first; the
+username comes from Nextcloud. The approval stays open for 20 minutes. Using the button on an
+existing connection's edit form replaces its credential — the way to recover from a revoked app
+password — but does not revoke the old one: remove the old device in Nextcloud yourself.
+
+The button is refused when Nextcloud answers with an approval address on a different host than the
+server address, which happens behind a reverse proxy whose overwrite settings point elsewhere. The
+app password fields below it still work.
 
 Saving always probes the connection there and then. A connection that stores cleanly but cannot
 list a folder is worse than a visible failure, because you would only find out halfway through
@@ -63,12 +84,15 @@ service name — so a service that gains or loses an ability changes in exactly 
 | | Browse | Download | Upload | Share link | Preview | Search | Timeline |
 |---|---|---|---|---|---|---|---|
 | Nextcloud | yes | yes | yes | yes | yes | yes | — |
+| OpenCloud | yes | yes | yes | yes¹ | yes | yes | — |
 | Google Drive | yes | yes | yes | yes | yes | yes | — |
 | OneDrive | yes | yes | yes | yes | yes | yes | — |
 | Dropbox | yes | yes | yes | yes | yes | yes | — |
 | Paperless-ngx | yes | yes | yes | — | yes | yes | — |
 | Immich | yes | yes | yes | — | yes | yes | yes |
 | Google Photos | yes | yes | yes | — | yes | — | — |
+
+¹ Only when the OpenCloud administrator allows public links without a password; see below.
 
 The practical consequences: a service without **Upload** never appears in **Save to** or in the
 `saveToIntegration` filter action; a service without **Share link** can only attach a copy; a
@@ -80,6 +104,24 @@ Google Photos has no text search because its Library API offers none — only al
 Paperless-ngx has no share link for a different reason: it can share a document, but only through a
 separate permissioned feature with its own expiry, and publishing a filed document is a much bigger
 act than attaching one to a message.
+
+## OpenCloud
+
+OpenCloud is a fork of ownCloud Infinite Scale, and plMail reaches it over the same WebDAV paths as
+Nextcloud. It signs people in through an identity provider, so the credential is an **app token**:
+create one under your account settings → **App Tokens** and paste it with your username. Pick a long
+expiry when you create it — an expired token stops working, and the connection then says so. With
+single sign-on the username may be the ID shown on OpenCloud's preferences page rather than your
+login name.
+
+The picker opens on your **personal space**, with every **project space** you are a member of listed
+first as a folder of its own. Files others shared with you are in the **Shares** folder, as in
+OpenCloud's own web interface. You can attach from, save into and make folders in all three, as far
+as your permissions there allow. Search covers all of them at once and matches anywhere in a file
+name, like Nextcloud's; searching inside a folder keeps to that folder.
+
+There are no calendars or contacts behind an OpenCloud connection. If your server has a calendar
+server beside it, connect that as CalDAV.
 
 ## Paperless-ngx, which has no folders
 
@@ -146,7 +188,8 @@ A filter can do the same thing automatically with the **Save attachments to** ac
 addresses an authenticated user could otherwise aim plMail's outbound HTTP client at — including
 `localhost:5432` and the cloud metadata endpoint at `169.254.169.254`. Loopback, link-local, RFC1918
 and carrier-grade NAT ranges are all blocked unless the host appears in `INTEGRATIONS_ALLOWED_HOSTS`.
-On a home LAN this is the setting that makes Nextcloud, Immich and Paperless-ngx reachable at all.
+On a home LAN this is the setting that makes Nextcloud, OpenCloud, Immich and Paperless-ngx
+reachable at all.
 
 **`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN without TLS is
 an ordinary situation, so this flag will often be set — the point is that sending credentials in
@@ -157,6 +200,15 @@ at all.** The photo libraries cannot mint a public URL for a single item without
 album; Paperless can share a document, but only through a permissioned feature with its own expiry,
 and publishing a filed document is a heavier side effect than attaching a file should have. So there
 is no link fallback on any of the three: over 25 MB, the answer is no.
+
+**OpenCloud refuses public links without a password unless its administrator allows them.** That is
+its default, and plMail does not invent a password the recipient would never see, so a file above
+the attachment ceiling can only be attached from OpenCloud once the administrator sets
+`OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false`. Until then the picker says so.
+
+**OpenCloud has to accept app tokens.** Depending on the version, the administrator has to add
+`auth-app` to `OC_ADD_RUN_SERVICES` and set `PROXY_ENABLE_APP_AUTH=true`; without that every token
+reads as a wrong password.
 
 **Saving to Paperless-ngx reports the handover, not the filed document.** The upload endpoint is
 asynchronous: it hands the file to the Paperless consumer and answers with a task id, and the

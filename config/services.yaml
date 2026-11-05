@@ -343,6 +343,12 @@ services:
     App\Service\Integration\Driver\NextcloudDriver:
         arguments:
             $httpClient: '@app.http_client.integration'
+    App\Service\Integration\BrowserLogin\NextcloudLoginFlow:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Integration\Driver\OpenCloudDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
     App\Service\Integration\Driver\PaperlessDriver:
         arguments:
             $httpClient: '@app.http_client.integration'
@@ -372,6 +378,10 @@ services:
         arguments:
             $drivers: !tagged_iterator app.integration_driver
 
+    App\Service\Integration\BrowserLogin\BrowserLoginFlowRegistry:
+        arguments:
+            $flows: !tagged_iterator app.integration_browser_login_flow
+
     App\Service\Calendar\CalendarSyncDriverRegistry:
         arguments:
             $drivers: !tagged_iterator app.calendar_sync_driver
@@ -389,6 +399,10 @@ services:
         # extends it, so the file drivers are tagged by this same rule.
         App\Domain\Interface\VerifiableDriverInterface:
             tags: ['app.integration_driver']
+        # Connecting by approving in the browser (#235). A provider gains the
+        # button by having one of these; see BrowserLoginFlowRegistry.
+        App\Domain\Interface\BrowserLoginFlowInterface:
+            tags: ['app.integration_browser_login_flow']
         # A calendar sync driver is not an integration driver and must not be
         # tagged as one: it holds no files, and the two registries answer
         # different questions — one takes a Provider, this one takes a

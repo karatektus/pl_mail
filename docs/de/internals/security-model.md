@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:56f4e2cb63f91185c8e870952fdc87691725f0e7 -->
+<!-- translated-from: internals/security-model.md sha1:cc95c3d92571ad7d76e27eb1097a0d46b57fa22c -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -141,6 +141,7 @@ Drei verschiedene Antworten, und die Wahl ist jedes Mal bewusst.
 | Cookie für vertrauenswürdige Geräte | SHA-256 | 32 Byte aus dem CSPRNG |
 | Token für Freigabelink / Buchungsseite | SHA-256 | 32 Byte aus dem CSPRNG |
 | Geräte-Kopplungscode | SHA-256, als Cache-Schlüssel | 32 Byte aus dem CSPRNG, nach zwei Minuten tot |
+| Kennung einer Browser-Bestätigung (#235) | SHA-256, als Cache-Schlüssel; das Poll-Token des Dienstes daneben mit dem `Encryptor` verschlüsselt | 24 Byte aus dem CSPRNG, nach 20 Minuten tot, an die Person gebunden, die sie gestartet hat |
 | TOTP-Wiederherstellungscodes | SHA-256-Digests in einer jsonb-Liste | je 64 Bit aus dem CSPRNG |
 | TOTP-Geheimnis | `encrypted_string` — umkehrbar | der Server muss es *verwenden* können |
 
@@ -915,6 +916,18 @@ Deployment.
 
 `CODE_BYTES` ist 32, und deshalb braucht `/device/pair` keine eigene Sperre: Es gibt nichts
 durchzuprobieren.
+
+Dasselbe Muster läuft für eine Integration in die andere Richtung (#235).
+`App\Service\Integration\BrowserLogin\BrowserLoginService` lässt eine Person Nextcloud verbinden,
+indem sie im eigenen Browser bestätigt, statt ein App-Passwort einzufügen. Das Poll-Token des
+Dienstes ist für den, der es zuerst vorzeigt, so gut wie ein App-Passwort, deshalb erreicht es den
+Browser nie: Der Browser hält eine zufällige Kennung, der Cache hält das Token unter
+`hash('sha256', $id)`, verschlüsselt mit dem Schlüssel der gespeicherten Zugangsdaten, und nur die
+Person, die die Bestätigung gestartet hat, kann sie abfragen. Anmelde- und Poll-Adresse müssen auf
+dem Origin liegen, von dem plMail ausgegangen ist, und die Adresse, die ein Server in seiner Antwort
+nennt, wird nie gespeichert, sodass ein Server weder die Verbindung noch das Token auf einen
+anderen Host verlegen kann. Was zurückkommt, wird über dieselbe Prüfung gespeichert wie
+eingetippte Zugangsdaten.
 
 ## Der SSRF-Schutz
 

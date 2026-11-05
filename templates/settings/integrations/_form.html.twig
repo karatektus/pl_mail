@@ -5,8 +5,9 @@ Only reached for app-password providers — OAuth ones redirect to the service, 
 there is nothing to fill in. Fields come from IntegrationConnectType, which
 decides which of them exist from the provider and from what the admin settled.
 
-The blocks carry what is not a field: the last failure, the permissions a key
-needs, and the note that saving probes the connection.
+The blocks carry what is not a field: the last failure, the browser-approval
+button where the provider has one, the permissions a key needs, and the note
+that saving probes the connection.
 #}
 {% extends '_layout/app.html.twig' %}
 
@@ -21,6 +22,7 @@ needs, and the note that saving probes the connection.
         provider: provider,
         config: config,
         isNew: isNew,
+        browserLogin: browserLogin ?? false,
     } only %}
         {% block before_fields %}
             {% if not isNew and not integration.isHealthy %}
@@ -28,6 +30,16 @@ needs, and the note that saving probes the connection.
                     <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
                     <p class="leading-snug">{{ integration.lastError }}</p>
                 </div>
+            {% endif %}
+
+            {# Above the fields rather than below them: it is the easier way, and
+               the manual fields stay as the fallback for a server that cannot
+               do it (#235). #}
+            {% if browserLogin %}
+                {% include 'settings/integrations/_browser_login.html.twig' with {
+                    provider: provider,
+                    integration_id: isNew ? null : integration.id,
+                } only %}
             {% endif %}
         {% endblock %}
 

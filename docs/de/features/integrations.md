@@ -1,11 +1,11 @@
-<!-- translated-from: features/integrations.md sha1:7f9932fddb5e543555f7c6a0aa6f89ba179cc80d -->
+<!-- translated-from: features/integrations.md sha1:2ee2168a97ba2ad514b6156b906a5432db2e0eab -->
 
 # Dateien und Integrationen
 
 plMail kann eine Datei aus einem Dienst holen, den du ohnehin benutzt, und sie an eine
 Nachricht hängen — und einen Anhang in die andere Richtung in diesen Dienst schieben.
-Unterstützt werden sieben Dienste: **Nextcloud**, **Immich**, **Paperless-ngx**, **Google
-Drive**, **Google Photos**, **OneDrive** und **Dropbox**.
+Unterstützt werden acht Dienste: **Nextcloud**, **OpenCloud**, **Immich**, **Paperless-ngx**,
+**Google Drive**, **Google Photos**, **OneDrive** und **Dropbox**.
 
 Verbindungen gehören einer Person und lassen sich einzeln widerrufen. Welche Dienste überhaupt
 angeboten werden, entscheidet die Administration — siehe [Administration](admin.md).
@@ -22,7 +22,8 @@ Wie du dich verbindest, hängt vom Dienst ab:
 
 | Dienst | Wie er authentifiziert | Was du angibst |
 |---|---|---|
-| Nextcloud | App-Passwort | Serveradresse, Benutzername, App-Passwort |
+| Nextcloud | App-Passwort oder Bestätigung im Browser | Serveradresse, Benutzername, App-Passwort — oder nur die Adresse |
+| OpenCloud | App-Token | Serveradresse, Benutzername, App-Token |
 | Immich | API-Schlüssel | Serveradresse, API-Schlüssel |
 | Paperless-ngx | API-Token | Serveradresse, API-Token |
 | Google Drive | Anmeldung | Nichts — die Zustimmungsseite |
@@ -41,10 +42,32 @@ ignoriert.
 
 Lege bei den selbst gehosteten Diensten Zugangsdaten auf dem Dienst an, statt dein
 Anmeldepasswort zu verwenden. Nextcloud führt App-Passwörter unter **Einstellungen → Sicherheit
-→ Geräte & Sitzungen**; Immich führt API-Schlüssel unter **Account Settings → API Keys**;
+→ Geräte & Sitzungen**; OpenCloud führt App-Tokens in deinen Kontoeinstellungen unter
+**App-Tokens**; Immich führt API-Schlüssel unter **Account Settings → API Keys**;
 Paperless-ngx zeigt ein API-Token unter **My Profile → API Auth Token**. Ein App-Passwort oder
 Token lässt sich einzeln widerrufen und funktioniert neben der Zwei-Faktor-Authentifizierung;
 ein Anmeldepasswort kann beides nicht.
+
+### Nextcloud per Bestätigung im Browser verbinden
+
+Bei Nextcloud geht es ohne Kopieren und Einfügen. Über den Feldern des Verbindungsformulars steht
+**Im Browser bestätigen**: Es öffnet deine Nextcloud in einem neuen Tab, du meldest dich dort an —
+Zwei-Faktor-Anmeldung und Single Sign-on funktionieren wie gewohnt — und bestätigst plMail, und die
+Verbindung wird von selbst gespeichert, mit derselben Prüfung wie ein eingetipptes App-Passwort.
+Dahinter steckt Nextclouds Login Flow v2: Nextcloud legt ein App-Passwort namens *plMail* an und
+übergibt es, es erscheint also wie jedes andere unter **Geräte & Sitzungen** und wird dort auch so
+widerrufen.
+
+Füll vorher den **Namen** und, wenn deine Administration sie nicht festgelegt hat, die
+**Serveradresse** aus; den Benutzernamen liefert Nextcloud. Die Bestätigung bleibt 20 Minuten
+offen. Der Knopf im Bearbeitungsformular einer bestehenden Verbindung ersetzt deren Zugangsdaten —
+so kommst du nach einem widerrufenen App-Passwort wieder hinein —, widerruft die alten aber nicht:
+Entferne das alte Gerät selbst in Nextcloud.
+
+Der Knopf verweigert den Dienst, wenn Nextcloud mit einer Bestätigungsadresse auf einem anderen
+Host als der Serveradresse antwortet. Das passiert hinter einem Reverse Proxy, dessen
+Overwrite-Einstellungen woandershin zeigen. Die App-Passwort-Felder darunter funktionieren dann
+weiterhin.
 
 Beim Speichern wird die Verbindung immer sofort geprüft. Eine Verbindung, die sauber abgelegt
 wird und keinen Ordner auflisten kann, ist schlimmer als ein sichtbarer Fehler, denn du fändest
@@ -76,12 +99,15 @@ also an genau einer Stelle.
 | | Durchsehen | Herunterladen | Hochladen | Freigabelink | Vorschau | Suche | Zeitleiste |
 |---|---|---|---|---|---|---|---|
 | Nextcloud | ja | ja | ja | ja | ja | ja | — |
+| OpenCloud | ja | ja | ja | ja¹ | ja | ja | — |
 | Google Drive | ja | ja | ja | ja | ja | ja | — |
 | OneDrive | ja | ja | ja | ja | ja | ja | — |
 | Dropbox | ja | ja | ja | ja | ja | ja | — |
 | Paperless-ngx | ja | ja | ja | — | ja | ja | — |
 | Immich | ja | ja | ja | — | ja | ja | ja |
 | Google Photos | ja | ja | ja | — | ja | — | — |
+
+¹ Nur wenn die OpenCloud-Administration öffentliche Links ohne Passwort erlaubt; siehe unten.
 
 Die praktischen Folgen: Ein Dienst ohne **Hochladen** erscheint nie unter **Speichern in** oder
 in der Filteraktion `saveToIntegration`; ein Dienst ohne **Freigabelink** kann nur eine Kopie
@@ -94,6 +120,24 @@ Datumsfilter.
 Paperless-ngx hat aus einem anderen Grund keinen Freigabelink: Es kann ein Dokument teilen, aber
 nur über eine eigene, rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein abgelegtes
 Dokument zu veröffentlichen ist ein viel größerer Schritt, als es an eine Nachricht zu hängen.
+
+## OpenCloud
+
+OpenCloud ist ein Fork von ownCloud Infinite Scale, und plMail erreicht es über dieselben
+WebDAV-Pfade wie Nextcloud. Die Anmeldung läuft dort über einen Identitätsanbieter, deshalb sind
+die Zugangsdaten ein **App-Token**: Leg eines in deinen Kontoeinstellungen unter **App-Tokens** an
+und füg es mit deinem Benutzernamen ein. Wähl beim Anlegen eine lange Laufzeit — ein abgelaufenes
+Token funktioniert nicht mehr, und die Verbindung sagt das dann. Mit Single Sign-on ist der
+Benutzername eventuell die ID auf der Einstellungsseite von OpenCloud statt deines Anmeldenamens.
+
+Die Dateiauswahl öffnet in deinem **persönlichen Bereich**, und jeder **Projektbereich**, in dem du
+Mitglied bist, steht als eigener Ordner davor. Dateien, die andere mit dir geteilt haben, liegen im
+Ordner **Shares**, wie in der Weboberfläche von OpenCloud. In allen dreien kannst du anhängen,
+speichern und Ordner anlegen, soweit deine Rechte dort reichen. Die Suche umfasst alle auf einmal und
+trifft irgendwo im Dateinamen, wie bei Nextcloud; eine Suche in einem Ordner bleibt in diesem Ordner.
+
+Hinter einer OpenCloud-Verbindung stehen keine Kalender und keine Kontakte. Hat dein Server einen
+Kalenderserver daneben, verbinde ihn als CalDAV.
 
 ## Paperless-ngx, das keine Ordner hat
 
@@ -167,7 +211,7 @@ Person plMails ausgehenden HTTP-Client sonst richten könnte — darunter `local
 Cloud-Metadaten-Endpunkt unter `169.254.169.254`. Loopback, Link-Local, RFC1918 und die Bereiche
 für Carrier-Grade NAT sind alle gesperrt, solange der Host nicht in
 `INTEGRATIONS_ALLOWED_HOSTS` steht. In einem Heimnetz ist das die Einstellung, die Nextcloud,
-Immich und Paperless-ngx überhaupt erreichbar macht.
+OpenCloud, Immich und Paperless-ngx überhaupt erreichbar macht.
 
 **`http://` wird abgelehnt, solange `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbst hosten im
 LAN ohne TLS ist eine ganz gewöhnliche Lage, diese Option wird also oft gesetzt sein — der Punkt
@@ -181,6 +225,16 @@ aber nur über eine rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein a
 zu veröffentlichen ist eine schwerere Nebenwirkung, als das Anhängen einer Datei haben sollte. Es
 gibt deshalb bei keinem der drei einen Rückfall auf einen Link: über 25 MB lautet die Antwort
 nein.
+
+**OpenCloud lehnt öffentliche Links ohne Passwort ab, solange die Administration sie nicht
+erlaubt.** Das ist dort die Voreinstellung, und plMail denkt sich kein Passwort aus, das die
+Empfänger nie zu sehen bekämen. Eine Datei über der Anhangsgrenze lässt sich aus OpenCloud also erst
+anhängen, wenn die Administration `OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false` setzt. Bis dahin
+sagt die Dateiauswahl das.
+
+**OpenCloud muss App-Tokens annehmen.** Je nach Version muss die Administration `auth-app` zu
+`OC_ADD_RUN_SERVICES` hinzufügen und `PROXY_ENABLE_APP_AUTH=true` setzen; ohne das liest sich jedes
+Token wie ein falsches Passwort.
 
 **Das Speichern nach Paperless-ngx meldet die Übergabe, nicht das abgelegte Dokument.** Der
 Upload-Endpunkt arbeitet asynchron: Er übergibt die Datei an den Paperless-Consumer und antwortet

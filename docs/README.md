@@ -36,7 +36,7 @@ mechanism behind it.
 | [Connected calendars](features/calendar-sync.md) | Subscribing to Google, Microsoft and CalDAV calendars, two-way sync, ICS import, export and feed subscriptions, duplicate meetings |
 | [Sharing and booking](features/calendar-sharing.md) | Share links and what each reveals, appointment pages, how a booking arrives |
 | [Contacts](features/contacts.md) | The address book: your own contacts and synced ones side by side, editing, duplicates and merging, vCard and CSV import and export |
-| [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich and Paperless-ngx |
+| [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud, OpenCloud, Immich and Paperless-ngx |
 | [Security](features/security.md) | Changing your password, two-factor authentication, recovery codes, remembered devices, app passwords, sessions |
 | [Encryption](features/encryption.md) | Your OpenPGP keys, the recovery phrase, known devices, importing and exporting keys, what a password reset does to them |
 | [Other clients](features/clients.md) | Connecting a JMAP client, per-app passwords, the PWA and browser notifications |

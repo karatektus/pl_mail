@@ -46,6 +46,18 @@ form, and HTML has no nested forms.
 
             {% if isExpanded %}
                 <div class="border-t border-line px-4 py-4 space-y-5">
+                    {% if browserLogin[provider.value]|default(false) %}
+                        {# The row the save below would edit, so approving here
+                           never makes a second connection. Reloading the
+                           frame on the close URL shows the row as connected. #}
+                        {% include 'settings/integrations/_browser_login.html.twig' with {
+                            provider: provider,
+                            integration_id: form.vars.value.id ?? null,
+                            done_url: closeUrl,
+                            done_frame: 'modal',
+                        } only %}
+                    {% endif %}
+
                     {{ form_widget(form) }}
 
                     <button

@@ -729,6 +729,14 @@ admin:
                 step_register: 'Open the Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, create a client secret and copy its value immediately — it is shown only once.'
                 tenant_note: 'Use the common tenant for personal Microsoft accounts, or your tenant ID to restrict access to your organisation.'
+            open_cloud:
+                intro: 'OpenCloud authenticates with a per-user app token, so there is nothing to register here. plMail lists each user''s personal space, the project spaces they belong to and what was shared with them.'
+                security: 'App tokens can reach all of a user''s files and, with an external identity provider, keep working after the account is disabled there. Users should delete tokens they no longer need.'
+                share_password: 'OpenCloud refuses public links without a password by default. To let users attach large files as links, set OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; otherwise they can only attach copies.'
+                step_app_auth: 'Make sure OpenCloud accepts app tokens over WebDAV. Depending on the version, that means adding auth-app to OC_ADD_RUN_SERVICES and setting PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'Optionally pin the server address, for example https://cloud.example.com.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_user: 'Each user creates an app token in OpenCloud under their account settings → App Tokens, with a long expiry, and pastes it with their username into their own integration settings.'
             paperless:
                 asynchronous: 'Saving an attachment hands it to the Paperless consumer, which files it a few seconds later. plMail reports the handover, not the finished document — so a test save appears in Paperless shortly after it is reported as done, and a file Paperless rejects as a duplicate never appears at all.'
                 intro: 'Paperless-ngx authenticates with a per-user API token, so there is nothing to register here.'
@@ -2607,6 +2615,7 @@ integration:
             immich: 'Describe a photo, e.g. beach at sunset'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            openCloud: 'Search OpenCloud'
             paperless: 'Search titles and scanned text'
         status:
             attach_failed: 'Could not attach'
@@ -4220,6 +4229,15 @@ settings:
         badge:
             ask_admin: 'not enabled'
             soon: 'coming soon'
+        browser_login:
+            button: 'Connect with browser approval'
+            cancel: Cancel
+            failed: 'Browser approval could not start (%status%).'
+            help: 'Opens %provider% in a new tab. Log in there and approve plMail (two-factor sign-in works as usual), and the connection is saved here by itself.'
+            open_again: 'Open the approval page again'
+            or_manual: 'Or fill in the fields below yourself.'
+            revoke_note: 'Approving again replaces the stored credential but does not revoke the old one. Remove the old device in %provider% yourself.'
+            waiting: 'Waiting for your approval in %provider%…'
         checked: 'checked %date%'
         connect: Connect
         disabled: 'Connection paused'
@@ -4246,6 +4264,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                openCloud: 'App token'
                 paperless: 'API token'
             secret_help:
                 dropbox: ''
@@ -4254,6 +4273,7 @@ settings:
                 immich: 'Create one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
                 oneDrive: ''
+                openCloud: 'Create one in OpenCloud under your account settings → App Tokens, and choose a long expiry: an expired token stops working. With single sign-on, the username may be the ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username

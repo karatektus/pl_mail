@@ -672,6 +672,14 @@ admin:
                 step_register: 'Open th'' Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, mint a client secret and copy its value at once — it be shown but once.'
                 tenant_note: 'Use th'' common tenant for personal Microsoft accounts, or yer tenant ID to keep it to yer own crew.'
+            open_cloud:
+                intro: 'OpenCloud checks each sailor''s own app token, so there be nothin'' to register here. plMail charts each sailor''s personal space, the project spaces they sail with and what was shared with them.'
+                security: 'An app token reaches all o'' a sailor''s files and, with an outside identity provider, keeps workin'' after th'' account be struck there. Sailors should sink tokens they no longer need.'
+                share_password: 'OpenCloud refuses public links without a password by default. To let sailors attach big cargo as links, set OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD=false; otherwise they can only attach copies.'
+                step_app_auth: 'Make sure OpenCloud takes app tokens over WebDAV. Dependin'' on th'' version, that means addin'' auth-app to OC_ADD_RUN_SERVICES and settin'' PROXY_ENABLE_APP_AUTH=true.'
+                step_base_url: 'If ye like, nail down th'' server address, for example https://cloud.example.com.'
+                step_enable: 'Hoist "Offer this service to users" above.'
+                step_user: 'Each sailor makes an app token in OpenCloud under their account settings → App Tokens, with a long life, and pastes it with their username into their own integration settings.'
             paperless:
                 asynchronous: 'Stowin'' cargo hands it to th'' Paperless consumer, which files it a few beats later. plMail reports th'' handover, not th'' finished paper — so a test stow shows up in Paperless shortly after it be called done, and a file Paperless casts out as a twin never shows at all.'
                 intro: 'Paperless-ngx checks papers with a token per hand, so there be nothin'' to register here.'
@@ -2489,6 +2497,7 @@ integration:
             immich: 'Describe a picture, say beach at sundown'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            openCloud: 'Search OpenCloud'
             paperless: 'Search titles and scanned text'
         status:
             attach_failed: 'Couldn''t haul it aboard'
@@ -4039,6 +4048,15 @@ settings:
         badge:
             ask_admin: 'not opened'
             soon: 'soon'
+        browser_login:
+            button: 'Board by approvin'' in yer browser'
+            cancel: Belay that
+            failed: 'Th'' browser approval would not set sail (%status%).'
+            help: 'Opens %provider% in a fresh tab. Sign aboard there and give plMail yer blessin'' (two-factor works as ever), and th'' connection be stowed here by itself.'
+            open_again: 'Open th'' approval page again'
+            or_manual: 'Or fill in th'' fields below by yer own hand.'
+            revoke_note: 'Approvin'' again swaps th'' stored key but don''t scuttle th'' old one. Throw th'' old device overboard in %provider% yerself.'
+            waiting: 'Waitin'' for yer approval in %provider%…'
         checked: 'sounded %date%'
         connect: Moor
         disabled: 'Line slackened'
@@ -4065,6 +4083,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                openCloud: 'App token'
                 paperless: 'API token'
             secret_help:
                 dropbox: ''
@@ -4073,6 +4092,7 @@ settings:
                 immich: 'Mint one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
                 oneDrive: ''
+                openCloud: 'Make one in OpenCloud under yer account settings → App Tokens, and pick a long life: a token past its day stops workin''. With single sign-on, th'' username may be th'' ID shown under Preferences.'
                 paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username

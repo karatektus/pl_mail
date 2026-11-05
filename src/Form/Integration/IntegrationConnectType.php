@@ -30,9 +30,13 @@ final class IntegrationConnectType extends AbstractType
 {
     /**
      * Providers that need a username beside the credential. Immich's API key
-     * identifies the user on its own; a Nextcloud app password does not.
+     * identifies the user on its own; a Nextcloud app password and an
+     * OpenCloud app token do not.
      */
-    private const array NEEDS_USERNAME = [Provider::Nextcloud->value => true];
+    private const array NEEDS_USERNAME = [
+        Provider::Nextcloud->value => true,
+        Provider::OpenCloud->value => true,
+    ];
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
