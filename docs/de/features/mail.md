@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c0924b1e2a2104c4c1dedf6373aff65868ce68c7 -->
+<!-- translated-from: features/mail.md sha1:92cc40170865db1d7803dd455901c7ef70e2cd9c -->
 
 # Mail
 
@@ -130,9 +130,9 @@ Namen leer, heißt der Posteingang in deiner Sprache **Posteingang** (oder **Son
 
 **Ungelesen**, **Markiert**, **Zurückgestellt** und die übrigen Systemzeilen reichen weiterhin über
 alle Konten, und der Browser-Tab zählt den Posteingang, den du offen hast. Jedes Konto behält unter
-**Konten** seinen eigenen Posteingang. In einer Konfigurationssicherung sind die Posteingänge noch
-nicht enthalten: Nach dem Wiederherstellen ist alles wieder in einem **Posteingang**. Apps auf dem
-Telefon können sie über JMAP lesen (`UnifiedInbox/get`); angeordnet werden sie nur hier.
+**Konten** seinen eigenen Posteingang. Eine Konfigurationssicherung enthält die Posteingänge und
+welches Konto in welchem liegt. Apps auf dem Telefon können sie über JMAP lesen (`UnifiedInbox/get`);
+angeordnet werden sie nur hier.
 
 ## Tabs
 

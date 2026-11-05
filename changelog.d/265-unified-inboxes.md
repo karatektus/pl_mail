@@ -7,5 +7,5 @@ account's mail is listed in. Every inbox is its own row in the sidebar with its 
 goes to **Other**, which appears in the sidebar once it holds one, so nothing becomes harder to
 reach; deleting an inbox moves its accounts there too, and no mail is touched. Until you change
 anything there is one **Inbox** over every account, as before. Phone apps can read the inboxes over
-JMAP (`UnifiedInbox/get`, `urn:plmail:params:jmap:unifiedinboxes`). Two new tables, made by the
-migration; nothing to do. [#265](https://github.com/karatektus/pl_mail/issues/265).
+JMAP (`UnifiedInbox/get`, `urn:plmail:params:jmap:unifiedinboxes`), and a configuration backup
+carries them. Two new tables, made by the migration; nothing to do. [#265](https://github.com/karatektus/pl_mail/issues/265).

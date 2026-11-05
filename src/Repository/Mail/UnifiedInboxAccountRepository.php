@@ -56,4 +56,32 @@ class UnifiedInboxAccountRepository extends ServiceEntityRepository
 
         return $map;
     }
+
+    /**
+     * The accounts each of the reader's inboxes was ASSIGNED, inbox id =>
+     * account ids — only the rows that exist, so an account in the first inbox
+     * because it was never moved is in none of these lists. What a config
+     * backup carries: restored the same way, it is in the first inbox again.
+     *
+     * @return array<int, list<int>>
+     */
+    public function assignedAccountIdsByInbox(UserInterface $user): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('IDENTITY(m.inbox) AS inboxId', 'IDENTITY(m.account) AS accountId')
+            ->join('m.inbox', 'i')
+            ->where('i.usr = :user')
+            ->setParameter('user', $user)
+            ->orderBy('m.account', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $map = [];
+
+        foreach ($rows as $row) {
+            $map[(int) $row['inboxId']][] = (int) $row['accountId'];
+        }
+
+        return $map;
+    }
 }

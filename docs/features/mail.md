@@ -112,9 +112,9 @@ either way, an inbox is only a way of listing it. Leave a name empty and the inb
 **Inbox** (or **Other**) in your language.
 
 **Unread**, **Starred**, **Snoozed** and the rest of the system rows still span every account, and the
-browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. The
-inboxes are not in a configuration backup yet: restored, everything is in one **Inbox** again. Phone
-apps can read them over JMAP (`UnifiedInbox/get`); they are arranged only here.
+browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. A
+configuration backup carries the inboxes and which account is in which. Phone apps can read them
+over JMAP (`UnifiedInbox/get`); they are arranged only here.
 
 ## Tabs
 
