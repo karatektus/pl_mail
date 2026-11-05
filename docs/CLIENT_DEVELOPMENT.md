@@ -210,8 +210,11 @@ import. The web UI lets users export/import this as a file.
 The same capability carries one boolean that is not an appearance property: **`inboxTabs`**. A user
 can switch the inbox's category tabs off, and then wants one list. `Thread.category` is served
 either way, because mail is still filed in the background, so the category cannot tell you this. If
-you draw tabs from it, draw none when `inboxTabs` is `false`. It is read-only here and, like the
-compact `appearance` beside it, a hint that can be stale in a cached Session.
+you draw tabs from it, draw none when `inboxTabs` is `false`. Here it is, like the compact
+`appearance` beside it, a hint that can be stale in a cached Session. `Appearance/get` serves the
+current value as the `inboxTabs` property of the singleton, and `Appearance/set` changes it (a JSON
+boolean). It is the web's "Inbox tabs" switch, stored with the category
+settings rather than the appearance, and switching it moves no mail between categories.
 
 ### Inbox tabs (`urn:plmail:params:jmap:inboxtabs`)
 

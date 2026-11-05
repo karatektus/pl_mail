@@ -392,8 +392,9 @@ final class SessionBuilder
         return [
             'appearance' => $this->appearanceMapper->compact($user->appearance),
             // Whether this person wants their inbox in category tabs — see
-            // CategorySorting::$tabs. Not an appearance property and not
-            // settable from here; published beside the hint because it is the
+            // CategorySorting::$tabs. Not an appearance property, though
+            // Appearance/get serves it and Appearance/set changes it
+            // (android#11); published beside the hint because it is the
             // same kind of fact, one user-level choice about how the lists are
             // drawn, and a client that draws tabs of its own from
             // Thread.category has no other way to learn that it should not.
