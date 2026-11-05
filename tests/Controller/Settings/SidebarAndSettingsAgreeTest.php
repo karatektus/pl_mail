@@ -147,7 +147,11 @@ final class SidebarAndSettingsAgreeTest extends WebTestCase
         $router = static::getContainer()->get('router');
 
         foreach (['app_mail_inbox', 'app_mail_sent', 'app_mail_drafts', 'app_mail_trash'] as $route) {
-            $row = $crawler->filter(sprintf('#sidebar nav a[href="%s"] .rail-hide', $router->generate($route)));
+            // The first unified inbox links to its own address and names the
+            // bare /mail/inbox as also its own (#265).
+            $row = 'app_mail_inbox' === $route
+                ? $crawler->filter(sprintf('#sidebar nav a[data-also-open-at="%s"] .rail-hide', $router->generate($route)))
+                : $crawler->filter(sprintf('#sidebar nav a[href="%s"] .rail-hide', $router->generate($route)));
 
             self::assertGreaterThan(0, $row->count(), sprintf('the sidebar has no row for %s', $route));
 

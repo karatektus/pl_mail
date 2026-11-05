@@ -77,7 +77,33 @@ final class SidebarRowStateTest extends WebTestCase
         }
 
         // Once in the sidebar and once in the drawer, which is the same partial.
-        self::assertSame(['/mail/inbox', '/mail/inbox'], $open);
+        // The first unified inbox (#265): its link names it, and the bare
+        // /mail/inbox it was opened at is the same list.
+        self::assertCount(2, $open);
+
+        foreach ($open as $href) {
+            self::assertMatchesRegularExpression('#^/mail/inbox/\d+$#', $href);
+        }
+    }
+
+    /**
+     * The first unified inbox is open at the bare /mail/inbox as well as at its
+     * own address — and only exactly there: as a prefix, /mail/inbox would open
+     * it on every other inbox's page too (#265).
+     */
+    public function testTheFirstInboxIsAlsoOpenAtTheBareAddressAndNowhereElse(): void
+    {
+        $at = static function (string $page): SidebarRowStateExtension {
+            $stack = new RequestStack();
+            $stack->push(Request::create($page));
+
+            return new SidebarRowStateExtension($stack);
+        };
+
+        self::assertTrue($at('/mail/inbox')->isOpen('/mail/inbox/7', '/mail/inbox'));
+        self::assertTrue($at('/mail/inbox/7')->isOpen('/mail/inbox/7', '/mail/inbox'));
+        self::assertFalse($at('/mail/inbox/8')->isOpen('/mail/inbox/7', '/mail/inbox'));
+        self::assertFalse($at('/mail/inbox')->isOpen('/mail/inbox/8'));
     }
 
     /**

@@ -180,6 +180,7 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                         { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'templates',     icon: 'fa-regular fa-file-lines' },
+                                        { section: 'inboxes',       icon: 'fa-solid fa-boxes-stacked' },
                                         { section: 'categories',    icon: 'fa-solid fa-inbox' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
@@ -484,6 +485,34 @@ the links that leave the app (a provider's consent screen, an .ics download).
                                                         tabs:        categoryTabs,
                                                         switchedOff: app.user.categorySorting.switchedOff(),
                                                     } %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
+                                    {% elseif section == 'inboxes' %}
+                                        {# The unified inboxes (#265): the inboxes themselves,
+                                           then which one each account is listed in. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.unified_inboxes.heading'|trans,
+                                                subheading: 'settings.unified_inboxes.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_unified_inboxes.html.twig' with {
+                                                        inboxes: unifiedInboxes,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.unified_inboxes.accounts_heading'|trans,
+                                                subheading: 'settings.unified_inboxes.accounts_subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_unified_inbox_accounts.html.twig' with {
+                                                        inboxes:  unifiedInboxes,
+                                                        accounts: manageableAccounts,
+                                                        inboxOf:  inboxOfAccount,
+                                                    } only %}
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>

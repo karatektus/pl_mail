@@ -251,6 +251,8 @@ final class ConfigBackupCompletenessTest extends TestCase
             self::createStub(SmimeCertificateRepository::class),
             self::createStub(ContactCertificateRepository::class),
             self::createStub(\App\Repository\Crypto\KeyPublicationRepository::class),
+            self::createStub(\App\Repository\Mail\UnifiedInboxRepository::class),
+            self::createStub(\App\Repository\Mail\UnifiedInboxAccountRepository::class),
         );
     }
 

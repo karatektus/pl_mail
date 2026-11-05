@@ -13,7 +13,7 @@ label you made shows everything carrying it, wherever it arrived.
 
 | Entry | What it lists |
 |---|---|
-| **Inbox** | Everything still in the inbox, across every account, newest conversation first |
+| **Inbox** | Everything still in the inbox, across every account, newest conversation first — or one row per inbox once you split your accounts between several (see [Several inboxes](#several-inboxes)) |
 | **Unread** | Every unread conversation in one list, whatever it is filed under — off until you switch it on |
 | **Starred** | Conversations with at least one starred message |
 | **Snoozed** | Conversations waiting for their wake time |
@@ -93,6 +93,28 @@ no such number, because there is no honest one to give — those counts are per 
 account you have expanded is loaded.
 
 Every list pages at fifty conversations. **Newer** and **Older** in the toolbar move between pages.
+
+### Several inboxes
+
+One **Inbox** over every account is where everybody starts. If you would rather read work and private
+mail apart, **Settings → Unified inboxes** makes more of them: add one, give it a name and an icon,
+and under **Accounts** choose which inbox each account's mail is listed in. Every inbox is a row of
+its own in the sidebar, in the order you drag them into, with its own unread badge, its own "new"
+dot and its own tabs — the strip of an inbox only counts the mail of its accounts, and **Select all**
+in it reaches no further. The first inbox is the one the plain **Inbox** address opens, and a new
+account goes there until you move it.
+
+An account is in one inbox at a time. The one you take out of all of yours goes to **Other**, an inbox
+plMail keeps for exactly that, so it is still one click away; Other shows in the sidebar only while
+it holds a switched-on account, and you can rename it, change its icon and move it like the others,
+but not delete it. Deleting an inbox of your own moves its accounts there too — no mail is deleted
+either way, an inbox is only a way of listing it. Leave a name empty and the inbox is called
+**Inbox** (or **Other**) in your language.
+
+**Unread**, **Starred**, **Snoozed** and the rest of the system rows still span every account, and the
+browser tab counts the inbox you have open. Each account keeps its own inbox under **Accounts**. A
+configuration backup carries the inboxes and which account is in which. Phone apps can read them
+over JMAP (`UnifiedInbox/get`); they are arranged only here.
 
 ## Tabs
 

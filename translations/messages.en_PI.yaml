@@ -4348,6 +4348,36 @@ settings:
         right:
             label: "Swipe right"
         subheading: "What a swipe across a bottle does on yer phone."
+    unified_inboxes:
+        account_label: 'Gathered hold fer %account%'
+        account_off: 'Struck — none o’ its letters be shown till ye hoist it again.'
+        accounts_heading: 'Ships'
+        accounts_subheading: 'Which hold each ship’s letters be stowed in. A new ship goes in yer first hold.'
+        add: 'Add'
+        created: 'Built "%name%".'
+        delete: 'Scuttle %inbox%'
+        delete_confirm: 'Scuttle "%name%"? Its ships move to %other%. No letters be lost.'
+        deleted: 'Hold scuttled. Its ships be in the catch-all hold now.'
+        heading: 'Gathered holds'
+        hint: 'Each hold shows the letters o’ the ships ye put in it as one list, with its own tabs. Leave a name empty fer the usual one.'
+        icon_label: 'Flag fer %inbox%'
+        icon_new: 'Flag fer the new hold'
+        last_stays: 'Keep at least one hold o’ yer own, matey.'
+        move_down: 'Move %inbox% down'
+        move_up: 'Move %inbox% up'
+        name_label: 'Name'
+        name_required: 'A hold needs a name.'
+        name_too_long: 'That name be too long (40 letters at most).'
+        no_accounts: 'No ships yet.'
+        not_found: 'That hold be gone.'
+        other_hint: 'Gathers every ship ye take out o’ yer own holds. Stays off the sidebar while it holds none.'
+        other_option: 'catch-all'
+        other_stays: 'The catch-all hold cannot be scuttled: ships in none o’ yer holds be stowed there.'
+        placeholder: 'e.g. Plunder'
+        reorder: 'Drag to reorder'
+        save: 'Stow'
+        saved: 'Stowed.'
+        subheading: 'Name ’em, give ’em a flag an’ drag ’em into the order the sidebar shows.'
     whats_new:
         heading: 'What''s new aboard'
         'off': 'Off'
@@ -4377,6 +4407,7 @@ settings:
             personal: Yerself
         health: "State o' yer crew"
         images: Pictures
+        inboxes: 'Gathered holds'
         insights: The spyglass
         integrations: 'Friendly ports'
         labels: Flags
@@ -4798,6 +4829,7 @@ sidebar:
         calendar: Almanac
         drafts: Scrolls in the works
         inbox: Bottles washed ashore
+        inbox_other: 'Odds an’ ends'
         more: More
         sent: Cast off
         snoozed: Kept below deck

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1e1e3a31adfacbdaaa4b08bb3ef719491ca1b0b6 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6fdd29f9b66c78b052193cdf5c7bd33cc52bc324 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -267,6 +267,29 @@ Konto; jedes Konto antwortet mit derselben Liste.
 Tabs anlegen, umbenennen, schalten und anordnen geht heute im Web. `Thread.category` und
 `threadCategory` sind unverändert, und `inboxTabs` oben sagt weiterhin, ob überhaupt Tabs gezeichnet
 werden.
+
+### Sammel-Posteingänge (`urn:plmail:params:jmap:unifiedinboxes`)
+
+Die Posteingänge der Nutzerin so, wie die Seitenleiste im Web sie zeichnet (#265): eine oder mehrere
+benannte Listen über je eine Gruppe von Konten, dazu **Sonstige** mit den Konten, die sie aus ihren
+eigenen herausgenommen hat. Angekündigt oben in der Session, mit `icons` (jeder Symbolname, den ein
+Posteingang tragen kann), und an jedem Konto; jedes Konto antwortet mit derselben Liste.
+
+- **`UnifiedInbox/get`** (`accountId` nötig) listet jeden Posteingang in der Reihenfolge der
+  Seitenleiste. Ein UnifiedInbox ist `{ id, name, icon, sortOrder, isOther, accountIds }`. `name`
+  ist null bei einem Posteingang, dem die Nutzerin keinen Namen gegeben hat: Nenn ihn
+  „Posteingang“, bei Sonstige „Sonstige“, in deiner eigenen Sprache. `icon` ist ein
+  Font-Awesome-Solid-Name aus den `icons` der Capability; bilde ihn auf deine eigenen Symbole ab.
+  `accountIds` sind die Konten, deren Posteingang er listet, **eine Liste**: Heute ist ein Konto in
+  einem Posteingang, und das Format ändert sich nicht, falls es einmal mehrere werden.
+- Zeichne einen Posteingang wie das Web: den Posteingang seiner Konten als eine Liste, die Tabs nur
+  über diese Konten gezählt. Das Web lässt Sonstige weg, solange keines seiner Konten eingeschaltet
+  ist.
+- **`UnifiedInbox/changes`** ist das übliche /changes, und ein Push-`StateChange` trägt einen
+  `UnifiedInbox`-State. Ein hinzugefügtes oder entferntes Konto ändert, welcher Posteingang es listet,
+  ohne Änderung hier: Hol die Posteingänge neu, wenn sich die Konten der Session ändern.
+
+Posteingänge anlegen, benennen, anordnen und Konten zwischen ihnen verschieben geht heute im Web.
 
 ### Benachrichtigungs-Einstellungen (`urn:plmail:params:jmap:notifications`)
 
@@ -786,6 +809,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Thread/get` / `Thread/changes` | `/get` trägt vier plMail-Erweiterungen: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew`, `inboxTab` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. Die Tabs der Nutzerin, an jedem Konto dieselben. Siehe [Posteingangs-Tabs](#posteingangs-tabs-urnplmailparamsjmapinboxtabs). |
+| `UnifiedInbox/get` / `UnifiedInbox/changes` | `urn:plmail:params:jmap:unifiedinboxes`. Die Sammel-Posteingänge der Nutzerin und ihre Konten, an jedem Konto dieselben. Siehe [Sammel-Posteingänge](#sammel-posteingänge-urnplmailparamsjmapunifiedinboxes). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |

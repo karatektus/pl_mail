@@ -9,6 +9,8 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
+use App\Entity\Mail\UnifiedInbox;
+use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Contracts\Service\ResetInterface;
@@ -48,6 +50,17 @@ class NewMailMarkers implements ResetInterface
 
     private ?int $starred = null;
 
+    /** @var array<int, int>|null account id => new conversations in its Inbox */
+    private ?array $byAccount = null;
+
+    /**
+     * The accounts of the unified inbox being drawn, for the tab marks; null
+     * for every account. See scopeTabsTo().
+     *
+     * @var list<int>|null
+     */
+    private ?array $tabAccounts = null;
+
     /**
      * The instant this request calls "now".
      *
@@ -62,6 +75,7 @@ class NewMailMarkers implements ResetInterface
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
         private readonly Security                $security,
+        private readonly UnifiedInboxes          $inboxes,
     ) {
     }
 
@@ -84,6 +98,8 @@ class NewMailMarkers implements ResetInterface
         $this->byRole            = null;
         $this->byLabel           = null;
         $this->starred           = null;
+        $this->byAccount         = null;
+        $this->tabAccounts       = null;
         $this->now               = null;
     }
 
@@ -119,6 +135,58 @@ class NewMailMarkers implements ResetInterface
     /**
      * New conversations in one tab — a built-in one, or one the reader made.
      */
+    /**
+     * Count the tab marks within one unified inbox (#265) — the one whose
+     * strip is on screen. Each inbox has its own strip, and a dot on its
+     * Promotions tab for mail that arrived in another inbox would point at a
+     * tab with nothing new in it.
+     *
+     * Called by whatever draws the strip before it asks, and it forgets what
+     * it counted before: the marks of one inbox are not another's.
+     */
+    public function scopeTabsTo(?UnifiedInbox $inbox): void
+    {
+        $user = $this->security->getUser();
+
+        $this->tabAccounts       = null === $inbox || false === $user instanceof User ? null : $this->inboxes->scopeOf($user, $inbox);
+        $this->byCategory        = null;
+        $this->sendersByCategory = null;
+    }
+
+    /**
+     * New conversations in one unified inbox: the dot beside its row in the
+     * sidebar. One grouped read per request answers every inbox.
+     */
+    public function forInbox(UnifiedInbox $inbox): int
+    {
+        $user = $this->security->getUser();
+
+        if (false === $user instanceof User) {
+            return 0;
+        }
+
+        // Every account in it: the Inbox dot's own number, which the page has
+        // read already — no second grouped query for the same answer.
+        if (null === $this->inboxes->scopeOf($user, $inbox)) {
+            return $this->forRole(LabelRole::Inbox);
+        }
+
+        $this->byAccount ??= $this->threadRepository->countNewInboxPerAccount($user, $this->now());
+
+        $count = 0;
+
+        foreach ($this->inboxes->accountIdsOf($user, $inbox) as $accountId) {
+            $count += $this->byAccount[$accountId] ?? 0;
+        }
+
+        return $count;
+    }
+
+    public static function inboxKey(UnifiedInbox $inbox): string
+    {
+        return 'new:inbox:' . $inbox->id;
+    }
+
     public function forTab(InboxTab $tab): int
     {
         if (null === $this->byCategory) {
@@ -126,7 +194,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->byCategory = null === $user
                 ? []
-                : $this->threadRepository->countNewByCategoryForUnifiedInbox($user, $this->now());
+                : $this->threadRepository->countNewByCategoryForUnifiedInbox($user, $this->now(), $this->tabAccounts);
         }
 
         return $this->byCategory[$tab->value] ?? 0;
@@ -149,7 +217,7 @@ class NewMailMarkers implements ResetInterface
 
             $this->sendersByCategory = null === $user
                 ? []
-                : $this->threadRepository->newSendersByCategoryForUnifiedInbox($user, $this->now());
+                : $this->threadRepository->newSendersByCategoryForUnifiedInbox($user, $this->now(), accountIds: $this->tabAccounts);
         }
 
         return $this->sendersByCategory[$tab->value] ?? [];

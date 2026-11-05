@@ -20,6 +20,8 @@ use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\InboxCategoryRepository;
+use App\Repository\Mail\UnifiedInboxAccountRepository;
+use App\Repository\Mail\UnifiedInboxRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
@@ -377,6 +379,8 @@ final readonly class ConfigBackupUsers
         private SmimeCertificateRepository   $smimeCertificates,
         private ContactCertificateRepository $contactCertificates,
         private KeyPublicationRepository     $publications,
+        private UnifiedInboxRepository        $unifiedInboxes,
+        private UnifiedInboxAccountRepository $unifiedInboxAccounts,
     ) {
     }
 
@@ -537,6 +541,8 @@ final readonly class ConfigBackupUsers
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
             'inboxCategories' => $this->exportInboxCategories($user),
+            // After the accounts, whose ids in this file each inbox names.
+            'unifiedInboxes' => $this->exportUnifiedInboxes($user),
             'rules'        => $this->exportRules($user),
             'calendars'    => $this->exportCalendars($user),
             'shareLinks'   => $this->exportShareLinks($user),
@@ -935,6 +941,37 @@ final readonly class ConfigBackupUsers
             $exported[] = [
                 'id'   => $category->id,
                 'name' => $category->name,
+            ];
+        }
+
+        return $exported;
+    }
+
+    /**
+     * The person's unified inboxes (#265) in sidebar order — name, icon,
+     * whether it is the catch-all Other — with the accounts each one was
+     * assigned, by their ids in this file's `accounts`. The restorer rewrites
+     * those to the accounts it creates.
+     *
+     * Only the assignments that were made: an account that was never moved is
+     * in the first inbox by rule, carries no row, and comes back the same way.
+     * A person who never opened the settings has no rows at all, exports an
+     * empty list, and is given the starting rows on their first page, as
+     * before the backup.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportUnifiedInboxes(User $user): array
+    {
+        $assigned = $this->unifiedInboxAccounts->assignedAccountIdsByInbox($user);
+        $exported = [];
+
+        foreach ($this->unifiedInboxes->findForUserOrdered($user) as $inbox) {
+            $exported[] = [
+                'name'       => $inbox->name,
+                'icon'       => $inbox->icon,
+                'isOther'    => $inbox->isOther,
+                'accountIds' => $assigned[(int) $inbox->id] ?? [],
             ];
         }
 
