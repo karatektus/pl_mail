@@ -693,7 +693,7 @@ export default class extends Controller {
 
         // Offline, or the sync raced a navigation — fetchCounts answers null and
         // the next sync retries.
-        const counts = await fetchCounts(this.countsUrlValue, immediate);
+        const counts = await fetchCounts(this._countsUrl(), immediate);
 
         if (counts === null) {
             return;
@@ -723,6 +723,28 @@ export default class extends Controller {
         patchTabUnread(counts);
 
         this._updateTitle(counts);
+    }
+
+    /**
+     * The counts endpoint, naming the unified inbox whose list is open (#265).
+     *
+     * The tab strip's marks come back in the same payload as the badges, and
+     * each inbox has a strip of its own: without the inbox the server would
+     * count every account, and "Work"'s Promotions tab would light up for mail
+     * that arrived in "Personal". Read off the live frame at the moment of the
+     * request, like list_view.js, because the frame is swapped by navigation.
+     */
+    _countsUrl() {
+        const inbox = document.getElementById(LIST_FRAME_ID)?.dataset.unifiedInbox;
+
+        if (!inbox) {
+            return this.countsUrlValue;
+        }
+
+        const url = new URL(this.countsUrlValue, window.location.origin);
+        url.searchParams.set("inbox", inbox);
+
+        return url.pathname + url.search;
     }
 
     /**
@@ -820,6 +842,14 @@ export default class extends Controller {
 
         // Prefix, so a parent label counts as open while a child of it is:
         // full names are the path, "Work" is a prefix of "Work/Clients".
+        // The first unified inbox is also what the bare /mail/inbox shows
+        // (#265), and its row says so: that address opens it too.
+        const alsoAt = link.dataset.alsoOpenAt;
+
+        if (alsoAt && path === alsoAt) {
+            return true;
+        }
+
         if (path !== target.pathname && false === path.startsWith(target.pathname + "/")) {
             return false;
         }

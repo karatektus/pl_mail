@@ -986,6 +986,9 @@ export default class extends Controller {
         frame.dataset.listRendered = fresh.dataset.listRendered ?? "1";
         frame.dataset.syncScope = fresh.dataset.syncScope ?? "*";
         frame.dataset.listScopeValue = fresh.dataset.listScopeValue ?? "";
+        // Which unified inbox is open (#265), read by the sidebar's counts
+        // request so the tab marks it patches are this inbox's.
+        frame.dataset.unifiedInbox = fresh.dataset.unifiedInbox ?? "";
     }
 
     /**

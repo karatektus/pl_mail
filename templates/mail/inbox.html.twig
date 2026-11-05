@@ -3,16 +3,23 @@
 
 {% block list_scope %}inbox{% endblock %}
 {# The tab IS the view: selecting everything while looking at Notifications
-   must not reach into Primary, which is not on screen. #}
-{% block list_scope_value %}{{ tab.value ?? '' }}{% endblock %}
+   must not reach into Primary, which is not on screen. And the inbox is too:
+   the value names which of the reader's unified inboxes this is (#265), in
+   the shape UnifiedInboxes::listValue() writes and ListViewResolver reads. #}
+{% block list_scope_value %}{{ unified_inbox.id }}:{{ tab.value ?? '' }}{% endblock %}
+
+{# Which unified inbox the list is, for the sidebar's counts request: the tab
+   marks it patches are this inbox's (MailController::sidebarCounts). #}
+{% block unified_inbox_id %}{{ unified_inbox.id }}{% endblock %}
 
 {% block title %}
-    {% set _unread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
-    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.inbox'|trans }} — {{ 'app.name'|trans }}
+    {% set _unread = sidebarCounts.forInbox(unified_inbox) %}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ unified_inbox_name(unified_inbox) }} — {{ 'app.name'|trans }}
 {% endblock %}
 
-{# Keeps the tab in step with the sidebar after a sync — see app.html.twig. #}
-{% block title_count_key %}role:inbox{% endblock %}
+{# Keeps the tab in step with the sidebar after a sync — see app.html.twig.
+   This inbox's own badge, the number its row in the sidebar shows. #}
+{% block title_count_key %}inbox:{{ unified_inbox.id }}{% endblock %}
 
 {% block inbox_tabs %}
     {# Imported inside the block rather than at the top of the file: this
@@ -179,7 +186,7 @@
                    because the strip is morphed on every list refresh and a morph
                    drops any attribute the server did not render. #}
                 <a
-                    href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value})) }}"
+                    href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value, inbox: unified_inbox.id})) }}"
                     data-turbo-frame="inbox-list-frame"
                     data-turbo-action="replace"
                     {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}

@@ -241,6 +241,27 @@ account; every account answers with the same list.
 Creating, renaming, switching and ordering tabs is done on the web today. `Thread.category` and
 `threadCategory` are unchanged, and `inboxTabs` above still says whether to draw tabs at all.
 
+### Unified inboxes (`urn:plmail:params:jmap:unifiedinboxes`)
+
+The user's inboxes as the web's sidebar draws them (#265): one or more named lists, each over a set
+of accounts, plus **Other**, which holds the accounts the user took out of their own. Advertised at
+the top of the Session, with `icons` (every icon name an inbox can carry), and on every account;
+every account answers with the same list.
+
+- **`UnifiedInbox/get`** (`accountId` required) lists every inbox in the sidebar's order. A
+  UnifiedInbox is `{ id, name, icon, sortOrder, isOther, accountIds }`. `name` is null for an inbox
+  the user did not name: call it "Inbox", or for Other "Other", in your own language. `icon` is a
+  Font Awesome solid icon name from the capability's `icons`; map it to your own set. `accountIds`
+  are the accounts whose Inbox it lists, **a list**: an account is in one inbox today, and the
+  format will not change if that ever becomes several.
+- Draw an inbox the way the web does: the Inbox of its accounts as one list, with the tabs counted
+  over those accounts only. The web leaves Other out while none of its accounts is switched on.
+- **`UnifiedInbox/changes`** is the standard /changes, and push `StateChange` carries a
+  `UnifiedInbox` state. An account added or removed changes which inbox lists it without a change
+  here: fetch the inboxes again when the Session's accounts change.
+
+Creating, naming and ordering inboxes, and moving an account between them, is done on the web today.
+
 ### Notification settings (`urn:plmail:params:jmap:notifications`)
 
 Which mail is worth a notification, chosen once per **user** and not per device: the same switches
@@ -717,6 +738,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Thread/get` / `Thread/changes` | `/get` carries four plMail extensions: `snoozedUntil`, `category`, `inboxTab`, `isNew`. |
 | `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, `inboxTab`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
 | `InboxTab/get` / `InboxTab/changes` | `urn:plmail:params:jmap:inboxtabs`. The user's tabs, the same on every account. See [Inbox tabs](#inbox-tabs-urnplmailparamsjmapinboxtabs). |
+| `UnifiedInbox/get` / `UnifiedInbox/changes` | `urn:plmail:params:jmap:unifiedinboxes`. The user's unified inboxes and their accounts, the same on every account. See [Unified inboxes](#unified-inboxes-urnplmailparamsjmapunifiedinboxes). |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |

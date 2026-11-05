@@ -36,6 +36,9 @@ final class StateChangeBuilder
         // Rare — a tab made, renamed, switched or moved in Settings — and
         // exactly what a phone cannot find out any other way.
         JmapObjectType::InboxTab,
+        // Rare for the same reason: an inbox made, renamed, moved, or an
+        // account moved into another one (#265).
+        JmapObjectType::UnifiedInbox,
     ];
 
     public function __construct(
