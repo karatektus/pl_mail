@@ -337,6 +337,11 @@ framework:
             # followed by a scan of rows the database already has. Nobody waits
             # on it, and arriving mail must not queue behind it.
             App\Infrastructure\Messaging\Message\SeverGmailifyLinksMessage: maintenance
+            # maintenance too: the Labels as keywords switch going on, then a
+            # walk over stored rows to read the keywords they already carry
+            # (#487). Nobody waits on it, and arriving mail must not queue
+            # behind it.
+            App\Infrastructure\Messaging\Message\ImportImapKeywordsMessage: maintenance
             # maintenance as well: folding the copies one folder's sweep found
             # is a scan of stored rows, and a fold that fails must not take the
             # sweep that queued it with it (#415).

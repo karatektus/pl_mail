@@ -1127,6 +1127,31 @@ class MessageRepository extends ServiceEntityRepository
         return array_map(intval(...), $ids);
     }
 
+    /**
+     * One page of an account's message ids that sit in a folder, ascending,
+     * for a walk that re-dispatches itself page by page
+     * (ImportImapKeywordsHandler). Keyset on id for the reason
+     * idsForUserAfter() gives.
+     *
+     * @return list<int>
+     */
+    public function idsInFoldersForAccountAfter(int $accountId, int $afterId, int $limit): array
+    {
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.account = :accountId')
+            ->andWhere('m.mailbox IS NOT NULL')
+            ->andWhere('m.id > :afterId')
+            ->setParameter('accountId', $accountId)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map('intval', $rows);
+    }
+
     public function findByIds(array $ids): array
     {
         if (0 === count($ids)) {

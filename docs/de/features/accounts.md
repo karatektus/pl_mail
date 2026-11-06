@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:52f8ca8f6649a54f9156c92189cad5e96040df80 -->
+<!-- translated-from: features/accounts.md sha1:be92b8821aa4ec86cf8cef22d7ec7fbaacc676e6 -->
 
 # Konten und Aliase
 
@@ -259,7 +259,9 @@ Ist es an, schreibt ein Label, das du auf eine Konversation setzt, ein Schlüsse
 an jede ihrer Nachrichten, und nimmst du es ab, verschwindet es dort. Ein Schlüsselwort, das in
 einem anderen Mailprogramm gesetzt oder entfernt wird, setzt das Label hier oder nimmt es ab —
 binnen Sekunden, wenn plMail den Ordner per IDLE beobachtet, sonst bei der nächsten
-Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Labels
+Synchronisierung; ein Schlüsselwort, das plMail noch nicht kennt, wird ein neues Label. Groß- und
+Kleinschreibung zählt dabei nicht, wie bei IMAP: Ein Schlüsselwort `paperless`, das ein anderes
+Programm setzt, setzt dein Label **Paperless**, statt ein zweites daneben anzulegen. Labels
 verschieben weiterhin nie Mail, und ein Label, das auf dem Konto ein Ordner ist, bleibt ein Ordner.
 
 Beim Einschalten fragt plMail jeden Ordner, ob der Server dort Schlüsselwörter speichert, und die
@@ -277,7 +279,9 @@ zurück. Schlüsselwörter, die für Mailprogramme etwas bedeuten — `$Junk`, `
 gelesen.
 
 Geschrieben werden nur Änderungen nach dem Einschalten; Labels, die schon an Mail hängen, werden
-nicht in einem Rutsch übertragen.
+nicht in einem Rutsch übertragen. Andersherum liest das Einschalten die Schlüsselwörter, die die
+Mail des Kontos schon trägt, einmal im Hintergrund: Mail, die schon vor dem Einschalten ein
+Schlüsselwort hatte, bekommt ihr Label ebenfalls.
 
 ### Labels als Outlook-Kategorien
 

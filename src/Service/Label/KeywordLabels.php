@@ -18,6 +18,20 @@ use Doctrine\ORM\EntityManagerInterface;
  * made when it is new. Made as a plain label with no binding, which is what a
  * label made in plMail is: a tag, never a folder. System keywords never come
  * through (ImapKeyword::decode()).
+ *
+ * ## Capitals do not count (#487)
+ *
+ * IMAP keywords are atoms, and atoms compare without regard to case (RFC 3501
+ * §9 and RFC 9051 §9: the grammar is case-insensitive unless a rule says
+ * otherwise, and flag-keyword does not). Dovecot keeps the first spelling it
+ * saw and answers `+FLAGS (paperless)` on a message that already has
+ * `Paperless` with nothing new. So `paperless`, written by Paperless-ngx, is
+ * the label **Paperless** the person already has, not a second one beside it.
+ *
+ * Folders are the other way round, which is why this does not go through
+ * LabelRepository::findOneChildByName(): a case-sensitive server may really
+ * hold `work` and `Work` as two folders. A keyword never names a folder, so
+ * the lookup here is findNameConflict()'s — exact first, then any spelling.
  */
 final readonly class KeywordLabels
 {
@@ -35,6 +49,7 @@ final readonly class KeywordLabels
     public static function namesIn(array $flags): array
     {
         $names = [];
+        $seen  = [];
 
         foreach ($flags as $flag) {
             if (false === ImapKeyword::isKeyword($flag)) {
@@ -43,8 +58,10 @@ final readonly class KeywordLabels
 
             $name = ImapKeyword::decode($flag);
 
-            if (null !== $name) {
-                $names[$flag] = $name;
+            // One keyword in two spellings is one keyword; the first is kept.
+            if (null !== $name && false === isset($seen[self::key($name)])) {
+                $names[$flag]           = $name;
+                $seen[self::key($name)] = true;
             }
         }
 
@@ -52,8 +69,21 @@ final readonly class KeywordLabels
     }
 
     /**
+     * A name as the comparison sees it: capitals folded, so two spellings of
+     * one keyword are one key. For the follower's before/after diff, which
+     * must agree with the lookup below or a keyword that only changed its
+     * capitals would read as one label taken off and the same one put on.
+     */
+    public static function key(string $name): string
+    {
+        return mb_strtolower($name);
+    }
+
+    /**
      * The label of this full name for this user; made when $create and it is
-     * not there yet, null otherwise.
+     * not there yet, null otherwise. Each segment matches whatever its
+     * capitals (see the class note); where two siblings differ only in them,
+     * the one spelt exactly like the keyword wins.
      */
     public function label(string $fullName, User $user, bool $create): ?Label
     {
@@ -65,7 +95,7 @@ final readonly class KeywordLabels
                 continue;
             }
 
-            $label = $this->labels->findOneChildByName($user, $parent, $segment);
+            $label = $this->labels->findNameConflict($user, $parent, $segment);
 
             if (null === $label) {
                 if (false === $create) {

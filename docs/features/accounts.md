@@ -229,8 +229,10 @@ question.
 Switched on, putting a label on a conversation writes it to the server as a keyword on each of its
 messages, and taking it off removes it. A keyword set or cleared in another mail app puts the label
 on or takes it off here, within seconds when plMail is idling on the folder and at the next sync
-otherwise; a keyword plMail has not seen before becomes a new label. Labels still never move mail,
-and a label that is a folder on the account stays a folder.
+otherwise; a keyword plMail has not seen before becomes a new label. Capitals do not count, as they
+do not for IMAP: a keyword `paperless` that another tool sets puts your label **Paperless** on, not a
+second label beside it. Labels still never move mail, and a label that is a folder on the account
+stays a folder.
 
 Switching it on asks each folder whether the server keeps keywords there, and the list says what it
 answered: **This server keeps keywords**, **This server keeps no keywords** (labels then stay in
@@ -244,6 +246,8 @@ the same name. Keywords that mean something to mail apps — `$Junk`, `$NotJunk`
 `$MDNSent`, `$Phishing`, `$Important`, Thunderbird's `$label1`–`$label5` — are never read as labels.
 
 Only changes made after switching it on are written; labels already on mail are not pushed in bulk.
+The other way round, switching it on reads the keywords the account's mail already carries, once,
+in the background: mail that had a keyword before the switch went on gets its label too.
 
 ### Labels as Outlook categories
 
